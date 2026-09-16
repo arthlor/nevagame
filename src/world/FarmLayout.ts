@@ -19,7 +19,7 @@ export interface FarmRect {
 
 export interface FarmStructureAnchor extends FarmPoint {
   id: string;
-  type: "hand-mill" | "workbench" | "compost-bin";
+  type: "hand-mill" | "workbench" | "compost-bin" | "kitchen";
   rotationY: number;
   clearanceRadius: number;
   /** World-space distance from the structure center to its authored local -Z working face. */
@@ -70,11 +70,27 @@ export interface FarmPathDefinition {
   points: readonly FarmPoint[];
 }
 
+/**
+ * A crop-shaped decoration that belongs to the authored world presentation,
+ * not to the simulation's placed-crop records. These plants are deliberately
+ * non-interactive and never enter inventory, quests, saves, or crop capacity.
+ */
+export interface FarmCropDecoration {
+  cropId: string;
+  x: number;
+  z: number;
+  rotationRadians: number;
+}
+
 export interface FarmLayoutDefinition {
   farmId: string;
   origin: FarmPoint;
   farmBounds: FarmRect;
   plantableAreas: readonly FarmRect[];
+  /** Optional authored cultivated silhouettes; simulation still uses plantableAreas. */
+  visualAreas?: readonly FarmRect[];
+  /** Optional presentation-only mature crops surrounding the playable clearings. */
+  visualCropDecorations?: readonly FarmCropDecoration[];
   structureAnchors: readonly FarmStructureAnchor[];
   marketAnchors: readonly FarmMarketAnchor[];
   farmsteadAnchors: readonly FarmsteadAnchor[];
@@ -87,11 +103,12 @@ const STARTER_STRUCTURE_ANCHORS = [
   {
     id: "struct.starter_mill",
     type: "hand-mill",
-    // Working windmill on the mill pad southwest of the northeast village plaza.
-    // World (57.8, -81.2); door faces the plaza at (53.2, -51.5) from outside the courtyard.
-    x: 122.8,
-    z: -26.2,
-    rotationY: -3.6652,
+    // Working windmill east of the compact village square. Its working face
+    // opens west-southwest toward the produce market at (39.7, -65.9) so the
+    // mill approach, not the mill body, is what the player walks up to.
+    x: 130,
+    z: -14.9,
+    rotationY: 1.7278,
     clearanceRadius: 2.65,
     frontApproachDistanceMeters: 1.75
   },
@@ -114,6 +131,18 @@ const STARTER_STRUCTURE_ANCHORS = [
     rotationY: 3.8416,
     clearanceRadius: 1.15,
     frontApproachDistanceMeters: 1.0
+  },
+  {
+    id: "struct.kitchen",
+    type: "kitchen",
+    // Farm kitchen in the yard pocket southeast of the farmhouse: east of the
+    // home-lane approach, clear of the plantable rectangle, fences and the
+    // well, with its working face opening north toward the house door.
+    x: 9.4,
+    z: -15.8,
+    rotationY: 3.1416,
+    clearanceRadius: 2.2,
+    frontApproachDistanceMeters: 1.9
   }
 ] as const satisfies readonly FarmStructureAnchor[];
 
@@ -125,13 +154,15 @@ const STARTER_FARMSTEAD_ANCHORS = [
     x: 10.9,
     z: 5.5,
     rotationY: 3.1416,
-    scale: 1.12,
+    // The authored medieval timber cottage is wider and shallower than the old
+    // Blender farmhouse, so it is scaled to keep a comparable homestead footprint.
+    scale: 0.9,
     clearanceRadius: 5.2
   },
   {
     id: "well",
-    x: 8.6,
-    z: -0.7,
+    x: 7.9,
+    z: 2.1,
     rotationY: -0.5236,
     scale: 1,
     clearanceRadius: 1.65
@@ -177,7 +208,8 @@ const STARTER_PROP_ANCHORS = [
   { id: "farm_hay_b", type: "hay-bale", x: -12.1, z: -8.5, rotationY: 0.66, scale: 0.94 },
   { id: "stall_crate_a", type: "produce-crate", x: 13.1, z: -4.1, rotationY: -0.18, scale: 0.9 },
   { id: "stall_basket_a", type: "harvest-basket", x: 14.3, z: -4, rotationY: 0.24, scale: 1 },
-  { id: "farm_lamp_a", type: "lamp-post", x: 7.5, z: -6.4, rotationY: 0.7854, scale: 0.88 }
+  { id: "farm_lamp_a", type: "lamp-post", x: 7.5, z: -6.4, rotationY: 0.7854, scale: 0.88 },
+  { id: "farm_lamp_a_copy_1", type: "lamp-post", x: 14.8, z: 2.4, rotationY: 2.8798, scale: 0.88},
 ] as const satisfies readonly FarmPropAnchor[];
 
 const STARTER_PATHS = [
@@ -239,10 +271,63 @@ export const STARTER_DONKEY_LOCAL_ANCHOR: StarterDonkeyAnchor = {
 
 export const PLAYER_HOMESTEAD_LAYOUT: FarmLayoutDefinition = {
   farmId: "farm.player_homestead",
-  origin: { x: 60, z: -60 },
-  // Keep the garden east of the mill pad and south of the village plaza.
-  farmBounds: { minX: -1, maxX: 8, minZ: -8, maxZ: 2 },
-  plantableAreas: [{ minX: 0, maxX: 7, minZ: -6, maxZ: 1 }],
+  // The origin is the commons entrance, not a private house. The two beds sit
+  // just beyond the gate on an open inland meadow, well clear of the village
+  // market's packed courtyard.
+  origin: { x: 74, z: -75 },
+  farmBounds: { minX: -2, maxX: 19, minZ: -7, maxZ: 5 },
+  // The Commons is presented as two broad worked beds. Three clearings inside
+  // them are the only simulation-valid planting surfaces; the surrounding
+  // mature crops are explicitly presentation-only decorations.
+  visualAreas: [
+    { minX: 0.5, maxX: 10.4, minZ: -5.5, maxZ: -0.5 },
+    { minX: 12.4, maxX: 17, minZ: -5.5, maxZ: -0.5 }
+  ],
+  plantableAreas: [
+    // Keep the v40 bed centres stable so migration can preserve crop identity
+    // while normalizing older placements into the new three-clearance layout.
+    { minX: 2, maxX: 4, minZ: -4, maxZ: -2 },
+    { minX: 6.6, maxX: 10.4, minZ: -4.9, maxZ: -1.1 },
+    { minX: 13, maxX: 15, minZ: -4, maxZ: -2 }
+  ],
+  visualCropDecorations: [
+    { cropId: "crop.carrot", x: 2.2, z: -4.72, rotationRadians: 0.18 },
+    { cropId: "crop.wheat", x: 3.8, z: -4.7, rotationRadians: -0.24 },
+    { cropId: "crop.potato", x: 2.2, z: -1.28, rotationRadians: -0.26 },
+    { cropId: "crop.tomato", x: 3.8, z: -1.3, rotationRadians: 0.32 },
+    { cropId: "crop.wheat", x: 0.88, z: -4.78, rotationRadians: -0.18 },
+    { cropId: "crop.tomato", x: 0.84, z: -3.52, rotationRadians: 0.28 },
+    { cropId: "crop.potato", x: 0.92, z: -2.22, rotationRadians: -0.34 },
+    { cropId: "crop.wheat", x: 0.86, z: -0.98, rotationRadians: 0.12 },
+    { cropId: "crop.tomato", x: 5.34, z: -4.74, rotationRadians: 0.36 },
+    { cropId: "crop.potato", x: 5.55, z: -3.62, rotationRadians: -0.24 },
+    { cropId: "crop.wheat", x: 5.38, z: -2.34, rotationRadians: 0.18 },
+    { cropId: "crop.carrot", x: 5.5, z: -1.06, rotationRadians: -0.42 },
+    // Between the two west clearings, not inside the orchard clearing, so a
+    // legally planted crop can never visually overlap the dressing.
+    { cropId: "crop.wheat", x: 6.02, z: -4.72, rotationRadians: -0.08 },
+    { cropId: "crop.tomato", x: 6.08, z: -3.46, rotationRadians: 0.31 },
+    { cropId: "crop.potato", x: 6.0, z: -2.18, rotationRadians: -0.27 },
+    { cropId: "crop.wheat", x: 10.18, z: -0.96, rotationRadians: 0.22 },
+    { cropId: "crop.wheat", x: 7.18, z: -5.08, rotationRadians: 0.16 },
+    { cropId: "crop.tomato", x: 8.42, z: -5.06, rotationRadians: -0.28 },
+    { cropId: "crop.potato", x: 9.62, z: -5.04, rotationRadians: 0.24 },
+    { cropId: "crop.carrot", x: 7.2, z: -0.92, rotationRadians: -0.18 },
+    { cropId: "crop.wheat", x: 8.42, z: -0.94, rotationRadians: 0.22 },
+    { cropId: "crop.tomato", x: 9.62, z: -0.96, rotationRadians: -0.12 },
+    { cropId: "crop.potato", x: 12.54, z: -4.76, rotationRadians: 0.16 },
+    { cropId: "crop.wheat", x: 12.5, z: -3.48, rotationRadians: -0.26 },
+    { cropId: "crop.tomato", x: 12.52, z: -2.18, rotationRadians: 0.34 },
+    { cropId: "crop.carrot", x: 12.5, z: -0.98, rotationRadians: -0.18 },
+    { cropId: "crop.wheat", x: 13.18, z: -4.7, rotationRadians: 0.2 },
+    { cropId: "crop.potato", x: 14.42, z: -4.7, rotationRadians: -0.22 },
+    { cropId: "crop.tomato", x: 13.18, z: -1.3, rotationRadians: -0.16 },
+    { cropId: "crop.wheat", x: 14.42, z: -1.28, rotationRadians: 0.28 },
+    { cropId: "crop.wheat", x: 16.22, z: -4.74, rotationRadians: 0.12 },
+    { cropId: "crop.tomato", x: 16.28, z: -3.5, rotationRadians: -0.32 },
+    { cropId: "crop.potato", x: 16.18, z: -2.2, rotationRadians: 0.24 },
+    { cropId: "crop.wheat", x: 16.24, z: -0.96, rotationRadians: -0.16 }
+  ],
   structureAnchors: [],
   marketAnchors: [],
   farmsteadAnchors: [],

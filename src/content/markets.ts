@@ -27,12 +27,19 @@ export function isVillageSeedCrop(cropId: string): boolean {
   return (VILLAGE_SEED_CROP_IDS as readonly string[]).includes(cropId);
 }
 
+/**
+ * The inland counter where a player presents physical fish trade packs for
+ * sale. Owned here so app/UI routing, the market domain gate and the expedition
+ * board cannot drift onto different markets.
+ */
+export const FISH_TRADE_CENTER_MARKET_ID = "market.village" as const;
+
 export const MARKETS: Record<string, MarketDefinition> = {
   "market.village": {
     id: "market.village",
     name: "Village Produce Market",
     regionId: "region.village",
-    description: "The bustling center of agriculture and daily staples. Trades in grain, root vegetables, orchard fruits, and basic crafting materials.",
+    description: "The bustling trade center for agriculture and daily staples. It also buys hand-carried fish trade packs brought inland from the boats.",
     interactionPosition: {
       x: VILLAGE_MARKET.position.x,
       z: VILLAGE_MARKET.position.z,
@@ -74,14 +81,33 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "item.linen_roll", basePrice: 55, targetSupply: 18, consumptionRatePerHour: 1.0, seasonalFactors: {} },
       // The Sunreach route pays here: cured fish keeps, so distance stops
       // being a freshness problem and starts being a trade.
-      { itemId: "item.salt_cured_fish", basePrice: 34, targetSupply: 20, consumptionRatePerHour: 2.2, seasonalFactors: { winter: 1.25, summer: 0.9 } }
+      { itemId: "item.salt_cured_fish", basePrice: 34, targetSupply: 20, consumptionRatePerHour: 2.2, seasonalFactors: { winter: 1.25, summer: 0.9 } },
+      // Cooked provisions. They restore Work when eaten and can be sold as a
+      // fallback, so a surplus is never dead weight in a finite satchel.
+      { itemId: "item.meal_harvest_bowl", basePrice: 28, targetSupply: 12, consumptionRatePerHour: 1.2, seasonalFactors: {} },
+      { itemId: "item.meal_fish_stew", basePrice: 42, targetSupply: 10, consumptionRatePerHour: 1.0, seasonalFactors: {} },
+      { itemId: "item.meal_orchard_tart", basePrice: 36, targetSupply: 10, consumptionRatePerHour: 1.0, seasonalFactors: {} },
+      // Physical sport/basic catches use the trade-pack lane. The Village
+      // Produce Market is the inland trade center for those packs; the Harbor
+      // Fish Market remains a tackle, supply, and ordinary fish-item stall.
+      { itemId: "fish.trout", basePrice: 50, targetSupply: 15, consumptionRatePerHour: 1.2, seasonalFactors: { winter: 1.2 } },
+      { itemId: "fish.catfish", basePrice: 75, targetSupply: 10, consumptionRatePerHour: 0.8, seasonalFactors: { summer: 1.15 } },
+      { itemId: "fish.pike", basePrice: 90, targetSupply: 8, consumptionRatePerHour: 0.6, seasonalFactors: { autumn: 1.2 } },
+      { itemId: "fish.arowana", basePrice: 220, targetSupply: 3, consumptionRatePerHour: 0.2, seasonalFactors: { summer: 1.3 } },
+      { itemId: "fish.tuna", basePrice: 160, targetSupply: 8, consumptionRatePerHour: 0.8, seasonalFactors: { summer: 1.2, autumn: 1.1 } },
+      { itemId: "fish.sturgeon", basePrice: 240, targetSupply: 4, consumptionRatePerHour: 0.3, seasonalFactors: { winter: 1.3 } },
+      { itemId: "fish.sailfish", basePrice: 280, targetSupply: 3, consumptionRatePerHour: 0.25, seasonalFactors: { summer: 1.25 } },
+      { itemId: "fish.swordfish", basePrice: 340, targetSupply: 2, consumptionRatePerHour: 0.15, seasonalFactors: { autumn: 1.3, winter: 1.2 } },
+      { itemId: "fish.blue_marlin", basePrice: 480, targetSupply: 1, consumptionRatePerHour: 0.1, seasonalFactors: { summer: 1.35 } },
+      { itemId: "fish.sea_bream", basePrice: 55, targetSupply: 20, consumptionRatePerHour: 1.5, seasonalFactors: { summer: 1.05 } },
+      { itemId: "fish.amberjack", basePrice: 175, targetSupply: 6, consumptionRatePerHour: 0.45, seasonalFactors: { summer: 1.2, autumn: 1.1 } }
     ]
   },
   "market.harbor": {
     id: "market.harbor",
     name: "Harbor Fish Market & Wholesaler",
     regionId: "region.harbor",
-    description: "Where coastal vessels dock to unload their fresh catch. Premium prices paid for high-freshness pelagic and deep-sea game fish.",
+    description: "A wharf-side stall for tackle, supplies, and ordinary fish goods. Physical sport catches travel inland as trade packs for the Village Produce Market.",
     interactionPosition: {
       x: WorldLayout.landmark("fish-market").x,
       z: WorldLayout.landmark("fish-market").z,

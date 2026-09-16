@@ -219,7 +219,7 @@ export class IndexedDbSaveRepository {
     }
   }
 
-  private migrateAndValidate(raw: unknown): SaveEnvelope | "incompatible" | null {
+  private migrateAndValidate(raw: unknown, label: string = "slot"): SaveEnvelope | "incompatible" | null {
     if (!raw || typeof raw !== "object") return null;
     const candidate = raw as SaveEnvelope;
     if (typeof candidate.schemaVersion !== "number" || !Number.isInteger(candidate.schemaVersion)) return null;
@@ -234,7 +234,11 @@ export class IndexedDbSaveRepository {
       && Number.isSafeInteger(state.worldSeed)
       && !!world
       && Number.isSafeInteger(world.layoutRevision);
-    if (structurallyReadable && candidate.schemaVersion > CURRENT_SCHEMA_VERSION) {
+    // A newer schema this build cannot open is backed up verbatim so replacing
+    // it never destroys the only copy. This must not depend on the state being
+    // structurally readable: a future build may have renamed the very fields
+    // this check inspects.
+    if (candidate.schemaVersion > CURRENT_SCHEMA_VERSION) {
       return "incompatible";
     }
     if (
@@ -249,19 +253,50 @@ export class IndexedDbSaveRepository {
     try {
       migrated = migrateSaveData(candidate);
     } catch (error) {
-      console.error("[IndexedDbSaveRepository] Save migration failed", error);
+      console.error("[IndexedDbSaveRepository] Save migration failed", label, error);
       return null;
     }
     try {
-      if (migrated.schemaVersion !== CURRENT_SCHEMA_VERSION) return null;
-      if (!validateSaveEnvelope(migrated)) return null;
+      if (migrated.schemaVersion !== CURRENT_SCHEMA_VERSION) {
+        if (import.meta.env.DEV) this.reportRejectedSave(label, candidate, migrated, "schema-version");
+        return null;
+      }
+      if (!validateSaveEnvelope(migrated)) {
+        if (import.meta.env.DEV) this.reportRejectedSave(label, candidate, migrated, "validation");
+        return null;
+      }
       return migrated;
-    } catch {
+    } catch (error) {
       // A malformed primary must behave like any other corrupt slot so the
       // caller can still attempt the backup before reporting the database as
       // unavailable.
+      if (import.meta.env.DEV) this.reportRejectedSave(label, candidate, migrated, "threw", error);
       return null;
     }
+  }
+
+  /**
+   * DEV-only. A slot that reads but cannot be opened otherwise fails silently
+   * (or as a bare throw), which makes a save bug indistinguishable from
+   * storage corruption. Name the stored and migrated version/layout so the
+   * cause is visible without a debugger.
+   */
+  private reportRejectedSave(
+    label: string,
+    candidate: SaveEnvelope,
+    migrated: SaveEnvelope,
+    reason: string,
+    error?: unknown
+  ): void {
+    console.error("[IndexedDbSaveRepository] Slot rejected", {
+      label,
+      reason,
+      storedSchema: candidate?.schemaVersion,
+      storedLayout: (candidate?.state as GameState | undefined)?.world?.layoutRevision,
+      migratedSchema: migrated?.schemaVersion,
+      migratedLayout: migrated?.state?.world?.layoutRevision,
+      error
+    });
   }
 
   private async readGameResult(signal?: AbortSignal): Promise<LoadGameResult> {
@@ -274,11 +309,11 @@ export class IndexedDbSaveRepository {
       }
 
       const primaryRaw = await this.readRawFromDb(db, PRIMARY_KEY, signal);
-      const primary = this.migrateAndValidate(primaryRaw);
+      const primary = this.migrateAndValidate(primaryRaw, "primary");
       if (primary && primary !== "incompatible") return { status: "loaded", envelope: primary };
 
       const backupRaw = await this.readRawFromDb(db, BACKUP_KEY, signal);
-      const backup = this.migrateAndValidate(backupRaw);
+      const backup = this.migrateAndValidate(backupRaw, "backup");
       if (backup && backup !== "incompatible") {
         console.warn("Primary save missing or corrupted. Restored from backup.");
         return { status: "loaded", envelope: backup };

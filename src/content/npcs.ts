@@ -1,3 +1,4 @@
+import { SUNREACH_OFFSET_X } from "../world/WorldIslands";
 // src/content/npcs.ts
 
 import type { NpcId } from "../simulation/core/QuestTypes";
@@ -103,8 +104,8 @@ export const NPCS: NpcDefinition[] = [
         id: "dialogue.elspeth_homestead_worked",
         requiresCompletedQuestIds: ["quest.homestead_first_crop"],
         lines: [
-          "The stall told me whose wheat that was before I could ask. Word travels fast when a plot comes back.",
-          "Nobody has sold off those rows in years. It sounded strange and right at the same time."
+          "The stall told me whose wheat that was before I could ask. Word travels fast when the commons comes back into the season.",
+          "Nobody had to sell you a row. You put food back into the cove and let the work speak for itself."
         ]
       },
       {
@@ -112,7 +113,7 @@ export const NPCS: NpcDefinition[] = [
         requiresKnowledgeIds: ["knowledge.family_ledger"],
         lines: [
           "An apple off that tree. I did not honestly think I would see one.",
-          "Your family planted the last orchard for people they never met. You have just done the same thing, and now you know what it feels like."
+          "Your family kept a home for the person who came after them. You have planted shade for people you may never meet, and now you know what that feels like."
         ]
       },
       {
@@ -139,7 +140,7 @@ export const NPCS: NpcDefinition[] = [
       locationName: "Farmhouse Workbench"
     },
     schedule: [
-      { phase: "day", position: { x: 48, z: -53, rotationY: 0.8, locationName: "Village Market" } },
+      { phase: "day", position: { x: 47.5, z: -74, rotationY: 0.8, locationName: "Village Market" } },
       { phase: "dusk", position: { x: 54, z: -39, rotationY: 1.5, locationName: "Village Inn Porch" } }
     ],
     idleDialogue: [
@@ -390,8 +391,8 @@ export const NPCS: NpcDefinition[] = [
       locationName: "Sunreach Cove Landing"
     },
     schedule: [
-      { phase: "dawn", position: { x: 355, z: 58, rotationY: -1.1, locationName: "Sunreach Dock" } },
-      { phase: "dusk", position: { x: 375, z: 59, rotationY: -1.1, locationName: "Sunreach Cove Market" } }
+      { phase: "dawn", position: { x: 355 + SUNREACH_OFFSET_X, z: 58, rotationY: -1.1, locationName: "Sunreach Dock" } },
+      { phase: "dusk", position: { x: 375 + SUNREACH_OFFSET_X, z: 59, rotationY: -1.1, locationName: "Sunreach Cove Market" } }
     ],
     idleDialogue: [
       "The channel is calmest when the cove lies flat. Leave enough fuel for the crossing home.",
@@ -459,8 +460,8 @@ export const NPCS: NpcDefinition[] = [
       locationName: "Sunreach Cistern Terrace"
     },
     schedule: [
-      { phase: "dusk", position: { x: 376, z: 53, rotationY: 2.5, locationName: "Sunreach Cove Market" } },
-      { phase: "night", position: { x: 376, z: 53, rotationY: 2.5, locationName: "Sunreach Cove Market" } }
+      { phase: "dusk", position: { x: 376 + SUNREACH_OFFSET_X, z: 53, rotationY: 2.5, locationName: "Sunreach Cove Market" } },
+      { phase: "night", position: { x: 376 + SUNREACH_OFFSET_X, z: 53, rotationY: 2.5, locationName: "Sunreach Cove Market" } }
     ],
     idleDialogue: [
       "These terraces hold water only when you give it to them carefully.",

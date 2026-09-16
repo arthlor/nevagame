@@ -109,9 +109,13 @@ describe("Work Capacity ownership contract", () => {
       ],
       "src/simulation/domains/ProcessingDomain.ts": ["PROCESSING_WORK_COST"],
       [PROGRESSION_DOMAIN]: [
-        "LIVE_WORK_CAPACITY_REGEN_PER_HOUR",
-        "OFFLINE_WORK_CAPACITY_REGEN_PER_HOUR",
-        "WORK_CAPACITY_MAXIMUM"
+        "WORK_CAPACITY_MAXIMUM",
+        "WORK_DAILY_EARN_CAP",
+        "WORK_REST_FRACTION",
+        "WORK_REST_BASELINE_FRACTION",
+        "WORK_MEAL_DAILY_LIMIT",
+        "WORK_PASSIVE_REGEN_AMOUNT",
+        "WORK_PASSIVE_REGEN_INTERVAL_SECONDS"
       ]
     };
     const all = sourceFiles("src/simulation", "src/app", "src/ui");

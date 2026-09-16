@@ -100,7 +100,7 @@ export class NoticeQueue {
           expiresMs: nowMs + durationMs,
           category: options.category ?? this.entries[index].category
         };
-        this.entries[index] = updated;
+        this.entries = this.entries.map((entry, entryIndex) => entryIndex === index ? updated : entry);
         return updated;
       }
     }
@@ -112,7 +112,7 @@ export class NoticeQueue {
         count: newest.count + 1,
         expiresMs: nowMs + durationMs
       };
-      this.entries[this.entries.length - 1] = coalesced;
+      this.entries = [...this.entries.slice(0, -1), coalesced];
       return coalesced;
     }
 
@@ -127,7 +127,9 @@ export class NoticeQueue {
       delta: options.delta,
       category: options.category ?? deriveNoticeCategory(options.delta)
     };
-    this.entries.push(notice);
+    // UI consumers memoize by this snapshot. Mutating the previous array hid
+    // new messages until a later prune happened to replace it.
+    this.entries = [...this.entries, notice];
     if (this.entries.length > this.maxVisible) {
       this.entries = this.entries
         .sort((a, b) => NOTICE_TONE_PRIORITY[a.tone] - NOTICE_TONE_PRIORITY[b.tone] || b.createdMs - a.createdMs)
@@ -220,11 +222,14 @@ export class ChronicleLog {
 
   public record(notice: Notice, gameMinute: number): void {
     if (!ChronicleLog.isWorthLogging(notice)) return;
-    const newest = this.entries.at(-1);
-    // A notice that coalesced in the queue must not become two log lines.
-    if (newest && newest.id === notice.id) {
-      this.entries[this.entries.length - 1] = {
-        ...newest,
+    // A notice that coalesced in the queue keeps its id even if another notice
+    // was logged in between, so match anywhere in the log rather than only the
+    // newest line. Update in place to preserve chronological order.
+    const existingIndex = this.entries.findIndex((entry) => entry.id === notice.id);
+    if (existingIndex >= 0) {
+      const existing = this.entries[existingIndex];
+      this.entries[existingIndex] = {
+        ...existing,
         text: notice.text,
         count: notice.count,
         tone: notice.tone

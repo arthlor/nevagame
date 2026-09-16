@@ -44,7 +44,14 @@ const KNOWN_VERBS = new Set([
   "release",
   "chum",
   "hook",
-  "enter"
+  "enter",
+  "mount",
+  "dismount",
+  "ride",
+  "steer",
+  "moor",
+  "unmoor",
+  "rest"
 ]);
 
 function parseStructuredPrompt(
@@ -65,9 +72,13 @@ function parseStructuredPrompt(
   let rest = trimmed;
 
   const keyMatch = trimmed.match(/^\[(.*?)\]\s*(.*)$/);
+  const rightClickMatch = trimmed.match(/^Right-click\s*(?:to\s*)?/i);
   if (keyMatch) {
     rawKey = keyMatch[1].split("/")[0]?.trim() || keyMatch[1];
     rest = keyMatch[2];
+  } else if (rightClickMatch) {
+    rawKey = "RMB";
+    rest = trimmed.replace(/^Right-click\s*(?:to\s*)?/i, "");
   }
 
   // 2. Labor cost badge: "(-5 Work)", "(5 Work)" or "-5 Work" at the end, or a

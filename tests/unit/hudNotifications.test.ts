@@ -13,6 +13,26 @@ import { autoScaleFor, isMobileViewport, isUiScalePreference, resolveUiScale } f
 import { KEY_BINDINGS, KEY_BINDING_GROUPS } from "../../src/ui/keybindings";
 
 describe("NoticeQueue", () => {
+  it("publishes a new snapshot for inserts and updates without mutating an earlier UI snapshot", () => {
+    const queue = new NoticeQueue();
+    const empty = queue.list(0);
+    queue.push("Saved", 0);
+    const first = queue.list(0);
+    expect(first).not.toBe(empty);
+    expect(empty).toEqual([]);
+    expect(queue.list(1)).toBe(first);
+    queue.push("Saved", 10);
+    expect(queue.list(10)).not.toBe(first);
+    expect(first[0].count).toBe(1);
+    expect(queue.list(10)[0].count).toBe(2);
+    queue.push("Sold one item", 20, { key: "sale" });
+    const beforeUpdate = queue.list(20);
+    queue.push("Sold two items", 30, { key: "sale" });
+    expect(queue.list(30)).not.toBe(beforeUpdate);
+    expect(beforeUpdate[1].text).toBe("Sold one item");
+    expect(queue.list(30)[1].text).toBe("Sold two items");
+  });
+
   it("keeps several concurrent messages instead of overwriting one slot", () => {
     const queue = new NoticeQueue();
     queue.push("Sold for 40 G", 0, { tone: "reward" });

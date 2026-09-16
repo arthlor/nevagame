@@ -3,7 +3,7 @@
  * Keep this module free of Three.js so simulation can consume it directly.
  */
 
-export const WORLD_LAYOUT_REVISION = 17 as const;
+export const WORLD_LAYOUT_REVISION = 20 as const;
 
 export const WORLD_SPAWN = {
   playerPosition: { x: -65, z: -60.5 },
@@ -13,8 +13,12 @@ export const WORLD_SPAWN = {
 /** East-bank apron after the stone bridge; no longer a fake village plaza. */
 export const RIVER_CROSSING = { x: 0, z: -5 } as const;
 
-/** Packed village court landform. Independent of the produce stall pose. */
-export const VILLAGE_PLAZA = { x: 52.9, z: -53.2 } as const;
+/**
+ * Packed village court landform. Centered on the produce market so the market
+ * stall, well and benches read as one compact square rather than a broad field
+ * of graded road with the market stranded at its edge.
+ */
+export const VILLAGE_PLAZA = { x: 42.0, z: -66.5 } as const;
 
 /**
  * Freestanding town notice board on the village square. Sits clear of the
@@ -22,18 +26,28 @@ export const VILLAGE_PLAZA = { x: 52.9, z: -53.2 } as const;
  * south side of the court, and faces north toward the market.
  */
 export const VILLAGE_BULLETIN = {
-  position: { x: 53.0, z: -58.0 },
+  position: { x: 46.5, z: -71.5 },
   rotationY: 0,
   interactionRadiusMeters: 2.6
 } as const;
 
 /** Northeast village plaza — produce market and arterial road hub. */
+/**
+ * The village crossing: where the four village routes meet and the paved court is drawn. Distinct
+ * from VILLAGE_PLAZA (the flattened landform under the square) and from VILLAGE_MARKET (the stall
+ * building). The junction stays clear so the market can stand on its south lip instead of in the
+ * middle of the roads, while cottages and pads keep aiming at the square.
+ */
+export const VILLAGE_CROSSING = { x: 39.7, z: -65.9 } as const;
+
 export const VILLAGE_MARKET = {
   marketId: "market.village",
-  position: { x: 53.2, z: -51.5},
+  // South lip of the court: every route arrives from the north, so the stall closes the one open
+  // side with its counter facing the crossing. The 6 m market radius still reaches the square.
+  position: { x: 39.7, z: -71.6 },
   radiusMeters: 6,
-  // Stall working face opens southwest toward the mill pad, not the packed court.
-  rotationY: -0.7854
+  // The stall's counter and awning face +Z, i.e. north into the court.
+  rotationY: 0
 } as const;
 
 /** Inland side of the harbor apron; the fish table and dock sit in front of it. */

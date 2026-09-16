@@ -78,7 +78,8 @@ function inventory(sim: Simulation) {
 }
 
 function catchBasic(sim: Simulation): string | null {
-  expect(sim.execute({ type: "fishing.start-charge-basic" })).toMatchObject({ success: true });
+  const startRes = sim.execute({ type: "fishing.start-charge-basic" });
+  expect(startRes, startRes.reason).toMatchObject({ success: true });
   expect(sim.execute({ type: "fishing.release-cast-basic", castPower: 0.8 })).toMatchObject({ success: true });
   for (let step = 0; step < 400 && sim.state.basicFishing?.phase !== "bite-reaction"; step += 1) {
     if (!sim.state.basicFishing) return null;

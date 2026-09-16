@@ -134,8 +134,8 @@ def _add_culm(
     return middle, tip
 
 
-def _add_wheat_head(name, base, tip, head_token, root, *, radius, kernel_count, awn_count):
-    """Paired plump grains overlap up the rachis, with space between their tips."""
+def _add_wheat_head(name, base, tip, head_token, root, *, radius, kernel_count, awn_count, refined=False):
+    """Paired, tapered grains overlap into a dense ear without bead-like blocks."""
     origin, end = Vector(base), Vector(tip)
     direction = end-origin
     axis = direction.normalized()
@@ -149,29 +149,43 @@ def _add_wheat_head(name, base, tip, head_token, root, *, radius, kernel_count, 
         t=(row+.45)/(rows+.4)
         taper=1-.42*t
         center=origin+direction*t+side*sign*radius*.40*taper
-        grain_axis=(axis*.88+side*sign*.46).normalized()
+        # Keep the mature grain mostly aligned to the rachis.  The former wide
+        # diagonal axis and square section made every seed read as a separate
+        # diamond at 3–8 m, turning the whole ear into a stack of angular beads.
+        grain_axis=(axis*.965+side*sign*.26).normalized() if refined else (axis*.88+side*sign*.46).normalized()
         grain_side=depth.cross(grain_axis).normalized()
-        half_length=direction.length/rows*.80
+        half_length=direction.length/rows*(.94 if refined else .80)
         tip_point=center+grain_axis*half_length
         tips.append(tip_point)
         start=len(vertices)
-        vertices.append(tuple(center-grain_axis*half_length*.82))
-        # Two shoulder rings give each kernel a plump body and a tapered tip.
-        # A single diamond cross-section reads as a stack of saw teeth in game.
-        for along, breadth in ((-.26, .92), (.34, .70)):
+        vertices.append(tuple(center-grain_axis*half_length*(.72 if refined else .82)))
+        # Five gentle mature faces keep the low-poly language, while the narrow
+        # shoulders and longer body resolve as dense grain rather than cubes.
+        # Senescent heads retain their established lighter construction.
+        kernel_sides=5 if refined else 4
+        rings=((-.30, .74), (.28, .62)) if refined else ((-.26, .92), (.34, .70))
+        angle_offset=math.pi/2 if refined else math.pi/4
+        side_scale=.52 if refined else .66
+        depth_scale=.54 if refined else .68
+        for along, breadth in rings:
             ring_center=center+grain_axis*half_length*along
-            for k in range(4):
-                theta=k*math.tau/4+math.pi/4
+            for k in range(kernel_sides):
+                theta=k*math.tau/kernel_sides+angle_offset
                 vertices.append(tuple(ring_center
-                    +grain_side*math.cos(theta)*radius*.66*taper*breadth
-                    +depth*math.sin(theta)*radius*.68*taper*breadth))
+                    +grain_side*math.cos(theta)*radius*side_scale*taper*breadth
+                    +depth*math.sin(theta)*radius*depth_scale*taper*breadth))
         vertices.append(tuple(tip_point))
-        for k in range(4):
-            nxt=(k+1)%4
+        for k in range(kernel_sides):
+            nxt=(k+1)%kernel_sides
             faces.extend(((start,start+1+nxt,start+1+k),
-                (start+1+k,start+1+nxt,start+5+nxt,start+5+k),
-                (start+9,start+5+k,start+5+nxt)))
-    _add_custom_mesh(name+"_grain",vertices,faces,head_token,root)
+                (start+1+k,start+1+nxt,start+1+kernel_sides+nxt,start+1+kernel_sides+k),
+                (start+1+kernel_sides*2,start+1+kernel_sides+k,start+1+kernel_sides+nxt)))
+    # Grain needs a soft, plump read at the gameplay camera.  Keeping every
+    # four-sided kernel planar turns a mature head into alternating dark/light
+    # vertical rails once the clustered instances overlap.  Its silhouette is
+    # still deliberately low-sided; interpolated normals only remove that
+    # accidental fence-like banding across the golden head.
+    _add_custom_mesh(name+"_grain",vertices,faces,head_token,root,normal_mode="rounded" if refined else "planar")
     add_tapered_beam(name+"_rachis",base,tip,radius*.12,radius*.035,head_token,root,vertices=4)
     for i in range(awn_count):
         anchor=tips[min(len(tips)-1, i*max(1,len(tips)//max(1,awn_count)))]
@@ -455,9 +469,9 @@ def wheat_crop(spec, root):
     _cereal_crop(spec,root,barley=False)
 
 
-def _add_barley_head(name, base, tip, head_token, root, *, radius, kernel_count, awn_count):
+def _add_barley_head(name, base, tip, head_token, root, *, radius, kernel_count, awn_count, refined=False):
     _add_wheat_head(name,base,tip,head_token,root,radius=radius,
-                    kernel_count=kernel_count,awn_count=awn_count)
+                    kernel_count=kernel_count,awn_count=awn_count,refined=refined)
 
 
 def barley_crop(spec, root):
@@ -862,7 +876,7 @@ def tomato_crop(spec: dict, root) -> None:
         _add_tomato_fruit(
             "tomato_fallen_00",
             (0.14, -0.10, 0.028),
-            0.065,
+            0.042,
             fruit_token,
             stem_token,
             root,
@@ -1249,12 +1263,27 @@ def _cereal_crop(spec,root,*,barley):
                 p["leafWidth"],a+j*2.7,leaf,root,pitch=1.08 if not dry else .35,
                 droop=.76 if dry else .05,cup=.16)
         if stage in ("mature","overripe","withered"):
-            length=.39 if stage=="mature" else .33 if stage=="overripe" else .26
-            head_tip=end+forward*(.18 if dry else .045)+Vector((0,0,-length*.78 if dry else length))
+            if stage == "mature":
+                # Mature cereal heads must read as separate, weighted ears at
+                # the ordinary third-person camera.  A shared vertical axis
+                # made the five heads merge into one rigid golden bundle.  A
+                # restrained radial/lateral splay preserves the dense yield
+                # read while creating individual organic silhouettes.
+                lateral=Vector((-forward.y,forward.x,0))
+                side_bias=(i % 3 - 1)
+                head_base=end+forward*.012+lateral*(side_bias*.012)
+                head_tip=head_base+forward*(.115+.018*(i%2))+lateral*(side_bias*.022)+Vector((0,0,.325+.010*(i%2)))
+                kernel_count=10
+            else:
+                length=.33 if stage=="overripe" else .26
+                head_base=end
+                head_tip=end+forward*(.18 if dry else .045)+Vector((0,0,-length*.78 if dry else length))
+                kernel_count=12
             head_builder = _add_barley_head if barley else _add_wheat_head
-            head_builder(f"{prefix}_head_{i}",tuple(end),tuple(head_tip),grain,root,
-                radius=.073 if barley else .088,kernel_count=12,
-                awn_count=6 if barley and stage!="withered" else 0)
+            head_builder(f"{prefix}_head_{i}",tuple(head_base),tuple(head_tip),grain,root,
+                radius=(.058 if barley else .068) if stage=="mature" else (.073 if barley else .088),
+                kernel_count=kernel_count,awn_count=6 if barley and stage!="withered" else 0,
+                refined=stage=="mature")
 
 
 def _orchard_crop(spec,root,*,olive):
@@ -1265,7 +1294,7 @@ def _orchard_crop(spec,root,*,olive):
     h=p["height"]; spread=p["spread"]; dry=stage=="withered"
     name="olive" if olive else "apple"
     trunk=[(0,0,.006),(-.035,0,h*.25),(.022,.014,h*.49),(-.006,.02,h*.78),(.03,.01,h*.97)]
-    radius=(.045 if olive else .062)*(min(1,h/.8))
+    radius=(.045 if olive else .062)*(min(1.6,.5+h/2.5))
     add_limb_tube(name+"_trunk",trunk,[radius,radius*.87,radius*.65,radius*.34,.005],tokens[1],root,sides=7)
     for i in range(p["branches"]):
         a=i*GOLDEN_ANGLE+.32

@@ -1326,14 +1326,16 @@ function applyContextSupports(): void {
     && ["mounted_idle", "mounted_walk", "mounted_trot", "mounted_gallop"].includes(clip);
   const rowboat = spec.assetId === "boat_rowboat_a"
     && (["rowboat_idle", "row"].includes(clip) || fishingClipUsesRod(clip));
-  if (!mounted && !rowboat) return;
+  const skiff = spec.assetId === "boat_skiff_a"
+    && ["skiff_idle", "skiff_drive"].includes(clip);
+  if (!mounted && !rowboat && !skiff) return;
 
   const leftName = mounted
     ? "fauna_donkey_a_stirrup_left_socket"
-    : "boat_rowboat_foot_left_socket";
+    : skiff ? "boat_skiff_foot_left_socket" : "boat_rowboat_foot_left_socket";
   const rightName = mounted
     ? "fauna_donkey_a_stirrup_right_socket"
-    : "boat_rowboat_foot_right_socket";
+    : skiff ? "boat_skiff_foot_right_socket" : "boat_rowboat_foot_right_socket";
   const left = root.getObjectByName(leftName);
   const right = root.getObjectByName(rightName);
   if (!left || !right) throw new Error(`Companion ${spec.assetId} has no foot support sockets`);
@@ -1380,10 +1382,12 @@ function updateRuntimePreview(deltaSeconds: number): void {
       alignMarkerHand(runtimeAnimator, oar.side, oar.grip);
     }
   }
-  if (activeContextPreviewSpec?.assetId === "boat_skiff_a" && ["skiff_idle", "skiff_drive"].includes(clipSelect.value)) {
+  if (activeContextPreviewSpec?.assetId === "boat_skiff_a" && clipSelect.value === "skiff_drive") {
     const helm = contextPreviewRoot?.getObjectByName("boat_skiff_helm_grip");
-    if (!helm) throw new Error("Skiff is missing its helm grip");
+    const helmLeft = contextPreviewRoot?.getObjectByName("boat_skiff_helm_grip_left");
+    if (!helm || !helmLeft) throw new Error("Skiff is missing its two helm grips");
     alignMarkerHand(runtimeAnimator, "right", helm);
+    alignMarkerHand(runtimeAnimator, "left", helmLeft);
   }
   if (attachedSocketProp) {
     applyEquipmentSocketPose(attachedSocketProp, socketPropSelect.value);
@@ -1738,26 +1742,18 @@ async function loadShowcase(showcaseId: string): Promise<void> {
     await assembleDiorama(
       "Architecture Lineup · Farmhouse-Derived Roles",
       [
-        { id: "house_farmhouse_a", pos: [-30, 0.05, -14], rotY: 0 },
-        { id: "house_farmhouse_b", pos: [-18, 0.05, -14], rotY: 0 },
+        { id: "building_medieval_timber_cottage_a", pos: [-30, 0.05, -14], rotY: 0, scale: 0.9 },
+        { id: "house_farmhouse_a", pos: [-18, 0.05, -14], rotY: 0 },
         { id: "house_cottage_a", pos: [-6, 0.05, -14], rotY: 0 },
-        { id: "house_cottage_b", pos: [6, 0.05, -14], rotY: 0 },
-        { id: "house_cottage_c", pos: [18, 0.05, -14], rotY: 0 },
+        { id: "building_thatched_cottage_a", pos: [6, 0.05, -14], rotY: 0, scale: 0.85 },
+        { id: "building_wooden_outhouse_a", pos: [18, 0.05, -14], rotY: 0, scale: 0.62 },
         { id: "prop_tool_shed_a", pos: [30, 0.05, -14], rotY: 0 },
-        { id: "building_inn_a", pos: [-30, 0.05, 0], rotY: 0 },
-        { id: "building_inn_b", pos: [-18, 0.05, 0], rotY: 0 },
-        { id: "building_village_market_hall_a", pos: [-6, 0.05, 0], rotY: 0 },
-        { id: "building_village_market_hall_b", pos: [6, 0.05, 0], rotY: 0 },
-        { id: "building_barn_a", pos: [18, 0.05, 0], rotY: 0 },
-        { id: "building_barn_b", pos: [30, 0.05, 0], rotY: 0 },
         { id: "building_lighthouse_a", pos: [-30, 0.05, 14], rotY: 0 },
         { id: "building_windmill_a", pos: [-18, 0.05, 14], rotY: 0 },
-        { id: "building_fish_market_a", pos: [-6, 0.05, 14], rotY: 0 },
+        { id: "building_fish_market_coastal_a", pos: [-6, 0.05, 14], rotY: 0 },
         { id: "interior_farmhouse_shell", pos: [6, 0.05, 14], rotY: 0 },
         { id: "building_market_stall_a", pos: [18, 0.05, 14], rotY: 0 },
         { id: "building_outhouse_a", pos: [30, 0.05, 14], rotY: 0 },
-        { id: "building_outhouse_b", pos: [-30, 0.05, 28], rotY: 0 },
-        { id: "prop_tool_shed_b", pos: [-18, 0.05, 28], rotY: 0 },
         { id: "bridge_stone_a", pos: [-6, 0.05, 28], rotY: 0 },
         { id: "bridge_log_plank_a", pos: [6, 0.05, 28], rotY: 0 },
         { id: "dock_straight_a", pos: [18, 0.05, 28], rotY: 0 }
@@ -1768,7 +1764,7 @@ async function loadShowcase(showcaseId: string): Promise<void> {
     await assembleDiorama(
       "Cozy Starter Homestead",
       [
-        { id: "house_farmhouse_a", pos: [0, 0.0, -2], rotY: 0 },
+        { id: "building_medieval_timber_cottage_a", pos: [0, 0.0, -2], rotY: 0, scale: 0.9 },
         { id: "prop_farm_workbench_a", pos: [-4.2, 0.0, -1.8], rotY: 90 },
         { id: "prop_water_well_a", pos: [4.5, 0.0, 0], rotY: 25 },
         { id: "prop_produce_stall_a", pos: [-4.8, 0.0, 2.5], rotY: 45 },

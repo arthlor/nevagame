@@ -30,12 +30,16 @@ export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
       <GuildcraftArt art="seal" className="guild-profile-seal" />
     </button>
     <span className="guild-player-name">Wayfarer</span>
-    <div className={`guild-vital-bar guild-work ${work.exhausted ? "is-exhausted" : work.recharging ? "is-recharging" : ""}`}>
+    <div className={`guild-vital-bar guild-work ${work.exhausted ? "is-exhausted" : ""}`}>
       <Meter className="guild-vital-meter" label="Work" value={workCurrent} max={workMaximum}
         showLabel={false} showValue={false} fill={work.exhausted ? "danger" : "gold"}
-        valueText={work.exhausted ? `${workCurrent} of ${workMaximum} — exhausted, recovering` : undefined} />
+        valueText={work.exhausted ? `${workCurrent} of ${workMaximum} — rest, eat, or work to recover` : undefined} />
       <GuildcraftArt art="meter" className="guild-vital-rim" />
-      <span className="guild-vital-readout">Work <strong>{workCurrent} / {workMaximum}</strong></span>
+      <span className="guild-vital-readout">Work <strong>{workCurrent} / {workMaximum}</strong>
+        {work.earnCap != null && <em className="guild-work-earned" data-testid="work-earned-today">
+          {" "}+{work.earnedToday ?? 0}/{work.earnCap} today
+        </em>}
+      </span>
     </div>
     {sprint && <div className={`guild-vital-bar guild-sprint ${sprint.exhausted ? "is-exhausted" : ""}`}>
       <Meter className="guild-vital-meter" label="Sprint" value={sprintCurrent} max={sprintMaximum}

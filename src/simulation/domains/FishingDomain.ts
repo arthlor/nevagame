@@ -18,7 +18,7 @@ import type {
   GameState
 } from "../core/types";
 import { SeededRng, type Rng } from "../core/Rng";
-import { BasicFishingMinigame } from "../fishing/BasicFishingMinigame";
+import { BasicFishingMinigame, BASIC_FISHING_FIXED_STEP_SECONDS } from "../fishing/BasicFishingMinigame";
 import { castWindEffect, type CastWindEffect } from "../fishing/castWind";
 import {
   FishingEncounter,
@@ -93,6 +93,10 @@ export const SPORT_FISHING_WORK_COST_BY_CLASS: Record<CargoClass, number> = {
 export const SPORT_FISHING_WORK_COST = SPORT_FISHING_WORK_COST_BY_CLASS.medium;
 /** Portion of the discounted hook cost returned when a hooked sport fish is lost. */
 export const SPORT_FISHING_WORK_REFUND_RATIO = 0.6;
+/** Work earned for a flawless basic catch — the green bar never lost contact. */
+export const BASIC_FISHING_PERFECT_WORK_REBATE = 8;
+/** Work earned for landing a sport fish. Fight skill feeds the labor pool. */
+export const SPORT_FISHING_LANDING_WORK_REBATE = 12;
 /** Fight seconds a species signature moment stays on the HUD after it fires. */
 export const SIGNATURE_MOMENT_SECONDS = 3;
 /**
@@ -756,6 +760,10 @@ export class FishingDomain {
             reason: "no-cargo-space",
             minute: state.clock.currentMinute
           });
+        } else {
+          // Landing rewards the labor that earned the hook. Capped by the same
+          // daily Work ceiling as meals and chores, so it cannot be ground.
+          this.progression.earnWork(SPORT_FISHING_LANDING_WORK_REBATE);
         }
       } else if (outcome === "escaped" || outcome === "line-snapped") {
         const encounterState = this.encounter.getState();
@@ -1500,7 +1508,14 @@ export class FishingDomain {
 
     if (attempt.phase === "charging-cast") {
       if (attempt.isChargingCast !== false) {
-        BasicFishingMinigame.tickCastCharging(attempt, realDeltaSeconds);
+        // Fixed-step the charge so a held duration maps to the same cast power
+        // (and therefore the same quality roll) regardless of frame rate.
+        let remaining = (attempt.minigameStepRemainderSeconds ?? 0) + realDeltaSeconds;
+        while (remaining >= BASIC_FISHING_FIXED_STEP_SECONDS) {
+          remaining -= BASIC_FISHING_FIXED_STEP_SECONDS;
+          BasicFishingMinigame.tickCastCharging(attempt, BASIC_FISHING_FIXED_STEP_SECONDS);
+        }
+        attempt.minigameStepRemainderSeconds = remaining;
       }
       return;
     }
@@ -1535,11 +1550,18 @@ export class FishingDomain {
     }
 
     if (attempt.phase === "minigame") {
-      const outcome = BasicFishingMinigame.tick(attempt, realDeltaSeconds, rng);
+      // Fixed 60 Hz integration: the minigame draws the canonical RNG for
+      // fish-target picks and the final quality roll, so stepping it with the
+      // raw render delta would make the same seed + input timeline diverge
+      // between 30/60/144 Hz.
+      const outcome = BasicFishingMinigame.advanceMinigameFixed(attempt, realDeltaSeconds, rng);
       if (outcome === "landed") {
         attempt.phase = "caught";
       } else if (outcome === "escaped") {
         attempt.phase = "escaped";
+        // Terminal: clear canonical state so the player (or a headless caller)
+        // can cast again without a presentation-only dismiss step.
+        state.basicFishing = null;
         events.emit("BasicFishingResolved", {
           ecologyId: attempt.ecologyId,
           habitatId: attempt.habitatId,
@@ -1649,6 +1671,9 @@ export class FishingDomain {
 
     const xpGained = attempt.isPerfect ? 50 : 25;
     this.progression.addProficiencyXp("fishing", xpGained);
+    if (attempt.isPerfect) {
+      this.progression.earnWork(BASIC_FISHING_PERFECT_WORK_REBATE);
+    }
 
     const quality = attempt.quality ?? "common";
     const speciesId = attempt.catchItemId;
@@ -1677,6 +1702,10 @@ export class FishingDomain {
       }
     }
 
+    // The catch and its treasure already consumed canonical RNG draws (treasure
+    // roll, weight roll). Sync `metadata.rngState` before the event-driven
+    // autosave can persist a stale stream and reroll the same sequence on load.
+    this.context.persistRng();
     state.basicFishing = null;
     events.emit("BasicFishingResolved", {
       ecologyId: attempt.ecologyId,

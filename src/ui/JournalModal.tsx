@@ -7,7 +7,7 @@ import { getNextRank } from "../content/progression";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
-import { atlasForFish } from "./chrome/uiAtlas";
+import { atlasForFish, atlasForPortrait } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import {
   IconAnchor,
@@ -501,7 +501,11 @@ const PeoplePage: React.FC<{ people: PeoplePageDto }> = ({ people }) => (
           data-recognized={person.recognized ? "true" : "false"}
         >
           <div className="journal-person-medallion" aria-hidden="true">
-            <PersonPortrait icon={person.portraitIcon} />
+            {atlasForPortrait(person.id) ? (
+              <AtlasImage src={atlasForPortrait(person.id)!} alt="" size={40} className="journal-person-portrait-img" />
+            ) : (
+              <PersonPortrait icon={person.portraitIcon} />
+            )}
           </div>
           <div className="journal-person-main">
             <div className="journal-person-head">
@@ -599,6 +603,7 @@ const unlockDisplayName = (id: string): string => {
     ContentRegistry.rods.get(id) ??
     ContentRegistry.markets.get(id) ??
     ContentRegistry.recipes.get(id) ??
+    ContentRegistry.items.get(id) ??
     ContentRegistry.boats.get(id) ??
     [...ContentRegistry.boats.values()].find((boat) => boat.id === id);
   if (named) return named.name;

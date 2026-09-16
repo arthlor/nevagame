@@ -338,11 +338,11 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(emptyResult.reasonCode).toBe("insufficient-work");
 
     // With Work, hook succeeds and spends the trout's size-scaled hook cost (small = 18).
-    candidate.state.player.workCapacity.current = 1000;
+    candidate.state.player.workCapacity.current = 300;
     const validResult = candidate.hookSportFish(schoolId);
     expect(validResult.success).toBe(true);
     expect(validResult.encounter!.fish.quality).toBe("trophy");
-    expect(candidate.state.player.workCapacity.current).toBe(982);
+    expect(candidate.state.player.workCapacity.current).toBe(282);
 
     // Losing the fight hands back ~60% of the hook cost (round(18 * 0.6) = 11).
     candidate.state.sportFishing!.lineTension = 0;
@@ -352,7 +352,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     candidate.tick(0.1);
     expect(escaped).toEqual(["escaped"]);
     expect(candidate.state.sportFishing).toBeNull();
-    expect(candidate.state.player.workCapacity.current).toBe(993);
+    expect(candidate.state.player.workCapacity.current).toBe(293);
   });
 
   it("refunds a lost fight against what the hook charged, not the discount in force later", () => {
@@ -369,10 +369,10 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(candidate.chumFishSchool(schoolId).success).toBe(true);
     armLureForTest(candidate);
     candidate.state.player.proficiencies.fishing = 0;
-    candidate.state.player.workCapacity.current = 1000;
+    candidate.state.player.workCapacity.current = 300;
 
     expect(candidate.hookSportFish(schoolId).success).toBe(true);
-    const charged = 1000 - candidate.state.player.workCapacity.current;
+    const charged = 300 - candidate.state.player.workCapacity.current;
     expect(candidate.state.sportFishing!.workCharged).toBe(charged);
 
     // A contract or quest settling mid-fight grants XP synchronously, which can

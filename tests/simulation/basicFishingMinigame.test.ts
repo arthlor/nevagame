@@ -365,11 +365,45 @@ describe("Simulation Basic Fishing Loop Integration", () => {
     expect(sim.state.basicFishing?.phase).toBe("caught");
     expect(sim.execute({ type: "fishing.commit-basic" }).success).toBe(true);
     expect(sim.state.basicFishing).toBeNull();
+    // The treasure/weight draws advanced the canonical stream; the persisted
+    // rngState must match before any autosave reads it.
+    expect(sim.state.metadata.rngState).toBe(sim.rng.getState());
     expect(InventoryManager.getItemCount(inv, "fish.perch")).toBe(1);
     const added = table.reduce(
       (sum, id) => sum + Math.max(0, InventoryManager.getItemCount(inv, id) - (before[id] ?? 0)),
       0
     );
     expect(added).toBeGreaterThan(0);
+  });
+
+  it("integrates the minigame at a fixed cadence so frame rate cannot change the outcome", () => {
+    const build = () => {
+      const rng = new SeededRng(999);
+      const state = BasicFishingMinigame.createInitialState("river", "fish.perch", 0.8, "rod.willow", 0, true, rng);
+      state.phase = "minigame";
+      state.isHolding = true;
+      return { rng, state };
+    };
+    const snapshot = (state: ReturnType<typeof BasicFishingMinigame.createInitialState>) => ({
+      phase: state.phase,
+      catchProgress: state.catchProgress,
+      fishY: state.fishY,
+      quality: state.quality
+    });
+
+    // The same 1.2345 simulated seconds (74 fixed steps) delivered as one large
+    // frame and as 74 60 Hz frames must resolve identically: the fixed step
+    // makes the RNG draw count a function of simulated time, not of how the
+    // frame was partitioned. A non-multiple total avoids the single-step
+    // floating boundary that any fixed-step accumulator has at exact multiples.
+    const large = build();
+    BasicFishingMinigame.advanceMinigameFixed(large.state, 1.2345, large.rng);
+    const small = build();
+    for (let i = 0; i < 74; i += 1) {
+      BasicFishingMinigame.advanceMinigameFixed(small.state, 1 / 60, small.rng);
+    }
+
+    expect(snapshot(large.state)).toEqual(snapshot(small.state));
+    expect(large.rng.getState()).toBe(small.rng.getState());
   });
 });

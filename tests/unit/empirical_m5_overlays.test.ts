@@ -86,7 +86,6 @@ const cropInspection: CropInspectionDto = {
     availableWork: 800,
     affordable: true,
     shortage: 0,
-    readyAtMinute: null
   },
   waterWork: {
     baseCost: 5,
@@ -94,7 +93,6 @@ const cropInspection: CropInspectionDto = {
     availableWork: 800,
     affordable: true,
     shortage: 0,
-    readyAtMinute: null
   },
   harvestWork: {
     baseCost: 45,
@@ -102,7 +100,6 @@ const cropInspection: CropInspectionDto = {
     availableWork: 800,
     affordable: true,
     shortage: 0,
-    readyAtMinute: null
   },
   immediateAction: {
     kind: "water",

@@ -15,6 +15,7 @@ import {
 } from "../../src/simulation/domains/FarmingDomain";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import {
+  PLAYER_HOMESTEAD_LAYOUT,
   STARTER_FARM_LAYOUT,
   farmLocalToWorld,
   isPlantableFarmSurface,
@@ -22,6 +23,7 @@ import {
   starterStructureAnchor,
   worldToFarmLocal
 } from "../../src/world/FarmLayout";
+import { WORLD_FARM_DEFINITIONS, WORLD_MARKET_LOCATIONS } from "../../src/world/WorldGameplayLocations";
 import { VILLAGE_MARKET, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { ASSET_BY_ID, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { WorldLayout } from "../../src/world/WorldLayout";
@@ -118,7 +120,8 @@ describe("NEVA farming correctness foundation", () => {
     expect(STARTER_FARM_LAYOUT.structureAnchors.map((anchor) => anchor.id)).toEqual([
       "struct.starter_mill",
       "struct.workbench",
-      "struct.starter_compost"
+      "struct.starter_compost",
+      "struct.kitchen"
     ]);
     expect(STARTER_FARM_LAYOUT.paths.map((path) => path.id)).toEqual([
       "farm-entry",
@@ -141,7 +144,9 @@ describe("NEVA farming correctness foundation", () => {
       rotationY: well.rotationY,
       scale: well.scale
     });
-    expect(VILLAGE_MARKET.position).toMatchObject({ x: 53.2, z: -51.5 });
+    // The village market anchor is owned by WorldAnchors; the gameplay-location
+    // registry must publish the same pose rather than a second stale copy.
+    expect(WORLD_MARKET_LOCATIONS[VILLAGE_MARKET.marketId].position).toEqual(VILLAGE_MARKET.position);
     expect(STARTER_FARM_LAYOUT.marketAnchors).toEqual([]);
     const mill = starterStructureAnchor("struct.starter_mill")!;
     expect(Number.isFinite(mill.x)).toBe(true);
@@ -149,6 +154,217 @@ describe("NEVA farming correctness foundation", () => {
     expect(Math.hypot(mill.x - VILLAGE_MARKET.position.x, mill.z - VILLAGE_MARKET.position.z))
       .toBeGreaterThan(STARTER_FARM_LAYOUT.structureAnchors[0].clearanceRadius * 2);
     expect(isPlantableFarmSurface("farm.player_homestead", worldToFarmLocal("farm.player_homestead", mill))).toBe(false);
+    expect(PLAYER_HOMESTEAD_LAYOUT.visualAreas).toHaveLength(2);
+    expect(PLAYER_HOMESTEAD_LAYOUT.plantableAreas).toHaveLength(3);
+    expect(PLAYER_HOMESTEAD_LAYOUT.visualCropDecorations).toHaveLength(34);
+    expect(WORLD_FARM_DEFINITIONS["farm.player_homestead"].cropCapacity).toBe(3);
+    expect(isPlantableFarmSurface(
+      "farm.player_homestead",
+      worldToFarmLocal("farm.player_homestead", VILLAGE_MARKET.position)
+    )).toBe(false);
+  });
+
+  it("limits the Village Commons to three concurrent crop records", () => {
+    const sim = new Simulation();
+    sim.state.player.workCapacity.current = 300;
+    const localPositions = [
+      { x: 3, z: -3 },
+      { x: 8.5, z: -3 },
+      { x: 14, z: -3 }
+    ];
+    for (const local of localPositions) {
+      const world = farmLocalToWorld("farm.player_homestead", local);
+      sim.state.player.x = world.x;
+      sim.state.player.z = world.z;
+      expect(sim.plantCrop("farm.player_homestead", "crop.wheat", world.x, world.z).success).toBe(true);
+    }
+
+    const fourth = farmLocalToWorld("farm.player_homestead", { x: 14, z: 0.5 });
+    sim.state.player.x = fourth.x;
+    sim.state.player.z = fourth.z;
+    expect(sim.validateCropPlacement("farm.player_homestead", "crop.wheat", fourth.x, fourth.z)).toMatchObject({
+      valid: false,
+      reasonCode: "farm-capacity"
+    });
+    expect(sim.state.farms["farm.player_homestead"].placedCropIds).toHaveLength(3);
+  });
+
+  it("keeps the orchard quest clearing large enough for its apple tree", () => {
+    const sim = new Simulation();
+    sim.state.player.proficiencies.farming = 7_500;
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.apple_sapling", quantity: 1 }
+    ]);
+    const world = farmLocalToWorld("farm.player_homestead", { x: 8.5, z: -3 });
+    sim.state.player.x = world.x;
+    sim.state.player.z = world.z;
+
+    expect(sim.validateCropPlacement("farm.player_homestead", "crop.apple_tree", world.x, world.z)).toMatchObject({
+      valid: true,
+      localX: 8.5,
+      localZ: -3
+    });
+    expect(sim.plantCrop("farm.player_homestead", "crop.apple_tree", world.x, world.z).success).toBe(true);
+  });
+
+  it("migrates legacy Commons crops and actors to the relocated field", () => {
+    const state = createInitialGameState();
+    state.schemaVersion = 39;
+    state.world.layoutRevision = 17;
+    state.player.x = 60;
+    state.player.z = -60;
+    state.crops.legacy_commons_crop = {
+      id: "legacy_commons_crop",
+      cropId: "crop.wheat",
+      farmId: "farm.player_homestead",
+      x: 3.2,
+      z: -2.4,
+      rotationRadians: 0.2,
+      plantedAtMinute: 100,
+      lastUpdatedMinute: 100,
+      effectiveGrowthMinutes: 20,
+      moisture: 70,
+      health: 100,
+      stage: "growing",
+      averageMoistureAccum: 70,
+      moistureSampleCount: 1
+    };
+    state.farms["farm.player_homestead"].placedCropIds.push("legacy_commons_crop");
+    const migrated = migrateSaveData({ schemaVersion: 39, savedAtUtcMs: 1, state });
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(migrated.state.player).toMatchObject({
+      x: PLAYER_HOMESTEAD_LAYOUT.origin.x,
+      z: PLAYER_HOMESTEAD_LAYOUT.origin.z
+    });
+    expect(migrated.state.crops.legacy_commons_crop).toMatchObject({
+      x: 3,
+      z: -3
+    });
+    expect(migrated.state.farms["farm.player_homestead"]).toMatchObject({
+      widthMeters: 21,
+      depthMeters: 12
+    });
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("normalizes layout-18 Commons crops into the three layout-19 clearings", () => {
+    const state = createInitialGameState();
+    state.schemaVersion = 40;
+    state.world.layoutRevision = 18;
+    state.crops.layout_18_crop = {
+      id: "layout_18_crop",
+      cropId: "crop.wheat",
+      farmId: "farm.player_homestead",
+      x: 1.25,
+      z: -4.75,
+      rotationRadians: 0.7,
+      plantedAtMinute: 100,
+      lastUpdatedMinute: 100,
+      effectiveGrowthMinutes: 180,
+      moisture: 62,
+      health: 91,
+      stage: "mature",
+      averageMoistureAccum: 62,
+      moistureSampleCount: 1
+    };
+    state.farms["farm.player_homestead"].placedCropIds.push("layout_18_crop");
+
+    const migrated = migrateSaveData({ schemaVersion: 40, savedAtUtcMs: 1, state });
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(migrated.state.crops.layout_18_crop).toMatchObject({ x: 3, z: -3, stage: "mature", moisture: 62 });
+    expect(isPlantableFarmSurface(
+      "farm.player_homestead",
+      { x: migrated.state.crops.layout_18_crop.x, z: migrated.state.crops.layout_18_crop.z }
+    )).toBe(true);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("normalizes more than a bed's worth of legacy Commons crops onto distinct valid ground", () => {
+    const state = createInitialGameState();
+    state.schemaVersion = 40;
+    state.world.layoutRevision = 18;
+    const cropIds: string[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      const id = `legacy_wheat_${i}`;
+      cropIds.push(id);
+      state.crops[id] = {
+        id,
+        cropId: "crop.wheat",
+        farmId: "farm.player_homestead",
+        x: 1 + i,
+        z: -3,
+        rotationRadians: 0,
+        plantedAtMinute: 100,
+        lastUpdatedMinute: 100,
+        effectiveGrowthMinutes: 120,
+        moisture: 60,
+        health: 100,
+        stage: "growing",
+        averageMoistureAccum: 60,
+        moistureSampleCount: 1
+      };
+    }
+    state.farms["farm.player_homestead"].placedCropIds.push(...cropIds);
+
+    const migrated = migrateSaveData({ schemaVersion: 40, savedAtUtcMs: 1, state });
+
+    const positions = cropIds.map((id) => migrated.state.crops[id]);
+    for (const crop of positions) {
+      expect(isPlantableFarmSurface("farm.player_homestead", { x: crop.x, z: crop.z })).toBe(true);
+    }
+    // No two retained records may share a spot (the old `index % clearings`
+    // stacked the fourth crop on the first).
+    const keys = new Set(positions.map((crop) => `${crop.x},${crop.z}`));
+    expect(keys.size).toBe(cropIds.length);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("moves a legacy apple tree into the clearing that can contain its footprint", () => {
+    const state = createInitialGameState();
+    state.schemaVersion = 40;
+    state.world.layoutRevision = 18;
+    state.crops.legacy_tree = {
+      id: "legacy_tree",
+      cropId: "crop.apple_tree",
+      farmId: "farm.player_homestead",
+      x: 1.4,
+      z: -4.6,
+      rotationRadians: 0,
+      plantedAtMinute: 100,
+      lastUpdatedMinute: 100,
+      effectiveGrowthMinutes: 500,
+      moisture: 60,
+      health: 100,
+      stage: "mature",
+      averageMoistureAccum: 60,
+      moistureSampleCount: 1
+    };
+    state.farms["farm.player_homestead"].placedCropIds.push("legacy_tree");
+
+    const migrated = migrateSaveData({ schemaVersion: 40, savedAtUtcMs: 1, state });
+    const tree = migrated.state.crops.legacy_tree;
+
+    expect(isPlantableFarmSurface("farm.player_homestead", { x: tree.x, z: tree.z })).toBe(true);
+    const clearing = PLAYER_HOMESTEAD_LAYOUT.plantableAreas[1];
+    expect(tree.x).toBeGreaterThanOrEqual(clearing.minX);
+    expect(tree.x).toBeLessThanOrEqual(clearing.maxX);
+    expect(tree.z).toBeGreaterThanOrEqual(clearing.minZ);
+    expect(tree.z).toBeLessThanOrEqual(clearing.maxZ);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+  });
+
+  it("keeps decorative Commons crops off the plantable clearings", () => {
+    for (const decoration of PLAYER_HOMESTEAD_LAYOUT.visualCropDecorations ?? []) {
+      expect(
+        isPlantableFarmSurface("farm.player_homestead", { x: decoration.x, z: decoration.z }),
+        `decoration ${decoration.cropId}@${decoration.x},${decoration.z} sits on plantable ground`
+      ).toBe(false);
+    }
   });
 
   it("keeps all canonical crop stage boundaries exact", () => {

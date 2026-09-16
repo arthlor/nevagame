@@ -157,6 +157,12 @@ export function buildItemInspectionDto(state: GameState, itemId: string): ItemIn
           storageLabel: carried.hasIce ? "Iced hold" : STORAGE_LABEL[carried.location],
           decayRate: getStorageFreshnessModifier(carried.location, carried.hasIce)
         }
+      : null,
+    // Simulation augments this from live Work state; the content read here is
+    // only the authored restore amount, and `edible` defaults closed so an
+    // unaugmented DTO never advertises a meal that cannot be eaten.
+    provisions: item?.consumable
+      ? { restoresWork: item.consumable.amount, edible: false }
       : null
   };
 }

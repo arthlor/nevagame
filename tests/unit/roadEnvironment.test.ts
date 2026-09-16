@@ -159,7 +159,7 @@ describe("Organic road environment", () => {
     const bridgeReeds = authored.filter((placement) => placement.id.includes("bridge-"));
     expect(WorldLayout.pathInfluence(wagon.x, wagon.z)).toBeLessThan(0.12);
     expect(bridgeReeds.every((placement) => WorldLayout.pathInfluence(placement.x, placement.z) < 0.12)).toBe(true);
-    expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(1);
+    expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(2);
     expect(authored.filter((placement) => placement.assetId === "foliage_reeds_a")).toHaveLength(2);
   });
 

@@ -357,6 +357,54 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     presentationKind: "toolmaking",
     minimumSkill: { skill: "processing", xp: 30000 },
     tags: ["toolmaking", "equipment"]
+  },
+
+  // Kitchen provisions. Meals are the planned Work restore: they cost time and
+  // farm/sea inputs, are eaten from the satchel, and are capped per day. They
+  // are cooked at the authored farm kitchen (`struct.kitchen`).
+  "recipe.cook_harvest_bowl": {
+    ...existing,
+    id: "recipe.cook_harvest_bowl",
+    name: "Cook Harvest Bowl",
+    stationType: "kitchen",
+    inputs: [
+      { itemId: "produce.potato", quantity: 2 },
+      { itemId: "produce.carrot", quantity: 2 },
+      { itemId: "item.ground_grain", quantity: 1 }
+    ],
+    result: items({ itemId: "item.meal_harvest_bowl", quantity: 1 }),
+    durationMinutes: 20,
+    minimumSkill: { skill: "processing", xp: 250 },
+    tags: ["meal", "provisions"]
+  },
+  "recipe.cook_fish_stew": {
+    ...existing,
+    id: "recipe.cook_fish_stew",
+    name: "Simmer Coastal Fish Stew",
+    stationType: "kitchen",
+    inputs: [
+      { itemId: "fish.perch", quantity: 2 },
+      { itemId: "produce.potato", quantity: 1 },
+      { itemId: "produce.carrot", quantity: 1 }
+    ],
+    result: items({ itemId: "item.meal_fish_stew", quantity: 1 }),
+    durationMinutes: 30,
+    minimumSkill: { skill: "processing", xp: 750 },
+    tags: ["meal", "provisions"]
+  },
+  "recipe.cook_orchard_tart": {
+    ...existing,
+    id: "recipe.cook_orchard_tart",
+    name: "Bake Orchard Tart",
+    stationType: "kitchen",
+    inputs: [
+      { itemId: "produce.apple", quantity: 2 },
+      { itemId: "item.ground_grain", quantity: 2 }
+    ],
+    result: items({ itemId: "item.meal_orchard_tart", quantity: 1 }),
+    durationMinutes: 35,
+    minimumSkill: { skill: "processing", xp: 1500 },
+    tags: ["meal", "provisions"]
   }
 };
 

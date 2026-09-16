@@ -137,9 +137,9 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
         climate: { current: "temperate", preferred: ["temperate"], status: "preferred" },
         soil: { band: "good", fertility: 90 },
         expectedYield: { min: 3, max: 5 },
-        work: { current: 300, baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0, readyAtMinute: null },
-        waterWork: { baseCost: 5, cost: 5, availableWork: 300, affordable: true, shortage: 0, readyAtMinute: null },
-        harvestWork: { baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0, readyAtMinute: null },
+        work: { current: 300, baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
+        waterWork: { baseCost: 5, cost: 5, availableWork: 300, affordable: true, shortage: 0 },
+        harvestWork: { baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
         immediateAction: { kind: "harvest", label: "Harvest", cost: 5, available: true },
         actions: { canWater: false, canHarvest: true }
       };
@@ -195,9 +195,9 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
         climate: { current: "temperate", preferred: ["temperate"], status: "neutral" },
         soil: { band: "fair", fertility: 45 },
         expectedYield: { min: 1, max: 3 },
-        work: { current: 100, baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0, readyAtMinute: null },
-        waterWork: { baseCost: 3, cost: 3, availableWork: 100, affordable: true, shortage: 0, readyAtMinute: null },
-        harvestWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0, readyAtMinute: null },
+        work: { current: 100, baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
+        waterWork: { baseCost: 3, cost: 3, availableWork: 100, affordable: true, shortage: 0 },
+        harvestWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
         immediateAction: { kind: "water", label: "Water", cost: 3, available: true, blockerReason: "Needs watering can" },
         actions: { canWater: true, canHarvest: false }
       });
@@ -423,9 +423,9 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
             climate: { current: "temperate", preferred: ["temperate"], status: "preferred" },
             soil: { band: "good", fertility: 85 },
             expectedYield: { min: 2, max: 4 },
-            work: { current: 100, baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0, readyAtMinute: null },
-            waterWork: { baseCost: 3, cost: 3, availableWork: 100, affordable: true, shortage: 0, readyAtMinute: null },
-            harvestWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0, readyAtMinute: null },
+            work: { current: 100, baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
+            waterWork: { baseCost: 3, cost: 3, availableWork: 100, affordable: true, shortage: 0 },
+            harvestWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
             immediateAction: { kind: "water", label: "Wait", cost: null, available: false },
             actions: { canWater: true, canHarvest: false }
           },

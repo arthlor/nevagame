@@ -21,10 +21,12 @@ function standAt(sim: Simulation, x: number, z: number): void {
 describe("irrigation well binding", () => {
   it("owns a well on the starter farm and none on the village homestead plot", () => {
     const starterWell = farmWellWorldAnchor("farm.starter_garden");
+    const authoredWell = STARTER_FARM_LAYOUT.farmsteadAnchors.find((anchor) => anchor.id === "well");
+    expect(authoredWell).toBeDefined();
     expect(starterWell).toMatchObject({
       id: "well",
-      x: STARTER_FARM_LAYOUT.origin.x + 8.6,
-      z: STARTER_FARM_LAYOUT.origin.z - 0.7
+      x: STARTER_FARM_LAYOUT.origin.x + authoredWell!.x,
+      z: STARTER_FARM_LAYOUT.origin.z + authoredWell!.z
     });
     expect(farmWellWorldAnchor("farm.player_homestead")).toBeUndefined();
   });

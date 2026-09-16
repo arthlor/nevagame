@@ -22,6 +22,7 @@ import {
 } from "../../src/world/WorldAnchors";
 import { GameClock } from "../../src/simulation/core/GameClock";
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
 import { FERTILITY_RESTORE } from "../../src/simulation/domains/FarmingDomain";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
@@ -301,8 +302,8 @@ describe("Gameplay simulation fixes", () => {
     expect(sim.state.player.carriedFishCargoId).toBe("cargo.spoiled");
   });
 
-  it("does not sell sport fish at a market without that species commodity", () => {
-    const cargoId = "cargo.village_reject";
+  it("does not sell physical fish trade packs through the fish market", () => {
+    const cargoId = "cargo.fish_market_reject";
     sim.state.fishCargo[cargoId] = {
       id: cargoId,
       speciesId: "fish.trout",
@@ -314,13 +315,13 @@ describe("Gameplay simulation fixes", () => {
       location: { type: "player", containerId: "player" }
     };
     sim.state.player.carriedFishCargoId = cargoId;
-    sim.state.player.x = VILLAGE_MARKET.position.x;
-    sim.state.player.z = VILLAGE_MARKET.position.z;
+    sim.state.player.x = HARBOR_MARKET.position.x;
+    sim.state.player.z = HARBOR_MARKET.position.z;
     const money = sim.state.player.money;
 
-    expect(sim.sellFishCargoAtMarket("market.village", cargoId)).toEqual({
+    expect(sim.sellFishCargoAtMarket("market.harbor", cargoId)).toEqual({
       success: false,
-      reason: "Market does not trade this fish"
+      reason: "Fish trade packs are not sold through the fish market; carry them to the Village Produce Market"
     });
     expect(sim.state.fishCargo[cargoId]).toBeDefined();
     expect(sim.state.player.money).toBe(money);
@@ -579,6 +580,51 @@ describe("Gameplay simulation fixes", () => {
     expect(delivered).toMatchObject({ success: true, completed: true, rewardMoney: 90 });
     expect(sim.state.fishCargo["cargo.test_trout"]).toBeUndefined();
     expect(sim.state.player.carriedFishCargoId).toBeNull();
+  });
+
+  it("refunds a partially delivered fish contract when it expires", () => {
+    sim.state.player.x = HARBOR_MARKET.position.x;
+    sim.state.player.z = HARBOR_MARKET.position.z;
+    const contract = {
+      id: "contract.partial_trout",
+      templateId: "contract.fresh_trout_order",
+      requesterId: "npc.harbor_innkeeper",
+      deliveryMarketId: "market.harbor",
+      type: "fresh-fish" as const,
+      targetItemIdOrSpecies: "fish.trout",
+      quantityRequired: 2,
+      quantityFulfilled: 0,
+      minFreshness: 50,
+      rewardMoney: 90,
+      rewardSkillXp: { skill: "fishing" as const, xp: 20 },
+      expiresAtMinute: sim.state.clock.currentMinute + 120,
+      status: "active" as const
+    };
+    sim.state.contracts.push(contract);
+    sim.state.fishCargo["cargo.partial_trout"] = {
+      id: "cargo.partial_trout",
+      speciesId: "fish.trout",
+      weightKg: 3,
+      quality: "fine",
+      caughtAtMinute: sim.state.clock.currentMinute,
+      freshness: 90,
+      cargoClass: "small",
+      location: { type: "player", containerId: "player" }
+    };
+    sim.state.player.carriedFishCargoId = "cargo.partial_trout";
+
+    expect(sim.deliverFishCargoToContract(contract.id, "cargo.partial_trout"))
+      .toMatchObject({ success: true, completed: false });
+    expect(contract.quantityFulfilled).toBe(1);
+    expect(sim.state.fishCargo["cargo.partial_trout"]).toBeUndefined();
+
+    const moneyBefore = sim.state.player.money;
+    contract.expiresAtMinute = sim.state.clock.currentMinute + 1;
+    sim.advanceGameMinutes(5);
+
+    expect(contract.status).toBe("expired");
+    expect(contract.quantityFulfilled).toBe(0);
+    expect(sim.state.player.money).toBeGreaterThan(moneyBefore);
   });
 
   it("persists rngState so save/load does not reroll the same sequence", () => {
@@ -1063,6 +1109,28 @@ describe("Gameplay simulation fixes", () => {
     expect(sim.state.basicFishing).toBeNull();
   });
 
+  it("keeps Safe Return's player and vessel on the same island when sailing Sunreach waters", () => {
+    const boat = sim.state.boats["boat.player_rowboat"];
+    boat.isDocked = false;
+    boat.dockedMarketId = null;
+    boat.x = SUNREACH_ANCHORS.dockBoat.x;
+    boat.z = SUNREACH_ANCHORS.dockBoat.z;
+    boat.speed = 6;
+    sim.state.player.x = boat.x;
+    sim.state.player.z = boat.z;
+    sim.state.player.activeBoatId = boat.id;
+
+    sim.resetPlayerToSafeSpawn();
+
+    expect(sim.state.player.activeBoatId).toBeNull();
+    expect(sim.state.player.x).toBe(SUNREACH_ANCHORS.dockPlayer.x);
+    expect(sim.state.player.z).toBe(SUNREACH_ANCHORS.dockPlayer.z);
+    expect(boat.isDocked).toBe(true);
+    expect(boat.dockedMarketId).toBe("market.sunreach_cove");
+    expect(boat.x).toBe(SUNREACH_ANCHORS.dockBoat.x);
+    expect(boat.z).toBe(SUNREACH_ANCHORS.dockBoat.z);
+  });
+
   it("refuses Safe Return while an active boat carries physical fish cargo", () => {
     sim.prepareDebugHarborBoarding();
     expect(sim.boardBoat("boat.player_rowboat")).toMatchObject({ success: true });
@@ -1221,6 +1289,51 @@ describe("Gameplay simulation fixes", () => {
     const troutCargo = Object.values(migrated.state.fishCargo).filter((cargo) => cargo.speciesId === "fish.trout");
     expect(troutCargo.length).toBeGreaterThanOrEqual(1);
     expect(migrated.state.player.carriedFishCargoId).toBeTruthy();
+  });
+
+  it("keeps a legacy withered orchard withered until it is cleared", () => {
+    expect(sim.plantCrop(
+      "farm.starter_garden",
+      "crop.wheat",
+      STARTER_FARM_LAYOUT.origin.x,
+      STARTER_FARM_LAYOUT.origin.z
+    ).success).toBe(true);
+    const placedCropId = Object.keys(sim.state.crops)[0];
+    const crop = sim.state.crops[placedCropId];
+    crop.cropId = "crop.apple_tree";
+    crop.stage = "withered";
+    crop.effectiveGrowthMinutes = 720 + 1440 + 10;
+    crop.health = 0;
+    sim.advanceGameMinutes(5);
+    expect(sim.state.crops[placedCropId].stage).toBe("withered");
+    expect(sim.harvestCrop(placedCropId)).toMatchObject({ success: true, yield: 0 });
+    expect(sim.state.crops[placedCropId]).toBeUndefined();
+  });
+
+  it("rejects an unquotable bulk sale instead of walking an unbounded quote", () => {
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "produce.wheat", quantity: 1 }]);
+    sim.state.player.x = VILLAGE_MARKET.position.x;
+    sim.state.player.z = VILLAGE_MARKET.position.z;
+    expect(sim.sellItemAtMarket("market.village", "produce.wheat", 10001)).toMatchObject({ success: false });
+    expect(InventoryManager.getItemCount(inventory, "produce.wheat")).toBe(1);
+  });
+
+  it("refuses to board a boat while a fishing line is live", () => {
+    sim.state.quests.unlockedFeatureIds.push("boat.player_rowboat");
+    sim.state.player.x = HARBOR_DOCK.playerPosition.x;
+    sim.state.player.z = HARBOR_DOCK.playerPosition.z;
+    sim.state.basicFishing = {
+      ecologyId: "ecology.neva",
+      phase: "waiting",
+      habitatId: "ocean",
+      remainingSeconds: 4,
+      willCatch: true
+    };
+    expect(sim.boardBoat("boat.player_rowboat")).toMatchObject({ success: false, reason: "Finish fishing first" });
+    expect(sim.state.player.activeBoatId).toBeNull();
+    sim.state.basicFishing = null;
+    expect(sim.boardBoat("boat.player_rowboat")).toMatchObject({ success: true });
   });
 
 });

@@ -83,7 +83,7 @@ describe("Milestone M3 ornate modal presentation", () => {
     expect(html).not.toContain("Docked Fish");
   });
 
-  it("renders harbor market buy stall with crushed ice and a docked-fish tab", () => {
+  it("renders harbor market buy stall with crushed ice without a fish-pack sale tab", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(MarketModal, {
@@ -93,9 +93,36 @@ describe("Milestone M3 ornate modal presentation", () => {
 
     expect(html).toContain("Harbor Fish Market &amp; Wholesaler");
     expect(html).toContain("Crushed Ice");
-    expect(html).toContain("Fish hold");
+    expect(html).not.toContain("Fish hold");
     expect(html).toContain("Buy");
     expect(html).not.toContain("Market Intelligence");
+  });
+
+  it("renders a carried fish trade pack only at the village counter", () => {
+    const sim = new Simulation();
+    const cargoId = "cargo.modal_trade_pack";
+    sim.state.fishCargo[cargoId] = {
+      id: cargoId,
+      speciesId: "fish.trout",
+      weightKg: 3,
+      quality: "fine",
+      caughtAtMinute: sim.state.clock.currentMinute,
+      freshness: 100,
+      cargoClass: "small",
+      location: { type: "player", containerId: "player" }
+    };
+    sim.state.player.carriedFishCargoId = cargoId;
+    const html = renderToString(
+      React.createElement(MarketModal, {
+        ...marketProps(sim, "market.village"),
+        initialSection: "trade-packs"
+      })
+    );
+
+    expect(html).toContain("Fish trade packs");
+    expect(html).toContain("Sell trade pack");
+    expect(html).toContain("Rainbow Trout");
+    expect(html).not.toContain("Fish hold");
   });
 
   it("sells from owned satchel rows only and opens a quantity ticket", () => {

@@ -57,6 +57,36 @@ export function captureTerrainPreservation(
 type TerrainPreservationSnapshot = ReturnType<typeof captureTerrainPreservation>;
 type HistoricalTerrainPreservation = Omit<TerrainPreservationSnapshot, "routes">;
 
+/**
+ * Revision-specific working baseline for the protected fields: physical working
+ * ground, named anchors, lower-river profile, route ids and hashes, and the
+ * Sunreach sampling domain. Routes and harbor anchors are stored in their
+ * documented pre-correction form so `compareTerrainPreservation` can replay the
+ * harbor-approach correction against a self-consistent capture. Historical
+ * baselines (layout 10) stay untouched; this is what an authorized layout
+ * reshape freezes for the current revision.
+ */
+export function captureWorkingPreservation(
+  sunreachSampling?: SunreachSampling
+): HistoricalTerrainPreservation {
+  const snapshot = captureTerrainPreservation(undefined, sunreachSampling);
+  const routes = snapshot.routes.map((route) =>
+    harborApproachCorrection.routeIds.includes(route.id)
+      ? { ...route, points: [...route.points.slice(0, -1), harborApproachCorrection.originalEndpoint] }
+      : route
+  );
+  return {
+    sunreachSampling: snapshot.sunreachSampling,
+    workingGround: snapshot.workingGround,
+    anchors: snapshot.anchors,
+    lowerRiver: snapshot.lowerRiver,
+    routeIds: snapshot.routeIds,
+    routeHash: hash(routes),
+    sunreachHash: snapshot.sunreachHash,
+    sunreachSampleCount: snapshot.sunreachSampleCount
+  };
+}
+
 export function compareTerrainPreservation(
   current: TerrainPreservationSnapshot,
   baseline: HistoricalTerrainPreservation
@@ -87,3 +117,4 @@ export function compareTerrainPreservation(
 }
 
 if (process.argv.includes("--capture")) process.stdout.write(`${JSON.stringify(captureTerrainPreservation(), null, 2)}\n`);
+if (process.argv.includes("--capture-working")) process.stdout.write(`${JSON.stringify(captureWorkingPreservation(), null, 2)}\n`);

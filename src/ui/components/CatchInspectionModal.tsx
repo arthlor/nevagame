@@ -1,7 +1,7 @@
 import { useModalAccessibility } from "../useModalAccessibility";
 import React, { useEffect, useRef } from "react";
 import type { TrophyCatchDto } from "../../simulation/core/contracts";
-import { IconCoin, IconFish, IconSparkle, IconStar} from "./HudIcons";
+import { IconFish, IconSparkle, IconStar} from "./HudIcons";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish } from "../chrome/uiAtlas";
 import { ChromeButton, ChromeClose, ChromeQuality } from "../chrome/Chrome";
@@ -125,14 +125,6 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
               <div className="catch-metric-tile">
                 <dt>Length</dt>
                 <dd className="metric-length">{`${catchData.lengthCm.toFixed(1)} cm`}</dd>
-              </div>
-
-              <div className="catch-metric-tile">
-                <dt>Estimated Value</dt>
-                <dd className="metric-value">
-                  <IconCoin size={15} className="coin-icon" aria-hidden="true" />
-                  <strong>{`${catchData.estimatedMarketValue} G`}</strong>
-                </dd>
               </div>
 
               <div className="catch-metric-tile">

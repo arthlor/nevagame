@@ -110,16 +110,24 @@ export function voidActiveContracts(state: GameState): number {
 
 function refundAndExpireContract(state: GameState, contract: GameState["contracts"][number]): void {
   contract.status = "expired";
-  if (!isProduceContractType(contract.type) || contract.quantityFulfilled <= 0) return;
+  if (contract.quantityFulfilled <= 0) return;
   const itemId = contract.targetItemIdOrSpecies;
   const quantity = contract.quantityFulfilled;
-  const inventory = state.inventories[state.player.inventoryId];
-  const stack = [{ itemId, quantity }];
-  if (inventory && InventoryManager.canAddItems(inventory, stack)) {
-    InventoryManager.addItemsAtomically(inventory, stack);
-    contract.quantityFulfilled = 0;
-    return;
+
+  // Produce is restored to the satchel when it fits. Physical fish cargo was
+  // already removed from the world by `deliverFish`, so neither lane can hand
+  // the exact goods back; both fall through to the reference-value payout so a
+  // partially kept promise is never silently forfeited.
+  if (isProduceContractType(contract.type)) {
+    const inventory = state.inventories[state.player.inventoryId];
+    const stack = [{ itemId, quantity }];
+    if (inventory && InventoryManager.canAddItems(inventory, stack)) {
+      InventoryManager.addItemsAtomically(inventory, stack);
+      contract.quantityFulfilled = 0;
+      return;
+    }
   }
+
   const template = ContentRegistry.contractTemplates.get(contract.templateId);
   const referenceValue = template
     ? contractTargetReferenceValue(state, template, itemId, contract.minWeightKg)

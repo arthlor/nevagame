@@ -11,16 +11,26 @@ import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import { expectFarmsPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 
 const legacy = () => structuredClone(fixture) as unknown as SaveEnvelope;
 
 function preserveResources(after: SaveEnvelope, before: SaveEnvelope) {
-  for (const key of ["inventories", "farms", "crops", "processingJobs", "boats", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "metadata", "markets"] as const) {
+  for (const key of ["inventories", "crops", "processingJobs", "boats", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "metadata"] as const) {
     expect(after.state[key], key).toEqual(before.state[key]);
   }
-  for (const key of ["money", "proficiencies", "workCapacity", "equipment", "ownedRodIds"] as const) {
+  expectFarmsPreserved(after.state, before.state);
+  expectMarketsPreserved(after.state, before.state);
+  for (const key of ["money", "proficiencies", "equipment", "ownedRodIds"] as const) {
     expect(after.state.player[key], key).toEqual(before.state.player[key]);
   }
+  // v43 intentionally rescales the Work pool to the daily ceiling.
+  const beforeWork = before.state.player.workCapacity;
+  expect(after.state.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
+  expect(after.state.player.workCapacity.current).toBe(
+    Math.round((beforeWork.current / beforeWork.maximum) * WORK_CAPACITY_MAXIMUM)
+  );
   expect({ ...after.state.world, layoutRevision: before.state.world.layoutRevision, structures: before.state.world.structures }).toEqual(before.state.world);
 }
 
@@ -35,7 +45,7 @@ describe("Sunreach continuous shore migration (v39 / layout17)", () => {
     expect(after.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(validateSaveEnvelope(after)).toBe(true);
-    expect(after.state.player).toEqual(before.state.player);
+    expect({ ...after.state.player, workCapacity: before.state.player.workCapacity }).toEqual(before.state.player);
     expect(after.state.mounts).toEqual(before.state.mounts);
     expect(migrateSaveData(after)).toEqual(after);
     preserveResources(after, before);
@@ -121,7 +131,7 @@ describe("Sunreach continuous shore migration (v39 / layout17)", () => {
     preserveResources(after, before);
   });
 
-  it.each(["interior", "boat"])("leaves the %s player and vessel truth unchanged", (where) => {
+  it.each(["interior", "boat"])("keeps the %s player and vessel truth on layout 20", (where) => {
     const before = legacy();
     if (where === "interior") Object.assign(before.state.player, FARMHOUSE_INTERIOR_DOOR.enterSpawn);
     else {
@@ -130,7 +140,13 @@ describe("Sunreach continuous shore migration (v39 / layout17)", () => {
       Object.assign(before.state.player, { x: 343, z: 58, y: 0.5, activeBoatId: boat.id });
     }
     const after = migrateSaveData(before);
-    expect(after.state.player).toEqual(before.state.player);
+    // Layout 20 translates every pre-v42 Sunreach pose with x >= 300 by +800,
+    // so express the reference in the shipping frame before comparing.
+    for (const boat of Object.values(before.state.boats)) {
+      if (boat.x >= 300) boat.x += 800;
+    }
+    if (before.state.player.x >= 300) before.state.player.x += 800;
+    expect({ ...after.state.player, workCapacity: before.state.player.workCapacity }).toEqual(before.state.player);
     preserveResources(after, before);
   });
 
@@ -145,6 +161,8 @@ describe("Sunreach continuous shore migration (v39 / layout17)", () => {
     );
     before.state.sportFishing = structuredClone(encounter.getState());
     const after = migrateSaveData(before);
+    // Layout 20 shifts the cast origin with the translated Sunreach pose.
+    before.state.sportFishing.dynamics!.originX += 800;
     expect(after.state.sportFishing).toEqual(before.state.sportFishing);
     expect(validateSaveEnvelope(after)).toBe(true);
     preserveResources(after, before);

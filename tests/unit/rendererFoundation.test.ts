@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 import { CultivatedSurfaceMaterial } from "../../src/render/materials/CultivatedSurfaceMaterial";
 import { buildStarterFarmGround } from "../../src/render/scene/StarterFarmGround";
-import { FacetedWater, SHORE_MASK_RESOLUTION } from "../../src/render/water/FacetedWater";
+import { FacetedWater, SHORE_MASK_METERS_PER_TEXEL } from "../../src/render/water/FacetedWater";
 import { buildShoreFoamPatches, SHORE_FOAM_STYLE, ShoreFoam } from "../../src/render/water/ShoreFoam";
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
 import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
@@ -133,7 +133,7 @@ describe("renderer foundation", () => {
       .slice(1)
       .reduce((gap, patch, index) => Math.max(gap, patch.center.x - coast[index].center.x), 0);
     expect(widestGap).toBeGreaterThan(SHORE_FOAM_STYLE.coastSpacing * 1.5);
-    expect(SHORE_MASK_RESOLUTION).toBeGreaterThan(256);
+    expect(SHORE_MASK_METERS_PER_TEXEL).toBeLessThanOrEqual(3);
   });
 
   it("reuses a bounded wake pool instead of allocating per wake", () => {

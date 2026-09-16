@@ -111,8 +111,8 @@ const CASES: readonly RoundTripCase[] = [
     expects: [WORLD_X, WORLD_Z, YAW]
   },
   {
-    label: "authored-detail orchard turnips",
-    commit: { kind: "authored-detail", id: "authored.orchard.turnips", ...WORLD_POSE },
+    label: "authored-detail orchard flower border",
+    commit: { kind: "authored-detail", id: "authored.orchard.flower-border", ...WORLD_POSE },
     expects: [WORLD_X, WORLD_Z, YAW]
   },
   {

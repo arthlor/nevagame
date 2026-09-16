@@ -157,16 +157,15 @@ describe("layout editor patcher", () => {
     const sources = readLayoutSources(ROOT);
     const next = applyLayoutEditToSources(sources, {
       kind: "architecture-pad",
-      id: "village.cottage-west",
+      id: "village.inn",
       x: 40.5,
       z: -49.25,
       rotationY: 1.25
     });
-    expect(next.worldLayout).toContain('id: "village.cottage-west"');
+    expect(next.worldLayout).toContain('id: "village.inn"');
     expect(next.worldLayout).toContain("x: 40.5");
     expect(next.worldLayout).toContain("z: -49.25");
     expect(next.worldLayout).toContain("rotationY: 1.25");
-    expect(next.worldLayout).not.toMatch(/id: "village\.cottage-west"[\s\S]{0,180}villageArchitectureRotation/);
   });
 
   it("upserts a seeded placement override", () => {

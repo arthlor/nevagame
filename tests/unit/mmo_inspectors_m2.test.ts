@@ -72,7 +72,6 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         availableWork: 500,
         affordable: true,
         shortage: 0,
-        readyAtMinute: null
       },
       waterWork: {
         baseCost: 5,
@@ -80,7 +79,6 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         availableWork: 500,
         affordable: true,
         shortage: 0,
-        readyAtMinute: null
       },
       harvestWork: {
         baseCost: 15,
@@ -88,7 +86,6 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         availableWork: 500,
         affordable: true,
         shortage: 0,
-        readyAtMinute: null
       },
       immediateAction: {
         kind: "water",
@@ -358,10 +355,12 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         expect(html).toContain("catch-record-banner record-weight");
         expect(html).toContain("Your heaviest yet");
 
-        // Vitals grid
+        // Vitals grid. Catch-time UI never estimates value (`02` §17); the
+        // market ticket is the only place a price is shown.
         expect(html).toContain("6.85 kg");
         expect(html).toContain("86.2 cm");
-        expect(html).toContain("340 G");
+        expect(html).not.toContain("Estimated Value");
+        expect(html).not.toContain("340 G");
         expect(html).toContain("96%");
         expect(html).toContain("~48m remaining");
 

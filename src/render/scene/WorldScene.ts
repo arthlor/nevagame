@@ -58,6 +58,7 @@ import {
   WorldLayout
 } from "../../world/WorldLayout";
 import {
+  PLAYER_HOMESTEAD_LAYOUT,
   STARTER_FARM_LAYOUT,
   SUNREACH_FARM_LAYOUT,
   farmLocalToWorld,
@@ -264,6 +265,7 @@ const STATION_ACTIVITY_RADIUS_METERS = 55;
 const STATION_ACTIVITY_HEIGHT_METERS: Readonly<Record<string, number>> = {
   "hand-mill": 2.1,
   workbench: 1.15,
+  kitchen: 1.15,
   "fish-table": 1.2,
   "compost-bin": 1.0
 };
@@ -285,7 +287,7 @@ const SEEDED_FILL_COLLIDING_FAMILIES: ReadonlySet<string> = new Set(["vegetation
 // after static collision and shadow setup so it follows layout edits without
 // entering collision or inflating the farmhouse's broad shadow silhouette.
 const FARMHOUSE_SMOKE_ATTACHMENT = {
-  position: [3.168, 8.76, -0.576] as const,
+  position: [-2.78, 8.91, -0.35] as const,
   rotationY: 0.18,
   scale: 0.65
 } as const;
@@ -773,6 +775,11 @@ export class WorldScene {
   };
   private playerContactShadow: ContactShadowMesh | null = null;
   private windmillRotor: THREE.Group | null = null;
+  private farmhouseSmoke: THREE.Group | null = null;
+  private readonly farmhouseSmokeUniforms = {
+    nevaSmokeTime: { value: 0 },
+    nevaSmokeWind: { value: new THREE.Vector2(0, 0) }
+  };
   private readonly faunaPresentations: FaunaPresentation[] = [];
   private donkeyPresentation: DonkeyPresentation | null = null;
   private readonly backgroundBoats: THREE.Object3D[] = [];
@@ -784,6 +791,7 @@ export class WorldScene {
   private readonly rowboatPresentationRigs = new Map<string, RowboatPresentationRig>();
   private readonly boatDriverSeats = new Map<string, THREE.Object3D>();
   private readonly boatFishingStations = new Map<string, THREE.Object3D>();
+  private readonly boatSkiffFootSupports = new Map<string, { left: THREE.Object3D; right: THREE.Object3D }>();
   private readonly boatBuoyancyState = new Map<string, BoatBuoyancyPresentationState>();
   private readonly boatResponses = new BoatResponsePresentation();
   private readonly socialReactions = new SocialReactionPresentation();
@@ -1865,6 +1873,22 @@ export class WorldScene {
       heightAt: (worldX, worldZ) => WorldLayout.terrainHeight(worldX, worldZ),
       surfaceMaterial: this.cultivatedSurfaceMaterial.material
     }));
+    const commonsGround = new THREE.Group();
+    commonsGround.name = "commons_farm_cultivated_ground";
+    this.cropInstances.setStaticCrops(
+      PLAYER_HOMESTEAD_LAYOUT.farmId,
+      PLAYER_HOMESTEAD_LAYOUT.visualCropDecorations ?? []
+    );
+    (PLAYER_HOMESTEAD_LAYOUT.visualAreas ?? PLAYER_HOMESTEAD_LAYOUT.plantableAreas).forEach((plantableArea, index) => {
+      commonsGround.add(buildStarterFarmGround({
+        origin: PLAYER_HOMESTEAD_LAYOUT.origin,
+        plantableArea,
+        groupName: `commons_farm_bed_${index + 1}`,
+        heightAt: (worldX, worldZ) => WorldLayout.terrainHeight(worldX, worldZ),
+        surfaceMaterial: this.cultivatedSurfaceMaterial.material
+      }));
+    });
+    this.environmentGroup.add(commonsGround);
     for (const terrace of SUNREACH_FARM_LAYOUT.plantableAreas) {
       this.environmentGroup.add(buildStarterFarmGround({
         origin: SUNREACH_FARM_LAYOUT.origin,
@@ -2176,7 +2200,9 @@ export class WorldScene {
     this.placeLandmark(farmhouse, "farmhouse");
     this.tagLayoutEdit(farmhouse, createFarmsteadTag("farmhouse"));
     this.environmentGroup.add(farmhouse);
-    this.attachPracticalLights(farmhouse);
+    // The authored medieval cottage ships without a named lantern-glow node, so the
+    // homestead keeps its warm door light through the box-center fallback.
+    this.attachPracticalLights(farmhouse, true);
 
     const well = await this.loadModel(STATIC_LANDMARK_ASSETS.well);
     this.placeLandmark(well, "well");
@@ -2242,6 +2268,18 @@ export class WorldScene {
     this.registerInteractionMaterials("struct.starter_compost", compost);
     this.environmentGroup.add(compost);
     this.tagLayoutEdit(compost, createFarmStructureTag("struct.starter_compost"));
+
+    const kitchenAnchor = starterStructureAnchor("struct.kitchen")!;
+    const kitchen = await this.loadModel(STATIC_LANDMARK_ASSETS.kitchen);
+    kitchen.position.set(
+      kitchenAnchor.x,
+      WorldLayout.terrainHeight(kitchenAnchor.x, kitchenAnchor.z),
+      kitchenAnchor.z
+    );
+    kitchen.rotation.y = getProcessingStationRuntimeRotationY("struct.kitchen");
+    this.registerInteractionMaterials("struct.kitchen", kitchen);
+    this.environmentGroup.add(kitchen);
+    this.tagLayoutEdit(kitchen, createFarmStructureTag("struct.kitchen"));
 
     const fishTable = await this.loadModel(STATIC_LANDMARK_ASSETS.fishTable);
     fishTable.position.set(
@@ -2410,11 +2448,53 @@ export class WorldScene {
 
     const farmhouseSmoke = await this.loadModel(STATIC_LANDMARK_ASSETS.farmhouseSmoke);
     farmhouseSmoke.name = "farmhouse_chimney_smoke";
-    farmhouseSmoke.position.set(...FARMHOUSE_SMOKE_ATTACHMENT.position);
+    farmhouse.updateMatrixWorld(true);
+    const smokeSocket = farmhouse.getObjectByName("socket-chimney-smoke");
+    if (smokeSocket) {
+      smokeSocket.getWorldPosition(farmhouseSmoke.position);
+      farmhouse.worldToLocal(farmhouseSmoke.position);
+    } else {
+      farmhouseSmoke.position.set(...FARMHOUSE_SMOKE_ATTACHMENT.position);
+    }
     farmhouseSmoke.rotation.y = FARMHOUSE_SMOKE_ATTACHMENT.rotationY;
     farmhouseSmoke.scale.setScalar(FARMHOUSE_SMOKE_ATTACHMENT.scale);
     this.setShadowPolicy(farmhouseSmoke, false);
+    farmhouseSmoke.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+        const mat = child.material.clone();
+        mat.onBeforeCompile = (shader) => {
+          shader.uniforms.nevaSmokeTime = this.farmhouseSmokeUniforms.nevaSmokeTime;
+          shader.uniforms.nevaSmokeWind = this.farmhouseSmokeUniforms.nevaSmokeWind;
+          shader.vertexShader = `
+            uniform float nevaSmokeTime;
+            uniform vec2 nevaSmokeWind;
+          ` + shader.vertexShader;
+          shader.vertexShader = shader.vertexShader.replace(
+            "#include <begin_vertex>",
+            `#include <begin_vertex>
+            float nevaH = clamp(transformed.y / 2.7, 0.0, 1.0);
+            float nevaBaseHold = smoothstep(0.0, 0.12, nevaH);
+            float nevaWave1 = sin(transformed.y * 3.8 - nevaSmokeTime * 2.6);
+            float nevaWave2 = cos(transformed.y * 2.4 - nevaSmokeTime * 1.8 + 1.2);
+            float nevaWave3 = sin(transformed.y * 5.2 - nevaSmokeTime * 3.4);
+
+            float nevaBillow = 1.0 + (0.18 * nevaWave1 + 0.08 * nevaWave2) * nevaBaseHold;
+            transformed.xz *= nevaBillow;
+
+            transformed.x += (nevaWave1 * 0.10 + nevaWave2 * 0.06 + nevaSmokeWind.x * 0.14) * nevaBaseHold * nevaH;
+            transformed.z += (nevaWave2 * 0.08 + nevaWave3 * 0.05 + nevaSmokeWind.y * 0.14) * nevaBaseHold * nevaH;
+
+            transformed.y += nevaWave2 * 0.06 * nevaBaseHold;
+            `
+          );
+        };
+        mat.customProgramCacheKey = () => "neva-farmhouse-smoke-billow-v1";
+        mat.needsUpdate = true;
+        child.material = mat;
+      }
+    });
     farmhouse.add(farmhouseSmoke);
+    this.farmhouseSmoke = farmhouseSmoke;
     if (!import.meta.env.DEV) this.detachEmptyStaticSourceRoots(staticAssetRoots);
 
     await this.loadNpcPresentations();
@@ -3241,8 +3321,14 @@ export class WorldScene {
     if (!driverSeat) throw new Error("[WorldScene] Skiff is missing boat_skiff_driver_station");
     const fishingStation = boatRoot.getObjectByName("boat_skiff_fishing_station");
     if (!fishingStation) throw new Error("[WorldScene] Skiff is missing boat_skiff_fishing_station");
+    const footLeftSupport = boatRoot.getObjectByName("boat_skiff_foot_left_socket");
+    const footRightSupport = boatRoot.getObjectByName("boat_skiff_foot_right_socket");
+    if (!footLeftSupport || !footRightSupport) {
+      throw new Error("[WorldScene] Skiff is missing its authored foot supports");
+    }
     this.boatDriverSeats.set(boatId, driverSeat);
     this.boatFishingStations.set(boatId, fishingStation);
+    this.boatSkiffFootSupports.set(boatId, { left: footLeftSupport, right: footRightSupport });
   }
 
   private skiffMooringPreviewPose(): GameState["boats"][string] {
@@ -3458,6 +3544,22 @@ export class WorldScene {
     if (this.windmillRotor) {
       const rotorSpeed = (0.18 + this.weatherMotion.effectiveWindSpeed * 0.035) * motionScale;
       this.windmillRotor.rotation.z = -timeSeconds * rotorSpeed;
+    }
+    if (this.farmhouseSmoke) {
+      this.farmhouseSmokeUniforms.nevaSmokeTime.value = timeSeconds * motionScale;
+      this.farmhouseSmokeUniforms.nevaSmokeWind.value.set(
+        this.weatherMotion.directionX * this.weatherMotion.effectiveWindSpeed * 0.15 * motionScale,
+        this.weatherMotion.directionZ * this.weatherMotion.effectiveWindSpeed * 0.15 * motionScale
+      );
+      const breathe = Math.sin(timeSeconds * 1.6) * 0.035 * motionScale;
+      this.farmhouseSmoke.scale.set(
+        FARMHOUSE_SMOKE_ATTACHMENT.scale * (1 - breathe * 0.4),
+        FARMHOUSE_SMOKE_ATTACHMENT.scale * (1 + breathe),
+        FARMHOUSE_SMOKE_ATTACHMENT.scale * (1 - breathe * 0.4)
+      );
+      this.farmhouseSmoke.rotation.y = FARMHOUSE_SMOKE_ATTACHMENT.rotationY + Math.sin(timeSeconds * 0.5) * 0.12 * motionScale;
+      this.farmhouseSmoke.rotation.z = Math.sin(timeSeconds * 0.8) * 0.035 * motionScale;
+      this.farmhouseSmoke.rotation.x = Math.cos(timeSeconds * 0.6) * 0.025 * motionScale;
     }
     this.updateFaunaMotion(timeSeconds, delta, motionScale);
     this.updateAmbientFlyers(timeSeconds, delta, motionScale);
@@ -4412,6 +4514,9 @@ export class WorldScene {
       const fishingStation = state.sportFishing && activeBoat?.boatTypeId === "boat.skiff"
         ? this.boatFishingStations.get(activeBoat.id)
         : undefined;
+      const skiffFootSupports = activeBoat?.boatTypeId === "boat.skiff"
+        ? this.boatSkiffFootSupports.get(activeBoat.id)
+        : undefined;
       const boatCharacterAnchor = fishingStation ?? driverSeat;
       const attachedToDonkey = state.player.activeMountId !== null
         && this.donkeyPresentation?.attachedMountId === state.player.activeMountId;
@@ -4480,6 +4585,9 @@ export class WorldScene {
         alignMarkerHand(this.playerAnimation, "right", this.donkeyPresentation.reinRightGrip);
       } else if (this.playerAnimation && !attachmentTransitionActive && rowboatRig) {
         alignSupportFeet(this.playerAnimation, rowboatRig.footLeftSupport, rowboatRig.footRightSupport);
+      } else if (this.playerAnimation && !attachmentTransitionActive && skiffFootSupports
+        && (motion.clip === "skiff_idle" || motion.clip === "skiff_drive")) {
+        alignSupportFeet(this.playerAnimation, skiffFootSupports.left, skiffFootSupports.right);
       }
       this.playerAnimation?.resolveGroundContacts(
         animationContext,
@@ -4489,10 +4597,14 @@ export class WorldScene {
       const holdingOars = presentationMode === "boat-driving"
         && activeBoat?.boatTypeId === "boat.rowboat";
       this.syncRowboatOarPresentation(activeBoat?.id ?? null, holdingOars, delta);
-      if (presentationMode === "boat-driving" && activeBoat?.boatTypeId === "boat.skiff" && !attachmentTransitionActive && this.playerAnimation) {
-        const helm = this.boatMeshes.get(activeBoat.id)?.getObjectByName("boat_skiff_helm_grip");
-        if (!helm) throw new Error("[WorldScene] Skiff is missing its helm grip");
+      if (presentationMode === "boat-driving" && activeBoat?.boatTypeId === "boat.skiff"
+        && motion.clip === "skiff_drive" && !attachmentTransitionActive && this.playerAnimation) {
+        const boatMesh = this.boatMeshes.get(activeBoat.id);
+        const helm = boatMesh?.getObjectByName("boat_skiff_helm_grip");
+        const helmLeft = boatMesh?.getObjectByName("boat_skiff_helm_grip_left");
+        if (!helm || !helmLeft) throw new Error("[WorldScene] Skiff is missing its two helm grips");
         alignMarkerHand(this.playerAnimation, "right", helm);
+        alignMarkerHand(this.playerAnimation, "left", helmLeft);
       }
       for (const key of ["bundle", "basket", "water", "sickle", "scoop"] as const) {
         const prop = this.farmingProps.get(key);
@@ -4680,7 +4792,12 @@ export class WorldScene {
         motion: npcPresentationMotion({
           velocity: { x: velocityX, y: 0, z: velocityZ },
           speedMetersPerSecond: walkSpeed,
-          turnRateRadiansPerSecond: isDialogueTarget ? 0 : turnDifference / Math.max(npcFrameDelta, 1 / 60),
+          // A corner can produce a wrapped turn difference near pi in one frame;
+          // clamp the reported rate so the animator reads a believable turn
+          // instead of a one-frame spike that snaps the whole body around.
+          turnRateRadiansPerSecond: isDialogueTarget
+            ? 0
+            : THREE.MathUtils.clamp(turnDifference / Math.max(npcFrameDelta, 1 / 60), -6, 6),
           groundNormal: { ...surface.normal },
           slopeRadians: Math.acos(THREE.MathUtils.clamp(surface.normal.y, -1, 1)),
           contactSurface: surface.source === "terrain" ? "grass" : "path",
@@ -5872,6 +5989,14 @@ export class WorldScene {
     if (this.disposed) return;
     this.disposed = true;
     this.detachPlayerFromDonkey();
+    if (this.farmhouseSmoke) {
+      this.farmhouseSmoke.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.Material) {
+          child.material.dispose();
+        }
+      });
+      this.farmhouseSmoke = null;
+    }
     for (const batch of this.rigidAnimationBatches.values()) batch.dispose();
     this.rigidAnimationBatches.clear();
     this.boatResponses.clear();
@@ -5951,10 +6076,16 @@ export class WorldScene {
     }
     this.terrainMeshes.length = 0;
     disposeNamedGeneratedMesh(this.environmentGroup, "world_path_overlay");
-    const farmGround = this.environmentGroup.getObjectByName("starter_farm_cultivated_ground");
-    if (farmGround) {
+    for (const farmGroundName of ["starter_farm_cultivated_ground", "commons_farm_cultivated_ground"]) {
+      const farmGround = this.environmentGroup.getObjectByName(farmGroundName);
+      if (!farmGround) continue;
       farmGround.traverse((object) => {
-        if (object instanceof THREE.Mesh) object.geometry.dispose();
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) {
+          if (material !== this.cultivatedSurfaceMaterial.material) material.dispose();
+        }
       });
       farmGround.removeFromParent();
     }

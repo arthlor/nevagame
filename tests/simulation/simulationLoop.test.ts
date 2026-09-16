@@ -5,6 +5,7 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
+import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 
 function movePlayerToProcessingFront(simulation: Simulation, stationId: string): void {
@@ -140,11 +141,11 @@ describe("Simulation Vertical Slice Loop", () => {
     expect(cargo.speciesId).toBe("fish.trout");
     expect(cargo.freshness).toBe(100);
 
-    // 9. Sell Fish at Harbor Market
-    sim.state.player.x = 68;
-    sim.state.player.z = 64;
+    // 9. Carry the physical pack to the inland trade center and sell it.
+    sim.state.player.x = VILLAGE_MARKET.position.x;
+    sim.state.player.z = VILLAGE_MARKET.position.z;
     const initialMoney = sim.state.player.money;
-    const sellRes = sim.sellFishCargoAtMarket("market.harbor", cargo.id);
+    const sellRes = sim.sellFishTradePackAtMarket("market.village", cargo.id);
     expect(sellRes.success).toBe(true);
 
     // The floor is derived from the fish that actually rolled, not a constant.

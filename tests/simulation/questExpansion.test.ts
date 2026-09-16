@@ -5,6 +5,7 @@ import type { QuestDefinition } from "../../src/simulation/core/QuestTypes";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { STARTER_FARM_LAYOUT, farmWellWorldAnchor } from "../../src/world/FarmLayout";
 import { MAIN_QUEST_TRACK_ID, mainQuestTrack } from "../../src/simulation/core/QuestTypes";
+import { TRADELANES_QUEST_TRACK_ID } from "../../src/content/questTracks";
 
 describe("post-story quest expansion", () => {
   it("advances only the exact active contract and farm objective", () => {
@@ -208,7 +209,7 @@ describe("post-story quest expansion", () => {
     expect(reloaded.state.player.money).toBe(777);
   });
 
-  it("preserves active stewardship progress and recognizes milestones across reload", () => {
+  it("preserves active stewardship progress and opens a satisfied side track across reload", () => {
     const sim = new Simulation();
     sim.state.quests.activeActId = "act6_stewardship";
     mainQuestTrack(sim.state.quests).activeQuestId = "quest.act6_land_sea_cycle";
@@ -218,13 +219,18 @@ describe("post-story quest expansion", () => {
     const loaded = new Simulation(structuredClone(sim.state));
     expect(mainQuestTrack(loaded.state.quests).activeQuestId).toBe("quest.act6_land_sea_cycle");
     expect(mainQuestTrack(loaded.state.quests).stepProgress).toEqual({ "step.act6_craft_fertilizer": 0 });
+    // Completing `quest.act6_harbor_promise` satisfies track.tradelanes' unlock,
+    // so a save from before the track shipped opens it on load instead of
+    // waiting for another quest completion.
+    expect(loaded.state.quests.tracks[TRADELANES_QUEST_TRACK_ID].activeQuestId)
+      .toBe("quest.tradelanes_volume");
 
     const maeve = ContentRegistry.npcs.get("npc.maeve")!;
     loaded.state.player.x = maeve.anchor.x;
     loaded.state.player.z = maeve.anchor.z;
     const first = loaded.execute({ type: "quest.talk-npc", npcId: "npc.maeve" }) as { dialogue?: string[] };
     const second = loaded.execute({ type: "quest.talk-npc", npcId: "npc.maeve" }) as { dialogue?: string[] };
-    expect(first.dialogue?.[0]).toContain("finished the order");
+    expect(first.dialogue?.[0]).toContain("You kept one order");
     expect(second.dialogue).toEqual(first.dialogue);
   });
 

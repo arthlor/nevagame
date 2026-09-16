@@ -148,20 +148,34 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     }
   });
 
-  it("keeps generated and public manifest/GLB parity for all 92 assets", () => {
+  it("keeps generated and public manifest/GLB parity for every Blender-generated asset", () => {
     const generated = JSON.parse(
       fs.readFileSync(path.join(ROOT, "generated/reports/asset-manifest.json"), "utf8")
     ) as { assets: Array<{ id: string; file: string }> };
     const published = JSON.parse(
       fs.readFileSync(path.join(ROOT, "public/assets/models/asset-manifest.json"), "utf8")
     ) as typeof generated;
-    expect(generated.assets).toHaveLength(ASSET_CATALOG.length);
-    expect(published.assets).toHaveLength(ASSET_CATALOG.length);
+    // The runtime catalog deliberately drops authoring fields, so read the source catalog for the
+    // generator that decides which pipeline publishes each asset.
+    const catalog = JSON.parse(
+      fs.readFileSync(path.join(ROOT, "assets/specs/asset-catalog.json"), "utf8")
+    ) as { assets: Array<{ id: string; file: string; generator: string }> };
+    // Code-authored `prebuilt_glb` assets are published by tools/authored, not the Blender manifest.
+    const blenderAssets = catalog.assets.filter((asset) => asset.generator !== "prebuilt_glb");
+    expect(blenderAssets.length).toBeGreaterThan(0);
+    expect(generated.assets).toHaveLength(blenderAssets.length);
+    expect(published.assets).toHaveLength(blenderAssets.length);
     expect(generated.assets.map((asset) => asset.id).sort()).toEqual(published.assets.map((asset) => asset.id).sort());
     for (const asset of generated.assets) {
       expect(fs.existsSync(path.join(ROOT, "generated/glb", asset.file)), asset.id).toBe(true);
       expect(fs.existsSync(path.join(ROOT, "public/assets/models", asset.file)), asset.id).toBe(true);
       expect(published.assets.find((candidate) => candidate.id === asset.id)?.file).toBe(asset.file);
+    }
+    // Authored assets stay outside the manifest but must still publish a runtime file.
+    const authoredAssets = catalog.assets.filter((asset) => asset.generator === "prebuilt_glb");
+    expect(authoredAssets.length).toBeGreaterThan(0);
+    for (const asset of authoredAssets) {
+      expect(fs.existsSync(path.join(ROOT, "public/assets/models", asset.file)), asset.id).toBe(true);
     }
   });
 

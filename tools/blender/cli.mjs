@@ -203,6 +203,9 @@ const PARAMETER_CONTRACTS = Object.freeze({
   coastal_rock: { width: number(1, 8), depth: number(1, 6), height: number(0.6, 5), shear: number(-0.3, 0.3), form: choice("cleft", "shelf", "spine") },
   coastal_hut: { width: number(3, 6), depth: number(2.5, 5), wallHeight: number(2, 3.2), roofPitch: number(16, 36), form: choice("shelter", "store") },
   imported_blend: { sourceBlend: repositoryFile(".blend"), sourceCollection: nonemptyString() },
+  // Code-authored assets: the source GLB is built by tools/authored/export.mjs from the editable
+  // TypeScript factories, not by Blender. The source lives under art/authored/<model>/export/.
+  prebuilt_glb: { sourceGlb: repositoryFile(".glb") },
   oak_tree: { height: number(3, 10), spread: number(1, 5), canopyClusters: integer(6, 24), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10) },
   olive_tree: { height: number(3, 8), spread: number(1, 4), canopyClusters: integer(6, 24), lean: number(-0.4, 0.4), branchCount: integer(4, 10), rootCount: integer(4, 10), fruitCount: integer(0, 30) },
   pine_tree: { height: number(4, 12), spread: number(1, 4), tiers: integer(5, 12), lean: number(-0.4, 0.4), branchesPerTier: integer(3, 8), rootCount: integer(3, 8) },
@@ -258,7 +261,7 @@ const PARAMETER_CONTRACTS = Object.freeze({
     doorHeight: number(1.2, 3.2),
     roofForm: choice("front-gable", "side-gable", "lean-to", "offset-gable", "tall-gable"),
     openingLayout: choice("cottage-front", "cottage-side", "cottage-garden", "inn-veranda", "market-arcade", "barn-loft", "shed-tools", "outhouse-vent"),
-    variant: choice("cottage-a", "cottage-b", "cottage-c", "inn", "inn-b", "market-hall", "market-hall-b", "barn", "barn-b", "shed", "shed-b", "outhouse", "outhouse-b")
+    variant: choice("cottage-a", "cottage-b", "cottage-c", "inn", "inn-b", "market-hall", "market-hall-b", "barn", "barn-b", "shed", "shed-b", "kitchen", "outhouse", "outhouse-b")
   },
   lighthouse: {
     height: number(6, 24),
@@ -324,8 +327,8 @@ const PARAMETER_CONTRACTS = Object.freeze({
   potato_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), stems: integer(0, 32) },
   carrot_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), plants: integer(0, 32) },
   sunflower_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), leafCount: integer(0, 32) },
-  olive_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), branches: integer(0, 32), leafCount: integer(0, 32), fruitRadius: number(0.001, 3) },
-  apple_tree_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), branches: integer(0, 32), leafCount: integer(0, 32), fruitRadius: number(0.001, 3) },
+  olive_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 5), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), branches: integer(0, 32), leafCount: integer(0, 32), fruitRadius: number(0.001, 3) },
+  apple_tree_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 5), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), branches: integer(0, 32), leafCount: integer(0, 32), fruitRadius: number(0.001, 3) },
   turnip_crop: { leafCount: integer(4, 10) },
   pumpkin_crop: { lobes: integer(5, 8), leafCount: integer(3, 8) },
   stylized_fish: {
@@ -378,6 +381,8 @@ const PARAMETER_CONTRACTS = Object.freeze({
   equipment_sickle: { style: choice("broad", "balanced") },
   crafting_job_prop: { style: choice("tailor", "toolmaking", "ready") },
   wagon_cart: { length: number(1.5, 5), width: number(1, 3), height: number(0.8, 3) },
+  draft_horse: {},
+  merchant_carriage: { bedWidth: number(1.2, 2), bedLength: number(2, 3.5), wheelRadius: number(0.4, 0.8), shaftLength: number(1.5, 3) },
   produce_crate: { size: number(0.4, 2), content: choice("pumpkins", "apples") },
   fauna_cow: { scale: number(0.5, 2), hornScale: number(0.5, 2) },
   fauna_donkey: { scale: number(0.5, 2), earLength: number(0.7, 1.4), legLength: number(0.7, 1.3) },
@@ -2013,17 +2018,28 @@ function publishStage(report, optimizedDir, selected, catalog, strict, repoRoot 
   }
 }
 
+/**
+ * Assets the Blender pipeline owns and records in the published manifest ledger. Code-authored
+ * `prebuilt_glb` assets are built and published by `tools/authored/export.mjs`; they are valid
+ * catalog members but deliberately stay outside this manifest so the ledger keeps meaning
+ * "produced and validated by Blender".
+ */
+function isBlenderPublished(asset) {
+  return asset.generator !== "prebuilt_glb";
+}
+
 async function validatePublished(assets, catalog, specHash) {
   const paletteHash = sha256(fs.readFileSync(PALETTE_PATH));
   const generatedManifest = readJson(MANIFEST_PATH);
   const publicManifest = readJson(PUBLIC_MANIFEST_PATH);
-  validatePublishedManifest(generatedManifest, catalog, specHash, paletteHash, "generated", assets);
-  validatePublishedManifest(publicManifest, catalog, specHash, paletteHash, "public", assets);
+  const published = assets.filter(isBlenderPublished);
+  validatePublishedManifest(generatedManifest, catalog, specHash, paletteHash, "generated", published);
+  validatePublishedManifest(publicManifest, catalog, specHash, paletteHash, "public", published);
   if (JSON.stringify(generatedManifest) !== JSON.stringify(publicManifest)) {
     throw new Error("Generated and public asset manifests differ");
   }
   const reportAssets = [];
-  for (const spec of assets) {
+  for (const spec of published) {
     const generated = path.join(GENERATED_DIR, spec.file);
     const published = path.join(PUBLIC_DIR, spec.file);
     if (!fs.existsSync(generated) || !fs.existsSync(published)) throw new Error(`${spec.id}: published file is missing`);
@@ -2055,6 +2071,7 @@ async function syncPublishedManifest(catalog, specHash) {
   const previousById = new Map((previous.assets ?? []).map((asset) => [asset.id, asset]));
   const assets = [];
   for (const spec of catalog.assets) {
+    if (!isBlenderPublished(spec)) continue;
     const generatedPath = path.join(GENERATED_DIR, spec.file);
     const publicPath = path.join(PUBLIC_DIR, spec.file);
     if (!fs.existsSync(generatedPath) || !fs.existsSync(publicPath)) {
@@ -2142,8 +2159,8 @@ export function validatePublishedManifest(
   ) {
     throw new Error(`${label} manifest does not match the current catalog, palette, or toolchain`);
   }
-  if (!Array.isArray(manifest.assets) || manifest.assets.length !== catalog.assets.length) {
-    throw new Error(`${label} manifest does not contain the complete catalog`);
+  if (!Array.isArray(manifest.assets) || manifest.assets.length !== catalog.assets.filter(isBlenderPublished).length) {
+    throw new Error(`${label} manifest does not contain the complete Blender-generated catalog`);
   }
   if (
     manifest.vertexColorSpace !== "linear-srgb" ||
@@ -2154,7 +2171,7 @@ export function validatePublishedManifest(
   }
   const entries = new Map(manifest.assets.map((asset) => [asset.id, asset]));
   const selectedIds = new Set(selectedAssets.map((asset) => asset.id));
-  for (const spec of catalog.assets) {
+  for (const spec of catalog.assets.filter(isBlenderPublished)) {
     const asset = entries.get(spec.id);
     if (
       !asset ||
@@ -2230,8 +2247,19 @@ async function main() {
     return;
   }
   if (!new Set(["generate", "determinism"]).has(args.command)) throw new Error(`Unknown command: ${args.command}`);
+  // `prebuilt_glb` assets are rebuilt by `npm run art:authored`, never by Blender. Exclude them from
+  // the Blender build set so `generate`/`determinism` stay runnable alongside them.
+  const buildable = selected.filter((asset) => asset.generator !== "prebuilt_glb");
+  const authored = selected.filter((asset) => asset.generator === "prebuilt_glb");
+  if (authored.length) {
+    console.log(`[NEVA ART] Skipping ${authored.length} code-authored asset(s); rebuild with npm run art:authored: ${authored.map((asset) => asset.id).join(", ")}`);
+  }
+  if (!buildable.length) {
+    console.log("[NEVA ART] Nothing for Blender to build in this selection");
+    return;
+  }
   if (args.strict) {
-    const draftBriefs = selected.filter((asset) => asset.referenceAuthoring?.status === "draft");
+    const draftBriefs = buildable.filter((asset) => asset.referenceAuthoring?.status === "draft");
     if (draftBriefs.length) {
       throw new Error(`Strict generation rejected draft reference briefs: ${draftBriefs.map((asset) => asset.id).join(", ")}`);
     }
@@ -2251,7 +2279,7 @@ async function main() {
     timeoutMs: args.timeoutMs,
     ...generationInputs,
   };
-  const first = await buildStage(context, selected, blenderInfo);
+  const first = await buildStage(context, buildable, blenderInfo);
   assertGenerationInputsUnchanged(generationInputs, "during the first build");
   first.report.publication = args.command === "determinism"
     ? "determinism"
@@ -2273,25 +2301,25 @@ async function main() {
       concurrency: args.concurrency,
       timeoutMs: args.timeoutMs,
       ...generationInputs,
-    }, selected, blenderInfo);
+    }, buildable, blenderInfo);
     assertGenerationInputsUnchanged(generationInputs, "during the determinism build");
     for (const asset of first.report.assets) {
       const peer = second.report.assets.find((entry) => entry.id === asset.id);
       if (asset.semanticHash !== peer?.semanticHash) throw new Error(`${asset.id}: semantic determinism mismatch`);
     }
-    console.log(`[NEVA ART] Semantic determinism passed for ${selected.length} assets`);
+    console.log(`[NEVA ART] Semantic determinism passed for ${buildable.length} assets`);
     const retention = pruneStagingRuns(STAGING_ROOT, STAGING_RUN_RETENTION, [stage, secondStage]);
     if (retention.removed.length) console.log(`[NEVA ART] Pruned ${retention.removed.length} older staging runs`);
     return;
   }
   if (args.publish) {
-    publishStage(first.report, first.optimizedDir, selected, catalog, args.strict);
-    console.log(`[NEVA ART] Published ${selected.length} validated assets`);
-    const firstAsset = selected[0];
-    const suffix = selected.length > 1 ? ` (+${selected.length - 1} more selected)` : "";
+    publishStage(first.report, first.optimizedDir, buildable, catalog, args.strict);
+    console.log(`[NEVA ART] Published ${buildable.length} validated assets`);
+    const firstAsset = buildable[0];
+    const suffix = buildable.length > 1 ? ` (+${buildable.length - 1} more selected)` : "";
     console.log(`[NEVA ART] Art Yard: ${artYardUrl(firstAsset.id)}${suffix}`);
   } else {
-    console.log(`[NEVA ART] Staged ${selected.length} assets at ${stage}; public assets unchanged`);
+    console.log(`[NEVA ART] Staged ${buildable.length} assets at ${stage}; public assets unchanged`);
   }
   const retention = pruneStagingRuns(STAGING_ROOT, STAGING_RUN_RETENTION, [stage]);
   if (retention.removed.length) console.log(`[NEVA ART] Pruned ${retention.removed.length} older staging runs`);

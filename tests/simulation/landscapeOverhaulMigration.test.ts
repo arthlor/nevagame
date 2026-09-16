@@ -6,15 +6,25 @@ import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
 import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
+import { expectFarmsPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 
 const legacy = () => structuredClone(fixture) as unknown as SaveEnvelope;
 function expectResourcesUnchanged(after: SaveEnvelope, before: SaveEnvelope) {
-  for (const key of ["inventories", "farms", "crops", "processingJobs", "boats", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "metadata", "markets"] as const) {
+  for (const key of ["inventories", "crops", "processingJobs", "boats", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "metadata"] as const) {
     expect(after.state[key], key).toEqual(before.state[key]);
   }
-  for (const key of ["money", "proficiencies", "workCapacity", "equipment", "ownedRodIds"] as const) {
+  expectFarmsPreserved(after.state, before.state);
+  expectMarketsPreserved(after.state, before.state);
+  for (const key of ["money", "proficiencies", "equipment", "ownedRodIds"] as const) {
     expect(after.state.player[key], key).toEqual(before.state.player[key]);
   }
+  // v43 intentionally rescales the Work pool to the daily ceiling.
+  const beforeWork = before.state.player.workCapacity;
+  expect(after.state.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
+  expect(after.state.player.workCapacity.current).toBe(
+    Math.round((beforeWork.current / beforeWork.maximum) * WORK_CAPACITY_MAXIMUM)
+  );
 }
 
 describe("landscape overhaul migration (v38 / layout16)", () => {
@@ -65,7 +75,7 @@ describe("landscape overhaul migration (v38 / layout16)", () => {
     Object.assign(before.state.player, FARMHOUSE_INTERIOR_DOOR.enterSpawn);
     const player = structuredClone(before.state.player);
     const after = migrateSaveData(before);
-    expect(after.state.player).toEqual(player);
+    expect({ ...after.state.player, workCapacity: player.workCapacity }).toEqual(player);
     expectResourcesUnchanged(after, before);
   });
 });

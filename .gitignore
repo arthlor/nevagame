@@ -20,6 +20,8 @@ output/
 npcs/
 neva-debug.ts
 tmp-*.ts
+tmp-*.mjs
+tmp-*.js
 .claude/
 .cursor/
 hudcurrent/

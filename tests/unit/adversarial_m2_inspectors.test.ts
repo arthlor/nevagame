@@ -156,9 +156,9 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
       climate: { current: "temperate", preferred: ["temperate"], status: "preferred" },
       soil: { fertility: 90, band: "good" },
       expectedYield: { min: 3, max: 5 },
-      work: { current: 300, baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0, readyAtMinute: null },
-      waterWork: { baseCost: 5, cost: 5, availableWork: 300, affordable: true, shortage: 0, readyAtMinute: null },
-      harvestWork: { baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0, readyAtMinute: null },
+      work: { current: 300, baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
+      waterWork: { baseCost: 5, cost: 5, availableWork: 300, affordable: true, shortage: 0 },
+      harvestWork: { baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
       immediateAction: { kind: "harvest", label: "Harvest Crop", cost: 10, available: true },
       actions: { canWater: false, canHarvest: true }
     };
@@ -468,9 +468,9 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
         climate: { current: "temperate", preferred: ["temperate"], status: "preferred" },
         soil: { fertility: 50, band: "good" },
         expectedYield: { min: 1, max: 2 },
-        work: { current: 100, baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0, readyAtMinute: null },
-        waterWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0, readyAtMinute: null },
-        harvestWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0, readyAtMinute: null },
+        work: { current: 100, baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
+        waterWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
+        harvestWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
         immediateAction: { kind: "harvest", label: "Harvest", cost: 5, available: true },
         actions: { canWater: false, canHarvest: true }
       };

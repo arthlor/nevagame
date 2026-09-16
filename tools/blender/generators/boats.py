@@ -86,7 +86,7 @@ def _skiff_station(length: float, beam: float, index: int, segments: int):
     bow_bias = 1.0 + (0.20 if progress < 0.5 else -0.08)
     rise = end_factor**2.7 * 0.48 * bow_bias
     half_width = _hull_half_width(y, length * 0.5, beam, fullness=0.64)
-    sheer = 0.49 + rise
+    sheer = 0.76 + rise * 0.45
     chine = -0.17 + rise * 0.48
     keel = -0.53 + rise * 0.30
     return y, half_width, sheer, chine, keel
@@ -145,9 +145,9 @@ def _add_continuous_skiff_shell(
             faces.append((inner_current[band + 1], inner_next[band + 1], inner_next[band], inner_current[band]))
             materials.append(0 if band in (0, 3) else 1)
         faces.append((outer_current[0], inner_current[0], inner_next[0], outer_next[0]))
-        materials.append(2)
+        materials.append(0)
         faces.append((outer_current[4], outer_next[4], inner_next[4], inner_current[4]))
-        materials.append(2)
+        materials.append(0)
 
     for ring_index in (0, segments):
         outer, inner = outer_rings[ring_index], inner_rings[ring_index]
@@ -220,23 +220,25 @@ def _add_skiff_strake(
     _finish_authored_mesh(name, vertices, faces, [0] * len(faces), (token,), root)
 
 
-def _add_working_sail(name: str, mast_height: float, token: str, root, *, rows: int = 8) -> None:
+def _skiff_sail_point(mast_height, u, v, side, foot_rise):
+    width = 2.72 * (1.0 - v) + 1.05 * v
+    y = 0.10 + width * u
+    z = mast_height * (0.354 + v * 0.416) + foot_rise * (y - 0.10)
+    billow = math.sin(u * math.pi) * math.sin(v * math.pi) * 0.24
+    return (side * 0.025 + billow, y, z)
+
+
+def _add_working_sail(name: str, mast_height: float, token: str, root, *, rows: int = 8, foot_rise: float = 0.0) -> None:
     """Build a thick, billowing mainsail with faceted folds in the boat Y/Z plane."""
-    thickness = 0.085
-    height_steps = max(4, rows // 2)
-    width_steps = 5
+    height_steps = max(4, rows)
+    width_steps = 6
     vertices = []
     for side in (-1.0, 1.0):
         for row in range(height_steps + 1):
             v = row / height_steps
-            z = mast_height * (0.32 + v * 0.58)
-            max_width = 2.72 * (1.0 - v * 0.82)
             for col in range(width_steps + 1):
                 u = col / width_steps
-                y = 0.10 + max_width * u
-                billow = math.sin(u * math.pi) * math.sin(v * math.pi) * 0.34
-                fold = math.sin(u * math.pi * 2.0) * 0.06 * (1.0 - v)
-                vertices.append((side * thickness + billow + fold, y, z))
+                vertices.append(_skiff_sail_point(mast_height, u, v, side, foot_rise))
     faces = []
     def _idx(side, row, col):
         return side * (height_steps + 1) * (width_steps + 1) + row * (width_steps + 1) + col
@@ -275,12 +277,30 @@ def _add_working_sail(name: str, mast_height: float, token: str, root, *, rows: 
     bpy.context.collection.objects.link(sail)
     sail.parent = root
     apply_vertex_values(sail)
+    # Seams share the actual cloth tessellation, so they cannot disappear into
+    # the billow or cut through it like straight decorative bars.
+    for side in (-1, 1):
+        for row in range(2, height_steps, 2):
+            points = []
+            for col in range(width_steps + 1):
+                x, y, z = _skiff_sail_point(mast_height, col / width_steps, row / height_steps, side, foot_rise)
+                points.append((x + side * .006, y, z))
+            add_rope_line(f"{name}_stitched_panel_{side}_{row}", points, .007, token, root, vertices=4)
+    for edge, coordinates in (
+        ("luff", [(0, i / height_steps) for i in range(height_steps + 1)]),
+        ("leech", [(1, i / height_steps) for i in range(height_steps + 1)]),
+        ("foot", [(i / width_steps, 0) for i in range(width_steps + 1)]),
+        ("head", [(i / width_steps, 1) for i in range(width_steps + 1)]),
+    ):
+        add_rope_line(f"{name}_{edge}_bolt_rope",
+                      [_skiff_sail_point(mast_height, u, v, 0, foot_rise) for u, v in coordinates],
+                      .028, token, root, vertices=6)
 
 
 def _add_topsail(name: str, mast_height: float, token: str, root) -> None:
     """Small rectangular topsail with slight billow, matching the isolated sheet."""
-    thickness = 0.06
-    z0, z1 = mast_height * 0.78, mast_height * 0.96
+    thickness = 0.025
+    z0, z1 = mast_height * 0.854, mast_height * 0.952
     y0, y1 = 0.08, 1.15
     vertices = []
     for side in (-1.0, 1.0):
@@ -327,6 +347,86 @@ def _add_deck_crate(prefix: str, center, size: float, wood: str, dark: str, root
         (cx - size * 0.42, cy - size * 0.50, cz + size * 0.84),
         0.028, dark, root, vertices=6,
     )
+    # Back/side framing and recessed lid joints stay legible when viewed from
+    # the helm, instead of revealing three bare sides of a decorated cube.
+    for side in (-1, 1):
+        for z in (cz + .06, cz + size - .06):
+            add_box(f"{prefix}_side_rail_{side}_{int(z * 1000)}",
+                    (cx + side * size * .49, cy, z), (.06, size, .07), dark, root, bevel=.01)
+        add_beam(f"{prefix}_side_brace_{side}",
+                 (cx + side * size * .49, cy - size * .38, cz + size * .16),
+                 (cx + side * size * .49, cy + size * .38, cz + size * .84),
+                 .022, dark, root, vertices=4)
+    for index in (-1, 1):
+        add_box(f"{prefix}_lid_joint_{index}", (cx + index * size / 6, cy, cz + size + .001),
+                (.009, size * .82, .003), dark, root, bevel=0)
+    add_beam(f"{prefix}_back_brace", (cx - size * .40, cy + size * .50, cz + size * .16),
+             (cx + size * .40, cy + size * .50, cz + size * .84), .023, dark, root, vertices=4)
+
+
+def _add_skiff_hold_coaming(length: float, beam: float, honey: str, dark: str, root) -> None:
+    """Frame the open working hold so cargo reads as stowed, not floating."""
+    front_y = -length * 0.24
+    rear_y = length * 0.18
+    half_width = beam * 0.39
+    rail_z = 0.705
+    for side, side_name in ((-1, "left"), (1, "right")):
+        add_beam(
+            f"skiff_hold_coaming_{side_name}",
+            (side * half_width, front_y, rail_z),
+            (side * half_width, rear_y, rail_z),
+            0.055,
+            dark,
+            root,
+            vertices=6,
+        )
+    for y, name in ((front_y, "fore"), (rear_y, "aft")):
+        add_beam(
+            f"skiff_hold_coaming_{name}",
+            (-half_width, y, rail_z),
+            (half_width, y, rail_z),
+            0.06,
+            honey,
+            root,
+            vertices=6,
+        )
+
+
+def _skiff_deck(prefix, length, beam, start_y, end_y, top, count, token, root):
+    """Caulked boards fitted to the hull, with one shared level for foot contact."""
+    step = (end_y - start_y) / count
+    for index in range(count):
+        y0 = start_y + index * step + .004
+        y1 = start_y + (index + 1) * step - .004
+        w0 = _skiff_station(length, beam, y0 / length + .5, 1)[1] - .13
+        w1 = _skiff_station(length, beam, y1 / length + .5, 1)[1] - .13
+        vertices = [(x, y, z) for z in (top - .075, top)
+                    for x, y in ((-w0, y0), (w0, y0), (w1, y1), (-w1, y1))]
+        _finish_authored_mesh(f"{prefix}_{index:02d}", vertices,
+            [(3, 2, 1, 0), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)],
+            [0] * 6, (token,), root)
+
+
+def _skiff_barrel(honey, dark, root):
+    vertices, faces = [], []
+    rings = ((.68, .225), (.73, .25), (.94, .285), (1.15, .25), (1.20, .225))
+    for z, radius in rings:
+        for i in range(12):
+            a = math.tau * i / 12
+            vertices.append((.02 + radius * math.cos(a), 1.05 + radius * math.sin(a), z))
+    for ring in range(len(rings) - 1):
+        for i in range(12):
+            j = (i + 1) % 12
+            faces.append((ring * 12 + i, ring * 12 + j, (ring + 1) * 12 + j, (ring + 1) * 12 + i))
+    faces.extend((tuple(reversed(range(12))), tuple(range(48, 60))))
+    _finish_authored_mesh("skiff_barrel_staves", vertices, faces, [0] * len(faces), (honey,), root)
+    for index, z in enumerate((.75, 1.12)):
+        add_ring(f"skiff_barrel_hoop_{index}", (.02, 1.05, z), .259, .022, dark, root,
+                 major_segments=12, minor_segments=4)
+    for i in (-1, 0, 1):
+        add_box(f"skiff_barrel_lid_joint_{i}", (.02 + i * .09, 1.05, 1.201),
+                (.008, .39 - abs(i) * .035, .004), dark, root, bevel=0)
+
 
 def _rowboat_station(y, length, beam):
     progress = min(1.0, max(0.0, y / length + .5))
@@ -534,66 +634,98 @@ def fishing_skiff(spec: dict, root) -> None:
         _, _, _, chine, _ = _skiff_station(length, beam, round(rib * hull_segments / params["ribCount"]), hull_segments)
         add_beam(f"skiff_rib_{rib:02d}", (-width, y, chine + 0.12), (width, y, chine + 0.12), 0.055, dark, root, vertices=6)
 
-    deck_count = params["deckBoards"]
-    for index in range(deck_count):
-        y = -length * 0.43 + index * length * 0.86 / max(1, deck_count - 1)
-        width = _hull_half_width(y, length * 0.5, beam) * 1.35
-        add_box(f"skiff_deck_{index:02d}", (0, y, 0.58), (width, 0.28, 0.09), honey if index % 4 else dark, root, bevel=0.018)
+    _skiff_deck("skiff_working_deck", length, beam, -length * .44, length * .44,
+                .68, params["deckBoards"], honey, root)
+    # Raised platforms are supported by full risers and beams, not slabs
+    # suspended over the sole. Their tops retain the existing station heights.
+    for name, y0, y1, top in (("stern", 1.62, 2.86, .86), ("bow", -2.86, -1.72, .81)):
+        _skiff_deck(f"skiff_{name}_deck", length, beam, y0, y1, top, 8, honey, root)
+        for index, y in enumerate((y0 + .05, y1 - .05)):
+            width = _skiff_station(length, beam, y / length + .5, 1)[1] - .14
+            add_box(f"skiff_{name}_deck_riser_{index}", (0, y, (.68 + top - .075) * .5),
+                    (width * 2, .09, top - .075 - .68), dark, root, bevel=.012)
+    for index, y in enumerate((-1.4, -.65, .1, .85, 1.5, 2.2)):
+        width = _skiff_station(length, beam, y / length + .5, 1)[1] - .14
+        add_beam(f"skiff_deck_beam_{index}", (-width, y, .59), (width, y, .59), .065, dark, root, vertices=4)
     for side, side_name in ((-1, "left"), (1, "right")):
         gunwale_points = []
         for index in range(hull_segments + 1):
             y, width, sheer, _, _ = _skiff_station(length, beam, index, hull_segments)
-            gunwale_points.append((side * width, y, sheer + 0.015))
+            gunwale_points.append((side * (width - .018), y, sheer + 0.035))
         add_rope_line(
-            f"skiff_gunwale_{side_name}", gunwale_points, 0.12, honey, root, vertices=7,
+            f"skiff_gunwale_{side_name}", gunwale_points, 0.075, honey, root, vertices=6,
         )
-        add_plank_field(
-            f"skiff_caprail_{side_name}",
-            (side * beam * 0.46, 0.05, 0.94),
-            0.18,
-            length * 0.78,
-            0.12,
-            (honey, dark),
-            root,
-            count=max(8, hull_segments // 2),
-            axis="y",
-            bevel=0.014,
-        )
+        add_rope_line(f"skiff_inboard_stringer_{side_name}",
+                      [(x - side * .075, y, z - .09) for x, y, z in gunwale_points],
+                      .035, dark, root, vertices=4)
 
-    # Raised stern deck matching the isolated working sailboat
-    add_box("skiff_stern_deck", (0, half_length * 0.62, 0.78), (beam * 0.72, 1.15, 0.16), honey, root, bevel=0.03)
-    add_box("skiff_bow_deck", (0, -half_length * 0.62, 0.74), (beam * 0.48, 0.95, 0.14), honey, root, bevel=0.03)
+    # The helmsman stands at the stern deck so the wheel sits naturally in arm
+    # reach ahead of both hands, clear of the raised boom above and clear of the
+    # wheel base plate below.
+    helm_deck_y = half_length * 0.71
     add_marker(
         "boat_skiff_driver_station",
-        (0, half_length * 0.56, 0.86),
+        (0, helm_deck_y, 0.86),
         root,
         marker_type="standing_station",
     )
+    for side_name, side in (("left", 1), ("right", -1)):
+        add_marker(
+            f"boat_skiff_foot_{side_name}_socket",
+            (side * 0.18, helm_deck_y, 0.86),
+            root,
+            marker_type="foot_support",
+        )
     add_marker(
         "boat_skiff_fishing_station",
         (beam * 0.25, -half_length * 0.24, 0.68),
         root,
         marker_type="standing_station",
     )
-    add_beam("skiff_bowsprit", (0, -half_length * 0.92, 0.78), (0, -half_length * 1.18, 0.86), 0.07, dark, root, vertices=7)
+    add_beam("skiff_bowsprit", (0, -half_length * .84, .98), (0, -half_length * 1.18, 1.12),
+             .065, honey, root, vertices=7)
+    add_rope_line("skiff_stem_knee", [(0, -half_length, -.25), (0, -half_length * 1.015, .24),
+                  (0, -half_length, .72), (0, -half_length * .98, 1.02)], .085, honey, root, vertices=6)
+    for index, y in enumerate((-half_length, half_length)):
+        _, width, sheer, _, _ = _skiff_station(length, beam, y / length + .5, 1)
+        add_beam(f"skiff_end_cap_{index}", (-width, y, sheer + .035), (width, y, sheer + .035),
+                 .074, honey, root, vertices=6)
 
-    _add_deck_crate("skiff_crate_a", (-0.38, 0.18, 0.66), 0.52, honey, dark, root)
-    _add_deck_crate("skiff_crate_b", (0.38, 0.42, 0.66), 0.48, honey, dark, root)
-    add_cylinder("skiff_barrel", (0.02, 1.05, 0.92), 0.28, 0.52, dark, root, vertices=10, bevel=0.02)
-    add_ring("skiff_barrel_band_a", (0.02, 1.05, 0.78), 0.29, 0.025, dark, root, major_segments=10, minor_segments=4)
-    add_ring("skiff_barrel_band_b", (0.02, 1.05, 1.06), 0.29, 0.025, dark, root, major_segments=10, minor_segments=4)
+    _add_skiff_hold_coaming(length, beam, honey, dark, root)
+    # The crate tops now land exactly on their existing cargo markers, keeping
+    # future runtime attachments aligned while making the hold read at distance.
+    _add_deck_crate("skiff_crate_a", (-0.46, 0.18, 0.68), 0.52, honey, dark, root)
+    _add_deck_crate("skiff_crate_b", (0.38, 0.42, 0.68), 0.50, honey, dark, root)
+    _skiff_barrel(honey, dark, root)
     for index, (x, y) in enumerate(((-0.55, 1.45), (-0.28, 1.52), (0.22, 1.48))):
-        add_box(f"skiff_weight_{index:02d}", (x, y, 0.72), (0.22, 0.18, 0.14), dark, root, bevel=0.012)
+        add_box(f"skiff_weight_{index:02d}", (x, y, 0.75), (0.22, 0.18, 0.14), dark, root, bevel=0.012)
     add_marker("boat_skiff_cargo_01", (-0.38, 0.18, 1.20), root, marker_type="cargo")
     add_marker("boat_skiff_cargo_02", (0.38, 0.42, 1.18), root, marker_type="cargo")
 
     mast_height = params["mastHeight"]
+    # The boom is kicked up aft so the standing helmsman clears the rig while
+    # the sail foot stays low at the mast, matching the isolated sheet.
+    boom_run = 2.86
+    boom_rise = 1.25
+    boom_foot_rise = boom_rise / boom_run
     add_beam("skiff_mast", (0, 0.0, 0.62), (0, 0.0, mast_height), 0.13, honey, root, vertices=8)
-    add_beam("skiff_boom", (0, 0, mast_height * 0.34), (0, 2.86, mast_height * 0.36), 0.085, honey, root, vertices=7)
-    add_beam("skiff_yard_main", (0, -0.15, mast_height * 0.90), (0, 0.55, mast_height * 0.90), 0.06, honey, root, vertices=6)
+    add_box("skiff_mast_partner", (0, 0, .71), (.34, .32, .08), dark, root, bevel=.018)
+    add_beam("skiff_pennant_staff", (0, 0, mast_height - .08), (0, 0, mast_height + .31),
+             .034, honey, root, vertices=6)
+    for index, z in enumerate((.80, mast_height * .34, mast_height * .77, mast_height * .96)):
+        add_ring(f"skiff_mast_binding_{index}", (0, 0, z), .14, .022, dark, root, major_segments=10, minor_segments=4)
+    add_beam("skiff_boom", (0, 0, mast_height * 0.34), (0, boom_run, mast_height * 0.34 + boom_rise), 0.085, honey, root, vertices=7)
+    add_beam("skiff_yard_main", (0, -.10, mast_height * .77),
+             (0, 1.22, mast_height * .77 + boom_foot_rise * 1.12), .055, honey, root, vertices=7)
     add_beam("skiff_yard_top", (0, -0.08, mast_height * 0.96), (0, 1.20, mast_height * 0.96), 0.05, honey, root, vertices=6)
-    _add_working_sail("skiff_sail", mast_height, canvas, root, rows=params["sailRows"])
+    _add_working_sail("skiff_sail", mast_height, canvas, root, rows=params["sailRows"], foot_rise=boom_foot_rise)
     _add_topsail("skiff_topsail", mast_height, canvas, root)
+    add_rope_line("skiff_topsail_clew_tie", [(.16, 1.15, mast_height * .854),
+                  (.06, 1.17, mast_height * .77 + boom_foot_rise * 1.07),
+                  (-.035, 1.17, mast_height * .77 + boom_foot_rise * 1.07)], .015, canvas, root, vertices=5)
+    add_rope_line("skiff_topsail_peak_tie", [(.10, 1.15, mast_height * .952),
+                  (.04, 1.15, mast_height * .96 + .025), (-.03, 1.15, mast_height * .96)],
+                  .014, canvas, root, vertices=5)
     add_tri_prism(
         "skiff_pennant",
         (0.04, 0.22, mast_height + 0.18),
@@ -602,52 +734,159 @@ def fishing_skiff(spec: dict, root) -> None:
         root,
         rotation=(math.radians(-12), 0, 0),
     )
-    for row in range(params["sailRows"]):
-        progress = row / max(1, params["sailRows"] - 1)
-        z = mast_height * (0.34 + progress * 0.50)
-        width = max(0.40, 2.55 * (1.0 - progress))
-        add_box(
-            f"skiff_sail_seam_{row:02d}", (0.12, 0.12 + width * 0.5, z),
-            (0.045, width, 0.045), red if row % 3 == 0 else canvas, root,
-            bevel=0.008,
-        )
-    for index in range(5):
-        side_sign = -1 if index % 2 else 1
-        add_catenary_rope(
-            f"skiff_rigging_{index:02d}",
-            (0, 0, mast_height * (0.42 + index * 0.10)),
-            (side_sign * beam * 0.48, -1.6 + index * 0.70, 0.78),
-            0.08,
-            0.042,
-            dark,
-            root,
-            segments=6,
-        )
+    for row in range(6):
+        z = mast_height * (.36 + row * .078)
+        add_ring(f"skiff_luff_hoop_{row}", (0, .018, z), .142, .015, canvas, root,
+                 major_segments=10, minor_segments=4)
+    # Tensioned stays terminate on hull chainplates. The working/fishing
+    # station and standing helm remain clear between the attachment stations.
+    for side in (-1, 1):
+        for index, y in enumerate((-.18, .92)):
+            _, width, sheer, _, _ = _skiff_station(length, beam, y / length + .5, 1)
+            x = side * (width + .025)
+            add_box(f"skiff_chainplate_{side}_{index}", (x, y, sheer - .13),
+                    (.045, .095, .38), dark, root, bevel=.012)
+            add_ring(f"skiff_deadeye_{side}_{index}", (x, y, sheer + .065), .05, .018, dark, root,
+                     major_segments=8, minor_segments=4, rotation=(math.pi / 2, 0, 0))
+            add_catenary_rope(f"skiff_shroud_{side}_{index}", (side * .11, 0, mast_height * .77),
+                             (x, y, sheer + .095), .025, .021, dark, root, segments=8)
+    add_catenary_rope("skiff_forestay", (0, -.10, mast_height * .93),
+                     (0, -half_length * 1.16, 1.12), .035, .022, dark, root, segments=10)
+    add_catenary_rope("skiff_topping_lift", (0, .05, mast_height * .96),
+                     (0, boom_run, mast_height * .34 + boom_rise), .025, .018, dark, root, segments=8)
+    for index, y in enumerate((1.66, 2.78)):
+        add_catenary_rope(f"skiff_boom_lashing_{index}", (-.06, y, mast_height * .34 + boom_foot_rise * y),
+                         (.04, y, mast_height * .354 + boom_foot_rise * (y - .10)),
+                         .015, .015, canvas, root, segments=3)
 
-    for side, x in (("left", -beam * 0.56), ("right", beam * 0.56)):
+    for side, sign in (("left", -1), ("right", 1)):
+        x = sign * beam * .56
         add_beam(f"skiff_hook_rail_{side}", (x, 1.5, 0.72), (x, 2.35, 0.72), 0.055, dark, root, vertices=7)
         add_marker(f"boat_skiff_hook_{side}", (x, 2.35, 0.62), root, marker_type="cargo_hook")
+        for index, y in enumerate((1.5, 2.35)):
+            _, width, sheer, _, _ = _skiff_station(length, beam, y / length + .5, 1)
+            add_beam(f"skiff_hook_outrigger_{side}_{index}", (sign * (width - .03), y, sheer),
+                     (x, y, .72), .04, dark, root, vertices=6)
+            add_beam(f"skiff_hook_knee_{side}_{index}", (sign * width * .9, y, sheer - .25),
+                     (x, y, .72), .028, dark, root, vertices=5)
+        add_rope_line(f"skiff_cargo_hook_{side}", [(x, 2.35, .72), (x, 2.35, .62),
+                      (x + sign * .055, 2.35, .585), (x + sign * .095, 2.35, .64)],
+                      .018, dark, root, vertices=6)
         for fender in range(3):
             y = -1.1 + fender * 1.15
+            _, width, sheer, _, _ = _skiff_station(length, beam, y / length + .5, 1)
+            fender_x = sign * (width + .11)
+            fender_z = sheer - .33
             add_ring(
                 f"skiff_fender_{side}_{fender}",
-                (x, y, 0.42),
-                0.14, 0.035, canvas, root,
-                major_segments=8, minor_segments=4,
+                (fender_x, y, fender_z),
+                0.17, 0.045, canvas, root,
+                major_segments=12, minor_segments=5,
                 rotation=(0, math.pi / 2, 0),
             )
-            add_catenary_rope(
+            add_rope_line(
                 f"skiff_fender_rope_{side}_{fender}",
-                (x, y, 0.82), (x, y, 0.54), 0.02, 0.018, dark, root, segments=3,
+                [(sign * (width - .055), y, sheer), (sign * width, y, sheer + .11),
+                 (sign * (width + .08), y, sheer + .015), (fender_x, y, fender_z + .14)],
+                .017, honey, root, vertices=5,
             )
-    add_lattice("skiff_net", (beam * 0.42, 1.55, 1.02), 0.72, 0.92, canvas, root, columns=4, rows=4, depth=0.025, rotation=(0, math.radians(12), 0))
-    add_box("skiff_rudder_blade", (0, half_length * 0.98, 0.18), (0.08, 0.46, 0.76), dark, root, bevel=0.022)
-    # The helmsman stands on the raised stern deck; the handle must be above
-    # that deck and within arm reach, rather than underneath the pilot's feet.
-    tiller_grip = (-0.28, half_length * 0.60, 2.05)
-    add_beam("skiff_tiller_stock", (0, half_length * 0.96, 0.68), (0, half_length * 0.96, 2.05), 0.045, dark, root, vertices=6)
-    add_beam("skiff_tiller_arm", (0, half_length * 0.96, 2.05), tiller_grip, 0.045, dark, root, vertices=6)
-    add_grip_marker("boat_skiff_helm_grip", (tiller_grip[0], tiller_grip[1], tiller_grip[2] + 0.022), root,
-                    fingers=(1, 0, 0), contact_normal=(0, 0, -1))
+    # A net hangs over the starboard gunwale; every strand follows the same
+    # draped surface, with its two corners lashed to the caprail.
+    def net_point(u, v):
+        y = 1.60 + u * .60
+        _, width, sheer, _, _ = _skiff_station(length, beam, y / length + .5, 1)
+        return (width + .075 + math.sin(v * math.pi) * .07, y,
+                sheer + .035 - v * .42 - math.sin(u * math.pi) * .06)
+    for i in range(5):
+        for axis in (0, 1):
+            points = [net_point(i / 4, j / 6) if axis == 0 else net_point(j / 6, i / 4) for j in range(7)]
+            add_rope_line(f"skiff_net_{axis}_{i}", points, .012, canvas, root, vertices=4)
+    for u in (0, 1):
+        x, y, z = net_point(u, 0)
+        add_rope_line(f"skiff_net_lashing_{u}", [(x - .15, y, z), (x - .06, y, z + .07), (x, y, z)],
+                      .016, honey, root, vertices=5)
+    add_box("skiff_rudder_blade", (0, half_length + .14, .02), (.075, .26, 1.0), dark, root, bevel=.022)
+    add_beam("skiff_rudder_stock", (0, half_length + .10, .32), (0, half_length + .10, .93),
+             .038, dark, root, vertices=8)
+    for index, z in enumerate((.40, .78)):
+        add_beam(f"skiff_rudder_gudgeon_{index}", (0, half_length - .05, z),
+                 (0, half_length + .10, z), .035, dark, root, vertices=6)
+        add_ring(f"skiff_rudder_pintle_{index}", (0, half_length + .10, z),
+                 .043, .015, honey, root, major_segments=8, minor_segments=4)
+    # A compact wheel is fixed to the raised stern deck ahead of the helmsman.
+    # The bracket posts support the wheel from the fore side, keeping clear of the rim,
+    # and the axle passes through the wheel plane so the helm reads as supported hardware.
+    wheel_y = 1.95
+    wheel_center = (0, wheel_y, 2.10)
+    wheel_radius = 0.27
+    rim_minor = 0.045
+    post_y = wheel_y - 0.16
+    add_box("skiff_helm_wheel_base", (0, post_y, 0.90), (0.66, 0.20, 0.08), dark, root, bevel=0.02)
+    for side_name, x, inner_x in (("left", -0.22, -0.055), ("right", 0.22, 0.055)):
+        add_beam(
+            f"skiff_helm_wheel_bracket_{side_name}",
+            (x, post_y, 0.90),
+            (inner_x, post_y, wheel_center[2]),
+            0.045,
+            dark,
+            root,
+            vertices=6,
+        )
+    add_beam(
+        "skiff_helm_wheel_cross_brace",
+        (-0.22, post_y, wheel_center[2]),
+        (0.22, post_y, wheel_center[2]),
+        0.04,
+        dark,
+        root,
+        vertices=6,
+    )
+    add_ring(
+        "skiff_helm_wheel_rim",
+        wheel_center,
+        wheel_radius,
+        rim_minor,
+        honey,
+        root,
+        major_segments=18,
+        minor_segments=6,
+        rotation=(math.pi / 2, 0, 0),
+    )
+    add_cylinder(
+        "skiff_helm_wheel_axle",
+        (0, (post_y + wheel_y) * 0.5 + 0.02, wheel_center[2]),
+        0.038,
+        0.26,
+        dark,
+        root,
+        vertices=8,
+        rotation=(math.pi / 2, 0, 0),
+        bevel=0.008,
+    )
+    add_cylinder(
+        "skiff_helm_wheel_hub",
+        wheel_center,
+        0.085,
+        0.09,
+        dark,
+        root,
+        vertices=8,
+        rotation=(math.pi / 2, 0, 0),
+        bevel=0.016,
+    )
+    for spoke in range(6):
+        angle = spoke * math.tau / 6.0
+        inner = (wheel_radius * 0.18 * math.cos(angle), wheel_y, wheel_center[2] + wheel_radius * 0.18 * math.sin(angle))
+        outer = (wheel_radius * 0.92 * math.cos(angle), wheel_y, wheel_center[2] + wheel_radius * 0.92 * math.sin(angle))
+        add_beam(f"skiff_helm_wheel_spoke_{spoke:02d}", inner, outer, 0.028, honey, root, vertices=6)
+    for index, x in enumerate((-.24, .24)):
+        add_cylinder(f"skiff_helm_base_bolt_{index}", (x, post_y, .946), .021, .012, honey, root, vertices=6)
+    # Palm frames sit on the near face of the rim tube with the fingers curling
+    # around it, within natural reach of the standing helmsman.
+    grip_y = wheel_y + rim_minor
+    add_grip_marker("boat_skiff_helm_grip", (-wheel_radius, grip_y, wheel_center[2]), root,
+                    fingers=(1, 0, 0), contact_normal=(0, -1, 0))
+    add_grip_marker("boat_skiff_helm_grip_left", (wheel_radius, grip_y, wheel_center[2]), root,
+                    fingers=(-1, 0, 0), contact_normal=(0, -1, 0))
     consolidate_lod_level(root, spec["id"])
     add_collision_primitives(spec, root)

@@ -34,7 +34,6 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
         maximum: 0,
         exhausted: true,
         showLowNotice: true,
-        recharging: false
       };
 
       const html = renderToString(
@@ -55,7 +54,6 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
         maximum: 100,
         exhausted: true,
         showLowNotice: true,
-        recharging: false
       };
 
       const html = renderToString(
@@ -79,7 +77,7 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
 
       const htmlZero = renderToString(
         React.createElement(PlayerUnitFrame, {
-          work: { current: 50, maximum: 100, exhausted: false, showLowNotice: false, recharging: true },
+          work: { current: 50, maximum: 100, exhausted: false, showLowNotice: false },
           sprint: sprintZero
         })
       );
@@ -96,7 +94,7 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
 
       const htmlNegative = renderToString(
         React.createElement(PlayerUnitFrame, {
-          work: { current: 50, maximum: 100, exhausted: false, showLowNotice: false, recharging: true },
+          work: { current: 50, maximum: 100, exhausted: false, showLowNotice: false },
           sprint: sprintNegative
         })
       );
@@ -111,7 +109,6 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
         maximum: 1000000,
         exhausted: false,
         showLowNotice: false,
-        recharging: false
       };
 
       const htmlWork = renderToString(
@@ -347,6 +344,41 @@ describe("Milestone M1 Adversarial & Empirical Stress Suite", () => {
       expect(html).toContain("Inspect");
       expect(html).toContain("Notice Board");
       expect(html).not.toContain("prompt-labor-badge");
+    });
+
+    it("handles right-click inspection prompts cleanly without confusing [E] keycaps", () => {
+      const html = renderToString(
+        React.createElement(SmartActionPrompt, {
+          promptText: "Right-click to inspect Wheat"
+        })
+      );
+
+      expect(html).toContain("data-testid=\"context-prompt\"");
+      expect(html).toContain("RMB");
+      expect(html).toContain("inspect");
+      expect(html).toContain("Wheat");
+      expect(html).not.toContain(">E<");
+    });
+
+    it("handles mount and traversal verbs like Dismount and Ride cleanly", () => {
+      const htmlDismount = renderToString(
+        React.createElement(SmartActionPrompt, {
+          promptText: "[E] Dismount"
+        })
+      );
+
+      expect(htmlDismount).toContain("prompt-verb");
+      expect(htmlDismount).toContain("Dismount");
+
+      const htmlRide = renderToString(
+        React.createElement(SmartActionPrompt, {
+          promptText: "[E] Ride donkey"
+        })
+      );
+
+      expect(htmlRide).toContain("prompt-verb");
+      expect(htmlRide).toContain("Ride");
+      expect(htmlRide).toContain("donkey");
     });
 
     it("handles prompts with zero labor cost (0 Work) without treating 0 as falsy", () => {

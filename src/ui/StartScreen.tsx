@@ -36,7 +36,7 @@ const FOCUSABLE_SELECTOR = [
 ].join(",");
 
 const REGION_LABELS: Record<string, string> = {
-  "region.farm": "Homestead Farm",
+  "region.farm": "Family Farm & Commons",
   "region.village": "Neva Village",
   "region.coast": "Rocky Coast & Lighthouse",
   "region.offshore": "Open Waters"

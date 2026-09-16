@@ -1,3 +1,4 @@
+import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import {
   WORLD_ARCHITECTURE_PADS,
   WORLD_LAYOUT_V5,
@@ -76,6 +77,9 @@ const CATEGORY_SALTS: Readonly<Record<CompositionCategory, number>> = {
 };
 
 const ISLAND_SALTS: Readonly<Record<WorldIslandId, number>> = {
+  "island.gull_rest": 0x17ab2,
+  "island.driftwood": 0x7ca34,
+  "island.lantern": 0x38db1,
   "island.neva": 0,
   "island.sunreach": 0x4f1bbcdc
 };
@@ -288,8 +292,8 @@ function sunreachCompositionSample(worldSeed: number, x: number, z: number): Wor
     riverCorridor: 0,
     dominant: dominantKey(districtValues)
   };
-  const macro = valueNoise(worldSeed ^ ISLAND_SALTS["island.sunreach"], x, z, 58, 0x4cf5ad43);
-  const meso = valueNoise(worldSeed ^ ISLAND_SALTS["island.sunreach"], x, z, 19, 0x7f4a7c15);
+  const macro = valueNoise(worldSeed ^ ISLAND_SALTS["island.sunreach"], x - SUNREACH_OFFSET_X, z, 58, 0x4cf5ad43);
+  const meso = valueNoise(worldSeed ^ ISLAND_SALTS["island.sunreach"], x - SUNREACH_OFFSET_X, z, 19, 0x7f4a7c15);
   const dryScrub = clamp01(scrub * (0.5 + meso * 0.5) * (1 - drainage.wash * 0.48));
   const terrace = clamp01(terraces * (0.58 + drainage.moisturePotential * 0.42));
   const oliveGrove = clamp01(terraces * (0.34 + macro * 0.66) * (1 - routeClearance));
@@ -311,9 +315,9 @@ function sunreachCompositionSample(worldSeed: number, x: number, z: number): Wor
     "reef-edge": reefEdge
   };
   const habitat = { ...habitatValues, dominant: dominantKey(habitatValues) };
-  const coveOpening = radialWeight(x, z, 365, 58, 16, 18);
-  const terraceOpening = radialWeight(x, z, 455, 5, 26, 18);
-  const ridgeOpening = radialWeight(x, z, 590, 25, 18, 32);
+  const coveOpening = radialWeight(x, z, 365 + SUNREACH_OFFSET_X, 58, 16, 18);
+  const terraceOpening = radialWeight(x, z, 455 + SUNREACH_OFFSET_X, 5, 26, 18);
+  const ridgeOpening = radialWeight(x, z, 590 + SUNREACH_OFFSET_X, 25, 18, 32);
   const opening = clamp01(Math.max(coveOpening, terraceOpening, ridgeOpening, smoothstep(0.78, 0.94, macro) * 0.7));
   const architectureClearance = clamp01(Math.max(coveOpening * 0.82, terraceOpening * 0.62));
   const coastlineClearance = 1 - smoothstep(2, 15, Math.max(0, -marine.signedShoreDistance));

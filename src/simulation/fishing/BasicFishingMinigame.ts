@@ -19,6 +19,14 @@ export interface BasicFishingMinigameConfig {
   treasureDownRate: number;
 }
 
+/**
+ * The minigame integrates at a fixed 60 Hz so the same seed + input timeline
+ * resolves identically at any render rate. The canonical RNG is drawn for fish
+ * target picks and the final quality roll, so the draw count must depend on
+ * simulated time rather than on how a frame was partitioned.
+ */
+export const BASIC_FISHING_FIXED_STEP_SECONDS = 1 / 60;
+
 export const DEFAULT_MINIGAME_CONFIG: BasicFishingMinigameConfig = {
   gravity: -1.9,
   thrust: 2.8,
@@ -250,6 +258,28 @@ export class BasicFishingMinigame {
     }
 
     return "active";
+  }
+
+  /**
+   * Advance an in-progress minigame by `realDeltaSeconds` at the fixed 60 Hz
+   * cadence, carrying the leftover fraction on the state. Stops as soon as a
+   * step returns a terminal outcome.
+   */
+  public static advanceMinigameFixed(
+    state: BasicFishingState,
+    realDeltaSeconds: number,
+    rng: Rng,
+    config: BasicFishingMinigameConfig = DEFAULT_MINIGAME_CONFIG
+  ): "active" | "landed" | "escaped" {
+    if (!Number.isFinite(realDeltaSeconds) || realDeltaSeconds <= 0) return "active";
+    let remaining = (state.minigameStepRemainderSeconds ?? 0) + realDeltaSeconds;
+    let outcome: "active" | "landed" | "escaped" = "active";
+    while (remaining >= BASIC_FISHING_FIXED_STEP_SECONDS && outcome === "active") {
+      remaining -= BASIC_FISHING_FIXED_STEP_SECONDS;
+      outcome = this.tick(state, BASIC_FISHING_FIXED_STEP_SECONDS, rng, config);
+    }
+    state.minigameStepRemainderSeconds = remaining;
+    return outcome;
   }
 
   private static pickNextFishTarget(

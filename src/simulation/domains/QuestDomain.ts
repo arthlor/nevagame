@@ -355,7 +355,7 @@ export class QuestDomain {
       events.on("BoatBoarded", (e) => this.onObjectiveEvent("board-boat", e.boatId, 1, { kind: "boat", id: e.boatId })),
       events.on("BoatDocked", (e) => this.worldEvent(() => {
         this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "boat", id: e.boatId });
-        this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "market", id: e.marketId });
+        if (e.marketId) this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "market", id: e.marketId });
       })),
       events.on("ItemSold", (e) => this.onObjectiveEvent("sell-item", e.itemId, e.quantity, { kind: "market", id: e.marketId })),
       events.on("FishSold", (e) => this.onObjectiveEvent("sell-fish", e.speciesId, 1, { kind: "market", id: e.marketId })),
@@ -556,9 +556,23 @@ export class QuestDomain {
    * while the player can still do something about it.
    */
   private acquisitionRequirements(objective: QuestObjectiveDefinition): QuestRequirementDto[] | undefined {
-    if (objective.type !== "purchase-upgrade" || !objective.targetId) return undefined;
     const { player } = this.context.state;
     const requirements: QuestRequirementDto[] = [];
+    if (objective.type === "plant-crop" && objective.targetId) {
+      const crop = ContentRegistry.crops.get(objective.targetId);
+      if (crop?.minimumFarmingXp) {
+        const current = Math.floor(player.proficiencies.farming ?? 0);
+        requirements.push({
+          kind: "amount",
+          label: "Farming XP",
+          current,
+          required: crop.minimumFarmingXp,
+          met: current >= crop.minimumFarmingXp
+        });
+      }
+      return requirements.length > 0 ? requirements : undefined;
+    }
+    if (objective.type !== "purchase-upgrade" || !objective.targetId) return undefined;
     const boat = ContentRegistry.boats.get(objective.targetId);
     const rod = boat ? undefined : ContentRegistry.rods.get(objective.targetId);
     if (boat?.requiredSkillXp) {
@@ -768,7 +782,11 @@ export class QuestDomain {
     if (state.player.activeMountId) return refused("Dismount before talking to people");
     const npc = ContentRegistry.npcs.get(npcId);
     if (!npc) return refused(`Unknown NPC: '${npcId}'`);
-    if (distance2d(state.player, npcAnchorAt(npcId, state.clock, state.quests)) > NPC_TALK_RADIUS) {
+    // Resolve proximity once for the whole conversation. Closing an errand can
+    // release the speaker's role anchor, so re-resolving per close would let a
+    // second ready errand on the same person be refused after the first succeeds.
+    const talkAnchor = npcAnchorAt(npcId, state.clock, state.quests);
+    if (distance2d(state.player, talkAnchor) > NPC_TALK_RADIUS) {
       return refused(`Move closer to ${npc.name} to talk`);
     }
 
@@ -806,7 +824,7 @@ export class QuestDomain {
           // An errand that costs something is not paid in the breath that
           // asked for it: the player leaves with the ask and chooses to return.
           if (quest.turnInCost && heard.has(quest.id)) continue;
-          const closed = this.closeInConversation(quest, npcId);
+          const closed = this.closeInConversation(quest, npcId, talkAnchor);
           if (closed.segment) {
             segments.push(closed.segment);
             for (const startedId of closed.startedQuestIds) begun.add(startedId);
@@ -932,10 +950,11 @@ export class QuestDomain {
    */
   private closeInConversation(
     quest: QuestDefinition,
-    npcId: NpcId
+    npcId: NpcId,
+    validatedAnchor?: { x: number; z: number }
   ): { segment?: ConversationSegment; reason?: string; startedQuestIds: QuestId[] } {
     const before = new Set(Object.values(this.context.state.quests.tracks).map((track) => track.activeQuestId));
-    const completion = this.completeQuest(quest.id, npcId);
+    const completion = this.completeQuest(quest.id, npcId, validatedAnchor);
     if (!completion.success) return { reason: completion.reason, startedQuestIds: [] };
     const startedQuestIds = Object.values(this.context.state.quests.tracks)
       .map((track) => track.activeQuestId)
@@ -990,7 +1009,11 @@ export class QuestDomain {
     return npcRecognitionLines(npc, this.context.state);
   }
 
-  public completeQuest(questId: QuestId, turnInNpcId?: NpcId): InteractionResult {
+  public completeQuest(
+    questId: QuestId,
+    turnInNpcId?: NpcId,
+    validatedAnchor?: { x: number; z: number }
+  ): InteractionResult {
     const { state, events } = this.context;
     const quest = ContentRegistry.quests.get(questId);
     if (!quest) {
@@ -1016,7 +1039,8 @@ export class QuestDomain {
     }
 
     const speaker = ContentRegistry.npcs.get(quest.speakerId);
-    if (!turnInNpcId || turnInNpcId !== quest.speakerId || !speaker || distance2d(state.player, npcAnchorAt(speaker.id, state.clock, state.quests)) > NPC_TALK_RADIUS) {
+    const anchor = validatedAnchor ?? npcAnchorAt(quest.speakerId, state.clock, state.quests);
+    if (!turnInNpcId || turnInNpcId !== quest.speakerId || !speaker || distance2d(state.player, anchor) > NPC_TALK_RADIUS) {
       return { success: false, reason: `Return to ${speaker?.name ?? "the quest giver"} to turn this in` };
     }
 

@@ -10,11 +10,13 @@ import { FishingEncounter } from "../../src/simulation/fishing/FishingEncounter"
 import { fishingEndpoint } from "../../src/simulation/fishing/FishingTuning";
 import { isValidMountPose, playerPoseFromMount, STARTER_DONKEY_ID } from "../../src/simulation/mounts/Mounts";
 import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
-import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
+import { SUNREACH_ANCHORS, SUNREACH_OFFSET_X } from "../../src/world/WorldIslands";
 import { defaultMooringForBoatType } from "../../src/world/WorldMoorings";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import { expectFarmsPreserved } from "../helpers/migrationPreservation";
+import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 import fixture from "../fixtures/save_v31_layout11.json";
 
 const unsupportedEdge = { x: -210, z: -210 };
@@ -24,9 +26,10 @@ function legacy(): SaveEnvelope {
 }
 
 function preserveResources(before: GameState, after: GameState): void {
-  for (const key of ["crops", "farms", "inventories", "fishCargo", "contracts", "journal", "metadata", "clock"] as const) {
+  for (const key of ["crops", "inventories", "fishCargo", "contracts", "journal", "metadata", "clock"] as const) {
     expect(after[key], key).toEqual(before[key]);
   }
+  expectFarmsPreserved(after, before);
   for (const [marketId, oldMarket] of Object.entries(before.markets)) {
     const migratedMarket = after.markets[marketId];
     expect(migratedMarket, marketId).toBeDefined();
@@ -51,7 +54,11 @@ function preserveResources(before: GameState, after: GameState): void {
   const { earlyActionCredits: _added, ...migratedQuests } = after.quests;
   const { earlyActionCredits: _absent, ...originalQuests } = before.quests;
   expect(migratedQuests, "quests").toEqual(originalQuests);
-  expect(after.player.workCapacity).toEqual(before.player.workCapacity);
+  // v43 intentionally rescales the Work pool to the daily ceiling.
+  expect(after.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
+  expect(after.player.workCapacity.current).toBe(
+    Math.round((before.player.workCapacity.current / before.player.workCapacity.maximum) * WORK_CAPACITY_MAXIMUM)
+  );
   expect(after.player.proficiencies).toEqual(before.player.proficiencies);
   expect(after.player.money).toBe(before.player.money);
   expect(after.world.fishingPressureByHabitat).toEqual(before.world.fishingPressureByHabitat);
@@ -101,10 +108,15 @@ describe("layout 12 natural island coasts save migration", () => {
     expect(after.state.player.y).toBe(WorldLayout.traversalSurfaceHeight(before.state.player.x, before.state.player.z) + 0.5);
     expect(after.state.player.traversal.isGrounded).toBe(true);
     for (const [id, structure] of Object.entries(before.state.world.structures)) {
-      expect(after.state.world.structures[id]).toMatchObject({ ...structure, y: expect.any(Number) });
-      expect(after.state.world.structures[id].y).toBe(WorldLayout.terrainHeight(structure.x, structure.z));
+      const expectedX = structure.x >= 300 ? structure.x + SUNREACH_OFFSET_X : structure.x;
+      expect(after.state.world.structures[id]).toMatchObject({ ...structure, x: expectedX, y: expect.any(Number) });
+      expect(after.state.world.structures[id].y).toBe(WorldLayout.terrainHeight(expectedX, structure.z));
     }
-    expect(after.state.boats).toEqual(before.state.boats);
+    // Pre-v42 Sunreach boats translate once; Neva boats keep exact poses.
+    for (const [id, boat] of Object.entries(before.state.boats)) {
+      const expectedX = boat.x >= 300 ? boat.x + SUNREACH_OFFSET_X : boat.x;
+      expect(after.state.boats[id]).toMatchObject({ ...boat, x: expectedX });
+    }
     preserveResources(before.state, after.state);
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(migrateSaveData(legacy())).toEqual(after);

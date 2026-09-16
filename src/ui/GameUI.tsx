@@ -18,6 +18,7 @@ import { InventoryModal } from "./InventoryModal";
 import { MarketModal } from "./MarketModal";
 import { FishingHUD } from "./FishingHUD";
 import { BasicFishingMinigameWidget } from "./fishing/BasicFishingMinigameWidget";
+import { LaborMinigameWidget } from "./labor/LaborMinigameWidget";
 import { ExpeditionBoard } from "./ExpeditionBoard";
 import { JournalFolio, JournalModal } from "./JournalModal";
 import { EscapeMenuModal } from "./EscapeMenuModal";
@@ -63,6 +64,7 @@ import type {
   SeedBeltDto,
   SkillProgressDto,
   SportFishingHudDto,
+  LaborHudDto,
   TrophyCatchDto,
   WorldHudDto,
   WorldMapDto,
@@ -132,6 +134,7 @@ export interface GameUIProps {
   onSelectPlantCrop: (cropId: string) => void;
   onInspectPlanting: (cropId: string) => { valid: boolean; reason?: string };
   onInspectItem?: (itemId: string) => ItemInspectionDto | null;
+  onConsumeItem?: (itemId: string) => InteractionResult;
   onSortSatchel?: () => { success: boolean; reason?: string };
   onTransferStores?: (
     itemId: string,
@@ -152,6 +155,10 @@ export interface GameUIProps {
   landedCatchRecord?: "first" | "weight" | "quality" | null;
   onDismissCatchSummary?: () => void;
   sportFishingHud: SportFishingHudDto | null;
+  /** Active Work-shift timing readout; null when no shift is in progress. */
+  laborHud: LaborHudDto | null;
+  onLaborStrike: () => void;
+  onLaborCancel: () => void;
   onSetFishingInput: (input: {
     isReeling: boolean;
     isSlacking: boolean;
@@ -276,6 +283,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onSelectPlantCrop,
   onInspectPlanting,
   onInspectItem,
+  onConsumeItem,
   onSortSatchel,
   onTransferStores,
   onInspectDemandTrend,
@@ -291,6 +299,9 @@ export const GameUI: React.FC<GameUIProps> = ({
   landedCatchRecord = null,
   onDismissCatchSummary,
   sportFishingHud,
+  laborHud,
+  onLaborStrike,
+  onLaborCancel,
   onSetFishingInput,
   onSetFishingDrag,
   onSetBasicFishingHold,
@@ -505,14 +516,14 @@ export const GameUI: React.FC<GameUIProps> = ({
         />
       )}
 
-      {mode !== "sport-fishing" && mode !== "farm-placement" && !activeModal && !showTrophyModal && activeHint && onDismissHint && (
+      {mode !== "sport-fishing" && mode !== "farm-placement" && mode !== "basic-fishing" && !activeModal && !showTrophyModal && activeHint && onDismissHint && (
         <ContextualHintCard
           hintId={activeHint.hintId}
           title={activeHint.title}
           message={activeHint.message}
           icon={activeHint.icon}
           onDismiss={onDismissHint}
-          captureEscape={!activeModal && mode !== "basic-fishing"}
+          captureEscape={!activeModal}
         />
       )}
 
@@ -525,6 +536,10 @@ export const GameUI: React.FC<GameUIProps> = ({
           onOpenSatchel={() => onSetActiveModal("inventory")}
           onDiscardCatch={onDiscardBasicCatch}
         />
+      )}
+
+      {laborHud && !activeModal && mode !== "sport-fishing" && mode !== "basic-fishing" && (
+        <LaborMinigameWidget hud={laborHud} onStrike={onLaborStrike} onCancel={onLaborCancel} />
       )}
 
       {mode === "sport-fishing" && !activeModal && <div className="guild-fishing-map interactive">
@@ -562,7 +577,6 @@ export const GameUI: React.FC<GameUIProps> = ({
         />
       )}
 
-      {activeModal && notices && <NoticeStack notices={notices} className="guild-modal-notices" />}
       {/* The HUD owns the world notice stack but is hidden during a fight, which
           must still hear about a snapped line, an escape or a full hold. */}
       {mode === "sport-fishing" && !activeModal && notices && <NoticeStack notices={notices} />}
@@ -583,6 +597,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           onInspectPlanting={onInspectPlanting}
           onInspectItem={onInspectItem}
           onSortSatchel={onSortSatchel}
+          onConsumeItem={onConsumeItem}
         />
       )}
 
@@ -700,6 +715,10 @@ export const GameUI: React.FC<GameUIProps> = ({
           onGraphicsQualityChange={onGraphicsQualityChange}
         />
       )}
+
+      {/* Modal notices are deliberately last so the status layer paints over
+          the modal scrim/card instead of disappearing behind it. */}
+      {activeModal && notices && <NoticeStack notices={notices} className="guild-modal-notices" />}
 
       {layoutEditor && (
         <PlacementEditorHud

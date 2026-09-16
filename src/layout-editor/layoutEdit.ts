@@ -87,27 +87,21 @@ export const LAYOUT_EDITOR_SOURCE_FILES = {
 } as const;
 
 export const ARCHITECTURE_PLACEMENT_TO_PAD: Readonly<Record<string, string>> = {
-  "authored.village.approach-inn": "village.approach-inn",
-  "authored.village.cooperative-hall": "village.cooperative-hall",
-  "authored.orchard.barn": "orchard.barn",
-  "authored.orchard.farmhouse": "orchard.farmhouse",
   "authored.orchard.tool-shed": "orchard.tool-shed",
   "authored.orchard.outhouse": "orchard.outhouse",
   "authored.village.roadside-stall": "village.roadside-stall",
-  "authored.village.tool-shed": "village.tool-shed",
-  "authored.village.outhouse": "village.outhouse",
-  "authored.village.cottage-west": "village.cottage-west",
-  "authored.village.cottage-southwest": "village.cottage-southwest",
-  "authored.village.cottage-garden": "village.cottage-garden",
-  "authored.village.cottage-south": "village.cottage-south",
   "authored.village.inn": "village.inn",
   "authored.village.market-hall": "village.market-hall",
-  "authored.village.barn": "village.barn"
+  "authored.village.cottage-west": "village.cottage-west",
+  "authored.village.cottage-south": "village.cottage-south",
+  "authored.village.approach-inn": "village.approach-inn",
+  "authored.farm.outhouse": "farm.outhouse"
 };
 
 export const PROCESSING_STATION_LAYOUT_IDS = new Set([
   "struct.starter_mill",
   "struct.workbench",
+  "struct.kitchen",
   "struct.starter_compost",
   "struct.harbor_fish_table"
 ]);

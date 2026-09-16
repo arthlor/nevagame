@@ -112,7 +112,7 @@ describe("ambient townsfolk", () => {
     // one around the harbor, on top of the scheduled named cast.
     expect(near(VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z, 22)).toBeGreaterThanOrEqual(1);
     expect(near(HARBOR_MARKET.position.x, HARBOR_MARKET.position.z, 22)).toBeGreaterThanOrEqual(1);
-    expect(AMBIENT_TOWNSFOLK_ROUTES).toHaveLength(3);
+    expect(AMBIENT_TOWNSFOLK_ROUTES).toHaveLength(6);
   });
 
   it("walks for part of its loop and rests for the rest", () => {

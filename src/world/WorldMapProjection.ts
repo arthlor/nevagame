@@ -11,10 +11,10 @@ export interface MapSvgPoint {
  * map cannot grow a second, approximate road layout.
  */
 export const WORLD_MAP_PROJECTION = Object.freeze({
-  originX: 250,
-  originY: 340,
-  scaleX: 1,
-  scaleZ: 1.1,
+  originX: 50 + 500 * (900 / 2200),
+  originY: 350,
+  scaleX: 900 / 2200,
+  scaleZ: 900 / 2200,
   minX: 50,
   maxX: 950,
   minY: 50,

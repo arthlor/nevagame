@@ -2,6 +2,7 @@
 
 from .architecture import farmhouse, fish_market, lighthouse, log_bridge, stone_bridge, village_building, windmill, working_dock
 from .boats import fishing_skiff, rowboat
+from .horse_carriage import draft_horse, merchant_carriage
 from .characters import fauna_butterfly, fauna_chicken, fauna_cow, fauna_donkey, fauna_gull, fauna_rabbit
 
 from .clouds import faceted_cloud
@@ -28,6 +29,8 @@ from .coastal import coastal_palm, coastal_understory, coastal_rock, coastal_hut
 
 
 GENERATORS = {
+    "draft_horse": draft_horse,
+    "merchant_carriage": merchant_carriage,
     "wearable_equipment": wearable_equipment,
     "equipment_watering_can": equipment_watering_can,
     "equipment_sickle": equipment_sickle,

@@ -44,11 +44,7 @@ describe("practical lights", () => {
     // while the starter farm stayed warm. Barns, sheds, outhouses and market
     // halls are deliberately excluded - see VILLAGE_LANTERN_VARIANTS.
     const dwellings = [
-      "house_cottage_a",
-      "house_cottage_b",
-      "house_cottage_c",
-      "building_inn_a",
-      "building_inn_b"
+      "house_cottage_a"
     ];
     for (const id of dwellings) {
       const asset = catalog.assets.find((entry) => entry.id === id);

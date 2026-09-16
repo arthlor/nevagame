@@ -199,8 +199,8 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
   describe("5. Bottom-Left Vitals, Context Statuses & Boat HUD", () => {
     it("renders horizontal Work meter with amber-gold fill", () => {
       const state = createInitialGameState();
-      state.player.workCapacity.current = 750;
-      state.player.workCapacity.maximum = 1000;
+      state.player.workCapacity.current = 400;
+      state.player.workCapacity.maximum = 500;
 
       const html = renderToString(
         React.createElement(HUD, {
@@ -212,8 +212,8 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain('data-testid="player-unit-frame"');
       const workMeter = html.match(/<[^>]+role="meter"[^>]+aria-label="Work"[^>]*>/)?.[0];
       expect(workMeter).toBeDefined();
-      expect(workMeter).toContain('aria-valuenow="750"');
-      expect(workMeter).toContain('aria-valuemax="1000"');
+      expect(workMeter).toContain('aria-valuenow="400"');
+      expect(workMeter).toContain('aria-valuemax="500"');
       expect(workMeter).toContain("chrome-meter--gold");
       expect(workMeter).toContain("chrome-meter--horizontal");
     });
@@ -236,7 +236,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain("Winded");
     });
 
-    it("renders low labor warning alert when labor is below 20", () => {
+    it("renders low labor warning alert when labor is below the low threshold", () => {
       const state = createInitialGameState();
       state.player.workCapacity.current = 12;
 
@@ -250,7 +250,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain("hud-context-statuses");
       expect(html).toContain("hud-labor-note");
       expect(html).toContain("Low Work");
-      expect(html).toContain("12/1000");
+      expect(html).toContain("12/500");
     });
 
     it("renders boat driving panel with speed, sea state, hull durability, and cargo hold grid", () => {

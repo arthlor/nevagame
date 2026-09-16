@@ -304,7 +304,7 @@ export function advancePlacedCropGrowth(
   elapsedMinutes: number,
   growthRateMultiplier: number = 1
 ): CropStage {
-  const alreadyWithered = crop.stage === "withered" && !cropDef.regrows;
+  const alreadyWithered = crop.stage === "withered";
   let remaining = Math.floor(elapsedMinutes);
   while (remaining > 0) {
     const perMinute = moistureChangePerHour(cropDef.waterNeed, environment) / 60;

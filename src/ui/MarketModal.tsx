@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MarketId, RodId } from "../simulation/core/types";
+import { FISH_TRADE_CENTER_MARKET_ID } from "../content/markets";
 import { IconCoin, IconFish, IconJournal, IconRod, IconSprout } from "./components/HudIcons";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { AtlasImage } from "./chrome/AtlasImage";
@@ -10,7 +11,7 @@ import { playUiSound } from "./audio/uiAudio";
 import type { CommodityQuote, MarketBoardDto, MarketDemandTrendDto } from "../simulation/core/contracts";
 import { MarketDemandTrend } from "./components/MarketDemandTrend";
 
-type MarketLedgerSection = "buy" | "sell" | "hold" | "deliveries";
+type MarketLedgerSection = "buy" | "sell" | "hold" | "trade-packs" | "deliveries";
 
 /** Bulk sales above this gold value require an explicit confirmation step. */
 const BULK_CONFIRM_THRESHOLD_G = 200;
@@ -161,6 +162,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   };
 
   const fishCargoList = board?.fishRows ?? [];
+  const tradePackList = board?.tradePackRows ?? [];
   const activeContracts = board?.contractRows ?? [];
   const ownedSellables = board?.sellRows ?? [];
   const buyRows = board?.buyRows ?? [];
@@ -186,6 +188,12 @@ export const MarketModal: React.FC<MarketModalProps> = ({
       : a.name.localeCompare(b.name);
     return cmp * holdSortDir;
   }), [fishCargoList, holdSortKey, holdSortDir]);
+  const sortedTradePacks = useMemo(() => [...tradePackList].sort((a, b) => {
+    const cmp = holdSortKey === "price"
+      ? (a.breakdown?.finalPrice ?? -1) - (b.breakdown?.finalPrice ?? -1)
+      : a.name.localeCompare(b.name);
+    return cmp * holdSortDir;
+  }), [tradePackList, holdSortKey, holdSortDir]);
 
   // A pending bulk confirmation never survives a market or section switch.
   useEffect(() => {
@@ -216,7 +224,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
   const ticketName = selectedOwned?.name ?? "Produce";
   const ownedCount = selectedOwned?.owned ?? 0;
-  const clampedQty = ownedCount > 0 ? Math.min(Math.max(sellQty, 1), ownedCount) : 1;
+  // Keep the ticket mounted while a draft is invalid. Quotes require whole
+  // quantities; the separate validity guard still blocks the sale itself.
+  const clampedQty = ownedCount > 0 && sellValid ? Math.min(sellQty, ownedCount) : 1;
   useEffect(() => {
     setSellQty(1);
     // An armed "sell all of this item" confirms one stack, never the next one.
@@ -359,7 +369,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           >
             Sell
           </button>
-          {fishCargoList.length > 0 || activeMarketId === "market.harbor" ? (
+          {fishCargoList.length > 0 ? (
             <button
               type="button"
               id="market-section-hold"
@@ -371,6 +381,18 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               Fish hold
             </button>
           ) : null}
+          {activeMarketId === FISH_TRADE_CENTER_MARKET_ID ? (
+            <button
+              type="button"
+              id="market-section-trade-packs"
+              aria-current={ledgerSection === "trade-packs" ? "page" : undefined}
+              aria-controls="market-ledger-sheet"
+              className={`market-ledger-marker ${ledgerSection === "trade-packs" ? "is-active" : ""}`}
+              onClick={() => selectLedgerSection("trade-packs")}
+            >
+              Trade packs{tradePackList.length > 0 ? ` (${tradePackList.length})` : ""}
+            </button>
+          ) : null}
           <button type="button" id="market-section-deliveries" aria-current={ledgerSection === "deliveries" ? "page" : undefined}
             aria-controls="market-contracts-title" className={`market-ledger-marker ${ledgerSection === "deliveries" ? "is-active" : ""}`}
             onClick={() => selectLedgerSection("deliveries")}>Deliveries{activeContracts.length > 0 ? ` (${activeContracts.length})` : ""}</button>
@@ -379,7 +401,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
         <ChromeDivider ornate={false} />
 
         {ledgerSection !== "deliveries" && <div
-          className={`market-modal-grid${ledgerSection === "hold" ? " is-single" : ""}`}
+          className={`market-modal-grid${ledgerSection === "hold" || ledgerSection === "trade-packs" ? " is-single" : ""}`}
         >
           <section
             className="market-left-panel"
@@ -722,6 +744,91 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 )}
               </div>
             )}
+
+            {ledgerSection === "trade-packs" && (
+              <div className="market-fish-cargo-section" data-testid="market-trade-packs">
+                <div className="market-section-header-row">
+                  <h3 className="section-title">
+                    <IconFish size={15} aria-hidden="true" /> Fish trade packs
+                  </h3>
+                </div>
+                <p className="market-section-note">
+                  Collect a pack from a docked boat, carry it here, and sell it one pack at a time.
+                </p>
+                {tradePackList.length === 0 ? (
+                  <div className="no-cargo-card">
+                    <span>No trade pack in hand. Collect one from a docked boat, then carry it here.</span>
+                  </div>
+                ) : (
+                  <div className="fish-cargo-trade-list">
+                    {sortedTradePacks.map((pack) => {
+                      const breakdown = pack.breakdown;
+                      return (
+                        <div key={pack.cargoId} className="fish-cargo-card">
+                          <div className="cargo-card-meta">
+                            <AtlasImage src={atlasForFish(pack.speciesId)} alt="" size={36} />
+                            <div>
+                              <strong>{pack.name} ({pack.weightKg.toFixed(1)} kg)</strong>
+                              <div className="cargo-sub-meta">
+                                <ChromeQuality quality={pack.quality} />
+                                <span className="cargo-freshness-num">
+                                  · {pack.spoiled ? "Spoiled" : `${Math.round(pack.freshness)}% Fresh`}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {breakdown ? (
+                            <details className="market-details-disclosure">
+                              <summary>Price details</summary>
+                              <dl className="market-fish-breakdown" aria-label="Trade pack quote breakdown">
+                                <div><dt>Base</dt><dd>{breakdown.speciesBasePrice} G</dd></div>
+                                <div><dt>Weight</dt><dd>×{breakdown.weightModifier.toFixed(2)}</dd></div>
+                                <div><dt>Quality</dt><dd>×{breakdown.qualityModifier.toFixed(2)}</dd></div>
+                                <div><dt>Freshness</dt><dd>×{breakdown.freshnessModifier.toFixed(2)}</dd></div>
+                                <div><dt>Demand</dt><dd>{breakdown.demandPercent}%</dd></div>
+                              </dl>
+                            </details>
+                          ) : null}
+                          <div className="cargo-card-actions">
+                            <strong className="cargo-value">{breakdown?.finalPrice ?? "—"} G</strong>
+                            {pack.spoiled || !breakdown || breakdown.finalPrice <= 0 ? (
+                              <>
+                                <ChromeButton
+                                  className="plaque-release-btn"
+                                  soundCue="click"
+                                  onClick={() => activeMarketId && onDiscardFishCargo(activeMarketId, pack.cargoId)}
+                                >
+                                  Make scraps
+                                </ChromeButton>
+                                <p className="scraps-explainer">Spoiled fish can&apos;t be sold — Make scraps breaks it down into bait materials.</p>
+                              </>
+                            ) : (
+                              <>
+                                <ChromeButton
+                                  variant="gold"
+                                  soundCue="coins"
+                                  className="plaque-keep-btn"
+                                  onClick={() => activeMarketId && onSellFishCargo(activeMarketId, pack.cargoId)}
+                                >
+                                  Sell trade pack
+                                </ChromeButton>
+                                <ChromeButton
+                                  className="plaque-release-btn"
+                                  soundCue="click"
+                                  onClick={() => activeMarketId && onReleaseFishCargo(activeMarketId, pack.cargoId)}
+                                >
+                                  Release
+                                </ChromeButton>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {ledgerSection === "buy" && <aside className="market-right-panel">
@@ -802,7 +909,6 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                           onChange={(event) => setSellInput(event.target.value)}
                           aria-label={`Quantity to sell, 1 to ${ownedCount}`}
                         />
-                        <span aria-hidden="true"> / {ownedCount}</span>
                       </label>
                     </span>
                     <ChromeButton
@@ -815,6 +921,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     >
                       +
                     </ChromeButton>
+                    <span className="market-qty-total" aria-hidden="true">/ {ownedCount}</span>
                     <ChromeButton
                       size="sm"
                       className="market-qty-btn market-qty-max"

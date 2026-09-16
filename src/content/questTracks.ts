@@ -5,7 +5,7 @@ import { MAIN_QUEST_TRACK_ID, type QuestTrackDefinition } from "../simulation/co
 /** Silas's standing lesson in where each species actually lives. */
 export const TIDES_QUEST_TRACK_ID = "track.tides";
 
-/** The inheritance the homestead itself remembers. */
+/** Community stewardship built around the inherited family farm. */
 export const HOMESTEAD_QUEST_TRACK_ID = "track.homestead";
 
 /** Maeve on what an order actually costs to keep. */
@@ -40,11 +40,12 @@ export const QUEST_TRACKS: QuestTrackDefinition[] = [
   },
   {
     // Opens once the player has harvested and composted, so they know the
-    // verbs the private homestead asks for. It runs long on purpose: the
-    // orchard at its end is a genuine late goal, which is exactly the kind of
-    // pacing a side track can carry and the spine cannot.
+    // verbs needed to care for the inherited farm and the public commons. It
+    // runs long on purpose: the shared orchard at its end is a genuine late
+    // goal, which is exactly the kind of pacing a side track can carry and
+    // the spine cannot.
     id: HOMESTEAD_QUEST_TRACK_ID,
-    title: "The Family Ledger",
+    title: "The Cove Commons",
     entryQuestId: "quest.homestead_seed_pouch",
     unlock: { requiresCompletedQuestIds: ["quest.act2_harvest_and_compost"] }
   },

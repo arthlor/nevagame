@@ -86,7 +86,7 @@ describe("glTF Optimization Pipeline & Derived LOD Generation", () => {
   });
 
   it("generates simplified derived LODs with reduced geometry", async () => {
-    const fixturePath = path.join(ROOT, "public/assets/models/building_barn_a.glb");
+    const fixturePath = path.join(ROOT, "public/assets/models/house_cottage_a.glb");
     if (!fs.existsSync(fixturePath)) {
       throw new Error(`Fixture ${fixturePath} is required for LOD test`);
     }
@@ -94,8 +94,8 @@ describe("glTF Optimization Pipeline & Derived LOD Generation", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "neva-lod-test-"));
 
     const assetSpec = {
-      id: "building_barn_a",
-      file: "building_barn_a.glb",
+      id: "house_cottage_a",
+      file: "house_cottage_a.glb",
       generator: "architecture",
       requiredNodes: [],
       lodLevels: [
@@ -110,8 +110,8 @@ describe("glTF Optimization Pipeline & Derived LOD Generation", () => {
     expect(result.generatedFiles).toHaveLength(3);
     expect(fs.existsSync(result.lod0Path)).toBe(true);
 
-    const lod1Path = path.join(tempDir, "building_barn_a.lod1.glb");
-    const lod2Path = path.join(tempDir, "building_barn_a.lod2.glb");
+    const lod1Path = path.join(tempDir, "house_cottage_a.lod1.glb");
+    const lod2Path = path.join(tempDir, "house_cottage_a.lod2.glb");
     expect(fs.existsSync(lod1Path)).toBe(true);
     expect(fs.existsSync(lod2Path)).toBe(true);
 

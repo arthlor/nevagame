@@ -1,6 +1,12 @@
+import { OCEAN_ISLAND_DEFINITIONS, type OceanIsletId } from "./OceanIslets";
 import type { WorldBounds, WorldPoint } from "./WorldLayout";
+import { isInsideLoop, pointSegmentDistance } from "./WorldGeometry";
 
-export type WorldIslandId = "island.neva" | "island.sunreach";
+export { isInsideLoop, pointSegmentDistance } from "./WorldGeometry";
+
+export const SUNREACH_OFFSET_X = 800;
+
+export type WorldIslandId = "island.neva" | "island.sunreach" | OceanIsletId;
 export type WorldBiomeId = "biome.neva_temperate" | "biome.sunreach_warm_dry";
 export type FishingEcologyId = "ecology.neva" | "ecology.sunreach";
 
@@ -17,7 +23,7 @@ export type WorldRegionId =
   | "region.sunreach_ridge";
 
 export interface WorldTerrainPatchDefinition {
-  id: "terrain.neva" | "terrain.sunreach";
+  id: "terrain.neva" | "terrain.sunreach" | "terrain.gull_rest" | "terrain.driftwood" | "terrain.lantern";
   islandId: WorldIslandId;
   center: Readonly<WorldPoint>;
   sizeMeters: number;
@@ -88,7 +94,7 @@ export interface FishingEcologyDefinition {
 export interface BoatMooringDefinition {
   id: string;
   islandId: WorldIslandId;
-  marketId: string;
+  marketId: string | null;
   boatPosition: Readonly<{ x: number; y: number; z: number }>;
   playerPosition: Readonly<WorldPoint>;
   boardRadius: number;
@@ -142,35 +148,6 @@ function terrainPatch(
   };
 }
 
-export function pointSegmentDistance(
-  x: number,
-  z: number,
-  start: Readonly<WorldPoint>,
-  end: Readonly<WorldPoint>
-): number {
-  const dx = end.x - start.x;
-  const dz = end.z - start.z;
-  const lengthSquared = dx * dx + dz * dz;
-  if (lengthSquared <= 0.000001) return Math.hypot(x - start.x, z - start.z);
-  const t = Math.max(0, Math.min(1, ((x - start.x) * dx + (z - start.z) * dz) / lengthSquared));
-  return Math.hypot(x - (start.x + dx * t), z - (start.z + dz * t));
-}
-
-export function isInsideLoop(
-  x: number,
-  z: number,
-  loop: readonly Readonly<WorldPoint>[]
-): boolean {
-  let inside = false;
-  for (let current = 0, previous = loop.length - 1; current < loop.length; previous = current++) {
-    const a = loop[current];
-    const b = loop[previous];
-    const crosses = (a.z > z) !== (b.z > z)
-      && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x;
-    if (crosses) inside = !inside;
-  }
-  return inside;
-}
 
 export const NEVA_COAST_LOOP = [
   // Southern coast (preserving authored shoreline points)
@@ -231,43 +208,44 @@ export function signedDistanceToNevaCoast(x: number, z: number): number {
  * southern reef, and exposed ridge stable across seeds.
  */
 export const SUNREACH_COAST_LOOP = [
-  { x: 349, z: 42 },
-  { x: 365, z: 18 },
-  { x: 389, z: -18 },
-  { x: 431, z: -61 },
-  { x: 480, z: -82 },
-  { x: 532, z: -78 },
-  { x: 581, z: -55 },
-  { x: 621, z: -22 },
-  { x: 646, z: 18 },
-  { x: 653, z: 62 },
-  { x: 642, z: 105 },
-  { x: 613, z: 143 },
-  { x: 571, z: 174 },
-  { x: 525, z: 198 },
-  { x: 479, z: 194 },
-  { x: 433, z: 177 },
-  { x: 397, z: 149 },
-  { x: 372, z: 116 },
-  { x: 360, z: 84 },
-  { x: 349, z: 72 },
-  { x: 350, z: 58 }
+  { x: 349 + SUNREACH_OFFSET_X, z: 42 },
+  { x: 365 + SUNREACH_OFFSET_X, z: 18 },
+  { x: 389 + SUNREACH_OFFSET_X, z: -18 },
+  { x: 431 + SUNREACH_OFFSET_X, z: -61 },
+  { x: 480 + SUNREACH_OFFSET_X, z: -82 },
+  { x: 532 + SUNREACH_OFFSET_X, z: -78 },
+  { x: 581 + SUNREACH_OFFSET_X, z: -55 },
+  { x: 621 + SUNREACH_OFFSET_X, z: -22 },
+  { x: 646 + SUNREACH_OFFSET_X, z: 18 },
+  { x: 653 + SUNREACH_OFFSET_X, z: 62 },
+  { x: 642 + SUNREACH_OFFSET_X, z: 105 },
+  { x: 613 + SUNREACH_OFFSET_X, z: 143 },
+  { x: 571 + SUNREACH_OFFSET_X, z: 174 },
+  { x: 525 + SUNREACH_OFFSET_X, z: 198 },
+  { x: 479 + SUNREACH_OFFSET_X, z: 194 },
+  { x: 433 + SUNREACH_OFFSET_X, z: 177 },
+  { x: 397 + SUNREACH_OFFSET_X, z: 149 },
+  { x: 372 + SUNREACH_OFFSET_X, z: 116 },
+  { x: 360 + SUNREACH_OFFSET_X, z: 84 },
+  { x: 349 + SUNREACH_OFFSET_X, z: 72 },
+  { x: 350 + SUNREACH_OFFSET_X, z: 58 }
 ] as const;
 
 export const SUNREACH_ANCHORS = Object.freeze({
-  dockBoat: { x: 343, z: 58 },
-  dockPlayer: { x: 355, z: 58 },
-  coveMarket: { x: 373, z: 56 },
-  terraceFarm: { x: 455, z: 5 },
-  dryScrub: { x: 515, z: 75 },
-  exposedRidge: { x: 590, z: 25 },
-  southernReefView: { x: 520, z: 180 }
+  dockBoat: { x: 343 + SUNREACH_OFFSET_X, z: 58 },
+  dockPlayer: { x: 355 + SUNREACH_OFFSET_X, z: 58 },
+  coveMarket: { x: 373 + SUNREACH_OFFSET_X, z: 56 },
+  terraceFarm: { x: 455 + SUNREACH_OFFSET_X, z: 5 },
+  dryScrub: { x: 515 + SUNREACH_OFFSET_X, z: 75 },
+  exposedRidge: { x: 590 + SUNREACH_OFFSET_X, z: 25 },
+  southernReefView: { x: 520 + SUNREACH_OFFSET_X, z: 180 }
 });
 
 const NEVA_TERRAIN_PATCH = terrainPatch("terrain.neva", "island.neva", { x: 0, z: 0 }, 600, 384, 18);
-const SUNREACH_TERRAIN_PATCH = terrainPatch("terrain.sunreach", "island.sunreach", { x: 500, z: 60 }, 360, 256, 16);
+const SUNREACH_TERRAIN_PATCH = terrainPatch("terrain.sunreach", "island.sunreach", { x: 500 + SUNREACH_OFFSET_X, z: 60 }, 360, 256, 16);
 
 export const WORLD_ISLAND_DEFINITIONS: Readonly<Record<WorldIslandId, Readonly<WorldIslandDefinition>>> = Object.freeze({
+  ...OCEAN_ISLAND_DEFINITIONS,
   "island.neva": Object.freeze({
     id: "island.neva",
     biomeId: "biome.neva_temperate",
@@ -284,7 +262,7 @@ export const WORLD_ISLAND_DEFINITIONS: Readonly<Record<WorldIslandId, Readonly<W
     biomeId: "biome.sunreach_warm_dry",
     label: "Sunreach Isle",
     terrainPatch: SUNREACH_TERRAIN_PATCH,
-    authoredBounds: Object.freeze({ minX: 330, maxX: 670, minZ: -100, maxZ: 220 }),
+    authoredBounds: Object.freeze({ minX: 330 + SUNREACH_OFFSET_X, maxX: 670 + SUNREACH_OFFSET_X, minZ: -100, maxZ: 220 }),
     coastLoop: SUNREACH_COAST_LOOP,
     fishingEcologyId: "ecology.sunreach",
     regions: [
@@ -316,7 +294,9 @@ export const FISHING_ECOLOGY_DEFINITIONS: Readonly<Record<FishingEcologyId, Read
       // The deep trench, southwest and well past the working grounds. A second
       // offshore point so the far water is a place the player goes rather than
       // a re-roll of the one they already know.
-      { x: -40, z: 250, habitatId: "offshore" as const, reviewSpeciesId: "fish.swordfish" }
+      { x: -40, z: 250, habitatId: "offshore" as const, reviewSpeciesId: "fish.swordfish" },
+      { x: 420, z: 325, habitatId: "offshore" as const, reviewSpeciesId: "fish.swordfish" },
+      { x: 605, z: 110, habitatId: "coast" as const, reviewSpeciesId: "fish.tuna" }
     ])
   }),
   "ecology.sunreach": Object.freeze({
@@ -330,8 +310,10 @@ export const FISHING_ECOLOGY_DEFINITIONS: Readonly<Record<FishingEcologyId, Read
       // sit at the cove mouth beside the dock, so the reef the story is about
       // held nothing. Every rotation offset stays in Sunreach coast water and
       // the reef is sailable from the dock, about as far as the offshore point.
-      { x: 586, z: 184, habitatId: "coast" as const, reviewSpeciesId: "fish.amberjack" },
-      { x: 620, z: 250, habitatId: "offshore" as const, reviewSpeciesId: "fish.amberjack" }
+      { x: 586 + SUNREACH_OFFSET_X, z: 184, habitatId: "coast" as const, reviewSpeciesId: "fish.amberjack" },
+      { x: 620 + SUNREACH_OFFSET_X, z: 250, habitatId: "offshore" as const, reviewSpeciesId: "fish.amberjack" },
+      { x: 785, z: -40, habitatId: "coast" as const, reviewSpeciesId: "fish.amberjack" },
+      { x: 960, z: 410, habitatId: "offshore" as const, reviewSpeciesId: "fish.amberjack" }
     ])
   })
 });

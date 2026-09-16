@@ -39,7 +39,7 @@ export function buildWorldAudio(position: { x: number; z: number }, mode: GameMo
 export { WorldMusicRouting } from "./MusicRouting";
 
 export function buildWindmillAudio(position: { x: number; z: number }, windSpeed: number) {
-  const x = 57.8, z = -81.2;
+  const { x, z } = WorldLayout.landmark("windmill");
   return Math.hypot(position.x - x, position.z - z) < 45
     ? { position: { x, y: WorldLayout.traversalSurfaceHeight(x, z) + 5, z }, gain: Math.min(1, Math.max(0, windSpeed / 12)) }
     : undefined;

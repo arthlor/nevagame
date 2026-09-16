@@ -52,8 +52,7 @@ function staticWorldAssets(worldSeed: number): Set<AssetId> {
     ...layout.groundCoverPlacements.map((placement) => placement.assetId as AssetId),
     ...Object.values(STATIC_LANDMARK_ASSETS),
     ...Object.values(STATIC_FARM_PROP_ASSETS),
-    ...FARMHOUSE_INTERIOR_PROPS.map((placement) => placement.assetId),
-    ASSET_IDS.PROP_PRODUCE_STALL_A
+    ...FARMHOUSE_INTERIOR_PROPS.map((placement) => placement.assetId)
   ]);
 }
 

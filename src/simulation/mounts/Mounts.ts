@@ -96,7 +96,7 @@ export function advanceMountGait(
   input: Readonly<MountGaitStepInput>,
   fixedDeltaSeconds: number
 ): MountGaitStepResult {
-  const dt = Math.max(0, fixedDeltaSeconds);
+  const dt = Number.isFinite(fixedDeltaSeconds) ? Math.max(0, fixedDeltaSeconds) : 0;
   const maximum = MOUNT_TUNING.maximumGallopStamina;
   const finiteOr = (value: number, fallback: number) => (Number.isFinite(value) ? value : fallback);
   let stamina = Math.min(maximum, Math.max(0, finiteOr(current.gallopStamina, maximum)));

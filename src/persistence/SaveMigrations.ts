@@ -1,8 +1,14 @@
+import { migrateOceanLayout20, translateLegacyOceanPositions } from "./migrateOceanLayout20";
 import { migrateTerrainLayout14 } from "./migrateTerrainLayout14";
 import { migrateOnboardingCredits35 } from "./migrateOnboardingCredits35";
 import { migrateTerrainLayout15 } from "./migrateTerrainLayout15";
 import { migrateTerrainLayout16 } from "./migrateTerrainLayout16";
 import { migrateTerrainLayout17 } from "./migrateTerrainLayout17";
+import { migrateTerrainLayout18 } from "./migrateTerrainLayout18";
+import { migrateTerrainLayout19 } from "./migrateTerrainLayout19";
+import { migrateWorkCapacity43 } from "./migrateWorkCapacity43";
+import { migrateKnowledgeJournal44 } from "./migrateKnowledgeJournal44";
+import { migrateKitchen45 } from "./migrateKitchen45";
 // src/persistence/SaveMigrations.ts
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
@@ -10,7 +16,7 @@ import { GameState, FishingEncounterState, ClockState } from "../simulation/core
 import { createFishingDynamics, findFishingWater, fishingEndpoint, FISHING_TUNING } from "../simulation/fishing/FishingTuning";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { STARTER_STRUCTURE_IDS, starterStructureAnchor } from "../world/FarmLayout";
-import { HARBOR_DOCK, HARBOR_FISH_TABLE } from "../world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
 import { WorldLayout } from "../world/WorldLayout";
 import { cargoClassFits } from "../simulation/domains/domainRules";
 import { createFullPlayerTraversalState } from "../simulation/navigation/PlayerTraversal";
@@ -1426,13 +1432,25 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
     };
   },
   38: (state: unknown) => migrateTerrainLayout16(state as GameState),
-  39: (state: unknown) => migrateTerrainLayout17(state as GameState)
+  39: (state: unknown) => migrateTerrainLayout17(state as GameState),
+  40: (state: unknown) => migrateTerrainLayout18(state as GameState),
+  41: (state: unknown) => migrateTerrainLayout19(state as GameState),
+  42: (state: unknown) => migrateOceanLayout20(state as GameState),
+  43: (state: unknown) => migrateWorkCapacity43(state as GameState),
+  44: (state: unknown) => migrateKnowledgeJournal44(state as GameState),
+  45: (state: unknown) => migrateKitchen45(state as GameState)
 };
 
 
 export function migrateSaveData(envelope: SaveEnvelope): SaveEnvelope {
   let currentVersion = envelope.schemaVersion;
-  let state = envelope.state as unknown;
+  // Migrations describe history and must not mutate their input. Clone the
+  // candidate once up front so later in-place backfill (market commodities,
+  // seasonal values, quest credits) cannot touch the envelope a caller still
+  // holds for fallback, retry or backup inspection.
+  let state = structuredClone(envelope.state) as unknown;
+
+  if (currentVersion >= 26 && currentVersion < 42) translateLegacyOceanPositions(state as GameState);
 
   while (currentVersion < CURRENT_SCHEMA_VERSION) {
     const migration = MIGRATIONS[currentVersion + 1];
@@ -1441,6 +1459,27 @@ export function migrateSaveData(envelope: SaveEnvelope): SaveEnvelope {
       currentVersion += 1;
     } else {
       break;
+    }
+  }
+
+  // The authored world step a save has received is owned by its stored layout
+  // revision, not by its schema number. A development build can bump the
+  // schema before the matching layout migration lands, leaving a slot whose
+  // `schemaVersion` is already at head while `world.layoutRevision` still
+  // trails. Run the missing authored steps by the revision the save actually
+  // holds so it is repaired instead of reported corrupt. Each guard tests the
+  // revision it produces, so no step is ever applied twice: a save that already
+  // walked the version chain ends at the shipping revision and is untouched.
+  const layoutRevision = (value: unknown): number => {
+    const revision = (value as GameState | undefined)?.world?.layoutRevision;
+    return typeof revision === "number" ? revision : Number.NaN;
+  };
+  if (layoutRevision(state) < WORLD_LAYOUT_REVISION) {
+    if (layoutRevision(state) < 18) state = migrateTerrainLayout18(state as GameState);
+    if (layoutRevision(state) < 19) state = migrateTerrainLayout19(state as GameState);
+    if (layoutRevision(state) < WORLD_LAYOUT_REVISION) {
+      translateLegacyOceanPositions(state as GameState);
+      state = migrateOceanLayout20(state as GameState);
     }
   }
 

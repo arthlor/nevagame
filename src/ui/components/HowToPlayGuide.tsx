@@ -73,7 +73,8 @@ const ActionsGuide: React.FC = () => (
         <h3>Finding your way</h3>
         <p className="guide-lead">
           Follow the prompt above your tools to talk, tend crops, or cast.
-          Work is spent on successful tasks. Sprinting uses its own stamina.
+          Work is spent on successful tasks and refilled by resting, eating
+          provisions, or working a labor shift. Sprinting uses its own stamina.
         </p>
       </div>
     </div>
@@ -182,8 +183,8 @@ const WatersGuide: React.FC = () => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>4</span></div>
         <div className="guide-step-content">
-          <h4>Land &amp; Ice the Catch</h4>
-          <p>Sport fish are heavy physical cargo. Land the catch directly into an open boat hold slot or carry on your back to the harbor.</p>
+          <h4>Land &amp; Pack the Catch</h4>
+          <p>Sport fish and physical basic catches become trade packs. Land one into an open boat slot, then collect it from the docked boat and carry it by hand to the Village Trade Center.</p>
           <span className="guide-step-tip">Freshness degrades over time — use ice to preserve value</span>
         </div>
       </div>
@@ -191,8 +192,8 @@ const WatersGuide: React.FC = () => (
     <div className="guide-callout-card">
       <div className="guide-callout-icon"><IconBoat size={18} aria-hidden="true" /></div>
       <div className="guide-callout-text">
-        <strong>Harbor Master Deliveries</strong>
-        <p>The Harbor Master pays top coin for fresh coastal catches. Keep an eye on local harbor demand and preserve freshness on long offshore runs.</p>
+        <strong>Freshness on the Run</strong>
+        <p>Keep an eye on freshness and use ice in the boat hold. The Harbor Fish Market sells tackle and supplies; your carried trade pack is sold at the village counter.</p>
       </div>
     </div>
   </div>
@@ -206,7 +207,7 @@ const TradeGuide: React.FC = () => (
       </div>
       <div className="guide-header-text">
         <h3>Taking goods to market</h3>
-        <p className="guide-lead">Sell your harvest, land fresh fish, and fill the town&apos;s delivery orders.</p>
+        <p className="guide-lead">Sell your harvest, carry fish trade packs inland, and fill the town&apos;s delivery orders.</p>
       </div>
     </div>
     <div className="guide-flow-track">
@@ -221,9 +222,9 @@ const TradeGuide: React.FC = () => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>2</span></div>
         <div className="guide-step-content">
-          <h4>Maritime Quay</h4>
-          <p>Dock at the harbor market to offload physical fish cargo from your vessel hold and acquire advanced fishing tackle.</p>
-          <span className="guide-step-tip">Pristine fresh fish command substantial bonuses</span>
+          <h4>Boat to Counter</h4>
+          <p>At a docked boat, use the collect prompt to take one fish trade pack in your hands. Walk it to the Village Produce Market and sell it from the Trade packs ledger.</p>
+          <span className="guide-step-tip">The Harbor Fish Market never sells a pack straight from the hold</span>
         </div>
       </div>
       <div className="guide-step-card">

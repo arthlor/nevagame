@@ -20,6 +20,13 @@ export const DEFAULT_MINUTES_PER_REAL_SECOND = 0.4;
  * from a corrupt or edited save would turn a 72-hour absence into ~1e11 steps.
  */
 export const MAX_MINUTES_PER_REAL_SECOND = 10;
+/**
+ * Largest real-second delta one `tick` will integrate. A finite but enormous
+ * debug delta (e.g. `__NEVA_DEBUG.tickRealSeconds`) must not spin the
+ * fixed-step loop or walk an unbounded number of weather segments; live frames
+ * are already capped far below this.
+ */
+export const MAX_TICK_REAL_SECONDS = 3600;
 
 export function isValidClockSpeed(minutesPerRealSecond: unknown): minutesPerRealSecond is number {
   return typeof minutesPerRealSecond === "number"
@@ -122,6 +129,9 @@ export class GameClock {
   public setSpeed(minutesPerRealSecond: number): void {
     if (!Number.isFinite(minutesPerRealSecond) || minutesPerRealSecond < 0) return;
     this.state.minutesPerRealSecond = Math.min(minutesPerRealSecond, MAX_MINUTES_PER_REAL_SECOND);
+    // The accumulator holds real seconds. Reinterpreting it at a new speed would
+    // release a burst of game minutes, so drop the sub-minute remainder.
+    this.accumulatorSeconds = 0;
   }
 
   /** Deterministic development capture setup; gameplay advances time through tick(). */
@@ -145,7 +155,7 @@ export class GameClock {
       return 0;
     }
 
-    this.accumulatorSeconds += realDeltaSeconds;
+    this.accumulatorSeconds += Math.min(realDeltaSeconds, MAX_TICK_REAL_SECONDS);
     const secondsPerGameMinute = 1 / this.state.minutesPerRealSecond;
 
     let minutesToAdvance = 0;

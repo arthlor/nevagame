@@ -473,6 +473,7 @@ describe("Organic road geometry", () => {
       "field",
       "farm-yard",
       "village-market",
+      "farm-yard",
       "landmark-gateway",
       "landmark-gateway",
       "landmark-gateway"

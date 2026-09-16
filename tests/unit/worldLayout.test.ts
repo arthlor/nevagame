@@ -20,6 +20,7 @@ import {
 } from "../../src/world/WorldLayout";
 import { SUNREACH_ROUTES } from "../../src/world/SunreachWorld";
 import {
+  PLAYER_HOMESTEAD_LAYOUT,
   STARTER_FARM_LAYOUT,
   isPointInsideRect,
   starterFarmsteadAnchor,
@@ -60,14 +61,9 @@ function byOrigin(
 }
 
 const VILLAGE_BUILDING_ASSET_IDS = new Set<string>([
+  ASSET_IDS.HOUSE_FARMHOUSE_A,
   ASSET_IDS.HOUSE_COTTAGE_A,
-  ASSET_IDS.HOUSE_COTTAGE_B,
-  ASSET_IDS.HOUSE_COTTAGE_C,
-  ASSET_IDS.BUILDING_INN_B,
-  ASSET_IDS.BUILDING_VILLAGE_MARKET_HALL_B,
-  ASSET_IDS.BUILDING_BARN_B,
-  ASSET_IDS.PROP_TOOL_SHED_B,
-  ASSET_IDS.BUILDING_OUTHOUSE_B
+  ASSET_IDS.BUILDING_THATCHED_COTTAGE_A
 ]);
 
 interface FootprintBox {
@@ -220,6 +216,8 @@ describe("WorldLayout", () => {
     expect(WORLD_LAYOUT_V5.anchors.riverCrossing).toEqual({ x: 0, z: -5 });
     expect(WorldLayout.regionAt(VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z)).toBe("region.village");
     expect(WorldLayout.regionAt(-65, -55)).toBe("region.farm");
+    expect(WorldLayout.regionAt(PLAYER_HOMESTEAD_LAYOUT.origin.x, PLAYER_HOMESTEAD_LAYOUT.origin.z)).toBe("region.farm");
+    expect(WorldLayout.regionAt(82, -78)).toBe("region.farm");
     expect(WorldLayout.terrainHeight(VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z)).toBeGreaterThan(5);
     expect(WorldLayout.terrainHeight(0, -5)).toBeLessThan(
       WorldLayout.terrainHeight(VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z)
@@ -806,8 +804,8 @@ describe("WorldLayout", () => {
     expect(authored.filter((placement) => placement.id === "authored.spawn.bush-left")).toHaveLength(1);
     expect(authored.filter((placement) => placement.id === "authored.spawn.bush-right")).toHaveLength(1);
     expect(authored.filter((placement) => placement.id === "authored.spawn.rock-foreground")).toHaveLength(1);
-    expect(authored.filter((placement) => placement.assetId === "fauna_chicken_a")).toHaveLength(2);
-    expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(1);
+    expect(authored.filter((placement) => placement.assetId === "fauna_chicken_a")).toHaveLength(5);
+    expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(2);
     expect(authored.filter((placement) => placement.assetId === "fauna_cow_a")).toHaveLength(1);
     // Three rabbits that used to sit right on the spawn apron were removed to
     // clear the opening shot; one spawn companion remains to the west.
@@ -824,14 +822,9 @@ describe("WorldLayout", () => {
       expect(WorldLayout.terrainNormal(rabbit.x, rabbit.z).y, rabbit.id).toBeGreaterThan(0.98);
     }
     expect(authored.filter((placement) => placement.assetId === "prop_fishing_net_rack_a")).toHaveLength(2);
+    expect(authored.filter((placement) => placement.assetId === "house_farmhouse_a")).toHaveLength(2);
     expect(authored.filter((placement) => placement.assetId === "house_cottage_a")).toHaveLength(2);
-    expect(authored.filter((placement) => placement.assetId === "house_cottage_b")).toHaveLength(1);
-    expect(authored.filter((placement) => placement.assetId === "house_cottage_c")).toHaveLength(1);
-    expect(authored.filter((placement) => placement.assetId === "building_inn_b")).toHaveLength(1);
-    expect(authored.filter((placement) => placement.assetId === "building_village_market_hall_b")).toHaveLength(1);
-    expect(authored.filter((placement) => placement.assetId === "building_barn_b")).toHaveLength(1);
-    expect(authored.filter((placement) => placement.assetId === "prop_tool_shed_b")).toHaveLength(1);
-    expect(authored.filter((placement) => placement.assetId === "building_outhouse_b")).toHaveLength(1);
+    expect(authored.filter((placement) => placement.assetId === "building_thatched_cottage_a")).toHaveLength(1);
     const kelp = seeded.filter((placement) => placement.assetId === "foliage_kelp_a");
     expect(kelp.length).toBeGreaterThanOrEqual(16);
     expect(kelp.every((placement) => placement.z - WorldLayout.coastlineZ(placement.x) > 1.2)).toBe(true);
@@ -873,7 +866,7 @@ describe("WorldLayout", () => {
   it("keeps village building colliders off the mill, market, and plaza route waypoints", () => {
     const layout = createWorldEnvironmentLayout(42891);
     const buildings = villageBuildingFootprints(layout.staticPlacements);
-    expect(buildings.length).toBeGreaterThanOrEqual(7);
+    expect(buildings.length).toBeGreaterThanOrEqual(2);
 
     const mill = WorldLayout.landmark("windmill");
     const millBoxes: FootprintBox[] = collisionPrimitivesForAsset(ASSET_IDS.BUILDING_WINDMILL_A).map((primitive) => {
@@ -920,21 +913,21 @@ describe("WorldLayout", () => {
 
     const layout = createWorldEnvironmentLayout(42891);
     const facingIds = new Set([
-      "authored.village.cottage-west",
-      "authored.village.cottage-southwest",
-      "authored.village.cottage-garden",
-      "authored.village.cottage-south",
       "authored.village.inn",
       "authored.village.market-hall",
-      "authored.village.barn"
+      "authored.village.cottage-west",
+      "authored.village.cottage-south",
+      "authored.village.approach-inn"
     ]);
     const facing = layout.staticPlacements.filter((placement) => facingIds.has(placement.id));
     expect(facing).toHaveLength(facingIds.size);
     for (const placement of facing) {
+      // The compact village rings the market at roughly 10–16 m; the guard only
+      // has to keep dwellings outside the 6 m interaction ring and its margin.
       expect(Math.hypot(
         placement.x - VILLAGE_MARKET.position.x,
         placement.z - VILLAGE_MARKET.position.z
-      )).toBeGreaterThan(14);
+      )).toBeGreaterThan(9);
       const towardPlazaX = VILLAGE_MARKET.position.x - placement.x;
       const towardPlazaZ = VILLAGE_MARKET.position.z - placement.z;
       const length = Math.hypot(towardPlazaX, towardPlazaZ);

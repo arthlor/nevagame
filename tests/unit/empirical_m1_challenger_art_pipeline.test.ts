@@ -661,13 +661,13 @@ exec "${process.execPath}" "${nodeWorkerScript}" "$@"
 
     it("generates derived multi-tier LODs with strictly decreasing geometry complexity", async () => {
       await ensureMeshoptReady();
-      const sourcePath = path.join(ROOT, "public/assets/models/building_barn_a.glb");
+      const sourcePath = path.join(ROOT, "public/assets/models/house_cottage_a.glb");
       if (!fs.existsSync(sourcePath)) return;
 
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "neva-lods-deep-"));
       const spec = {
-        id: "building_barn_a",
-        file: "building_barn_a.glb",
+        id: "house_cottage_a",
+        file: "house_cottage_a.glb",
         generator: "architecture",
         lodLevels: [
           { node: "LOD0", distanceMeters: 0, triangleRatioTarget: 1.0 },

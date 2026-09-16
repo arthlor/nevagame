@@ -11,10 +11,12 @@ import { fishingEndpoint } from "../../src/simulation/fishing/FishingTuning";
 import { createStarterDonkeyState, isValidMountPose, playerPoseFromMount, STARTER_DONKEY_ID } from "../../src/simulation/mounts/Mounts";
 import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import { defaultMooringForBoatType, mooringById } from "../../src/world/WorldMoorings";
-import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
+import { SUNREACH_ANCHORS, SUNREACH_OFFSET_X } from "../../src/world/WorldIslands";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import { expectFarmsPreserved } from "../helpers/migrationPreservation";
+import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 import fixture from "../fixtures/save_v30_layout10.json";
 
 const evidence = (id: string) => fixture.layout10Evidence.find((point) => point.id === id)!;
@@ -25,9 +27,10 @@ function legacy(): SaveEnvelope {
 }
 
 function preserveResources(before: GameState, after: GameState): void {
-  for (const key of ["crops", "farms", "inventories", "fishCargo", "contracts", "journal", "metadata", "clock"] as const) {
+  for (const key of ["crops", "inventories", "fishCargo", "contracts", "journal", "metadata", "clock"] as const) {
     expect(after[key], key).toEqual(before[key]);
   }
+  expectFarmsPreserved(after, before);
   for (const [marketId, oldMarket] of Object.entries(before.markets)) {
     const migratedMarket = after.markets[marketId];
     expect(migratedMarket, marketId).toBeDefined();
@@ -52,7 +55,11 @@ function preserveResources(before: GameState, after: GameState): void {
   const { earlyActionCredits: _added, ...migratedQuests } = after.quests;
   const { earlyActionCredits: _absent, ...originalQuests } = before.quests;
   expect(migratedQuests, "quests").toEqual(originalQuests);
-  expect(after.player.workCapacity).toEqual(before.player.workCapacity);
+  // v43 intentionally rescales the Work pool to the daily ceiling.
+  expect(after.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
+  expect(after.player.workCapacity.current).toBe(
+    Math.round((before.player.workCapacity.current / before.player.workCapacity.maximum) * WORK_CAPACITY_MAXIMUM)
+  );
   expect(after.player.proficiencies).toEqual(before.player.proficiencies);
   expect(after.player.money).toBe(before.player.money);
   expect(after.world.fishingPressureByHabitat).toEqual(before.world.fishingPressureByHabitat);
@@ -160,12 +167,16 @@ describe("layout 11 coastal terrain save migration", () => {
     const before = legacy();
     const migrated = migrateSaveData(before).state;
     for (const [id, structure] of Object.entries(before.state.world.structures)) {
-      expect(migrated.world.structures[id]).toMatchObject({ ...structure, y: expect.any(Number) });
+      // Pre-v42 Sunreach poses (x >= 300) translate once into the expanded
+      // world; Neva poses keep X/Z. Both re-ground through canonical height.
+      const expectedX = structure.x >= 300 ? structure.x + SUNREACH_OFFSET_X : structure.x;
+      expect(migrated.world.structures[id]).toMatchObject({ ...structure, x: expectedX, y: expect.any(Number) });
       // Layouts 16 and 17 re-ground every structure that sits on a terrain
-      // patch (Neva and Sunreach); interior/no-patch structures stay verbatim.
-      if (WorldLayout.terrainPatchAt(structure.x, structure.z)) {
-        expect(migrated.world.structures[id].y).toBe(WorldLayout.terrainHeight(structure.x, structure.z));
-      } else expect(migrated.world.structures[id]).toEqual(structure);
+      // patch (Neva and Sunreach); interior/no-patch structures stay verbatim
+      // apart from the v42 ocean translation.
+      if (WorldLayout.terrainPatchAt(expectedX, structure.z)) {
+        expect(migrated.world.structures[id].y).toBe(WorldLayout.terrainHeight(expectedX, structure.z));
+      } else expect(migrated.world.structures[id]).toMatchObject({ ...structure, x: expectedX });
     }
   });
 
@@ -195,7 +206,7 @@ describe("layout 11 coastal terrain save migration", () => {
     before.state.player.currentRegionId = WorldLayout.regionAt(point.x, point.z);
 
     const migrated = migrateSaveData(before);
-    expect(migrated.state.player).toMatchObject(before.state.player);
+    expect(migrated.state.player).toMatchObject({ ...before.state.player, workCapacity: migrated.state.player.workCapacity });
     if (mounted) expect(migrated.state.mounts[STARTER_DONKEY_ID]).toEqual(before.state.mounts[STARTER_DONKEY_ID]);
     preserveResources(before.state, migrated.state);
     expect(validateSaveEnvelope(migrated)).toBe(true);
@@ -221,7 +232,8 @@ describe("layout 11 coastal terrain save migration", () => {
     const before = legacy();
     const point = location === "sunreach" ? SUNREACH_ANCHORS.dockPlayer : FARMHOUSE_INTERIOR_DOOR.enterSpawn;
     Object.assign(before.state.player, { x: point.x, y: WorldLayout.traversalSurfaceHeight(point.x, point.z) + 0.5, z: point.z });
-    expect(migrateSaveData(before).state.player).toMatchObject(before.state.player);
+    const migrated = migrateSaveData(before).state;
+    expect(migrated.player).toMatchObject({ ...before.state.player, workCapacity: migrated.player.workCapacity });
   });
 
   it.each(["boat.rowboat", "boat.skiff"])("recovers only an invalid upper-river %s without losing physical cargo", (boatTypeId) => {
@@ -250,10 +262,14 @@ describe("layout 11 coastal terrain save migration", () => {
     strandBoat(before.state, "boat.player_rowboat", true, lower);
     const skiffId = addSkiff(before.state);
     const cove = mooringById("mooring.sunreach_cove")!;
-    Object.assign(before.state.boats[skiffId], cove.boatPosition, { dockedMarketId: cove.marketId });
+    // Legacy saves store the pre-v42 Sunreach shore; seed the old pose so the
+    // migration translates it once into the live cove mooring.
+    const legacyCoveBoat = { ...cove.boatPosition, x: cove.boatPosition.x - SUNREACH_OFFSET_X };
+    Object.assign(before.state.boats[skiffId], legacyCoveBoat, { dockedMarketId: cove.marketId });
     const after = migrateSaveData(before).state;
-    expect(after.boats).toEqual(before.state.boats);
-    expect(after.player).toMatchObject(before.state.player);
+    expect(after.boats[skiffId]).toMatchObject({ ...cove.boatPosition, dockedMarketId: cove.marketId });
+    expect(after.boats["boat.player_rowboat"]).toEqual(before.state.boats["boat.player_rowboat"]);
+    expect(after.player).toMatchObject({ ...before.state.player, workCapacity: after.player.workCapacity });
     preserveResources(before.state, after);
   });
 

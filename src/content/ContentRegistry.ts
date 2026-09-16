@@ -1,3 +1,4 @@
+import { WORLD_DISCOVERIES } from "./discoveries";
 // src/content/ContentRegistry.ts
 
 import {
@@ -67,6 +68,8 @@ export class ContentRegistry {
     this.assertUniqueIds("contract template", CONTRACT_TEMPLATES);
     this.assertUniqueIds("NPC", NPCS);
     this.assertUniqueIds("quest", QUESTS);
+    this.assertUniqueIds("discovery", WORLD_DISCOVERIES);
+    for (const discovery of WORLD_DISCOVERIES) this.validateItemBatch(discovery.id, "discovery reward", discovery.reward);
 
     // 1. Validate Crops
     for (const [cropId, crop] of this.crops.entries()) {
@@ -538,6 +541,21 @@ export class ContentRegistry {
     const bandFor = (requiredXp: number): number => rankIndexForRequirement(requiredXp);
     const advertisedCrops = new Set<string>();
     const advertisedRecipes = new Set<string>();
+
+    // A provision is the only authored Work capture. Enforce its shape here so
+    // a malformed meal cannot silently grant nothing or a non-Work effect.
+    for (const item of this.items.values()) {
+      if (!item.consumable) continue;
+      if (item.consumable.kind !== "work") {
+        throw new Error(`Item '${item.id}' declares an unknown consumable kind`);
+      }
+      if (!Number.isFinite(item.consumable.amount) || item.consumable.amount <= 0) {
+        throw new Error(`Item '${item.id}' declares an invalid Work restore amount`);
+      }
+      if (item.category !== "processed-food") {
+        throw new Error(`Consumable '${item.id}' must be a processed-food item`);
+      }
+    }
 
     for (const rank of this.ranks) {
       // A rank may only advertise a feature the simulation actually reads.

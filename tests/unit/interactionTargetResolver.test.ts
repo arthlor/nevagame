@@ -111,4 +111,69 @@ describe("InteractionTargetResolver", () => {
     expect(resolver.resolve([ride, dismount], context)?.action).toBe("mount");
     expect(resolver.resolve([ride, dismount], { ...context, mode: "mounted" })?.action).toBe("dismount");
   });
+
+  it("keeps fishing ahead of normal aboard refuel", () => {
+    const resolver = new InteractionTargetResolver();
+    const boatContext = {
+      ...context,
+      mode: "boat-driving" as const
+    };
+    const refuel = target("boat:skiff:refuel", 0, 0, {
+      kind: "dock",
+      action: "refuel",
+      priority: 6,
+      modes: ["boat-driving"]
+    });
+    const cast = target("fishing-habitat:river:cast", 0, 4, {
+      kind: "fishing-habitat",
+      action: "cast",
+      priority: 3,
+      requiresTool: "fishing-rod",
+      modes: ["boat-driving"]
+    });
+    const sportHook = target("school:river:hook", 0, 4, {
+      kind: "fish-school",
+      action: "hook",
+      priority: 1,
+      modes: ["boat-driving"]
+    });
+
+    expect(resolver.resolve([refuel, cast], boatContext)?.action).toBe("cast");
+    expect(resolver.resolve([refuel, sportHook], boatContext)?.action).toBe("hook");
+  });
+
+  it("puts aboard refuel ahead of emergency tow at empty fuel", () => {
+    const resolver = new InteractionTargetResolver();
+    const boatContext = {
+      ...context,
+      mode: "boat-driving" as const
+    };
+    const refuel = target("boat:skiff:refuel", 0, 0, {
+      kind: "dock",
+      action: "refuel",
+      priority: -1,
+      modes: ["boat-driving"]
+    });
+    const tow = target("boat:skiff:tow", 0, 0, {
+      kind: "dock",
+      action: "tow",
+      priority: 0,
+      modes: ["boat-driving"]
+    });
+
+    expect(resolver.resolve([tow, refuel], boatContext)?.action).toBe("refuel");
+  });
+
+  it("keeps the refuel target available on foot", () => {
+    const resolver = new InteractionTargetResolver();
+    const refuel = target("boat:skiff:refuel", 0, 0, {
+      kind: "dock",
+      action: "refuel",
+      priority: 1,
+      modes: ["on-foot"]
+    });
+
+    expect(resolver.resolve([refuel], { ...context, mode: "boat-driving" })).toBeNull();
+    expect(resolver.resolve([refuel], context)?.action).toBe("refuel");
+  });
 });

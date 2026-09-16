@@ -98,6 +98,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           <Meter
             className="cast-power-meter"
             label="Cast power"
+            showLabel={false}
             value={castPower}
             max={1}
             valueText={`${Math.round(castPower * 100)}%`}

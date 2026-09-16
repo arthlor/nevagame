@@ -144,8 +144,9 @@ function fishingInsight(map: WorldMapDto, node: MapNode): {
 export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   map, questMarkers = [], onInspectMarketDemand, onClose
 }) => {
+  const [chartArea, setChartArea] = useState<"sea" | "neva" | "sunreach">("sea");
   const [activeLens, setActiveLens] = useState<MapLens>("geography");
-  const [selectedNodeId, setSelectedNodeId] = useState<string>("chart.neva_village");
+  const [selectedNodeId, setSelectedNodeId] = useState<string>("chart.neva_harbor");
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
 
@@ -165,6 +166,12 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
     : WorldLayout.isWalkable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
       ? "Road or trail"
       : "Rough ground";
+
+  const areaIncludes = (node: MapNode) => chartArea === "neva" ? node.worldPosition.x < 300
+    : chartArea === "sunreach" ? node.worldPosition.x > 1100
+    : node.worldPosition.x > 300 || node.id === "chart.neva_harbor" || node.id === "chart.neva_lighthouse";
+  const chartView = chartArea === "neva" ? "125 220 290 203" : chartArea === "sunreach" ? "655 275 290 203" : "0 0 1000 700";
+  const markerScale = chartArea === "sea" ? 1 : 0.45;
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
@@ -187,8 +194,8 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
               <IconCompass size={22} />
             </span>
             <div>
-              <h2 id="map-title" className="map-title">Nautical Chart of Neva & Sunreach</h2>
-              <span className="map-subtitle">Roads, waterways, farms, and fishing notes</span>
+              <h2 id="map-title" className="map-title">Nautical Chart of the Neva Archipelago</h2>
+              <span className="map-subtitle">Islands, sea lanes, farms, and fishing notes</span>
               {map.activeSchools.length > 0 && (
                 <span className="map-school-tally" data-testid="map-school-tally">
                   {`${map.activeSchools.length} school${map.activeSchools.length === 1 ? "" : "s"} working`}
@@ -235,10 +242,16 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
           <div className="map-canvas-container">
             {/* A group, not an img: an img's children are presentational, which
                 hid every selectable location button from assistive tech. */}
-            <svg viewBox="0 0 1000 700" className="map-svg-canvas" role="group" aria-label="Map of Neva and Sunreach islands">
+            <nav className="map-area-tabs" aria-label="Chart area">
+              {(["sea", "neva", "sunreach"] as const).map((area) => <button className="map-area-tab" key={area} type="button" aria-pressed={chartArea === area}
+                onClick={() => { setChartArea(area); setSelectedNodeId(area === "sunreach" ? "chart.sunreach_cove" : "chart.neva_harbor"); }}>
+                {area === "sea" ? "Open sea" : area === "neva" ? "Neva" : "Sunreach"}
+              </button>)}
+            </nav>
+            <svg viewBox={chartView} className="map-svg-canvas" role="group" aria-label="Map of Neva, Sunreach and the channel islands">
               <WorldChartTerrain />
 
-              {MAP_NODES.map((node) => {
+              {MAP_NODES.filter(areaIncludes).map((node) => {
                 const isSelected = selectedNodeId === node.id;
                 const { x: px, y: py } = worldPointToMapSvg(node.worldPosition);
                 const nodeMarketInsight = node.marketId
@@ -250,6 +263,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                 return (
                   <g
                     key={node.id}
+                    transform={`translate(${px * (1 - markerScale)} ${py * (1 - markerScale)}) scale(${markerScale})`}
                     className="map-node-group"
                     data-lens-relevant={nodeSupportsLens(node, activeLens)}
                     onClick={() => {

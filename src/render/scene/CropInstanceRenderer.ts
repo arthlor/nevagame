@@ -3,7 +3,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { ContentRegistry } from "../../content/ContentRegistry";
 import type { CropStage, GameState, PlacedCropState } from "../../simulation/core/types";
 import { cropMoistureBand } from "../../simulation/domains/FarmingDomain";
-import { farmLocalToWorld } from "../../world/FarmLayout";
+import { farmLocalToWorld, type FarmCropDecoration } from "../../world/FarmLayout";
 import { WorldLayout } from "../../world/WorldLayout";
 import { ASSET_IDS, type AssetId } from "../assets/AssetCatalog";
 import { AssetLoader } from "../loaders/AssetLoader";
@@ -367,6 +367,11 @@ export class CropInstanceRenderer {
   public readonly group = new THREE.Group();
   private readonly templates = new Map<AssetId, CropTemplate>();
   private readonly loading = new Map<AssetId, Promise<void>>();
+  /** One wind-patched clone per authored crop-material batch. */
+  private readonly cropMaterials = new Set<THREE.MeshStandardMaterial>();
+  /** Authored field dressing; never enters simulation state or crop picking. */
+  private staticCrops: readonly PlacedCropState[] = [];
+  private readonly staticCropIds = new Set<string>();
   private readonly lastStages = new Map<string, CropStage>();
   private readonly lastCrops = new Map<string, PlacedCropState>();
   private readonly transitions = new Map<string, CropTransition>();
@@ -374,13 +379,6 @@ export class CropInstanceRenderer {
   private readonly plantedTransitions = new Map<string, number>();
   private initialSyncDone = false;
   private readonly moistureBatch: TemplateBatch;
-  private readonly cropMaterial = patchCropWind(PaletteMaterials.standard("foliage_sage_01", {
-    vertexColors: true,
-    vertexColorMode: "replace",
-    // The GLB normals retain both rounded anatomy and authored sharp edges.
-    flatShading: false,
-    roughness: 0.94
-  }).clone());
   private cropSignature = Number.NaN;
   private highlightedId: string | null = null;
   private presentationTime = 0;
@@ -397,6 +395,41 @@ export class CropInstanceRenderer {
   public punchHarvest(id: string, timeSeconds: number): void {
     if (!this.reducedFeedbackMotion) this.harvestPunches.set(id, timeSeconds);
   }
+
+  /**
+   * Installs mature crop silhouettes around the Village Commons clearings.
+   * These records are renderer-local: they cannot be harvested, highlighted,
+   * saved, or counted against the farm's three live crop records.
+   */
+  public setStaticCrops(farmId: string, decorations: readonly FarmCropDecoration[]): void {
+    this.staticCropIds.clear();
+    this.staticCrops = decorations.map((decoration, index) => {
+      const definition = ContentRegistry.crops.get(decoration.cropId);
+      if (!definition) {
+        throw new Error(`[CropInstanceRenderer] Unknown decorative crop ${decoration.cropId}`);
+      }
+      const id = `visual_${farmId}_${index}_${decoration.cropId}`;
+      this.staticCropIds.add(id);
+      return {
+        id,
+        cropId: decoration.cropId,
+        farmId,
+        x: decoration.x,
+        z: decoration.z,
+        rotationRadians: decoration.rotationRadians,
+        plantedAtMinute: 0,
+        lastUpdatedMinute: 0,
+        effectiveGrowthMinutes: definition.baseGrowthMinutes,
+        moisture: 70,
+        health: 100,
+        stage: "mature",
+        averageMoistureAccum: 70,
+        moistureSampleCount: 1
+      };
+    });
+    this.cropSignature = Number.NaN;
+  }
+
   private templateRevision = 0;
   private renderedTemplateRevision = -1;
   private readonly matrix = new THREE.Matrix4();
@@ -438,7 +471,7 @@ export class CropInstanceRenderer {
 
   public async ensureAssets(state: Readonly<GameState>): Promise<void> {
     const assetIds = new Set<AssetId>();
-    for (const crop of Object.values(state.crops)) {
+    for (const crop of [...Object.values(state.crops), ...this.staticCrops]) {
       const assetId = CROP_STAGE_ASSETS[crop.cropId]?.[crop.stage];
       if (assetId) assetIds.add(assetId);
     }
@@ -459,10 +492,17 @@ export class CropInstanceRenderer {
     if (this.disposed) throw new DOMException("Crop renderer disposed", "AbortError");
     root.updateMatrixWorld(true);
     const inverseRoot = root.matrixWorld.clone().invert();
-    const geometries: THREE.BufferGeometry[] = [];
+    // Art Yard renders the authored GLB materials directly. Keep that same
+    // material separation in the instanced path: fruit, grain, foliage and
+    // wooden supports carry different roughness and light response even though
+    // they share one crop transform and wind motion. Flattening them into one
+    // matte foliage material made mature crop silhouettes read as dark blocks
+    // at the gameplay camera.
+    const geometriesByMaterial = new Map<THREE.MeshStandardMaterial, THREE.BufferGeometry[]>();
     root.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || !object.visible || Array.isArray(object.material)) return;
       if ((object as THREE.SkinnedMesh).isSkinnedMesh || object.name.startsWith("COL_")) return;
+      if (!(object.material instanceof THREE.MeshStandardMaterial)) return;
       let geometry = object.geometry.clone();
       geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverseRoot, object.matrixWorld));
       // Catalog crop materials are texture-free palette materials. Blender may
@@ -481,48 +521,54 @@ export class CropInstanceRenderer {
         }
       }
       if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
-      // Bake the catalog palette material into COLOR_0. This keeps the authored
-      // red fruit, pale flowers, golden heads and foliage facets while allowing
-      // each crop/stage to render as one instanced material batch.
-      const sourceColor = geometry.getAttribute("color");
-      const materialColor = object.material instanceof THREE.MeshStandardMaterial
-        ? object.material.color
-        : new THREE.Color(0xffffff);
-      const vertexCount = geometry.getAttribute("position").count;
-      const bakedColor = new Float32Array(vertexCount * 3);
-      for (let index = 0; index < vertexCount; index++) {
-        bakedColor[index * 3] = materialColor.r * (sourceColor?.getX(index) ?? 1);
-        bakedColor[index * 3 + 1] = materialColor.g * (sourceColor?.getY(index) ?? 1);
-        bakedColor[index * 3 + 2] = materialColor.b * (sourceColor?.getZ(index) ?? 1);
+      if (!geometry.getAttribute("color")) {
+        const vertexCount = geometry.getAttribute("position").count;
+        const colors = new Float32Array(vertexCount * 3);
+        colors.fill(1);
+        geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
       }
-      geometry.setAttribute("color", new THREE.BufferAttribute(bakedColor, 3));
       geometry.morphAttributes = {};
+      const geometries = geometriesByMaterial.get(object.material) ?? [];
       geometries.push(geometry);
+      geometriesByMaterial.set(object.material, geometries);
     });
 
     const batches: TemplateBatch[] = [];
-    const merged = geometries.length === 1 ? geometries[0] : mergeGeometries(geometries, false);
-    if (!merged) throw new Error(`[CropInstanceRenderer] Could not merge palette geometry for ${assetId}`);
-    const mesh = new THREE.InstancedMesh(merged, this.cropMaterial, MAX_CROP_INSTANCES);
-    mesh.name = `${assetId}_instances`;
-    mesh.count = 0;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.frustumCulled = false;
-    const phaseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
-    const windResponseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
-    merged.setAttribute("instanceWindPhase", phaseAttribute);
-    merged.setAttribute("instanceWindResponse", windResponseAttribute);
-    const highlightAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
-    merged.setAttribute("instanceHighlight", highlightAttribute);
-    const batch = { mesh, cropIds: [], phaseAttribute, windResponseAttribute, highlightAttribute };
-    mesh.userData.cropBatch = batch;
-    this.pickMeshes.push(mesh);
-    batches.push(batch);
-    this.group.add(mesh);
-    for (const geometry of geometries) {
-      if (geometry !== merged) geometry.dispose();
+    for (const [sourceMaterial, geometries] of geometriesByMaterial) {
+      const merged = geometries.length === 1 ? geometries[0] : mergeGeometries(geometries, false);
+      if (!merged) throw new Error(`[CropInstanceRenderer] Could not merge palette geometry for ${assetId}`);
+      const material = patchCropWind(sourceMaterial.clone());
+      // Generated COLOR_0 supplies the semantic palette, while instanceColor
+      // adds dry/wet and transition tint. Both are required for Art Yard parity.
+      material.vertexColors = true;
+      material.needsUpdate = true;
+      this.cropMaterials.add(material);
+      const mesh = new THREE.InstancedMesh(merged, material, MAX_CROP_INSTANCES);
+      mesh.name = batches.length === 0 ? `${assetId}_instances` : `${assetId}_instances_${batches.length}`;
+      mesh.count = 0;
+      mesh.castShadow = true;
+      // Dense mature grain kernels self-shadow at gameplay shadow-map density,
+      // producing black triangular patches across otherwise healthy heads. The
+      // soil mound remains the contact-shadow receiver; crops still cast a soft
+      // readable silhouette onto the furrow without receiving their own shadow.
+      mesh.receiveShadow = false;
+      mesh.frustumCulled = false;
+      const phaseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
+      const windResponseAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
+      merged.setAttribute("instanceWindPhase", phaseAttribute);
+      merged.setAttribute("instanceWindResponse", windResponseAttribute);
+      const highlightAttribute = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CROP_INSTANCES), 1);
+      merged.setAttribute("instanceHighlight", highlightAttribute);
+      const batch = { mesh, cropIds: [], phaseAttribute, windResponseAttribute, highlightAttribute };
+      mesh.userData.cropBatch = batch;
+      this.pickMeshes.push(mesh);
+      batches.push(batch);
+      this.group.add(mesh);
+      for (const geometry of geometries) {
+        if (geometry !== merged) geometry.dispose();
+      }
     }
+    if (batches.length === 0) throw new Error(`[CropInstanceRenderer] Could not build material batches for ${assetId}`);
     this.templates.set(assetId, { batches });
     this.templateRevision += 1;
   }
@@ -537,6 +583,7 @@ export class CropInstanceRenderer {
     for (const [id, start] of this.harvestPunches) if (timeSeconds - start > 0.32) this.harvestPunches.delete(id);
     this.updateWind(timeSeconds, state, weatherMotion);
     const crops = Object.values(state.crops);
+    const renderCrops = [...crops, ...this.staticCrops];
 
     if (!this.initialSyncDone) {
       this.initialSyncDone = true;
@@ -558,7 +605,7 @@ export class CropInstanceRenderer {
       }
     }
 
-    const signature = this.computeCropSignature(crops, isFarmGisMode);
+    const signature = this.computeCropSignature(renderCrops, isFarmGisMode);
     const animationActive =
       this.transitions.size > 0 ||
       this.harvestTransitions.size > 0 ||
@@ -622,6 +669,17 @@ export class CropInstanceRenderer {
       entriesByAsset.set(assetId, entries);
     }
 
+    // Decorative Commons crops use the same authored stage meshes as live
+    // crops, but deliberately bypass simulation transitions and interaction.
+    for (const crop of this.staticCrops) {
+      const family = CROP_STAGE_ASSETS[crop.cropId];
+      if (!family) continue;
+      const assetId = family[crop.stage];
+      const entries = entriesByAsset.get(assetId) ?? [];
+      entries.push({ crop, weight: 1, isIncoming: true });
+      entriesByAsset.set(assetId, entries);
+    }
+
     for (const [cropId, transition] of this.harvestTransitions) {
       const progress = smoothstep((timeSeconds - transition.startedAtSeconds) / HARVEST_CUT_SECONDS);
       if (progress >= 1) {
@@ -646,7 +704,7 @@ export class CropInstanceRenderer {
         this.updateBatch(batch, entries);
       }
     }
-    this.updateMoistureBatch(crops, state, isFarmGisMode);
+    this.updateMoistureBatch(renderCrops, state, isFarmGisMode);
   }
 
   private updateWind(
@@ -654,17 +712,18 @@ export class CropInstanceRenderer {
     state: Readonly<GameState>,
     weatherMotion?: Readonly<WeatherMotionSignal>
   ): void {
-    const shader = this.cropMaterial.userData.nevaCropWindShader as
-      { uniforms: CropWindUniforms } | undefined;
-    if (!shader) return;
-    shader.uniforms.uTime.value = timeSeconds;
-    shader.uniforms.uWindDir.value.set(
-      weatherMotion?.directionX ?? 0.7,
-      weatherMotion?.directionZ ?? 0.7
-    ).normalize();
-    shader.uniforms.uWindStrength.value = weatherMotion
+    const windX = weatherMotion?.directionX ?? 0.7;
+    const windZ = weatherMotion?.directionZ ?? 0.7;
+    const windStrength = weatherMotion
       ? 0.5 + weatherMotion.normalizedStrength * 1.05 + weatherMotion.gust * 0.08
       : Math.min(1.6, 0.55 + state.weather.windSpeed * 0.12);
+    for (const material of this.cropMaterials) {
+      const shader = material.userData.nevaCropWindShader as { uniforms: CropWindUniforms } | undefined;
+      if (!shader) continue;
+      shader.uniforms.uTime.value = timeSeconds;
+      shader.uniforms.uWindDir.value.set(windX, windZ).normalize();
+      shader.uniforms.uWindStrength.value = windStrength;
+    }
   }
 
   private computeCropSignature(crops: readonly PlacedCropState[], isFarmGisMode: boolean = false): number {
@@ -749,7 +808,9 @@ export class CropInstanceRenderer {
       batch.mesh.setColorAt(index, this.color);
       batch.phaseAttribute?.setX(index, hashUnit(`${crop.id}:wind`) * Math.PI * 2);
       batch.windResponseAttribute?.setX(index, windResponse);
-      batch.cropIds.push(entry.cutProgress == null ? crop.id : "");
+      batch.cropIds.push(
+        this.staticCropIds.has(crop.id) || entry.cutProgress != null ? "" : crop.id
+      );
     }
     batch.mesh.count = count;
     batch.mesh.instanceMatrix.needsUpdate = count > 0;
@@ -841,7 +902,7 @@ export class CropInstanceRenderer {
         );
       }
       batch.mesh.setColorAt(index, this.color);
-      batch.cropIds.push(crop.id);
+      batch.cropIds.push(this.staticCropIds.has(crop.id) ? "" : crop.id);
       index++;
     }
 
@@ -975,6 +1036,7 @@ export class CropInstanceRenderer {
     this.pickHits.length = 0;
     this.moistureBatch.mesh.removeFromParent();
     this.moistureBatch.mesh.geometry.dispose();
-    this.cropMaterial.dispose();
+    for (const material of this.cropMaterials) material.dispose();
+    this.cropMaterials.clear();
   }
 }

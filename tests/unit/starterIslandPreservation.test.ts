@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import baseline from "../../tools/world/neva-layout10-working-preservation.json";
+import baseline from "../../tools/world/neva-layout20-working-preservation.json";
 import { captureTerrainPreservation, compareTerrainPreservation } from "../../tools/world/terrain-preservation";
 
 describe("starter island terrain preservation", () => {
@@ -15,8 +15,10 @@ describe("starter island terrain preservation", () => {
 
   it("still reports the exact historical differences instead of replacing the old baseline", () => {
     const { historicalChecks } = compareTerrainPreservation(current, baseline);
+    // Anchors now match the current revision; only the route hash is recorded in
+    // its documented pre-correction (harbor-approach) form.
     expect(Object.entries(historicalChecks).filter(([, matches]) => !matches).map(([field]) => field))
-      .toEqual(["anchors", "routeHash"]);
+      .toEqual(["routeHash"]);
   });
 
   it("rejects any additional route edit or return to the obstructed stall endpoint", () => {

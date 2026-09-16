@@ -19,6 +19,7 @@ import type {
 import type { FishCargoState, FishSchoolState, GameState } from "../core/types";
 import type { ActiveQuestDto } from "../core/QuestTypes";
 import { dayOfSeason, MINUTES_PER_DAY } from "../core/GameClock";
+import { WORK_DAILY_EARN_CAP, WORK_MEAL_DAILY_LIMIT, workEarningsDayFor } from "../domains/ProgressionDomain";
 import { PLAYER_SATCHEL_SLOT_COUNT } from "../inventory/InventoryLimits";
 import { WorldLayout } from "../../world/WorldLayout";
 import { findFarmIdAtWorld } from "../../world/FarmLayout";
@@ -435,6 +436,10 @@ export function buildWorldHudDto(
     !state.basicFishing &&
     !state.sportFishing;
   const workCurrent = Math.max(0, Math.floor(player.workCapacity.current));
+  const workDay = workEarningsDayFor(clock.currentMinute);
+  const sameWorkDay = player.workCapacity.earningsDay === workDay;
+  const workEarnedToday = sameWorkDay ? Math.floor(player.workCapacity.earnedToday ?? 0) : 0;
+  const workMealsToday = sameWorkDay ? player.workCapacity.mealsToday ?? 0 : 0;
   const hour = Math.floor((clock.currentMinute % MINUTES_PER_DAY) / 60);
   const minute = clock.currentMinute % 60;
   const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
@@ -467,7 +472,7 @@ export function buildWorldHudDto(
 
   // Inventory & cargo capacity
   const occupiedSatchelSlots = inventory
-    ? inventory.slots.filter((s) => Boolean(s.itemId && (s.quantity ?? 0) > 0)).length
+    ? inventory.slots.filter((slot) => InventoryManager.getSlotQuantity(slot) > 0).length
     : 0;
   const totalSatchelSlots = inventory ? inventory.slotCount : PLAYER_SATCHEL_SLOT_COUNT;
   const capacity = {
@@ -550,8 +555,13 @@ export function buildWorldHudDto(
       current: workCurrent,
       maximum: player.workCapacity.maximum,
       exhausted: player.workCapacity.current < 1,
-      showLowNotice: player.workCapacity.current < 1 || workCurrent < 20,
-      recharging: player.workCapacity.current < player.workCapacity.maximum
+      showLowNotice:
+        player.workCapacity.current < 1 ||
+        workCurrent < Math.max(1, Math.round(player.workCapacity.maximum * 0.07)),
+      earnedToday: workEarnedToday,
+      earnCap: WORK_DAILY_EARN_CAP,
+      mealsToday: workMealsToday,
+      mealLimit: WORK_MEAL_DAILY_LIMIT
     },
     sprint: showSprint
       ? {

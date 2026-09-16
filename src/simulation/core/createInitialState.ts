@@ -121,7 +121,9 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       placedCropIds: [],
       placedStructureIds: [...farm.structureIds],
       leaseCost: farm.leaseCost,
-      leaseDueMinute: farm.id === "farm.player_homestead" ? 1440 * 7 : 0,
+      // Kept for save compatibility; land is inherited or communal, never
+      // bought or renewed through a market lease.
+      leaseDueMinute: 0,
       accessType: farm.accessType
     }])
   );
@@ -161,7 +163,12 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
       workCapacity: {
         current: WORK_CAPACITY_MAXIMUM,
         maximum: WORK_CAPACITY_MAXIMUM,
-        regeneratedAtMinute: 8 * 60
+        regeneratedAtMinute: 8 * 60,
+        earnedToday: 0,
+        earningsDay: 0,
+        mealsToday: 0,
+        laborUsedToday: [],
+        passiveRegenSeconds: 0
       },
       proficiencies: {
         farming: 0,

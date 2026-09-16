@@ -1,3 +1,4 @@
+import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import type { WorldDrainageSample, WorldRegionId } from "./WorldIslands";
 import { isInsideLoop, pointSegmentDistance, SUNREACH_ANCHORS, SUNREACH_COAST_LOOP } from "./WorldIslands";
 import type { WorldPoint, WorldRoute } from "./WorldLayout";
@@ -36,13 +37,13 @@ export function signedDistanceToSunreachCoast(x: number, z: number): number {
 }
 
 export const SUNREACH_WASH_PATH = [
-  { x: 602, z: 12 },
-  { x: 574, z: 37 },
-  { x: 535, z: 63 },
-  { x: 502, z: 78 },
-  { x: 465, z: 68 },
-  { x: 423, z: 62 },
-  { x: 386, z: 58 }
+  { x: 602 + SUNREACH_OFFSET_X, z: 12 },
+  { x: 574 + SUNREACH_OFFSET_X, z: 37 },
+  { x: 535 + SUNREACH_OFFSET_X, z: 63 },
+  { x: 502 + SUNREACH_OFFSET_X, z: 78 },
+  { x: 465 + SUNREACH_OFFSET_X, z: 68 },
+  { x: 423 + SUNREACH_OFFSET_X, z: 62 },
+  { x: 386 + SUNREACH_OFFSET_X, z: 58 }
 ] as const;
 
 export const SUNREACH_ROUTES: readonly WorldRoute[] = [
@@ -52,13 +53,13 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
     kind: "arterial",
     widthMeters: 3.4,
     points: [
-      { x: 355, z: 58 },
-      { x: 363, z: 62 },
-      { x: 373, z: 62 },
-      { x: 392, z: 65 },
-      { x: 397, z: 43 },
-      { x: 420, z: 25 },
-      { x: 455, z: 6 }
+      { x: 355 + SUNREACH_OFFSET_X, z: 58 },
+      { x: 363 + SUNREACH_OFFSET_X, z: 62 },
+      { x: 373 + SUNREACH_OFFSET_X, z: 62 },
+      { x: 392 + SUNREACH_OFFSET_X, z: 65 },
+      { x: 397 + SUNREACH_OFFSET_X, z: 43 },
+      { x: 420 + SUNREACH_OFFSET_X, z: 25 },
+      { x: 455 + SUNREACH_OFFSET_X, z: 6 }
     ]
   },
   {
@@ -67,10 +68,10 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
     kind: "lane",
     widthMeters: 2.7,
     points: [
-      { x: 455, z: 6 },
-      { x: 470, z: 27 },
-      { x: 492, z: 51 },
-      { x: 515, z: 75 }
+      { x: 455 + SUNREACH_OFFSET_X, z: 6 },
+      { x: 470 + SUNREACH_OFFSET_X, z: 27 },
+      { x: 492 + SUNREACH_OFFSET_X, z: 51 },
+      { x: 515 + SUNREACH_OFFSET_X, z: 75 }
     ]
   },
   {
@@ -79,10 +80,10 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
     kind: "trail",
     widthMeters: 2.3,
     points: [
-      { x: 515, z: 75 },
-      { x: 544, z: 59 },
-      { x: 568, z: 42 },
-      { x: 590, z: 25 }
+      { x: 515 + SUNREACH_OFFSET_X, z: 75 },
+      { x: 544 + SUNREACH_OFFSET_X, z: 59 },
+      { x: 568 + SUNREACH_OFFSET_X, z: 42 },
+      { x: 590 + SUNREACH_OFFSET_X, z: 25 }
     ]
   },
   {
@@ -91,10 +92,10 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
     kind: "trail",
     widthMeters: 2.2,
     points: [
-      { x: 515, z: 75 },
-      { x: 522, z: 111 },
-      { x: 521, z: 146 },
-      { x: 520, z: 180 }
+      { x: 515 + SUNREACH_OFFSET_X, z: 75 },
+      { x: 522 + SUNREACH_OFFSET_X, z: 111 },
+      { x: 521 + SUNREACH_OFFSET_X, z: 146 },
+      { x: 520 + SUNREACH_OFFSET_X, z: 180 }
     ]
   }
 ];
@@ -107,12 +108,12 @@ function sunreachMacroHeight(x: number, z: number): number {
   }
   const inland = -shoreDistance;
   const shoreRise = smoothstep(0, 24, inland) * 2.3;
-  const ridge = radialWeight(x, z, 584, 22, 25, 76) * 12.4;
-  const easternShoulder = radialWeight(x, z, 555, 54, 42, 75) * 5.4;
-  const terraceRise = radialWeight(x, z, 455, 5, 30, 58) * 2.2;
-  const coveLowland = radialWeight(x, z, 371, 58, 18, 38) * -1.7;
-  const broadUndulation = Math.sin(x * 0.025 + z * 0.017) * 0.38
-    + Math.cos(x * 0.012 - z * 0.021) * 0.32;
+  const ridge = radialWeight(x, z, 584 + SUNREACH_OFFSET_X, 22, 25, 76) * 12.4;
+  const easternShoulder = radialWeight(x, z, 555 + SUNREACH_OFFSET_X, 54, 42, 75) * 5.4;
+  const terraceRise = radialWeight(x, z, 455 + SUNREACH_OFFSET_X, 5, 30, 58) * 2.2;
+  const coveLowland = radialWeight(x, z, 371 + SUNREACH_OFFSET_X, 58, 18, 38) * -1.7;
+  const broadUndulation = Math.sin((x - SUNREACH_OFFSET_X) * 0.025 + z * 0.017) * 0.38
+    + Math.cos((x - SUNREACH_OFFSET_X) * 0.012 - z * 0.021) * 0.32;
   return -0.12 + shoreRise + ridge + easternShoulder + terraceRise + coveLowland + broadUndulation;
 }
 
@@ -127,12 +128,12 @@ export function sunreachDrainageSample(x: number, z: number): WorldDrainageSampl
   const washDistance = distanceToPolyline(x, z, SUNREACH_WASH_PATH);
   const wash = 1 - smoothstep(2.2, 12.5, washDistance);
   const upperCatchment = Math.max(
-    radialWeight(x, z, 584, 24, 28, 85),
-    radialWeight(x, z, 540, 58, 35, 76) * 0.78
+    radialWeight(x, z, 584 + SUNREACH_OFFSET_X, 24, 28, 85),
+    radialWeight(x, z, 540 + SUNREACH_OFFSET_X, 58, 35, 76) * 0.78
   );
   const catchment = clamp01(upperCatchment * 0.72 + wash * 0.5);
-  const downstream = clamp01((610 - x) / 245);
-  const bendSignal = 0.5 + Math.sin(x * 0.052 + z * 0.071) * 0.5;
+  const downstream = clamp01((610 + SUNREACH_OFFSET_X - x) / 245);
+  const bendSignal = 0.5 + Math.sin((x - SUNREACH_OFFSET_X) * 0.052 + z * 0.071) * 0.5;
   const erosion = clamp01(wash * (0.35 + (1 - downstream) * 0.48 + bendSignal * 0.22));
   const deposition = clamp01(wash * (0.28 + downstream * 0.62 + (1 - bendSignal) * 0.2));
   const sampleStep = 1.5;
@@ -147,10 +148,10 @@ export function sunreachDrainageSample(x: number, z: number): WorldDrainageSampl
   const shoreDistance = signedDistanceToSunreachCoast(x, z);
   const saltExposure = clamp01(
     (1 - smoothstep(8, 62, Math.max(0, -shoreDistance)))
-    * (0.42 + radialWeight(x, z, 605, 58, 34, 85) * 0.58)
+    * (0.42 + radialWeight(x, z, 605 + SUNREACH_OFFSET_X, 58, 34, 85) * 0.58)
   );
   const reefShelfInfluence = clamp01(
-    radialWeight(x, z, 548, 194, 35, 72)
+    radialWeight(x, z, 548 + SUNREACH_OFFSET_X, 194, 35, 72)
     * (shoreDistance > -18 ? 1 : 1 - smoothstep(18, 42, -shoreDistance))
   );
   return {
@@ -195,9 +196,9 @@ export function sunreachNaturalTerrainHeight(x: number, z: number): number {
   const workingRelease = smoothstep(4.5, 22, routeDistance) * smoothstep(37, 52, farmDistance);
   // Dry shoulders and a second low crest frame the route to the exposed ridge.
   // The seasonal wash, productive terrace and cove remain their existing surfaces.
-  const shoulder = (6 * radialWeight(x, z, 566, 4, 9, 68)
-    + 3.2 * radialWeight(x, z, 500, 119, 8, 45)
-    + 2.4 * radialWeight(x, z, 502, -37, 8, 38))
+  const shoulder = (6 * radialWeight(x, z, 566 + SUNREACH_OFFSET_X, 4, 9, 68)
+    + 3.2 * radialWeight(x, z, 500 + SUNREACH_OFFSET_X, 119, 8, 45)
+    + 2.4 * radialWeight(x, z, 502 + SUNREACH_OFFSET_X, -37, 8, 38))
     * coastRelease * workingRelease * (1 - drainage.wash);
   const land = coveWorkingPadHeight(x, z, terraceHeight(x, z, deposited + shoulder));
   // The cove depression must not pull declared dry land below the sea. This
@@ -209,8 +210,8 @@ export function sunreachNaturalTerrainHeight(x: number, z: number): number {
 }
 
 export function sunreachRegionAt(x: number, z: number): WorldRegionId {
-  if (Math.hypot(x - 373, z - 56) <= 54 || x < 405) return "region.sunreach_cove";
-  if (Math.hypot(x - 455, z - 5) <= 66 || (x < 495 && z < 65)) return "region.sunreach_terraces";
-  if (x >= 555 || Math.hypot(x - 590, z - 25) <= 72) return "region.sunreach_ridge";
+  if (Math.hypot(x - (373 + SUNREACH_OFFSET_X), z - 56) <= 54 || x < (405 + SUNREACH_OFFSET_X)) return "region.sunreach_cove";
+  if (Math.hypot(x - (455 + SUNREACH_OFFSET_X), z - 5) <= 66 || (x < (495 + SUNREACH_OFFSET_X) && z < 65)) return "region.sunreach_terraces";
+  if (x >= (555 + SUNREACH_OFFSET_X) || Math.hypot(x - (590 + SUNREACH_OFFSET_X), z - 25) <= 72) return "region.sunreach_ridge";
   return "region.sunreach_scrub";
 }

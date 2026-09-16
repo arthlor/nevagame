@@ -7,7 +7,7 @@ import { ASSET_IDS, type AssetId } from "./AssetCatalog";
  * list in tests.
  */
 export const STATIC_LANDMARK_ASSETS = {
-  farmhouse: ASSET_IDS.HOUSE_FARMHOUSE_A,
+  farmhouse: ASSET_IDS.BUILDING_MEDIEVAL_TIMBER_COTTAGE_A,
   farmhouseSmoke: ASSET_IDS.PROP_SMOKE_PLUME_A,
   well: ASSET_IDS.PROP_WATER_WELL_A,
   bridge: ASSET_IDS.BRIDGE_STONE_A,
@@ -16,9 +16,10 @@ export const STATIC_LANDMARK_ASSETS = {
   lighthouse: ASSET_IDS.BUILDING_LIGHTHOUSE_A,
   windmill: ASSET_IDS.BUILDING_WINDMILL_A,
   workbench: ASSET_IDS.PROP_FARM_WORKBENCH_A,
+  kitchen: ASSET_IDS.BUILDING_FARM_KITCHEN_A,
   compost: ASSET_IDS.PROP_WORM_COMPOST_A,
   fishTable: ASSET_IDS.PROP_FARM_WORKBENCH_A,
-  produceStall: ASSET_IDS.PROP_PRODUCE_STALL_A,
+  produceStall: ASSET_IDS.BUILDING_MEDIEVAL_MARKET_STALL_A,
   interiorShell: ASSET_IDS.INTERIOR_FARMHOUSE_SHELL,
   fence: ASSET_IDS.PROP_FENCE_WOOD_A
 } as const satisfies Readonly<Record<string, AssetId>>;

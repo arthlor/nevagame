@@ -68,7 +68,7 @@ export function advancePlayerTraversal(
   input: Readonly<TraversalStepInput>,
   fixedDeltaSeconds: number
 ): TraversalStepResult {
-  const dt = Math.max(0, fixedDeltaSeconds);
+  const dt = Number.isFinite(fixedDeltaSeconds) ? Math.max(0, fixedDeltaSeconds) : 0;
   const maximum = PLAYER_TRAVERSAL_TUNING.maximumSprintStamina;
   let stamina = clamp(finiteOr(current.sprintStamina, maximum), 0, maximum);
   let recoveryDelay = Math.max(0, finiteOr(current.sprintRecoveryDelaySeconds, 0));

@@ -164,6 +164,55 @@ export class CargoDomain {
     return { success: true };
   }
 
+  /**
+   * Move one physical catch from an accessible boat slot into the player's
+   * hands. This is deliberately a separate transaction from market access:
+   * standing beside a docked vessel exposes its hold, but never counts as
+   * carrying the pack to a counter.
+   */
+  public pickup(cargoId: FishCargoId): { success: boolean; reason?: string } {
+    const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
+    if (state.player.carriedFishCargoId) return { success: false, reason: "Your hands are already full" };
+    const cargo = state.fishCargo[cargoId];
+    if (!cargo) return { success: false, reason: "Fish cargo not found" };
+    if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") {
+      return { success: false, reason: "This fish is not in a boat hold" };
+    }
+    const slotIndex = cargo.location.slotIndex;
+    const boat = state.boats[cargo.location.containerId];
+    if (!boat || typeof slotIndex !== "number" || boat.fishCargoSlotIds[slotIndex] !== cargo.id) {
+      return { success: false, reason: "This boat cargo slot is no longer available" };
+    }
+    if (!this.navigation.canAccessBoatStores(boat.id)) {
+      return { success: false, reason: "Move to the docked boat to collect this trade pack" };
+    }
+
+    boat.fishCargoSlotIds[slotIndex] = null;
+    state.player.carriedFishCargoId = cargo.id;
+    cargo.location = { type: "player", containerId: "player" };
+    events.emit("CargoUnloaded", {
+      cargoId: cargo.id,
+      minute: state.clock.currentMinute
+    });
+    return { success: true };
+  }
+
+  public canPickup(cargoId: FishCargoId): boolean {
+    const { state } = this.context;
+    if (state.player.activeMountId || state.player.carriedFishCargoId) return false;
+    const cargo = state.fishCargo[cargoId];
+    if (!cargo || (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook")) return false;
+    const slotIndex = cargo.location.slotIndex;
+    const boat = state.boats[cargo.location.containerId];
+    return Boolean(
+      boat &&
+      typeof slotIndex === "number" &&
+      boat.fishCargoSlotIds[slotIndex] === cargo.id &&
+      this.navigation.canAccessBoatStores(boat.id)
+    );
+  }
+
   public tick(minutes: number, startMinute: number = this.context.state.clock.currentMinute - minutes): void {
     const { state } = this.context;
     advanceCargoFreshness(state, minutes, startMinute);

@@ -19,7 +19,7 @@ export type ClimateId = "temperate" | "warm" | "cool" | "arid" | "subarctic";
 export type SeasonId = "spring" | "summer" | "autumn" | "winter";
 export type TimeWindowId = "dawn" | "day" | "dusk" | "night";
 export type WeatherTag = "clear" | "cloudy" | "light-rain" | "heavy-rain" | "windy" | "fog" | "storm";
-export type StationType = "hand-mill" | "workbench" | "fish-table" | "compost-bin";
+export type StationType = "hand-mill" | "workbench" | "fish-table" | "compost-bin" | "kitchen";
 export type StructureId = string;
 export type SkillId = "farming" | "fishing" | "processing" | "trading";
 export type RodClass = "willow" | "river" | "heavy-sport" | "offshore" | "master";
@@ -161,6 +161,23 @@ export interface WorkCapacityState {
   current: number;
   maximum: number;
   regeneratedAtMinute: GameMinute;
+  /**
+   * Work earned today from meals, labor shifts and skill rebates. Rest and
+   * offline wake are deliberately excluded so a full night cannot be banked
+   * twice. Reset whenever the calendar day changes.
+   */
+  earnedToday?: number;
+  /** Calendar-day index `earnedToday`, `mealsToday` and `laborUsedToday` belong to. */
+  earningsDay?: number;
+  /** Meals eaten today. Caps how much a player can eat in one day. */
+  mealsToday?: number;
+  /** Labor-shift station ids already worked for Work today. */
+  laborUsedToday?: string[];
+  /**
+   * Real seconds accrued toward the next slow idle trickle. Passive recovery is
+   * measured in real time, not game minutes, and resets when the pool is full.
+   */
+  passiveRegenSeconds?: number;
 }
 
 export interface SoilState {
@@ -461,6 +478,14 @@ export interface BasicFishingState {
   quality?: FishCatchQuality;
   isHolding?: boolean;
   result?: "landed" | "escaped";
+
+  /**
+   * Leftover real seconds carried between ticks for the fixed 60 Hz
+   * charging/minigame integration. Persisted so a reload mid-fight resumes on
+   * the same step boundary; the RNG draw count stays a function of simulated
+   * time rather than of render frame partitioning.
+   */
+  minigameStepRemainderSeconds?: number;
 }
 
 export type CarryLocationType = "player" | "boat-hold" | "boat-hook" | "cold-storage" | "crate";

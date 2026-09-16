@@ -7,6 +7,7 @@ import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { harborCoastCollisionProxies } from "../../src/world/HarborCoastLayout";
 import { staticPoseIsClear } from "../../src/physics/StaticCollision";
 import { STARTER_DONKEY_ID, playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
+import { expectFarmsPreserved } from "../helpers/migrationPreservation";
 import fixture from "../fixtures/save_v32_layout12.json";
 
 const legacy=()=>structuredClone(fixture) as unknown as SaveEnvelope;
@@ -48,8 +49,9 @@ describe("independent v32 harbor save recovery",()=>{
     expect(after.state.quests.earlyActionCredits).toEqual([]);
     const { earlyActionCredits: _ledger, ...migratedQuests } = after.state.quests;
     expect(migratedQuests, "quests").toEqual(before.state.quests);
-    for(const key of ["crops","farms","inventories","fishCargo","contracts","journal","metadata","clock"] as const)
+    for(const key of ["crops","inventories","fishCargo","contracts","journal","metadata","clock"] as const)
       expect(after.state[key],key).toEqual(before.state[key]);
+    expectFarmsPreserved(after.state,before.state);
     preserveAuthoredMarkets(before.state.markets, after.state.markets);
     expect(before).toEqual(untouched);expect(migrateSaveData(after)).toEqual(after);
   }, 120_000);

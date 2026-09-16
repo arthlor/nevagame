@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import type { ItemInspectionDto, SatchelDto } from "../simulation/core/contracts";
+import type { InteractionResult, ItemInspectionDto, SatchelDto } from "../simulation/core/contracts";
 import { ItemInspectCard } from "./components/ItemInspectCard";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
@@ -24,6 +24,8 @@ interface InventoryModalProps {
   onInspectItem?: (itemId: string) => ItemInspectionDto | null;
   /** Tidies the satchel in the simulation and returns whether it changed. */
   onSortSatchel?: () => { success: boolean; reason?: string };
+  /** Eats an edible provision; the simulation owns the Work grant and limits. */
+  onConsumeItem?: (itemId: string) => InteractionResult;
 }
 
 type InventoryCategory = "all" | "farming" | "fishing" | "supplies";
@@ -64,7 +66,8 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   onSelectPlantCrop,
   onInspectPlanting,
   onInspectItem,
-  onSortSatchel
+  onSortSatchel,
+  onConsumeItem
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortNotice, setSortNotice] = useState<string | null>(null);
@@ -136,6 +139,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
       onSelectPlantCrop(selectedSlot.cropId);
       onClose();
     }
+  };
+
+  const handleConsumeSelected = (): void => {
+    if (selectedSlot?.itemId) onConsumeItem?.(selectedSlot.itemId);
   };
 
   /**
@@ -272,7 +279,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
         <div className="inventory-toolbar">
           <ChromeButton
-            className="inventory-organize-btn"
+            className={`inventory-organize-btn${organizeOpen ? " is-active" : ""}`}
             soundCue="click"
             data-testid="inventory-organize"
             aria-expanded={organizeOpen}
@@ -425,6 +432,26 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                   <ChromeAlert tone="caution" className="inventory-plant-blocker">
                     {planting.reason ?? "Planting is not available here"}
                   </ChromeAlert>
+                )}
+
+                {selectedInspection?.provisions && (
+                  <div className="inventory-action-block">
+                    <ChromeButton
+                      variant="gold"
+                      soundCue="confirm"
+                      className="inventory-consume-action-btn"
+                      data-testid="inventory-consume-action"
+                      disabled={!selectedInspection.provisions.edible}
+                      onClick={handleConsumeSelected}
+                    >
+                      Eat · restores {selectedInspection.provisions.restoresWork} Work
+                    </ChromeButton>
+                    {!selectedInspection.provisions.edible && (
+                      <ChromeAlert tone="caution" className="inventory-consume-blocker">
+                        {selectedInspection.provisions.blockerReason ?? "You cannot eat that right now"}
+                      </ChromeAlert>
+                    )}
+                  </div>
                 )}
 
                 {selectedSlot.description && <p className="details-description">{selectedSlot.description}</p>}

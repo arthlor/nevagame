@@ -1,3 +1,5 @@
+import { OCEAN_ISLETS, oceanIsletAt, isletShoreDistance, isletTerrainHeight } from "./OceanIslets";
+import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { surfaceFieldAttributeSteps } from "../render/materials/SurfaceFieldAttributes";
 import { runSync, runCooperatively } from "../utils/CooperativeTask";
 import * as THREE from "three";
@@ -6,6 +8,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { CANONICAL_RENDER_CONFIG } from "../render/config/VisualRenderConfig";
 import { PALETTE_HEX, type PaletteToken } from "../render/materials/PaletteTokens";
 import {
+  PLAYER_HOMESTEAD_LAYOUT,
   STARTER_FARM_LAYOUT,
   farmLocalToWorld,
   starterFarmsteadAnchor,
@@ -19,6 +22,7 @@ import {
   HARBOR_PIER_DECK,
   HARBOR_SKIFF_MOORING,
   RIVER_CROSSING,
+  VILLAGE_CROSSING,
   VILLAGE_MARKET,
   VILLAGE_PLAZA,
   WORLD_SPAWN,
@@ -299,7 +303,7 @@ export interface WorldLayoutDescriptor {
 }
 
 export const WORLD_BOUNDS: WorldBounds = { minX: -220, maxX: 200, minZ: -250, maxZ: 130 };
-export const SAILABLE_BOUNDS: WorldBounds = { minX: -270, maxX: 720, minZ: -300, maxZ: 300 };
+export const SAILABLE_BOUNDS: WorldBounds = { minX: -500, maxX: 1700, minZ: -650, maxZ: 650 };
 /**
  * 384 cells across 600 m is a 1.56 m grid. The previous 2.34 m grid could not
  * resolve an 11 m river or a 9 m beach without turning every bank into a
@@ -311,12 +315,12 @@ export const TERRAIN_SIZE_METERS = 600;
 const TERRAIN_GRID_STEP_METERS = TERRAIN_SIZE_METERS / TERRAIN_RESOLUTION;
 const TRAVERSAL_TRIANGLE_EPSILON = 1e-6;
 export const WATER_SURFACE = Object.freeze({
-  width: 1150,
-  depth: 750,
-  centerX: 225,
-  centerZ: 20,
-  segmentsX: 221,
-  segmentsZ: 144
+  width: 2400,
+  depth: 1500,
+  centerX: 600,
+  centerZ: 0,
+  segmentsX: 461,
+  segmentsZ: 288
 });
 
 const COAST_SPLINE = [
@@ -636,7 +640,9 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     id: "farm-village",
     scope: "regional",
     kind: "arterial",
-    widthMeters: 3.8,
+    // Narrower than the bridge deck so the village approach reads as a country
+    // road rather than a paved field; the deck itself stays 3.8 m.
+    widthMeters: 3.2,
     points: [
       STARTER_FARM_YARD_GATE,
       { x: -49, z: -66 },
@@ -652,7 +658,7 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
       { x: 26, z: -26 },
       { x: 38, z: -36 },
       { x: 46, z: -44 },
-      VILLAGE_MARKET.position
+      VILLAGE_CROSSING
     ],
     linearSegmentIndices: [4, 5, 6, 7]
   },
@@ -660,20 +666,22 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     id: "village-homestead",
     scope: "regional",
     kind: "lane",
-    widthMeters: 3.1,
+    widthMeters: 2.6,
     points: [
-      VILLAGE_MARKET.position,
+      VILLAGE_CROSSING,
       { x: 57, z: -56 },
-      { x: 60, z: -60 }
+      { x: 65, z: -62 },
+      { x: 70, z: -68 },
+      PLAYER_HOMESTEAD_LAYOUT.origin
     ]
   },
   {
     id: "village-harbor",
     scope: "regional",
     kind: "arterial",
-    widthMeters: 4.2,
+    widthMeters: 3.2,
     points: [
-      VILLAGE_MARKET.position,
+      VILLAGE_CROSSING,
       { x: 56, z: -28 },
       { x: 58, z: -4 },
       { x: 60, z: 20 },
@@ -685,9 +693,9 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     id: "village-lighthouse",
     scope: "regional",
     kind: "lane",
-    widthMeters: 3.2,
+    widthMeters: 2.6,
     points: [
-      VILLAGE_MARKET.position,
+      VILLAGE_CROSSING,
       { x: 38, z: -36 },
       { x: 18, z: -20 },
       RIVER_CROSSING,
@@ -781,11 +789,31 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
   },
   {
     id: "village-market",
-    center: VILLAGE_MARKET.position,
-    radiusMeters: 9.2,
-    blendLengthMeters: 2.8,
+    center: VILLAGE_CROSSING,
+    // A compact court: the four routes meet in a small square instead of a
+    // 9 m paved disk with long apron arms spilling into the meadow.
+    radiusMeters: 6.0,
+    blendLengthMeters: 1.6,
     surface: "village-market",
     routeIds: ["farm-village", "village-homestead", "village-harbor", "village-lighthouse"]
+  },
+  {
+    id: "village-market-apron",
+    // Packed frontage under the market stall's counter, joining the crossing to the building on the
+    // court's south lip so the stall stands on market ground rather than meadow grass.
+    center: { x: VILLAGE_MARKET.position.x, z: VILLAGE_MARKET.position.z + 1.6 },
+    radiusMeters: 3.4,
+    blendLengthMeters: 1.4,
+    surface: "village-market",
+    routeIds: []
+  },
+  {
+    id: "village-commons",
+    center: PLAYER_HOMESTEAD_LAYOUT.origin,
+    radiusMeters: 3.8,
+    blendLengthMeters: 1.8,
+    surface: "farm-yard",
+    routeIds: ["village-homestead"]
   },
   {
     id: "river-crossing",
@@ -814,7 +842,7 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
 ];
 
 function villageArchitectureRotation(center: WorldPoint): number {
-  return Math.atan2(VILLAGE_MARKET.position.x - center.x, VILLAGE_MARKET.position.z - center.z);
+  return Math.atan2(VILLAGE_CROSSING.x - center.x, VILLAGE_CROSSING.z - center.z);
 }
 
 /**
@@ -823,65 +851,14 @@ function villageArchitectureRotation(center: WorldPoint): number {
  * for runtime building placement envelopes and frontage spacing.
  */
 export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
-  // Village approach and orchard homesteads; existing terrain, no new gameplay anchors.
-  { id: "village.approach-inn", center: { x: 79.3, z: -29.1}, rotationY: -0.624, envelope: [4.5, 4.1], frontageClearanceMeters: 7, frontApproachMeters: 4 },
-  { id: "village.cooperative-hall", center: { x: 38, z: 12 }, rotationY: 2.111216, envelope: [5, 4.2], frontageClearanceMeters: 7.5, frontApproachMeters: 4 },
-  { id: "orchard.barn", center: { x: 100, z: -66 }, rotationY: -0.566729, envelope: [4.8, 3.2], frontageClearanceMeters: 6.5, frontApproachMeters: 4 },
-  { id: "orchard.farmhouse", center: { x: 134, z: -32 }, rotationY: -1.172274, envelope: [4.5, 4.75], frontageClearanceMeters: 7.5, frontApproachMeters: 4 },
-  { id: "orchard.tool-shed", center: { x: 105, z: -49 }, rotationY: -0.764568, envelope: [1.55, 1.4], frontageClearanceMeters: 3, frontApproachMeters: 2.5 },
-  { id: "orchard.outhouse", center: { x: 129, z: -50 }, rotationY: -0.95724, envelope: [1.1, 1.5], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
+  // Orchard outbuildings and the roadside stall; existing terrain, no new gameplay anchors.
+  { id: "orchard.tool-shed", center: { x: 50.3, z: -64.9}, rotationY: -0.7854, envelope: [1.55, 1.4], frontageClearanceMeters: 3, frontApproachMeters: 2.5 },
+  { id: "orchard.outhouse", center: { x: 73.4, z: -31.2}, rotationY: -0.9572, envelope: [1.1, 1.5], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
   { id: "village.roadside-stall", center: { x: 52.7, z: -14}, rotationY: 1.5708, envelope: [1.25, 0.85], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
-  {
-    id: "village.tool-shed",
-    center: { x: 25.3, z: -71.5},
-    rotationY: 0.9744,
-    envelope: [2, 1.7],
-    frontageClearanceMeters: 2.6,
-    frontApproachMeters: 4
-  },
-  {
-    id: "village.outhouse",
-    center: { x: 24, z: -62 },
-    rotationY: villageArchitectureRotation({ x: 24, z: -62 }),
-    envelope: [1.35, 1.25],
-    frontageClearanceMeters: 2.2,
-    frontApproachMeters: 2.2
-  },
-  {
-    id: "village.cottage-west",
-    center: { x: 36.6, z: -50.5},
-    rotationY: villageArchitectureRotation({ x: 36.6, z: -50.5 }),
-    envelope: [2.7, 2.4],
-    frontageClearanceMeters: 4.5,
-    frontApproachMeters: 4.5
-  },
-  {
-    id: "village.cottage-southwest",
-    center: { x: 37.8, z: -58.6},
-    rotationY: 1.0609,
-    envelope: [2.5, 2.7],
-    frontageClearanceMeters: 4.3,
-    frontApproachMeters: 4.5
-  },
-  {
-    id: "village.cottage-garden",
-    center: { x: 72, z: -64 },
-    rotationY: villageArchitectureRotation({ x: 72, z: -64 }),
-    envelope: [3.4, 2.8],
-    frontageClearanceMeters: 5,
-    frontApproachMeters: 4.8
-  },
-  {
-    id: "village.cottage-south",
-    center: { x: 65.1, z: -69.6},
-    rotationY: villageArchitectureRotation({ x: 65.1, z: -69.6 }),
-    envelope: [2.5, 2.7],
-    frontageClearanceMeters: 4.3,
-    frontApproachMeters: 4.5
-  },
   {
     id: "village.inn",
     // 2 m south of the original (64, -38) so the north corners stay on the court.
+    // Now hosts the relocated starter farmhouse.
     center: { x: 63.1, z: -38.9},
     rotationY: -1.5708,
     envelope: [5.2, 4.2],
@@ -890,20 +867,53 @@ export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
   },
   {
     id: "village.market-hall",
-    // 2 m west of the original (72, -51) so the east corners stay off the upland ridge.
-    center: { x: 68.9, z: -53.1},
-    rotationY: -2.0944,
-    envelope: [5.3, 4.2],
+    // Nudged north off the village-homestead lane and shrunk to its real
+    // thatched-cottage footprint so the rotated pad corners stay on the flat
+    // upland bench instead of the graded road shoulder.
+    center: { x: 68.4, z: -51 },
+    rotationY: villageArchitectureRotation({ x: 68.4, z: -51 }),
+    envelope: [4.5, 3.8],
     frontageClearanceMeters: 7,
     frontApproachMeters: 6
   },
   {
-    id: "village.barn",
-    center: { x: 46.1, z: -66 },
-    rotationY: 0.5236,
-    envelope: [5.3, 3.2],
-    frontageClearanceMeters: 6,
-    frontApproachMeters: 5.5
+    id: "farm.outhouse",
+    // Serves the starter homestead yard, behind the new medieval main house.
+    center: { x: -49.5, z: -44.5},
+    rotationY: 1.8326,
+    envelope: [1.5, 1.45],
+    frontageClearanceMeters: 2.5,
+    frontApproachMeters: 2
+  },
+  {
+    id: "village.approach-inn",
+    // Second dwelling: a farmhouse on the southwest approach that frames the
+    // market square together with the cottages. Door faces the produce stall.
+    center: { x: 29.5, z: -73.5 },
+    rotationY: villageArchitectureRotation({ x: 29.5, z: -73.5 }),
+    envelope: [4.5, 4.1],
+    frontageClearanceMeters: 7,
+    frontApproachMeters: 4
+  },
+  { id: "village.cooperative-hall", center: { x: 38, z: 12 }, rotationY: 2.111216, envelope: [5, 4.2], frontageClearanceMeters: 7.5, frontApproachMeters: 4 },
+  { id: "orchard.farmhouse", center: { x: 134, z: -32 }, rotationY: -1.172274, envelope: [4.5, 4.75], frontageClearanceMeters: 7.5, frontApproachMeters: 4 },
+  {
+    id: "village.cottage-west",
+    // West cottage on the square ring; its door opens onto the market court.
+    center: { x: 30.5, z: -59.5 },
+    rotationY: villageArchitectureRotation({ x: 30.5, z: -59.5 }),
+    envelope: [2.7, 2.4],
+    frontageClearanceMeters: 4.5,
+    frontApproachMeters: 4.5
+  },
+  {
+    id: "village.cottage-south",
+    // South cottage closing the square; door faces north to the market.
+    center: { x: 42.5, z: -79.5 },
+    rotationY: villageArchitectureRotation({ x: 42.5, z: -79.5 }),
+    envelope: [2.5, 2.7],
+    frontageClearanceMeters: 4.3,
+    frontApproachMeters: 4.5
   }
 ];
 
@@ -937,7 +947,7 @@ export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
   anchors: {
     starterFarm: STARTER_FARM_LAYOUT.origin,
     playerSpawn: WORLD_SPAWN.playerPosition,
-    privateHomestead: { x: 60, z: -60 },
+    privateHomestead: PLAYER_HOMESTEAD_LAYOUT.origin,
     villageMarket: VILLAGE_MARKET.position,
     riverCrossing: RIVER_CROSSING,
     bridge: BRIDGE_CENTER,
@@ -1418,6 +1428,8 @@ export class WorldLayout {
   }
 
   public static islandAt(x: number, z: number): WorldIslandId | null {
+    const islet = oceanIsletAt(x, z);
+    if (islet && isletShoreDistance(islet, x, z) <= 0) return islet.id;
     const sunreach = WORLD_ISLAND_DEFINITIONS["island.sunreach"];
     if (
       x >= sunreach.authoredBounds.minX
@@ -1452,7 +1464,7 @@ export class WorldLayout {
       ?? (marine.ecologyWeights["ecology.sunreach"] > marine.ecologyWeights["ecology.neva"]
         ? "island.sunreach"
         : "island.neva");
-    if (islandId === "island.neva") {
+    if (islandId !== "island.sunreach") {
       return {
         islandId,
         biomeId: "biome.neva_temperate",
@@ -1487,6 +1499,23 @@ export class WorldLayout {
   }
 
   public static drainageSampleAt(x: number, z: number): WorldDrainageSample {
+    const islet = oceanIsletAt(x, z);
+    if (islet) {
+      const shoreDistance = isletShoreDistance(islet, x, z);
+      const inland = Math.max(0, -shoreDistance);
+      return {
+        islandId: islet.id,
+        catchment: clamp01(inland / 24) * 0.18,
+        wash: 0,
+        erosion: clamp01(1 - this.terrainNormalY(x, z)),
+        deposition: clamp01(1 - smoothstep(2, 13, inland)),
+        moisturePotential: clamp01(0.18 + inland / 70),
+        slope: clamp01(1 - this.terrainNormalY(x, z)),
+        aspect: Math.atan2(z - islet.z, x - islet.x),
+        saltExposure: clamp01(1 - smoothstep(3, 22, inland)),
+        reefShelfInfluence: clamp01(1 - smoothstep(4, 28, Math.abs(shoreDistance)))
+      };
+    }
     if (this.islandAt(x, z) === "island.sunreach" || this.terrainPatchAt(x, z)?.islandId === "island.sunreach") {
       return sunreachDrainageSample(x, z);
     }
@@ -1515,7 +1544,7 @@ export class WorldLayout {
   public static navigationRequirementAt(x: number, z: number): Readonly<SailingRequirement> | null {
     const marine = this.marineSampleAt(x, z);
     return marine.openWaterExposure >= OPEN_CHANNEL_REQUIREMENT.exposureThreshold
-      && marine.ecologyWeights["ecology.sunreach"] >= 0.08
+      && (marine.ecologyWeights["ecology.sunreach"] >= 0.08 || marine.signedShoreDistance > 70)
       ? OPEN_CHANNEL_REQUIREMENT
       : null;
   }
@@ -1821,23 +1850,26 @@ export class WorldLayout {
   public static marineSampleAt(x: number, z: number): MarineSample {
     const nevaDistance = this.nevaWaterSignedDistance(x, z);
     const sunreachDistance = signedDistanceToSunreachCoast(x, z);
-    const signedShoreDistance = Math.min(nevaDistance, sunreachDistance);
+    const isletDistance = Math.min(...OCEAN_ISLETS.map((islet) => isletShoreDistance(islet, x, z)));
+    const signedShoreDistance = Math.min(nevaDistance, sunreachDistance, isletDistance);
     const sunreachProximity = 1 / Math.pow(12 + Math.max(0, sunreachDistance), 2);
     const nevaProximity = 1 / Math.pow(12 + Math.max(0, nevaDistance), 2);
     const ecologyTotal = Math.max(0.000001, sunreachProximity + nevaProximity);
     const sunreachEcology = sunreachProximity / ecologyTotal;
     const nevaEcology = nevaProximity / ecologyTotal;
-    const coveShelter = clamp01(
-      radialWeight(x, z, 350, 58, 8, 58)
+    const isletShelter = Math.max(...OCEAN_ISLETS.map((islet) =>
+      radialWeight(x, z, islet.x, islet.z + islet.radiusZ + 5, 8, 45)));
+    const coveShelter = clamp01(isletShelter * 0.82 + 
+      radialWeight(x, z, 350 + SUNREACH_OFFSET_X, 58, 8, 58)
       * (1 - smoothstep(42, 105, Math.max(0, signedShoreDistance)))
     );
-    const channel = smoothstep(145, 220, x) * (1 - smoothstep(675, 720, x));
+    const channel = smoothstep(145, 220, x) * (1 - smoothstep(675 + SUNREACH_OFFSET_X, 720 + SUNREACH_OFFSET_X, x));
     const openWaterExposure = clamp01(
       channel * (0.62 + smoothstep(12, 80, Math.max(0, signedShoreDistance)) * 0.38)
       * (1 - coveShelter * 0.78)
     );
     const reefInfluence = clamp01(
-      radialWeight(x, z, 548, 194, 30, 92)
+      radialWeight(x, z, 548 + SUNREACH_OFFSET_X, 194, 30, 92)
       * (1 - smoothstep(42, 95, Math.abs(signedShoreDistance)))
     );
     const shallowWaterInfluence = signedShoreDistance > 0
@@ -2150,7 +2182,7 @@ export class WorldLayout {
       radialWeight(x, z, -92, -72, 34, 52) * 0.72
     );
     let village = Math.max(
-      radialWeight(x, z, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z, 28, 58),
+      radialWeight(x, z, VILLAGE_CROSSING.x, VILLAGE_CROSSING.z, 28, 58),
       radialWeight(x, z, 30, -22, 18, 54) * 0.74
     );
     let harbor = radialWeight(x, z, HARBOR_MARKET.position.x, HARBOR_MARKET.position.z, 18, 36);
@@ -2170,7 +2202,7 @@ export class WorldLayout {
       }
     }
     farm = Math.max(farm, radialWeight(x, z, farmAnchor.x, farmAnchor.z, 12, 10));
-    village = Math.max(village, radialWeight(x, z, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z, 14, 9));
+    village = Math.max(village, radialWeight(x, z, VILLAGE_CROSSING.x, VILLAGE_CROSSING.z, 14, 9));
     harbor = Math.max(harbor, radialWeight(x, z, HARBOR_MARKET.position.x, HARBOR_MARKET.position.z, 12, 8));
     headland = Math.max(headland, radialWeight(x, z, LIGHTHOUSE_GATEWAY.x, LIGHTHOUSE_GATEWAY.z, 12, 8));
     coast = Math.max(coast, headland * 0.54);
@@ -2187,12 +2219,25 @@ export class WorldLayout {
   public static regionAt(x: number, z: number): WorldRegionId {
     if (this.isInterior(x, z)) return "region.farm";
     if (this.islandAt(x, z) === "island.sunreach") return sunreachRegionAt(x, z);
+    if (oceanIsletAt(x, z)) return "region.open_channel";
+    // The public Commons sits inside the village district's broad influence
+    // field, but it is still a farming destination for navigation, ambience,
+    // and the HUD. Keep its authored yard legible as Family Farm & Commons.
+    const commonsLocalX = x - PLAYER_HOMESTEAD_LAYOUT.origin.x;
+    const commonsLocalZ = z - PLAYER_HOMESTEAD_LAYOUT.origin.z;
+    const commonsBounds = PLAYER_HOMESTEAD_LAYOUT.farmBounds;
+    if (
+      commonsLocalX >= commonsBounds.minX - 1.5 &&
+      commonsLocalX <= commonsBounds.maxX + 1.5 &&
+      commonsLocalZ >= commonsBounds.minZ - 1.5 &&
+      commonsLocalZ <= commonsBounds.maxZ + 1.5
+    ) return "region.farm";
     const marine = this.marineSampleAt(x, z);
     if (
       this.isWater(x, z)
       && marine.openWaterExposure >= 0.38
       && x > 235
-      && x < 390
+      && x < 390 + SUNREACH_OFFSET_X
     ) return "region.open_channel";
     if (
       this.isWater(x, z)
@@ -2253,7 +2298,7 @@ export class WorldLayout {
   public static isWalkable(x: number, z: number): boolean {
     if (this.isInterior(x, z)) return true;
     const islandId = this.islandAt(x, z);
-    if (islandId === "island.sunreach") return !this.isWater(x, z);
+    if (islandId && islandId !== "island.neva") return !this.isWater(x, z);
     if (islandId === "island.neva") {
       return !this.isWater(x, z) || this.isBridgeDeck(x, z) || this.isPierDeck(x, z);
     }
@@ -2329,7 +2374,15 @@ export class WorldLayout {
   private static nevaWorkingGroundProtection(x: number, z: number): number {
     let protection = Math.max(
       boxWeight(x, z, -65, -55, 18, 14, 8),
-      boxWeight(x, z, 63.5, -63, 10, 10, 8)
+      boxWeight(
+        x,
+        z,
+        PLAYER_HOMESTEAD_LAYOUT.origin.x + 8.5,
+        PLAYER_HOMESTEAD_LAYOUT.origin.z - 3,
+        11,
+        7,
+        8
+      )
     );
     if (protection >= 1) return 1;
     for (const pad of WORLD_ARCHITECTURE_PADS) {
@@ -2355,6 +2408,8 @@ export class WorldLayout {
 
   /** Authored landform before route grading. Never calls terrainHeight. */
   public static naturalTerrainHeight(x: number, z: number): number {
+    const islet = oceanIsletAt(x, z);
+    if (islet) return isletTerrainHeight(islet, x, z);
     if (this.terrainPatchAt(x, z)?.islandId === "island.sunreach") {
       return sunreachNaturalTerrainHeight(x, z);
     }
@@ -2577,8 +2632,29 @@ export class WorldLayout {
     height = this.applyPlateau(height, x, z, 1.2, -65, -55, 17, 13.5, 9);
     height = this.applyPlateau(height, x, z, 1.16, -57, -53.5, 7.5, 7.0, 6.5);
     height = this.applyPlateau(height, x, z, 2.05, RIVER_CROSSING.x, RIVER_CROSSING.z, 5.5, 5.0, 6.5);
-    height = this.applyPlateau(height, x, z, 6.4, VILLAGE_PLAZA.x, VILLAGE_PLAZA.z, 18, 16, 11);
-    height = this.applyPlateau(height, x, z, 6.3, 60, -60, 9, 8, 8);
+    height = this.applyPlateau(height, x, z, 6.4, VILLAGE_PLAZA.x, VILLAGE_PLAZA.z, 11, 10, 7);
+    // Level the square-ring dwellings so their rotated published envelopes sit
+    // on stable, walkable ground; the plaza feather alone left them on a slope
+    // the footprint-stability gate rejects. Halves cover the envelope diagonal
+    // so every sampled corner lands inside the flat region, not its feather.
+    height = this.applyPlateau(height, x, z, 6.35, 30.5, -59.5, 3.8, 3.8, 3.5);
+    height = this.applyPlateau(height, x, z, 6.35, 42.5, -79.5, 3.8, 3.8, 3.5);
+    height = this.applyPlateau(height, x, z, 6.0, 29.5, -73.5, 6.2, 6.2, 4.0);
+    // The market hall sits on the upland ridge east of the square; narrowing the
+    // approach lanes exposed the natural slope under its footprint, so it gets
+    // its own authored bench.
+    height = this.applyPlateau(height, x, z, 7.7, 68.4, -51, 5.8, 5.8, 4.0);
+    height = this.applyPlateau(
+      height,
+      x,
+      z,
+      6.3,
+      PLAYER_HOMESTEAD_LAYOUT.origin.x,
+      PLAYER_HOMESTEAD_LAYOUT.origin.z,
+      11,
+      8,
+      8
+    );
     height = this.applyPlateau(height, x, z, 6.5, STARTER_MILL_WORLD.x, STARTER_MILL_WORLD.z, 7.2, 7.2, 6.5);
     // Keep the working harbor apron flat inland, then release it into the
     // canonical beach profile before the waterline. The previous plateau
@@ -2946,7 +3022,7 @@ export class WorldLayout {
 
   public static farmSoilInfluence(x: number, z: number): number {
     if (this.terrainPatchAt(x, z)?.islandId === "island.sunreach") {
-      const localX = x - 455;
+      const localX = x - SUNREACH_ANCHORS.terraceFarm.x;
       const localZ = z - 5;
       return clamp01(1 - smoothstep(0.82, 1.16, Math.hypot(localX / 27, localZ / 31)));
     }
@@ -2954,11 +3030,21 @@ export class WorldLayout {
     const localZ = z - STARTER_FARM_LAYOUT.origin.z;
     const ellipse = 1 - smoothstep(0.88, 1.24, Math.hypot(localX / 7.2, localZ / 6.2));
     const irregular = 0.94 + Math.sin(localX * 0.72 + localZ * 0.31) * 0.035;
-    const homestead = 1 - smoothstep(0.9, 1.18, Math.hypot((x - 60) / 9.2, (z + 60) / 9.2));
+    const commonsCenterX = PLAYER_HOMESTEAD_LAYOUT.origin.x + 8.5;
+    const commonsCenterZ = PLAYER_HOMESTEAD_LAYOUT.origin.z - 3;
+    const homestead = 1 - smoothstep(
+      0.9,
+      1.18,
+      Math.hypot((x - commonsCenterX) / 11.5, (z - commonsCenterZ) / 7.5)
+    );
     return clamp01(Math.max(ellipse * irregular, homestead * 0.9));
   }
 
   public static shorelineWetness(x: number, z: number): number {
+    const islet = oceanIsletAt(x, z);
+    if (islet) {
+      return 1 - smoothstep(0.18, 3.4, Math.abs(isletShoreDistance(islet, x, z)));
+    }
     if (this.terrainPatchAt(x, z)?.islandId === "island.sunreach") {
       const marine = this.marineSampleAt(x, z);
       const drainage = sunreachDrainageSample(x, z);
@@ -2984,6 +3070,8 @@ export class WorldLayout {
   }
 
   public static terrainSurfaceSample(x: number, z: number, sampledNormalY?: number): TerrainSurfaceSample {
+    const islet = oceanIsletAt(x, z);
+    if (islet) return this.oceanIsletTerrainSurfaceSample(islet, x, z, sampledNormalY);
     if (this.terrainPatchAt(x, z)?.islandId === "island.sunreach") {
       return this.sunreachTerrainSurfaceSample(x, z, sampledNormalY);
     }
@@ -3107,6 +3195,51 @@ export class WorldLayout {
       farmInfluence: farm,
       shorelineWetness: wet,
       river
+    };
+  }
+
+  private static oceanIsletTerrainSurfaceSample(
+    islet: NonNullable<ReturnType<typeof oceanIsletAt>>,
+    x: number,
+    z: number,
+    sampledNormalY?: number
+  ): TerrainSurfaceSample {
+    const marine = this.marineSampleAt(x, z);
+    const drainage = this.drainageSampleAt(x, z);
+    const shoreLand = 1 - smoothstep(-2, 2, marine.signedShoreDistance);
+    const inland = Math.max(0, -isletShoreDistance(islet, x, z));
+    const normalY = sampledNormalY ?? this.terrainNormalY(x, z);
+    const slopeCliff = clamp01((0.82 - normalY) / 0.32);
+    const beach = shoreLand
+      * (1 - smoothstep(4, 13, inland))
+      * (1 - slopeCliff * 0.72);
+    const cliff = shoreLand * slopeCliff * (0.35 + drainage.saltExposure * 0.5);
+    const interior = shoreLand * smoothstep(5, 15, inland);
+    const drySoil = interior * (0.08 + drainage.saltExposure * 0.16);
+    const meadowPattern = clamp01(
+      0.42 + Math.sin(x * 0.12 - z * 0.09) * 0.16 + drainage.moisturePotential * 0.18
+    );
+    const seabed = (1 - shoreLand)
+      * clamp01(0.82 + marine.shallowWaterInfluence * 0.12 + marine.reefInfluence * 0.06);
+    const remaining = clamp01(1 - Math.max(beach, cliff, drySoil, seabed));
+    const wet = this.shorelineWetness(x, z);
+    return {
+      weights: normalizedSurfaceWeights({
+        grass: remaining * (0.62 - meadowPattern * 0.22),
+        meadow: remaining * meadowPattern * 0.52,
+        drySoil,
+        dampSoil: wet * shoreLand * 0.18,
+        path: 0,
+        shoulder: 0,
+        beach,
+        riverbed: seabed,
+        wetShoreline: wet * 0.62,
+        cliff
+      }),
+      farmInfluence: 0,
+      shorelineWetness: wet,
+      river: this.riverBankSample(x, z),
+      drainage
     };
   }
 

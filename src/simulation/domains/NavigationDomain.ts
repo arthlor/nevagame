@@ -31,6 +31,8 @@ import {
 import { SUNREACH_ANCHORS } from "../../world/WorldIslands";
 
 /** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
+export const MOTOR_FUEL_PER_GAME_MINUTE = 0.4;
+
 export function drainMotorFuel(state: GameState, minutes: number): void {
   if (minutes <= 0) return;
   for (const boat of Object.values(state.boats)) {
@@ -38,7 +40,7 @@ export function drainMotorFuel(state: GameState, minutes: number): void {
     if (!definition || definition.fuelCapacity <= 0) continue;
     if (Math.abs(boat.speed) < 0.02) continue;
     const speedRatio = Math.min(1, Math.abs(boat.speed) / Math.max(0.01, definition.maxSpeed));
-    boat.fuel = Math.max(0, boat.fuel - minutes * 2 * speedRatio);
+    boat.fuel = Math.max(0, boat.fuel - minutes * MOTOR_FUEL_PER_GAME_MINUTE * speedRatio);
   }
 }
 
@@ -225,6 +227,7 @@ export class NavigationDomain {
       return { success: false, reason: "Dismount first before using Safe Return" };
     }
     const activeBoatId = state.player.activeBoatId;
+    let recoverToSunreach = false;
     if (activeBoatId) {
       const boat = state.boats[activeBoatId];
       if (
@@ -237,7 +240,7 @@ export class NavigationDomain {
         };
       }
       if (boat) {
-        const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId);
+        const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId, true);
         Object.assign(boat, {
           speed: 0,
           isDocked: true,
@@ -247,10 +250,15 @@ export class NavigationDomain {
           z: mooring.boatPosition.z,
           headingRadians: 0
         });
+        // The player is standing in the water aboard the vessel, where
+        // `islandAt` cannot resolve an island. Recover to the island the boat
+        // is actually returned to, or the two would strand on different shores.
+        recoverToSunreach = mooring.islandId === "island.sunreach";
       }
       state.player.activeBoatId = null;
     }
-    const recovery = WorldLayout.islandAt(state.player.x, state.player.z) === "island.sunreach"
+    const recovery = recoverToSunreach
+      || (!activeBoatId && WorldLayout.islandAt(state.player.x, state.player.z) === "island.sunreach")
       ? SUNREACH_ANCHORS.dockPlayer
       : WORLD_SPAWN.playerPosition;
     Object.assign(state.player, {
@@ -276,6 +284,8 @@ export class NavigationDomain {
         (boatId !== "boat.player_rowboat" || state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) &&
         !state.player.activeBoatId &&
         !state.player.activeMountId &&
+        !state.basicFishing &&
+        !state.sportFishing &&
         boat.isDocked &&
         mooring &&
         boat.dockedMarketId === mooring.marketId &&
@@ -287,8 +297,11 @@ export class NavigationDomain {
   }
 
   public boardBoat(boatId: BoatId): { success: boolean; reason?: string } {
-    if (!this.canBoardBoat(boatId)) return { success: false, reason: "Move closer to the docked vessel" };
     const { state, events } = this.context;
+    if (state.basicFishing || state.sportFishing) {
+      return { success: false, reason: "Finish fishing first" };
+    }
+    if (!this.canBoardBoat(boatId)) return { success: false, reason: "Move closer to the docked vessel" };
     const boat = state.boats[boatId]!;
     Object.assign(boat, { isDocked: false, dockedMarketId: null, speed: 0 });
     state.player.activeBoatId = boatId;
@@ -391,7 +404,7 @@ export class NavigationDomain {
     if (state.player.activeMountId) return { success: false, reason: "Dismount before docking a boat" };
     const boatId = state.player.activeBoatId;
     if (!boatId) return { success: false, reason: "You are not aboard a boat" };
-    if (!this.canDockActiveBoat()) return { success: false, reason: "Return to the harbor dock to disembark" };
+    if (!this.canDockActiveBoat()) return { success: false, reason: "Approach a dock or island landing to disembark" };
     const boat = state.boats[boatId]!;
     const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId);
     Object.assign(boat, {
@@ -441,7 +454,7 @@ export class NavigationDomain {
     if (state.player.money < NavigationDomain.EMERGENCY_TOW_COST) {
       return { success: false, reason: `Emergency tow needs ${NavigationDomain.EMERGENCY_TOW_COST} G` };
     }
-    const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId);
+    const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId, true);
     state.player.money -= NavigationDomain.EMERGENCY_TOW_COST;
     Object.assign(boat, {
       x: mooring.boatPosition.x,

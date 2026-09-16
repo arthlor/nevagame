@@ -48,6 +48,8 @@ if (!farmVillageRoute || !villageHomesteadRoute || !villageHarborRoute) {
   throw new Error("P12 route anchors are missing from the canonical world layout");
 }
 const nonNullFarmVillageRoute = farmVillageRoute;
+const nonNullVillageHomesteadRoute = villageHomesteadRoute;
+const nonNullVillageHarborRoute = villageHarborRoute;
 
 const bridge = WorldLayout.landmark("bridge");
 const bridgeIndex = farmVillageRoute.points.findIndex((point) => Math.hypot(point.x - bridge.x, point.z - bridge.z) < 0.2);
@@ -501,17 +503,15 @@ async function walkToVillageMarketGateway(page: Page): Promise<void> {
 }
 
 async function walkVillageMarketToHomestead(page: Page): Promise<void> {
-  // The authored homestead route's intermediate point is inside the physical
-  // market-stall envelope after the stall was given catalog collision. Leave
-  // the market through the southwest apron, then rejoin the homestead lane.
+  // Leave the market through the southwest apron, then follow the authored
+  // lane to the Commons entrance beyond the village courtyard.
   await walkTo(page, { x: 47, z: -48 });
   await walkTo(page, { x: 47, z: -55 });
-  await walkTo(page, { x: 52, z: -61 });
-  await walkTo(page, { x: 60, z: -60 });
+  await walkRoute(page, nonNullVillageHomesteadRoute.points.slice(1), undefined, 0.45);
 }
 
 async function walkHomesteadToVillageMarket(page: Page): Promise<void> {
-  await walkTo(page, { x: 52, z: -61 });
+  await walkRoute(page, [...nonNullVillageHomesteadRoute.points].reverse().slice(1, -1), undefined, 0.45);
   await walkTo(page, { x: 47, z: -55 });
   await walkTo(page, { x: 47, z: -48 });
   await walkToVillageMarketGateway(page);
@@ -562,22 +562,6 @@ async function walkToHarborDock(page: Page): Promise<void> {
   await walkTo(page, { x: 75.5, z: 62.4 }, { tolerance: 0.45 });
   await walkTo(page, { x: 75.5, z: 64.3 }, { tolerance: 0.45 });
   await walkTo(page, HARBOR_DOCK.playerPosition, { tolerance: 1.2 });
-}
-
-async function walkToHarborMarketTradeApproach(page: Page): Promise<void> {
-  // The fish-market anchor is the stall's collision center. Leave the dock
-  // through the south stairs, go around the east/north apron, and stop at the
-  // authored counter-facing trade point instead of walking into the shell.
-  await walkTo(page, { x: 75.5, z: 64.3 }, { tolerance: 0.45 });
-  await walkTo(page, { x: 77.4, z: 62.4 }, { tolerance: 0.45 });
-  await walkTo(page, { x: 82, z: 60 }, { tolerance: 0.8 });
-  await walkTo(page, { x: 82, z: 54 }, { tolerance: 0.8 });
-  await walkTo(page, { x: 76, z: 50 }, { tolerance: 0.8 });
-  await walkTo(page, { x: 70, z: 50 }, { tolerance: 0.8 });
-  // The north-facing counter edge is shared with Maeve's talk radius. Use the
-  // east-side trade point, which stays inside the market radius without
-  // allowing the NPC dialogue target to outrank the fish trade action.
-  await walkTo(page, { x: 70, z: 57 }, { tolerance: 0.85 });
 }
 
 async function walkToMaeveDialogueApproach(page: Page): Promise<void> {
@@ -1195,13 +1179,36 @@ async function sellVillageProduce(page: Page): Promise<void> {
 }
 
 async function sellDockedFish(page: Page): Promise<void> {
-  await waitForPrompt(page, /Trade at Harbor Fish Market/);
+  await waitForPrompt(page, /Collect .* trade pack/);
+  await page.keyboard.press("KeyE");
+  await expect.poll(() => snapshot(page).then((state) => state.cargoCount), { timeout: 12_000 }).toBe(1);
+  const cargoId = (await snapshot(page)).cargoIds[0];
+  expect(cargoId).toBeDefined();
+  await expect.poll(() => snapshot(page).then((state) => state.carriedFishCargoId), { timeout: 12_000 }).toBe(cargoId);
+
+  // A dock exposes the boat hold, but the sale happens at the inland counter.
+  // Keep the route player-led after collecting the pack so this acceptance path
+  // covers the ownership transfer as well as the market command.
+  await walkTo(page, { x: 75.5, z: 64.3 }, { tolerance: 0.45 });
+  await walkTo(page, { x: 77.4, z: 62.4 }, { tolerance: 0.45 });
+  await walkTo(page, { x: 82, z: 60 }, { tolerance: 0.8 });
+  await walkTo(page, { x: 82, z: 54 }, { tolerance: 0.8 });
+  await walkTo(page, { x: 84, z: 54 }, { tolerance: 0.8 });
+  await walkTo(page, { x: 84, z: 53 }, { tolerance: 0.8 });
+  await walkTo(page, { x: 76, z: 53 }, { tolerance: 0.8 });
+  await walkTo(page, { x: 76, z: 50 }, { tolerance: 0.8 });
+  await walkTo(page, { x: 60, z: 50 }, { tolerance: 0.8 });
+  await walkRoute(page, [...nonNullVillageHarborRoute.points].reverse().slice(1, -1));
+  await walkToVillageMarketGateway(page);
+
+  await waitForPrompt(page, /Trade at Village Produce Market/);
   await page.keyboard.press("KeyE");
   const market = page.locator(".market-trading-modal");
   await expect(market).toBeVisible({ timeout: 8_000 });
-  await market.getByRole("button", { name: "Fish hold", exact: true }).click();
-  await expect(market.getByRole("button", { name: /Sell all fish/i })).toBeVisible();
-  await market.getByRole("button", { name: /Sell all fish/i }).click();
+  await market.getByRole("button", { name: /Trade packs/ }).click();
+  await expect(market.getByTestId("market-trade-packs")).toBeVisible();
+  await expect(market.getByRole("button", { name: "Sell trade pack", exact: true })).toBeVisible();
+  await market.getByRole("button", { name: "Sell trade pack", exact: true }).click();
   await expect.poll(() => snapshot(page).then((state) => state.cargoCount), { timeout: 12_000 }).toBe(0);
   await page.keyboard.press("Escape");
   await expect(market).not.toBeVisible({ timeout: 5_000 });
@@ -1397,7 +1404,6 @@ test.describe("P12 Chrome continuous player route", () => {
     await expect(page.getByTestId("diagnostics")).toHaveAttribute("data-mode", "on-foot");
     await capture(page, "08-docked-cargo.png");
 
-    await walkToHarborMarketTradeApproach(page);
     await sellDockedFish(page);
     await talkTo(page, "npc.silas", "Magnificent");
     expect((await snapshot(page)).activeQuestId).toBeNull();

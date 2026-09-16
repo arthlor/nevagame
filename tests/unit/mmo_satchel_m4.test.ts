@@ -49,7 +49,8 @@ const baseCard: ItemInspectionDto = {
   tags: ["grain"],
   rarity: null,
   agronomy: null,
-  freshness: null
+  freshness: null,
+  provisions: null
 };
 
 const render = (over: Partial<React.ComponentProps<typeof InventoryModal>> = {}): string =>

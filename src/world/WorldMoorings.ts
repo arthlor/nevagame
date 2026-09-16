@@ -1,7 +1,14 @@
+import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "./OceanIslets";
 import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "./WorldAnchors";
 import { SUNREACH_ANCHORS, type BoatMooringDefinition } from "./WorldIslands";
 
 export const BOAT_MOORINGS: readonly Readonly<BoatMooringDefinition>[] = Object.freeze([
+  ...OCEAN_ISLETS.map((islet): BoatMooringDefinition => ({
+    id: `mooring.${islet.id.slice(7)}`, islandId: islet.id, marketId: null,
+    boatPosition: { x: islet.x, y: 0, z: islet.z + islet.radiusZ + 9 },
+    playerPosition: OCEAN_ISLAND_DEFINITIONS[islet.id].anchors.landing,
+    boardRadius: 6, hullBoardRadius: 10, dockRadius: 9, boatTypeIds: ["boat.skiff"]
+  })),
   Object.freeze({
     id: "mooring.neva_harbor_rowboat",
     islandId: "island.neva",
@@ -60,9 +67,11 @@ export const WORLD_SAILING_ROUTES: readonly Readonly<SailingRouteDefinition>[] =
       { x: HARBOR_SKIFF_MOORING.boatPosition.x, z: HARBOR_SKIFF_MOORING.boatPosition.z },
       { x: 125, z: 96 },
       { x: 180, z: 116 },
-      { x: 238, z: 112 },
-      { x: 288, z: 96 },
-      { x: 324, z: 78 },
+      { x: 350, z: 110 },
+      { x: 600, z: 110 },
+      { x: 850, z: 100 },
+      { x: 1080, z: 90 },
+      { x: 1124, z: 78 },
       SUNREACH_ANCHORS.dockBoat
     ])
   })
@@ -90,13 +99,15 @@ export function defaultMooringForBoatType(boatTypeId: string): Readonly<BoatMoor
 export function nearestMooring(
   x: number,
   z: number,
-  boatTypeId?: string
+  boatTypeId?: string,
+  servicedOnly = false
 ): Readonly<BoatMooringDefinition> {
+  const available = servicedOnly ? BOAT_MOORINGS.filter((mooring) => mooring.marketId !== null) : BOAT_MOORINGS;
   const matching = boatTypeId
-    ? BOAT_MOORINGS.filter((mooring) => !mooring.boatTypeIds || mooring.boatTypeIds.includes(boatTypeId))
-    : BOAT_MOORINGS;
+    ? available.filter((mooring) => !mooring.boatTypeIds || mooring.boatTypeIds.includes(boatTypeId))
+    : available;
   // An unrecognised boat type still gets a mooring: every caller needs one.
-  const compatible = matching.length > 0 ? matching : BOAT_MOORINGS;
+  const compatible = matching.length > 0 ? matching : available.length > 0 ? available : BOAT_MOORINGS;
   return compatible.reduce((nearest, candidate) =>
     Math.hypot(candidate.boatPosition.x - x, candidate.boatPosition.z - z)
       < Math.hypot(nearest.boatPosition.x - x, nearest.boatPosition.z - z)
@@ -111,9 +122,9 @@ export function dockedMooring(
   x: number,
   z: number
 ): Readonly<BoatMooringDefinition> | null {
-  if (!marketId) return null;
   const matches = BOAT_MOORINGS.filter((mooring) =>
     mooring.marketId === marketId
+    && (marketId !== null || Math.hypot(mooring.boatPosition.x - x, mooring.boatPosition.z - z) <= mooring.dockRadius)
     && (!mooring.boatTypeIds || mooring.boatTypeIds.includes(boatTypeId))
   );
   if (matches.length === 0) return null;

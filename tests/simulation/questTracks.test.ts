@@ -2,8 +2,10 @@ import { describe, expect, it, afterEach } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { CONTRACT_TYPES } from "../../src/content/contracts";
 import { Simulation } from "../../src/simulation/Simulation";
+import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { SEASONS } from "../../src/simulation/core/GameClock";
 import { speciesSeasonWeight } from "../../src/simulation/fishing/seasonalAvailability";
+import { npcAnchorAt } from "../../src/simulation/presentation/NpcPresentation";
 import {
   MAIN_QUEST_TRACK_ID,
   activeQuestTrackIds,
@@ -26,6 +28,19 @@ const sideTrack: QuestTrackDefinition = {
   entryQuestId: "quest.test_side_entry",
   unlock: { requiresCompletedQuestIds: ["quest.act1_welcome"] }
 };
+
+function setQuestCursor(
+  sim: Simulation,
+  trackId: string,
+  questId: string,
+  activeStepIndex = 0,
+  stepProgress: Record<string, number> = {}
+): void {
+  const progress = questTrackProgress(sim.state.quests, trackId);
+  progress.activeQuestId = questId;
+  progress.activeStepIndex = activeStepIndex;
+  progress.stepProgress = stepProgress;
+}
 
 const sideEntry: QuestDefinition = {
   id: "quest.test_side_entry",
@@ -317,9 +332,10 @@ describe("the tides side track", () => {
   });
 });
 
-describe("the family ledger side track", () => {
+describe("the cove commons side track", () => {
   it("opens after the compost lesson and runs its own five-quest chain", () => {
     ContentRegistry.initializeAndValidate();
+    expect(ContentRegistry.questTracks.get("track.homestead")?.title).toBe("The Cove Commons");
     const sim = new Simulation();
     expect(questTrackProgress(sim.state.quests, "track.homestead").activeQuestId).toBeNull();
 
@@ -336,6 +352,13 @@ describe("the family ledger side track", () => {
       quest = quest.nextQuestId ? ContentRegistry.quests.get(quest.nextQuestId) : undefined;
     }
     expect(chain).toHaveLength(5);
+    expect(chain.map((id) => ContentRegistry.quests.get(id)!.questTitle)).toEqual([
+      "The Family Key",
+      "A Furrow for Everyone",
+      "A Fair Share",
+      "Tools That Outlast Us",
+      "Shade for the Next Season"
+    ]);
     expect(ContentRegistry.quests.get(chain[chain.length - 1])!.rewards.unlocksKnowledgeIds)
       .toEqual(["knowledge.family_ledger"]);
   });
@@ -349,7 +372,7 @@ describe("the family ledger side track", () => {
     const active = activeQuestTrackIds(sim.state.quests).sort();
     expect(active).toEqual(["track.homestead", "track.main", "track.tides"]);
 
-    // A homestead planting advances only the chain that asked for it: the
+    // A commons planting advances only the chain that asked for it: the
     // spine is on its own quest and the tides track wants a fish.
     const homestead = questTrackProgress(sim.state.quests, "track.homestead");
     homestead.activeQuestId = "quest.homestead_overgrown_rows";
@@ -367,6 +390,36 @@ describe("the family ledger side track", () => {
 
     expect(homestead.stepProgress["step.homestead_plant_wheat"]).toBe(1);
     expect(tides.stepProgress).toEqual(tidesBefore);
+  });
+
+  it("shows the apple-tree gate and requires the first apple at the final hand-in", () => {
+    ContentRegistry.initializeAndValidate();
+    const sim = new Simulation();
+    setQuestCursor(sim, "track.main", "quest.act3_market_intro");
+    setQuestCursor(sim, "track.homestead", "quest.homestead_orchard", 0);
+
+    expect(sim.questDomain.getActiveQuestDto("track.homestead")?.requirements).toEqual([
+      { kind: "amount", label: "Farming XP", current: 0, required: 7500, met: false }
+    ]);
+
+    setQuestCursor(sim, "track.homestead", "quest.homestead_orchard", 2, {
+      "step.homestead_report_elspeth": 1
+    });
+    const elspeth = npcAnchorAt("npc.elspeth", sim.state.clock, sim.state.quests);
+    sim.state.player.x = elspeth.x;
+    sim.state.player.z = elspeth.z;
+    const blocked = sim.questDomain.talkToNpc("npc.elspeth");
+    expect(blocked.questCompleted).toBe(false);
+    expect(blocked.segments.find((segment) => segment.questId === "quest.homestead_orchard")?.note)
+      .toContain("Bring 1 Orchard Apple");
+
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "produce.apple", quantity: 1 }
+    ]);
+    const completed = sim.questDomain.talkToNpc("npc.elspeth");
+    expect(completed.segments.some((segment) => segment.kind === "completion" && segment.questId === "quest.homestead_orchard"))
+      .toBe(true);
+    expect(sim.state.quests.completedQuestIds).toContain("quest.homestead_orchard");
   });
 });
 

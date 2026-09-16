@@ -275,7 +275,10 @@ export function isQuestActive(quests: QuestState, questId: QuestId): boolean {
   return Object.values(quests.tracks ?? {}).some((progress) => progress.activeQuestId === questId);
 }
 
-/** Track ids that currently have a quest in progress, in definition order. */
+/**
+ * Track ids that currently have a quest in progress, in cursor-creation order
+ * (the main spine first, then side tracks as they unlocked).
+ */
 export function activeQuestTrackIds(quests: QuestState): QuestTrackId[] {
   const tracks = quests.tracks ?? {};
   return Object.keys(tracks).filter((trackId) => tracks[trackId]?.activeQuestId);

@@ -34,6 +34,7 @@ import type { ResolvedPhysicsFrame } from "./core/PhysicsAdapter";
 import type { DomainContext } from "./domains/DomainContext";
 import { deterministicCropRotation, FarmingDomain } from "./domains/FarmingDomain";
 import { ProcessingDomain } from "./domains/ProcessingDomain";
+import { LaborDomain } from "./domains/LaborDomain";
 import { ProgressionDomain } from "./domains/ProgressionDomain";
 import { EquipmentDomain } from "./domains/EquipmentDomain";
 import { NavigationDomain } from "./domains/NavigationDomain";
@@ -87,6 +88,7 @@ export interface SimulationRuntimeOptions {
 }
 
 export class Simulation {
+  private readonly blockedDiscoveryNotices = new Set<string>();
   public state: GameState;
   public rng: SeededRng;
   public clock: GameClock;
@@ -104,6 +106,7 @@ export class Simulation {
   private readonly marketDomain: MarketDomain;
   private readonly contractDomain: ContractDomain;
   public readonly questDomain: QuestDomain;
+  private readonly laborDomain: LaborDomain;
 
   constructor(initialState?: GameState, options: SimulationRuntimeOptions = {}) {
     ContentRegistry.initializeAndValidate();
@@ -150,6 +153,11 @@ export class Simulation {
       this.progressionDomain
     );
     this.questDomain = new QuestDomain(this.domainContext, this.progressionDomain);
+    this.laborDomain = new LaborDomain(this.domainContext, this.progressionDomain);
+    // A loaded save may already satisfy a side track's unlock predicate (for
+    // example a veteran save from before the track shipped). Open it on load
+    // instead of waiting for the next quest completion or level-up.
+    this.questDomain.evaluateTrackUnlocks();
     this.actionTimeline = new SimulationActionTimeline(
       (command) => this.execute(command),
       options.actionTimingScale ?? 1
@@ -218,6 +226,14 @@ export class Simulation {
         return this.farmingDomain.buyIrrigation();
       case "player.rest-until-dawn":
         return this.restUntilDawn();
+      case "item.consume":
+        return this.consumeItem(command.itemId);
+      case "labor.start":
+        return this.laborDomain.start(command.stationId);
+      case "labor.strike":
+        return this.laborDomain.strike();
+      case "labor.cancel":
+        return this.laborDomain.cancel();
       case "processing.start":
         return this.startProcessingJob(command.recipeId, command.stationId);
       case "processing.collect":
@@ -266,6 +282,8 @@ export class Simulation {
         return this.discardFishCargo(command.cargoId, command.marketId);
       case "cargo.release":
         return this.releaseFishCargo(command.cargoId, command.marketId);
+      case "cargo.pickup":
+        return this.pickupFishCargo(command.cargoId);
       case "market.sell-item":
         return this.sellItemAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.sell-produce-bulk":
@@ -280,6 +298,8 @@ export class Simulation {
         return this.equipRodAtMarket(command.marketId, command.rodId);
       case "market.sell-fish":
         return this.sellFishCargoAtMarket(command.marketId, command.cargoId);
+      case "market.sell-trade-pack":
+        return this.sellFishTradePackAtMarket(command.marketId, command.cargoId);
       case "market.sell-fish-bulk":
         return this.marketDomain.sellBulkFish(command.marketId);
       case "contract.deliver-items":
@@ -326,6 +346,10 @@ export class Simulation {
         return this.inspectFarmForecast();
       case "fishing.get-sport-hud":
         return this.inspectSportFishingHud();
+      case "labor.get-hud":
+        return this.laborDomain.inspectHud();
+      case "labor.get-stations":
+        return this.laborDomain.inspectStations();
       case "progression.get-skills":
         return this.inspectSkillProgress();
       case "market.demand-trend":
@@ -395,6 +419,9 @@ export class Simulation {
     // Real, unpaused time at the controls; the pause menu reports it.
     this.state.metadata.totalPlayMinutes += Math.max(0, realDeltaSeconds) / 60;
     this.fishingDomain.tick(realDeltaSeconds);
+    this.laborDomain.tick(realDeltaSeconds);
+    // Slow idle trickle, measured in real time while the game runs unpaused.
+    this.progressionDomain.tickPassiveWorkRegen(realDeltaSeconds);
     // School spawning/expiry is checked every frame so a freed habitat repopulates
     // promptly; it is minute-granular internally, so the explicit catch-up path
     // owns its own call rather than double-stepping here when minutes advance.
@@ -430,7 +457,40 @@ export class Simulation {
     }
     const minutes = minutesUntilNextMorning(clock.currentMinute);
     this.advanceGameMinutes(minutes);
-    return { success: true };
+    // Work is a day's labor budget: waking restores a small share plus a floor,
+    // then the new day's earning tallies open.
+    const restored = this.progressionDomain.restoreWorkOnRest();
+    return { success: true, yield: restored };
+  }
+
+  /**
+   * Eat a crafted meal for a bounded Work restore. The item is removed
+   * atomically before the grant; a refused eat spends nothing.
+   */
+  private consumeItem(itemId: ItemId): InteractionResult {
+    const definition = ContentRegistry.items.get(itemId);
+    if (!definition?.consumable || definition.consumable.kind !== "work") {
+      return { success: false, reason: "That is not something you can eat" };
+    }
+    const inventory = this.state.inventories[this.state.player.inventoryId];
+    if (!inventory || !InventoryManager.hasItems(inventory, [{ itemId, quantity: 1 }])) {
+      return { success: false, reason: "You are not carrying that meal" };
+    }
+    if (!this.progressionDomain.canEatMeal()) {
+      return { success: false, reason: "You are well fed — try again tomorrow" };
+    }
+    if (!this.progressionDomain.hasWorkRoom(definition.consumable.amount)) {
+      return { success: false, reason: "You are full of energy already" };
+    }
+    if (!InventoryManager.removeItemsAtomically(inventory, [{ itemId, quantity: 1 }])) {
+      return { success: false, reason: "Could not eat that meal" };
+    }
+    const granted = this.progressionDomain.consumeMeal(definition.consumable.amount);
+    if (granted <= 0) {
+      InventoryManager.addItemsAtomically(inventory, [{ itemId, quantity: 1 }]);
+      return { success: false, reason: "You are full of energy already" };
+    }
+    return { success: true, yield: granted };
   }
 
   private applyElapsedGameMinutes(minutesAdvanced: number): void {
@@ -726,6 +786,16 @@ export class Simulation {
     const result = this.navigationDomain.commitPhysicsFrame(frame);
     if (result.success) {
       for (const discovery of buildNewDiscoveries(this.state)) {
+        if (discovery.reward && !InventoryManager.addItemsAtomically(
+          this.state.inventories[this.state.player.inventoryId], discovery.reward
+        )) {
+          if (!this.blockedDiscoveryNotices.has(discovery.id)) {
+            this.blockedDiscoveryNotices.add(discovery.id);
+            this.events.emit("Notification", { title: "Supplies found", message: "Make room for fuel and chum in your satchel, then return to the camp bench.", type: "warning" });
+          }
+          continue;
+        }
+        this.blockedDiscoveryNotices.delete(discovery.id);
         this.state.journal.unlockedKnowledge.push(discovery.id);
         this.events.emit("PlaceDiscovered", { knowledgeId: discovery.id, title: discovery.title, view: discovery.view, minute: this.state.clock.currentMinute });
       }
@@ -975,6 +1045,14 @@ export class Simulation {
     return this.cargoDomain.release(cargoId, marketId);
   }
 
+  public pickupFishCargo(cargoId: FishCargoId): { success: boolean; reason?: string } {
+    return this.cargoDomain.pickup(cargoId);
+  }
+
+  public canPickupFishCargo(cargoId: FishCargoId): boolean {
+    return this.cargoDomain.canPickup(cargoId);
+  }
+
   // ==========================================
   // CONTRACT DELIVERY
   // ==========================================
@@ -1101,7 +1179,22 @@ export class Simulation {
   }
 
   public inspectItem(itemId: ItemId): ItemInspectionDto | null {
-    return buildItemInspectionDto(this.state, itemId);
+    const dto = buildItemInspectionDto(this.state, itemId);
+    if (!dto?.provisions) return dto;
+    const canEat = this.progressionDomain.canEatMeal();
+    const hasRoom = this.progressionDomain.hasWorkRoom(dto.provisions.restoresWork);
+    return {
+      ...dto,
+      provisions: {
+        ...dto.provisions,
+        edible: canEat && hasRoom,
+        blockerReason: !canEat
+          ? "Well fed today"
+          : !hasRoom
+          ? "Work is already full"
+          : undefined
+      }
+    };
   }
 
   /**
@@ -1237,6 +1330,10 @@ export class Simulation {
 
   public sellFishCargoAtMarket(marketId: MarketId, cargoId: FishCargoId): { success: boolean; revenue?: number; reason?: string } {
     return this.marketDomain.sellFish(marketId, cargoId);
+  }
+
+  public sellFishTradePackAtMarket(marketId: MarketId, cargoId: FishCargoId): { success: boolean; revenue?: number; reason?: string } {
+    return this.marketDomain.sellTradePack(marketId, cargoId);
   }
 
   // ==========================================

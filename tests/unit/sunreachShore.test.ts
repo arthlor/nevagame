@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { signedDistanceToSunreachCoast, sunreachNaturalTerrainHeight } from "../../src/world/SunreachWorld";
-import { SUNREACH_COAST_LOOP } from "../../src/world/WorldIslands";
+import { SUNREACH_COAST_LOOP, SUNREACH_OFFSET_X } from "../../src/world/WorldIslands";
 import { WorldLayout } from "../../src/world/WorldLayout";
 
 describe("continuous Sunreach shore", () => {
@@ -24,15 +24,15 @@ describe("continuous Sunreach shore", () => {
 
   it("keeps retained inland working anchors and the offshore mooring bed unchanged", () => {
     for (const [x, z, height] of [
-      [343, 58, -1.073665817411135],
-      [373, 56, 0.8999999999999999],
-      [455, 5, 4.743148849494423],
-      [515, 75, 7.919198168349516],
-      [590, 25, 19.09096862378921],
-      [520, 180, 1.4115782359787832]
+      [343 + SUNREACH_OFFSET_X, 58, -1.073665817411135],
+      [373 + SUNREACH_OFFSET_X, 56, 0.8999999999999999],
+      [455 + SUNREACH_OFFSET_X, 5, 4.743148849494423],
+      [515 + SUNREACH_OFFSET_X, 75, 7.919198168349516],
+      [590 + SUNREACH_OFFSET_X, 25, 19.09096862378921],
+      [520 + SUNREACH_OFFSET_X, 180, 1.4115782359787832]
     ]) expect(WorldLayout.terrainHeight(x, z), `${x},${z}`).toBeCloseTo(height, 8);
-    expect(WorldLayout.isSailable(343, 58)).toBe(true);
-    expect(WorldLayout.isWalkable(355, 58)).toBe(true);
+    expect(WorldLayout.isSailable(343 + SUNREACH_OFFSET_X, 58)).toBe(true);
+    expect(WorldLayout.isWalkable(355 + SUNREACH_OFFSET_X, 58)).toBe(true);
   });
 
   it("blends sand into seabed without a color-weight step at the coast", () => {

@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { CropInstanceRenderer } from "../../src/render/scene/CropInstanceRenderer";
 import { Simulation } from "../../src/simulation/Simulation";
 import type { PlacedCropState, GameState } from "../../src/simulation/core/types";
+import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
+import { AssetLoader } from "../../src/render/loaders/AssetLoader";
+import { farmLocalToWorld } from "../../src/world/FarmLayout";
 
 type MutableGameState = {
   -readonly [K in keyof GameState]: GameState[K] extends Readonly<Record<string, infer V>>
@@ -37,6 +40,146 @@ describe("CropInstanceRenderer 3D furrow mounds and visual changes", () => {
     expect(depthZ).toBeGreaterThan(0.7);
 
     renderer.dispose();
+  });
+
+  it("keeps dense mature crop heads from receiving their own shadow map", async () => {
+    const source = new THREE.Group();
+    source.add(new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 1.0, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0xd79a3a })
+    ));
+    const loadModel = vi.spyOn(AssetLoader, "loadModel").mockResolvedValue(source);
+
+    try {
+      const renderer = new CropInstanceRenderer();
+      const state = new Simulation().getState() as unknown as MutableGameState;
+      const crop: PlacedCropState = {
+        id: "crop_shadow_policy",
+        farmId: "farm.starter_garden",
+        cropId: "crop.wheat",
+        stage: "mature",
+        x: 3,
+        z: 3,
+        rotationRadians: 0,
+        effectiveGrowthMinutes: 180,
+        plantedAtMinute: 0,
+        lastUpdatedMinute: 180,
+        moisture: 70,
+        health: 100,
+        averageMoistureAccum: 70,
+        moistureSampleCount: 1
+      };
+      state.crops = { [crop.id]: crop };
+      state.farms["farm.starter_garden"].placedCropIds = [crop.id];
+
+      await renderer.ensureAssets(state);
+      renderer.sync(state, 1.0);
+
+      const batch = renderer.group.getObjectByName(`${ASSET_IDS.CROP_WHEAT_MATURE}_instances`) as THREE.InstancedMesh;
+      expect(batch).toBeDefined();
+      expect(batch.castShadow).toBe(true);
+      expect(batch.receiveShadow).toBe(false);
+      expect(batch.count).toBe(1);
+
+      renderer.dispose();
+    } finally {
+      loadModel.mockRestore();
+    }
+  });
+
+  it("preserves authored crop material families in separate instanced batches", async () => {
+    const source = new THREE.Group();
+    const fruitGeometry = new THREE.BoxGeometry(0.2, 1.0, 0.2).toNonIndexed();
+    fruitGeometry.setAttribute(
+      "color",
+      new THREE.Uint8BufferAttribute(
+        Array.from({ length: fruitGeometry.getAttribute("position").count }, () => [210, 41, 23]).flat(),
+        3,
+        true
+      )
+    );
+    const leafGeometry = new THREE.BoxGeometry(0.2, 0.65, 0.2).toNonIndexed();
+    leafGeometry.setAttribute(
+      "color",
+      new THREE.Uint8BufferAttribute(
+        Array.from({ length: leafGeometry.getAttribute("position").count }, () => [77, 115, 25]).flat(),
+        3,
+        true
+      )
+    );
+    source.add(new THREE.Mesh(fruitGeometry, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42 })));
+    source.add(new THREE.Mesh(leafGeometry, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94 })));
+    const loadModel = vi.spyOn(AssetLoader, "loadModel").mockResolvedValue(source);
+
+    try {
+      const renderer = new CropInstanceRenderer();
+      const state = new Simulation().getState() as unknown as MutableGameState;
+      const crop: PlacedCropState = {
+        id: "crop_color_contract",
+        farmId: "farm.starter_garden",
+        cropId: "crop.tomato",
+        stage: "mature",
+        x: 3,
+        z: 3,
+        rotationRadians: 0,
+        effectiveGrowthMinutes: 180,
+        plantedAtMinute: 0,
+        lastUpdatedMinute: 180,
+        moisture: 70,
+        health: 100,
+        averageMoistureAccum: 70,
+        moistureSampleCount: 1
+      };
+      state.crops = { [crop.id]: crop };
+      state.farms["farm.starter_garden"].placedCropIds = [crop.id];
+
+      await renderer.ensureAssets(state);
+      renderer.sync(state, 1.0);
+
+      const batches = renderer.group.children.filter((object): object is THREE.InstancedMesh =>
+        object instanceof THREE.InstancedMesh && object.name.startsWith(`${ASSET_IDS.CROP_TOMATO_MATURE}_instances`)
+      );
+      expect(batches).toHaveLength(2);
+      const roughnesses = batches.map((batch) => (batch.material as THREE.MeshStandardMaterial).roughness).sort();
+      expect(roughnesses).toEqual([0.42, 0.94]);
+      for (const batch of batches) {
+        expect(batch.geometry.getAttribute("color").normalized).toBe(true);
+      }
+
+      renderer.dispose();
+    } finally {
+      loadModel.mockRestore();
+    }
+  });
+
+  it("renders Commons mature crop dressing without exposing it to picking", async () => {
+    const source = new THREE.Group();
+    source.add(new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 1.0, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0xd79a3a })
+    ));
+    const loadModel = vi.spyOn(AssetLoader, "loadModel").mockResolvedValue(source);
+
+    try {
+      const renderer = new CropInstanceRenderer();
+      const state = new Simulation().getState() as unknown as MutableGameState;
+      renderer.setStaticCrops("farm.player_homestead", [
+        { cropId: "crop.wheat", x: 0.88, z: -4.78, rotationRadians: 0 }
+      ]);
+
+      await renderer.ensureAssets(state);
+      renderer.sync(state, 1.0);
+
+      const cropBatch = renderer.group.getObjectByName(`${ASSET_IDS.CROP_WHEAT_MATURE}_instances`) as THREE.InstancedMesh;
+      const moundBatch = renderer.group.getObjectByName("crop_disturbed_soil_instances") as THREE.InstancedMesh;
+      expect(cropBatch.count).toBe(1);
+      expect(moundBatch.count).toBe(1);
+      expect(renderer.pickByGroundPoint(farmLocalToWorld("farm.player_homestead", { x: 0.88, z: -4.78 }))).toBeNull();
+
+      renderer.dispose();
+    } finally {
+      loadModel.mockRestore();
+    }
   });
 
   it("applies two-tone moisture response (warm dry/normal earth vs deep dark damp earth)", () => {

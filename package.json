@@ -20,6 +20,7 @@
     "world:acceptance": "node tools/world/acceptance.mjs",
     "art:codegen": "node tools/art/codegen.mjs",
     "art:codegen:check": "node tools/art/codegen.mjs --check",
+    "art:authored": "node tools/authored/export.mjs",
     "art:brief": "node tools/blender/cli.mjs brief",
     "art:generate": "node tools/blender/cli.mjs generate",
     "art:generate:strict": "node tools/blender/cli.mjs generate --strict",

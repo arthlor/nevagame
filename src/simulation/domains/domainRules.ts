@@ -1,5 +1,6 @@
 import type { CargoClass, PlayerState, RodClass } from "../core/types";
 import type { SeededRng } from "../core/Rng";
+import type { FishSpeciesDefinition } from "../../content/types";
 
 const CARGO_CLASS_RANK: Record<CargoClass, number> = {
   small: 0,
@@ -30,6 +31,17 @@ export function freeHandsBlocker(player: Pick<PlayerState, "carriedFishCargoId">
 
 export function cargoClassFits(fishClass: CargoClass, slotMax: CargoClass): boolean {
   return CARGO_CLASS_RANK[fishClass] <= CARGO_CLASS_RANK[slotMax];
+}
+
+/**
+ * Sport catches and the authored physical basic catch use the same finite
+ * trade-pack lane: they occupy a boat slot, can be carried in both hands, and
+ * must be presented at the inland trade center before sale.
+ */
+export function isPhysicalTradePackSpecies(
+  species: Pick<FishSpeciesDefinition, "isSportFish" | "tags">
+): boolean {
+  return species.isSportFish || species.tags.includes("physical-basic-catch");
 }
 
 export function rodMeetsMinimum(equipped: RodClass, minimum: RodClass): boolean {

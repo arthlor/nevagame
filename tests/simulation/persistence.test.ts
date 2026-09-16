@@ -313,7 +313,7 @@ describe("Persistence & Offline Progression", () => {
       expect(result.envelope.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
       expect(result.envelope.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
       expect(result.envelope.state.player.money).toBe(731);
-      for (const stationId of ["struct.starter_mill", "struct.workbench", "struct.starter_compost"]) {
+      for (const stationId of ["struct.starter_mill", "struct.workbench", "struct.kitchen", "struct.starter_compost"]) {
         const anchor = starterStructureAnchor(stationId)!;
         expect(result.envelope.state.world.structures[stationId]).toMatchObject({ x: anchor.x, z: anchor.z });
       }
@@ -711,16 +711,16 @@ describe("Persistence & Offline Progression", () => {
     expect(summary.simulatedGameMinutes).toBe(Math.floor(3 * 3600 * 0.4));
   });
 
-  it("regenerates work capacity during offline progression", () => {
+  it("grants at most one rest to work capacity across an offline night", () => {
     const sim = new Simulation();
     const now = Date.now();
     sim.state.player.workCapacity.current = 0;
-    sim.state.metadata.lastSavedUtcMs = now - 150_000;
+    sim.state.metadata.lastSavedUtcMs = now - 12 * 3600 * 1000;
 
     applyOfflineProgression(sim.state, now);
 
-    expect(sim.state.player.workCapacity.current).toBe(100);
-    expect(sim.state.player.workCapacity.regeneratedAtMinute).toBe(sim.state.clock.currentMinute);
+    // Work is earned, not regenerated: one wake grants the 25% baseline floor.
+    expect(sim.state.player.workCapacity.current).toBe(125);
   });
 
   it("advances offline markets hour by hour without supply overshooting its target", () => {
@@ -915,7 +915,7 @@ describe("Persistence & Offline Progression", () => {
     expect(validateSaveEnvelope(migrated)).toBe(true);
   });
 
-  it("rescales a legacy small Work pool to the 1,000 ceiling, preserving how full it was", () => {
+  it("rescales a legacy small Work pool through the daily-budget ceiling, preserving how full it was", () => {
     const legacy = structuredClone(createInitialGameState());
     legacy.schemaVersion = 20;
     legacy.player.money = 512;
@@ -929,8 +929,8 @@ describe("Persistence & Offline Progression", () => {
 
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.player.money).toBe(512);
-    expect(migrated.state.player.workCapacity.maximum).toBe(1000);
-    expect(migrated.state.player.workCapacity.current).toBe(500); // 20/40 of 1000
+    expect(migrated.state.player.workCapacity.maximum).toBe(500);
+    expect(migrated.state.player.workCapacity.current).toBe(250); // 20/40 of 500
     expect(migrated.state.player.workCapacity.regeneratedAtMinute).toBe(123);
     expect(validateSaveEnvelope(migrated)).toBe(true);
   });
@@ -1018,7 +1018,7 @@ describe("Persistence & Offline Progression", () => {
       x: preserved.mountX,
       z: preserved.mountZ
     });
-    expect(migrated.state.boats).toEqual(preserved.boats);
+    expect(migrated.state.boats).toMatchObject(preserved.boats);
     expect(migrated.state.crops).toEqual(preserved.crops);
     expect(migrated.state.farms).toEqual(preserved.farms);
     expect(migrated.state.inventories).toEqual(preserved.inventory);
@@ -1084,7 +1084,7 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.quests).toEqual(
       questsAfterTrackMigration(preserved.quests as unknown as Record<string, unknown>)
     );
-    expect(migrated.state.boats).toEqual(preserved.boats);
+    expect(migrated.state.boats).toMatchObject(preserved.boats);
     expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
   });
 
@@ -1196,7 +1196,7 @@ describe("Persistence & Offline Progression", () => {
       WorldLayout.traversalSurfaceHeight(preserved.playerX, preserved.playerZ) + 0.5,
       6
     );
-    for (const stationId of ["struct.starter_mill", "struct.workbench", "struct.starter_compost"]) {
+    for (const stationId of ["struct.starter_mill", "struct.workbench", "struct.kitchen", "struct.starter_compost"]) {
       const anchor = starterStructureAnchor(stationId)!;
       expect(migrated.state.world.structures[stationId]).toMatchObject({ x: anchor.x, z: anchor.z });
       expect(migrated.state.world.structures[stationId].y).toBeCloseTo(
@@ -1220,7 +1220,7 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.quests).toEqual(
       questsAfterTrackMigration(preserved.quests as unknown as Record<string, unknown>)
     );
-    expect(migrated.state.boats).toEqual(preserved.boats);
+    expect(migrated.state.boats).toMatchObject(preserved.boats);
     expect(migrated.state.metadata.rngState).toBe(preserved.rngState);
   });
 
@@ -1232,7 +1232,9 @@ describe("Persistence & Offline Progression", () => {
     const migrated = migrateSaveData(legacy);
 
     expect(migrated.state.player.y).toBe(0.5);
-    expect(migrated.state.boats["boat.fixture"]).toEqual(boatBefore);
+    // v42 backfills a missing `dockedMarketId` to null; the waterline is what
+    // this test owns, so a subset match keeps the backfill from reading as a move.
+    expect(migrated.state.boats["boat.fixture"]).toMatchObject(boatBefore);
   });
 
   it("migrates the v16 coast layout by preserving X/Z and re-grounding land truth", () => {
@@ -1641,7 +1643,7 @@ describe("Persistence & Offline Progression", () => {
       y: WorldLayout.traversalSurfaceHeight(preserved.player.x, preserved.player.z) + 0.5,
       traversal: { ...preserved.player.traversal, isGrounded: true }
     });
-    expect(migrated.state.boats).toEqual(preserved.boats);
+    expect(migrated.state.boats).toMatchObject(preserved.boats);
     expect(migrated.state.mounts).toEqual(Object.fromEntries(Object.entries(preserved.mounts).map(([id, mount]) => [
       id, { ...mount, y: WorldLayout.traversalSurfaceHeight(mount.x, mount.z) }
     ])));

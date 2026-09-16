@@ -51,7 +51,27 @@ export interface WorkCostQuote {
   availableWork: number;
   affordable: boolean;
   shortage: number;
-  readyAtMinute: number | null;
+}
+
+export interface LaborHudDto {
+  active: boolean;
+  stationId: string | null;
+  stationName: string;
+  meter: number;
+  targetMin: number;
+  targetMax: number;
+}
+
+export interface LaborStationDto {
+  id: string;
+  name: string;
+  prompt: string;
+  yield: number;
+  x: number;
+  z: number;
+  reachMeters: number;
+  used: boolean;
+  available: boolean;
 }
 
 export interface InteractionResult {
@@ -72,7 +92,6 @@ export interface InteractionResult {
   xpGained?: number;
   requiredWork?: number;
   availableWork?: number;
-  readyAtMinute?: number | null;
 }
 
 export interface CommodityQuote {
@@ -177,6 +196,8 @@ export interface MarketBoardDto {
   buyRows: MarketBuyRowDto[];
   sellRows: MarketSellRowDto[];
   fishRows: MarketFishRowDto[];
+  /** Physical sport-fish/basic-catch packs already carried by the player. */
+  tradePackRows: MarketFishRowDto[];
   rodRows: MarketRodRowDto[];
   contractRows: MarketContractRowDto[];
   bulkProduce: BulkSaleQuote;
@@ -380,7 +401,11 @@ export interface WorldHudDto {
     maximum: number;
     exhausted: boolean;
     showLowNotice: boolean;
-    recharging?: boolean;
+    /** Work earned today from meals, labor and skill (excludes rest). */
+    earnedToday?: number;
+    earnCap?: number;
+    mealsToday?: number;
+    mealLimit?: number;
   };
   sprint: {
     current: number;
@@ -527,6 +552,15 @@ export interface ItemInspectionDto {
     storageLabel: string;
     /** Multiplier the storage applies to the decay rate; 1.0 is open carry. */
     decayRate: number;
+  } | null;
+  /**
+   * Set only for edible provisions. `edible` is the simulation's live answer to
+   * whether the daily meal limit and Work ceiling still allow a restore.
+   */
+  provisions: {
+    restoresWork: number;
+    edible: boolean;
+    blockerReason?: string;
   } | null;
 }
 
@@ -804,6 +838,7 @@ export type InteractionAction =
   | "collect-processing"
   | "inspect"
   | "trade"
+  | "pickup-cargo"
   | "cast"
   | "read-water"
   | "read-notices"
@@ -812,6 +847,7 @@ export type InteractionAction =
   | "rest"
   | "irrigate"
   | "refuel"
+  | "labor"
   | "tow";
 
 export interface InteractionTarget {
@@ -831,6 +867,7 @@ export type CropPlacementReasonCode =
   | "invalid-surface"
   | "overlaps-crop"
   | "structure-clearance"
+  | "farm-capacity"
   | "too-far"
   | "mounted"
   | "hands-occupied"
@@ -1007,6 +1044,10 @@ export type GameCommand =
   | { type: "farm.irrigate"; farmId: FarmId }
   | { type: "farm.buy-irrigation" }
   | { type: "player.rest-until-dawn" }
+  | { type: "item.consume"; itemId: ItemId }
+  | { type: "labor.start"; stationId: string }
+  | { type: "labor.strike" }
+  | { type: "labor.cancel" }
   | { type: "processing.start"; recipeId: RecipeId; stationId: string }
   | { type: "processing.collect"; jobId: ProcessingJobId }
   | { type: "equipment.equip"; equipmentId: EquipmentId }
@@ -1031,6 +1072,7 @@ export type GameCommand =
     }
   | { type: "cargo.discard"; cargoId: FishCargoId; marketId?: MarketId }
   | { type: "cargo.release"; cargoId: FishCargoId; marketId?: MarketId }
+  | { type: "cargo.pickup"; cargoId: FishCargoId }
   | { type: "inventory.sort-satchel" }
   | {
       type: "inventory.transfer";
@@ -1046,6 +1088,7 @@ export type GameCommand =
   | { type: "market.buy-rod"; marketId: MarketId; rodId: RodId }
   | { type: "market.equip-rod"; marketId: MarketId; rodId: RodId }
   | { type: "market.sell-fish"; marketId: MarketId; cargoId: FishCargoId }
+  | { type: "market.sell-trade-pack"; marketId: MarketId; cargoId: FishCargoId }
   | { type: "market.sell-fish-bulk"; marketId: MarketId }
   | { type: "contract.deliver-items"; contractId: string; itemId: ItemId; quantity: number }
   | { type: "contract.deliver-fish"; contractId: string; cargoId: FishCargoId }
@@ -1068,6 +1111,8 @@ export type GameQuery =
   | { type: "world.get-pause" }
   | { type: "weather.get-farm-forecast" }
   | { type: "fishing.get-sport-hud" }
+  | { type: "labor.get-hud" }
+  | { type: "labor.get-stations" }
   | { type: "progression.get-skills" }
   | { type: "market.get-board"; marketId: MarketId }
   | { type: "market.demand-trend"; marketId: MarketId; itemId: ItemId; days?: number }
@@ -1098,6 +1143,8 @@ export type GameQueryResult =
   | PauseSummaryDto
   | FarmForecastDto
   | SportFishingHudDto
+  | LaborHudDto
+  | LaborStationDto[]
   | SkillProgressDto[]
   | MarketBoardDto
   | MarketDemandTrendDto

@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import { HumanoidAnimator, type PlayerAnimation } from "../../src/render/animation/AnimationController";
+import { HumanoidFootSupportSolver } from "../../src/render/animation/HumanoidFootSupportSolver";
 import { resolveHumanoidRig } from "../../src/render/animation/HumanoidRig";
 import { ASSET_BY_ID, ASSET_CATALOG, type AssetId } from "../../src/render/assets/AssetCatalog";
 import { alignEquipmentHands, alignMarkerHand, alignSupportFeet, applyEquipmentSocketPose, createCarryCradle, PALM_GRIP_FRAME, rowboatOarRotation } from "../../src/render/animation/CharacterEquipment";
@@ -19,16 +20,34 @@ afterAll(async () => {
 });
 
 async function loadAsset(id: AssetId, character = false, published = false): Promise<THREE.Group> {
-  const directory = (!published && (character ? candidateDirectory : equipmentDirectory)) || "public/assets/models";
-  const bytes = await fs.readFile(path.resolve(directory, `${id}.glb`));
+  const candidate = !published && (character ? candidateDirectory : equipmentDirectory);
+  let directory = "public/assets/models";
+  let bytes: Buffer;
+  if (candidate) {
+    try {
+      bytes = await fs.readFile(path.resolve(candidate, `${id}.glb`));
+      directory = candidate;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      bytes = await fs.readFile(path.resolve(directory, `${id}.glb`));
+    }
+  } else {
+    bytes = await fs.readFile(path.resolve(directory, `${id}.glb`));
+  }
   await MeshoptDecoder.ready;
-  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer, "");
   const root = gltf.scene;
   const spec = ASSET_BY_ID.get(id)!;
   root.userData.assetId = id;
   root.userData.animationClips = gltf.animations;
   root.userData.animationClipSpecs = [...(spec.animationClips ?? []), ...(spec.additionalAnimationClips ?? [])];
-  if (character && candidateDirectory) root.userData.humanoidRig = JSON.parse(await fs.readFile(path.resolve(directory, `${id}.humanoidRig.json`), "utf8"));
+  if (character && directory === candidateDirectory) {
+    try {
+      root.userData.humanoidRig = JSON.parse(await fs.readFile(path.resolve(directory, `${id}.humanoidRig.json`), "utf8"));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
   root.updateMatrixWorld(true);
   return root;
 }
@@ -146,6 +165,26 @@ describe("real equipment palm integration", () => {
     animator.dispose();
   });
 
+  it("puts actual skiff deck surfaces beneath both helm soles and the fishing station", async () => {
+    const boat = await loadAsset("boat_skiff_a");
+    const meshes: THREE.Mesh[] = [];
+    boat.traverse((object) => {
+      if ((object as THREE.Mesh).isMesh && !object.name.startsWith("COL_")) meshes.push(object as THREE.Mesh);
+    });
+    for (const name of ["boat_skiff_foot_left_socket", "boat_skiff_foot_right_socket", "boat_skiff_fishing_station"]) {
+      const support = boat.getObjectByName(name)!;
+      expect(support, name).toBeDefined();
+      const point = support.getWorldPosition(new THREE.Vector3());
+      // Marker-to-marker contact alone cannot detect a missing raised deck.
+      // Probe the real optimized triangles beneath the middle of each shoe.
+      const ray = new THREE.Raycaster(point.clone().add(new THREE.Vector3(0, .03, 0)),
+        new THREE.Vector3(0, -1, 0), 0, .4);
+      const hit = ray.intersectObjects(meshes, false)[0];
+      expect(hit, `${name} has physical deck support`).toBeDefined();
+      expect(Math.abs(hit.point.y - point.y), `${name} deck contact`).toBeLessThan(.015);
+    }
+  });
+
   it("reaches moving rowboat handles and the skiff helm from the sampled carrier pose", async () => {
     const root = await loadAsset("char_player_a", true);
     const animator = new HumanoidAnimator(root);
@@ -155,6 +194,8 @@ describe("real equipment palm integration", () => {
       const boat = await loadAsset(assetId);
       const rowboat = assetId === "boat_rowboat_a";
       const anchor = boat.getObjectByName(rowboat ? "boat_rowboat_rower_seat" : "boat_skiff_driver_station")!;
+      const characterNodes = new Set<THREE.Object3D>();
+      root.traverse((node) => characterNodes.add(node));
       anchor.add(root); root.position.set(0, 0, 0); root.quaternion.identity();
       const oars = rowboat ? (["left", "right"] as const).map(side => {
         const pivot = new THREE.Group(); boat.add(pivot);
@@ -163,10 +204,46 @@ describe("real equipment palm integration", () => {
         return { side, pivot, grip: boat.getObjectByName(`boat_rowboat_oar_${side}_grip`)! };
       }) : [];
       const clip = rowboat ? "row" : "skiff_drive";
+      const skiffGrips = !rowboat ? {
+        left: boat.getObjectByName("boat_skiff_helm_grip_left")!,
+        right: boat.getObjectByName("boat_skiff_helm_grip")!
+      } : null;
+      const skiffFootSupports = !rowboat ? {
+        left: boat.getObjectByName("boat_skiff_foot_left_socket")!,
+        right: boat.getObjectByName("boat_skiff_foot_right_socket")!
+      } : null;
+      const skiffFootSolver = skiffFootSupports ? new HumanoidFootSupportSolver(root) : null;
+      if (skiffGrips && skiffFootSupports) {
+        expect(skiffGrips.left, "optimized skiff left helm grip").toBeDefined();
+        expect(skiffGrips.right, "optimized skiff right helm grip").toBeDefined();
+        expect(skiffFootSupports.left, "optimized skiff left foot support").toBeDefined();
+        expect(skiffFootSupports.right, "optimized skiff right foot support").toBeDefined();
+        expect(boat.getObjectByName("skiff_tiller_stock"), "old skiff tiller stock removed").toBeUndefined();
+        expect(boat.getObjectByName("skiff_tiller_arm"), "old skiff tiller arm removed").toBeUndefined();
+        // The standing helmsman faces the bow, so the wheel sits ahead of the
+        // feet and the two palm frames face the wheel rather than the deck.
+        const station = boat.getObjectByName("boat_skiff_driver_station")!;
+        expect(station.position.z, "skiff helm ahead of the driver").toBeLessThan(skiffGrips.left.position.z - 0.25);
+        expect(Math.abs(skiffGrips.left.position.x + skiffGrips.right.position.x), "skiff helm centered").toBeLessThan(1e-6);
+        expect(Math.abs(skiffGrips.left.position.x - skiffGrips.right.position.x), "skiff helm hand spacing").toBeGreaterThan(0.4);
+        for (const side of ["left", "right"] as const) {
+          const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(skiffGrips[side].getWorldQuaternion(new THREE.Quaternion()));
+          expect(normal.z, `skiff/${side} helm palm faces the wheel`).toBeGreaterThan(0.9);
+        }
+      }
       animator.setPreviewClip(clip);
       for (const phase of [0.15, 0.5, 0.85]) {
         animator.setPreviewPhase(phase); animator.update(0, characterPreviewContext(clip, spec, assetId));
         if (rowboat) animator.alignPelvisSupport(anchor.getWorldPosition(new THREE.Vector3()));
+        if (skiffFootSupports) {
+          alignSupportFeet(animator, skiffFootSupports.left, skiffFootSupports.right);
+          const leftSole = new THREE.Vector3();
+          const rightSole = new THREE.Vector3();
+          expect(skiffFootSolver!.soleWorldPosition("left", leftSole)).toBe(true);
+          expect(skiffFootSolver!.soleWorldPosition("right", rightSole)).toBe(true);
+          expect(leftSole.distanceTo(skiffFootSupports.left.getWorldPosition(new THREE.Vector3())), `skiff/${phase}/left sole support`).toBeLessThan(0.015);
+          expect(rightSole.distanceTo(skiffFootSupports.right.getWorldPosition(new THREE.Vector3())), `skiff/${phase}/right sole support`).toBeLessThan(0.015);
+        }
         for (const oar of oars) {
           rowboatOarRotation(phase, true, oar.side, oar.pivot.rotation);
           alignMarkerHand(animator, oar.side, oar.grip);
@@ -178,13 +255,36 @@ describe("real equipment palm integration", () => {
           }
           expect.soft(error, `row/${phase}/${oar.side} contact`).toBeLessThan(0.015);
         }
-        if (!rowboat) {
-          const helm = boat.getObjectByName("boat_skiff_helm_grip")!;
-          alignMarkerHand(animator, "right", helm);
-          const error = recordContact(root, assetId, clip, phase, "right", helm);
-          maximumError = Math.max(maximumError, error);
-          if (error > 0.015) console.info("SKIFF CONTACT FAILURE", phase, error, "shoulder", resolveHumanoidRig(root).arms.right!.upper.getWorldPosition(new THREE.Vector3()).toArray(), "helm", helm.getWorldPosition(new THREE.Vector3()).toArray());
-          expect.soft(error, `skiff/${phase}/right contact`).toBeLessThan(0.015);
+        if (skiffGrips) {
+          for (const side of ["left", "right"] as const) {
+            const grip = skiffGrips[side];
+            alignMarkerHand(animator, side, grip);
+            const error = recordContact(root, assetId, clip, phase, side, grip);
+            maximumError = Math.max(maximumError, error);
+            if (error > 0.015) console.info("SKIFF CONTACT FAILURE", phase, side, error, "shoulder", resolveHumanoidRig(root).arms[side]!.upper.getWorldPosition(new THREE.Vector3()).toArray(), "helm", grip.getWorldPosition(new THREE.Vector3()).toArray());
+            expect.soft(error, `skiff/${phase}/${side} contact`).toBeLessThan(0.015);
+          }
+          if (phase === 0.5) {
+            // The kicked-up boom must pass above the standing helmsman; a column
+            // through the head finds only the rig, never the low boom that used
+            // to pierce the pilot's chest.
+            const headWorld = resolveHumanoidRig(root).bones.head!.getWorldPosition(new THREE.Vector3());
+            let lowestRigVertex = Infinity;
+            boat.traverse((object) => {
+              const mesh = object as THREE.Mesh;
+              if (!mesh.isMesh || characterNodes.has(object)) return;
+              const position = mesh.geometry.getAttribute("position");
+              if (!position) return;
+              mesh.updateWorldMatrix(true, false);
+              for (let index = 0; index < position.count; index++) {
+                const point = new THREE.Vector3().fromBufferAttribute(position as THREE.BufferAttribute, index).applyMatrix4(mesh.matrixWorld);
+                if (Math.abs(point.x - headWorld.x) > 0.2 || Math.abs(point.z - headWorld.z) > 0.15) continue;
+                if (point.y > 1.2 && point.y < lowestRigVertex) lowestRigVertex = point.y;
+              }
+            });
+            expect(lowestRigVertex, "skiff helm column has measured rig geometry").toBeLessThan(Infinity);
+            expect(lowestRigVertex, "skiff rig clears the standing helmsman").toBeGreaterThan(headWorld.y + 0.35);
+          }
         }
       }
       root.removeFromParent();

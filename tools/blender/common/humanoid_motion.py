@@ -64,7 +64,8 @@ def grip_profile(name,t):
         return {side:('cup',amount) for side in ('left','right')}
     if name in ('cast','hookset','fishing_idle','reel','slack','brace','skiff_fishing','row'):
         return {side:('handle',1.) for side in ('left','right')}
-    if name in ('water','harvest','workstation','craft_tool','skiff_drive'):return {'right':('handle',1.)}
+    if name == 'skiff_drive':return {side:('handle',1.) for side in ('left','right')}
+    if name in ('water','harvest','workstation','craft_tool'):return {'right':('handle',1.)}
     if name=='craft_tailor':return {'left':('cup',1.),'right':('handle',1.)}
     if name=='gear_check':return {side:('cup',1.) for side in ('left','right')}
     if name.startswith('mounted_'):return {side:('reins',1.) for side in ('left','right')}

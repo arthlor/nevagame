@@ -29,6 +29,7 @@ function authoredTrailCollision(): StaticCollisionProxy[] {
   };
   for (const [id, assetId] of [
     ["struct.workbench", STATIC_LANDMARK_ASSETS.workbench],
+    ["struct.kitchen", STATIC_LANDMARK_ASSETS.kitchen],
     ["struct.starter_compost", STATIC_LANDMARK_ASSETS.compost]
   ] as const) {
     const anchor = starterStructureAnchor(id)!;

@@ -12,6 +12,8 @@ export interface StarterFarmGroundOptions {
   plantableArea: FarmRect;
   heightAt: (worldX: number, worldZ: number) => number;
   surfaceMaterial?: THREE.MeshStandardMaterial;
+  /** Optional stable prefix for authored farm families that reuse this builder. */
+  groupName?: string;
 }
 
 function hashUnit(value: number): number {
@@ -236,7 +238,8 @@ function buildSoilClods({
 
 export function buildStarterFarmGround(options: StarterFarmGroundOptions): THREE.Group {
   const group = new THREE.Group();
-  group.name = "starter_farm_cultivated_ground";
+  const name = options.groupName ?? "starter_farm";
+  group.name = `${name}_cultivated_ground`;
 
   const surfaceMaterial = options.surfaceMaterial ?? PaletteMaterials.standard("soil_dry_01", {
     vertexColors: true,
@@ -248,7 +251,7 @@ export function buildStarterFarmGround(options: StarterFarmGroundOptions): THREE
     buildCultivatedBed(options),
     surfaceMaterial
   );
-  bed.name = "starter_farm_faceted_soil_bed";
+  bed.name = `${name}_faceted_soil_bed`;
   bed.receiveShadow = true;
   group.add(bed);
 
@@ -258,7 +261,7 @@ export function buildStarterFarmGround(options: StarterFarmGroundOptions): THREE
       troughGeometry,
       PaletteMaterials.standard("soil_warm_01", { roughness: 0.98, flatShading: true })
     );
-    troughs.name = "starter_farm_broken_furrow_troughs";
+    troughs.name = `${name}_broken_furrow_troughs`;
     troughs.receiveShadow = true;
     group.add(troughs);
   }
@@ -269,7 +272,7 @@ export function buildStarterFarmGround(options: StarterFarmGroundOptions): THREE
       clodGeometry,
       PaletteMaterials.standard("soil_dry_01", { roughness: 1, flatShading: true })
     );
-    clods.name = "starter_farm_soil_clods";
+    clods.name = `${name}_soil_clods`;
     clods.receiveShadow = true;
     group.add(clods);
   }

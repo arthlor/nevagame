@@ -22,7 +22,6 @@ import type {
   SoilFertilityBand,
   WorkCostQuote
 } from "../core/contracts";
-import { formatClockTime } from "../core/GameClock";
 import { SeededRng } from "../core/Rng";
 import type { CropQuality, FarmId, GameState, PlacedCropId } from "../core/types";
 import {
@@ -40,6 +39,7 @@ import { distance2d } from "./DomainContext";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { isQuestActive } from "../core/QuestTypes";
 import { freeHandsBlocker } from "./domainRules";
+import { WORLD_FARM_DEFINITIONS } from "../../world/WorldGameplayLocations";
 import {
   annualPlantMatterBonus,
   BASE_CROP_INTERACTION_REACH_METERS,
@@ -263,6 +263,11 @@ export class FarmingDomain {
     }
     if (state.player.proficiencies.farming < cropDef.minimumFarmingXp) {
       return result(false, "locked", `Requires ${cropDef.minimumFarmingXp} Farming XP`);
+    }
+    const cropCapacity = WORLD_FARM_DEFINITIONS[request.farmId]?.cropCapacity;
+    if (cropCapacity !== undefined && farm.placedCropIds.length >= cropCapacity) {
+      const farmLabel = WORLD_FARM_DEFINITIONS[request.farmId]?.label ?? "This farm";
+      return result(false, "farm-capacity", `${farmLabel} has room for only ${cropCapacity} crops`);
     }
     const candidate: OrientedCropFootprint = {
       center: local,
@@ -722,7 +727,7 @@ export class FarmingDomain {
       && (crop.stage === "withered" || harvestQuote.affordable);
     const moistureBand = cropMoistureBand(crop.moisture);
     const workShortage = (quote: WorkCostQuote): string =>
-      `Need ${quote.cost} Work · ${quote.availableWork} available · ready ${quote.readyAtMinute == null ? "later" : formatClockTime(quote.readyAtMinute)}`;
+      `Need ${quote.cost} Work · ${quote.availableWork} available · rest, eat, or work to recover`;
     const waterReason = canWater
       ? undefined
       : handsBlocker ?? (!waterNear

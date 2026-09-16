@@ -1,3 +1,4 @@
+import { dockedMooring } from "../world/WorldMoorings";
 // src/persistence/SaveSchema.ts
 
 import type { CropStage, GameState } from "../simulation/core/types";
@@ -29,7 +30,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 39;
+export const CURRENT_SCHEMA_VERSION = 45;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -118,6 +119,20 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     !(schemaVersion >= 4
       ? isSafeInteger((state.player.workCapacity as unknown as Record<string, unknown>).regeneratedAtMinute, 0)
       : isSafeInteger((state.player.workCapacity as unknown as Record<string, unknown>).lastRegenMinute, 0)) ||
+    (schemaVersion >= 43 && (
+      !isFiniteNumber((state.player.workCapacity as unknown as Record<string, unknown>).earnedToday, 0) ||
+      !isSafeInteger((state.player.workCapacity as unknown as Record<string, unknown>).earningsDay, 0) ||
+      !isSafeInteger((state.player.workCapacity as unknown as Record<string, unknown>).mealsToday, 0) ||
+      !Array.isArray((state.player.workCapacity as unknown as Record<string, unknown>).laborUsedToday) ||
+      !((state.player.workCapacity as unknown as Record<string, unknown>).laborUsedToday as unknown[]).every(
+        (id) => typeof id === "string"
+      ) ||
+      ((state.player.workCapacity as unknown as Record<string, unknown>).passiveRegenSeconds !== undefined &&
+        !isFiniteNumber(
+          (state.player.workCapacity as unknown as Record<string, unknown>).passiveRegenSeconds,
+          0
+        ))
+    )) ||
     !isRecord(state.player.proficiencies) ||
     !SKILL_IDS.every((skill) => isSafeInteger(state.player!.proficiencies[skill], 0))
   ) return false;
@@ -130,8 +145,14 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 39
+    (schemaVersion >= 42
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 41
+      ? state.world.layoutRevision !== 19
+      : schemaVersion >= 40
+      ? state.world.layoutRevision !== 18
+      : schemaVersion >= 39
+      ? state.world.layoutRevision !== 17
       : schemaVersion === 38
       ? state.world.layoutRevision !== 16
       : schemaVersion >= 36
@@ -277,6 +298,8 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       (state.basicFishing.catchItemId !== undefined && !ContentRegistry.items.has(state.basicFishing.catchItemId)) ||
       typeof state.basicFishing.willCatch !== "boolean" ||
       (state.basicFishing.castPower !== undefined && !isFiniteInRange(state.basicFishing.castPower, 0, 1)) ||
+      (state.basicFishing.minigameStepRemainderSeconds !== undefined &&
+        !isFiniteInRange(state.basicFishing.minigameStepRemainderSeconds, 0, 1)) ||
       (schemaVersion >= 22 && state.basicFishing.quality !== undefined && !isOneOf(state.basicFishing.quality, FISH_QUALITIES)))
   ) return false;
   // The dynamics/fish shape below is the post-v19 shape; validating an older
@@ -415,6 +438,8 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     if (!isRecord(crop) || crop.id !== cropId || typeof crop.cropId !== "string" || typeof crop.farmId !== "string") return false;
     if (!isOneOf(crop.stage, CROP_STAGES)) return false;
     if (![crop.x, crop.z, crop.rotationRadians, crop.effectiveGrowthMinutes, crop.moisture, crop.health, crop.averageMoistureAccum].every((value) => isFiniteNumber(value)) || !isSafeInteger(crop.plantedAtMinute, 0) || !isSafeInteger(crop.lastUpdatedMinute, 0) || !isSafeInteger(crop.moistureSampleCount, 1)) return false;
+    if (!isFiniteInRange(crop.moisture, 0, 100) || !isFiniteInRange(crop.health, 0, 100)) return false;
+    if (!isFiniteNumber(crop.effectiveGrowthMinutes, 0) || !isFiniteNumber(crop.averageMoistureAccum, 0)) return false;
     if (!ContentRegistry.crops.has(crop.cropId) || !state.farms[crop.farmId]?.placedCropIds.includes(cropId)) return false;
   }
 
@@ -422,7 +447,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     if (
       !isRecord(structure) ||
       structure.id !== structureId ||
-      !["hand-mill", "workbench", "fish-table", "compost-bin"].includes(structure.type as string) ||
+      !["hand-mill", "workbench", "fish-table", "compost-bin", "kitchen"].includes(structure.type as string) ||
       ![structure.x, structure.y, structure.z].every((value) => isFiniteNumber(value)) ||
       (structure.rotationY !== undefined && !isFiniteNumber(structure.rotationY))
     ) return false;
@@ -555,7 +580,9 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     if (!boatDefinition || boat.fishCargoSlotIds.length !== boatDefinition.fishCargoSlots.length) return false;
     if (schemaVersion >= 3) {
       if (boat.dockedMarketId !== null && (typeof boat.dockedMarketId !== "string" || !ContentRegistry.markets.has(boat.dockedMarketId))) return false;
-      if (boat.isDocked !== Boolean(boat.dockedMarketId)) return false;
+      if (schemaVersion < 42) {
+        if (boat.isDocked !== Boolean(boat.dockedMarketId)) return false;
+      } else if (boat.isDocked ? !dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z) : boat.dockedMarketId !== null) return false;
     }
     if (state.player.activeBoatId === boatId && boat.isDocked) return false;
   }
@@ -663,7 +690,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   }
 
   if (schemaVersion >= 22) {
-    if (!Array.isArray(state.journal.unlockedKnowledge) || !state.journal.unlockedKnowledge.every((id) => typeof id === "string")) {
+    if (
+      !Array.isArray(state.journal.unlockedKnowledge) ||
+      !state.journal.unlockedKnowledge.every((id) => typeof id === "string" && ContentRegistry.knowledge.has(id))
+    ) {
       return false;
     }
   }
@@ -686,6 +716,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       if (!isOneOf(record.bestQuality, allowed)) return false;
     }
     if (record.firstCaughtMinute !== undefined && !isSafeInteger(record.firstCaughtMinute, 0)) return false;
+    if (record.habitats !== undefined && (
+      !Array.isArray(record.habitats) ||
+      !record.habitats.every((habitatId) => typeof habitatId === "string" && isOneOf(habitatId, FISHING_HABITATS))
+    )) return false;
   }
 
   if (!isRecord(state.journal.cropRecords)) return false;
@@ -705,6 +739,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       !isRecord(quests) ||
       typeof quests.activeActId !== "string" ||
       !Array.isArray(quests.completedQuestIds) ||
+      !quests.completedQuestIds.every((questId) => typeof questId === "string") ||
       !isRecord(quests.hintsShown)
     ) return false;
     if (schemaVersion >= 9 && (
@@ -717,6 +752,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         (quests.activeQuestId !== null && typeof quests.activeQuestId !== "string") ||
         !isSafeInteger(quests.activeStepIndex, 0) ||
         !isRecord(quests.stepProgress) ||
+        !Object.values(quests.stepProgress).every((value) => isSafeInteger(value, 0)) ||
         !Array.isArray(quests.unlockedDialogueIds)
       ) return false;
     } else {
@@ -726,7 +762,8 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
           !isRecord(progress) ||
           (progress.activeQuestId !== null && typeof progress.activeQuestId !== "string") ||
           !isSafeInteger(progress.activeStepIndex, 0) ||
-          !isRecord(progress.stepProgress)
+          !isRecord(progress.stepProgress) ||
+          !Object.values(progress.stepProgress).every((value) => isSafeInteger(value, 0))
         ) return false;
       }
       if (!isRecord(quests.tracks[quests.focusedTrackId as string])) return false;

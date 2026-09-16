@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
 import { PhysicsWorld } from "../../src/physics/PhysicsWorld";
-import { SHORE_MASK_METERS_PER_TEXEL, SHORE_MASK_RESOLUTION } from "../../src/render/water/FacetedWater";
+import { SHORE_MASK_METERS_PER_TEXEL } from "../../src/render/water/FacetedWater";
 import { Simulation } from "../../src/simulation/Simulation";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
+import { MOTOR_FUEL_PER_GAME_MINUTE } from "../../src/simulation/domains/NavigationDomain";
 import { sampleFarmEnvironment } from "../../src/simulation/farming/FarmEnvironmentSample";
 import { createWorldEnvironmentLayout, generateSunreachCausalCompositionPlacements } from "../../src/world/WorldEnvironmentLayout";
 import { SUNREACH_ROUTES } from "../../src/world/SunreachWorld";
@@ -12,6 +13,7 @@ import { WATER_SURFACE, WorldLayout } from "../../src/world/WorldLayout";
 import { nearestMooring, requiredBoatTypeForMarket, WORLD_SAILING_ROUTES } from "../../src/world/WorldMoorings";
 import {
   SUNREACH_ANCHORS,
+  SUNREACH_OFFSET_X,
   WORLD_ISLAND_DEFINITIONS
 } from "../../src/world/WorldIslands";
 
@@ -21,11 +23,11 @@ describe("Sunreach world contract", () => {
     expect(island.biomeId).toBe("biome.sunreach_warm_dry");
     expect(island.terrainPatch).toMatchObject({
       id: "terrain.sunreach",
-      center: { x: 500, z: 60 },
+      center: { x: 500 + SUNREACH_OFFSET_X, z: 60 },
       sizeMeters: 360,
       resolution: 256
     });
-    expect(island.terrainPatch.bounds).toEqual({ minX: 320, maxX: 680, minZ: -120, maxZ: 240 });
+    expect(island.terrainPatch.bounds).toEqual({ minX: 320 + SUNREACH_OFFSET_X, maxX: 680 + SUNREACH_OFFSET_X, minZ: -120, maxZ: 240 });
     expect(island.regions).toEqual([
       "region.sunreach_cove",
       "region.sunreach_terraces",
@@ -34,36 +36,36 @@ describe("Sunreach world contract", () => {
     ]);
     expect(island.coastLoop.length).toBeGreaterThanOrEqual(20);
     expect(SUNREACH_ANCHORS).toMatchObject({
-      dockBoat: { x: 343, z: 58 },
-      dockPlayer: { x: 355, z: 58 },
-      coveMarket: { x: 373, z: 56 },
-      terraceFarm: { x: 455, z: 5 },
-      dryScrub: { x: 515, z: 75 },
-      exposedRidge: { x: 590, z: 25 },
-      southernReefView: { x: 520, z: 180 }
+      dockBoat: { x: 343 + SUNREACH_OFFSET_X, z: 58 },
+      dockPlayer: { x: 355 + SUNREACH_OFFSET_X, z: 58 },
+      coveMarket: { x: 373 + SUNREACH_OFFSET_X, z: 56 },
+      terraceFarm: { x: 455 + SUNREACH_OFFSET_X, z: 5 },
+      dryScrub: { x: 515 + SUNREACH_OFFSET_X, z: 75 },
+      exposedRidge: { x: 590 + SUNREACH_OFFSET_X, z: 25 },
+      southernReefView: { x: 520 + SUNREACH_OFFSET_X, z: 180 }
     });
     const heightfield = WorldLayout.terrainHeightfieldForPatch("terrain.sunreach");
     expect(heightfield).toHaveLength((island.terrainPatch.resolution + 1) ** 2);
     expect(heightfield.every(Number.isFinite)).toBe(true);
     expect(createWorldEnvironmentLayout(42).staticPlacements).toContainEqual(
-      expect.objectContaining({ id: "authored.sunreach.cove-market", x: 373, z: 56 })
+      expect.objectContaining({ id: "authored.sunreach.cove-market", x: SUNREACH_ANCHORS.coveMarket.x, z: 56 })
     );
   });
 
   it("uses one closed-coast marine field for land, cove, channel, reef, and ecology", () => {
-    expect(WorldLayout.islandAt(455, 5)).toBe("island.sunreach");
-    expect(WorldLayout.waterSignedDistance(455, 5)).toBeLessThan(0);
-    expect(WorldLayout.islandAt(343, 58)).toBe(null);
-    expect(WorldLayout.waterSignedDistance(343, 58)).toBeGreaterThan(0);
+    expect(WorldLayout.islandAt(455 + SUNREACH_OFFSET_X, 5)).toBe("island.sunreach");
+    expect(WorldLayout.waterSignedDistance(455 + SUNREACH_OFFSET_X, 5)).toBeLessThan(0);
+    expect(WorldLayout.islandAt(343 + SUNREACH_OFFSET_X, 58)).toBe(null);
+    expect(WorldLayout.waterSignedDistance(343 + SUNREACH_OFFSET_X, 58)).toBeGreaterThan(0);
 
-    const cove = WorldLayout.marineSampleAt(343, 58);
-    const channel = WorldLayout.marineSampleAt(288, 96);
-    const reef = WorldLayout.marineSampleAt(548, 194);
+    const cove = WorldLayout.marineSampleAt(343 + SUNREACH_OFFSET_X, 58);
+    const channel = WorldLayout.marineSampleAt(1088, 96);
+    const reef = WorldLayout.marineSampleAt(548 + SUNREACH_OFFSET_X, 194);
     expect(cove.coveShelter).toBeGreaterThan(channel.coveShelter);
     expect(channel.openWaterExposure).toBeGreaterThan(cove.openWaterExposure);
     expect(reef.reefInfluence).toBeGreaterThan(cove.reefInfluence);
     expect(channel.ecologyWeights["ecology.neva"] + channel.ecologyWeights["ecology.sunreach"]).toBeCloseTo(1);
-    expect(WorldLayout.fishingEcologyAt(548, 194).id).toBe("ecology.sunreach");
+    expect(WorldLayout.fishingEcologyAt(548 + SUNREACH_OFFSET_X, 194).id).toBe("ecology.sunreach");
     expect(Math.hypot(channel.waveDirection.x, channel.waveDirection.z)).toBeCloseTo(1);
     expect(Math.hypot(channel.flowDirection.x, channel.flowDirection.z)).toBeCloseTo(1);
   });
@@ -79,7 +81,7 @@ describe("Sunreach world contract", () => {
     const skiff = ContentRegistry.boats.get("boat.skiff")!;
     const roundTripFuelAtFullThrottle = (routeMeters / skiff.maxSpeed)
       * createInitialGameState(1).clock.minutesPerRealSecond
-      * 2
+      * MOTOR_FUEL_PER_GAME_MINUTE
       * 2;
     expect(roundTripFuelAtFullThrottle).toBeLessThan(skiff.fuelCapacity);
     expect(requiredBoatTypeForMarket("market.sunreach_cove")).toBe("boat.skiff");
@@ -142,8 +144,8 @@ describe("Sunreach world contract", () => {
   });
 
   it("keeps failed ground and vessel recovery on the nearest island", () => {
-    expect(WorldLayout.nearestValidGround({ x: 500, z: 260 }, 1)).toEqual(SUNREACH_ANCHORS.dockPlayer);
-    expect(WorldLayout.nearestValidSailable({ x: 500, z: 60 }, 1)).toEqual(SUNREACH_ANCHORS.dockBoat);
+    expect(WorldLayout.nearestValidGround({ x: 500 + SUNREACH_OFFSET_X, z: 260 }, 1)).toEqual(SUNREACH_ANCHORS.dockPlayer);
+    expect(WorldLayout.nearestValidSailable({ x: 500 + SUNREACH_OFFSET_X, z: 60 }, 1)).toEqual(SUNREACH_ANCHORS.dockBoat);
     expect(WorldLayout.nearestValidGround({ x: 0, z: 400 }, 1)).toEqual({ x: -65, z: -60.5 });
   });
 
@@ -164,8 +166,8 @@ describe("Sunreach world contract", () => {
     const state = createInitialGameState(42);
     const weather = { ...state.weather, temperatureC: 20, precipitation: 0.8, windSpeed: 7 };
     const neva = WorldLayout.climateSampleAt(-65, -55, weather);
-    const cove = WorldLayout.climateSampleAt(373, 56, weather);
-    const ridge = WorldLayout.climateSampleAt(590, 25, weather);
+    const cove = WorldLayout.climateSampleAt(373 + SUNREACH_OFFSET_X, 56, weather);
+    const ridge = WorldLayout.climateSampleAt(590 + SUNREACH_OFFSET_X, 25, weather);
     expect(neva).toMatchObject({ climateId: "temperate", temperatureC: 20, rainfallEffectiveness: 1, evaporationMultiplier: 1 });
     expect(cove).toMatchObject({ climateId: "warm", temperatureC: 24, rainfallEffectiveness: 0.65, effectivePrecipitation: 0.52 });
     expect(ridge.evaporationMultiplier).toBeGreaterThanOrEqual(cove.evaporationMultiplier);
@@ -265,9 +267,9 @@ describe("Sunreach world contract", () => {
   });
 
   it("preserves shoreline and mesh sampling density in the expanded rectangular water contract", () => {
-    expect(SHORE_MASK_METERS_PER_TEXEL).toBeCloseTo(750 / (SHORE_MASK_RESOLUTION - 1));
-    expect(Math.round(WATER_SURFACE.width / SHORE_MASK_METERS_PER_TEXEL) + 1).toBe(785);
-    expect(Math.round(WATER_SURFACE.depth / SHORE_MASK_METERS_PER_TEXEL) + 1).toBe(512);
+    expect(SHORE_MASK_METERS_PER_TEXEL).toBe(3);
+    expect(Math.round(WATER_SURFACE.width / SHORE_MASK_METERS_PER_TEXEL) + 1).toBe(801);
+    expect(Math.round(WATER_SURFACE.depth / SHORE_MASK_METERS_PER_TEXEL) + 1).toBe(501);
     expect(WATER_SURFACE.width / WATER_SURFACE.segmentsX).toBeCloseTo(750 / 144, 2);
     expect(WATER_SURFACE.depth / WATER_SURFACE.segmentsZ).toBeCloseTo(750 / 144, 8);
   });

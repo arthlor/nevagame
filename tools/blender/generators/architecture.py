@@ -3562,6 +3562,7 @@ _VILLAGE_PROFILES = {
     "barn-b": {"roofForm": "tall-gable", "openingLayout": "barn-loft", "wallStyle": "plank", "feature": "loading-lean-to", "chimney": False},
     "shed": {"roofForm": "lean-to", "openingLayout": "shed-tools", "wallStyle": "plank", "feature": "tool-overhang", "chimney": False},
     "shed-b": {"roofForm": "lean-to", "openingLayout": "shed-tools", "wallStyle": "plank", "feature": "tool-overhang", "chimney": False},
+    "kitchen": {"roofForm": "lean-to", "openingLayout": "shed-tools", "wallStyle": "plank", "feature": "kitchen-hearth", "chimney": True},
     "outhouse": {"roofForm": "offset-gable", "openingLayout": "outhouse-vent", "wallStyle": "plank", "feature": "privacy-wall", "chimney": False},
     "outhouse-b": {"roofForm": "offset-gable", "openingLayout": "outhouse-vent", "wallStyle": "plank", "feature": "privacy-wall", "chimney": False},
 }
@@ -4234,7 +4235,7 @@ def _build_village_building(spec: dict, root) -> None:
     profile = _VILLAGE_PROFILES[variant]
     stone, wall, timber, dark, roof, accent = _village_palette(spec["palette"])
     detail = _is_hero_detail(spec) and (
-        spec.get("lod") != "small" or variant in ("shed", "shed-b", "outhouse", "outhouse-b")
+        spec.get("lod") != "small" or variant in ("shed", "shed-b", "kitchen", "outhouse", "outhouse-b")
     )
     seed = spec["seed"]
 
@@ -5106,6 +5107,43 @@ def _build_village_building(spec: dict, root) -> None:
         add_box(f"{variant}_tool_rail", (overhang_x, front_y - 0.10, wall_base + wall_height * 0.42), (max(0.55, wing_width * 0.78), 0.08, 0.10), dark, root, bevel=0.008 if detail else 0.004)
         for index in range(3 if detail else 2):
             add_box(f"{variant}_tool_hook_{index}", (overhang_x - 0.28 + index * 0.28, front_y - 0.14, wall_base + wall_height * 0.28), (0.06, 0.10, 0.24), timber, root, bevel=0.006)
+
+    # Farm kitchen: a masonry hearth bulge on the flank with a dark oven mouth,
+    # a serving counter under the front window, and a firewood niche by the
+    # door break the miniature-shed read and tell the player meals are cooked
+    # here. The generic profile chimney rises over the hearth bulge.
+    if profile["feature"] == "kitchen-hearth":
+        oven_x = width * 0.5 + 0.30
+        oven_z = wall_base + 0.78
+        add_box(f"{variant}_oven_bulge", (oven_x, 0.10, oven_z), (0.64, 1.15, 1.56), stone, root, bevel=0.03 if detail else 0.012)
+        if detail:
+            add_masonry_courses(f"{variant}_oven_masonry", (oven_x, 0.10, oven_z), 0.64, 1.15, 1.56, (stone,), root, courses=3, blocks_per_long_side=2, seed=seed + 31, block_depth=0.10, bevel=0.010)
+        mouth_x = oven_x + 0.33
+        add_box(f"{variant}_oven_mouth", (mouth_x, 0.10, wall_base + 0.62), (0.08, 0.62, 0.52), dark, root, bevel=0.006)
+        add_box(f"{variant}_oven_lintel", (mouth_x - 0.02, 0.10, wall_base + 0.94), (0.12, 0.78, 0.12), timber, root, bevel=0.008 if detail else 0.0)
+        add_box(f"{variant}_oven_shelf", (mouth_x + 0.06, 0.10, wall_base + 0.34), (0.22, 0.70, 0.08), timber, root, bevel=0.008 if detail else 0.0)
+        counter_w = max(1.10, width * 0.52)
+        counter_x = width * 0.25
+        counter_z = wall_base + 0.62
+        counter_y = front_y - 0.52
+        add_box(f"{variant}_counter_top", (counter_x, counter_y, counter_z), (counter_w, 0.52, 0.10), timber, root, bevel=0.012 if detail else 0.006)
+        for leg_index, lx in enumerate((counter_x - counter_w * 0.42, counter_x + counter_w * 0.42)):
+            add_box(f"{variant}_counter_leg_{leg_index}", (lx, counter_y, counter_z - 0.36), (0.12, 0.12, 0.62), dark, root, bevel=0.008 if detail else 0.0)
+        for pot_index in range(3 if detail else 2):
+            px = counter_x - counter_w * 0.30 + pot_index * counter_w * 0.30
+            add_cylinder(f"{variant}_counter_pot_{pot_index}", (px, counter_y, counter_z + 0.16), 0.13, 0.20, dark, root, vertices=8)
+        niche_x = -width * 0.30
+        for log_level in range(3):
+            for log_index in range(2):
+                add_beam(
+                    f"{variant}_firewood_{log_level}_{log_index}",
+                    (niche_x - 0.16 + log_index * 0.32, front_y - 0.22, wall_base + 0.16 + log_level * 0.17),
+                    (niche_x + 0.16 - log_index * 0.32, front_y - 0.22, wall_base + 0.16 + log_level * 0.17),
+                    0.075,
+                    timber,
+                    root,
+                    vertices=5,
+                )
 
     # Outhouse: offset roof edge, high vent, and privacy wall establish a functional micro-silhouette.
     if profile["feature"] == "privacy-wall":

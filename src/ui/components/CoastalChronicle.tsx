@@ -6,6 +6,7 @@ import {
   type ChronicleFilter
 } from "../notifications";
 import { playUiSound } from "../audio/uiAudio";
+import { handleTabListKeyDown } from "../useTabListKeyboard";
 
 interface CoastalChronicleProps {
   entries: readonly ChronicleEntry[];
@@ -52,7 +53,8 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
     };
   }, [expanded, held, autoCollapseMs, entries.length]);
 
-  const visible = entries.slice(0, CHRONICLE_VISIBLE_ROWS);
+  const visible = entries.filter((entry) => activeFilter === "all" || entry.category === activeFilter)
+    .slice(0, CHRONICLE_VISIBLE_ROWS);
 
   return (
     <section
@@ -84,7 +86,7 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
 
       {expanded && (
         <>
-          <div className="chronicle-filters" role="tablist" aria-label="Chronicle strands">
+          <div className="chronicle-filters" role="tablist" aria-label="Chronicle strands" onKeyDown={handleTabListKeyDown}>
             {CHRONICLE_FILTERS.map((filter) => (
               <button
                 type="button"

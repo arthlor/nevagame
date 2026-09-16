@@ -11,7 +11,7 @@ const views = [
   ["open-beach", 132, 70], ["shallows", 132, 80], ["vegetation-edge", 107, 60],
   ["settlement-edge", 85, 53], ["rocky-landing", 93, 69], ["harbor", 76, 66]
 ];
-if (args.inland === "true") views.push(["starter-farm", -65, -55], ["river-bridge", -8, -5], ["headwaters", -29, -147], ["sunreach", 355, 58]);
+if (args.inland === "true") views.push(["starter-farm", -65, -55], ["river-bridge", -8, -5], ["headwaters", -29, -147], ["sunreach", 1155, 58]);
 const route = [[122,67],[113,61],[104,59],[94,54.5],[83,53],[73,54.5],[64.5,54.5],[73,54.5],[83,53],[88,58],[91,63],[93,68.5]];
 await fs.mkdir(output, { recursive: true });
 const browser = await chromium.launch({ channel: "chrome", headless: args.headed !== "true" });

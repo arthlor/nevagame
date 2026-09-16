@@ -168,9 +168,9 @@ describe("content reachability", () => {
   });
 
   it("gives every authored farm a quest that sends the player to it", () => {
-    // `farm.player_homestead` shipped as a fully defined second farm that no
-    // quest, gate or structure referenced — a whole plot of the world nothing
-    // pointed at. This is the guard against adding another.
+    // `farm.player_homestead` is the stable compatibility id for the public
+    // Village Commons. This is the guard against adding another unreferenced
+    // field, not a property-purchase system.
     const questFarms = new Set<string>();
     for (const quest of ContentRegistry.quests.values()) {
       for (const objective of quest.objectives) {
@@ -181,6 +181,30 @@ describe("content reachability", () => {
     for (const farmId of Object.keys(WORLD_FARM_DEFINITIONS)) {
       expect(questFarms.has(farmId), `${farmId} exists but no quest ever sends the player there`).toBe(true);
     }
+  });
+
+  it("keeps the inherited family farm and commons out of land leasing", () => {
+    expect(WORLD_FARM_DEFINITIONS["farm.starter_garden"]).toMatchObject({
+      accessType: "private",
+      leaseCost: 0
+    });
+    expect(WORLD_FARM_DEFINITIONS["farm.player_homestead"]).toMatchObject({
+      accessType: "public",
+      leaseCost: 0,
+      cropCapacity: 3
+    });
+
+    const initialFarms = createInitialGameState().farms;
+    expect(initialFarms["farm.starter_garden"]).toMatchObject({
+      leaseCost: 0,
+      leaseDueMinute: 0,
+      accessType: "private"
+    });
+    expect(initialFarms["farm.player_homestead"]).toMatchObject({
+      leaseCost: 0,
+      leaseDueMinute: 0,
+      accessType: "public"
+    });
   });
 
   it("has every fertilizing objective follow a fertilizer craft the quest can pay for", () => {

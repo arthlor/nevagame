@@ -99,19 +99,21 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(html).toContain("hud-atlas-icon");
     });
 
-    it("marks recharging Work and announces exhausted Sprint", () => {
+    it("shows the day's earned Work and announces exhausted Sprint", () => {
       const state = createInitialGameState();
-      // Recharging state
+      // Partial day budget: the readout reports Work earned today, not a
+      // passive recharge.
       state.player.workCapacity.current = 50;
       state.player.workCapacity.maximum = 100;
-      const hudRecharging = buildWorldHudDto(state);
-      const htmlRecharge = renderToString(
+      const hudPartial = buildWorldHudDto(state);
+      const htmlPartial = renderToString(
         React.createElement(PlayerUnitFrame, {
-          work: hudRecharging.work,
-          sprint: hudRecharging.sprint
+          work: hudPartial.work,
+          sprint: hudPartial.sprint
         })
       );
-      expect(htmlRecharge).toContain("is-recharging");
+      expect(htmlPartial).toContain("work-earned-today");
+      expect(htmlPartial).not.toContain("is-recharging");
 
       // Exhausted state
       state.player.workCapacity.current = 0;
@@ -156,7 +158,8 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
         compass: hud.compass, onOpenMap: () => {}
       }));
       expect(navigation).toContain("90° E");
-      expect(navigation).toContain(hud.compass.subRegionTitle);
+      // Region titles are plain text; React escapes `&` in the rendered markup.
+      expect(navigation).toContain(hud.compass.subRegionTitle.replace(/&/g, "&amp;"));
       expect(navigation).toContain("Open nautical chart");
       expect(html).toContain("Wind 180°");
       expect(html).toContain('data-testid="world-minimap"');

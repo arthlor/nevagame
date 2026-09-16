@@ -40,6 +40,15 @@ export interface ItemDefinition {
   baseValue: number;
   icon?: string;
   tags?: string[];
+  /**
+   * A finite, player-consumed effect. Today only Work restoration exists; a
+   * meal cannot be eaten beyond the daily limit and never grants Work past the
+   * pool ceiling.
+   */
+  consumable?: {
+    kind: "work";
+    amount: number;
+  };
 }
 
 export interface CropDefinition {

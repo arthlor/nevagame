@@ -1,3 +1,5 @@
+import { oceanIsletPlacements } from "./OceanIsletPlacements";
+import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { runSync, runCooperatively } from "../utils/CooperativeTask";
 import { createHarborCoastPlacements, retainLegacyHarborDressing, retainHarborGroundCover } from "./HarborCoastLayout";
 import {
@@ -7,9 +9,15 @@ import {
   pointSegmentProjection,
   type WorldArchitecturePad
 } from "./WorldLayout";
-import { STARTER_DONKEY_ANCHOR, STARTER_FARM_LAYOUT, farmLocalToWorld, starterStructureAnchor } from "./FarmLayout";
+import {
+  PLAYER_HOMESTEAD_LAYOUT,
+  STARTER_DONKEY_ANCHOR,
+  STARTER_FARM_LAYOUT,
+  farmLocalToWorld,
+  starterStructureAnchor
+} from "./FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN } from "./FarmhouseInterior";
-import { HARBOR_DOCK, HARBOR_MARKET, HARBOR_SKIFF_MOORING, RIVER_CROSSING, VILLAGE_MARKET } from "./WorldAnchors";
+import { HARBOR_DOCK, HARBOR_MARKET, HARBOR_SKIFF_MOORING, RIVER_CROSSING, VILLAGE_CROSSING } from "./WorldAnchors";
 import {
   compositionAddress,
   compositionPlacementTag,
@@ -58,10 +66,12 @@ export interface PlacementOverride {
 
 /** DEV layout-editor pins for seeded/layout-derived instances. Empty until an in-game drop writes an id. */
 export const PLACEMENT_OVERRIDES: Readonly<Record<string, PlacementOverride>> = {
+  
 };
 
 /** Seeded/layout-derived instances removed by the DEV layout editor. */
 export const PLACEMENT_REMOVED: readonly string[] = [
+  "seeded-fill.landscape.work.harbor-supplies.1",
 ];
 
 export function applyPlacementOverrides(
@@ -302,9 +312,9 @@ const MILL_WORLD = starterStructureAnchor("struct.starter_mill")!;
 
 const CLEARANCES = [
   ...FARM_CLEARANCES,
-  { x: VILLAGE_MARKET.position.x, z: VILLAGE_MARKET.position.z, radius: 20 },
+  { x: VILLAGE_CROSSING.x, z: VILLAGE_CROSSING.z, radius: 20 },
   { x: MILL_WORLD.x, z: MILL_WORLD.z, radius: 8.5 },
-  { x: 60, z: -60, radius: 9.5 },
+  { x: PLAYER_HOMESTEAD_LAYOUT.origin.x, z: PLAYER_HOMESTEAD_LAYOUT.origin.z, radius: 10.5 },
   { x: RIVER_CROSSING.x, z: RIVER_CROSSING.z, radius: 5 },
   { x: -14, z: -7, radius: 9 },
   { x: HARBOR_MARKET.position.x, z: HARBOR_MARKET.position.z, radius: 8 },
@@ -366,10 +376,11 @@ function authoredPlacement(
 
 /**
  * Village cottages/inn/hall/barn publish their door on runtime +Z after glTF Y-up.
- * Point that face at the plaza center so fronts read into the courtyard.
+ * Point that face at the crossing so fronts read into the courtyard. (The market building stands on
+ * the court's south lip, so aiming at it instead would swing every door south.)
  */
 export function villageDoorFacingPlaza(x: number, z: number): number {
-  return Math.atan2(VILLAGE_MARKET.position.x - x, VILLAGE_MARKET.position.z - z);
+  return Math.atan2(VILLAGE_CROSSING.x - x, VILLAGE_CROSSING.z - z);
 }
 
 function architecturePad(padId: string): WorldArchitecturePad {
@@ -397,7 +408,7 @@ function authoredArchitecturePlacement(
   });
 }
 
-const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
+export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   // Trail rest stops and working village edges keep the arrival centers open.
   authoredPlacement("authored.arrival.spring.cairn", { assetId: "rock_field_a", x: -35.6, z: -147.1, rotationY: 0.4, scale: [0.8, 0.8, 0.8], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.spring.bench", { assetId: "prop_bench_wood_a", x: -37.8, z: -147.1, rotationY: 6.2832, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
@@ -411,35 +422,61 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.arrival.bluff.cairn", { assetId: "rock_field_a", x: -55, z: -220, rotationY: 1.1, scale: [0.9, 0.9, 0.9], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.bluff.bench", { assetId: "prop_bench_wood_a", x: -49, z: -220, rotationY: 3.1, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.bluff.sign", { assetId: "prop_signpost_trail_a", x: -49, z: -216, rotationY: 0.4, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.crate", { assetId: "prop_crate_wood_a", x: 65, z: -56, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.barrel", { assetId: "prop_barrel_wood_a", x: 65.8, z: -58.4, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.crate", { assetId: "prop_crate_wood_a", x: 65.4, z: -50.3, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.barrel", { assetId: "prop_barrel_wood_a", x: 65.1, z: -51.6, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   
-  authoredPlacement("authored.arrival.village.rack", { assetId: "prop_fish_drying_rack_a", x: 66.4, z: -60.1, rotationY: 1.309, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.firewood", { assetId: "prop_firewood_stack_a", x: 66, z: -41, rotationY: 0.4, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.crate-inn", { assetId: "prop_crate_wood_a", x: 65, z: -41.5, rotationY: -0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.rack", { assetId: "prop_fish_drying_rack_a", x: 61, z: -40.8, rotationY: 3.1416, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.firewood", { assetId: "prop_firewood_stack_a", x: 64.9, z: -40.1, rotationY: 0, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.crate-inn", { assetId: "prop_crate_wood_a", x: 62.9, z: -40.7, rotationY: -0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
 
   // Working village frontage and a neighboring orchard homestead. No additional shop/quest owners.
-  authoredArchitecturePlacement("authored.village.approach-inn", "building_inn_a", "village.approach-inn"),
-  authoredArchitecturePlacement("authored.village.cooperative-hall", "building_village_market_hall_a", "village.cooperative-hall"),
-  authoredArchitecturePlacement("authored.orchard.barn", "building_barn_a", "orchard.barn"),
-  authoredArchitecturePlacement("authored.orchard.farmhouse", "house_farmhouse_b", "orchard.farmhouse"),
+  // Code-authored buildings (tools/authored) reuse these pads. Their footprints include a garden/
+  // prop ring, so they are scaled to sit inside the pad envelope rather than the building alone.
   authoredArchitecturePlacement("authored.orchard.tool-shed", "prop_tool_shed_a", "orchard.tool-shed"),
   authoredArchitecturePlacement("authored.orchard.outhouse", "building_outhouse_a", "orchard.outhouse"),
   authoredArchitecturePlacement("authored.village.roadside-stall", "building_market_stall_a", "village.roadside-stall"),
+  // The medieval timber cottage is the starter homestead's main house; the old farmhouse moves to
+  // the village, and the authored wooden outhouse serves the starter yard.
+  authoredArchitecturePlacement("authored.farm.outhouse", "building_wooden_outhouse_a", "farm.outhouse", [1.3, 1.3, 1.3]),
 
   // The neighbor's kitchen garden is outside player-owned plantable land.
-  authoredPlacement("authored.orchard.garden-bed", { assetId: "prop_vegetable_bed_tile_a", x: 122, z: -34, rotationY: 0, scale: [1, 1, 1], clearanceRadiusMeters: 3 }),
-  authoredPlacement("authored.orchard.seed-bed", { assetId: "prop_tilled_soil_tile_a", x: 122, z: -38, rotationY: 0, scale: [1, 1, 1], clearanceRadiusMeters: 0.9 }),
-  authoredPlacement("authored.orchard.turnips", { assetId: "crop_turnip_mature", x: 121, z: -34, rotationY: 0.2, scale: [1, 1, 1] }),
-  authoredPlacement("authored.orchard.pumpkins", { assetId: "crop_pumpkin_mature", x: 123, z: -34, rotationY: -0.3, scale: [1, 1, 1] }),
-  authoredPlacement("authored.orchard.watering-can", { assetId: "prop_watering_can_rustic_a", x: 123, z: -38, rotationY: 0.6, scale: [1, 1, 1] }),
-  authoredPlacement("authored.orchard.garden-hoe", { assetId: "prop_garden_hoe_a", x: 124.6, z: -35.5, rotationY: -0.4, scale: [1, 1, 1] }),
-  authoredPlacement("authored.orchard.potting-bench", { assetId: "prop_potting_bench_a", x: 126, z: -38, rotationY: 0.3, scale: [1, 1, 1], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.orchard.garden-fence", { assetId: "prop_fence_section_a", x: 122, z: -31.5, rotationY: 0, scale: [1, 1, 1] }),
+
   authoredPlacement("authored.orchard.flower-border", { assetId: "foliage_wildflower_b", x: 120, z: -31, rotationY: 0.4, scale: [1, 1, 1] }),
-  authoredPlacement("authored.orchard.flower-border-low", { assetId: "foliage_wildflower_c", x: 124, z: -31, rotationY: -0.2, scale: [1, 1, 1] }),
-  authoredPlacement("authored.orchard.garden-step-round", { assetId: "prop_path_stone_round_a", x: 125, z: -34, rotationY: 0.3, scale: [1, 1, 1] }),
-  authoredPlacement("authored.orchard.garden-step-slab", { assetId: "prop_path_stone_slab_a", x: 126.2, z: -34, rotationY: 0.4, scale: [1, 1, 1] }),
+
+  // Village Commons: two shared beds behind a small gate, with a well,
+  // bench and pollinator corner. These are presentation-only props; the farm
+  // definition remains the sole authority for what can actually be planted.
+  
+  authoredPlacement("authored.commons.sign", { assetId: "prop_signpost_trail_a", x: 75, z: -72.2, rotationY: -0.2, scale: [0.92, 0.92, 0.92] }),
+  authoredPlacement("authored.commons.fence-west", { assetId: "prop_fence_wood_a", x: 73.9, z: -79.2, rotationY: 1.5708, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-west.copy.2", { assetId: "prop_fence_wood_a", x: 73.9, z: -81, rotationY: 1.5708, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-west.copy.3", { assetId: "prop_fence_wood_a", x: 74.8, z: -81.9, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-west.copy.4", { assetId: "prop_fence_wood_a", x: 76.6, z: -81.9, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-west.copy.5", { assetId: "prop_fence_wood_a", x: 78.4, z: -81.9, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-west.copy.6", { assetId: "prop_fence_wood_a", x: 80.2, z: -81.9, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-west.copy.7", { assetId: "prop_fence_wood_a", x: 86.3, z: -81.8, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-west.copy.8", { assetId: "prop_fence_wood_a", x: 88, z: -81.6, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-west.copy.9", { assetId: "prop_fence_wood_a", x: 89.7, z: -81.5, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  
+  authoredPlacement("authored.commons.fence-west.copy.1", { assetId: "prop_fence_wood_a", x: 73.9, z: -77.4, rotationY: 1.5708, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east", { assetId: "prop_fence_wood_a", x: 91, z: -79.4, rotationY: Math.PI / 2, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.1", { assetId: "prop_fence_wood_a", x: 91, z: -77.6, rotationY: 1.5708, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.2", { assetId: "prop_fence_wood_a", x: 90.9, z: -75.8, rotationY: 1.5708, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.3", { assetId: "prop_fence_wood_a", x: 86.5, z: -74.8, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.6", { assetId: "prop_fence_wood_a", x: 88, z: -74.8, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.4", { assetId: "prop_fence_wood_a", x: 83.3, z: -74.8, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.7", { assetId: "prop_fence_wood_a", x: 81.5, z: -74.8, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.8", { assetId: "prop_fence_wood_a", x: 79.7, z: -74.8, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.9", { assetId: "prop_fence_wood_a", x: 77.9, z: -74.8, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.10", { assetId: "prop_fence_wood_a", x: 76.1, z: -74.8, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.fence-east.copy.5", { assetId: "prop_fence_wood_a", x: 89.9, z: -74.8, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  
+  authoredPlacement("authored.commons.bench", { assetId: "prop_bench_wood_a", x: 79.5, z: -84.5, rotationY: 0.15, scale: [0.92, 0.92, 0.92] }),
+  authoredPlacement("authored.commons.bench.copy.1", { assetId: "prop_bench_wood_a", x: 87.5, z: -84.2, rotationY: -0.2618, scale: [0.92, 0.92, 0.92] }),
+  authoredPlacement("authored.commons.basket", { assetId: "prop_harvest_basket_a", x: 84.8, z: -84.4, rotationY: -0.4, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.beehive", { assetId: "prop_beehive_a", x: 93.3, z: -80.5, rotationY: 0.2, scale: [0.88, 0.88, 0.88] }),
+  authoredPlacement("authored.commons.flowers", { assetId: "foliage_wildflower_b", x: 72.4, z: -80.5, rotationY: 0.5, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.apple-tree", { assetId: "tree_apple_a", x: 94, z: -82, rotationY: -0.35, scale: [0.92, 0.92, 0.92], grounding: [1.05, 0.74] }),
 
   // Dry-land repair stock: these spare spans are not a second navigable dock or crossing.
   
@@ -489,21 +526,21 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   authoredPlacement("authored.rock.uplands-boulder", { assetId: "rock_boulder_a", x: 93, z: -31, rotationY: 0.38, scale: [1.2, 1, 1.1], grounding: [1.7, 1.15] }),
   authoredPlacement("authored.rock.village-field", { assetId: "rock_field_a", x: 80, z: -34, rotationY: 0.62, scale: [0.8, 0.65, 0.75], grounding: [0.85, 0.58] }),
   authoredPlacement("authored.rock.harbor-boulder", { assetId: "rock_boulder_a", x: 97.1, z: 54.6, rotationY: -0.18, scale: [1.1, 0.9, 1], grounding: [1.55, 1.05] }),
-  authoredPlacement("authored.prop.lamp.village-west", { assetId: "prop_lamp_post_a", x: 43.1, z: -47.5, rotationY: -1.8326, scale: [1, 1, 1], practicalLight: true }),
-  authoredPlacement("authored.prop.lamp.village-east", { assetId: "prop_lamp_post_a", x: 64.4, z: -47.4, rotationY: 2.618, scale: [1, 1, 1], practicalLight: true }),
-  authoredPlacement("authored.prop.lamp.village-mill", { assetId: "prop_lamp_post_a", x: 44.3, z: -64.7, rotationY: 0.12, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.village-west", { assetId: "prop_lamp_post_a", x: 30.0, z: -64.5, rotationY: -1.0472, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.village-east", { assetId: "prop_lamp_post_a", x: 52.5, z: -63.5, rotationY: 3.1416, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.village-mill", { assetId: "prop_lamp_post_a", x: 75.3, z: -71.3, rotationY: 1.0472, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.lamp.harbor", { assetId: "prop_lamp_post_a", x: 68.9, z: 57.4, rotationY: -4.1888, scale: [1, 1, 1], practicalLight: true }),
   // The village carried three lamps against sixteen structures, so most of it
   // went dark after dusk while the starter farm stayed warm. These fill the
   // gaps along the routes players actually walk: the northern approach past the
-  // roadside stall, the market frontage, the eastern cottage cluster, and the
+  // roadside stall, the market frontage, the square's west garden, and the
   // orchard track. Static placements join the shared batches, and the per-tier
   // `practicalLightBudget` still caps how many are lit at once, so coverage
   // improves without adding either draw calls or active point lights.
   authoredPlacement("authored.prop.lamp.village-north", { assetId: "prop_lamp_post_a", x: 51.4, z: -19.6, rotationY: 1.2217, scale: [1, 1, 1], practicalLight: true }),
-  authoredPlacement("authored.prop.lamp.village-market", { assetId: "prop_lamp_post_a", x: 61.2, z: -55.8, rotationY: -0.9599, scale: [1, 1, 1], practicalLight: true }),
-  authoredPlacement("authored.prop.lamp.village-garden", { assetId: "prop_lamp_post_a", x: 70.6, z: -60.4, rotationY: 2.0944, scale: [1, 1, 1], practicalLight: true }),
-  authoredPlacement("authored.prop.lamp.orchard-track", { assetId: "prop_lamp_post_a", x: 103.5, z: -55.2, rotationY: -1.5708, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.village-market", { assetId: "prop_lamp_post_a", x: 43.5, z: -73.5, rotationY: 2.3562, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.village-garden", { assetId: "prop_lamp_post_a", x: 33.5, z: -71.5, rotationY: 5.236, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.prop.lamp.orchard-track", { assetId: "prop_lamp_post_a", x: 92.7, z: -77, rotationY: -1.5708, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.crate.harbor", { assetId: "prop_crate_wood_a", x: 69, z: 65.1, rotationY: 0.15, scale: [1, 1, 1] }),
   authoredPlacement("authored.prop.barrel.harbor", { assetId: "prop_barrel_wood_a", x: 81.9, z: 66.9, rotationY: 0.1, scale: [1, 1, 1] }),
   authoredPlacement("authored.prop.trap.harbor", { assetId: "prop_lobster_trap_a", x: 81.5, z: 66, rotationY: 0.65, scale: [1, 1, 1] }),
@@ -570,25 +607,45 @@ const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
 
   // Mooring post at the dock edge near the rowboat
 
-  // Village plaza: open packed courtyard. Buildings sit on a wide ring with
-  // published +Z doors facing the market. The mill pad stays southwest, off-court.
-  authoredPlacement("authored.village.bench", { assetId: "prop_bench_wood_a", x: 62.2, z: -45.9, rotationY: -2.18, scale: [1, 1, 1] }),
-  authoredPlacement("authored.village.bench.copy.1", { assetId: "prop_bench_wood_a", x: 59.6, z: -69.6, rotationY: 0, scale: [1, 1, 1] }),
-  authoredPlacement("authored.village.well", { assetId: "prop_water_well_a", x: 55.1, z: -69.6, rotationY: 0, scale: [1, 1, 1], grounding: [1.1, 0.95] }),
-  authoredPlacement("authored.village.signpost", { assetId: "prop_signpost_trail_a", x: 50.3, z: -42.1, rotationY: -1.5708, scale: [1, 1, 1] }),
-  authoredPlacement("authored.village.clay-oven", { assetId: "prop_clay_oven_a", x: 43.1, z: -59.9, rotationY: 0.5236, scale: [1, 1, 1] }),
-  authoredArchitecturePlacement("authored.village.tool-shed", "prop_tool_shed_b", "village.tool-shed"),
-  authoredArchitecturePlacement("authored.village.outhouse", "building_outhouse_b", "village.outhouse"),
-  authoredPlacement("authored.village.homestead-gate", { assetId: "prop_farm_gate_a", x: 47, z: -44.9, rotationY: -0.7854, scale: [1, 1, 1] }),
-  authoredPlacement("authored.village.fence-a", { assetId: "prop_fence_wood_a", x: 48.6, z: -43.2, rotationY: -1.0472, scale: [1, 1, 1] }),
-  authoredPlacement("authored.village.fence-b", { assetId: "prop_fence_wood_a", x: 45.2, z: -46.5, rotationY: -0.7854, scale: [1, 1, 1] }),
+  // Village square: a compact working court around the produce stall. Benches,
+  // the well and the communal oven face the market, with a small paddock and
+  // kitchen garden on the south/west side. Kept deliberately tight and kept
+  // clear of the four converging routes and the stall's 6 m interaction ring.
+  authoredPlacement("authored.village.bench", { assetId: "prop_bench_wood_a", x: 45.3, z: -65.5, rotationY: -0.5236, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.bench.copy.1", { assetId: "prop_bench_wood_a", x: 36.1, z: -60.7, rotationY: 1.5708, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.bench.copy.2", { assetId: "prop_bench_wood_a", x: 36.1, z: -62.9, rotationY: 1.309, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.well", { assetId: "prop_water_well_a", x: 37.5, z: -75.5, rotationY: 0, scale: [1, 1, 1], grounding: [1.1, 0.95] }),
+  authoredPlacement("authored.village.clay-oven", { assetId: "prop_clay_oven_a", x: 34.2, z: -57.6, rotationY: 8.1158, scale: [1, 1, 1] }),
+  // Small produce stand on the court's southwest lip, beside the market building: the village
+  // keeps a second stall face without crowding the crossing.
+  authoredPlacement("authored.village.produce-stand", { assetId: "prop_produce_stall_a", x: 34.9, z: -69.2, rotationY: 0.97, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.village.produce-crate", { assetId: "prop_produce_crate_a", x: 48.5, z: -69.5, rotationY: 0.4, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.harvest-basket", { assetId: "prop_harvest_basket_a", x: 47.8, z: -66, rotationY: -0.3, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.barrel", { assetId: "prop_barrel_wood_a", x: 30.8, z: -68.3, rotationY: 0.5, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.crate", { assetId: "prop_crate_wood_a", x: 47.5, z: -64.5, rotationY: -0.2, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.picnic-table", { assetId: "prop_picnic_table_a", x: 39.1, z: -70.7, rotationY: 0.35, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.wagon", { assetId: "prop_wagon_cart_a", x: 50.0, z: -74.0, rotationY: -0.5, scale: [1, 1, 1], grounding: [1.5, 1.05] }),
+  authoredPlacement("authored.village.hay-bale-a", { assetId: "prop_hay_bale_a", x: 27.8, z: -68.5, rotationY: 0.2, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.hay-bale-b", { assetId: "prop_hay_bale_a", x: 26.6, z: -69.8, rotationY: 1.1, scale: [0.92, 0.92, 0.92] }),
+  authoredPlacement("authored.village.kitchen-bed", { assetId: "prop_vegetable_bed_tile_a", x: 82.4, z: -72.4, rotationY: 0, scale: [0.9, 0.9, 0.9], clearanceRadiusMeters: 1.2 }),
+  authoredPlacement("authored.village.firewood", { assetId: "prop_firewood_stack_a", x: 32.6, z: -60.2, rotationY: 5.236, scale: [1, 1, 1] }),
+  authoredPlacement("authored.fauna.chicken.village-a", { assetId: "fauna_chicken_a", x: 34.0, z: -76.0, rotationY: 0.6, scale: [1.05, 1.05, 1.05] }),
+  authoredPlacement("authored.fauna.chicken.village-b", { assetId: "fauna_chicken_a", x: 35.6, z: -76.8, rotationY: -0.8, scale: [0.95, 0.95, 0.95] }),
+  authoredPlacement("authored.fauna.chicken.village-c", { assetId: "fauna_chicken_a", x: 32.9, z: -77.2, rotationY: 1.6, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.fence-a", { assetId: "prop_fence_wood_a", x: 33.0, z: -78.0, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.village.fence-a.copy.1", { assetId: "prop_fence_wood_a", x: 35.8, z: -78.0, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.village.fence-a.copy.2", { assetId: "prop_fence_wood_a", x: 38.6, z: -78.0, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.village.fence-b", { assetId: "prop_fence_wood_a", x: 31.5, z: -76.0, rotationY: 1.5708, scale: [0.9, 0.9, 0.9] }),
+  // The village keeps four dwellings plus the market hall, all on the square
+  // ring with +Z doors facing the produce stall: the relocated farmhouse (inn),
+  // a second farmhouse on the southwest approach, and two cottages west and
+  // south. This is what makes the court read as a small coastal settlement
+  // rather than a building line beside an empty road junction.
+  authoredArchitecturePlacement("authored.village.inn", "house_farmhouse_a", "village.inn", [0.9, 0.9, 0.9]),
+  authoredArchitecturePlacement("authored.village.market-hall", "building_thatched_cottage_a", "village.market-hall", [1.5, 1.5, 1.5]),
   authoredArchitecturePlacement("authored.village.cottage-west", "house_cottage_a", "village.cottage-west"),
-  authoredArchitecturePlacement("authored.village.cottage-southwest", "house_cottage_b", "village.cottage-southwest"),
-  authoredArchitecturePlacement("authored.village.cottage-garden", "house_cottage_c", "village.cottage-garden", [0.92, 0.92, 0.92]),
   authoredArchitecturePlacement("authored.village.cottage-south", "house_cottage_a", "village.cottage-south"),
-  authoredArchitecturePlacement("authored.village.inn", "building_inn_b", "village.inn"),
-  authoredArchitecturePlacement("authored.village.market-hall", "building_village_market_hall_b", "village.market-hall"),
-  authoredArchitecturePlacement("authored.village.barn", "building_barn_b", "village.barn"),
+  authoredArchitecturePlacement("authored.village.approach-inn", "house_farmhouse_a", "village.approach-inn", [0.9, 0.9, 0.9]),
 
   // Forest fallen log on the inland meadow slope
   authoredPlacement("authored.forest.fallen-log", { assetId: "prop_fallen_log_a", x: 26, z: -20.1, rotationY: 0.6, scale: [1, 1, 1] }),
@@ -1088,7 +1145,7 @@ const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
     islandId: "island.sunreach",
     biomeId: "biome.sunreach_warm_dry",
     assetId: "dock_straight_a",
-    x: 351,
+    x: 351 + SUNREACH_OFFSET_X,
     z: 58,
     rotationY: Math.PI * 0.5,
     scale: [1, 1, 1]
@@ -1099,7 +1156,7 @@ const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
     islandId: "island.sunreach",
     biomeId: "biome.sunreach_warm_dry",
     assetId: "building_market_stall_a",
-    x: 373,
+    x: 373 + SUNREACH_OFFSET_X,
     z: 56,
     rotationY: -Math.PI * 0.5,
     scale: [0.92, 0.92, 0.92],
@@ -1112,7 +1169,7 @@ const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
     islandId: "island.sunreach",
     biomeId: "biome.sunreach_warm_dry",
     assetId: "prop_water_well_a",
-    x: 468,
+    x: 468 + SUNREACH_OFFSET_X,
     z: 16,
     rotationY: 0.42,
     scale: [0.9, 0.9, 0.9],
@@ -1124,7 +1181,7 @@ const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
     islandId: "island.sunreach",
     biomeId: "biome.sunreach_warm_dry",
     assetId: "rock_spire_a",
-    x: 590,
+    x: 590 + SUNREACH_OFFSET_X,
     z: 25,
     rotationY: 1.18,
     scale: [1.08, 1.08, 1.08]
@@ -1135,7 +1192,7 @@ const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
     islandId: "island.sunreach",
     biomeId: "biome.sunreach_warm_dry",
     assetId: "prop_potting_bench_a",
-    x: 444,
+    x: 444 + SUNREACH_OFFSET_X,
     z: 21,
     rotationY: 2.35,
     scale: [0.82, 0.82, 0.82],
@@ -1147,7 +1204,7 @@ const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
     islandId: "island.sunreach",
     biomeId: "biome.sunreach_warm_dry",
     assetId: "prop_farm_workbench_a",
-    x: 466,
+    x: 466 + SUNREACH_OFFSET_X,
     z: 17,
     rotationY: -0.7,
     scale: [0.9, 0.9, 0.9],
@@ -1159,17 +1216,17 @@ const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
     islandId: "island.sunreach",
     biomeId: "biome.sunreach_warm_dry",
     assetId: "prop_farm_workbench_a",
-    x: 382,
+    x: 382 + SUNREACH_OFFSET_X,
     z: 61,
     rotationY: -1.5,
     scale: [0.88, 0.88, 0.88],
     grounding: [1.2, 0.85]
   },
   ...[
-    { id: "cove-north", x: 341, z: 47, rotationY: 0.18 },
-    { id: "cove-south", x: 339, z: 72, rotationY: -0.12 },
-    { id: "reef-west", x: 512, z: 194, rotationY: 0.08 },
-    { id: "reef-east", x: 550, z: 208, rotationY: -0.2 }
+    { id: "cove-north", x: 341 + SUNREACH_OFFSET_X, z: 47, rotationY: 0.18 },
+    { id: "cove-south", x: 339 + SUNREACH_OFFSET_X, z: 72, rotationY: -0.12 },
+    { id: "reef-west", x: 512 + SUNREACH_OFFSET_X, z: 194, rotationY: 0.08 },
+    { id: "reef-east", x: 550 + SUNREACH_OFFSET_X, z: 208, rotationY: -0.2 }
   ].map((buoy) => ({
     id: `authored.sunreach.buoy.${buoy.id}`,
     origin: "authored" as const,
@@ -1730,7 +1787,7 @@ function* staticPlacementSteps(worldSeed: number): Generator<void, readonly Envi
     ...SUNREACH_AUTHORED_PLACEMENTS,
     ...generateSunreachCausalCompositionPlacements(worldSeed)
   ];
-  const composed = [...existing, ...causalPlacements, ...sunreachPlacements];
+  const composed = [...existing, ...causalPlacements, ...sunreachPlacements, ...oceanIsletPlacements()];
   const staticPlacements = [...composed, ...generateLandscapeDressing(composed)].filter(retainLegacyHarborDressing);
   staticPlacements.push(...createHarborCoastPlacements());
   for (const placement of staticPlacements) {

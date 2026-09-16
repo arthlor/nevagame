@@ -26,12 +26,18 @@ export function fitQuestPointerToHud(
 ): { x: number; y: number } {
   const SIDE_INSET = 68;
   const TOP_INSET = viewport.height <= 500 ? 54 : 60;
-  const BOTTOM_INSET = viewport.height <= 500 ? 195 : 104;
   const maxX = Math.max(SIDE_INSET, viewport.width - SIDE_INSET);
+  const clampedX = Math.min(maxX, Math.max(SIDE_INSET, projection.x));
+
+  // On desktop, the bottom-right corner (~380px wide) hosts the Satchel,
+  // Field Journal, Hold & Ledger, and Pause medallions. Lift the pointer plate
+  // higher when hovering in that cluster so it does not overlap the buttons.
+  const isUtilityMedallionZone = viewport.height > 500 && clampedX > viewport.width - 380;
+  const BOTTOM_INSET = viewport.height <= 500 ? 195 : (isUtilityMedallionZone ? 140 : 104);
   const maxY = Math.max(TOP_INSET, viewport.height - BOTTOM_INSET);
 
   return {
-    x: Math.min(maxX, Math.max(SIDE_INSET, projection.x)),
+    x: clampedX,
     y: Math.min(maxY, Math.max(TOP_INSET, projection.y))
   };
 }

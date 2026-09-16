@@ -7,7 +7,7 @@ import bpy
 
 from mathutils import Euler, Vector
 
-from .geometry import _build_mesh, add_beam, add_box, add_cone, add_conforming_shell, add_ico, add_limb_tube, add_lofted_form, add_tri_prism, apply_vertex_values, graft_limb, seeded_rng
+from .geometry import _build_mesh, add_beam, add_box, add_cone, add_conforming_shell, add_cylinder, add_ico, add_limb_tube, add_lofted_form, add_ring, add_tri_prism, apply_vertex_values, graft_limb, seeded_rng
 from .materials import get_or_create_material
 
 
@@ -533,3 +533,200 @@ def add_mooring_cleat(prefix, center, length, token, parent, *, yaw=0.0):
         (length, length * 0.12, 0.05), token, parent,
         rotation=(0, 0, yaw), bevel=0.012,
     )
+
+
+def add_stall_timber_frame(prefix, width, depth, wall_base, wall_height, token, parent, *, post_w=0.16, proud=0.02, seed=0):
+    """Medieval stall timber language: proud posts, plates, ties, 45deg braces, girts."""
+    rng = seeded_rng(seed)
+    wall_cz = wall_base + wall_height * 0.5
+    for x_idx, px in enumerate((-width * 0.5 + post_w * 0.5 - proud, width * 0.5 - post_w * 0.5 + proud)):
+        for y_idx, py in enumerate((-depth * 0.5 + post_w * 0.5 - proud, depth * 0.5 - post_w * 0.5 + proud)):
+            add_box(
+                f"{prefix}_post_{x_idx}_{y_idx}", (px, py, wall_cz),
+                (post_w, post_w, wall_height), token, parent, bevel=0.02,
+            )
+    for side in (-1, 1):
+        add_box(
+            f"{prefix}_plate_{'p' if side > 0 else 'n'}",
+            (side * (width * 0.5 - post_w * 0.5 + 0.02), 0, wall_base + wall_height - post_w * 0.5),
+            (post_w + 0.04, depth + 0.35, post_w), token, parent, bevel=0.018,
+        )
+        add_box(
+            f"{prefix}_tie_{'p' if side > 0 else 'n'}",
+            (0, side * (depth * 0.5 - post_w * 0.5 + 0.015), wall_base + wall_height - post_w * 0.5),
+            (width + 0.15, post_w + 0.03, post_w), token, parent, bevel=0.018,
+        )
+    brace_len = math.sqrt(2.0) * 0.40
+    for side in (-1, 1):
+        for end in (-1, 1):
+            add_box(
+                f"{prefix}_brace_{'p' if side > 0 else 'n'}_{'p' if end > 0 else 'n'}",
+                (side * (width * 0.5 - 0.03), end * (depth * 0.5 - post_w - 0.20), wall_base + wall_height - post_w - 0.20),
+                (0.11, 0.11, brace_len), token, parent,
+                rotation=(end * math.pi * 0.25, 0, 0), bevel=0.012,
+            )
+    add_box(
+        f"{prefix}_girt_rear", (0, -(depth * 0.5 - 0.03), wall_base + wall_height * 0.45),
+        (width - 2.0 * (post_w - proud), 0.10, 0.12), token, parent, bevel=0.012,
+    )
+    add_box(
+        f"{prefix}_girt_side", (-(width * 0.5 - 0.03), 0, wall_base + wall_height * 0.45),
+        (0.10, depth - 2.0 * (post_w - proud), 0.12), token, parent, bevel=0.012,
+    )
+    void = rng.random()
+    void = void
+
+
+def add_stall_tile_field(prefix, width, depth, wall_top, rise, tokens, parent, *, rows=8, columns=9, seed=0):
+    """Lapped half-bond cambered plain tiles with timber ridge, stall pitch math."""
+    rng = seeded_rng(seed)
+    half_span = width * 0.5 + 0.40
+    pitch = math.atan2(rise, half_span)
+    slope = math.hypot(half_span, rise)
+    row_pitch = slope / rows
+    tile_len = row_pitch * 1.4
+    tile_w = 0.22
+    for side in (-1, 1):
+        for row in range(rows):
+            dist = row_pitch * (row + 0.55)
+            x = side * (half_span - math.cos(pitch) * dist)
+            z = wall_top + math.sin(pitch) * dist + 0.06
+            offset = (tile_w * 0.5) if row % 2 else 0.0
+            for col in range(columns):
+                y = -depth * 0.5 - 0.30 + (depth + 0.72) / columns * (col + 0.5) + offset * 0.12
+                token = tokens[(row + col + (1 if side > 0 else 0)) % len(tokens)]
+                add_box(
+                    f"{prefix}_{'r' if side > 0 else 'l'}_{row:02d}_{col:02d}",
+                    (x, y, z + rng.uniform(-0.008, 0.008)),
+                    (row_pitch * 0.42, tile_w * 0.92, tile_len * 0.32),
+                    token, parent,
+                    rotation=(0, side * pitch, rng.uniform(-0.02, 0.02)), bevel=0.008,
+                )
+    add_box(
+        f"{prefix}_ridge", (0, 0, wall_top + rise + 0.08),
+        (0.22, depth + 0.75, 0.20), tokens[0], parent, bevel=0.02,
+    )
+
+
+def add_stall_bullnose_awning(prefix, center_x, rear_y, rear_z, width, run, drop, token_a, token_b, timber_token, parent, *, stripes=7, seed=0):
+    """Bullnose striped canopy at 30deg world pitch with V-point valance and posts."""
+    rng = seeded_rng(seed)
+    stripe_w = width / stripes
+    front_y = rear_y + run
+    front_z = rear_z - drop
+    pitch = math.atan2(drop, run)
+    add_box(f"{prefix}_rear_beam", (center_x, rear_y, rear_z), (width + 0.04, 0.08, 0.08), timber_token, parent, bevel=0.012)
+    add_box(f"{prefix}_front_beam", (center_x, front_y, front_z), (width + 0.04, 0.09, 0.09), timber_token, parent, bevel=0.012)
+    for p_idx, px in enumerate((center_x - width * 0.5 + 0.08, center_x + width * 0.5 - 0.08)):
+        add_box(f"{prefix}_post_{p_idx}", (px, front_y - 0.07, front_z * 0.5), (0.14, 0.14, front_z), timber_token, parent, bevel=0.018)
+        add_beam(
+            f"{prefix}_brace_{p_idx}",
+            (px, front_y - 0.03, front_z - 0.35),
+            (px + (0.37 if p_idx == 0 else -0.37), front_y - 0.03, front_z - 0.05),
+            0.055, timber_token, parent, vertices=4,
+        )
+    for s in range(stripes):
+        token = token_b if s % 2 else token_a
+        sx = center_x - width * 0.5 + stripe_w * (s + 0.5)
+        sag = 0.10 * math.sin(math.pi * 0.62)
+        add_box(
+            f"{prefix}_panel_{s:02d}", (sx, rear_y + run * 0.5, rear_z - drop * 0.5 - sag * 0.4),
+            (stripe_w * 0.94, run * 1.02, 0.05), token, parent,
+            rotation=(pitch + rng.uniform(-0.008, 0.008), 0, 0), bevel=0.008,
+        )
+        add_box(
+            f"{prefix}_valance_{s:02d}", (sx, front_y + 0.04, front_z - 0.085),
+            (stripe_w * 0.90, 0.014, 0.17), token, parent, bevel=0.006,
+        )
+        add_tri_prism(
+            f"{prefix}_valance_point_{s:02d}", (sx, front_y + 0.04, front_z - 0.205),
+            (stripe_w * 0.90, 0.014, 0.07), token, parent,
+            rotation=(0, math.pi, 0),
+        )
+    for r in range(5):
+        rx = center_x - width * 0.48 + width * 0.96 * r / 4
+        add_box(
+            f"{prefix}_rafter_{r}", (rx, rear_y + run * 0.5, rear_z - drop * 0.5 + 0.06),
+            (0.09, 0.09, run + 0.20), timber_token, parent,
+            rotation=(pitch, 0, 0), bevel=0.008,
+        )
+
+
+def add_stall_coopered_barrel(prefix, center, radius, height, wood_token, iron_token, parent, *, staves=12, seed=0):
+    """Coopered barrel with bulged staves,ON-bulge hoops, and lid."""
+    cx, cy, cz = center
+    rng = seeded_rng(seed)
+    profile = [((cx, cy, cz + height * t), radius * (1.0 + 0.16 * math.sin(t * math.pi)), radius * (1.0 + 0.16 * math.sin(t * math.pi))) for t in (0, 0.18, 0.5, 0.82, 1.0)]
+    for index in range(staves):
+        angle = index * math.tau / staves + rng.uniform(-0.008, 0.008)
+        add_conforming_shell(
+            f"{prefix}_stave_{index:02d}", profile, wood_token, parent,
+            arc=(angle + 0.006, angle + math.tau / staves - 0.006),
+            offset=-radius * 0.055, thickness=radius * 0.055, segments=1,
+        )
+    for h_idx, v in enumerate((0.10, 0.27, 0.73, 0.90)):
+        band_r = radius * (1.0 + 0.16 * math.sin(v * math.pi)) + 0.012
+        add_ring(f"{prefix}_hoop_{h_idx}", (cx, cy, cz + height * (v - 0.5)), band_r, 0.022, iron_token, parent, major_segments=16, minor_segments=4)
+    add_cylinder(f"{prefix}_lid", (cx, cy, cz + height * 0.5 - 0.03), radius * 0.97, 0.03, wood_token, parent, vertices=16)
+
+
+def add_stall_arched_doorway(prefix, center, width, height, stone_tokens, wood_token, iron_token, parent, *, voussoirs=11, seed=0):
+    """Semicircular stone arch with jambs, plank leaf, straps, and ring pull."""
+    cx, cy, cz = center
+    arch_r = width * 0.5
+    rect_h = height - arch_r
+    rng = seeded_rng(seed)
+    for index in range(voussoirs):
+        theta = math.pi * index / max(1, voussoirs - 1)
+        vx = cx + math.cos(theta) * (arch_r + 0.08)
+        vz = cz + rect_h + math.sin(theta) * (arch_r + 0.08)
+        add_box(
+            f"{prefix}_voussoir_{index:02d}", (vx, cy, vz),
+            (0.14, 0.18, 0.115), stone_tokens[index % len(stone_tokens)], parent,
+            rotation=(0, -theta + math.pi * 0.5, 0), bevel=0.02,
+        )
+    for j in range(4):
+        add_box(f"{prefix}_jamb_l_{j}", (cx - arch_r - 0.08, cy, cz + 0.14 + j * 0.28), (0.17, 0.18, 0.27), stone_tokens[j % len(stone_tokens)], parent, bevel=0.014)
+        add_box(f"{prefix}_jamb_r_{j}", (cx + arch_r + 0.08, cy, cz + 0.14 + j * 0.28), (0.17, 0.18, 0.27), stone_tokens[(j + 1) % len(stone_tokens)], parent, bevel=0.014)
+    add_box(f"{prefix}_leaf", (cx, cy - 0.01, cz + height * 0.5), (width, 0.05, height), wood_token, parent, bevel=0.01)
+    for s_idx, sz in enumerate((height * 0.22, height * 0.68)):
+        add_box(f"{prefix}_strap_{s_idx}", (cx + 0.03, cy - 0.045, cz + sz), (width * 0.74, 0.018, 0.04), iron_token, parent, bevel=0.006)
+    add_ring(f"{prefix}_pull", (cx + 0.17, cy - 0.06, cz + height * 0.44), 0.038, 0.011, iron_token, parent, major_segments=12, minor_segments=6)
+    void = rng.random()
+    void = void
+
+
+def add_stall_trade_sign(prefix, origin, boom_len, board_w, board_h, timber_token, iron_token, board_token, parent):
+    """Braced boom, iron straps and chains, octagonal produce board."""
+    ox, oy, oz = origin
+    add_box(f"{prefix}_post", (ox, oy, oz - 0.125), (0.13, 0.13, 0.55), timber_token, parent, bevel=0.012)
+    add_box(f"{prefix}_boom", (ox - boom_len * 0.5 + 0.03, oy, oz), (boom_len, 0.13, 0.13), timber_token, parent, bevel=0.012)
+    add_beam(f"{prefix}_brace", (ox - 0.065, oy, oz - 0.065), (ox - 0.40, oy, oz - 0.36), 0.06, timber_token, parent, vertices=4)
+    for c_idx, bx in enumerate((ox - 0.42, ox - 0.88)):
+        add_box(f"{prefix}_strap_{c_idx}", (bx, oy, oz), (0.035, 0.15, 0.15), iron_token, parent, bevel=0.006)
+        add_ring(f"{prefix}_link_a_{c_idx}", (bx, oy, oz - 0.105), 0.03, 0.008, iron_token, parent, major_segments=10, minor_segments=5)
+        add_ring(f"{prefix}_link_b_{c_idx}", (bx, oy, oz - 0.175), 0.03, 0.008, iron_token, parent, major_segments=10, minor_segments=5)
+    board_cx = ox - 0.65
+    add_box(f"{prefix}_board", (board_cx, oy, oz - 0.42), (board_w, 0.05, board_h), board_token, parent, bevel=0.012)
+
+
+def add_stall_produce_crate(prefix, center, width, height, depth, wood_token, dark_token, parent, *, tilt_deg=21.8, seed=0):
+    """Slatted produce crate tilted forward, front edge bearing on counter."""
+    cx, cy, cz = center
+    rng = seeded_rng(seed)
+    tilt = math.radians(tilt_deg)
+    add_box(f"{prefix}_floor", (cx, cy, cz), (width, depth, 0.02), wood_token, parent, rotation=(tilt, 0, 0), bevel=0.008)
+    for cx_idx, sx in enumerate((-1, 1)):
+        for cz_idx, sz in enumerate((-1, 1)):
+            add_box(
+                f"{prefix}_corner_{cx_idx}_{cz_idx}", (cx + sx * (width * 0.5 - 0.016), cy + sz * (depth * 0.5 - 0.016), cz + height * 0.5),
+                (0.032, 0.032, height), dark_token, parent, rotation=(tilt, 0, 0), bevel=0.008,
+            )
+    for tier in range(2):
+        sy = cz + 0.02 + 0.028 + tier * 0.066
+        add_box(f"{prefix}_slat_f_{tier}", (cx, cy + depth * 0.5 - 0.01, sy), (width, 0.02, 0.056), wood_token, parent, rotation=(tilt, 0, 0), bevel=0.006)
+        add_box(f"{prefix}_slat_b_{tier}", (cx, cy - depth * 0.5 + 0.01, sy), (width, 0.02, 0.056), wood_token, parent, rotation=(tilt, 0, 0), bevel=0.006)
+        add_box(f"{prefix}_slat_l_{tier}", (cx - width * 0.5 + 0.01, cy, sy), (0.02, depth - 0.04, 0.056), wood_token, parent, rotation=(tilt, 0, 0), bevel=0.006)
+        add_box(f"{prefix}_slat_r_{tier}", (cx + width * 0.5 - 0.01, cy, sy), (0.02, depth - 0.04, 0.056), wood_token, parent, rotation=(tilt, 0, 0), bevel=0.006)
+    void = rng.random()
+    void = void

@@ -443,7 +443,7 @@ describe("PhysicsWorld", () => {
   });
 
   it("keeps players out of the river and blocks catalog-projected farmhouse walls", async () => {
-    const farmhouseCollision = landmarkCollision(ASSET_IDS.HOUSE_FARMHOUSE_A, "farmhouse");
+    const farmhouseCollision = landmarkCollision(ASSET_IDS.BUILDING_MEDIEVAL_TIMBER_COTTAGE_A, "farmhouse");
     const physics = await PhysicsWorld.create(farmhouseCollision);
     const sim = new Simulation();
     const farmhouse = WorldLayout.landmark("farmhouse");

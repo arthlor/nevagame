@@ -1,3 +1,4 @@
+import { SUNREACH_OFFSET_X } from "../world/WorldIslands";
 // src/content/quests.ts
 
 import { MAIN_QUEST_TRACK_ID, type QuestDefinition } from "../simulation/core/QuestTypes";
@@ -14,8 +15,8 @@ const COMPOST_BIN = starterStructureAnchor("struct.starter_compost")!;
 const BRIDGE = WorldLayout.landmark("bridge");
 const VILLAGE_MARKET_ANCHOR = { ...VILLAGE_MARKET.position, name: "Village Produce Stall" } as const;
 const HARBOR_MARKET = WorldLayout.landmark("fish-market");
-/** Centre of the private homestead's single plantable area. */
-const HOMESTEAD_PLOT = { x: 63.5, z: -62.5, name: "Private Homestead" };
+/** Centre clearing of the shared beds, beyond the Commons entrance. */
+const COMMONS_PLOT = { x: 82, z: -78, name: "Village Commons" };
 const LAKE_SCHOOL_ANCHOR = { x: 18, z: WorldLayout.coastlineZ(18) + 12, name: "Lake Sport-Fishing School" } as const;
 const SUNREACH_COVE = { ...SUNREACH_ANCHORS.coveMarket, name: "Sunreach Cove" } as const;
 const SUNREACH_TERRACES = { ...SUNREACH_ANCHORS.terraceFarm, name: "Sunreach Terraces" } as const;
@@ -55,8 +56,8 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Inherited Soil",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Welcome to Neva Cove, dear! Your family once tended these quiet coastal fields and sailed the deep waters beyond the headland.",
-      "The old homestead has waited a long time for you. Let's start with the foundation of all life on the island: the soil.",
+      "Welcome to Neva Cove, dear! Your family farmhouse and starter field are waiting for you — they are yours by inheritance, not something you have to buy back from the village.",
+      "They once tended these quiet coastal fields and sailed the deep waters beyond the headland. Let's start with the foundation of all life on the island: the soil.",
       "Take these wheat seeds. Head into the prepared garden field just behind me to begin."
     ],
     completionDialogue: [
@@ -393,10 +394,10 @@ export const QUESTS: QuestDefinition[] = [
       "This is what it's all about. Board your rowboat with your Chum Bucket and Woven Lures, then steer out toward the open water.",
       "Look for circling gulls and water disturbances. Approach the school, cast your chum to ignite a frenzy, arm a lure with [R], and hook the fish!",
       "Manage your line tension: reel when safe, slack when the line strains orange, and counter the runs with [A] and [D].",
-      "Stow your catch in the boat hold, race back before freshness drops, and sell to Maeve!"
+      "Stow your catch in the boat hold, race back before freshness drops, collect the pack by hand, and carry it inland to the Village Trade Center."
     ],
     completionDialogue: [
-      "Magnificent! You've mastered the first loop of Neva: from wheat seed, to worm, to chum, to lake sport fish, to harbor gold!",
+      "Magnificent! You've mastered the first loop of Neva: from wheat seed, to worm, to chum, to lake sport fish, to a hand-carried trade-pack sale!",
       "The Expedition Board is active now. Keep tending the homestead, learning the water, and preparing for longer routes."
     ],
     objectives: [
@@ -450,10 +451,10 @@ export const QUESTS: QuestDefinition[] = [
       {
         id: "step.act5_sell_fish",
         type: "sell-fish",
-        description: "Dock at Harbor and sell your fresh sport fish to Maeve",
+        description: "Collect the trade pack from your docked boat and sell it at the Village Trade Center",
         targetQuantity: 1,
-        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" },
-        location: { kind: "market", id: "market.harbor" }
+        locationAnchor: VILLAGE_MARKET_ANCHOR,
+        location: { kind: "market", id: "market.village" }
       },
       {
         id: "step.act5_return_to_silas",
@@ -697,8 +698,8 @@ export const QUESTS: QuestDefinition[] = [
       "Field work has become reef preparation. That is the Sunreach way."
     ],
     objectives: [
-      { id: "step.act7_mill_sunflower", type: "craft-recipe", description: "Mill Sunflower Seed into Ground Grain", targetId: "recipe.sunflower_to_grain", targetQuantity: 1, locationAnchor: { x: 444, z: 21, name: "Sunreach Hand Mill" }, location: { kind: "station", id: "struct.sunreach_hand_mill" } },
-      { id: "step.act7_craft_sunreach_chum", type: "craft-recipe", description: "Craft Chum at the Sunreach Workbench", targetId: "recipe.craft_chum", targetQuantity: 1, locationAnchor: { x: 466, z: 17, name: "Sunreach Workbench" }, location: { kind: "station", id: "struct.sunreach_workbench" } }
+      { id: "step.act7_mill_sunflower", type: "craft-recipe", description: "Mill Sunflower Seed into Ground Grain", targetId: "recipe.sunflower_to_grain", targetQuantity: 1, locationAnchor: { x: 444 + SUNREACH_OFFSET_X, z: 21, name: "Sunreach Hand Mill" }, location: { kind: "station", id: "struct.sunreach_hand_mill" } },
+      { id: "step.act7_craft_sunreach_chum", type: "craft-recipe", description: "Craft Chum at the Sunreach Workbench", targetId: "recipe.craft_chum", targetQuantity: 1, locationAnchor: { x: 466 + SUNREACH_OFFSET_X, z: 17, name: "Sunreach Workbench" }, location: { kind: "station", id: "struct.sunreach_workbench" } }
     ],
     rewards: { items: [{ itemId: "item.bait_worms", quantity: 6 }], skillXp: [{ skill: "processing", xp: 700 }] },
     nextQuestId: "quest.act7_reef_answer"
@@ -712,10 +713,10 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.tomas",
     introDialogue: [
       "Take the skiff round to the reef edge, where the shelf drops away, and chum the school there. That is where this island's fish actually are.",
-      "Then work a light line from the deck. The golden sea bream hold along that edge, and one of them belongs in your hold and then on my cove scales while it is fresh."
+      "Then work a light line from the deck. The golden sea bream hold along that edge. Bring one home in the hold, collect the pack from the dock, and carry it to the inland Village Trade Center while it is fresh."
     ],
     completionDialogue: [
-      "Fresh, local, and landed with room to spare. The reef has answered your preparation."
+      "Fresh, local, and landed with room to spare. The reef has answered your preparation, and the inland counter has weighed it fairly."
     ],
     objectives: [
       { id: "step.act7_chum_sunreach", type: "chum-school", description: "Chum the school at the Sunreach reef edge", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
@@ -723,7 +724,7 @@ export const QUESTS: QuestDefinition[] = [
       // One bream landed from the skiff closes this and the step above
       // together; a shore-caught first bream leaves this one to the deck.
       { id: "step.act7_stow_bream", type: "catch-basic-fish", description: "Land a Sea Bream from the deck of your skiff", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "boat", id: "boat.player_skiff" } },
-      { id: "step.act7_sell_bream", type: "sell-fish", description: "Sell the fresh Sea Bream at Sunreach Cove", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: SUNREACH_COVE, location: { kind: "market", id: "market.sunreach_cove" } }
+      { id: "step.act7_sell_bream", type: "sell-fish", description: "Collect the Sea Bream pack and sell it at the Village Trade Center", targetId: "fish.sea_bream", targetQuantity: 1, locationAnchor: VILLAGE_MARKET_ANCHOR, location: { kind: "market", id: "market.village" } }
     ],
     rewards: { money: 240, skillXp: [{ skill: "fishing", xp: 900 }, { skill: "trading", xp: 500 }] },
     nextQuestId: "quest.act7_land_sea_cycle"
@@ -747,7 +748,7 @@ export const QUESTS: QuestDefinition[] = [
       // step is the press; the step count stays fixed because saves store the
       // active step by index.
       { id: "step.act7_catch_sardine", type: "catch-basic-fish", description: "Catch two Sunreach Sardines in the cove", targetId: "fish.sardine", targetQuantity: 2, locationAnchor: SUNREACH_COVE, location: { kind: "ecology", id: "ecology.sunreach" } },
-      { id: "step.act7_press_fertilizer", type: "craft-recipe", description: "Clean the Sardines, then press Fish Scraps into Fertilizer", targetId: "recipe.fish_to_fertilizer", targetQuantity: 1, locationAnchor: { x: 382, z: 61, name: "Sunreach Fish Table" }, location: { kind: "station", id: "struct.sunreach_fish_table" } },
+      { id: "step.act7_press_fertilizer", type: "craft-recipe", description: "Clean the Sardines, then press Fish Scraps into Fertilizer", targetId: "recipe.fish_to_fertilizer", targetQuantity: 1, locationAnchor: { x: 382 + SUNREACH_OFFSET_X, z: 61, name: "Sunreach Fish Table" }, location: { kind: "station", id: "struct.sunreach_fish_table" } },
       { id: "step.act7_fertilize_terraces", type: "apply-fertilizer", description: "Fertilize the Sunreach Terraces", targetId: "farm.sunreach_terraces", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES, location: { kind: "farm", id: "farm.sunreach_terraces" } },
       { id: "step.act7_report_ines", type: "talk-npc", description: "Report back to Ines", targetId: "npc.ines", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES }
     ],
@@ -916,11 +917,11 @@ export const QUESTS: QuestDefinition[] = [
       {
         id: "step.tides_sell_sturgeon",
         type: "sell-fish",
-        description: "Sell the Sturgeon at the Fish Market",
+        description: "Collect the Sturgeon pack and sell it at the Village Trade Center",
         targetId: "fish.sturgeon",
         targetQuantity: 1,
-        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" },
-        location: { kind: "market", id: "market.harbor" }
+        locationAnchor: VILLAGE_MARKET_ANCHOR,
+        location: { kind: "market", id: "market.village" }
       }
     ],
     rewards: { money: 320, skillXp: [{ skill: "fishing", xp: 1100 }, { skill: "trading", xp: 400 }] },
@@ -1015,24 +1016,24 @@ export const QUESTS: QuestDefinition[] = [
   },
 
   // ===========================================================================
-  // Side track: The Family Ledger (track.homestead)
+  // Side track: The Cove Commons (track.homestead)
   //
-  // The inheritance premise was three sentences of dialogue and nothing else,
-  // and `farm.player_homestead` -- a fully defined second farm -- was referenced
-  // by no quest, gate or structure. This chain pays the first off by putting
-  // the player to work on the second. It ends on the apple tree, a genuine
-  // late goal, which is pacing only a side track can carry.
+  // The player already inherits the farmhouse and starter field. This chain
+  // therefore advances through stewardship rather than property: saved seed,
+  // a public commons field, a fair produce contribution, shared tools and a
+  // long-lived community orchard. `farm.player_homestead` is a stable save id
+  // for the commons, not a private plot offered by the market.
   // ===========================================================================
   {
     id: "quest.homestead_seed_pouch",
     trackId: HOMESTEAD_QUEST_TRACK_ID,
     actId: "track_homestead",
-    actTitle: "The Family Ledger",
-    questTitle: "The Seed Pouch",
+    actTitle: "The Cove Commons",
+    questTitle: "The Family Key",
     speakerId: "npc.elspeth",
     introDialogue: [
       "There is something I kept back, and I am sorry for it. A seed pouch, oilcloth, tied at the neck. It hung in your family's kitchen for as long as I knew them.",
-      "The private rows east of the village are theirs too - overgrown now, but the soil under them is the best on this island. Take the pouch. Go and look at what you actually inherited."
+      "Your farmhouse and starter field are already yours. No deed at the market, no lease to renew. What you can earn here is the cove's trust — take the pouch and help keep the Village Commons in rotation."
     ],
     completionDialogue: [
       "They saved seed every year rather than buy it. That is not thrift. That is a person deciding there will be a next season."
@@ -1058,32 +1059,32 @@ export const QUESTS: QuestDefinition[] = [
     id: "quest.homestead_overgrown_rows",
     trackId: HOMESTEAD_QUEST_TRACK_ID,
     actId: "track_homestead",
-    actTitle: "The Family Ledger",
-    questTitle: "The Overgrown Rows",
+    actTitle: "The Cove Commons",
+    questTitle: "A Furrow for Everyone",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "So you found the private rows. Good soil, bad state. Nobody has turned it since before you came.",
-      "Put the family's own wheat back in it - three rows will do to start - and water them in. Land forgets fast, but it forgives faster."
+      "Those eastern rows are the Village Commons: no farmhouse, no private fence, no market claim. Everyone in the cove gets a share when the soil is kept working.",
+      "Put the family's saved wheat into three rows and water them in. Your own field is home; this one is how you become part of the place around it."
     ],
     completionDialogue: [
-      "Rows in, water on. That plot has been waiting years for exactly that and nothing more."
+      "Rows in, water on. A commons is not owned by the loudest voice — it lasts because somebody turns the soil when it needs turning."
     ],
     objectives: [
       {
         id: "step.homestead_plant_wheat",
         type: "plant-crop",
-        description: "Plant 3 Wheat on the private homestead",
+        description: "Plant 3 Wheat in the Village Commons",
         targetId: "crop.wheat",
         targetQuantity: 3,
-        locationAnchor: HOMESTEAD_PLOT,
+        locationAnchor: COMMONS_PLOT,
         location: { kind: "farm", id: "farm.player_homestead" }
       },
       {
         id: "step.homestead_water_wheat",
         type: "water-crop",
-        description: "Water the homestead rows",
+        description: "Water the commons rows",
         targetQuantity: 3,
-        locationAnchor: HOMESTEAD_PLOT,
+        locationAnchor: COMMONS_PLOT,
         location: { kind: "farm", id: "farm.player_homestead" }
       }
     ],
@@ -1094,24 +1095,24 @@ export const QUESTS: QuestDefinition[] = [
     id: "quest.homestead_first_crop",
     trackId: HOMESTEAD_QUEST_TRACK_ID,
     actId: "track_homestead",
-    actTitle: "The Family Ledger",
-    questTitle: "The First Crop Home",
+    actTitle: "The Cove Commons",
+    questTitle: "A Fair Share",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "When it comes ripe, bring it in yourself. All three rows.",
-      "Then take one measure to the village stall and sell it there. Not for the coin. So the stall sees that plot is being worked again."
+      "When it comes ripe, bring in all three rows yourself. A shared field only matters if its harvest actually reaches people.",
+      "Take one measure to the village stall and sell it there. The coin is yours for the work; the useful part is putting fresh food back into the cove's daily trade."
     ],
     completionDialogue: [
-      "Word travels faster than wheat. That plot has a name at the market again, and it is yours now."
+      "That is a fair share. The commons has a harvest on the books again, and the cove knows it can count on you."
     ],
     objectives: [
       {
         id: "step.homestead_harvest_wheat",
         type: "harvest-crop",
-        description: "Harvest 3 Wheat from the homestead",
+        description: "Harvest 3 Wheat from the Village Commons",
         targetId: "crop.wheat",
         targetQuantity: 3,
-        locationAnchor: HOMESTEAD_PLOT,
+        locationAnchor: COMMONS_PLOT,
         location: { kind: "farm", id: "farm.player_homestead" }
       },
       {
@@ -1131,12 +1132,12 @@ export const QUESTS: QuestDefinition[] = [
     id: "quest.homestead_worn_tools",
     trackId: HOMESTEAD_QUEST_TRACK_ID,
     actId: "track_homestead",
-    actTitle: "The Family Ledger",
-    questTitle: "The Worn Tools",
+    actTitle: "The Cove Commons",
+    questTitle: "Tools That Outlast Us",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "Look at the mill handle sometime. Worn on one side only, and not by you.",
-      "Grind some of that homestead wheat there. Same stone, same handle, same grip. That is the whole inheritance, if you want my opinion on it."
+      "Look at the village mill handle sometime. Worn on one side only, and not by you.",
+      "Grind some of that commons wheat there. The same stone serves every family in the cove. That is the useful part of an inheritance: a tool kept ready for the next pair of hands."
     ],
     completionDialogue: [
       "Every tool on this island is a record of the hands that used it. Yours are on that handle now too."
@@ -1145,7 +1146,7 @@ export const QUESTS: QuestDefinition[] = [
       {
         id: "step.homestead_mill_grain",
         type: "craft-recipe",
-        description: "Mill Wheat into Ground Grain at the family mill",
+        description: "Mill Wheat into Ground Grain at the village mill",
         targetId: "recipe.wheat_to_grain",
         targetQuantity: 1,
         locationAnchor: { x: STARTER_MILL.x, z: STARTER_MILL.z, name: "Village Mill" },
@@ -1163,33 +1164,33 @@ export const QUESTS: QuestDefinition[] = [
     id: "quest.homestead_orchard",
     trackId: HOMESTEAD_QUEST_TRACK_ID,
     actId: "track_homestead",
-    actTitle: "The Family Ledger",
-    questTitle: "The Family Orchard",
+    actTitle: "The Cove Commons",
+    questTitle: "Shade for the Next Season",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "One thing is still missing from that plot, and it will take you a long while to put back.",
-      "There were apple trees on the homestead. An orchard is not a crop - you will not see fruit for a good long stretch, and whoever plants one is mostly planting it for somebody else. Plant a sapling there. Bring me the first apple off it, whenever that is."
+      "One thing is still missing from the commons, and it will take a long while to grow.",
+      "Plant an apple sapling there. An orchard is not a private claim or a quick payout — it is shade and fruit for people you may never meet. Bring me the first apple whenever the tree is ready."
     ],
     completionDialogue: [
-      "Then the ledger is current again. Someone kept it before you, and now you are the one keeping it. That is all inheriting anything ever means."
+      "Then the commons has a future written into it. Your family kept a home for you; you have kept something useful for the people after you. That is how a place remembers us."
     ],
     objectives: [
       {
         id: "step.homestead_plant_orchard",
         type: "plant-crop",
-        description: "Plant an Apple Tree on the homestead",
+        description: "Plant an Apple Tree in the Village Commons",
         targetId: "crop.apple_tree",
         targetQuantity: 1,
-        locationAnchor: HOMESTEAD_PLOT,
+        locationAnchor: COMMONS_PLOT,
         location: { kind: "farm", id: "farm.player_homestead" }
       },
       {
         id: "step.homestead_harvest_apple",
         type: "harvest-crop",
-        description: "Harvest the first apple",
+        description: "Harvest the first apple from the commons",
         targetId: "crop.apple_tree",
         targetQuantity: 1,
-        locationAnchor: HOMESTEAD_PLOT,
+        locationAnchor: COMMONS_PLOT,
         location: { kind: "farm", id: "farm.player_homestead" }
       },
       {
@@ -1201,6 +1202,7 @@ export const QUESTS: QuestDefinition[] = [
         locationAnchor: { x: -63.5, z: -62, name: "Starter Garden Gate" }
       }
     ],
+    turnInCost: { items: [{ itemId: "produce.apple", quantity: 1 }] },
     rewards: {
       money: 300,
       skillXp: [{ skill: "farming", xp: 1500 }],
@@ -1415,7 +1417,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Run the cistern through the terraces from the well",
         targetId: "farm.sunreach_terraces",
         targetQuantity: 1,
-        locationAnchor: { x: 451.2, z: 7.4, name: "Sunreach Terrace Well" },
+        locationAnchor: { x: 451.2 + SUNREACH_OFFSET_X, z: 7.4, name: "Sunreach Terrace Well" },
         location: { kind: "farm", id: "farm.sunreach_terraces" }
       }
     ],
@@ -1481,7 +1483,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Salt-cure the sardines at the Sunreach fish table",
         targetId: "recipe.cure_sardine",
         targetQuantity: 1,
-        locationAnchor: { x: 382, z: 61, name: "Sunreach Fish Table" },
+        locationAnchor: { x: 382 + SUNREACH_OFFSET_X, z: 61, name: "Sunreach Fish Table" },
         location: { kind: "station", id: "struct.sunreach_fish_table" }
       }
     ],
@@ -1621,11 +1623,11 @@ export const QUESTS: QuestDefinition[] = [
       {
         id: "step.act9_sell_swordfish",
         type: "sell-fish",
-        description: "Sell the Swordfish at the Fish Market",
+        description: "Collect the Swordfish pack and sell it at the Village Trade Center",
         targetId: "fish.swordfish",
         targetQuantity: 1,
-        locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" },
-        location: { kind: "market", id: "market.harbor" }
+        locationAnchor: VILLAGE_MARKET_ANCHOR,
+        location: { kind: "market", id: "market.village" }
       }
     ],
     rewards: { money: 400, skillXp: [{ skill: "fishing", xp: 1400 }, { skill: "trading", xp: 500 }] },

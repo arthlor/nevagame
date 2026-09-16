@@ -16,6 +16,7 @@ import {
 const STATIONS = [
   { stationId: "struct.starter_mill", center: starterStructureAnchor("struct.starter_mill")! },
   { stationId: "struct.workbench", center: starterStructureAnchor("struct.workbench")! },
+  { stationId: "struct.kitchen", center: starterStructureAnchor("struct.kitchen")! },
   { stationId: "struct.starter_compost", center: starterStructureAnchor("struct.starter_compost")! },
   {
     stationId: HARBOR_FISH_TABLE.structureId,
@@ -56,11 +57,13 @@ function directionFromCenter(center: { x: number; z: number }, point: { x: numbe
 describe("processing station front approach", () => {
   it("defines exactly the authored interactive station fronts", () => {
     // Exact equality on purpose: this is the guard against a station being
-    // added or dropped without anyone noticing. Sunreach contributed three.
+    // added or dropped without anyone noticing. Sunreach contributed three;
+    // the farm kitchen contributes the fourth new entry.
     expect(PROCESSING_STATION_IDS).toEqual([
       "struct.starter_mill",
       "struct.workbench",
       "struct.starter_compost",
+      "struct.kitchen",
       HARBOR_FISH_TABLE.structureId,
       "struct.sunreach_hand_mill",
       "struct.sunreach_workbench",
@@ -96,6 +99,9 @@ describe("processing station front approach", () => {
     const millAccess = VILLAGE_MARKET.position;
     const accessPoints = new Map([
       ["struct.workbench", workbenchAccess],
+      // The kitchen serves the farmhouse, not the western work trail: its
+      // approach faces the home-lane door.
+      ["struct.kitchen", farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x: 11.24, z: 1.21 })],
       ["struct.starter_compost", compostAccess],
       ["struct.starter_mill", millAccess],
       [HARBOR_FISH_TABLE.structureId, HARBOR_DOCK.playerPosition]

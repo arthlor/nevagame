@@ -1,4 +1,5 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { FISH_TRADE_CENTER_MARKET_ID } from "../../content/markets";
 import type { MarketDemandSignal } from "../core/contracts";
 import type { ContractState, GameState } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
@@ -158,7 +159,10 @@ function marketOpportunity(
   signal: MarketDemandSignal,
   vesselId: string | null
 ): ExpeditionOpportunityDto | null {
-  const marketId = tone === "steady" ? "market.village" : "market.harbor";
+  // Physical sport/basic catches are trade packs sold at the inland counter;
+  // keep the opportunity destination aligned with the sale lane instead of
+  // advertising a fish-market run that can never settle.
+  const marketId = tone === "steady" ? FISH_TRADE_CENTER_MARKET_ID : signal.marketId;
   const market = state.markets[marketId];
   if (!market || !signal.success || !signal.itemId || !signal.itemName || !signal.demandLabel) return null;
   const itemId = signal.itemId;

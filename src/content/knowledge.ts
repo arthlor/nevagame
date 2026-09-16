@@ -36,7 +36,7 @@ export const KNOWLEDGE_ENTRIES: Record<string, KnowledgeEntryDefinition> = {
   "knowledge.family_ledger": {
     id: "knowledge.family_ledger",
     title: "The Family Ledger",
-    summary: "The private homestead was worked long before you arrived: the same rows, the same mill, the same market stall. A ledger is not a record of what you own. It is a record of what was kept going, and by whom."
+    summary: "Your family farmhouse and starter field were inherited, not bought. The nearby commons is kept by many hands: a ledger is not a record of what you own, but of what was kept useful and by whom."
   },
   "knowledge.reading_the_water": {
     id: "knowledge.reading_the_water",

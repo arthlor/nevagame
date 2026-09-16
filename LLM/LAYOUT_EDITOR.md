@@ -116,7 +116,7 @@ Each spawned discrete object gets `userData.layoutEdit` (`LAYOUT_EDIT_USERDATA_K
 | `farm-prop` | starter crates, farm props | `STARTER_PROP_ANCHORS` | yes |
 | `farm-fence` | generated posts | `FARM_FENCE_OVERRIDES` / `FARM_FENCE_EXTRAS` | yes |
 | `farm-structure` | mill, workbench, compost | `FarmLayout.ts`; yaw stored as visual − π | no |
-| `architecture-pad` | village cottages, inn, barn, market hall | `WorldLayout.ts` pad `center` | no |
+| `architecture-pad` | village dwellings, orchard outbuildings, farm outhouse | `WorldLayout.ts` pad `center` | no |
 | `landmark` | bridge, dock, lighthouse, fish-market, produce-stall | `WorldLayout.ts` or `WorldAnchors.ts` | no |
 | `world-anchor` | harbor fish table | `WorldAnchors.ts` | no |
 | `authored-detail` | authored trees, rocks, harbor posts | `authoredPlacement(...)` in `WorldEnvironmentLayout.ts` | yes |

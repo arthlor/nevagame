@@ -251,6 +251,36 @@ export const ITEMS: Record<string, ItemDefinition> = {
     baseValue: 34,
     tags: ["preserved", "trade-good"]
   },
+  "item.meal_harvest_bowl": {
+    id: "item.meal_harvest_bowl",
+    name: "Harvest Bowl",
+    category: "processed-food",
+    description: "Root vegetables simmered over grain. A working lunch that restores the drive to keep going.",
+    stackLimit: 10,
+    baseValue: 28,
+    tags: ["meal", "provisions"],
+    consumable: { kind: "work", amount: 50 }
+  },
+  "item.meal_fish_stew": {
+    id: "item.meal_fish_stew",
+    name: "Coastal Fish Stew",
+    category: "processed-food",
+    description: "Fresh catch and garden roots in a rich broth. The harbor's fuel for a long day on the water.",
+    stackLimit: 10,
+    baseValue: 42,
+    tags: ["meal", "provisions"],
+    consumable: { kind: "work", amount: 75 }
+  },
+  "item.meal_orchard_tart": {
+    id: "item.meal_orchard_tart",
+    name: "Orchard Tart",
+    category: "processed-food",
+    description: "Baked apples folded through milled grain. Sweeter than it needs to be, and it carries.",
+    stackLimit: 10,
+    baseValue: 36,
+    tags: ["meal", "provisions"],
+    consumable: { kind: "work", amount: 60 }
+  },
   "item.hardwood_blank": {
     id: "item.hardwood_blank",
     name: "Hardwood Blank",

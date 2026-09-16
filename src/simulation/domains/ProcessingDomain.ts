@@ -234,14 +234,19 @@ export class ProcessingDomain {
     } else {
       const grant = this.equipment.grantCrafted(job.result.equipmentId);
       if (!grant.success) return grant;
+    }
+
+    // Remove the job before publishing completion. A listener that validates or
+    // persists during `EquipmentCrafted` must not observe an owned equipment id
+    // alongside its still-pending job, which `SaveSchema` rejects.
+    delete state.processingJobs[jobId];
+    if (job.result.kind === "equipment") {
       events.emit("EquipmentCrafted", {
         equipmentId: job.result.equipmentId,
         recipeId: job.recipeId,
         minute: state.clock.currentMinute
       });
     }
-
-    delete state.processingJobs[jobId];
     this.progression.addProficiencyXp("processing", job.xpReward);
     // RecipeCompleted remains the collection event so existing quest targets
     // advance only when the player actually receives the result.

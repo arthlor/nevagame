@@ -453,14 +453,14 @@ describe("station crafting lifecycle", () => {
           expect(InventoryManager.addItemsAtomically(inventory, recipe.inputs), recipe.id).toBe(true);
           moveToStation(sim, station.id);
 
+          // This integration route isolates the processing cadence. Work is a
+          // daily earned budget now, so the route tops the pool up rather than
+          // waiting for passive regeneration that no longer exists.
+          sim.state.player.workCapacity.current = sim.state.player.workCapacity.maximum;
+          sim.state.player.workCapacity.earnedToday = 0;
+          sim.state.player.workCapacity.earningsDay = Math.floor(sim.state.clock.currentMinute / 1440);
           let quote = sim.inspectProcessingStation(station.id)?.recipes
             .find((candidate) => candidate.recipeId === recipe.id)?.work;
-          for (let attempts = 0; quote && !quote.affordable && attempts < 100; attempts += 1) {
-            sim.advanceGameMinutes(15);
-            recoveryWaitMinutes += 15;
-            quote = sim.inspectProcessingStation(station.id)?.recipes
-              .find((candidate) => candidate.recipeId === recipe.id)?.work;
-          }
           expect(quote?.affordable, `${recipe.id} Work recovery`).toBe(true);
 
           const xpBefore = sim.state.player.proficiencies.processing;
@@ -647,6 +647,34 @@ describe("station crafting lifecycle", () => {
       recipe.name = originalName;
       recipe.result = originalResult;
     }
+  });
+
+  it("keeps the save envelope valid while an EquipmentCrafted listener runs", () => {
+    const sim = new Simulation();
+    moveToStation(sim);
+    sim.state.player.proficiencies.processing = 1_000;
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    expect(InventoryManager.addItemsAtomically(inventory, [
+      { itemId: "item.linen_roll", quantity: 2 },
+      { itemId: "item.tanned_leather", quantity: 1 }
+    ])).toBe(true);
+    expect(sim.startProcessingJob("recipe.field_hat", "struct.workbench").success).toBe(true);
+    const job = Object.values(sim.state.processingJobs)[0];
+
+    let envelopeValid: boolean | null = null;
+    sim.events.on("EquipmentCrafted", () => {
+      envelopeValid = validateSaveEnvelope({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        savedAtUtcMs: 1,
+        state: sim.state
+      });
+    });
+
+    sim.advanceGameMinutes(job.effectiveDurationMinutes);
+    sim.advanceGameMinutes(10);
+    expect(sim.collectProcessingJob(job.id).success).toBe(true);
+    expect(sim.state.processingJobs[job.id]).toBeUndefined();
+    expect(envelopeValid).toBe(true);
   });
 
   it("reserves permanent equipment uniqueness and wardrobe space at job start", () => {

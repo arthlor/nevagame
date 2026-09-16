@@ -6,6 +6,7 @@ import { projectWorldToScreen } from "../../src/ui/hud/worldScreenProjection";
 import { fitQuestPointerToHud } from "../../src/ui/hud/QuestPointerOverlay";
 import { questBeaconRangeMix } from "../../src/render/scene/WorldScene";
 import type { ActiveQuestDto } from "../../src/simulation/core/QuestTypes";
+import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 
 const quest = (overrides: Partial<ActiveQuestDto> = {}): ActiveQuestDto => ({
   questId: "quest.act1_welcome",
@@ -62,7 +63,7 @@ describe("quest compass markers", () => {
     const quests = [
       quest(),
       quest({ trackId: "track.tides", targetLocation: { x: 83, z: 61, name: "Harbor Pier" } }),
-      quest({ trackId: "track.homestead", targetLocation: { x: 60, z: -60, name: "Private Homestead" } }),
+      quest({ trackId: "track.homestead", targetLocation: { x: 60, z: -60, name: "Village Commons" } }),
       quest({ trackId: "track.tradelanes", targetLocation: { x: 64, z: 60, name: "Fish Market" } })
     ];
     const markers = buildCompassMarkers(state, 0, quests);
@@ -72,7 +73,7 @@ describe("quest compass markers", () => {
   it("suppresses the chart node a quest target is standing on", () => {
     const state = createInitialGameState();
     // chart.neva_village sits exactly on the village market anchor.
-    const onVillage = quest({ targetLocation: { x: 53.2, z: -51.5, name: "Village Market" } });
+    const onVillage = quest({ targetLocation: { x: VILLAGE_MARKET.position.x, z: VILLAGE_MARKET.position.z, name: "Village Market" } });
     const markers = buildCompassMarkers(state, 0, [onVillage]);
     expect(markers.some((m) => m.id === "chart.neva_village")).toBe(false);
     expect(markers.some((m) => m.kind === "quest")).toBe(true);
@@ -133,6 +134,11 @@ describe("quest pointer HUD fit", () => {
 
   it("allows more world space below the pointer on desktop", () => {
     expect(fitQuestPointerToHud({ x: 900, y: 880, onScreen: true }, { width: 1600, height: 900 }).y).toBe(796);
+  });
+
+  it("lifts the pointer plate above the utility medallion cluster in the bottom-right corner", () => {
+    // 1600 - 340 = 1260; an x of 1450 is deep inside the medallion zone.
+    expect(fitQuestPointerToHud({ x: 1450, y: 880, onScreen: false }, { width: 1600, height: 900 }).y).toBe(760);
   });
 });
 

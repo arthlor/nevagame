@@ -13,9 +13,11 @@ import { ProficiencyRankDefinition } from "./types";
  * two are granted by quests rather than by XP, so the ladder promised
  * capabilities that never arrived.
  *
- * Both live features are quest-granted, which is why neither appears in a rank
- * below: `feature.expedition_planner` comes from `quest.act5_maiden_voyage` and
- * `feature.irrigation_zone` from `quest.act6_field_pump`. One owner each.
+ * All three live features are quest-granted, which is why none appears in a
+ * rank below: `feature.expedition_planner` comes from
+ * `quest.act5_maiden_voyage`, `feature.irrigation_zone` from
+ * `quest.act6_field_pump`, and `feature.maritime_guild_charter` from
+ * `quest.act9_the_charter`. One owner each.
  */
 export const LIVE_FEATURE_IDS: ReadonlySet<string> = new Set([
   "feature.expedition_planner",
@@ -77,6 +79,8 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
       "recipe.cure_sardine",
       "recipe.craft_chum_rich",
       "recipe.craft_chum_deep",
+      "recipe.cook_harvest_bowl",
+      "recipe.cook_fish_stew",
       "recipe.oiled_canvas",
       "recipe.tidewatch_cap",
       "recipe.harvest_apron",
@@ -91,7 +95,9 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: ["crop.flax"],
     fishingUnlocks: ["rod.heavy_sport"],
     tradingUnlocks: [],
-    processingUnlocks: []
+    processingUnlocks: [
+      "recipe.cook_orchard_tart"
+    ]
   },
   {
     rankIndex: 3,

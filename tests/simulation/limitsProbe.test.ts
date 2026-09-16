@@ -100,13 +100,13 @@ describe("LIMITS probe", () => {
   });
 
   describe("work capacity", () => {
-    it("caps at 1000 and at 20 Work allows water (5) but not harvest (30)", () => {
-      expect(WORK_CAPACITY_MAXIMUM).toBe(1000);
+    it("caps at 500 and at 20 Work allows water (5) but not harvest (30)", () => {
+      expect(WORK_CAPACITY_MAXIMUM).toBe(500);
       expect(FARMING_ACTION_COST.water).toBe(5);
       expect(FARMING_ACTION_COST.harvest).toBe(30);
 
       const sim = new Simulation();
-      expect(sim.state.player.workCapacity.maximum).toBe(1000);
+      expect(sim.state.player.workCapacity.maximum).toBe(500);
       const pos = moveToStarterFarm(sim);
       sim.state.player.workCapacity.current = 100;
       const planted = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
@@ -264,14 +264,14 @@ describe("LIMITS probe", () => {
       const packed = new Simulation();
       const inventory = packed.state.inventories[packed.state.player.inventoryId];
       InventoryManager.addItemsAtomically(inventory, [{ itemId: "seed.wheat", quantity: 80 }]);
-      packed.state.player.workCapacity.current = 1000;
+      packed.state.player.workCapacity.current = 500;
       let plantedCount = 0;
       for (let x = -5.4; x <= 5.4; x += 1.05) {
         for (let z = -4.4; z <= 4.4; z += 1.05) {
           const world = moveToStarterFarm(packed, x, z);
           const result = packed.plantCrop("farm.starter_garden", "crop.wheat", world.x, world.z);
           if (result.success) plantedCount += 1;
-          else expect(["overlaps-crop", "outside-farm", "invalid-surface", "structure-clearance", "too-far", "no-seed"]).toContain(result.reasonCode);
+          else expect(["overlaps-crop", "outside-farm", "invalid-surface", "structure-clearance", "farm-capacity", "too-far", "no-seed", "insufficient-work"]).toContain(result.reasonCode);
         }
       }
       expect(plantedCount).toBeGreaterThan(10);

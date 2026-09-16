@@ -574,6 +574,10 @@ body,
 #ui-container[data-mobile-device="true"] .expedition-body,
 #ui-container[data-mobile-device="true"] .dialogue-body,
 #ui-container[data-mobile-device="true"] .character-screen__body,
+#ui-container[data-mobile-device="true"] .character-screen__loadout,
+#ui-container[data-mobile-device="true"] .character-screen__wardrobe,
+#ui-container[data-mobile-device="true"] .character-owned-list,
+#ui-container[data-mobile-device="true"] .character-comparison,
 #ui-container[data-mobile-device="true"] .crafting-modal__body,
 #ui-container[data-mobile-device="true"] .catch-modal-body {
   min-height: 0;

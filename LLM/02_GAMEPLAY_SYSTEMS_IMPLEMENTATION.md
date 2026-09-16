@@ -82,7 +82,7 @@ tracks or records so the next story beat remains attainable.
 | Track | Narrative purpose | Gameplay constraint |
 |---|---|---|
 | Main spine | Turn inheritance into useful local practice and earned responsibility | Every beat advances a person/place/action/consequence connection; unlocks are earned through simulation events |
-| The Family Ledger | Make the homestead, family tools and orchard matter through use | Long-growing orchard goals fit optional play and cannot block the main route |
+| The Cove Commons | Make the inherited family farm, shared tools and public orchard matter through use | Stewardship and long-growing orchard goals fit optional play and cannot block the main route |
 | Freight and Favour | Let Maeve's promises teach volume, freshness, grade and distance | Target feasible contract types rather than depending on a specific randomly offered template |
 | Reading the Water | Let Silas teach ecology through actual fishing | Species availability owns seasonal/hour/weather conditions; avoid a second narrative ecology system |
 
@@ -147,7 +147,7 @@ The live dialogue model has six contextual sources:
 
 A talk step is credited only for the thread whose words were delivered;
 `NpcTalked` is a signal for audio and telemetry and credits nothing. Crediting
-every track from it closed the Family Ledger's "hear me out" step while the
+every track from it closed the Cove Commons' "hear me out" step while the
 player listened to a different errand, and let side-errand intros hijack the
 Act 10 round. An errand with a `turnInCost` is never paid in the breath that
 asked for it: the player leaves with the ask and chooses to come back. A
@@ -306,9 +306,10 @@ path:
 
 Apply these criteria when revising the existing story or proposing further content; this is not a list of unimplemented systems:
 
-1. **Pay off the family throughline:** seed pouch, worn tools, homestead,
-   family slip, and the final report should form a visible chain of memory;
-   add only clues that the player can encounter in the existing world.
+1. **Pay off the family throughline:** seed pouch, inherited farmhouse and
+   starter field, worn tools, family slip, the public commons and the final
+   report should form a visible chain of memory; add only clues that the player
+   can encounter in the existing world.
 2. **Extend the live milestone recognition sparingly:** the content-owned NPC roster
    can recognize completed quests, feature unlocks, and knowledge IDs. Add only
    lines that reflect a real state change; never infer state from UI history.
@@ -388,6 +389,15 @@ interface PlacedCropState {
   qualityInputsAccum: CropQualityInputs;
 }
 ```
+The family farmhouse and starter field are inherited at new-game start. The
+public `farm.player_homestead` is the Village Commons: it has three concurrent
+crop slots, represented by `cropCapacity` in `WORLD_FARM_DEFINITIONS` and
+enforced by `FarmingDomain.validatePlacement`. The authored scene presents
+those slots as three clearings inside two cultivated beds; mature crops around
+the clearings are renderer-only dressing and never become harvestable crop
+records. Harvesting an annual crop frees its slot; a regrowing tree continues
+to occupy one. The market courtyard has no plantable farm surface.
+
 All crop tuning belongs in definitions or centralized config.
 
 # 2. Crop Placement, Growth, Quality & Harvest
@@ -420,7 +430,7 @@ repeated here because it explains the model, not because this document decides
 it — the values used to live as bare literals behind a comment pointing back at
 this section, which left neither side owning them.
 
-`sampleFarmEnvironment(state, farm, x, z)` is the pure owner for the local
+`sampleFarmEnvironment(farm, weather, local)` is the pure owner for the local
 climate inputs consumed by crop growth and cargo freshness. It combines the
 weather snapshot with the registered island climate, exposure, drainage,
 effective precipitation, and evaporation multiplier. Realtime and segmented
@@ -679,7 +689,7 @@ interface FishingPressureState {
   recentCatchCount: number;
 }
 ```
-Spawn inputs: ecology, habitat, season, time, weather, world seed, recent pressure, cooldown. Cooldown begins when a school depletes or expires, not when it originally spawned; recent landed catches extend the bounded per-habitat cooldown and decay over time. Each new school deterministically rotates among small authored offsets that remain inside its registered ecology/habitat. Occupancy is **per authored spawn point** (`schoolSpawnPointIndex`, derived from position, never stored) while pressure stays per habitat: keying occupancy on ecology+habitat let Neva's first offshore point shadow the second forever, so the deep trench Act 9 sends the player to never held a school. Sunreach's coast point sits on the reef edge where the shelf drops away — the fishery Tomas describes and Acts 7–8 send the player to — rather than at the cove mouth. Quest anchors for fishing grounds are read from these points (`schoolGround` in `quests.ts`), and a fishing objective's tracker target is the nearest live school matching its water and species, falling back to that anchor. Presentation binds weighted species models, a frenzy gull, surface splashes, and occasional jumps to the actual school; fish finders later improve detection.
+Spawn inputs: ecology, habitat, season, time, weather, world seed, recent pressure, cooldown. Cooldown begins when a school depletes or expires, not when it originally spawned; recent landed catches extend the bounded per-habitat cooldown and decay over time. Each new school deterministically rotates among small authored offsets that remain inside its registered ecology/habitat. Occupancy is **per authored spawn point** (`schoolSpawnPointIndex`, derived from position, never stored) while pressure stays per habitat: keying occupancy on ecology+habitat let Neva's first offshore point shadow the second forever, so the deep trench Act 9 sends the player to never held a school. The open channel adds authored coast and offshore opportunities near its sparse islets, while Sunreach's coast point sits on the reef edge where the shelf drops away — the fishery Tomas describes and Acts 7–8 send the player to — rather than at the cove mouth. Every point must resolve to its declared ecology and habitat through `WorldLayout`; an islet cannot manufacture a school by presentation alone. Quest anchors for fishing grounds are read from these points (`schoolGround` in `quests.ts`), and a fishing objective's tracker target is the nearest live school matching its water and species, falling back to that anchor. Presentation binds weighted species models, a frenzy gull, surface splashes, and occasional jumps to the actual school; fish finders later improve detection.
 
 Lifecycle: `Inactive → Spawned → Chummed → Feeding Frenzy → Depleted|Expired → Cooldown`. Schools never persist forever.
 
@@ -771,7 +781,7 @@ The encounter owns coupled line extension, rod-blank load, retrieval/payout, fis
 
 Fight starts scale with specimen weight through `sportFishingStartDistanceForWeight`, shifting the cargo class base across `[base - spread, base + spread]` (small $\pm 5$, medium $\pm 7$, large $\pm 8$, gargantuan $\pm 10$ m) bounded by continuous validated water reach. Anglers can adjust line drag across three notches (`dragNotch`: 0=Light, 1=Balanced, 2=Heavy): light drag pays line sooner ($0.85\times$ tension threshold) with $+0.03$ hook reliability; heavy drag holds firmer ($1.15\times$ threshold) with $-0.03$ reliability. Mid-fight changes take effect immediately on the next fixed step.
 
-Species signature moments pulse once per encounter on the first characteristic behavior trigger (`trout:surface`, `pike:shake`, `arowana:leap`, `tuna:run`, `sturgeon:burst`, `marlin:burst`, `sailfish:surface`), lasting `SIGNATURE_MOMENT_SECONDS` without mutating fight dynamics or RNG, and are omitted when `reducedMotion` is set. Landmark catches flag `"first"`, `"weight"`, or `"quality"` records before updating the journal.
+Species signature moments pulse once per encounter on the first characteristic behavior trigger (`trout:surface`, `catfish:dive`, `pike:shake`, `arowana:surface`, `tuna:run`, `sturgeon:dive`, `sailfish:surface`, `swordfish:burst`, `blue_marlin:surface`, `carp:run`, `amberjack:run`), lasting `SIGNATURE_MOMENT_SECONDS` without mutating fight dynamics or RNG. The sample always carries the moment; the global `prefers-reduced-motion` rule suppresses its animation. Landmark catches flag `"first"`, `"weight"`, or `"quality"` records before updating the journal.
 
 Reading the water (`inspectWaterReading()`) provides query-only environmental awareness at bank access points: Novice players read current conditions and local species run; Skilled (3,000 XP) senses nearby surface feeding; Expert (7,500 XP) senses directional distance bands; Master (15,000 XP) identifies species holding in the school. Ground familiarity (0–3) is derived without persistent per-spot state from `journal.fishRecords` counts, granting a $1.00\times$ to $1.75\times$ hook roll bias toward that ground's signature species.
 
@@ -822,6 +832,16 @@ Weight uses a non-uniform distribution: most near species average, rare values n
 # 10. Physical Cargo & Freshness
 
 A player-carried fish occupies both hands. `domainRules.freeHandsBlocker` owns the shared eligibility rule consumed by farming, processing and fishing entry points; their commit paths reject competing tool actions before consuming Work, inventory or RNG. Crop inspection and application animation preflight report the same blocker. Cargo remains visible and unchanged until an explicit cargo transaction frees the hands; tool use never hides or automatically discards it. This does not change cargo capacity, economy tuning or saved state.
+
+Sport fish and the authored physical basic catch are **fish trade packs**. They
+land in a boat cargo slot (or the player's hands when a compatible shore
+landing is possible). `cargo.pickup` is the explicit, free transaction that
+moves one pack from an accessible boat slot into the player's hands; a docked
+hold is accessible, but it is never treated as carried cargo. The Harbor Fish
+Market does not sell these packs and does not offer a bulk shortcut. The player
+must walk the pack to the Village Produce Market, which is the inland trade
+center, and sell it from the Trade packs ledger. Each pack remains in exactly
+one boat slot or the player carry location throughout the handoff.
 
 ```ts
 interface FishCargoState {
@@ -898,7 +918,7 @@ Rowboat: first vehicle, lake sport/nearshore, tiny cargo/low speed/poor rough se
 
 Fishing Skiff: LIVE acquisition at the authored harbor skiff mooring requires **7,500 Fishing XP and 850 G**. The atomic purchase creates the persisted `boat.player_skiff`, its eight-slot supply inventory, four internal medium cargo slots, two **external gargantuan hooks** (needed to stow blue marlin; do not nerf marlin to large), fuel tank, and better rough-water tolerance. `item.boat_fuel` is sold at the harbor; `boat.refuel` (dock, nearby, or aboard) consumes one can and fills `fuel` to `fuelCapacity`. A fresh save does not create a skiff; it remains a progression-world asset until purchased.
 
-The Neva–Sunreach sailing centerline and both moorings are world registries.
+The Neva–Sunreach sailing centerline, serviced ports and optional islet landings are world registries. Sunreach sits far enough from Neva for the crossing to read as an expedition; Gull's Rest, Driftwood Cay and Lantern Shoal remain off the direct line as small skiff-only detours with walkable landings, discoveries and nearby fishing opportunities. Their `marketId: null` moorings permit docking and reboarding but provide no trade, refuel or automatic service. `MOTOR_FUEL_PER_GAME_MINUTE` in `NavigationDomain` owns motor burn, and the route regression must keep a full-tank direct round trip feasible with a useful reserve.
 The open-channel exposure gate is physical navigation: a rowboat is stopped at
 the safe-side edge, speed is cleared, and one contextual notice names the
 Coastal Fishing Skiff requirement. The skiff may cross. This is not a UI-only
@@ -907,7 +927,7 @@ economy constraints.
 
 Boat entry and exit remain presentation over simulation-owned transactions. The rowboat uses a pelvis-contact marker on its physical bench, while the chairless skiff uses a root-aligned standing driver station with planted deck support. Rowboat/skiff boarding and docking variants may preserve the player's initial world pose, follow the moving craft, and converge to those anchors, but they do not change boat state, controls, or persistence.
 
-Crude Emergency Tow is live: a crewed motor boat with an empty tank can be towed to the nearest compatible mooring for a 25 G flat fee (`boat.emergency-tow`), cargo and fuel untouched. External-hook class as a distinct verb remains deferred — see below.
+Crude Emergency Tow is live: a crewed motor boat with an empty tank can be towed to the nearest compatible serviced mooring for a 25 G flat fee (`boat.emergency-tow`), cargo and fuel untouched. Unserviced islet landings never become a tow destination. External-hook class as a distinct verb remains deferred — see below.
 
 ## 11A. On-Foot Traversal
 
@@ -1086,22 +1106,45 @@ Demand clamp: **0.65x–1.60x** (UI may show 65–160%). `marketPricing.ts` owns
 producePrice = basePrice × demandModifier × seasonalModifier
 fishPrice = speciesBasePrice × weightModifier × qualityModifier × freshnessModifier × demandModifier × seasonalModifier
 ```
-LIVE: produce **quality does not affect sale price** (quality is computed and journaled only; harvest feedback labels it a grade that boosts Farming XP, so the mastery track pays in progression, not gold). Fish quality affects price **in the cargo lane only** — a landed `FishCargoState` carries its own quality and `calculateFishPrice` prices it. A fish held as a satchel *item* is a fungible stack with no per-instance quality and settles at the same commodity quote as any other item; it must never be priced from the journal's best-ever record, which paid a permanent trophy multiplier on every later common catch while the market board quoted a lower number. Example Blue Marlin: `140 × 1.35 × 1.10 × 0.95 × 1.25 × 1.05 ≈ 259`. UI must explain components.
+LIVE: produce **quality does not affect sale price** (quality is computed and journaled only; harvest feedback labels it a grade that boosts Farming XP, so the mastery track pays in progression, not gold). Fish quality affects price **in the cargo lane only** — a landed `FishCargoState` carries its own quality and `calculateFishPrice` prices it. A fish held as a satchel *item* is a fungible stack with no per-instance quality and settles at the same commodity quote as any other item; it must never be priced from the journal's best-ever record, which paid a permanent trophy multiplier on every later common catch while the market board quoted a lower number. Example Blue Marlin (base 480): `480 × 1.35 (weight) × 1.25 (fine) × 0.95 (freshness 75–89) × 1.25 (demand) × 1.05 (season) ≈ 1010`. UI must explain components.
+
+Physical fish trade packs use the same deterministic fish formula, but only at
+the Village Produce Market after the player is carrying the pack. Ordinary
+non-pack physical fish, if authored later, remain in the fish-market cargo
+lane. This separation is why a docked boat can be inspected for contracts or
+logistics without making a pack sale available.
 
 Selling raises local supply; repeated dumping gradually lowers price, while town throughput restores it toward the centered market. Never crash price dramatically from one ordinary sale. Single and bulk trades are priced as the exact sum of deterministic one-unit marginal fills, including across clamp boundaries, so one bulk fill and the same sequence of one-unit fills pay the same total. Trading XP is derived from total realized revenue with no per-click minimum.
 
-Buys are capped at `floor(localSupply)`, reduce stall supply, and use a **1.25 retail multiplier** over wholesale. For a commodity sold at more than one market, the retail quote also floors its effective modifier at the best current wholesale modifier across those markets; an immediate cross-market round trip cannot profit even when demand differs. `MarketDomain.inspectFish` / `sellFish` return `FishPriceBreakdown`; UI must not call `calculateFishPrice`.
+Buys are capped at `floor(localSupply)`, reduce stall supply, and use a **1.25 retail multiplier** over wholesale. For a commodity sold at more than one market, the retail quote also floors its effective modifier at the best current wholesale modifier across those markets; an immediate cross-market round trip cannot profit even when demand differs. `MarketDomain.inspectFish` / `sellFish` handle the ordinary fish lane, while `inspectTradePack` / `sellTradePack` handle the carried trade-pack lane and return `FishPriceBreakdown`; UI must not call `calculateFishPrice`.
 
-`MarketDomain` owns the `market.get-board`, `market.quote-sale`, `market.quote-purchase`, `expedition.get-board`, affordability, demand-signal, fish-breakdown, and bulk-sale presentation queries. The market and expedition DTOs contain wares, owned goods, fish valuations, rod gates, contract readiness/blockers, scoped opportunity demand, affordability, stock, and one plain demand signal; React renders them and does not import economy formulas, inventory operations, market-domain constants, or rod progression tables. Sell-all produce and sell-all fish validate the full quote first and then commit as one atomic domain transaction; UI must never loop single-item callbacks or present a partially completed bulk sale.
+`MarketDomain` owns the `market.get-board`, `market.quote-sale`, `market.quote-purchase`, `expedition.get-board`, affordability, demand-signal, fish-breakdown, and bulk-sale presentation queries. The market and expedition DTOs contain wares, owned goods, fish valuations, carried trade-pack valuations, rod gates, contract readiness/blockers, scoped opportunity demand, affordability, stock, and one plain demand signal; React renders them and does not import economy formulas, inventory operations, market-domain constants, or rod progression tables. Sell-all produce and ordinary fish validate the full quote first and then commit as one atomic domain transaction; fish trade packs are deliberately excluded from bulk sale and require one manual carry-and-sell transaction each.
 # 14. Work Capacity & Proficiencies
 
 **Owners.** `WorkCapacityState` (`src/simulation/core/types.ts`) is the shape.
-`ProgressionDomain` owns the pool, the regeneration rates, the ceiling and the
-proficiency discount curve. Each action's base cost is exported once by its own
-domain: `FARMING_ACTION_COST`, `BASIC_FISHING_WORK_COST`,
+`ProgressionDomain` owns the pool, the ceiling, the daily earn cap, the rest
+fraction and baseline floor, the meal limit and the proficiency discount curve.
+Each action's base cost is exported once by its own domain:
+`FARMING_ACTION_COST`, `BASIC_FISHING_WORK_COST`,
 `SPORT_FISHING_WORK_COST_BY_CLASS`, `SPORT_FISHING_WORK_REFUND_RATIO`,
 `PROCESSING_WORK_COST`. Read the constants for the numbers; this section does
 not restate them, because a second copy is what breaks them.
+
+**Work is earned, not waited for.** Waking time does not refill the pool. The
+real supply comes from four bounded sources: a night's rest at the farmhouse (a
+fraction of the ceiling plus a baseline floor, exempt from the daily cap), a
+crafted and eaten provision (a per-item `consumable` amount, limited by
+`WORK_MEAL_DAILY_LIMIT`), a labor-shift minigame at an authored chore station
+(`LABOR_STATIONS`; clean strikes grant Work and each station counts once per
+day), and skill rebates on a perfect basic catch or a landed sport fish. Meals,
+labor and skill all draw on one `WORK_DAILY_EARN_CAP`, so no activity can be
+ground into unlimited production. One further floor exists: a slow real-time
+idle trickle (`WORK_PASSIVE_REGEN_AMOUNT` every
+`WORK_PASSIVE_REGEN_INTERVAL_SECONDS` real seconds) while the game runs
+unpaused, clamped by the ceiling and exempt from the daily cap, so an empty pool
+is never permanently stuck. Offline grants at most one rest; it does not add the
+trickle. The authored farm kitchen (`struct.kitchen`) hosts the meal recipes;
+the meat of the economy stays in the domains and content, not the HUD.
 
 **Enforced by `tests/simulation/workCapacityContract.test.ts`:** the pool is
 debited and credited only inside `ProgressionDomain`; every cost reaches a quote
@@ -1119,6 +1162,17 @@ affordable and the action was then refused.
   hook. Traversal, boats, cargo handling, trading, quests and dialogue are free.
   Work Capacity is an economy resource and must never be reused as movement
   stamina; `player.traversal.sprintStamina` is a separate pool.
+- A credit from rest, a meal, a labor shift or a skill rebate is clamped by the
+  pool ceiling; the earn sources except rest are additionally clamped by the
+  daily earn cap. Only `ProgressionDomain` writes the pool.
+- A discrete capture source — a meal or a labor shift — checks for room for its
+  **full** grant before it commits, so a limited daily resource is never spent
+  for a trivial partial restore. A labor shift abandons itself if the player
+  leaves the station's reach or opens a fishing encounter before the strike, and
+  a station is only marked used once its Work has actually been credited.
+- A failed affordability check that follows a meal or item cost must not consume
+  the item for no gain: the item is removed only after the grant has room, and
+  the removal is restored on a zero grant.
 - An action costs its **full discounted cost** or does not happen. Partial
   payment is forbidden.
 - A failed affordability check spends nothing and cannot consume items, advance
@@ -1200,13 +1254,13 @@ Generator MUST validate feasibility, use the template-owned delivery market for 
 
 Feasibility includes reaching the delivery market. A market at the far end of a sailing route in `WORLD_SAILING_ROUTES` (Sunreach Cove) offers orders only once the player owns that route's vessel (the Coastal Fishing Skiff); the rowboat cannot make the crossing, so an earlier cove order could only expire. `canReachDeliveryMarket` in `ContractDomain` owns the rule, and the expedition board reports a contract it blocks.
 
-Contracts run in two lanes, not four: item delivery and physical fish cargo. `bulk-order` is an **item** lane type — `isProduceContractType` in `domainRules.ts` owns that split. It previously had no live templates because the feasibility and refund branches asked `type === "produce"` directly and routed it into the fish lane, where an item target can never match.
+Contracts run in two lanes, not four: item delivery and physical fish cargo. `bulk-order` is an **item** lane type — `isProduceContractType` in `domainRules.ts` owns that split. It previously had no live templates because the feasibility and refund branches asked `type === "produce"` directly and routed it into the fish lane, where an item target can never match. A physical basic-catch species (Golden Sea Bream) carries an item registration only so it can be cast; board readiness and bulk-demand reporting route it through the cargo lane via `isPhysicalTradePackSpecies`, never as a satchel stack.
 
 The board's capacity is owned by `contractSlotsForRank` in `src/content/progression.ts`. `ContractDomain` passes both Trading rank and the maritime guild charter unlock: the charter increases capacity in addition to rank progression. Refill may leave fewer listings when no feasible template exists. Wider capacity must offer useful choices without bypassing feasibility or delivery requirements.
 
-Contract money is fixed at generation from a **rest-demand market reference**, then multiplied by the template premium. Produce reference includes the delivery market's current seasonal factor. Fish reference includes the contract's minimum quality, minimum freshness, and minimum or average weight modifiers. Live demand is deliberately excluded so accepting or rerolling during a demand spike cannot manipulate the fixed reward. If an expired partially fulfilled produce contract cannot return items because the satchel is full, its money refund uses the same rest reference rather than raw item value.
+Contract money is fixed at generation from a **rest-demand market reference**, then multiplied by the template premium. Produce reference includes the delivery market's current seasonal factor. Fish reference includes the contract's minimum quality, minimum freshness, and minimum or average weight modifiers. Live demand is deliberately excluded so accepting or rerolling during a demand spike cannot manipulate the fixed reward. If an expired partially fulfilled produce contract cannot return items because the satchel is full, its money refund uses the same rest reference rather than raw item value. A partially fulfilled **fish** contract refunds on the same reference: its delivered cargo was physically removed on delivery, so expiry compensates rather than forfeiting the kept promise.
 
-Trail and vista arrivals reuse journal `unlockedKnowledge` IDs from `src/content/discoveries.ts`, registered by `knowledge.ts`. An accepted simulation pose discovers each once; reloading cannot rediscover it. These are places and journal entries, not quests or progression gates.
+Trail, vista, island and channel arrivals reuse journal `unlockedKnowledge` IDs from `src/content/discoveries.ts`, registered by `knowledge.ts`. An accepted simulation pose discovers each once; reloading cannot rediscover it. The Channel Seam requires arrival aboard a boat, while the three islets require landing and walking onto their discovery sites. Driftwood Cay's one-time saved-supplies cache atomically grants its registered fuel-and-chum batch; if the satchel cannot accept the full batch, neither the reward nor its discovery commits. These discoveries are not quests or progression gates.
 
 Journal tracks species discovery, largest weight, best quality, habitat, season, time, weather, personal record, current/completed authored quest titles, and stable unlocked practice entries. Its **Notices** folio is authored community flavour from `src/content/villageBulletin.ts`, selected from already-earned quest, feature, knowledge and rank state. The same folio opens from the village-square notice board (`VILLAGE_BULLETIN`); that prop is presentation-only and adds no collider, interaction cooldown or saved state. The board pins existing earned facts as town voice; it owns no persisted state, creates no quest or objective, and gates no reward. The **People** folio is the same kind of reading for the named cast: each person's authored title and station, the recognition line the world currently uses, and a standing derived from completed commissions and earned recognition. It introduces no relationship, affinity or schedule state; §22 still defers those systems. The **Records Board** reads that same journal as a ladder of standing goals and adds no state of its own: per-ecology discovery, a weight and a grade record for every sport species, mastery for every crop, and two sweeps. Milestones are *derived* from `src/content/` rather than authored row by row, so a new species or crop brings its own record with it; `src/content/records.ts` owns only the thresholds and tiers, and a species' tier is taken from the rod it needs so the board inherits the existing difficulty axis instead of inventing one. Weight records exist only for sport species, because a basic catch never records a weight. Once every authored track is exhausted, `WorldGuidancePresentation` also supplies the nearest unearned milestones to the HUD tracker, ordered by existing progress; no quest or objective is created. It surfaces in the journal's Records folio, showing each tier's completion count and the two goals nearest to falling rather than every milestone at once. `knowledge.land_sea_cycle` is live after Quest 13; mill and compost quests grant `knowledge.wheat_milling` and `knowledge.worm_composting`. The family throughline is written one witnessed object at a time — the seed pouch, the family slip and the worn mill handle (`knowledge.family_seed_pouch`, `knowledge.family_slip`, `knowledge.worn_handle`) — and `reconcileCompletedQuestKnowledge` writes a completed errand's knowledge IDs, and nothing else, into saves that finished it before the entry existed. Journal `unlockedKnowledge` only stores IDs that exist in `knowledge.ts` (boat/feature IDs are not knowledge). Do not reveal all ecology immediately; knowledge unlock is progression. The game does not persist a dialogue transcript or a separate lore codex.
 
@@ -1216,7 +1270,7 @@ Legendary fish are later content requiring combinations of season/weather/time/s
 
 **Design target:** `Satchel → Farm Crate → Barn Storage → Warehouse → Cold Storage`. This is the intended progression, not a claim that every purchase/upgrade path ships. Live containers and transfers come from simulation definitions and domain callers; location-specific cold storage remains deferred (§22). Each promoted stage must change a capacity, preservation or timing decision.
 
-Coherent sinks: seeds, processing equipment, boat purchase/repair, fuel, ice, lures, storage upgrades, farm upgrades. The rowboat commission supplies the first small lure batch; finite harbor tackle stock is the buy-back recovery path when a player returns without one, while the workbench recipes own renewable self-supply. Homestead `leaseCost` / `accessType` are unused — both starter garden and homestead stay plantable on day 1; there is **no live land-lease charge**. Avoid arbitrary repeated taxes.
+Coherent sinks: seeds, processing equipment, boat purchase/repair, fuel, ice, lures, storage upgrades, farm upgrades. The rowboat commission supplies the first small lure batch; finite harbor tackle stock is the buy-back recovery path when a player returns without one, while the workbench recipes own renewable self-supply. The family farmhouse and starter field are inherited at new-game start; the Village Commons is public. `leaseCost` / `accessType` remain compatibility fields in saved farm state, but no private house or farming ground is sold or leased through a market and there is **no live land-lease charge**. Avoid arbitrary repeated taxes.
 
 Starter 60–90m target: plant/harvest, worms, basic fish, grain processing, chum, first sport fishing, meaningful fish sale, clear next boat/farm upgrade. Do not hide signature fishing behind hours of grind.
 
@@ -1238,7 +1292,7 @@ First-hour beats: welcome/inheritance → first harvest → self-produced bait �
 
 Farm UI: temporary seed-belt extension; crop stage/time, moisture, and one immediate action/cost or blocker; held field tint with an edge legend; anchored Now / +2h / +5h coast forecast. `FarmingDomain.inspect` owns the crop timing and immediate-action presentation fields, while the simulation-owned `weather.get-farm-forecast` query supplies the qualitative forecast DTO; React renders both without duplicating gameplay or forecast thresholds. Seed stock belongs to each market's `retailItemIds` in `src/content/markets.ts`; crop-owned proficiency requirements govern access. UI must not impose a separate starter-only seed list.
 
-Market UI: ledger sections for wares, goods, fish hold, and contextual contracts. A selected market ticket shows the domain quote, owned amount, plain demand signal, and one clear action; fish quotes show the ordered domain-owned breakdown. Catch-time UI never estimates value.
+Market UI: ledger sections for wares, goods, ordinary fish hold, carried trade packs, and contextual contracts. A selected market ticket shows the domain quote, owned amount, plain demand signal, and one clear action; fish quotes show the ordered domain-owned breakdown. Catch-time UI never estimates value.
 
 Boat UI: hull, applicable fuel, physical cargo-slot silhouettes, and sea warning; cargo UI MUST map to physical slots and rowboats never show fuel.
 
@@ -1287,7 +1341,7 @@ completed simulation step, not a button that can be pressed early.
 
 **Boat:** one fish max per cargo slot; each fish exists in exactly one location.
 
-**Market:** sale removes asset once, adds money once, uses simulation price state.
+**Market:** sale removes asset once, adds money once, uses simulation price state; a physical fish trade pack can only be sold from the player's carry location at the inland trade center, never directly from a boat hold or through the fish-market bulk lane.
 
 **Traversal:** sprint stamina/recovery/exhaustion/grounded state is serializable and fixed-step; it is distinct from Work Capacity and must not be owned by the renderer or input layer.
 
@@ -1387,7 +1441,7 @@ release gates explicitly.
 
 This section owns deferred gameplay scope and points to the live boundary where needed. Earlier **design target** examples are also proposals, not shipped features. Promote a deferred requirement only within an explicit task, updating its owning section, implementation and relevant evidence together.
 
-- **Produce quality vs price.** Crop quality is computed at harvest and written to the journal. It does **not** currently multiply village/harbor produce sale price (`calculateCommodityUnitPrice` is `base × demand × seasonal` only).
+- **Produce quality vs price.** Crop quality is computed at harvest and written to the journal. It does **not** currently multiply village/harbor produce sale price (`marketPricing.ts` marginal quotes price `base × live demand × seasonal` only).
 - **Unrestricted shop purchase for quest capabilities.** Seed stock/reachability is live and content-owned (§17). The pump and rowboat retain their quest-gated acquisition, while the skiff uses its harbor purchase (§11). A generic shop listing must not bypass those capability contracts.
 - **Sport keep/release UI.** Landing auto-stows into a free cargo/carry slot or emits `FishEscaped`. A separate pre-landing keep/release decision is deferred. Existing post-landing cargo inspection/release is a different live action and must remain available.
 - **Drought weather.** No drought enum/system is live. Existing weather effects belong to §2/§12 and their tuning owners; dry-climate content does not introduce a new weather state.

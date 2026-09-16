@@ -9,6 +9,7 @@ import {
 import { buildExpeditionOpportunities } from "../../src/simulation/expeditions/buildExpeditionOpportunities";
 import type { MarketDemandSignal } from "../../src/simulation/core/contracts";
 import { isProduceContractType } from "../../src/simulation/domains/domainRules";
+import { MarketDomain } from "../../src/simulation/domains/MarketDomain";
 import { SEASONS } from "../../src/simulation/core/GameClock";
 import { Simulation } from "../../src/simulation/Simulation";
 import type { GameState } from "../../src/simulation/core/types";
@@ -64,6 +65,51 @@ describe("contract board", () => {
       * getFreshnessPriceMultiplier(template.minFreshness ?? 100)
       * getFishWeightMultiplier(fish, fish.weightKg.average);
     expect(reference).toBeCloseTo(expected, 10);
+  });
+
+  it("routes a physical basic-catch contract through the cargo lane, not its item marker", () => {
+    ContentRegistry.initializeAndValidate();
+    const sim = new Simulation();
+    const state = sim.state;
+    const market = ContentRegistry.markets.get("market.sunreach_cove")!;
+    state.player.x = market.interactionPosition.x;
+    state.player.z = market.interactionPosition.z;
+    state.contracts.push({
+      id: "contract.bream_lane",
+      templateId: "contract.sunreach_reef_fish_order",
+      requesterId: "npc.harbor_innkeeper",
+      deliveryMarketId: "market.sunreach_cove",
+      type: "fresh-fish",
+      targetItemIdOrSpecies: "fish.sea_bream",
+      quantityRequired: 1,
+      quantityFulfilled: 0,
+      minFreshness: 90,
+      rewardMoney: 120,
+      rewardSkillXp: { skill: "fishing", xp: 20 },
+      expiresAtMinute: state.clock.currentMinute + 120,
+      status: "active"
+    } as GameState["contracts"][number]);
+    state.fishCargo["cargo.bream_lane"] = {
+      id: "cargo.bream_lane",
+      speciesId: "fish.sea_bream",
+      weightKg: 2,
+      quality: "common",
+      caughtAtMinute: state.clock.currentMinute,
+      freshness: 40,
+      cargoClass: "small",
+      location: { type: "player", containerId: "player" }
+    };
+    state.player.carriedFishCargoId = "cargo.bream_lane";
+
+    const board = sim.inspectMarketBoard("market.sunreach_cove")!;
+    const row = board.contractRows.find((candidate) => candidate.contractId === "contract.bream_lane")!;
+    expect(row.ready).toBe(false);
+    // The item registration is an eligibility marker only; readiness must be
+    // reported from physical cargo, not a satchel stack the player never has.
+    expect(row.itemId).toBeUndefined();
+    expect(row.blockerReasons.join(" ")).not.toContain("Bring");
+    expect(row.blockerReasons.join(" ")).toContain("freshness");
+    expect(MarketDomain.isBulkSellProduceItem("fish.sea_bream")).toBe(false);
   });
 
   it("keeps every template's delivery market able to price its own targets", () => {

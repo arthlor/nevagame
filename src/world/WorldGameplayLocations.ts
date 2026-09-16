@@ -1,3 +1,5 @@
+import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "./OceanIslets";
+import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { WORLD_DISCOVERIES } from "../content/discoveries";
 import { PLAYER_HOMESTEAD_LAYOUT, STARTER_FARM_LAYOUT, SUNREACH_FARM_LAYOUT, starterStructureAnchor } from "./FarmLayout";
 import { HARBOR_FISH_TABLE, HARBOR_MARKET, VILLAGE_MARKET } from "./WorldAnchors";
@@ -7,6 +9,7 @@ export interface WorldFarmDefinition {
   id: string;
   islandId: WorldIslandId;
   regionId: WorldRegionId;
+  label: string;
   origin: Readonly<{ x: number; z: number }>;
   widthMeters: number;
   depthMeters: number;
@@ -15,6 +18,8 @@ export interface WorldFarmDefinition {
   moistureRetention: number;
   accessType: "public" | "private";
   leaseCost: number;
+  /** Maximum number of live crop records the farm can hold at once. */
+  cropCapacity?: number;
   plantableAreas: readonly Readonly<{ minX: number; maxX: number; minZ: number; maxZ: number }>[];
   structureIds: readonly string[];
 }
@@ -22,7 +27,7 @@ export interface WorldFarmDefinition {
 export interface WorldStationDefinition {
   id: string;
   islandId: WorldIslandId;
-  type: "hand-mill" | "workbench" | "fish-table" | "compost-bin";
+  type: "hand-mill" | "workbench" | "fish-table" | "compost-bin" | "kitchen";
   position: Readonly<{ x: number; z: number }>;
   rotationY: number;
   approachDistanceMeters: number;
@@ -59,8 +64,11 @@ export interface WorldAmbienceProfile {
   harborGain: number;
 }
 
-function farmSize(layout: typeof STARTER_FARM_LAYOUT | typeof PLAYER_HOMESTEAD_LAYOUT): { widthMeters: number; depthMeters: number } {
-  const area = layout.plantableAreas[0] ?? layout.farmBounds;
+function farmSize(
+  layout: typeof STARTER_FARM_LAYOUT | typeof PLAYER_HOMESTEAD_LAYOUT,
+  useFarmBounds = false
+): { widthMeters: number; depthMeters: number } {
+  const area = useFarmBounds ? layout.farmBounds : layout.plantableAreas[0] ?? layout.farmBounds;
   return { widthMeters: area.maxX - area.minX, depthMeters: area.maxZ - area.minZ };
 }
 
@@ -71,27 +79,35 @@ export const WORLD_FARM_DEFINITIONS: Readonly<Record<string, Readonly<WorldFarmD
     id: "farm.starter_garden",
     islandId: "island.neva",
     regionId: "region.farm",
+    label: "Family Farm",
     origin: STARTER_FARM_LAYOUT.origin,
     ...farmSize(STARTER_FARM_LAYOUT),
     climateId: "temperate",
     fertility: 85,
     moistureRetention: 0.7,
-    accessType: "public",
+    // The family farmhouse and starter field are inherited at new game start.
+    // `accessType` is retained in the save shape, but inheritance is not a
+    // purchase or a recurring land charge.
+    accessType: "private",
     leaseCost: 0,
     plantableAreas: STARTER_FARM_LAYOUT.plantableAreas,
-    structureIds: ["struct.starter_mill", "struct.workbench", "struct.starter_compost"]
+    structureIds: ["struct.starter_mill", "struct.workbench", "struct.starter_compost", "struct.kitchen"]
   }),
   "farm.player_homestead": Object.freeze({
     id: "farm.player_homestead",
     islandId: "island.neva",
     regionId: "region.farm",
+    label: "Village Commons",
     origin: PLAYER_HOMESTEAD_LAYOUT.origin,
-    ...farmSize(PLAYER_HOMESTEAD_LAYOUT),
+    ...farmSize(PLAYER_HOMESTEAD_LAYOUT, true),
     climateId: "temperate",
     fertility: 90,
     moistureRetention: 0.8,
-    accessType: "private",
-    leaseCost: 50,
+    // Stable compatibility id. The player-facing location is the public
+    // Village Commons, not a second house or a market-owned private plot.
+    accessType: "public",
+    leaseCost: 0,
+    cropCapacity: 3,
     plantableAreas: PLAYER_HOMESTEAD_LAYOUT.plantableAreas,
     structureIds: []
   }),
@@ -99,6 +115,7 @@ export const WORLD_FARM_DEFINITIONS: Readonly<Record<string, Readonly<WorldFarmD
     id: "farm.sunreach_terraces",
     islandId: "island.sunreach",
     regionId: "region.sunreach_terraces",
+    label: "Sunreach Terraces",
     origin: SUNREACH_FARM_LAYOUT.origin,
     widthMeters: 52,
     depthMeters: 51,
@@ -119,6 +136,7 @@ export const WORLD_FARM_DEFINITIONS: Readonly<Record<string, Readonly<WorldFarmD
 const starterMill = starterStructureAnchor("struct.starter_mill")!;
 const starterWorkbench = starterStructureAnchor("struct.workbench")!;
 const starterCompost = starterStructureAnchor("struct.starter_compost")!;
+const starterKitchen = starterStructureAnchor("struct.kitchen")!;
 
 export const WORLD_STATION_DEFINITIONS: Readonly<Record<string, Readonly<WorldStationDefinition>>> = Object.freeze({
   [starterMill.id]: Object.freeze({
@@ -145,6 +163,14 @@ export const WORLD_STATION_DEFINITIONS: Readonly<Record<string, Readonly<WorldSt
     rotationY: starterCompost.rotationY,
     approachDistanceMeters: starterCompost.frontApproachDistanceMeters
   }),
+  [starterKitchen.id]: Object.freeze({
+    id: starterKitchen.id,
+    islandId: "island.neva",
+    type: starterKitchen.type,
+    position: { x: starterKitchen.x, z: starterKitchen.z },
+    rotationY: starterKitchen.rotationY,
+    approachDistanceMeters: starterKitchen.frontApproachDistanceMeters
+  }),
   [HARBOR_FISH_TABLE.structureId]: Object.freeze({
     id: HARBOR_FISH_TABLE.structureId,
     islandId: "island.neva",
@@ -157,7 +183,7 @@ export const WORLD_STATION_DEFINITIONS: Readonly<Record<string, Readonly<WorldSt
     id: "struct.sunreach_hand_mill",
     islandId: "island.sunreach",
     type: "hand-mill",
-    position: { x: 444, z: 21 },
+    position: { x: 444 + SUNREACH_OFFSET_X, z: 21 },
     rotationY: 2.35,
     approachDistanceMeters: 1.2
   }),
@@ -165,7 +191,7 @@ export const WORLD_STATION_DEFINITIONS: Readonly<Record<string, Readonly<WorldSt
     id: "struct.sunreach_workbench",
     islandId: "island.sunreach",
     type: "workbench",
-    position: { x: 466, z: 17 },
+    position: { x: 466 + SUNREACH_OFFSET_X, z: 17 },
     rotationY: -0.7,
     approachDistanceMeters: 1.05
   }),
@@ -173,7 +199,7 @@ export const WORLD_STATION_DEFINITIONS: Readonly<Record<string, Readonly<WorldSt
     id: "struct.sunreach_fish_table",
     islandId: "island.sunreach",
     type: "fish-table",
-    position: { x: 382, z: 61 },
+    position: { x: 382 + SUNREACH_OFFSET_X, z: 61 },
     rotationY: -1.5,
     approachDistanceMeters: 1.05
   })
@@ -204,17 +230,19 @@ export const WORLD_MARKET_LOCATIONS: Readonly<Record<string, Readonly<WorldMarke
 });
 
 export const WORLD_CHART_NODES: readonly Readonly<WorldChartNode>[] = Object.freeze([
+  ...OCEAN_ISLETS.map((islet): WorldChartNode => ({ id: `chart.${islet.id}`, islandId: islet.id, regionId: "region.open_channel",
+    position: OCEAN_ISLAND_DEFINITIONS[islet.id].anchors.landing, label: islet.title, kind: "landmark" })), 
   ...WORLD_DISCOVERIES.slice(0, 4).map((entry): WorldChartNode => ({ id: `chart.${entry.id}`, islandId: "island.neva", regionId: "region.coast", position: entry.position, label: entry.title, kind: "landmark" })),
-  { id: "chart.neva_farm", islandId: "island.neva", regionId: "region.farm", position: STARTER_FARM_LAYOUT.origin, label: "Starter Homestead", kind: "farm", farmId: "farm.starter_garden" },
-  { id: "chart.neva_homestead", islandId: "island.neva", regionId: "region.farm", position: PLAYER_HOMESTEAD_LAYOUT.origin, label: "Private Homestead", kind: "farm", farmId: "farm.player_homestead" },
+  { id: "chart.neva_farm", islandId: "island.neva", regionId: "region.farm", position: STARTER_FARM_LAYOUT.origin, label: "Family Farm", kind: "farm", farmId: "farm.starter_garden" },
+  { id: "chart.neva_homestead", islandId: "island.neva", regionId: "region.farm", position: PLAYER_HOMESTEAD_LAYOUT.origin, label: "Village Commons", kind: "farm", farmId: "farm.player_homestead" },
   { id: "chart.neva_village", islandId: "island.neva", regionId: "region.village", position: VILLAGE_MARKET.position, label: "Village Market", kind: "market", marketId: "market.village" },
-  { id: "chart.neva_mill", islandId: "island.neva", regionId: "region.village", position: { x: 57.8, z: -81.2 }, label: "Village Mill", kind: "landmark" },
+  { id: "chart.neva_mill", islandId: "island.neva", regionId: "region.village", position: starterStructureAnchor("struct.starter_mill")!, label: "Village Mill", kind: "landmark" },
   { id: "chart.neva_crossing", islandId: "island.neva", regionId: "region.coast", position: { x: 0, z: -5 }, label: "River Crossing", kind: "water", fishingHabitat: "river", fishingEcologyId: "ecology.neva" },
   { id: "chart.neva_river", islandId: "island.neva", regionId: "region.coast", position: { x: -19.193839218632608, z: -40 }, label: "Silverwater River", kind: "water", fishingHabitat: "river", fishingEcologyId: "ecology.neva" },
   { id: "chart.neva_harbor", islandId: "island.neva", regionId: "region.harbor", position: HARBOR_MARKET.position, label: "Seabreak Harbor", kind: "dock", marketId: "market.harbor", fishingHabitat: "coast", fishingEcologyId: "ecology.neva" },
   { id: "chart.neva_lighthouse", islandId: "island.neva", regionId: "region.coast", position: { x: -92, z: 74 }, label: "Lighthouse Cliffs", kind: "landmark", fishingHabitat: "coast", fishingEcologyId: "ecology.neva" },
   { id: "chart.neva_offshore", islandId: "island.neva", regionId: "region.offshore", position: { x: 15, z: 170 }, label: "Neva Offshore Grounds", kind: "water", fishingHabitat: "offshore", fishingEcologyId: "ecology.neva" },
-  { id: "chart.open_channel", islandId: null, regionId: "region.open_channel", position: { x: 310, z: 72 }, label: "Open Channel", kind: "water" },
+  { id: "chart.open_channel", islandId: null, regionId: "region.open_channel", position: { x: 700, z: 110 }, label: "Open Channel", kind: "water" },
   { id: "chart.sunreach_cove", islandId: "island.sunreach", regionId: "region.sunreach_cove", position: SUNREACH_ANCHORS.coveMarket, label: "Sunreach Cove", kind: "market", marketId: "market.sunreach_cove", fishingHabitat: "coast", fishingEcologyId: "ecology.sunreach" },
   { id: "chart.sunreach_terraces", islandId: "island.sunreach", regionId: "region.sunreach_terraces", position: SUNREACH_ANCHORS.terraceFarm, label: "Sunreach Terraces", kind: "farm", farmId: "farm.sunreach_terraces" },
   { id: "chart.sunreach_ridge", islandId: "island.sunreach", regionId: "region.sunreach_ridge", position: SUNREACH_ANCHORS.exposedRidge, label: "Exposed Ridge", kind: "landmark" },
@@ -239,7 +267,7 @@ export const WORLD_AMBIENCE_PROFILES: readonly Readonly<WorldAmbienceProfile>[] 
 // became "Village Mill"). The region name is what the HUD and pause screen show.
 export const WORLD_REGION_LABELS: Readonly<Record<WorldRegionId, string>> = Object.freeze({
   "region.village": "Village Market",
-  "region.farm": "Starter Homestead",
+  "region.farm": "Family Farm & Commons",
   "region.coast": "Neva Coast",
   "region.harbor": "Seabreak Harbor",
   "region.offshore": "Neva Offshore Grounds",

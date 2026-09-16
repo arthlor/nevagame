@@ -35,8 +35,13 @@ export interface WaterOptions {
   centerZ?: number;
 }
 
-export const SHORE_MASK_RESOLUTION = 512;
-export const SHORE_MASK_METERS_PER_TEXEL = 750 / (SHORE_MASK_RESOLUTION - 1);
+/**
+ * World-space sampling for the CPU-authored water profile and depth maps.
+ * Keeping this independent from the total ocean dimensions prevents a larger
+ * archipelago from multiplying startup work while linear filtering preserves
+ * the authored shoreline transition between samples.
+ */
+export const SHORE_MASK_METERS_PER_TEXEL = 3;
 
 export function createWaterProfileMap(bounds: THREE.Vector4, width: number, height: number): THREE.DataTexture {
   return runSync(waterProfileMapSteps(bounds, width, height));

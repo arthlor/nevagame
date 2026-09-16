@@ -357,7 +357,11 @@ describe("Neva art catalog", () => {
     const manifest = JSON.parse(
       fs.readFileSync(path.join(ROOT, "generated/reports/asset-manifest.json"), "utf8")
     ) as { assets: Array<{ file: string; fileHash: string }> };
-    expect(manifest.assets).toHaveLength(Object.values(ASSET_IDS).length);
+    // Code-authored `prebuilt_glb` assets are published by tools/authored, not the Blender manifest.
+    const { catalog } = validateCatalog();
+    const blenderAssets = catalog.assets.filter((asset) => asset.generator !== "prebuilt_glb");
+    expect(blenderAssets.length).toBeGreaterThan(0);
+    expect(manifest.assets).toHaveLength(blenderAssets.length);
     for (const asset of manifest.assets) {
       const generated = path.join(ROOT, "generated/glb", asset.file);
       const published = path.join(ROOT, "public/assets/models", asset.file);

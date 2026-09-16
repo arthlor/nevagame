@@ -9,7 +9,7 @@ import type { ResolvedPhysicsFrame } from "../../src/simulation/core/PhysicsAdap
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { SPORT_FISHING_REVIEW_POINTS } from "../../src/simulation/domains/FishingDomain";
 import { farmLocalToWorld, STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
-import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
+import { HARBOR_DOCK, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
@@ -106,6 +106,18 @@ function fishInventoryCount(simulation: Simulation): number {
   return Array.from(ContentRegistry.fishSpecies.values())
     .filter((fish) => !fish.isSportFish)
     .reduce((total, fish) => total + InventoryManager.getItemCount(inventory, fish.id), 0);
+}
+
+/**
+ * Work is a daily budget now. The slice tops the pool up between phases the
+ * way a night's rest would, without asserting the rest pacing here.
+ */
+function refillDailyWork(simulation: Simulation): void {
+  simulation.state.player.workCapacity.current = simulation.state.player.workCapacity.maximum;
+  simulation.state.player.workCapacity.earnedToday = 0;
+  simulation.state.player.workCapacity.earningsDay = Math.floor(simulation.state.clock.currentMinute / 1440);
+  simulation.state.player.workCapacity.mealsToday = 0;
+  simulation.state.player.workCapacity.laborUsedToday = [];
 }
 
 function waitForBasicBite(simulation: Simulation): boolean {
@@ -262,13 +274,14 @@ describe("P12 new-save vertical slice", () => {
     const bridge = WorldLayout.landmark("bridge");
     commitPlayerPose(simulation, bridge.x, bridge.z);
     expect(WorldLayout.nearbyFishingHabitat(bridge.x, bridge.z)).toBe("river");
+    refillDailyWork(simulation);
     catchBasicFish(simulation);
     catchBasicFish(simulation);
     expect(mainQuestTrack(simulation.state.quests).stepProgress).toEqual({ "step.act3_catch_2_river_fish": 2 });
     talkTo(simulation, "npc.silas");
     expect(activeQuestId(simulation)).toBe("quest.act3_market_intro");
 
-    commitPlayerPose(simulation, 54, -52);
+    commitPlayerPose(simulation, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z);
     expect(simulation.query({ type: "market.nearby" })).toBe("market.village");
     expect(simulation.execute({ type: "market.sell-item", marketId: "market.village", itemId: "produce.wheat", quantity: 1 }))
       .toMatchObject({ success: true });
@@ -297,6 +310,7 @@ describe("P12 new-save vertical slice", () => {
     expect(simulation.execute({ type: "fishing.chum-school", schoolId: lakeSchool!.id })).toMatchObject({ success: true });
     expect(activeQuestId(simulation)).toBe("quest.act5_maiden_voyage");
     expect(simulation.execute({ type: "fishing.toggle-lure" })).toMatchObject({ success: true, prepared: true });
+    refillDailyWork(simulation);
     expect(simulation.execute({ type: "fishing.hook-school", schoolId: lakeSchool!.id })).toMatchObject({ success: true });
     expect(InventoryManager.getItemCount(playerInventory(), "item.basic_lure")).toBe(1);
     const cargoId = landSportFish(simulation);
@@ -313,13 +327,26 @@ describe("P12 new-save vertical slice", () => {
     const fishMarket = WorldLayout.landmark("fish-market");
     commitPlayerPose(simulation, fishMarket.x, fishMarket.z);
     expect(simulation.query({ type: "market.nearby" })).toBe("market.harbor");
-    const sale = simulation.execute({ type: "market.sell-fish", marketId: "market.harbor", cargoId });
+    expect(simulation.execute({ type: "market.sell-fish", marketId: "market.harbor", cargoId }))
+      .toMatchObject({ success: false });
+    expect(simulation.state.fishCargo[cargoId]).toBeDefined();
+    commitPlayerPose(simulation, HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z);
+    expect(simulation.execute({ type: "cargo.pickup", cargoId })).toMatchObject({ success: true });
+    expect(simulation.state.fishCargo[cargoId].location).toEqual({ type: "player", containerId: "player" });
+    expect(simulation.state.player.carriedFishCargoId).toBe(cargoId);
+
+    commitPlayerPose(simulation, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z);
+    expect(simulation.query({ type: "market.nearby" })).toBe("market.village");
+    const sale = simulation.execute({ type: "market.sell-trade-pack", marketId: "market.village", cargoId });
     expect(sale).toMatchObject({ success: true });
     expect(simulation.state.fishCargo[cargoId]).toBeUndefined();
     talkTo(simulation, "npc.silas");
     expect(activeQuestId(simulation)).toBe("quest.act6_harbor_promise");
     expect(simulation.state.quests.activeActId).toBe("act6_stewardship");
-    expect(simulation.state.quests.completedQuestIds).toHaveLength(10);
+    // Ten spine quests plus the track.homestead side errand Elspeth can now
+    // close in the same conversation the spine turn-in happened.
+    expect(simulation.state.quests.completedQuestIds).toHaveLength(11);
+    expect(simulation.state.quests.completedQuestIds).toContain("quest.homestead_seed_pouch");
 
     expect(await repository.saveGame(simulation.state)).toBe(true);
     const finalSave = await repository.loadGame();

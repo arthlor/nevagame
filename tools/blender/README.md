@@ -43,6 +43,10 @@ an unresolved concern. Typecheck only when runtime TypeScript changed.
 
 `open_trade_pack_workshop.py` creates an editable workshop from explicit selected catalog IDs through the registered fish/crop pack generators. In Blender's Python console, load it with `runpy.run_path` and call its `build_workshop(asset_ids)` function. It preserves the previous scene, creates a separate workshop scene, and saves `art/workshops/trade-packs.blend`. The workshop is an editable inspection artifact; catalog parameters and registered generators remain the reproducible source, and the ordinary selected CLI owns GLB validation and publication. Crop packs are future-use assets, not a physical crop delivery mechanic.
 
+### Horse and carriage Blender workshop
+
+`open_horse_carriage_workshop.py` builds the catalog draft horse and merchant carriage in a separate editable scene, with two existing crop trade packs attached to the carriage's cargo sockets. It preserves earlier scenes and saves `art/workshops/horse-carriage.blend`. The horse has a skinned armature with idle, walk and trot actions; the carriage has wheel actions and a loading-gate action. NLA tracks select the reviewed action. Cargo sockets establish asset fit only: this workshop does not implement drivable transport or simulation cargo capacity. Registered generators and selected art CLI generation own GLB publication.
+
 ### Vegetation Blender workshop
 
 `open_vegetation_workshop.py` creates one editable metre-scale scene per explicitly selected vegetation catalog ID. Load it with `runpy.run_path` in Blender's Python console, then call `build_workshop(asset_ids)` and `show_asset(id)` to inspect a plant. It preserves earlier scenes, applies the normal authored surface finish, hides collision and distant detail for inspection, and saves `art/workshops/vegetation.blend`. Registered generators and catalog parameters remain the source for regeneration; the workshop does not export or publish game assets.

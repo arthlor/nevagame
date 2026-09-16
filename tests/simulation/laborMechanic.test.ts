@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
 import {
+  applyPassiveWorkRegen,
+  earnWorkCapacity,
   getProficiencyWorkDiscount,
-  LIVE_WORK_CAPACITY_REGEN_PER_HOUR,
-  OFFLINE_WORK_CAPACITY_REGEN_PER_HOUR,
-  regenerateWorkCapacity
+  restoreWorkOnRest,
+  rollWorkEarnings,
+  WORK_PASSIVE_REGEN_AMOUNT,
+  WORK_PASSIVE_REGEN_INTERVAL_SECONDS
 } from "../../src/simulation/domains/ProgressionDomain";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
 import { farmLocalToWorld, STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
@@ -53,67 +56,148 @@ describe("Work Capacity mechanic", () => {
     });
   });
 
-  describe("Regeneration Rates", () => {
-    it("regenerates at live rate of 200 Work per in-game hour", () => {
-      const work: WorkCapacityState = { current: 0, maximum: 1000, regeneratedAtMinute: 0 };
-      regenerateWorkCapacity(work, 30, 30, LIVE_WORK_CAPACITY_REGEN_PER_HOUR);
-      expect(work.current).toBe(100);
-
-      regenerateWorkCapacity(work, 30, 60, LIVE_WORK_CAPACITY_REGEN_PER_HOUR);
-      expect(work.current).toBe(200);
-    });
-
-    it("regenerates at offline rate of 100 Work per in-game hour", () => {
-      const work: WorkCapacityState = { current: 0, maximum: 1000, regeneratedAtMinute: 0 };
-      regenerateWorkCapacity(work, 60, 60, OFFLINE_WORK_CAPACITY_REGEN_PER_HOUR);
-      expect(work.current).toBe(100);
-    });
-
-    it("clamps regeneration to maximum capacity of 1000", () => {
-      const work: WorkCapacityState = { current: 950, maximum: 1000, regeneratedAtMinute: 0 };
-      regenerateWorkCapacity(work, 60, 60, LIVE_WORK_CAPACITY_REGEN_PER_HOUR);
-      expect(work.current).toBe(1000);
-    });
-
-    it("regenerates Work during offline progression simulation", () => {
+  describe("Earned Work", () => {
+    it("does not regenerate Work from advanced game minutes alone", () => {
       const sim = new Simulation();
-      sim.state.player.workCapacity.current = 200;
-      sim.state.metadata.lastSavedUtcMs = 1000000;
+      sim.state.player.workCapacity.current = 10;
+      sim.advanceGameMinutes(600);
+      expect(sim.state.player.workCapacity.current).toBe(10);
+    });
 
-      // 60 game minutes = 60 / 0.4 = 150 real seconds = 150,000 ms
-      applyOfflineProgression(sim.state, 1000000 + 150000);
-      expect(sim.state.player.workCapacity.current).toBe(300); // 200 + 100
-      expect(sim.state.player.workCapacity.regeneratedAtMinute).toBe(sim.state.clock.currentMinute);
+    it("trickles Work on real time, clamped by the ceiling", () => {
+      const work: WorkCapacityState = {
+        current: 10,
+        maximum: 500,
+        regeneratedAtMinute: 0,
+        passiveRegenSeconds: 0
+      };
+      // Half an interval grants nothing; the remainder carries.
+      expect(applyPassiveWorkRegen(work, WORK_PASSIVE_REGEN_INTERVAL_SECONDS / 2)).toBe(0);
+      expect(work.current).toBe(10);
+      // The next half completes the interval.
+      expect(applyPassiveWorkRegen(work, WORK_PASSIVE_REGEN_INTERVAL_SECONDS / 2)).toBe(
+        WORK_PASSIVE_REGEN_AMOUNT
+      );
+      expect(work.current).toBe(10 + WORK_PASSIVE_REGEN_AMOUNT);
+
+      // A full interval at once grants the same amount.
+      expect(applyPassiveWorkRegen(work, WORK_PASSIVE_REGEN_INTERVAL_SECONDS)).toBe(
+        WORK_PASSIVE_REGEN_AMOUNT
+      );
+
+      // Near the ceiling the grant is clipped and the accumulator clears.
+      work.current = work.maximum - 2;
+      work.passiveRegenSeconds = 0;
+      expect(applyPassiveWorkRegen(work, WORK_PASSIVE_REGEN_INTERVAL_SECONDS)).toBe(2);
+      expect(work.current).toBe(work.maximum);
+
+      // A full pool never banks a burst.
+      expect(applyPassiveWorkRegen(work, WORK_PASSIVE_REGEN_INTERVAL_SECONDS * 10)).toBe(0);
+      expect(work.passiveRegenSeconds).toBe(0);
+    });
+
+    it("trickles through the real-time tick but not while paused", () => {
+      const sim = new Simulation();
+      sim.state.player.workCapacity.current = 10;
+      sim.clock.setPaused(true);
+      sim.tick(WORK_PASSIVE_REGEN_INTERVAL_SECONDS);
+      expect(sim.state.player.workCapacity.current).toBe(10);
+      sim.clock.setPaused(false);
+      sim.tick(WORK_PASSIVE_REGEN_INTERVAL_SECONDS);
+      expect(sim.state.player.workCapacity.current).toBe(10 + WORK_PASSIVE_REGEN_AMOUNT);
+    });
+
+    it("restores a fraction plus a baseline floor on rest", () => {
+      const work: WorkCapacityState = { current: 0, maximum: 500, regeneratedAtMinute: 0 };
+      const granted = restoreWorkOnRest(work, 480);
+      expect(granted).toBe(125); // max(0 + 10% of 500, 25% of 500)
+      expect(work.current).toBe(125);
+      restoreWorkOnRest(work, 480);
+      expect(work.current).toBe(175);
+    });
+
+    it("caps earned Work at the daily earn cap", () => {
+      const work: WorkCapacityState = {
+        current: 0,
+        maximum: 500,
+        regeneratedAtMinute: 0,
+        earnedToday: 0,
+        earningsDay: 0
+      };
+      expect(earnWorkCapacity(work, 150, 60)).toBe(150);
+      // Only the remaining room under the 300/day cap is granted.
+      expect(earnWorkCapacity(work, 150, 120)).toBe(150);
+      expect(earnWorkCapacity(work, 150, 180)).toBe(0);
+      expect(work.current).toBe(300);
+    });
+
+    it("bounds earned Work by the pool ceiling", () => {
+      const work: WorkCapacityState = {
+        current: 490,
+        maximum: 500,
+        regeneratedAtMinute: 0,
+        earnedToday: 0,
+        earningsDay: 0
+      };
+      expect(earnWorkCapacity(work, 40, 60)).toBe(10);
+    });
+
+    it("rolls the daily tallies when the calendar day changes", () => {
+      const work: WorkCapacityState = {
+        current: 0,
+        maximum: 500,
+        regeneratedAtMinute: 0,
+        earnedToday: 180,
+        earningsDay: 0,
+        mealsToday: 3,
+        laborUsedToday: ["labor.firewood"]
+      };
+      rollWorkEarnings(work, 1);
+      expect(work.earnedToday).toBe(0);
+      expect(work.mealsToday).toBe(0);
+      expect(work.laborUsedToday).toEqual([]);
+    });
+
+    it("grants at most one rest across an offline wake", () => {
+      const sim = new Simulation();
+      expect(sim.state.player.workCapacity.maximum).toBe(500);
+      sim.state.player.workCapacity.current = 50;
+      sim.state.metadata.lastSavedUtcMs = 0;
+      // 1.5 game days away at 0.4 game-min per real second.
+      const oneAndAHalfGameDaysMs = (1440 / 0.4) * 1000 * 1.5;
+      applyOfflineProgression(sim.state, oneAndAHalfGameDaysMs);
+      // One rest: max(50 + 10% of 500, 25% of 500) = 125, not a per-hour refill.
+      expect(sim.state.player.workCapacity.current).toBe(125);
     });
   });
 
   describe("Decoupled Progression XP Rewards", () => {
     it("awards quest completion XP without deducting Work", () => {
       const sim = new Simulation();
-      sim.state.player.workCapacity.current = 500;
+      sim.state.player.workCapacity.current = 250;
       const initialFarmingXp = sim.state.player.proficiencies.farming;
 
       sim.progression.addProficiencyXp("farming", 150);
 
       expect(sim.state.player.proficiencies.farming).toBe(initialFarmingXp + 150);
-      expect(sim.state.player.workCapacity.current).toBe(500);
+      expect(sim.state.player.workCapacity.current).toBe(250);
     });
 
     it("awards market sale Trading XP without deducting Work", () => {
       const sim = new Simulation();
-      sim.state.player.workCapacity.current = 750;
+      sim.state.player.workCapacity.current = 280;
       const initialTradingXp = sim.state.player.proficiencies.trading;
 
       // Selling goods generates Trading XP
       sim.progression.addProficiencyXp("trading", 50);
 
       expect(sim.state.player.proficiencies.trading).toBe(initialTradingXp + 50);
-      expect(sim.state.player.workCapacity.current).toBe(750);
+      expect(sim.state.player.workCapacity.current).toBe(280);
     });
   });
 
   describe("fully funded action gating", () => {
-    it("quotes affordability, shortage, and ready time from the discounted cost", () => {
+    it("quotes affordability and shortage from the discounted cost", () => {
       const sim = new Simulation();
       sim.state.player.workCapacity.current = 9.8;
       const quote = sim.quoteWorkCost(10, "farming");
@@ -124,7 +208,6 @@ describe("Work Capacity mechanic", () => {
         affordable: false
       });
       expect(quote.shortage).toBeCloseTo(0.2, 8);
-      expect(quote.readyAtMinute).toBe(sim.state.clock.currentMinute + 1);
     });
 
     it("blocks planting at zero Work without mutating seed, RNG, XP, or crops", () => {

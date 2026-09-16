@@ -242,6 +242,12 @@ patches, but its shore-profile texture preserves world meters per texel and per
 segment, and the global sign treats a point as land when any registered island
 coast reports dry ground. Submerged visual aprons soften outer patch seams and
 must never become walkable collision or a second shoreline authority.
+Sparse channel islets use their own bounded patches and terrain-surface sample,
+with compact authored placement clusters rather than a full Neva or Sunreach
+composition pass. Keep the southern landing clear, give every islet a distinct
+long-distance silhouette, and keep most of the channel as open water. Increasing
+the ocean dimensions must not scale the CPU-authored profile/depth texture into
+an unbounded startup task; its code-owned world-space sample pitch stays stable.
 
 For continuous grass coverage and blade proportions, the later user-selected `art/references/lush-grass/meadow-reference.png` owns the meadow direction. The starter-farm ground/path pass still uses `art/references/neva-ui-hud-on-foot.png` as its gameplay-distance graphics benchmark. Translate its warm sandy-ochre polygonal paths, irregular but softly integrated grass shoulder, intermittent stepping stones, low chamomile/daisy cover, chunky foliage, wet-edge reeds, faceted crowns, golden wheat/pumpkin-bed read, and warm-key/cool-fill lighting into the canonical route, palette, catalog, instancing, water, and render-config owners. Supporting maps may enrich packed-core wear and meadow meso breakup only after palette remap (section 6.2). The transition must retain broad faceted regions without binary cutout holes, black seams, or a blurry uniform ribbon. Do not copy its camera, UI, layout, composition, depth of field, or tilt-shift, and do not create a second surface field or renderer baseline.
 

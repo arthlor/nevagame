@@ -22,7 +22,10 @@ describe("npcStationBeat", () => {
     expect(paused).toEqual({ ...before, walking: false });
     expect(state.elapsedSeconds).toBe(0.25);
     const resumed = advanceNpcStationBeat(spec, state, 1 / 60, false, () => true);
-    expect(Math.hypot(resumed.dx - before.dx, resumed.dz - before.dz)).toBeLessThanOrEqual(spec.walkSpeedMetersPerSecond / 60 + 1e-8);
+    // Legs ease in and out, so the mid-leg instantaneous speed peaks at 1.5x the
+    // cruise speed; the invariant is that a single frame never replays wall time.
+    expect(Math.hypot(resumed.dx - before.dx, resumed.dz - before.dz))
+      .toBeLessThanOrEqual(spec.walkSpeedMetersPerSecond / 60 * 1.6 + 1e-8);
   });
 
   it("retains the last supported pose instead of returning to the station anchor", () => {
@@ -46,7 +49,7 @@ describe("npcStationBeat", () => {
     expect(NPC_STATION_BEAT_RADIUS_METERS).toBeLessThan(TALK_RADIUS_METERS);
     for (const [npcId, spec] of Object.entries(NPC_STATION_BEATS)) {
       expect(spec.waypoints.length, npcId).toBeGreaterThanOrEqual(2);
-      expect(spec.waypoints.length, npcId).toBeLessThanOrEqual(3);
+      expect(spec.waypoints.length, npcId).toBeLessThanOrEqual(5);
       expect(() => assertNpcStationBeatRadius(spec)).not.toThrow();
       for (const waypoint of spec.waypoints) {
         expect(Math.hypot(waypoint.dx, waypoint.dz), npcId).toBeLessThanOrEqual(

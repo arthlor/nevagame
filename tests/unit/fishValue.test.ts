@@ -1,7 +1,7 @@
 // tests/unit/fishValue.test.ts
 import { describe, it, expect, beforeEach } from "vitest";
 import { calculateFishPrice } from "../../src/simulation/economy/calculateFishValue";
-import { calculateCommodityUnitPrice } from "../../src/simulation/economy/calculateCommodityValue";
+import { DEMAND_MAX, DEMAND_MIN, demandFromSupply } from "../../src/simulation/economy/marketPricing";
 import {
   advanceCargoFreshness,
   calculateFreshnessLoss,
@@ -29,20 +29,10 @@ describe("Fish Value & Freshness Calculations", () => {
     expect(lossHold).toBeLessThan(lossOpen);
   });
 
-  it("centralizes commodity unit pricing with the same demand and seasonal clamps as market sales", () => {
-    expect(
-      calculateCommodityUnitPrice({
-        itemId: "produce.wheat",
-        basePrice: 8,
-        demandIndex: 2,
-        localSupply: 0,
-        targetSupply: 1,
-        consumptionRate: 1,
-        seasonalModifier: 1.2,
-        lastTickMinute: 0,
-        recentSalesVolume: 0
-      })
-    ).toMatchObject({ demandPercent: 160, unitPrice: 15 });
+  it("clamps commodity demand through the single marketPricing owner", () => {
+    const commodity = { itemId: "produce.wheat", targetSupply: 10 };
+    expect(demandFromSupply(commodity, 1000, 0, 1)).toBe(DEMAND_MIN);
+    expect(demandFromSupply(commodity, 0, 0, 1)).toBeLessThanOrEqual(DEMAND_MAX);
   });
 
   it("applies freshness price brackets correctly", () => {
