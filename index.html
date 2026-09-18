@@ -46,6 +46,9 @@
   <body>
     <div id="neva-boot-shell" role="status"><h1>Neva Land</h1><p>Grow a home. Follow the tide.</p><p id="neva-boot-status">Opening the coast…</p></div>
     <script>
+      window.addEventListener('vite:preloadError', function () {
+        window.location.reload();
+      });
       window.nevaBootFailed = function () {
         document.getElementById('neva-boot-status').textContent = 'The coast could not open. Check your connection and reload the game.';
         var button = document.createElement('button'); button.textContent = 'Reload game'; button.onclick = function () { location.reload(); };

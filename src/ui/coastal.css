@@ -6307,26 +6307,79 @@
 }
 
 /* Satchel: finite six-column slot field and a single persistent inspector. */
-#ui-container[data-ui="guildcraft"] .inventory-satchel-modal { width: min(1000px,94vw) !important; max-height: 90vh !important; overflow: hidden; }
+#ui-container[data-ui="guildcraft"] .inventory-satchel-modal {
+  width: min(820px, 94vw) !important;
+  height: auto !important;
+  max-height: min(620px, 90vh) !important;
+  overflow: hidden;
+  display: flex !important;
+  flex-direction: column !important;
+}
 #ui-container[data-ui="guildcraft"] .inventory-header-meta { flex: 1; }
 #ui-container[data-ui="guildcraft"] .inventory-capacity-meter { display: none !important; }
 #ui-container[data-ui="guildcraft"] .inventory-capacity-pill { color: var(--guild-muted) !important; font: 15px var(--font-serif); background: none !important; border: 0 !important; }
-#ui-container[data-ui="guildcraft"] .inventory-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px 0 !important; }
-/*
- * Search and Tidy are power tools, not the first thing a casual player needs.
- * They sit behind one "Organize" disclosure so the satchel opens as a bag of
- * things rather than as a filtered table.
- */
+
+#ui-container[data-ui="guildcraft"] .inventory-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px 0 !important;
+  border-bottom: 1px solid rgba(165, 139, 73, 0.2);
+}
+#ui-container[data-ui="guildcraft"] .inventory-category-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px !important;
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+#ui-container[data-ui="guildcraft"] .inventory-tab-btn {
+  min-height: 32px;
+  padding: 5px 12px !important;
+  color: var(--guild-muted) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 4px 4px 0 0 !important;
+  font: 600 12px/1 var(--font-sans) !important;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+#ui-container[data-ui="guildcraft"] .inventory-tab-btn:hover {
+  color: var(--guild-ivory) !important;
+  background: rgba(212, 175, 55, 0.06) !important;
+}
+#ui-container[data-ui="guildcraft"] .inventory-tab-btn.is-active {
+  color: var(--guild-gold-bright) !important;
+  background: rgba(212, 175, 55, 0.14) !important;
+  border-color: rgba(165, 139, 73, 0.3) rgba(165, 139, 73, 0.3) transparent !important;
+  border-bottom: 2px solid var(--guild-gold) !important;
+  box-shadow: 0 -2px 8px rgba(212, 175, 55, 0.1) !important;
+}
+
 #ui-container[data-ui="guildcraft"] .inventory-toolbar {
-  flex-wrap: wrap;
-  justify-content: flex-start !important;
+  display: flex;
+  align-items: center;
+  padding: 0 !important;
+}
+#ui-container[data-ui="guildcraft"] .inventory-organize-btn {
+  min-height: 28px;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
 }
 #ui-container[data-ui="guildcraft"] .inventory-organize-tools {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex: 1 1 auto;
-  min-width: 0;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(18, 16, 12, 0.6);
+  border-bottom: 1px solid rgba(165, 139, 73, 0.15);
 }
 #ui-container[data-ui="guildcraft"] .inventory-organize-tools[hidden] {
   display: none !important;
@@ -6338,6 +6391,7 @@
   color: var(--guild-gold) !important;
   box-shadow: 0 0 8px rgba(212, 175, 55, 0.25) !important;
 }
+
 /* Technical stats collapse behind a disclosure inside the item card. */
 #ui-container[data-ui="guildcraft"] .inventory-item-details {
   margin-top: 10px;
@@ -6362,31 +6416,166 @@
   content: " \25B4";
 }
 #ui-container[data-ui="guildcraft"] .inventory-item-details > summary:hover { color: var(--guild-gold); }
-/*
- * Empty slots still have to read as capacity, so they keep their socket, but
- * they stop competing with the items sitting next to them.
- */
-#ui-container[data-ui="guildcraft"] .inventory-grid .item-slot.is-empty-structural {
-  opacity: 0.42;
-}
+
 #ui-container[data-ui="guildcraft"] .inventory-search { flex: 1; max-width: 300px; }
 #ui-container[data-ui="guildcraft"] .inventory-search-input { min-height: 32px; font-size: 12px; padding: 6px 10px; width: 100%; }
 #ui-container[data-ui="guildcraft"] .inventory-search-label { color: var(--guild-muted) !important; }
-#ui-container[data-ui="guildcraft"] .inventory-body { grid-template-columns: minmax(0,1fr) 280px !important; gap: 24px !important; padding: 10px 16px 16px !important; min-height: 0; overflow: hidden !important; }
-#ui-container[data-ui="guildcraft"] .inventory-filter-status { margin: 0 0 8px; color: var(--guild-muted); font: 13px var(--font-serif); }
-#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-grid { grid-template-columns: repeat(6,minmax(0,1fr)) !important; gap: 5px !important; align-content: start; }
-#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-slot { min-width: 0 !important; min-height: 0 !important; height: auto !important; aspect-ratio: 1; background: var(--guild-slot) center/100% 100% no-repeat !important; border: 0 !important; padding: 11%; }
-#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-slot.is-selected { background-image: var(--guild-selected) !important; box-shadow: none !important; }
+
+#ui-container[data-ui="guildcraft"] .inventory-body {
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 290px) !important;
+  gap: 20px !important;
+  padding: 12px 18px 14px !important;
+  min-height: 0;
+  overflow: hidden !important;
+  flex: 1 1 auto;
+}
+#ui-container[data-ui="guildcraft"] .inventory-grid-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+#ui-container[data-ui="guildcraft"] .inventory-filter-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  background: rgba(212, 175, 55, 0.08);
+  border-left: 2px solid var(--guild-gold);
+  border-radius: 0 4px 4px 0;
+}
+#ui-container[data-ui="guildcraft"] .inventory-filter-status {
+  margin: 0;
+  color: var(--guild-ivory);
+  font: 500 12px/1.3 var(--font-sans);
+}
+#ui-container[data-ui="guildcraft"] .inventory-clear-search-btn {
+  background: none;
+  border: 0;
+  color: var(--guild-gold);
+  font: 600 11px var(--font-sans);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  align-content: start;
+  max-width: 340px;
+}
+#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-slot {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  aspect-ratio: 1;
+  background: var(--guild-slot) center/100% 100% no-repeat !important;
+  border: 0 !important;
+  padding: 11%;
+  border-radius: 4px;
+  transition: transform 0.1s ease, filter 0.15s ease, opacity 0.15s ease;
+}
+#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-slot:hover {
+  filter: brightness(1.12);
+}
+#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-slot.is-selected {
+  background-image: var(--guild-selected) !important;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.4) !important;
+}
+#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-slot.is-dimmed {
+  opacity: 0.22 !important;
+  filter: grayscale(70%) brightness(0.7) !important;
+}
+#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-slot.is-dimmed:hover {
+  opacity: 0.65 !important;
+  filter: grayscale(20%) brightness(0.9) !important;
+}
+#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .inventory-slot.is-match {
+  opacity: 1 !important;
+  filter: none !important;
+}
+#ui-container[data-ui="guildcraft"] .inventory-grid .item-slot.is-empty-structural {
+  opacity: 0.35 !important;
+}
+#ui-container[data-ui="guildcraft"] .inventory-grid .item-slot.is-empty-structural.is-dimmed {
+  opacity: 0.16 !important;
+}
 #ui-container[data-ui="guildcraft"] .inventory-slot .slot-item-icon { width: 100% !important; height: 100% !important; }
-#ui-container[data-ui="guildcraft"] .inventory-details-card { padding: 0 4px 0 20px !important; color: var(--guild-ivory) !important; border-left: 1px solid #a48a4b55 !important; border-radius: 0; overflow-y: auto; max-height: 100%; min-height: 0; overscroll-behavior: contain; }
+
+#ui-container[data-ui="guildcraft"] .inventory-details-card {
+  padding: 12px 14px !important;
+  color: var(--guild-ivory) !important;
+  background: rgba(18, 16, 12, 0.45) !important;
+  border: 1px solid rgba(165, 139, 73, 0.2) !important;
+  border-radius: 4px !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  overflow-y: auto;
+  max-height: 100%;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
 #ui-container[data-ui="guildcraft"] .details-header { flex-direction: column; align-items: flex-start; gap: 4px; }
 #ui-container[data-ui="guildcraft"] .details-icon-well { height: 76px; width: 96px; align-self: center; background: none !important; border: 0 !important; box-shadow: none !important; }
 #ui-container[data-ui="guildcraft"] .details-icon-well .atlas-image { width: 100%; height: 100%; }
-#ui-container[data-ui="guildcraft"] .details-name { font: 600 22px/1.15 var(--font-serif) !important; color: var(--guild-gold) !important; margin: 0; }
+#ui-container[data-ui="guildcraft"] .details-name { font: 600 20px/1.15 var(--font-serif) !important; color: var(--guild-gold) !important; margin: 0; }
 #ui-container[data-ui="guildcraft"] .details-category-tag { font-size: 11px !important; color: var(--guild-muted) !important; background: none !important; padding: 0; letter-spacing: .06em; }
 #ui-container[data-ui="guildcraft"] .details-description { color: var(--guild-muted) !important; font: 13px/1.45 var(--font-sans); margin: 4px 0; }
 #ui-container[data-ui="guildcraft"] .inventory-selected-strip { margin: 6px 0 !important; padding: 4px 0 !important; border-color: #89774944 !important; color: var(--guild-ivory); font-size: 12px; }
 #ui-container[data-ui="guildcraft"] .inventory-selected-strip > span:first-child { display: none; }
+
+#ui-container[data-ui="guildcraft"] .details-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  min-height: 240px;
+  padding: 24px 16px;
+  color: var(--guild-muted);
+  gap: 8px;
+}
+#ui-container[data-ui="guildcraft"] .details-placeholder-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, rgba(0, 0, 0, 0.3) 100%);
+  border: 1px solid rgba(165, 139, 73, 0.25);
+  color: var(--guild-gold);
+  margin-bottom: 4px;
+}
+#ui-container[data-ui="guildcraft"] .details-placeholder-title {
+  font: 600 16px var(--font-serif) !important;
+  color: var(--guild-gold-bright) !important;
+  margin: 0;
+}
+#ui-container[data-ui="guildcraft"] .details-placeholder-desc {
+  font: 12px/1.4 var(--font-sans) !important;
+  color: var(--guild-muted) !important;
+  margin: 0;
+  max-width: 200px;
+}
+#ui-container[data-ui="guildcraft"] .inventory-reset-filter-btn {
+  margin-top: 10px;
+  padding: 5px 14px;
+  font: 600 12px var(--font-sans);
+  color: var(--guild-gold-bright);
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(165, 139, 73, 0.4);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+#ui-container[data-ui="guildcraft"] .inventory-reset-filter-btn:hover {
+  background: rgba(212, 175, 55, 0.22);
+  border-color: var(--guild-gold);
+}
+
 #ui-container[data-ui="guildcraft"] .item-inspect-card { position: relative; width: auto; max-width: none; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; color: var(--guild-ivory) !important; }
 #ui-container[data-ui="guildcraft"] .item-inspect-card :is(h4,dd) { color: var(--guild-ivory) !important; }
 #ui-container[data-ui="guildcraft"] .item-inspect-card :is(dt,p) { color: var(--guild-muted) !important; }
@@ -6397,7 +6586,30 @@
 #ui-container[data-ui="guildcraft"] .item-inspect-climate-chip { background: none !important; padding: 0; }
 #ui-container[data-ui="guildcraft"] .inventory-plant-blocker { background: #b1772e18 !important; color: #e3bb81 !important; }
 #ui-container[data-ui="guildcraft"] .inventory-plant-action-btn { margin-top: 4px; }
-#ui-container[data-ui="guildcraft"] .guild-empty-search { grid-column: 1/-1; padding: 28px 8px; color: var(--guild-muted); }
+#ui-container[data-ui="guildcraft"] .guild-empty-search {
+  grid-column: 1 / -1;
+  margin: 4px 0 10px;
+  padding: 8px 12px;
+  color: var(--guild-muted);
+  font: 12px/1.4 var(--font-sans);
+  background: rgba(18, 16, 12, 0.4);
+  border: 1px dashed rgba(165, 139, 73, 0.2);
+  border-radius: 4px;
+}
+#ui-container[data-ui="guildcraft"] .inventory-satchel-modal .modal-footer {
+  padding: 8px 16px !important;
+  border-top: 1px solid rgba(165, 139, 73, 0.2) !important;
+  background: rgba(14, 12, 10, 0.5) !important;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#ui-container[data-ui="guildcraft"] .satchel-footer-tip {
+  font: 11px var(--font-sans);
+  color: var(--guild-muted);
+  letter-spacing: 0.02em;
+}
 
 /* Market: parchment ledger, dark live purchase/sale ticket. */
 #ui-container[data-ui="guildcraft"] .market-trading-modal { width: min(970px,94vw) !important; max-height: 90vh !important; }

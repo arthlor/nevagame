@@ -101,24 +101,34 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
   // #18: with a category filter active, non-matching slots are hidden entirely
   // (not rendered), so the grid and screen readers only see the filter result.
+  // Query and category filter state
   const query = searchTerm.trim().toLowerCase();
   const isFilterActive = activeCategory !== "all" || query.length > 0;
-  const visibleEntries = allSlots
+
+  const isSlotMatch = (slot: SatchelDto["slots"][number]): boolean => {
+    if (!slot.itemId) return false;
+    if (!matchesSatchelSearch(slot, searchTerm)) return false;
+    if (activeCategory === "all") return true;
+    return slot.inventoryCategory === activeCategory;
+  };
+
+  // Occupied slots that match the active filter
+  const matchingEntries = allSlots
     .map((slot, index) => ({ slot, index }))
-    .filter(({ slot }) => {
-      if (!matchesSatchelSearch(slot, searchTerm)) return false;
-      if (activeCategory === "all") return true;
-      return slot.itemId !== null && slot.inventoryCategory === activeCategory;
-    });
-  // #16: arrow-key navigation moves over occupied slots only; empty slots stay
-  // rendered (visual grid) but are never a nav stop.
-  const navigableEntries = visibleEntries.filter(
-    ({ slot }) => slot.itemId !== null && slot.quantity > 0
+    .filter(({ slot }) => isSlotMatch(slot));
+
+  // #16: arrow-key navigation moves over active matching slots only
+  const navigableEntries = matchingEntries.filter(
+    ({ slot }) => slot.quantity > 0
   );
 
   useEffect(() => {
-    if (!navigableEntries.some(({ index }) => index === selectedSlotIndex)) {
-      setSelectedSlotIndex(navigableEntries[0]?.index ?? null);
+    if (navigableEntries.length > 0) {
+      if (!navigableEntries.some(({ index }) => index === selectedSlotIndex)) {
+        setSelectedSlotIndex(navigableEntries[0].index);
+      }
+    } else {
+      setSelectedSlotIndex(null);
     }
   }, [searchTerm, activeCategory, satchel, selectedSlotIndex]);
 
@@ -151,9 +161,9 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
    */
   const columnsInGrid = (): number => {
     const grid = gridRef.current;
-    if (!grid) return 1;
+    if (!grid) return 4;
     const cells = Array.from(grid.children) as HTMLElement[];
-    if (cells.length === 0) return 1;
+    if (cells.length === 0) return 4;
     const firstTop = cells[0].offsetTop;
     const columns = cells.filter((cell) => cell.offsetTop === firstTop).length;
     return Math.max(1, columns);
@@ -226,73 +236,77 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
           <ChromeClose onClick={onClose} label="Close satchel" />
         </header>
 
-        <div className="inventory-category-tabs mm-ribbon-tabs" role="tablist" aria-label="Item categories" onKeyDown={handleTabListKeyDown}>
-          <button
-            type="button"
-            id="inventory-tab-all"
-            role="tab"
-            aria-selected={activeCategory === "all"}
-            aria-controls="inventory-items"
-            tabIndex={activeCategory === "all" ? 0 : -1}
-            className={`inventory-tab-btn ${activeCategory === "all" ? "is-active" : ""}`}
-            onClick={() => selectCategory("all")}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            id="inventory-tab-farming"
-            role="tab"
-            aria-selected={activeCategory === "farming"}
-            aria-controls="inventory-items"
-            tabIndex={activeCategory === "farming" ? 0 : -1}
-            className={`inventory-tab-btn ${activeCategory === "farming" ? "is-active" : ""}`}
-            onClick={() => selectCategory("farming")}
-          >
-            <IconSprout size={14} aria-hidden="true" /> Field
-          </button>
-          <button
-            type="button"
-            id="inventory-tab-fishing"
-            role="tab"
-            aria-selected={activeCategory === "fishing"}
-            aria-controls="inventory-items"
-            tabIndex={activeCategory === "fishing" ? 0 : -1}
-            className={`inventory-tab-btn ${activeCategory === "fishing" ? "is-active" : ""}`}
-            onClick={() => selectCategory("fishing")}
-          >
-            <IconFish size={14} aria-hidden="true" /> Fishing
-          </button>
-          <button
-            type="button"
-            id="inventory-tab-supplies"
-            role="tab"
-            aria-selected={activeCategory === "supplies"}
-            aria-controls="inventory-items"
-            tabIndex={activeCategory === "supplies" ? 0 : -1}
-            className={`inventory-tab-btn ${activeCategory === "supplies" ? "is-active" : ""}`}
-            onClick={() => selectCategory("supplies")}
-          >
-            <IconTools size={14} aria-hidden="true" /> Supplies
-          </button>
+        <div className="inventory-nav-bar">
+          <div className="inventory-category-tabs mm-ribbon-tabs" role="tablist" aria-label="Item categories" onKeyDown={handleTabListKeyDown}>
+            <button
+              type="button"
+              id="inventory-tab-all"
+              role="tab"
+              aria-selected={activeCategory === "all"}
+              aria-controls="inventory-items"
+              tabIndex={activeCategory === "all" ? 0 : -1}
+              className={`inventory-tab-btn ${activeCategory === "all" ? "is-active" : ""}`}
+              onClick={() => selectCategory("all")}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              id="inventory-tab-farming"
+              role="tab"
+              aria-selected={activeCategory === "farming"}
+              aria-controls="inventory-items"
+              tabIndex={activeCategory === "farming" ? 0 : -1}
+              className={`inventory-tab-btn ${activeCategory === "farming" ? "is-active" : ""}`}
+              onClick={() => selectCategory("farming")}
+            >
+              <IconSprout size={14} aria-hidden="true" /> Field
+            </button>
+            <button
+              type="button"
+              id="inventory-tab-fishing"
+              role="tab"
+              aria-selected={activeCategory === "fishing"}
+              aria-controls="inventory-items"
+              tabIndex={activeCategory === "fishing" ? 0 : -1}
+              className={`inventory-tab-btn ${activeCategory === "fishing" ? "is-active" : ""}`}
+              onClick={() => selectCategory("fishing")}
+            >
+              <IconFish size={14} aria-hidden="true" /> Fishing
+            </button>
+            <button
+              type="button"
+              id="inventory-tab-supplies"
+              role="tab"
+              aria-selected={activeCategory === "supplies"}
+              aria-controls="inventory-items"
+              tabIndex={activeCategory === "supplies" ? 0 : -1}
+              className={`inventory-tab-btn ${activeCategory === "supplies" ? "is-active" : ""}`}
+              onClick={() => selectCategory("supplies")}
+            >
+              <IconTools size={14} aria-hidden="true" /> Supplies
+            </button>
+          </div>
+
+          <div className="inventory-toolbar">
+            <ChromeButton
+              className={`inventory-organize-btn${organizeOpen ? " is-active" : ""}`}
+              soundCue="click"
+              data-testid="inventory-organize"
+              aria-expanded={organizeOpen}
+              aria-controls="inventory-organize-tools"
+              onClick={() => setOrganizeOpen((open) => !open)}
+            >
+              Organize
+            </ChromeButton>
+          </div>
         </div>
 
-        <div className="inventory-toolbar">
-          <ChromeButton
-            className={`inventory-organize-btn${organizeOpen ? " is-active" : ""}`}
-            soundCue="click"
-            data-testid="inventory-organize"
-            aria-expanded={organizeOpen}
-            aria-controls="inventory-organize-tools"
-            onClick={() => setOrganizeOpen((open) => !open)}
-          >
-            Organize
-          </ChromeButton>
-          <div
-            id="inventory-organize-tools"
-            className="inventory-organize-tools"
-            hidden={!organizeOpen}
-          >
+        <div
+          id="inventory-organize-tools"
+          className="inventory-organize-tools"
+          hidden={!organizeOpen}
+        >
           <label className="inventory-search" htmlFor="inventory-search-input">
             <span className="inventory-search-label">Search</span>
             <input
@@ -317,7 +331,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               Tidy
             </ChromeButton>
           )}
-          </div>
         </div>
         {sortNotice && (
           <p className="inventory-sort-notice" role="status" data-testid="inventory-sort-notice">
@@ -329,31 +342,45 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
         <div className="modal-body inventory-body">
           <div className="inventory-grid-wrap">
-            {/* A flat list of cells is a listbox, not a grid: role="grid"
-                without rows is an incomplete structure for screen readers. */}
-            {isFilterActive && <p className="inventory-filter-status" role="status">
-              {`${visibleEntries.length} ${visibleEntries.length === 1 ? "item" : "items"}${query ? ` matching “${searchTerm.trim()}”` : " in this section"}`}
-            </p>}
-            {isFilterActive && visibleEntries.length === 0 && <p className="guild-empty-search" role="status">
-              {query ? "No items match your search. Try another name or clear the search." : "Your satchel has nothing in this section yet."}
-            </p>}
+            {isFilterActive && (
+              <div className="inventory-filter-banner" role="status">
+                <span className="inventory-filter-status">
+                  {`${matchingEntries.length} ${matchingEntries.length === 1 ? "item" : "items"}${query ? ` matching “${searchTerm.trim()}”` : " in this section"}`}
+                </span>
+                {query && (
+                  <button
+                    type="button"
+                    className="inventory-clear-search-btn"
+                    onClick={() => setSearchTerm("")}
+                    aria-label="Clear search"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+            {isFilterActive && matchingEntries.length === 0 && (
+              <p className="guild-empty-search" role="status">
+                {query ? "No items match your search. Try another name or clear the search." : "Your satchel has nothing in this section yet."}
+              </p>
+            )}
             <div
               className="inventory-grid"
               id="inventory-items"
               ref={gridRef}
               role="listbox"
-              aria-label={isFilterActive ? `Satchel items, ${visibleEntries.length} shown in ${activeCategory}` : "Satchel items"}
+              aria-label={isFilterActive ? `Satchel items, ${matchingEntries.length} matching in ${activeCategory}` : "Satchel items"}
               aria-labelledby={`inventory-tab-${activeCategory}`}
               onKeyDown={handleGridKeyDown}
             >
-              {visibleEntries.map(({ slot, index }) => {
+              {allSlots.map((slot, index) => {
                 const isSelected = selectedSlotIndex === index;
                 if (!slot.itemId) {
                   return (
                     <ItemSlot
                       key={`empty-${index}`}
                       id={`inventory-slot-${index}`}
-                      className="inventory-slot is-empty-structural"
+                      className={`inventory-slot is-empty-structural${isFilterActive ? " is-dimmed" : ""}`}
                       role="option"
                       aria-selected={false}
                       aria-disabled="true"
@@ -363,11 +390,13 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                   );
                 }
 
+                const isMatch = !isFilterActive || isSlotMatch(slot);
+
                 return (
                   <ItemSlot
                     key={`${slot.itemId}-${index}`}
                     id={`inventory-slot-${index}`}
-                    className="inventory-slot"
+                    className={`inventory-slot${isMatch ? " is-match" : " is-dimmed"}`}
                     filled
                     selected={isSelected}
                     quantity={slot.quantity > 1 ? slot.quantity : undefined}
@@ -466,9 +495,52 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 )}
               </>
             ) : (
-              <div className="details-placeholder">
-                <IconSatchel size={36} aria-hidden="true" className="placeholder-icon" />
-                <p>{activeCategory === "all" ? "Choose an item." : "Nothing in this part of the satchel."}</p>
+              <div className="details-placeholder is-category-empty">
+                <div className="details-placeholder-icon">
+                  {activeCategory === "farming" ? (
+                    <IconSprout size={36} aria-hidden="true" />
+                  ) : activeCategory === "fishing" ? (
+                    <IconFish size={36} aria-hidden="true" />
+                  ) : activeCategory === "supplies" ? (
+                    <IconTools size={36} aria-hidden="true" />
+                  ) : (
+                    <IconSatchel size={36} aria-hidden="true" />
+                  )}
+                </div>
+                <h3 className="details-placeholder-title">
+                  {query
+                    ? "No Search Matches"
+                    : activeCategory === "farming"
+                    ? "No Field Items"
+                    : activeCategory === "fishing"
+                    ? "No Fishing Goods"
+                    : activeCategory === "supplies"
+                    ? "No Supplies"
+                    : "Choose an item"}
+                </h3>
+                <p className="details-placeholder-desc">
+                  {query
+                    ? `No items match “${searchTerm.trim()}”. Clear search to view your satchel.`
+                    : activeCategory === "farming"
+                    ? "No seeds, fertilizer, or harvest crops carried right now."
+                    : activeCategory === "fishing"
+                    ? "No bait, lures, or fish carried right now."
+                    : activeCategory === "supplies"
+                    ? "No crafting materials, provisions, or tools carried right now."
+                    : "Select an occupied slot in your satchel to inspect details."}
+                </p>
+                {isFilterActive && (
+                  <button
+                    type="button"
+                    className="inventory-reset-filter-btn"
+                    onClick={() => {
+                      setActiveCategory("all");
+                      setSearchTerm("");
+                    }}
+                  >
+                    View All Items
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -403,6 +403,22 @@ The Field Journal is the player's core chronicle and knowledge repository. It co
     - **Gilded Header & Capacity Readout**:
       - Crimson Pro serif title in bright gold leaf with antique brass capacity pill (`5 / 20 Spaces` and in-progress reservations).
 
+15. **Guildcraft Satchel & Inventory Modal (`InventoryModal.tsx`, `coastal.css`)**:
+    - **Persistent 16-Socket Grid (Preserving Bag Structure & Spatial Memory)**:
+      - Maintained the physical 16-socket satchel layout across all category tabs (`All`, `Field`, `Fishing`, `Supplies`) and search states, adhering strictly to Art Bible `04` §17 (*"Empty slots are dimmed but keep their socket, because they are still a statement about capacity"*).
+      - Dimmed non-matching items (`.is-dimmed` with 22% opacity, 70% grayscale, and hover peek lift) rather than deleting slots from the DOM into a blank void.
+    - **Symmetrical 4×4 Square Grid**:
+      - Replaced the awkward 6-column grid (which produced a 6 + 6 + 4 jagged tooth with 2 empty spaces on row 3) with a balanced, square 4-column × 4-row layout.
+      - Sits at ~310px height, matching the right-hand item inspector pixel-for-pixel.
+    - **Content-Fitting Dimensions & Zero Vertical Void**:
+      - Sized modal to `width: min(820px, 94vw); height: auto; max-height: min(620px, 90vh)` to eliminate the 300px+ empty black abyss below the slots and inspector.
+    - **Streamlined Navigation Ribbon & Unified Organize Disclosure**:
+      - Combined the category tabs (`All`, `Field`, `Fishing`, `Supplies`) and the `[Organize]` action onto one horizontal navigation bar (`.inventory-nav-bar`).
+      - Expandable search and tidy tools slide in cleanly beneath when toggled.
+    - **Contextual Empty State & 1-Click Recovery**:
+      - Designed themed empty states (`IconSprout`, `IconFish`, `IconTools`, `IconSatchel`) with helpful descriptions.
+      - Added an inline `[View All Items]` action button so players can immediately recover if they click into an empty category.
+
 ---
 
 ## 4. Checklist for Future UI Components
