@@ -48,6 +48,7 @@ import type { BoatMotionSample } from "../simulation/core/PhysicsAdapter";
 
 import { StartScreen } from "../ui/StartScreen";
 import { GameUI } from "../ui/GameUI";
+import { MobileOrientationGate } from "../ui/MobileControls";
 import type { JournalFolio } from "../ui/JournalModal";
 import {
   inferNoticeTone,
@@ -4627,7 +4628,7 @@ export class GameApp {
     const width = this.canvasContainer.clientWidth || window.innerWidth;
     const height = this.canvasContainer.clientHeight || window.innerHeight;
     const landscape = !touchDevice || width >= height;
-    const blocked = this.bootReady && touchDevice && !landscape;
+    const blocked = touchDevice && !landscape;
     const changed = touchDevice !== this.mobileTouchDevice
       || landscape !== this.mobileLandscape
       || blocked !== this.mobileOrientationBlocked;
@@ -4763,6 +4764,10 @@ export class GameApp {
         },
         mobileTouchDevice: this.mobileTouchDevice,
         mobileOrientationBlocked: this.mobileOrientationBlocked
+      }), React.createElement(MobileOrientationGate, {
+        touchDevice: this.mobileTouchDevice,
+        orientationBlocked: this.mobileOrientationBlocked,
+        onRequestLandscape: this.requestMobileLandscape
       })));
       return;
     }

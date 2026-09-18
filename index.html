@@ -72,10 +72,19 @@
       #neva-boot-shell { position:fixed; inset:0; z-index:10000; display:flex; flex-direction:column; justify-content:center; padding:7vw; color:#fff1d3; background:linear-gradient(90deg,#12201cbb,transparent),url('/assets/ui/neva-title-background.webp') center/cover; font-family:Georgia,serif; }
       #neva-boot-shell h1 { font-size:clamp(48px,6vw,82px); margin:0 0 20px; font-weight:500; }
       #neva-boot-shell p { font-size:20px; } #neva-boot-shell button { width:max-content; padding:12px 24px; font:inherit; }
+      #neva-boot-portrait { display:none; }
+      @media (pointer: coarse) and (orientation: portrait) {
+        #neva-boot-shell { justify-content:center; text-align:center; }
+        #neva-boot-continue { display:none; }
+        #neva-boot-portrait { display:block; }
+      }
     </style>
   </head>
   <body>
-    <div id="neva-boot-shell" role="status"><h1>Neva Land</h1><p>Grow a home. Follow the tide.</p><p id="neva-boot-status">Opening the coast…</p></div>
+    <div id="neva-boot-shell" role="status">
+      <div id="neva-boot-continue"><h1>Neva Land</h1><p>Grow a home. Follow the tide.</p><p id="neva-boot-status">Opening the coast…</p></div>
+      <div id="neva-boot-portrait"><h1>Turn your device sideways</h1><p>The coast is played in landscape.</p></div>
+    </div>
     <script>
       var nevaPreloadAttemptKey = 'neva_preload_reload_at';
       function nevaPreloadAttempts(now) {
@@ -107,6 +116,10 @@
       window.nevaBootFailed = function () {
         var status = document.getElementById('neva-boot-status');
         if (status) status.textContent = 'The coast could not open. Check your connection and reload the game.';
+        var continueBlock = document.getElementById('neva-boot-continue');
+        if (continueBlock) continueBlock.style.display = 'block';
+        var portraitBlock = document.getElementById('neva-boot-portrait');
+        if (portraitBlock) portraitBlock.style.display = 'none';
         var shell = document.getElementById('neva-boot-shell');
         if (!shell || shell.querySelector('button')) return;
         var button = document.createElement('button'); button.textContent = 'Reload game';

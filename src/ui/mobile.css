@@ -55,8 +55,9 @@ body,
   overscroll-behavior: none;
 }
 
-/* A coarse-pointer device may start in portrait so the title button can
-   provide the user gesture required by fullscreen/orientation APIs. */
+/* The start screen stays scrollable on touch devices so the landscape
+   layout keeps its actions reachable on short viewports; portrait is covered
+   by the orientation gate from the first paint. */
 #ui-container[data-mobile-device="true"] .start-screen {
   min-height: 100%;
   overflow-y: auto;
@@ -104,9 +105,10 @@ body,
   min-height: 48px;
 }
 
-/* Portrait is an explicit product state after the world is ready.
-   Stay below modal overlays (z-index 100) and above world chrome, while
-   clock/menu remain reachable above the gate. */
+/* Landscape is mandatory on touch devices from the boot shell onward, so the
+   gate is already present over the title and loading screens. Stay below
+   modal overlays (z-index 100) and above world chrome, while clock/menu
+   remain reachable above the gate after a mid-game rotation. */
 .mobile-orientation-gate {
   position: absolute;
   z-index: 90;

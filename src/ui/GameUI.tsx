@@ -474,6 +474,11 @@ export const GameUI: React.FC<GameUIProps> = ({
           mobileTouchDevice={mobileTouchDevice}
           mobileOrientationBlocked={mobileOrientationBlocked}
         />
+        <MobileOrientationGate
+          touchDevice={mobileTouchDevice}
+          orientationBlocked={mobileOrientationBlocked}
+          onRequestLandscape={onRequestMobileLandscape}
+        />
       </div>
     );
   }

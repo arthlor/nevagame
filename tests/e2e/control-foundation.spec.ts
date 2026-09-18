@@ -74,7 +74,9 @@ async function loadScenario(
   await page.goto(`/?debug=1&debugStart=${scenario}&worldAcceptance=1${actionTimeScale}`);
   await expect(page.locator("#game-canvas")).toBeVisible();
   const diagnostics = page.getByTestId("diagnostics");
-  await expect(diagnostics).toBeVisible({ timeout: 20_000 });
+  // The world only mounts the diagnostics surface once startup reaches the
+  // running scene; on a cold dev server that is tens of seconds of GLB work.
+  await expect(diagnostics).toBeVisible({ timeout: 60_000 });
   await expect(diagnostics).toHaveAttribute("data-mode", /.+/);
   await expect(diagnostics).toHaveAttribute("data-boot-ready", "true", { timeout: 60_000 });
   return diagnostics;
@@ -92,7 +94,12 @@ async function measureHudLayout(page: Page) {
       const bounds = element.getBoundingClientRect();
       return bounds.width > 0 && bounds.height > 0;
     };
-    const clusters = [...document.querySelectorAll(".tidebook-hud > .hud-cluster, .tidebook-navigation")]
+    // The live HUD root is `.guildcraft-hud`; `.tidebook-hud` remains here as
+    // the compatibility root so the audit keeps working if the family flips back.
+    const hudRoots = [...document.querySelectorAll(".guildcraft-hud, .tidebook-hud")];
+    const clusters = hudRoots.flatMap(root => [
+      ...root.querySelectorAll(":scope > .hud-cluster, :scope > .tidebook-navigation")
+    ])
       .filter(visible).map(element => {
         const bounds = [element, ...element.querySelectorAll("*")]
           .filter(descendant => descendant instanceof HTMLElement && visible(descendant))
@@ -106,7 +113,7 @@ async function measureHudLayout(page: Page) {
     const overlaps = clusters.flatMap((first, index) => clusters.slice(index + 1)
       .filter(second => Math.min(first.right, second.right) - Math.max(first.left, second.left) > 1 && Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top) > 1)
       .map(second => [first.name, second.name]));
-    const buttons = [...document.querySelectorAll<HTMLButtonElement>(".tidebook-hud button")].filter(visible).map(element => {
+    const buttons = hudRoots.flatMap(root => [...root.querySelectorAll<HTMLButtonElement>("button")]).filter(visible).map(element => {
       const bounds = element.getBoundingClientRect();
       const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
       return { id: element.dataset.testid, name: element.getAttribute("aria-label"), disabled: element.disabled, width: bounds.width, height: bounds.height, reachable: hit === element || element.contains(hit) };
@@ -290,6 +297,17 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
       const actionBounds = await page.locator(".mobile-action-cluster").boundingBox();
       if (!utilityBounds || !actionBounds) throw new Error("Missing touch control bounds");
       expect(utilityBounds.y + utilityBounds.height).toBeLessThanOrEqual(actionBounds.y - 9);
+      // The bottom-left field-notes/chronicle anchor is zoomed by --ui-scale, so
+      // its reserve must be converted to physical pixels or a card lands on the
+      // movement joystick and steals its taps.
+      const bottomLeftClearance = await page.evaluate(() => {
+        const joystick = document.querySelector(".mobile-joystick")?.getBoundingClientRect();
+        const notes = document.querySelector(".guild-notes-anchor")?.getBoundingClientRect();
+        if (!joystick || !notes) return null;
+        return joystick.top - notes.bottom;
+      });
+      expect(bottomLeftClearance).not.toBeNull();
+      expect(bottomLeftClearance as number).toBeGreaterThanOrEqual(4);
       for (const [id, name] of [["micro-btn-satchel", "Satchel"], ["micro-btn-journal", "Field Journal"], ["micro-btn-map", "Nautical Chart of Neva & Sunreach"]]) {
         await page.getByTestId(id).tap();
         const dialog = page.getByRole("dialog", { name, exact: true });
@@ -324,6 +342,44 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
       await expect(diagnostics).toHaveAttribute("data-mode", "on-foot");
       const restored = await measureHudLayout(page);
       expect(restored.buttons.filter(button => utilityIds.includes(button.id ?? "")).every(button => button.reachable)).toBe(true);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("boot shell covers portrait before the app mounts", async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: e2eBaseUrl, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 });
+    try {
+      const page = await context.newPage();
+      await page.route("**/src/main.ts", async route => {
+        await new Promise(resolve => setTimeout(resolve, 10_000));
+        await route.continue();
+      });
+      await page.goto("/", { waitUntil: "commit" });
+      const portrait = page.locator("#neva-boot-portrait");
+      await expect(portrait).toBeVisible();
+      await expect(portrait).toContainText("The coast is played in landscape.");
+      await expect(page.locator("#neva-boot-continue")).toBeHidden();
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("touch devices open the title behind the landscape gate in portrait", async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: e2eBaseUrl, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 });
+    try {
+      const page = await context.newPage();
+      await page.goto("/");
+      const gate = page.getByRole("status", { name: "Landscape orientation required" });
+      await expect(gate).toBeVisible();
+      await expect(page.locator("#ui-container")).toHaveAttribute("data-mobile-landscape", "false");
+      const gateBounds = await gate.boundingBox();
+      if (!gateBounds) throw new Error("Missing portrait gate bounds");
+      expect(gateBounds.width).toBeGreaterThanOrEqual(390);
+      expect(gateBounds.height).toBeGreaterThanOrEqual(844);
+      await page.setViewportSize({ width: 844, height: 390 });
+      await expect(gate).not.toBeVisible();
+      await expect(page.getByTestId("startup-start-button")).toBeVisible();
     } finally {
       await context.close();
     }
