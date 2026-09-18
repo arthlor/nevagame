@@ -1,5 +1,6 @@
 // src/main.ts
 import "./ui/coastal.css";
+import { startGuildcraftCursor } from "./ui/chrome/GuildcraftCursor";
 import { uiScale } from "./ui/uiScale";
 
 function showFatalBootOverlay(error: unknown): void {
@@ -54,6 +55,7 @@ function showFatalBootOverlay(error: unknown): void {
 }
 
 async function boot(): Promise<void> {
+  startGuildcraftCursor();
   await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 0))));
   const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
   const uiContainer = document.getElementById("ui-root") as HTMLElement;

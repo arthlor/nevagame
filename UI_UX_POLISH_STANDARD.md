@@ -438,6 +438,11 @@ The Field Journal is the player's core chronicle and knowledge repository. It co
       - Permanent access retained via the in-game Escape Menu (`Add to Home Screen`), allowing players to revisit installation anytime.
     - **Strict Zero-Emoji & SVG Standard Compliance**:
       - All instructional icons, step indicators, and bullets use pure inline SVGs or `HudIcons` marks, adhering 100% to the project's strict `no_emoji_in_ui` test barrier.
+17. **Guildcraft Pointer Cursor (`src/ui/chrome/GuildcraftCursor.ts`, `guildcraftCursor.css`)**:
+    - **Painted Pointer**: Fine-pointer desktops replace the system cursor with the published `guildcraft-pointer` sprite (30px, tip-anchored, tilted -45° up-left like a classic pointer) in one body-level node appended outside the HUD zoom, matching the compass arrow already used by the minimap family.
+    - **Live States**: Interactive controls and world interaction targets scale the pointer up with a warm gold aura; disabled (`:disabled` / `aria-disabled`) controls dim and desaturate it; pressing scales it down. State comes from the existing DOM controls and the world canvas's own `cursor: pointer` signal (including changes while the mouse is still), never from new gameplay state.
+    - **Safe Fallbacks**: The native cursor stays until the sprite loads and returns for coarse/touch pointers, forced-colors mode and sprite-load failure. The node is `aria-hidden` and `pointer-events: none`, and owns no input, simulation or saved state.
+    - **Cascade Ownership**: `coastal.css` declares the `guild-cursor` layer before `neva-ui` (`@layer guild-cursor, neva-ui;`), so `cursor: none !important` outranks every HUD cursor rule regardless of selector specificity in both DEV and the production bundle.
 
 ---
 

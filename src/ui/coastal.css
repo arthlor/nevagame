@@ -1,5 +1,6 @@
-@layer neva-ui;
+@layer guild-cursor, neva-ui;
 
+@import "./chrome/guildcraftCursor.css" layer(guild-cursor);
 @import "./styles.css" layer(neva-ui);
 @import "./chrome/chrome.css" layer(neva-ui);
 @import "./hud.css" layer(neva-ui);
