@@ -962,6 +962,25 @@ def add_tri_prism(name, center, size, token, parent, *, rotation=(0.0, 0.0, 0.0)
     return _finish_mesh(obj, name, token, parent, flat=True)
 
 
+def add_right_tri_prism(name, center, size, token, parent, *, flip_x=False, rotation=(0.0, 0.0, 0.0)):
+    width, depth, height = size
+    x, y, z = width / 2, depth / 2, height / 2
+    if not flip_x:
+        vertices = [(-x, -y, -z), (x, -y, -z), (-x, -y, z), (-x, y, -z), (x, y, -z), (-x, y, z)]
+        faces = [(0, 1, 2), (3, 5, 4), (0, 3, 4, 1), (1, 4, 5, 2), (2, 5, 3, 0)]
+    else:
+        vertices = [(-x, -y, -z), (x, -y, -z), (x, -y, z), (-x, y, -z), (x, y, -z), (x, y, z)]
+        faces = [(0, 1, 2), (3, 4, 5), (0, 3, 4, 1), (1, 2, 5, 4), (2, 0, 3, 5)]
+    mesh = bpy.data.meshes.new(f"{name}_mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.location = center
+    obj.rotation_euler = rotation
+    return _finish_mesh(obj, name, token, parent, flat=True)
+
+
 def add_ring(name, location, major_radius, minor_radius, token, parent, *, major_segments=12, minor_segments=4, rotation=(0.0, 0.0, 0.0)):
     bpy.ops.mesh.primitive_torus_add(
         major_radius=major_radius, minor_radius=minor_radius,

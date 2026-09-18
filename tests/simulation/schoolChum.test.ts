@@ -8,6 +8,7 @@ import {
 } from "../../src/simulation/domains/FishingDomain";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
+import { nextAccessibleChumItemId } from "../../src/simulation/fishing/FishingSupplies";
 import saveV29Layout10 from "../fixtures/save_v29_layout10.json";
 import { armLureForTest } from "./sportFishingTestUtils";
 
@@ -66,6 +67,21 @@ describe("specialty chum", () => {
       sim.state.clock.currentMinute + 30
     );
     expect(frenzies).toEqual([45, 60, 30]);
+  });
+
+  it("names the blend the next cast will spend, before and after consumption", () => {
+    const sim = new Simulation();
+    expect(nextAccessibleChumItemId(sim.state)).toBeNull();
+
+    stock(sim, [{ itemId: "item.chum_bucket", quantity: 2 }]);
+    expect(nextAccessibleChumItemId(sim.state)).toBe("item.chum_bucket");
+
+    stock(sim, [{ itemId: "item.chum_deep", quantity: 1 }]);
+    expect(nextAccessibleChumItemId(sim.state)).toBe("item.chum_deep");
+
+    const school = chummedSchool(sim, ["fish.trout"]);
+    expect(sim.chumFishSchool(school).success).toBe(true);
+    expect(nextAccessibleChumItemId(sim.state)).toBe("item.chum_bucket");
   });
 
   it("leans the hook roll toward sinker species while deep scent holds", () => {

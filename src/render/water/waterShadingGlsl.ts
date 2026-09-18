@@ -70,6 +70,16 @@ export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
   uniform float uRapidsGradeFull;
   uniform float uRapidsCellScale;
   uniform float uRapidsFlowSpeed;
+  uniform float uRiverFlowSpeed;
+  uniform float uRiverFlowDepthStart;
+  uniform float uRiverFlowDepthFull;
+  uniform float uRiverFlowNormalStrength;
+  uniform float uRiverEdgeFoamStrength;
+  uniform float uRiverEdgeFoamScale;
+  uniform float uPlungeRingSpeed;
+  uniform float uPlungeRingWavelength;
+  uniform float uPlungeRingStrength;
+  uniform float uPlungeRingSpan;
   uniform float uEdgeOpacity;
   uniform float uBodyOpacity;
   uniform float uOpacityRampMeters;
@@ -89,7 +99,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     return point.xyz / point.w;
   }
   vec4 nevaShadeWaterSurface(vec3 worldPosition, vec3 shadingNormal, float waveHeight,
-    float signedWaterDistance, vec3 regionWeights) {
+    float signedWaterDistance, vec3 regionWeights, vec2 localFlow) {
     float baselineElevation = worldPosition.y - waveHeight;
     if (nevaHeadwaterContains(worldPosition.xz) || baselineElevation > 0.001) {
       signedWaterDistance = profileAt(worldPosition.xz).r * 32.0 - 16.0;
@@ -124,10 +134,27 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     float pixelFootprint = max(length(dFdx(worldPosition.xz)), length(dFdy(worldPosition.xz)));
     float rippleFilter = (1.0 - smoothstep(0.25, 1.4, pixelFootprint))
       * mix(1.0, 0.02, smoothstep(35.0, 170.0, cameraDistance));
+    // The river carries its surface downstream: a current offset in world
+    // space moves the detail field with the water, fastest in the deep
+    // thalweg and slower in the bank shallows (a no-slip edge at the bank).
+    float riverWeight = regionWeights.x;
+    vec2 riverFlow = length(localFlow) > 0.001 ? normalize(localFlow) : vec2(0.0, 1.0);
+    float flowDepth = clamp(waterDepth / max(0.15, uRiverFlowDepthFull), uRiverFlowDepthStart, 1.0);
+    vec2 flowOffset = riverFlow * (uTime * uRiverFlowSpeed * flowDepth * riverWeight
+      * (1.0 - uReducedMotion * 0.65));
     if (uRippleNormalStrength > 0.0) {
-      vec3 ripple = nevaScrollingDetailNormal(worldPosition.xz * 5.0, uTime,
+      vec3 ripple = nevaScrollingDetailNormal((worldPosition.xz - flowOffset) * 5.0, uTime,
         0.46 * (1.0 - uReducedMotion), uRippleNormalStrength * rippleFilter);
       normal = normalize(normal + (ripple - vec3(0.0, 1.0, 0.0)) * smoothstep(0.03, 0.5, waterDepth));
+      // A finer current field rides the drift: the river must read as moving
+      // water even when the wind is calm and the shared bands are restrained.
+      // A slow mask gates it into riffle patches, because a coherent field
+      // over the whole channel combs the surface like brushed metal.
+      float riffleMask = smoothstep(0.3, 0.72,
+        nevaGradientNoise(worldPosition.xz * 0.085 + flowOffset * 0.14));
+      vec3 currentRipple = nevaScrollingDetailNormal((worldPosition.xz - flowOffset * 1.35) * 11.0, uTime,
+        0.0, uRiverFlowNormalStrength * riverWeight * rippleFilter * riffleMask);
+      normal = normalize(normal + (currentRipple - vec3(0.0, 1.0, 0.0)) * smoothstep(0.05, 0.6, waterDepth));
     }
     float ndv = clamp(dot(viewDirection, normal), 0.0, 1.0);
     float fresnel = clamp((0.02 + 0.98 * pow(1.0 - ndv, 5.0)) * uFresnelStrength, 0.02, 0.98);
@@ -230,33 +257,65 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     }
     float foam = max(max(coastalFoam, rockFoam), boatFoam);
     float downhillGrade = max(0.0, -surfaceGrade);
-    if (downhillGrade > uRapidsGradeStart) {
-      // The headwater profile descends toward +Z. Advect broken narrow ribbons
-      // along that grade; broad polygon cells read as slabs across the stream.
-      vec2 rapidUv = (worldPosition.xz - vec2(0.0,
-        uTime * uRapidsFlowSpeed * (1.0 - uReducedMotion))) / uRapidsCellScale;
+    if (downhillGrade > uRapidsGradeStart && riverWeight > 0.02) {
+      // Advect broken narrow ribbons along the authored channel tangent, not
+      // world Z: the riffle lines have to follow the bend or they read as
+      // slabs laid across the stream. The ribbon phase runs across the flow
+      // and the packet noise rides the drift, so the pattern travels with the
+      // water it belongs to.
+      vec2 rapidAcross = vec2(-riverFlow.y, riverFlow.x);
+      vec2 rapidAdvected = worldPosition.xz
+        - riverFlow * (uTime * uRapidsFlowSpeed * (1.0 - uReducedMotion));
+      vec2 rapidUv = vec2(dot(rapidAdvected, rapidAcross), dot(rapidAdvected, riverFlow))
+        / uRapidsCellScale;
       float rapidBend = nevaGradientNoise(rapidUv * vec2(0.65, 0.6));
       float rapidRibbon = smoothstep(0.72, 0.97,
         0.5 + 0.5 * sin(rapidUv.x * 5.2 + rapidBend * 8.0));
-      float rapidPacket = smoothstep(-0.08, 0.3,
+      // Only patches of the reach break white; a uniform gate draws the same
+      // riffle boundary line across the whole channel at every pool edge.
+      float rapidPatch = nevaGradientNoise(worldPosition.xz * 0.24 + vec2(0.0, uTime * 0.24));
+      float rapidPacket = smoothstep(0.05, 0.5,
         nevaGradientNoise(rapidUv * vec2(0.8, 1.1) + vec2(11.3, 7.1)));
+      float rapidGate = smoothstep(uRapidsGradeStart, uRapidsGradeFull,
+        downhillGrade + (rapidPatch - 0.5) * 0.22);
       float rapidFilter = 1.0 - smoothstep(0.12, 0.6, pixelFootprint / uRapidsCellScale);
-      foam = max(foam, smoothstep(uRapidsGradeStart, uRapidsGradeFull, downhillGrade)
-        * smoothstep(0.05, 0.5, waterDepth) * rapidRibbon * rapidPacket * rapidFilter * uRapidsFoamStrength);
+      foam = max(foam, rapidGate
+        * smoothstep(0.05, 0.5, waterDepth) * rapidRibbon * rapidPacket * rapidFilter
+        * uRapidsFoamStrength * riverWeight);
     }
-    // Landing apron: the plunge must read through the rapids below it, so the
-    // impact foams the horizontal water itself past the landing line,
-    // stretched downstream into the pool. Without this the sheet ends bright,
-    // the rapids below go dark, and the watercourse reads as cut in two. The
-    // floor keeps the whole apron lifted, not just the noise peaks.
+    // Broken current lace at the river's edge, where the shallowing water
+    // drags along the bank. It travels with the same flow field as the rapids.
+    if (riverWeight > 0.02) {
+      float edgeShallow = (1.0 - smoothstep(0.12, 0.55, waterDepth)) * riverWeight;
+      if (edgeShallow > 0.01) {
+        vec2 laceAcross = vec2(-riverFlow.y, riverFlow.x);
+        float laceLateral = dot(worldPosition.xz - flowOffset, laceAcross) / uRiverEdgeFoamScale;
+        float laceAlong = dot(worldPosition.xz, riverFlow) * 0.12;
+        float laceNoise = nevaGradientNoise(vec2(laceLateral * 0.7 + 4.1, laceAlong));
+        float lace = smoothstep(0.68, 0.95, 0.5 + 0.5 * sin(laceLateral * 3.4 + laceNoise * 5.0));
+        foam = max(foam, edgeShallow * lace * uRiverEdgeFoamStrength);
+      }
+    }
+    // Landing apron: the plunge must read through the rapids below it.
+    // Radial rings leave the impact and spread into the pool, while the base
+    // reach keeps the whole apron lifted; without this the sheet ends bright,
+    // the rapids below go dark, and the watercourse reads as cut in two.
     {
       vec2 landingDelta = worldPosition.xz - uHeadwaterLandingXZ;
       landingDelta.y *= 0.5;
-      float landingReach = 1.0 - smoothstep(0.0, 3.5, length(landingDelta));
+      float landingDistance = length(landingDelta);
+      float landingReach = 1.0 - smoothstep(0.0, 3.5, landingDistance);
       float apronPattern = nevaGradientNoise(worldPosition.xz * 1.4
         + vec2(uTime * 0.22, -uTime * 0.5));
-      foam = max(foam, landingReach * (0.55 + 0.45 * apronPattern)
-        * uRapidsFoamStrength * 1.5);
+      float ringPhase = landingDistance - uTime * uPlungeRingSpeed * (1.0 - uReducedMotion * 0.7);
+      // Narrow crests with wide troughs: expanding ripple pulses, not a
+      // continuous target pattern of bands across the pool.
+      float ringWave = 0.5 + 0.5 * sin(ringPhase * 6.2831853 / max(0.2, uPlungeRingWavelength));
+      float rings = pow(ringWave, 3.0);
+      float ringFade = (1.0 - smoothstep(0.0, uPlungeRingSpan, landingDistance))
+        * smoothstep(0.15, 0.9, landingDistance);
+      foam = max(foam, landingReach * (0.5 + 0.5 * apronPattern) * uRapidsFoamStrength * 1.1);
+      foam = max(foam, rings * ringFade * uPlungeRingStrength * (0.6 + 0.4 * apronPattern));
     }
     float whitecap = smoothstep(0.7, 1.0, uRoughness) * regionWeights.z
       * smoothstep(0.13, 0.3, waveHeight) * smoothstep(0.012, 0.04, 1.0 - normal.y);

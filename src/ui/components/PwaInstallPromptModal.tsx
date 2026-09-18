@@ -25,6 +25,10 @@ export const PwaInstallPromptModal: React.FC<PwaInstallPromptModalProps> = ({
 
   const isIos = platform === "ios-safari" || platform === "ios-chrome";
   const isChromeIos = platform === "ios-chrome";
+  const isAndroid = platform === "chrome-android" || platform === "other-mobile";
+  const isAndroidChrome = platform === "chrome-android";
+  const showAndroidGuide = isAndroid && !canPromptDirectly;
+  const showDesktopGuide = platform === "desktop" && !canPromptDirectly;
 
   const handleInstallClick = () => {
     playUiSound("click");
@@ -38,7 +42,7 @@ export const PwaInstallPromptModal: React.FC<PwaInstallPromptModalProps> = ({
 
   return (
     <div
-      className="modal-overlay pwa-install-overlay"
+      className="modal-overlay interactive pwa-install-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pwa-prompt-title"
@@ -60,7 +64,9 @@ export const PwaInstallPromptModal: React.FC<PwaInstallPromptModalProps> = ({
 
         <div className="modal-body pwa-install-body">
           <p className="pwa-lead-text">
-            Play Nevaland just like a native game on Chrome. Hides the browser address bar and controls for an immersive, edge-to-edge coastal horizon.
+            {isIos
+              ? `Play Nevaland just like a native app on ${isChromeIos ? "Chrome" : "Safari"}. Hides the browser address bar and controls for an immersive, edge-to-edge coastal horizon.`
+              : "Play Nevaland just like a native game. Hides the browser address bar and controls for an immersive, edge-to-edge coastal horizon."}
           </p>
 
           <div className="pwa-benefits-grid">
@@ -128,16 +134,51 @@ export const PwaInstallPromptModal: React.FC<PwaInstallPromptModalProps> = ({
                 </li>
               </ol>
             </div>
-          ) : (
-            canPromptDirectly && (
-              <div className="pwa-quick-notice">
-                <svg className="pwa-notice-bullet" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-                  <path d="M6 1L7.5 4.5L11 6L7.5 7.5L6 11L4.5 7.5L1 6L4.5 4.5Z" />
-                </svg>
-                <span>Chrome will add a dedicated Nevaland app icon to your home screen.</span>
-              </div>
-            )
-          )}
+          ) : showAndroidGuide ? (
+            <div className="pwa-ios-instructions">
+              <h3 className="pwa-instructions-heading">How to Add to Home Screen on Android:</h3>
+              <ol className="pwa-steps-list">
+                <li className="pwa-step-item">
+                  <span className="pwa-step-num">1</span>
+                  <span>
+                    {isAndroidChrome ? (
+                      <>Tap the <strong>Menu (···)</strong> button in Chrome's toolbar.</>
+                    ) : (
+                      <>Open your browser's <strong>menu</strong>.</>
+                    )}
+                  </span>
+                </li>
+                <li className="pwa-step-item">
+                  <span className="pwa-step-num">2</span>
+                  <span>
+                    Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>.
+                  </span>
+                </li>
+                <li className="pwa-step-item">
+                  <span className="pwa-step-num">3</span>
+                  <span>
+                    Confirm with <strong>Install</strong> to place the Nevaland icon.
+                  </span>
+                </li>
+              </ol>
+            </div>
+          ) : canPromptDirectly ? (
+            <div className="pwa-quick-notice">
+              <svg className="pwa-notice-bullet" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M6 1L7.5 4.5L11 6L7.5 7.5L6 11L4.5 7.5L1 6L4.5 4.5Z" />
+              </svg>
+              <span>{platform === "desktop"
+                ? "Your browser will add a dedicated Nevaland app icon."
+                : "Chrome will add a dedicated Nevaland app icon to your home screen."}</span>
+            </div>
+          ) : showDesktopGuide ? (
+            <div className="pwa-quick-notice">
+              <svg className="pwa-notice-bullet" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M6 1L7.5 4.5L11 6L7.5 7.5L6 11L4.5 7.5L1 6L4.5 4.5Z" />
+              </svg>
+              <span>Use your browser's install icon in the address bar or menu to add Nevaland.</span>
+            </div>
+          ) : null}
         </div>
 
         <footer className="modal-footer pwa-install-footer">

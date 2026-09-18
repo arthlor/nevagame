@@ -415,22 +415,26 @@ The Field Journal is the player's core chronicle and knowledge repository. It co
     - **Streamlined Navigation Ribbon & Unified Organize Disclosure**:
       - Combined the category tabs (`All`, `Field`, `Fishing`, `Supplies`) and the `[Organize]` action onto one horizontal navigation bar (`.inventory-nav-bar`).
       - Expandable search and tidy tools slide in cleanly beneath when toggled.
-16. **Mobile PWA Install Prompt & Home Screen Integration (`PwaInstallPromptModal.tsx`, `usePwaInstall.ts`, `EscapeMenuModal.tsx`)**:
+16. **Mobile PWA Install Prompt & Home Screen Integration (`PwaInstallPromptModal.tsx`, `usePwaInstall.ts`, `StartScreen.tsx`, `EscapeMenuModal.tsx`, `index.html`, `public/sw.js`)**:
     - **Physical Guildcraft Aesthetic & Benefits-First Presentation**:
       - Designed a dedicated Guildcraft modal (`.pwa-install-sheet`) encased in ornate 9-slice gilded framing (`tone="slate"` with brass corner rivets and parchment filigree).
       - Replaced raw browser banners with a maritime instrument prompt highlighting 3 key handheld player benefits:
         1. *Pure Fullscreen Canvas*: Eliminates mobile URL address bars, tabs, and bottom navigation bars for distraction-free coastal gameplay.
         2. *Instant 1-Tap Launch*: Adds a high-fidelity golden compass emblem icon to the player's home screen.
         3. *Smoother 60 FPS Response*: Bypasses multi-tab browser overhead and prevents accidental pull-to-refresh or navigation swipe gestures.
+    - **Lobby Placement**: The automatic invitation appears on the **starter/title screen only** for handheld players (`startup.status === "title"`), never during play. Players are not interrupted mid-session; the guide stays available from the in-game Escape Menu (`Add to Home Screen`) whenever they want it.
+    - **Desktop Discovery (No Auto-Popup)**: Desktop keeps the quiet title utility `Install app` beside `Options` — shown only while a native browser prompt is ready (`canPromptDirectly`) and the player has not installed or dismissed it, so it is one-time. Clicking it opens the same guide; the Escape Menu entry remains in-game.
     - **Adaptive Platform Detection & Guided Workflows**:
-      - **Android (Chrome)**: Hooks directly into the browser's native `beforeinstallprompt` event for seamless 1-tap installation via `[✦ Add to Home Screen]`.
+      - **Android (Chrome / other)**: Uses the boot-stashed `beforeinstallprompt` event for a seamless 1-tap installation via `[Add to Home Screen]`. When Chrome has not produced the native event yet (first visit / engagement heuristic), the modal falls back to explicit 3-step Android instructions instead of a dead button.
       - **iOS (Safari / Chrome)**: Automatically provides an illustrated 3-step walkthrough tailored to the detected iOS browser:
         - Step 1: Tap the Share icon (or Chrome menu button in toolbar).
         - Step 2: Scroll down and select *"Add to Home Screen"*.
         - Step 3: Tap *"Add"* in the top-right corner.
+      - **Desktop**: Direct install button when the browser offers one; otherwise a toolbar install hint.
+    - **Reliable Prompt Capture**: `index.html` stashes `beforeinstallprompt` and `appinstalled` before React mounts, and `usePwaInstall.ts` consumes the stashed event plus the `neva:installprompt` / `neva:appinstalled` bridge events. A pass-through `public/sw.js` (no caching) satisfies browsers that still gate installability on a `fetch` handler.
     - **Persistent State & Dismissal Snooze**:
       - Remembers user choice via `localStorage`: "Maybe Later" snoozes automatic prompts for 7 days (`neva_pwa_dismissed_until`).
-      - Hides automatic modal when already running in standalone display mode (`navigator.standalone` or `display-mode: standalone`).
+      - Hides the automatic modal when already installed or running in standalone display mode (`navigator.standalone`, `display-mode: standalone`, or the `neva_pwa_installed` flag set by `appinstalled`).
       - Permanent access retained via the in-game Escape Menu (`Add to Home Screen`), allowing players to revisit installation anytime.
     - **Strict Zero-Emoji & SVG Standard Compliance**:
       - All instructional icons, step indicators, and bullets use pure inline SVGs or `HudIcons` marks, adhering 100% to the project's strict `no_emoji_in_ui` test barrier.

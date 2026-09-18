@@ -7,6 +7,12 @@ import {
   createHeadwaterFallGeometry,
   headwaterFallSheetPoint
 } from "../../src/render/water/HeadwaterFall";
+import {
+  HEADWATER_MIST_FRAGMENT_GLSL,
+  HEADWATER_MIST_VERTEX_GLSL,
+  HeadwaterFallMist,
+  createHeadwaterMistGeometry
+} from "../../src/render/water/HeadwaterFallMist";
 import { createHeadwaterUniforms } from "../../src/render/water/waveGlsl";
 import { WATER_SURFACE_SHADING_GLSL } from "../../src/render/water/waterShadingGlsl";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
@@ -54,15 +60,23 @@ describe("W07 headwater fall sheet", () => {
     }
   });
 
-  it("follows the authored profile from the lip to the landing", () => {
+  it("follows the authored ballistic nappe and lands on the live profile", () => {
     const rows = FALL_CONFIG.rows.high;
     const heights: number[] = [];
+    let maximumDetach = 0;
     for (let row = 0; row <= rows; row += 1) {
       const point = headwaterFallSheetPoint(row, 0, rows, FALL_CONFIG.acrossSegments);
       heights.push(point.y);
-      // The sheet *is* the falling surface: every row matches the live profile.
-      expect(point.y).toBeCloseTo(headwaterElevationAt(point.z), 6);
+      const profileY = headwaterElevationAt(point.z);
+      const detach = point.y - profileY;
+      // The sheet never sinks into the carved face; it leaves it for the
+      // ballistic arc by a bounded, physically readable margin.
+      expect(detach).toBeGreaterThanOrEqual(-1e-9);
+      expect(detach).toBeLessThan(2.5);
+      maximumDetach = Math.max(maximumDetach, detach);
     }
+    // A real nappe: the middle of the drop is off the rock, not a decal.
+    expect(maximumDetach).toBeGreaterThan(0.4);
     for (let index = 1; index < heights.length; index += 1) {
       expect(heights[index]).toBeLessThanOrEqual(heights[index - 1] + 1e-9);
     }
@@ -72,6 +86,40 @@ describe("W07 headwater fall sheet", () => {
     expect(drop / run, "fall face grade").toBeGreaterThan(2.5);
     expect(heights[0]).toBeCloseTo(FALL.lipElevation, 6);
     expect(heights.at(-1)).toBeCloseTo(FALL.landingElevation, 6);
+  });
+
+  it("gives the falling curtain a convex cross-section that vanishes at both ends", () => {
+    const rows = FALL_CONFIG.rows.high;
+    const across = FALL_CONFIG.acrossSegments;
+    const midRow = Math.round(rows / 2);
+    const center = headwaterFallSheetPoint(midRow, across / 2, rows, across);
+    const leftEdge = headwaterFallSheetPoint(midRow, 0, rows, across);
+    const rightEdge = headwaterFallSheetPoint(midRow, across, rows, across);
+    // The centre of the sheet pushes out past both edges along the flow.
+    expect(center.z).toBeGreaterThan(leftEdge.z);
+    expect(center.z).toBeGreaterThan(rightEdge.z);
+    for (const row of [0, rows]) {
+      const edgePoint = headwaterFallSheetPoint(row, 0, rows, across);
+      const centerPoint = headwaterFallSheetPoint(row, across / 2, rows, across);
+      // No bulge at the pins: the lip join and the landing stay exact.
+      expect(centerPoint.z).toBeCloseTo(edgePoint.z, 8);
+      expect(centerPoint.y).toBeCloseTo(edgePoint.y, 8);
+    }
+  });
+
+  it("spreads toward the pool with a mid-fall waist", () => {
+    const rows = FALL_CONFIG.rows.high;
+    const across = FALL_CONFIG.acrossSegments;
+    const halfWidth = (row: number): number => {
+      const left = headwaterFallSheetPoint(row, 0, rows, across);
+      const right = headwaterFallSheetPoint(row, across, rows, across);
+      return (right.x - left.x) * 0.5;
+    };
+    const lip = halfWidth(0);
+    const waist = halfWidth(Math.round(rows / 2));
+    const landing = halfWidth(rows);
+    expect(landing).toBeGreaterThan(lip);
+    expect(waist).toBeLessThan(lip);
   });
 
   it("covers the authored band exactly, with no gap or overlap", () => {
@@ -113,10 +161,10 @@ describe("W07 headwater fall sheet", () => {
       .toBeCloseTo(NEVA_HEADWATERS.fall.landingZ, 6);
   });
 
-  it("advects streaks along the sheet arc instead of world Z", () => {
-    // Linkage evidence: the fragment phase is driven by vArc, and the vertex
-    // stage derives vArc from the sheet's own uv.y.
-    expect(HEADWATER_FALL_FRAGMENT_GLSL).toContain("vArc * uFallStreakScale - time * uFallStreakSpeed");
+  it("advects and stretches streaks along the sheet arc instead of world Z", () => {
+    // Linkage evidence: the fragment phase is driven by vArc, stretched as the
+    // water accelerates, and the vertex stage derives vArc from the sheet uv.
+    expect(HEADWATER_FALL_FRAGMENT_GLSL).toContain("vArc * uFallStreakScale * stretch - time * uFallStreakSpeed");
     expect(HEADWATER_FALL_VERTEX_GLSL).toContain("vArc = uv.y;");
     expect(HEADWATER_FALL_FRAGMENT_GLSL).not.toContain("rapidUv");
     expect(HEADWATER_FALL_FRAGMENT_GLSL).not.toContain("worldPosition.z - time");
@@ -205,15 +253,85 @@ describe("W07 headwater fall sheet", () => {
     try {
       expect(fall.mesh.material.uniforms.uTime).toBe(shared.uTime);
       expect(fall.mesh.material.uniforms.uReducedMotion).toBe(shared.uReducedMotion);
+      expect(fall.mist.mesh.material.uniforms.uTime).toBe(shared.uTime);
+      expect(fall.mist.mesh.material.uniforms.uReducedMotion).toBe(shared.uReducedMotion);
       expect(fall.group.name).toBe("headwater_fall");
+      expect(fall.group.children).toContain(fall.mesh);
+      expect(fall.group.children).toContain(fall.mist.group);
       expect(fall.mesh.renderOrder).toBeGreaterThan(CANONICAL_RENDER_CONFIG.waterSurface.quality.high.nearPatch ? -100 : -101);
       fall.setQuality("low");
       expect(fall.segments.rows).toBe(FALL_CONFIG.rows.low);
+      expect(fall.mist.count).toBe(FALL_CONFIG.mist.count.low);
       fall.setQuality("high");
       expect(fall.segments.rows).toBe(FALL_CONFIG.rows.high);
+      expect(fall.mist.count).toBe(FALL_CONFIG.mist.count.high);
     } finally {
       fall.dispose();
     }
     expect(fall.group.children).toHaveLength(0);
+  });
+});
+
+describe("W07 plunge-pool spray", () => {
+  it("places every puff deterministically from the tier count", () => {
+    for (const tier of ["low", "medium", "high"] as const) {
+      const geometry = createHeadwaterMistGeometry(tier);
+      try {
+        const expected = FALL_CONFIG.mist.count[tier] * 6;
+        expect(geometry.getAttribute("position").count).toBe(expected);
+        expect(geometry.getAttribute("aCorner").count).toBe(expected);
+        expect(geometry.getAttribute("aSeed").count).toBe(expected);
+        const repeat = createHeadwaterMistGeometry(tier);
+        try {
+          expect(Array.from(repeat.getAttribute("position").array))
+            .toEqual(Array.from(geometry.getAttribute("position").array));
+        } finally {
+          repeat.dispose();
+        }
+      } finally {
+        geometry.dispose();
+      }
+    }
+    expect(HEADWATER_MIST_VERTEX_GLSL).not.toContain("Math.random");
+    expect(HEADWATER_MIST_FRAGMENT_GLSL).not.toContain("Math.random");
+  });
+
+  it("boils up around the authored landing and never samples the capture", () => {
+    const landingX = WorldLayout.riverCenterX(NEVA_HEADWATERS.fall.landingZ);
+    const landingZ = NEVA_HEADWATERS.fall.landingZ;
+    const geometry = createHeadwaterMistGeometry("high");
+    try {
+      const position = geometry.getAttribute("position");
+      for (let index = 0; index < position.count; index += 1) {
+        const x = position.getX(index);
+        const y = position.getY(index);
+        const z = position.getZ(index);
+        expect(Math.hypot(x - landingX, z - landingZ))
+          .toBeLessThanOrEqual(FALL_CONFIG.mist.spreadMeters + 1.4);
+        expect(y).toBeGreaterThanOrEqual(headwaterElevationAt(landingZ) - 1e-6);
+      }
+    } finally {
+      geometry.dispose();
+    }
+    for (const source of [HEADWATER_MIST_VERTEX_GLSL, HEADWATER_MIST_FRAGMENT_GLSL]) {
+      expect(source).not.toMatch(/texture(2D)?\(\s*uOpaque/);
+      expect(source).not.toContain("oceanRaymarchSSR");
+    }
+    expect(HEADWATER_MIST_FRAGMENT_GLSL).toContain("nevaAerialSegment");
+    expect(HEADWATER_MIST_FRAGMENT_GLSL).toContain("linearToOutputTexel");
+  });
+
+  it("owns its geometry and material and clears its group on dispose", () => {
+    const shared = { uTime: { value: 0 } } as unknown as Record<string, THREE.IUniform>;
+    const mist = new HeadwaterFallMist({ sharedUniforms: shared, tier: "high" });
+    expect(mist.mesh.material.uniforms.uTime).toBe(shared.uTime);
+    expect(mist.mesh.renderOrder).toBeGreaterThan(-100);
+    expect(mist.mesh.material.depthWrite).toBe(false);
+    const geometry = mist.mesh.geometry;
+    mist.setQuality("low");
+    expect(mist.count).toBe(FALL_CONFIG.mist.count.low);
+    expect(mist.mesh.geometry).not.toBe(geometry);
+    mist.dispose();
+    expect(mist.group.children).toHaveLength(0);
   });
 });

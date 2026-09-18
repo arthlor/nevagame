@@ -7,11 +7,13 @@ import { AudioControls, GraphicsControls } from "./EscapeMenuModal";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { ControlsReference } from "./components/ControlsReference";
 import { InterfaceSettings } from "./components/InterfaceSettings";
+import { PwaInstallPromptModal } from "./components/PwaInstallPromptModal";
+import { usePwaInstall } from "./pwa/usePwaInstall";
 import { GameSheet } from "./coastal/CoastalUI";
 import { dayOfSeason } from "../simulation/core/GameClock";
 
 import { AtlasImage } from "./chrome/AtlasImage";
-import { UI_MENU, UI_STATUS } from "./chrome/uiAtlas";
+import { UI_MENU, UI_STATUS, UI_WORLD } from "./chrome/uiAtlas";
 import { playUiSound } from "./audio/uiAudio";
 
 export interface StartScreenProps {
@@ -24,6 +26,8 @@ export interface StartScreenProps {
   graphicsQuality: GraphicsQualityPreference;
   effectiveGraphicsQuality: QualityTier;
   onGraphicsQualityChange: (quality: GraphicsQualityPreference) => void;
+  mobileTouchDevice?: boolean;
+  mobileOrientationBlocked?: boolean;
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -87,7 +91,9 @@ export const StartScreen: FC<StartScreenProps> = ({
   onRetry,
   graphicsQuality,
   effectiveGraphicsQuality,
-  onGraphicsQualityChange
+  onGraphicsQualityChange,
+  mobileTouchDevice = false,
+  mobileOrientationBlocked = false
 }) => {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [optionsPage, setOptionsPage] = useState<StartOptionsPage>("graphics");
@@ -95,10 +101,12 @@ export const StartScreen: FC<StartScreenProps> = ({
   const [withoutSavingConfirmationOpen, setWithoutSavingConfirmationOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenMessage, setFullscreenMessage] = useState<string | null>(null);
+  const [pwaPromptManualOpen, setPwaPromptManualOpen] = useState(false);
   const optionsCloseRef = useRef<HTMLButtonElement>(null);
   const newGameCancelRef = useRef<HTMLButtonElement>(null);
   const withoutSavingCancelRef = useRef<HTMLButtonElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
+  const pwa = usePwaInstall();
 
   const dialogOpen = optionsOpen || newGameConfirmationOpen || withoutSavingConfirmationOpen;
   const isLoading = startup.status === "loading" || startup.status === "revealing";
@@ -109,6 +117,30 @@ export const StartScreen: FC<StartScreenProps> = ({
   const progressMax = Math.max(1, startup.totalAssets);
   const progressPercent = Math.max(0, Math.min(100, (loadedAssets / progressMax) * 100));
   const savedDate = startup.saveSummary ? formatSavedDate(startup.saveSummary.savedAtUtcMs) : null;
+
+  // The install invitation belongs to the lobby: it greets handheld players
+  // once on the title screen and never interrupts a dialog or gameplay. The
+  // in-game Escape menu can reopen the guide on demand.
+  const showPwaPrompt =
+    pwaPromptManualOpen ||
+    (isTitle &&
+      mobileTouchDevice &&
+      !pwa.isStandalone &&
+      !pwa.isInstalled &&
+      !pwa.isDismissed &&
+      !mobileOrientationBlocked &&
+      !dialogOpen);
+
+  // Desktop gets no automatic popup; a small title utility opens the same guide
+  // only when the browser has a real install prompt ready, and stays hidden
+  // once the player has installed or dismissed it.
+  const showPwaInstallUtility =
+    (startup.status === "title" || startup.status === "error") &&
+    !mobileTouchDevice &&
+    pwa.canPromptDirectly &&
+    !pwa.isStandalone &&
+    !pwa.isInstalled &&
+    !pwa.isDismissed;
 
   useEffect(() => {
     const syncFullscreen = (): void => {
@@ -255,6 +287,23 @@ export const StartScreen: FC<StartScreenProps> = ({
 
       {showUtilities && (
         <div className="start-screen__utilities" {...(dialogOpen ? { inert: "" } : {})} aria-hidden={dialogOpen || undefined}>
+          {showPwaInstallUtility && (
+            <button
+              type="button"
+              className="start-screen__utility-button"
+              data-testid="startup-pwa-install-button"
+              aria-label="Install app"
+              aria-haspopup="dialog"
+              onClick={() => {
+                rememberFocus();
+                playUiSound("open");
+                setPwaPromptManualOpen(true);
+              }}
+            >
+              <AtlasImage src={UI_WORLD.sprout} alt="" size={22} aria-hidden="true" />
+              <span className="start-screen__utility-label">Install app</span>
+            </button>
+          )}
           <button
             type="button"
             className="start-screen__utility-button"
@@ -598,6 +647,24 @@ export const StartScreen: FC<StartScreenProps> = ({
             </div>
           </GameSheet>
         </div>
+      )}
+
+      {showPwaPrompt && (
+        <PwaInstallPromptModal
+          platform={pwa.platform}
+          canPromptDirectly={pwa.canPromptDirectly}
+          onInstall={async () => {
+            const outcome = await pwa.promptInstall();
+            if (outcome === "accepted" || outcome === "dismissed") {
+              setPwaPromptManualOpen(false);
+              pwa.dismiss();
+            }
+          }}
+          onDismiss={() => {
+            setPwaPromptManualOpen(false);
+            pwa.dismiss();
+          }}
+        />
       )}
     </main>
   );

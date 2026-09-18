@@ -16,6 +16,30 @@
     <meta name="description" content="A peaceful, cozy 3D coastal life of farming, fishing, and open-water exploration right in your browser." />
     <link rel="icon" type="image/png" href="/assets/ui/atlas/world-sprout.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      // The install prompt fires as soon as Chrome's installability rules pass,
+      // which can be before React mounts. Capture it here so the lobby prompt
+      // always has a real 1-tap install to hand to the player.
+      window.__nevaDeferredInstallPrompt = null;
+      window.__nevaAppInstalled = false;
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        window.__nevaDeferredInstallPrompt = event;
+        window.dispatchEvent(new Event('neva:installprompt'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__nevaAppInstalled = true;
+        window.__nevaDeferredInstallPrompt = null;
+        window.dispatchEvent(new Event('neva:appinstalled'));
+      });
+      if ('serviceWorker' in navigator) {
+        // A pass-through worker keeps the app installable on browsers that
+        // still require a fetch handler; it never caches game assets or state.
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      }
+    </script>
     <meta name="theme-color" content="#142420" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -53,13 +77,41 @@
   <body>
     <div id="neva-boot-shell" role="status"><h1>Neva Land</h1><p>Grow a home. Follow the tide.</p><p id="neva-boot-status">Opening the coast…</p></div>
     <script>
-      window.addEventListener('vite:preloadError', function () {
+      var nevaPreloadAttemptKey = 'neva_preload_reload_at';
+      function nevaPreloadAttempts(now) {
+        try {
+          var attempts = JSON.parse(sessionStorage.getItem(nevaPreloadAttemptKey) || '[]') || [];
+          return attempts.filter(function (t) { return typeof t === 'number' && now - t < 60000; });
+        } catch (e) {
+          return [];
+        }
+      }
+      function nevaResetPreloadAttempts() {
+        try { sessionStorage.removeItem(nevaPreloadAttemptKey); } catch (e) {}
+      }
+      // A persistent missing chunk must not become an infinite reload loop, and
+      // an unsaved session must not be silently reloaded forever. Two automatic
+      // attempts per minute, then the visible recovery shell owns the choice.
+      window.addEventListener('vite:preloadError', function (event) {
+        var now = Date.now();
+        var attempts = nevaPreloadAttempts(now);
+        if (attempts.length >= 2) {
+          event.preventDefault();
+          window.nevaBootFailed();
+          return;
+        }
+        attempts.push(now);
+        try { sessionStorage.setItem(nevaPreloadAttemptKey, JSON.stringify(attempts)); } catch (e) {}
         window.location.reload();
       });
       window.nevaBootFailed = function () {
-        document.getElementById('neva-boot-status').textContent = 'The coast could not open. Check your connection and reload the game.';
-        var button = document.createElement('button'); button.textContent = 'Reload game'; button.onclick = function () { location.reload(); };
-        document.getElementById('neva-boot-shell').appendChild(button);
+        var status = document.getElementById('neva-boot-status');
+        if (status) status.textContent = 'The coast could not open. Check your connection and reload the game.';
+        var shell = document.getElementById('neva-boot-shell');
+        if (!shell || shell.querySelector('button')) return;
+        var button = document.createElement('button'); button.textContent = 'Reload game';
+        button.onclick = function () { nevaResetPreloadAttempts(); location.reload(); };
+        shell.appendChild(button);
       };
     </script>
     <div id="canvas-container">

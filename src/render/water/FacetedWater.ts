@@ -143,12 +143,17 @@ const fragmentShader = /* glsl */ `
       }
     }
 
+    // The profile map carries the authored channel tangent; the shading uses
+    // it to carry surface detail downstream with the current.
+    float profileAngle = profileAt(vWorldPosition.xz).a * 6.28318530718 - 3.14159265359;
+    vec2 localFlow = vec2(cos(profileAngle), sin(profileAngle));
     outColor = nevaShadeWaterSurface(
       vWorldPosition,
       normalize(vWaveNormal),
       vWaveHeight,
       vSignedWaterDistance,
-      vRegionWeights
+      vRegionWeights,
+      localFlow
     );
     ${WATER_OUTPUT_GLSL}
   }
@@ -352,6 +357,16 @@ export class FacetedWater {
         uRapidsGradeFull: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsGradeFull },
         uRapidsCellScale: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsCellScaleMeters },
         uRapidsFlowSpeed: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsFlowMetersPerSecond },
+        uRiverFlowSpeed: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.riverFlowMetersPerSecond },
+        uRiverFlowDepthStart: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.riverFlowDepthStart },
+        uRiverFlowDepthFull: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.riverFlowDepthFullMeters },
+        uRiverFlowNormalStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.riverFlowNormalStrength },
+        uRiverEdgeFoamStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.riverEdgeFoamStrength },
+        uRiverEdgeFoamScale: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.riverEdgeFoamScaleMeters },
+        uPlungeRingSpeed: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.plungeRingSpeedMetersPerSecond },
+        uPlungeRingWavelength: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.plungeRingWavelengthMeters },
+        uPlungeRingStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.plungeRingStrength },
+        uPlungeRingSpan: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.plungeRingSpanMeters },
         uEdgeOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.edgeOpacity },
         uBodyOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.bodyOpacity },
         uOpacityRampMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.opacityRampMeters },

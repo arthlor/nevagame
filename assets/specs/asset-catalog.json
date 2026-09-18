@@ -19617,9 +19617,9 @@
       "generator": "village_building",
       "seed": 452,
       "dimensions": {
-        "width": 4.3,
-        "depth": 3.4,
-        "height": 5.0
+        "width": 4.4,
+        "depth": 4.9,
+        "height": 5.3
       },
       "palette": [
         "stone_warm_01",
@@ -19656,7 +19656,7 @@
         "shingleColumns": 5,
         "masonryCourses": 2,
         "masonryBlocks": 3,
-        "porchDepth": 0.55,
+        "porchDepth": 1.35,
         "porchPlanks": 4,
         "wingOffset": 0.15,
         "wingWidth": 0.9,

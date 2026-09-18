@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
 import { FacetedWater } from "../../src/render/water/FacetedWater";
 import { ShoreFoam } from "../../src/render/water/ShoreFoam";
+import { WATER_SURFACE_SHADING_GLSL } from "../../src/render/water/waterShadingGlsl";
 
 /**
  * Static link check for the water shaders.
@@ -84,13 +85,15 @@ function waterPrograms(): { programs: WaterProgram[]; dispose: () => void } {
     THREE.BufferGeometry,
     THREE.ShaderMaterial
   >;
-  return {
-    programs: [
-      { label: "FacetedWater", material: water.mesh.material },
-      { label: "NearWaterPatch", material: water.nearPatch.mesh.material },
-      { label: "ShoreFoam", material: foam.mesh.material },
-      { label: "BoatWakePool", material: wakeMesh.material }
-    ],
+    return {
+      programs: [
+        { label: "FacetedWater", material: water.mesh.material },
+        { label: "NearWaterPatch", material: water.nearPatch.mesh.material },
+        { label: "HeadwaterFall", material: water.headwaterFall.mesh.material },
+        { label: "HeadwaterFallMist", material: water.headwaterFall.mist.mesh.material },
+        { label: "ShoreFoam", material: foam.mesh.material },
+        { label: "BoatWakePool", material: wakeMesh.material }
+      ],
     dispose: () => {
       wakes.dispose();
       foam.dispose();
@@ -174,5 +177,26 @@ describe("water shader linkage", () => {
     const declared = declaredUniforms(brokenStage);
     const missing = [...referencedUniforms(brokenStage)].filter((name) => !declared.has(name));
     expect(missing).toEqual(["uTime"]);
+  });
+
+  it("carries the river in its own flow frame on both water surfaces", () => {
+    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    try {
+      for (const fragment of [
+        water.mesh.material.fragmentShader,
+        water.nearPatch.mesh.material.fragmentShader
+      ]) {
+        // The tangent is read from the profile map, never assumed to be +Z.
+        expect(fragment).toContain("profileAt(vWorldPosition.xz).a");
+        expect(fragment).toContain("localFlow");
+        expect(fragment).toContain("nevaShadeWaterSurface(");
+      }
+      expect(WATER_SURFACE_SHADING_GLSL).toContain("flowOffset");
+      expect(WATER_SURFACE_SHADING_GLSL).toContain("riverFlow");
+      expect(WATER_SURFACE_SHADING_GLSL).toContain("rapidGate");
+      expect(WATER_SURFACE_SHADING_GLSL).toContain("uPlungeRingWavelength");
+    } finally {
+      water.dispose();
+    }
   });
 });

@@ -65,7 +65,8 @@ export const KEY_BINDING_GROUPS: readonly KeyBindingGroup[] = [
         note: "The belt changes with where you are standing"
       },
       { keys: "Alt", action: "Hold to read the soil overlay on a farm" },
-      { keys: "F", action: "Open or close the farm forecast" }
+      { keys: "F", action: "Open or close the farm forecast" },
+      { keys: "RMB click", action: "Inspect a crop, or read the water at the shore" }
     ]
   },
   {

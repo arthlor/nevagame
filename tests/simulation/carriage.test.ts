@@ -13,6 +13,7 @@ import { ContentRegistry } from '../../src/content/ContentRegistry';
 import type { AssetId } from '../../src/render/assets/AssetCatalog';
 import { resolveCargoTemperatureC } from '../../src/simulation/fishing/calculateFreshness';
 import { WORLD_LAYOUT_REVISION } from '../../src/world/WorldAnchors';
+import { starterStructureAnchor } from '../../src/world/FarmLayout';
 
 function atRear(sim: Simulation) {
   const cart = sim.state.mounts[STARTER_CARRIAGE_ID];
@@ -36,7 +37,7 @@ function worldBoxes(sim: Simulation) {
 }
 
 describe('horse carriage gameplay', () => {
-  it('migrates the retained v45 fixture once without changing any prior player, cargo or world truth', () => {
+  it('migrates the retained v45 fixture once, adding the carriage and re-anchoring the kitchen', () => {
     const input = structuredClone(legacy) as unknown as ReturnType<typeof envelope>;
     const before = structuredClone(input);
     const migrated = migrateSaveData(input);
@@ -45,10 +46,22 @@ describe('horse carriage gameplay', () => {
     const { mounts, schemaVersion: _schemaVersion, world, ...rest } = migrated.state;
     const { mounts: priorMounts, schemaVersion: _priorVersion, world: priorWorld, ...priorRest } = input.state;
     expect(rest).toEqual(priorRest);
-    // The chain now also walks the headwater layout step, so the world may
-    // differ by its published revision and nothing else.
+    // The chain now also walks the headwater layout step and the v48 kitchen
+    // re-anchor, so the world may differ by its published revision and the
+    // documented kitchen pose and nothing else.
     expect(world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
-    expect({ ...world, layoutRevision: priorWorld.layoutRevision }).toEqual(priorWorld);
+    const kitchenAnchor = starterStructureAnchor('struct.kitchen')!;
+    expect(world.structures['struct.kitchen']).toMatchObject({
+      x: kitchenAnchor.x,
+      z: kitchenAnchor.z
+    });
+    const withoutKitchen = (candidate: typeof world) => {
+      const { 'struct.kitchen': _kitchen, ...structures } = candidate.structures;
+      return { ...candidate, structures };
+    };
+    expect(withoutKitchen({ ...world, layoutRevision: priorWorld.layoutRevision })).toEqual(
+      withoutKitchen(priorWorld)
+    );
     expect(mounts['mount.donkey_starter']).toEqual(priorMounts['mount.donkey_starter']);
     expect(validateSaveEnvelope(migrated)).toBe(true);
     expect(migrateSaveData(migrated)).toEqual(migrated);

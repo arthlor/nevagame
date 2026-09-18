@@ -20,6 +20,7 @@ from common.geometry import (
     add_ring,
     seeded_rng,
     add_tri_prism,
+    add_right_tri_prism,
     join_meshes,
 )
 from common.authored import (
@@ -3852,15 +3853,20 @@ def _lean_to_roof(
     courses,
     detail=True,
     seed=0,
+    front_overhang=None,
 ):
     pitch = math.radians(max(8.0, min(32.0, pitch_deg * 0.62)))
     half_span = width * 0.5 + overhang
     slope_length = half_span * 2.0 / math.cos(pitch)
-    roof_d = depth + overhang * 2.0
+    # The working-front porch may pull the single roof plane forward without
+    # becoming a second roof: the deck, tiles and fascias stay one construction.
+    front_overhang = overhang if front_overhang is None else front_overhang
+    roof_d = depth + overhang + front_overhang
+    roof_center_y = (overhang - front_overhang) * 0.5
     center_z = wall_top + math.sin(pitch) * slope_length * 0.5 + 0.10
     add_box(
         f"{prefix}_lean_to_deck",
-        (0, 0, center_z - 0.045),
+        (0, roof_center_y, center_z - 0.045),
         (slope_length, roof_d, 0.065),
         roof_token,
         root,
@@ -3878,7 +3884,7 @@ def _lean_to_roof(
         z = center_z - math.sin(pitch) * local_x + 0.09
         stagger = -tile_d * 0.5 if row % 2 else 0.0
         for column in range(columns + (1 if row % 2 else 0)):
-            y = -roof_d * 0.5 + tile_d * (column + 0.5) + stagger
+            y = roof_center_y - roof_d * 0.5 + tile_d * (column + 0.5) + stagger
             add_box(
                 f"{prefix}_lean_to_tile_{row:02d}_{column:02d}",
                 (x + rng.uniform(-0.01, 0.01), y, z + rng.uniform(-0.01, 0.014)),
@@ -3890,7 +3896,7 @@ def _lean_to_roof(
             )
     add_box(
         f"{prefix}_lean_to_fascia_low",
-        (half_span, 0, wall_top + 0.09),
+        (half_span, roof_center_y, wall_top + 0.09),
         (0.12, roof_d + 0.10, 0.18),
         trim_token,
         root,
@@ -3899,12 +3905,35 @@ def _lean_to_roof(
     )
     add_box(
         f"{prefix}_lean_to_fascia_high",
-        (-half_span, 0, wall_top + math.tan(pitch) * half_span * 2.0 + 0.09),
+        (-half_span, roof_center_y, wall_top + math.tan(pitch) * half_span * 2.0 + 0.09),
         (0.12, roof_d + 0.10, 0.18),
         trim_token,
         root,
         rotation=(0, pitch, 0),
         bevel=min(bevel, 0.015),
+    )
+    rise = math.tan(pitch) * width
+    add_box(
+        f"{prefix}_lean_to_high_wall",
+        (-width * 0.5 + 0.05, 0, wall_top + rise * 0.5),
+        (0.12, depth - 0.08, rise),
+        trim_token,
+        root,
+        bevel=min(bevel, 0.008),
+    )
+    add_right_tri_prism(
+        f"{prefix}_lean_to_rake_front",
+        (0, -depth * 0.5 + 0.04, wall_top + rise * 0.5),
+        (width - 0.08, 0.12, rise),
+        trim_token,
+        root,
+    )
+    add_right_tri_prism(
+        f"{prefix}_lean_to_rake_back",
+        (0, depth * 0.5 - 0.04, wall_top + rise * 0.5),
+        (width - 0.08, 0.12, rise),
+        trim_token,
+        root,
     )
     return center_z + math.sin(pitch) * slope_length * 0.5 + 0.10
 
@@ -4263,6 +4292,7 @@ def _build_village_building(spec: dict, root) -> None:
     door_h = float(_village_required_param(params, "doorHeight"))
     if params.get("roofForm") != profile["roofForm"] or params.get("openingLayout") != profile["openingLayout"]:
         raise ValueError(f"{variant}: catalog roofForm/openingLayout do not match the registered role profile")
+    kitchen_porch_depth = porch_depth if profile["feature"] == "kitchen-hearth" else None
 
     is_plank = profile["wallStyle"] == "plank"
     bevel = 0.05 if detail else 0.02
@@ -4324,17 +4354,18 @@ def _build_village_building(spec: dict, root) -> None:
                 )
                 for rail_index, z in enumerate((wall_base + wall_height * 0.34, wall_base + wall_height * 0.70)):
                     add_box(f"{variant}_rail_{name}_{rail_index}", (0, face_y - y_sign * 0.055, z), (width - 0.30, 0.13, 0.15), dark, root, bevel=0.010)
-                _add_rect_brace(
-                    f"{variant}_brace_{name}",
-                    (-width * 0.43, face_y - y_sign * 0.075, wall_base + 0.24),
-                    (-width * 0.10, face_y - y_sign * 0.075, wall_top - 0.25),
-                    0.14,
-                    0.12,
-                    dark,
-                    root,
-                    plane="xz",
-                    bevel=0.009,
-                )
+                if name != "front" or (profile["openingLayout"] not in ("shed-tools",) and profile["feature"] != "kitchen-hearth"):
+                    _add_rect_brace(
+                        f"{variant}_brace_{name}",
+                        (-width * 0.43, face_y - y_sign * 0.075, wall_base + 0.24),
+                        (-width * 0.10, face_y - y_sign * 0.075, wall_top - 0.25),
+                        0.14,
+                        0.12,
+                        dark,
+                        root,
+                        plane="xz",
+                        bevel=0.009,
+                    )
             for side, name in ((-1, "left"), (1, "right")):
                 face_x = side * (width * 0.5 - 0.035)
                 add_plank_field(
@@ -4383,7 +4414,7 @@ def _build_village_building(spec: dict, root) -> None:
         if detail:
             _side_shingle_rows(f"{variant}_shingles", width, depth, wall_top, pitch_deg, roof, root, rows=shingle_rows, columns=shingle_columns, seed=seed + 19, overhang_front=roof_overhang, overhang_side=roof_overhang)
     elif profile["roofForm"] == "lean-to":
-        roof_top = _lean_to_roof(variant, width, depth, wall_top, pitch_deg, roof, dark, root, overhang=roof_overhang, bevel=0.025 if detail else 0.012, courses=roof_detail_courses, detail=detail, seed=seed + 19)
+        roof_top = _lean_to_roof(variant, width, depth, wall_top, pitch_deg, roof, dark, root, overhang=roof_overhang, front_overhang=kitchen_porch_depth, bevel=0.025 if detail else 0.012, courses=roof_detail_courses, detail=detail, seed=seed + 19)
     else:
         if profile["roofForm"] == "offset-gable":
             offset_side = _village_wing_side(wing_offset)
@@ -4463,6 +4494,10 @@ def _build_village_building(spec: dict, root) -> None:
     # hide a generic cottage door behind their service counter. Barns use split
     # loading leaves instead of a single cottage door.
     door_x = wing_offset if profile["openingLayout"] == "cottage-side" else 0.0
+    if profile["feature"] == "kitchen-hearth":
+        # The culinary station owns the working half of the front; the pantry
+        # door shifts beside it instead of opening behind the prep counter.
+        door_x = -width * 0.30
     door_y = front_y - 0.06
     is_barn = profile["feature"] == "loading-lean-to"
 
@@ -4695,11 +4730,22 @@ def _build_village_building(spec: dict, root) -> None:
                     bevel=0.01,
                 )
         else:
-            add_box(f"{variant}_chimney", (chimney_x, chimney_y, wall_top + chimney_h * 0.28), (0.62, 0.54, chimney_h), stone, root, bevel=0.03 if detail else 0.0)
+            if profile["feature"] == "kitchen-hearth":
+                # The outdoor range's flue: the stack rises over the hearth breast
+                # on the working front instead of the generic interior roof line.
+                chimney_y = front_y - 0.02
+            chimney_base_z = wall_top - 0.20
+            chimney_top = chimney_base_z + chimney_h
+            chimney_cz = chimney_base_z + chimney_h * 0.5
+            add_box(f"{variant}_chimney", (chimney_x, chimney_y, chimney_cz), (0.62, 0.54, chimney_h), stone, root, bevel=0.03 if detail else 0.0)
             if detail:
-                add_masonry_courses(f"{variant}_chimney_masonry", (chimney_x, chimney_y, wall_top + chimney_h * 0.28), 0.62, 0.54, chimney_h, (stone,), root, courses=3, blocks_per_long_side=2, seed=seed + 23, block_depth=0.12, bevel=0.012)
-                add_box(f"{variant}_chimney_crown", (chimney_x, chimney_y, wall_top + chimney_h * 0.82), (0.72, 0.64, 0.12), stone, root, bevel=0.012)
-                add_box(f"{variant}_chimney_pot", (chimney_x, chimney_y, wall_top + chimney_h * 0.96), (0.22, 0.22, 0.28), dark, root, bevel=0.01)
+                add_masonry_courses(f"{variant}_chimney_masonry", (chimney_x, chimney_y, chimney_cz), 0.62, 0.54, chimney_h, (stone,), root, courses=3, blocks_per_long_side=2, seed=seed + 23, block_depth=0.12, bevel=0.012)
+                crown_h = 0.12
+                crown_cz = chimney_top + crown_h * 0.5
+                add_box(f"{variant}_chimney_crown", (chimney_x, chimney_y, crown_cz), (0.72, 0.64, crown_h), stone, root, bevel=0.012)
+                pot_h = 0.28
+                pot_cz = chimney_top + crown_h + pot_h * 0.5
+                add_box(f"{variant}_chimney_pot", (chimney_x, chimney_y, pot_cz), (0.22, 0.22, pot_h), dark, root, bevel=0.01)
 
     added_entry_stairs = False
 
@@ -5108,42 +5154,232 @@ def _build_village_building(spec: dict, root) -> None:
         for index in range(3 if detail else 2):
             add_box(f"{variant}_tool_hook_{index}", (overhang_x - 0.28 + index * 0.28, front_y - 0.14, wall_base + wall_height * 0.28), (0.06, 0.10, 0.24), timber, root, bevel=0.006)
 
-    # Farm kitchen: a masonry hearth bulge on the flank with a dark oven mouth,
-    # a serving counter under the front window, and a firewood niche by the
-    # door break the miniature-shed read and tell the player meals are cooked
-    # here. The generic profile chimney rises over the hearth bulge.
+    # Farm kitchen: an authored open-air culinary station sheltered by the
+    # building's own deep front eave. A raised stone work terrace carries a
+    # masonry range with a bake oven, cooktop and simmer pot; a stone work wall
+    # backs the prep counter, spice shelf and hanging utensils; the flue breast
+    # ties the range to the chimney stack above the eave.
     if profile["feature"] == "kitchen-hearth":
-        oven_x = width * 0.5 + 0.30
-        oven_z = wall_base + 0.78
-        add_box(f"{variant}_oven_bulge", (oven_x, 0.10, oven_z), (0.64, 1.15, 1.56), stone, root, bevel=0.03 if detail else 0.012)
+        # Working stone terrace apron under the station
+        terrace_x = 0.72
+        terrace_w = 2.00
+        add_box(f"{variant}_terrace", (terrace_x, front_y - 0.42, 0.07), (terrace_w, 0.88, 0.14), stone, root, bevel=0.018 if detail else 0.008)
+
+        # Porch posts and header carry the deep eave over the working face
+        pitch = math.radians(max(8.0, min(32.0, pitch_deg * 0.62)))
+        half_span = width * 0.5 + roof_overhang
+        slope_length = half_span * 2.0 / math.cos(pitch)
+        roof_center_z = wall_top + math.sin(pitch) * slope_length * 0.5 + 0.10
+        deck_bottom_z = roof_center_z - 0.045 - 0.0325
+        post_x = width * 0.5 + 0.14
+        post_y = front_y - kitchen_porch_depth + 0.18
+        beam_bottom_z = deck_bottom_z - 0.14
+        for p_idx, px in enumerate((-post_x, post_x)):
+            post_top = beam_bottom_z - math.tan(pitch) * px
+            add_box(f"{variant}_porch_plinth_{p_idx}", (px, post_y, 0.11), (0.24, 0.24, 0.22), stone, root, bevel=0.012)
+            add_box(f"{variant}_porch_post_{p_idx}", (px, post_y, 0.22 + (post_top - 0.22) * 0.5), (0.15, 0.15, post_top - 0.22), timber, root, bevel=0.010 if detail else 0.004)
+            if detail:
+                brace_sign = -1.0 if px < 0 else 1.0
+                _add_rect_brace(f"{variant}_porch_brace_{p_idx}", (px, post_y, post_top - 0.52), (px + brace_sign * 0.40, post_y, post_top - 0.06), 0.09, 0.09, timber, root, plane="xz", bevel=0.006)
+        add_box(f"{variant}_porch_header", (0, post_y, deck_bottom_z - 0.07), (width + 0.44, 0.16, 0.14), timber, root, rotation=(0, pitch, 0), bevel=0.010 if detail else 0.004)
+
+        # Stone work wall backs the counter and range under the window
+        add_box(f"{variant}_work_wall", (0.60, front_y - 0.02, 0.76), (2.02, 0.16, 1.24), stone, root, bevel=0.016 if detail else 0.008)
         if detail:
-            add_masonry_courses(f"{variant}_oven_masonry", (oven_x, 0.10, oven_z), 0.64, 1.15, 1.56, (stone,), root, courses=3, blocks_per_long_side=2, seed=seed + 31, block_depth=0.10, bevel=0.010)
-        mouth_x = oven_x + 0.33
-        add_box(f"{variant}_oven_mouth", (mouth_x, 0.10, wall_base + 0.62), (0.08, 0.62, 0.52), dark, root, bevel=0.006)
-        add_box(f"{variant}_oven_lintel", (mouth_x - 0.02, 0.10, wall_base + 0.94), (0.12, 0.78, 0.12), timber, root, bevel=0.008 if detail else 0.0)
-        add_box(f"{variant}_oven_shelf", (mouth_x + 0.06, 0.10, wall_base + 0.34), (0.22, 0.70, 0.08), timber, root, bevel=0.008 if detail else 0.0)
-        counter_w = max(1.10, width * 0.52)
-        counter_x = width * 0.25
-        counter_z = wall_base + 0.62
-        counter_y = front_y - 0.52
-        add_box(f"{variant}_counter_top", (counter_x, counter_y, counter_z), (counter_w, 0.52, 0.10), timber, root, bevel=0.012 if detail else 0.006)
-        for leg_index, lx in enumerate((counter_x - counter_w * 0.42, counter_x + counter_w * 0.42)):
-            add_box(f"{variant}_counter_leg_{leg_index}", (lx, counter_y, counter_z - 0.36), (0.12, 0.12, 0.62), dark, root, bevel=0.008 if detail else 0.0)
-        for pot_index in range(3 if detail else 2):
-            px = counter_x - counter_w * 0.30 + pot_index * counter_w * 0.30
-            add_cylinder(f"{variant}_counter_pot_{pot_index}", (px, counter_y, counter_z + 0.16), 0.13, 0.20, dark, root, vertices=8)
-        niche_x = -width * 0.30
-        for log_level in range(3):
-            for log_index in range(2):
-                add_beam(
-                    f"{variant}_firewood_{log_level}_{log_index}",
-                    (niche_x - 0.16 + log_index * 0.32, front_y - 0.22, wall_base + 0.16 + log_level * 0.17),
-                    (niche_x + 0.16 - log_index * 0.32, front_y - 0.22, wall_base + 0.16 + log_level * 0.17),
-                    0.075,
-                    timber,
-                    root,
-                    vertices=5,
-                )
+            add_masonry_courses(f"{variant}_work_wall_masonry", (0.60, front_y - 0.02, 0.76), 2.02, 0.16, 1.24, (stone,), root, courses=3, blocks_per_long_side=3, seed=seed + 87, block_depth=0.06, bevel=0.008)
+
+        # Masonry flue breast ties the range to the chimney stack
+        breast_base = 1.30
+        breast_top = wall_top + 0.30
+        breast_cz = (breast_base + breast_top) * 0.5
+        add_box(f"{variant}_hearth_breast", (chimney_x, front_y - 0.16, breast_cz), (0.58, 0.46, breast_top - breast_base), stone, root, bevel=0.02 if detail else 0.010)
+        if detail:
+            add_masonry_courses(f"{variant}_hearth_breast_masonry", (chimney_x, front_y - 0.16, breast_cz), 0.58, 0.46, breast_top - breast_base, (stone,), root, courses=3, blocks_per_long_side=2, seed=seed + 91, block_depth=0.07, bevel=0.008)
+
+        # Masonry Hearth & Cooktop (Right portion of station, beneath the chimney)
+        hearth_x = 1.20
+        hearth_y = front_y - 0.40
+        hearth_w = 0.82
+        hearth_d = 0.64
+        hearth_h = 0.82
+        hearth_cz = 0.14 + hearth_h * 0.5
+        add_box(f"{variant}_hearth_base", (hearth_x, hearth_y, hearth_cz), (hearth_w, hearth_d, hearth_h), stone, root, bevel=0.024 if detail else 0.010)
+        if detail:
+            add_masonry_courses(f"{variant}_hearth_masonry", (hearth_x, hearth_y, hearth_cz), hearth_w, hearth_d, hearth_h, (stone,), root, courses=3, blocks_per_long_side=2, seed=seed + 77, block_depth=0.08, bevel=0.010)
+        # Hearth stone coping lip
+        cooktop_z = 0.14 + hearth_h
+        add_box(f"{variant}_hearth_coping", (hearth_x, hearth_y, cooktop_z + 0.03), (hearth_w + 0.06, hearth_d + 0.06, 0.06), stone, root, bevel=0.012)
+
+        # Firewood niche in front face of hearth
+        niche_d = 0.28
+        add_box(f"{variant}_hearth_niche", (hearth_x, hearth_y - hearth_d * 0.5 + niche_d * 0.5 - 0.01, 0.38), (0.48, niche_d, 0.36), dark, root, bevel=0.008)
+        # Stacked split firewood inside niche
+        for log_r in range(2):
+            for log_c in range(2):
+                lx = hearth_x - 0.14 + log_c * 0.28
+                lz = 0.26 + log_r * 0.15
+                add_beam(f"{variant}_hearth_wood_{log_r}_{log_c}", (lx - 0.08, hearth_y - hearth_d * 0.5 + 0.04, lz), (lx + 0.08, hearth_y - hearth_d * 0.5 + niche_d - 0.04, lz), 0.06, wall if log_r % 2 else timber, root, vertices=5)
+
+        # Arched Bake Oven (Right rear of hearth)
+        oven_cx = hearth_x + 0.14
+        oven_cy = hearth_y + 0.12
+        oven_cz = cooktop_z + 0.26
+        add_box(f"{variant}_bake_oven", (oven_cx, oven_cy, oven_cz), (0.44, 0.38, 0.46), stone, root, bevel=0.035 if detail else 0.012)
+        # Oven mouth & iron door
+        add_box(f"{variant}_oven_mouth", (oven_cx, oven_cy - 0.18, oven_cz - 0.06), (0.24, 0.06, 0.28), dark, root, bevel=0.008)
+        add_box(f"{variant}_oven_handle", (oven_cx, oven_cy - 0.22, oven_cz - 0.06), (0.12, 0.02, 0.03), timber, root, bevel=0.004)
+
+        # Wooden Bread Peel leaning against the right side of the hearth
+        peel_x = hearth_x + hearth_w * 0.5 + 0.06
+        add_beam(f"{variant}_peel_handle", (peel_x, front_y - 0.16, 0.14), (peel_x, front_y - 0.52, 1.22), 0.028, wall, root, vertices=4)
+        add_box(f"{variant}_peel_paddle", (peel_x, front_y - 0.56, 1.32), (0.022, 0.17, 0.24), wall, root, rotation=(0.28, 0, 0), bevel=0.004)
+
+        # Iron Cooktop Grate & Cookware (Left half of hearth)
+        grate_cx = hearth_x - 0.18
+        grate_cy = hearth_y
+        add_box(f"{variant}_firebed", (grate_cx, grate_cy, cooktop_z + 0.01), (0.36, 0.40, 0.03), dark, root, bevel=0.004)
+        for g_idx in range(4):
+            gx = grate_cx - 0.14 + g_idx * 0.09
+            add_box(f"{variant}_grate_bar_{g_idx}", (gx, grate_cy, cooktop_z + 0.04), (0.02, 0.38, 0.02), dark, root, bevel=0.002)
+
+        # Cast-iron Simmer Pot / Cauldron
+        pot_z = cooktop_z + 0.05
+        add_cylinder(f"{variant}_simmer_pot", (grate_cx, grate_cy + 0.06, pot_z + 0.10), 0.13, 0.16, dark, root, vertices=10, bevel=0.008)
+        add_cylinder(f"{variant}_pot_rim", (grate_cx, grate_cy + 0.06, pot_z + 0.19), 0.145, 0.025, dark, root, vertices=10, bevel=0.004)
+        # Stew surface inside the simmer pot
+        add_cylinder(f"{variant}_stew_broth", (grate_cx, grate_cy + 0.06, pot_z + 0.175), 0.12, 0.01, roof, root, vertices=8)
+        # Cauldron ear handles
+        for eh_idx, eh_sign in enumerate((-1, 1)):
+            add_box(f"{variant}_pot_ear_{eh_idx}", (grate_cx + eh_sign * 0.155, grate_cy + 0.06, pot_z + 0.15), (0.03, 0.045, 0.03), dark, root, bevel=0.003)
+
+        # Cast-iron Skillet / Frying Pan on cooktop
+        pan_cx = grate_cx
+        pan_cy = grate_cy - 0.12
+        add_cylinder(f"{variant}_skillet_body", (pan_cx, pan_cy, pot_z + 0.025), 0.095, 0.04, dark, root, vertices=8, bevel=0.004)
+        add_box(f"{variant}_skillet_handle", (pan_cx - 0.08, pan_cy - 0.08, pot_z + 0.035), (0.025, 0.12, 0.015), dark, root, rotation=(0, 0, 0.55), bevel=0.002)
+
+        # Heavy Timber Food Preparation Counter (Butcher Block Table)
+        counter_cx = 0.50
+        counter_cy = front_y - 0.44
+        counter_w = 0.84
+        counter_d = 0.58
+        counter_h = 0.82
+        table_top_z = 0.14 + counter_h
+        # Weathered timber tabletop slab
+        add_box(f"{variant}_prep_table_top", (counter_cx, counter_cy, table_top_z + 0.04), (counter_w, counter_d, 0.08), wall, root, bevel=0.012 if detail else 0.006)
+        # 4 Sturdy timber legs
+        leg_span_x = counter_w * 0.42
+        leg_span_y = counter_d * 0.40
+        for leg_idx, (lx, ly) in enumerate((
+            (counter_cx - leg_span_x, counter_cy - leg_span_y),
+            (counter_cx + leg_span_x, counter_cy - leg_span_y),
+            (counter_cx - leg_span_x, counter_cy + leg_span_y),
+            (counter_cx + leg_span_x, counter_cy + leg_span_y),
+        )):
+            add_box(f"{variant}_prep_leg_{leg_idx}", (lx, ly, 0.14 + counter_h * 0.5), (0.085, 0.085, counter_h), timber, root, bevel=0.006)
+        # Lower slatted storage shelf between legs
+        shelf_z = 0.14 + 0.22
+        add_box(f"{variant}_prep_shelf_frame", (counter_cx, counter_cy, shelf_z), (counter_w - 0.06, counter_d - 0.06, 0.04), timber, root, bevel=0.004)
+        if detail:
+            for s_plank in range(3):
+                spy = counter_cy - 0.14 + s_plank * 0.14
+                add_box(f"{variant}_prep_shelf_plank_{s_plank}", (counter_cx, spy, shelf_z + 0.03), (counter_w - 0.08, 0.10, 0.025), wall, root, bevel=0.003)
+
+        # Props on Top of Prep Counter (surface at table_top_z + 0.08)
+        surf_z = table_top_z + 0.08
+        # Butcher Block Cutting Board
+        board_cx = counter_cx - 0.14
+        board_cy = counter_cy
+        add_box(f"{variant}_cutting_board", (board_cx, board_cy, surf_z + 0.02), (0.28, 0.22, 0.035), timber, root, bevel=0.005)
+        # Chef's Prep Knife on cutting board
+        add_box(f"{variant}_knife_blade", (board_cx - 0.04, board_cy - 0.04, surf_z + 0.042), (0.11, 0.026, 0.006), dark, root, rotation=(0, 0, 0.18), bevel=0.002)
+        add_box(f"{variant}_knife_handle", (board_cx + 0.04, board_cy - 0.055, surf_z + 0.043), (0.06, 0.018, 0.014), timber, root, rotation=(0, 0, 0.18), bevel=0.002)
+        # Turned Wooden Rolling Pin
+        add_cylinder(f"{variant}_rolling_pin", (board_cx - 0.02, board_cy + 0.07, surf_z + 0.048), 0.022, 0.18, wall, root, rotation=(1.57, 0, 0), vertices=6)
+        for pin_h_idx, pin_hy in enumerate((-0.11, 0.11)):
+            add_cylinder(f"{variant}_pin_handle_{pin_h_idx}", (board_cx - 0.02, board_cy + 0.07 + pin_hy, surf_z + 0.048), 0.012, 0.04, timber, root, rotation=(1.57, 0, 0), vertices=6)
+
+        # Carved Wooden Harvest Bowl with vegetables
+        bowl_cx = counter_cx + 0.22
+        bowl_cy = counter_cy + 0.02
+        add_cylinder(f"{variant}_harvest_bowl", (bowl_cx, bowl_cy, surf_z + 0.04), 0.12, 0.07, timber, root, vertices=8, bevel=0.008)
+        if detail:
+            # Root vegetables in bowl (harvest ingredients)
+            for p_idx, (px_off, py_off) in enumerate(((-0.05, 0.03), (0.04, -0.04), (0.0, 0.05))):
+                add_ico(f"{variant}_root_vegetable_{p_idx}", (bowl_cx + px_off, bowl_cy + py_off, surf_z + 0.06), (0.034, 0.034, 0.028), stone, root, subdivisions=1)
+
+        # Wall spice shelf and hanging utensil rail on the stone work wall
+        shelf_cx = counter_cx
+        shelf_cy = front_y - 0.13
+        shelf_cz = wall_base + 0.98
+        add_box(f"{variant}_wall_shelf", (shelf_cx, shelf_cy, shelf_cz), (0.76, 0.20, 0.035), wall, root, bevel=0.006)
+        if detail:
+            # Wooden corbels supporting the shelf
+            for cb_idx, cb_x in enumerate((shelf_cx - 0.26, shelf_cx + 0.26)):
+                add_box(f"{variant}_shelf_corbel_{cb_idx}", (cb_x, shelf_cy, shelf_cz - 0.09), (0.05, 0.14, 0.14), timber, root, bevel=0.004)
+            # Ceramic spice crocks & jars on the shelf
+            add_cylinder(f"{variant}_crock_stone", (shelf_cx - 0.22, shelf_cy, shelf_cz + 0.08), 0.048, 0.12, stone, root, vertices=8, bevel=0.004)
+            add_cylinder(f"{variant}_crock_stopper_0", (shelf_cx - 0.22, shelf_cy, shelf_cz + 0.15), 0.025, 0.03, timber, root, vertices=6)
+            add_cylinder(f"{variant}_crock_terra", (shelf_cx - 0.10, shelf_cy, shelf_cz + 0.07), 0.040, 0.10, roof, root, vertices=8, bevel=0.004)
+            add_cylinder(f"{variant}_crock_stopper_1", (shelf_cx - 0.10, shelf_cy, shelf_cz + 0.13), 0.022, 0.025, timber, root, vertices=6)
+            add_cylinder(f"{variant}_oil_jug", (shelf_cx + 0.04, shelf_cy, shelf_cz + 0.075), 0.038, 0.11, stone, root, vertices=8, bevel=0.004)
+            add_cylinder(f"{variant}_oil_neck", (shelf_cx + 0.04, shelf_cy, shelf_cz + 0.14), 0.016, 0.04, stone, root, vertices=6)
+            # Stack of 3 stoneware dinner plates
+            for pl_idx in range(3):
+                add_cylinder(f"{variant}_plate_{pl_idx}", (shelf_cx + 0.22, shelf_cy, shelf_cz + 0.03 + pl_idx * 0.022), 0.065, 0.016, stone, root, vertices=8, bevel=0.002)
+
+            # Hanging Utensil Rail underneath the wall shelf
+            rail_z = shelf_cz - 0.11
+            add_box(f"{variant}_utensil_rail", (shelf_cx, shelf_cy + 0.01, rail_z), (0.62, 0.02, 0.02), dark, root, bevel=0.002)
+            # Hanging iron ladle
+            add_beam(f"{variant}_hang_ladle_stem", (shelf_cx - 0.16, shelf_cy, rail_z), (shelf_cx - 0.16, shelf_cy, rail_z - 0.16), 0.012, dark, root, vertices=4)
+            add_cylinder(f"{variant}_hang_ladle_cup", (shelf_cx - 0.16, shelf_cy - 0.01, rail_z - 0.17), 0.032, 0.025, dark, root, rotation=(0.4, 0, 0), vertices=6)
+            # Hanging slotted spatula
+            add_beam(f"{variant}_hang_spatula_stem", (shelf_cx - 0.04, shelf_cy, rail_z), (shelf_cx - 0.04, shelf_cy, rail_z - 0.17), 0.012, dark, root, vertices=4)
+            add_box(f"{variant}_hang_spatula_blade", (shelf_cx - 0.04, shelf_cy - 0.005, rail_z - 0.19), (0.045, 0.008, 0.06), dark, root, bevel=0.002)
+            # Hanging dried herb bundle
+            add_beam(f"{variant}_hang_herbs_stem", (shelf_cx + 0.12, shelf_cy, rail_z), (shelf_cx + 0.12, shelf_cy, rail_z - 0.08), 0.010, timber, root, vertices=4)
+            add_cone(f"{variant}_hang_herbs_bundle", (shelf_cx + 0.12, shelf_cy, rail_z - 0.14), 0.045, 0.015, 0.12, timber, root, rotation=(3.14, 0, 0), vertices=6)
+
+        # Storytelling Ground Props
+        # Harvest Apple Produce Crate (front left corner of terrace)
+        crate_cx = counter_cx - 0.38
+        crate_cy = front_y - 0.62
+        crate_w = 0.36
+        crate_d = 0.30
+        crate_h = 0.24
+        crate_cz = 0.14 + crate_h * 0.5
+        add_box(f"{variant}_crate_frame", (crate_cx, crate_cy, crate_cz), (crate_w, crate_d, crate_h), timber, root, bevel=0.006)
+        add_box(f"{variant}_crate_hollow", (crate_cx, crate_cy, crate_cz + 0.03), (crate_w - 0.06, crate_d - 0.06, crate_h), dark, root, bevel=0.002)
+        if detail:
+            # Orchard apples filling crate
+            for a_idx, (ax_o, ay_o, az_o) in enumerate((
+                (-0.07, -0.06, 0.08),
+                (0.06, -0.05, 0.08),
+                (-0.05, 0.06, 0.08),
+                (0.05, 0.05, 0.08),
+                (0.0, 0.0, 0.11),
+            )):
+                add_ico(f"{variant}_crate_apple_{a_idx}", (crate_cx + ax_o, crate_cy + ay_o, 0.14 + az_o), (0.034, 0.034, 0.034), roof, root, subdivisions=1)
+
+        # Plump tied flour/grain sack leaning against table leg
+        sack_cx = counter_cx - 0.28
+        sack_cy = front_y - 0.26
+        add_cylinder(f"{variant}_flour_sack_body", (sack_cx, sack_cy, 0.14 + 0.16), 0.13, 0.30, stone, root, vertices=8, bevel=0.02)
+        add_cylinder(f"{variant}_flour_sack_neck", (sack_cx, sack_cy, 0.14 + 0.32), 0.07, 0.04, timber, root, vertices=6, bevel=0.005)
+        add_cone(f"{variant}_flour_sack_ears", (sack_cx, sack_cy, 0.14 + 0.36), 0.08, 0.10, 0.05, stone, root, vertices=6)
+
+        # Wooden Coopered Wash Bucket with iron hoops (beside hearth)
+        bucket_cx = hearth_x + hearth_w * 0.5 + 0.12
+        bucket_cy = front_y - 0.54
+        bucket_cz = 0.14 + 0.12
+        add_cone(f"{variant}_bucket_body", (bucket_cx, bucket_cy, bucket_cz), 0.10, 0.12, 0.22, timber, root, vertices=8)
+        if detail:
+            add_ring(f"{variant}_bucket_hoop_low", (bucket_cx, bucket_cy, bucket_cz - 0.06), 0.105, 0.015, dark, root)
+            add_ring(f"{variant}_bucket_hoop_high", (bucket_cx, bucket_cy, bucket_cz + 0.07), 0.118, 0.015, dark, root)
+            # Bucket water surface
+            add_cylinder(f"{variant}_bucket_water", (bucket_cx, bucket_cy, bucket_cz + 0.06), 0.11, 0.01, wall, root, vertices=8)
+
 
     # Outhouse: offset roof edge, high vent, and privacy wall establish a functional micro-silhouette.
     if profile["feature"] == "privacy-wall":

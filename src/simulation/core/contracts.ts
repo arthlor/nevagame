@@ -849,7 +849,6 @@ export type InteractionAction =
   | "pickup-cargo"
   | "load-carriage"
   | "cast"
-  | "read-water"
   | "read-notices"
   | "enter"
   | "exit"

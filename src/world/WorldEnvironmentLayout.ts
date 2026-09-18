@@ -605,7 +605,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.prop.net-rack.harbor", { assetId: "prop_fishing_net_rack_a", x: 67.5, z: 64.5, rotationY: 0.22, scale: [1, 1, 1] }),
   authoredPlacement("authored.fauna.chicken.farm-a", { assetId: "fauna_chicken_a", x: -63.3, z: -69.6, rotationY: 0.7854, scale: [1.1, 1.1, 1.1] }),
   authoredPlacement("authored.fauna.chicken.farm-b", { assetId: "fauna_chicken_a", x: -61.2, z: -68.1, rotationY: -0.5, scale: [0.92, 0.92, 0.92] }),
-  authoredPlacement("authored.prop.wagon.farm-road", { assetId: "prop_wagon_cart_a", x: -50.6, z: -57.4, rotationY: -3.6652, scale: [1, 1, 1], grounding: [1.5, 1.05] }),
+  authoredPlacement("authored.prop.wagon.farm-road", { assetId: "prop_wagon_cart_a", x: -52.5, z: -68.5, rotationY: -3.6652, scale: [1, 1, 1], grounding: [1.5, 1.05] }),
   authoredPlacement("authored.fauna.cow.farm-meadow", { assetId: "fauna_cow_a", x: -70.1, z: -68, rotationY: 0.42, scale: [1, 1, 1], grounding: [0.9, 0.62] }),
   authoredPlacement("authored.fauna.donkey.starter", {
     assetId: "fauna_donkey_a",

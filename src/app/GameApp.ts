@@ -27,7 +27,11 @@ import { GameCamera } from "../render/camera/GameCamera";
 import { ExplorationFraming } from "../render/camera/ExplorationFraming";
 import { InputRouter } from "../input/InputRouter";
 import { FISHING_STEER_INPUT_MAX } from "../simulation/fishing/FishingTuning";
-import { accessibleLureSupplyCount, LURE_ITEM_ID } from "../simulation/fishing/FishingSupplies";
+import {
+  accessibleLureSupplyCount,
+  LURE_ITEM_ID,
+  nextAccessibleChumItemId
+} from "../simulation/fishing/FishingSupplies";
 import { IndexedDbSaveRepository, type LoadGameResult } from "../persistence/IndexedDbSaveRepository";
 import {
   EquipmentId,
@@ -1602,7 +1606,7 @@ export class GameApp {
         case "use-secondary":
           if (this.activeModal) return;
           if (this.mode === "farm-placement") this.exitCropPlacement();
-          else if (this.mode === "on-foot") this.inspectPointedCrop();
+          else if (this.mode === "on-foot" || this.mode === "boat-driving") this.inspectPointedTarget();
           break;
         case "pause":
           if (this.layoutEditor?.handleEscape()) return;
@@ -3027,17 +3031,6 @@ export class GameApp {
         requiresTool: "fishing-rod",
         prompt: `[E] Cast line · ${this.sim.quoteWorkCost(BASIC_FISHING_WORK_COST, "fishing", "fishing.basic-cast").cost} Work`
       });
-      // Reading the water is the quiet verb beside the cast: conditions and
-      // the local pool for everyone, school sense for seasoned anglers.
-      candidates.push({
-        id: `fishing-habitat:${fishingHabitat}:read-water`,
-        kind: "fishing-habitat",
-        action: "read-water",
-        distanceMeters: 0,
-        priority: 5,
-        modes: ["on-foot", "boat-driving"],
-        prompt: `[R] Read the water`
-      });
     }
 
     // Refueling remains available aboard the skiff. While there is still fuel,
@@ -3163,6 +3156,10 @@ export class GameApp {
           school.feedingFrenzyUntilMinute && this.sim.state.clock.currentMinute <= school.feedingFrenzyUntilMinute;
         const lurePrepared = p.preparedLureItemId === LURE_ITEM_ID;
         const lureWithinReach = lurePrepared && accessibleLureSupplyCount(this.sim.state) > 0;
+        const chumItemId = frenzy ? null : nextAccessibleChumItemId(this.sim.state);
+        const chumName = chumItemId
+          ? ContentRegistry.items.get(chumItemId)?.name ?? "chum"
+          : null;
         candidates.push({
           id: `school:${school.id}:${frenzy ? "hook" : "chum"}`,
           entityId: school.id,
@@ -3182,7 +3179,7 @@ export class GameApp {
               : lurePrepared
                 ? `Woven Lure out of reach · return to supplies or [R] put away`
                 : `[R] Arm a Woven Lure · required before hooking`
-            : `[E] Chum School · Strongest chum in reach · [R] ${lureWithinReach
+            : `${chumName ? `[E] Chum School · ${chumName}` : "[E] Chum School · no chum within reach"} · [R] ${lureWithinReach
               ? "Woven Lure armed"
               : lurePrepared
                 ? "Woven Lure out of reach"
@@ -3600,11 +3597,6 @@ export class GameApp {
       case "cast":
         this.handleCastFishing("interact");
         break;
-      case "read-water": {
-        const reading = this.sim.inspectWaterReading();
-        this.setToast(reading?.brief ?? "No readable water here", 4600);
-        break;
-      }
       case "read-notices":
         this.openVillageNotices();
         break;
@@ -4116,12 +4108,13 @@ export class GameApp {
     );
   }
 
-  private inspectPointedCrop(): void {
+  private inspectPointedTarget(): void {
     const pointer = this.inputRouter.getInputState().pointerNdc;
     const cropId = this.worldScene.pickCrop(this.gameCamera.camera, pointer);
     const crop = cropId ? this.sim.state.crops[cropId] : undefined;
     if (!cropId || !crop) {
       this.inspectedCrop = null;
+      this.readWaterAtFeet();
       return;
     }
     const world = farmLocalToWorld(crop.farmId, crop);
@@ -4136,6 +4129,17 @@ export class GameApp {
       return;
     }
     this.inspectedCrop = this.sim.inspectCrop(cropId);
+  }
+
+  /**
+   * The same right-click/Inspect verb that reads a crop reads the water when
+   * the angler stands at fishable water. Pure query: no Work, no RNG, no state.
+   */
+  private readWaterAtFeet(): void {
+    if (this.mode !== "on-foot" && this.mode !== "boat-driving") return;
+    if (!WorldLayout.nearbyFishingHabitat(this.sim.state.player.x, this.sim.state.player.z)) return;
+    const reading = this.sim.inspectWaterReading();
+    this.setToast(reading?.brief ?? "No readable water here", 4600);
   }
 
   private getInspectedCropProjectedPosition(): { x: number; y: number; visible: boolean } | null {
@@ -4489,8 +4493,13 @@ export class GameApp {
 
   private interactWithSchool(schoolId: string, action: "chum" | "hook"): void {
     if (action === "chum") {
+      // Name the blend the domain is about to spend so auto-precedence is
+      // never a silent choice between standard, rich and deep chum.
+      const chumItemId = nextAccessibleChumItemId(this.sim.state);
+      const chumName = chumItemId ? ContentRegistry.items.get(chumItemId)?.name ?? "chum" : "chum";
       const res = this.sim.execute({ type: "fishing.chum-school", schoolId });
       if (!res.success) this.setToast(res.reason ?? "Cannot chum school");
+      else this.setToast(`Chummed with ${chumName} · the school is feeding`, 2200);
     } else {
       const res = this.sim.execute({ type: "fishing.hook-school", schoolId });
       if (res.success) {
@@ -4751,7 +4760,9 @@ export class GameApp {
         onGraphicsQualityChange: preference => {
           if (this.graphicsQuality.setPreference(preference)) this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
           this.renderUI();
-        }
+        },
+        mobileTouchDevice: this.mobileTouchDevice,
+        mobileOrientationBlocked: this.mobileOrientationBlocked
       })));
       return;
     }

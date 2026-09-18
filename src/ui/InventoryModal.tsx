@@ -99,8 +99,9 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   const selectedSlot = selectedSlotIndex !== null ? allSlots[selectedSlotIndex] ?? null : null;
   const planting = selectedSlot?.cropId ? onInspectPlanting(selectedSlot.cropId) : null;
 
-  // #18: with a category filter active, non-matching slots are hidden entirely
-  // (not rendered), so the grid and screen readers only see the filter result.
+  // #18: fixed sockets keep the grid stable while a filter is active, so
+  // non-matching occupied slots stay dimmed but are not selectable. Pointer
+  // and keyboard selection therefore agree instead of silently snapping back.
   // Query and category filter state
   const query = searchTerm.trim().toLowerCase();
   const isFilterActive = activeCategory !== "all" || query.length > 0;
@@ -391,6 +392,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 }
 
                 const isMatch = !isFilterActive || isSlotMatch(slot);
+                const isSelectable = isMatch;
 
                 return (
                   <ItemSlot
@@ -398,15 +400,16 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     id={`inventory-slot-${index}`}
                     className={`inventory-slot${isMatch ? " is-match" : " is-dimmed"}`}
                     filled
-                    selected={isSelected}
+                    selected={isSelectable && isSelected}
                     quantity={slot.quantity > 1 ? slot.quantity : undefined}
-                    onSelect={() => {
-                      setSelectedSlotIndex(index);
-                    }}
-                    label={`${slot.name}, count ${slot.quantity}`}
+                    onSelect={isSelectable ? () => setSelectedSlotIndex(index) : undefined}
+                    label={isSelectable
+                      ? `${slot.name}, count ${slot.quantity}`
+                      : `${slot.name}, hidden by the active filter`}
                     role="option"
-                    aria-selected={isSelected}
-                    tabIndex={isSelected ? 0 : -1}
+                    aria-selected={isSelectable && isSelected}
+                    aria-disabled={isSelectable ? undefined : "true"}
+                    tabIndex={isSelectable && isSelected ? 0 : -1}
                   >
                     <AtlasImage
                       src={atlasForItem(slot.itemId) ?? atlasForFish(slot.itemId)}

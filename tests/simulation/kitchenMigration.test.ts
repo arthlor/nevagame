@@ -5,6 +5,8 @@ import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { starterStructureAnchor } from "../../src/world/FarmLayout";
 import { WORLD_STATION_DEFINITIONS } from "../../src/world/WorldGameplayLocations";
+import { WorldLayout } from "../../src/world/WorldLayout";
+import shippedKitchenPose from "../fixtures/save_v47_layout21_kitchen_predecessor.json";
 
 describe("Farm kitchen (v45)", () => {
   it("starts a new game with an authored kitchen beside the work trail", () => {
@@ -76,5 +78,29 @@ describe("Farm kitchen (v45)", () => {
     expect(migrateSaveData(structuredClone(migrated)).schemaVersion).toBe(
       CURRENT_SCHEMA_VERSION
     );
+  });
+
+  it("re-anchors the shipped v45-v47 kitchen pose onto the current layout (v48)", () => {
+    const envelope = structuredClone(shippedKitchenPose) as unknown as Parameters<
+      typeof migrateSaveData
+    >[0];
+    const anchor = starterStructureAnchor("struct.kitchen")!;
+    const previousKitchen = envelope.state.world.structures["struct.kitchen"];
+    // The retained v47 save stores the pre-move home-lane pose.
+    expect(Math.hypot(previousKitchen.x - anchor.x, previousKitchen.z - anchor.z)).toBeGreaterThan(1);
+
+    const migrated = migrateSaveData(envelope);
+    expect(migrated.schemaVersion).toBe(48);
+    const kitchen = migrated.state.world.structures["struct.kitchen"];
+    expect(kitchen.x).toBe(anchor.x);
+    expect(kitchen.z).toBe(anchor.z);
+    expect(kitchen.y).toBeCloseTo(WorldLayout.terrainHeight(anchor.x, anchor.z), 6);
+    // Facing is preserved, matching the earlier layout migrations' convention.
+    expect(kitchen.rotationY).toBe(previousKitchen.rotationY);
+    expect(validateSaveEnvelope(migrated)).toBe(true);
+
+    const again = migrateSaveData(structuredClone(migrated));
+    expect(again.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(again.state.world.structures["struct.kitchen"]).toEqual(kitchen);
   });
 });

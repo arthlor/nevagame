@@ -392,11 +392,14 @@ export const GameUI: React.FC<GameUIProps> = ({
   const pwa = usePwaInstall();
   const [pwaPromptManualOpen, setPwaPromptManualOpen] = useState(false);
 
-  const showPwaPrompt =
-    (pwaPromptManualOpen || (mobileTouchDevice && !pwa.isStandalone && !pwa.isDismissed)) &&
-    !activeModal &&
-    !mobileOrientationBlocked &&
-    startup.status === "ready";
+  // The automatic install invitation lives on the starter screen (StartScreen).
+  // In-game, players can reopen the guide from the Escape menu; Pause stays in
+  // the overlay stack beneath it, so time and world input remain frozen.
+  const showPwaPromptInGame =
+    pwaPromptManualOpen &&
+    startup.status === "ready" &&
+    (activeModal === null || activeModal === "pause") &&
+    !mobileOrientationBlocked;
 
   const [customWaypoint, setCustomWaypoint] = useState<{ x: number; z: number } | null>(null);
 
@@ -468,6 +471,8 @@ export const GameUI: React.FC<GameUIProps> = ({
           graphicsQuality={graphicsQuality}
           effectiveGraphicsQuality={effectiveGraphicsQuality}
           onGraphicsQualityChange={onGraphicsQualityChange}
+          mobileTouchDevice={mobileTouchDevice}
+          mobileOrientationBlocked={mobileOrientationBlocked}
         />
       </div>
     );
@@ -759,14 +764,15 @@ export const GameUI: React.FC<GameUIProps> = ({
           effectiveGraphicsQuality={effectiveGraphicsQuality}
           onGraphicsQualityChange={onGraphicsQualityChange}
           onPromptPwaInstall={() => {
-            onSetActiveModal(null);
+            // Keep Pause in the stack: the sheet inherits its time freeze,
+            // world-input suspension and return-to-Pause behavior.
             setPwaPromptManualOpen(true);
           }}
-          isStandalone={pwa.isStandalone}
+          isStandalone={pwa.isStandalone || pwa.isInstalled}
         />
       )}
 
-      {showPwaPrompt && (
+      {showPwaPromptInGame && (
         <PwaInstallPromptModal
           platform={pwa.platform}
           canPromptDirectly={pwa.canPromptDirectly}

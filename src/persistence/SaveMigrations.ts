@@ -11,6 +11,7 @@ import { migrateWorkCapacity43 } from "./migrateWorkCapacity43";
 import { migrateKnowledgeJournal44 } from "./migrateKnowledgeJournal44";
 import { migrateKitchen45 } from "./migrateKitchen45";
 import { migrateHeadwaterFall47 } from "./migrateHeadwaterFall47";
+import { migrateKitchenAnchor48 } from "./migrateKitchenAnchor48";
 // src/persistence/SaveMigrations.ts
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
@@ -1446,7 +1447,8 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
     return { ...previous, schemaVersion: 46, mounts: { ...previous.mounts,
       [STARTER_CARRIAGE_ID]: previous.mounts[STARTER_CARRIAGE_ID] ?? createStarterCarriageState() } };
   },
-  47: (state: unknown) => migrateHeadwaterFall47(state as GameState)
+  47: (state: unknown) => migrateHeadwaterFall47(state as GameState),
+  48: (state: unknown) => migrateKitchenAnchor48(state as GameState)
 };
 
 

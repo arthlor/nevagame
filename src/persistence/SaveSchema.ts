@@ -31,7 +31,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 47;
+export const CURRENT_SCHEMA_VERSION = 48;
 
 export interface SaveEnvelope {
   schemaVersion: number;

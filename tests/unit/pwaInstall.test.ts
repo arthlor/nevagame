@@ -1,14 +1,18 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
 import {
   checkIsStandalone,
   detectPwaPlatform,
   isDismissedRecently,
+  isInstalledFlagSet,
+  readStashedInstallPrompt,
   setDismissedSnooze,
   setInstalledFlag
 } from "../../src/ui/pwa/usePwaInstall";
 import { PwaInstallPromptModal } from "../../src/ui/components/PwaInstallPromptModal";
+import { StartScreen } from "../../src/ui/StartScreen";
+import { createStartupState } from "../../src/app/StartupState";
 
 describe("PWA Install Utilities", () => {
   let mockStorage: Storage;
@@ -93,6 +97,26 @@ describe("PWA Install Utilities", () => {
     it("marks installed flag in localStorage", () => {
       setInstalledFlag(mockStorage);
       expect(mockStorage.getItem("neva_pwa_installed")).toBe("true");
+      expect(isInstalledFlagSet(mockStorage)).toBe(true);
+    });
+
+    it("reports not installed before the flag is written", () => {
+      expect(isInstalledFlagSet(mockStorage)).toBe(false);
+    });
+  });
+
+  describe("boot-stashed install prompt", () => {
+    it("returns null when no prompt was captured", () => {
+      vi.stubGlobal("window", {});
+      expect(readStashedInstallPrompt()).toBeNull();
+      vi.unstubAllGlobals();
+    });
+
+    it("returns the event captured before React mounted", () => {
+      const stashed = { prompt: async () => {}, userChoice: Promise.resolve({ outcome: "accepted" }) };
+      vi.stubGlobal("window", { __nevaDeferredInstallPrompt: stashed });
+      expect(readStashedInstallPrompt()).toBe(stashed);
+      vi.unstubAllGlobals();
     });
   });
 });
@@ -113,6 +137,24 @@ describe("PwaInstallPromptModal component", () => {
     expect(html).toContain("Instant Launch");
     expect(html).toContain("Landscape Locked");
     expect(html).toContain("Add to Home Screen");
+    // Without `interactive` the ui-root's pointer-events: none lets the game
+    // canvas swallow every press on the prompt.
+    expect(html).toContain("modal-overlay interactive pwa-install-overlay");
+  });
+
+  it("renders Android manual steps when Chrome has no native prompt ready", () => {
+    const html = renderToString(
+      React.createElement(PwaInstallPromptModal, {
+        platform: "chrome-android",
+        canPromptDirectly: false,
+        onInstall: () => {},
+        onDismiss: () => {}
+      })
+    );
+
+    expect(html).toContain("How to Add to Home Screen on Android:");
+    expect(html).toContain("Install app");
+    expect(html).toContain("Got It");
   });
 
   it("renders iOS step-by-step visual instructions on iOS Safari", () => {
@@ -143,5 +185,64 @@ describe("PwaInstallPromptModal component", () => {
     );
 
     expect(html).toContain("Menu (···)");
+  });
+});
+
+describe("StartScreen desktop install utility", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const stubWindow = (stashedPrompt: boolean, dismissedUntil?: number): void => {
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) =>
+          key === "neva_pwa_dismissed_until" && dismissedUntil !== undefined
+            ? String(dismissedUntil)
+            : null,
+        setItem: () => {},
+        removeItem: () => {}
+      },
+      __nevaDeferredInstallPrompt: stashedPrompt
+        ? { prompt: async () => {}, userChoice: Promise.resolve({ outcome: "accepted" }) }
+        : null,
+      __nevaAppInstalled: false
+    });
+  };
+
+  const renderTitle = (): string =>
+    renderToString(
+      React.createElement(StartScreen, {
+        startup: {
+          ...createStartupState(12),
+          status: "title",
+          saveStatus: "empty"
+        },
+        onStart: () => {},
+        onStartNewGame: () => {},
+        onStartWithoutSaving: () => {},
+        onRetry: () => {},
+        graphicsQuality: "high",
+        effectiveGraphicsQuality: "high",
+        onGraphicsQualityChange: () => {}
+      })
+    );
+
+  it("offers a manual Install app utility when the browser prompt is stashed", () => {
+    stubWindow(true);
+    const html = renderTitle();
+
+    expect(html).toContain('data-testid="startup-pwa-install-button"');
+    expect(html).toContain("Install app");
+  });
+
+  it("hides the Install app utility without a native browser prompt", () => {
+    stubWindow(false);
+    expect(renderTitle()).not.toContain('data-testid="startup-pwa-install-button"');
+  });
+
+  it("keeps the utility hidden once the player dismissed the invitation", () => {
+    stubWindow(true, Date.now() + 60_000);
+    expect(renderTitle()).not.toContain('data-testid="startup-pwa-install-button"');
   });
 });

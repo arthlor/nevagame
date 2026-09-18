@@ -55,6 +55,20 @@ export function accessibleChumSupplyCount(
   );
 }
 
+/**
+ * The blend `chumSchool` will spend next: deep, then rich, then standard.
+ * Presentation reads this to name the exact chum before the cast.
+ */
+export function nextAccessibleChumItemId(
+  state: Readonly<GameState>,
+  vesselId: BoatId | null = state.player.activeBoatId ?? null
+): ItemId | null {
+  for (const itemId of CHUM_ITEM_IDS) {
+    if (accessibleFishingSupplyCount(state, itemId, vesselId) > 0) return itemId;
+  }
+  return null;
+}
+
 /** Deterministic atomic preflight with satchel-first removal. */
 export function consumeAccessibleFishingSupply(
   state: GameState,

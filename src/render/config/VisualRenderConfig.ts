@@ -375,29 +375,96 @@ export interface VisualRenderConfig {
       rapidsCellScaleMeters: number;
       rapidsFlowMetersPerSecond: number;
       /**
+       * River current: surface detail drifts downstream along the authored
+       * channel tangent. Speed is reached once the channel is
+       * `riverFlowDepthFullMeters` deep and never drops below the start
+       * fraction, so bank shallows read slower than the thalweg.
+       */
+      riverFlowMetersPerSecond: number;
+      riverFlowDepthStart: number;
+      riverFlowDepthFullMeters: number;
+      /** Extra normal detail carried by the drifting current. */
+      riverFlowNormalStrength: number;
+      /** Broken foam lace that travels with the current at the water's edge. */
+      riverEdgeFoamStrength: number;
+      riverEdgeFoamScaleMeters: number;
+      /** Radial rings that leave the fall landing and spread into the pool. */
+      plungeRingSpeedMetersPerSecond: number;
+      plungeRingWavelengthMeters: number;
+      plungeRingStrength: number;
+      plungeRingSpanMeters: number;
+      /**
        * Dedicated presentation for the authored falling segment. Geometry,
        * foam and streak tuning live here; the topology itself stays owned by
        * `NEVA_HEADWATERS.fall`.
        */
       fall: {
-        /** Downstream bow of the sheet silhouette, in metres. */
-        bowMeters: number;
         rows: Record<QualityTier, number>;
         acrossSegments: number;
         /** Animated sheet displacement; also widens the render bounds. */
         rippleMeters: number;
+        /**
+         * How far the sheet leaves the terrain profile for a free ballistic
+         * arc. 0 hugs the carved face, 1 falls exactly under gravity from the
+         * lip to the landing; both ends stay pinned to the authored stations.
+         */
+        nappeDetach: number;
+        /**
+         * Convexity of the falling sheet's cross-section. The centre pushes
+         * out along the local surface normal while the edges tuck back, so the
+         * curtain reads as a rounded volume rather than a flat plane.
+         */
+        crossBulgeMeters: number;
+        /** Width growth toward the landing as the falling water spreads. */
+        widthSpread: number;
+        /** Mid-fall waist, where the accelerating sheet narrows before impact. */
+        widthWaistMeters: number;
+        /**
+         * Falling thread tuning. Threads stretch with descent (arc-dependent
+         * phase stretch) instead of scrolling as rigid bands.
+         */
         streakStrength: number;
         streakSpeed: number;
         streakScale: number;
         /** Across-sheet phase span: turns streak bands into falling threads. */
         streakThreadCount: number;
+        /** Arc stretch of the thread phase: higher = longer falling filaments. */
+        streakAcceleration: number;
+        /** Mid-fall pull of the threads toward the channel centre. */
+        threadConvergence: number;
         breakupStrength: number;
+        /** Bright band where the water turns over the lip. */
+        crestSpan: number;
+        crestStrength: number;
+        /** Arc where falling water starts to read as aerated white water. */
+        aerationStart: number;
+        /** Arc where the sheet begins dissolving into falling spray. */
+        footFadeStart: number;
+        /** How hard the foot breaks into separate falling threads. */
+        footBreakupStrength: number;
         impactFoamStrength: number;
         impactFoamSpan: number;
+        /** Vertical impact plumes that rise off the plunge boil. */
+        impactPlumeStrength: number;
         /** Foam that spreads from the landing across the pool apron. */
         apronFoamStrength: number;
         apronMeters: number;
         bodyOpacity: number;
+        /**
+         * Falling-water spray above the plunge pool: deterministic billboard
+         * puffs that rise and dissolve. No texture, one draw call per tier.
+         */
+        mist: {
+          count: Record<QualityTier, number>;
+          sizeMeters: number;
+          spreadMeters: number;
+          riseMeters: number;
+          driftMeters: number;
+          cycleSeconds: number;
+          opacity: number;
+          /** Edge erosion so the puffs never read as soft discs. */
+          erosion: number;
+        };
       };
     };
     quality: Record<QualityTier, WaterSurfaceTierQuality>;
@@ -1051,26 +1118,57 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     headwaters: {
       maxRowSpacingMeters: 0.75,
       fallRowSpacingMeters: 0.06,
-      rapidsFoamStrength: 0.38,
+      rapidsFoamStrength: 0.32,
       rapidsGradeStart: 0.15,
       rapidsGradeFull: 0.65,
       rapidsCellScaleMeters: 1.3,
       rapidsFlowMetersPerSecond: 1.8,
+      riverFlowMetersPerSecond: 1.15,
+      riverFlowDepthStart: 0.22,
+      riverFlowDepthFullMeters: 1.5,
+      riverFlowNormalStrength: 0.018,
+      riverEdgeFoamStrength: 0.2,
+      riverEdgeFoamScaleMeters: 1.7,
+      plungeRingSpeedMetersPerSecond: 1.7,
+      plungeRingWavelengthMeters: 2,
+      plungeRingStrength: 0.4,
+      plungeRingSpanMeters: 3.6,
       fall: {
-        bowMeters: 0.05,
-        rows: { low: 10, medium: 16, high: 24 },
-        acrossSegments: 8,
+        rows: { low: 12, medium: 20, high: 30 },
+        acrossSegments: 14,
         rippleMeters: 0.06,
-        streakStrength: 0.55,
+        nappeDetach: 0.75,
+        crossBulgeMeters: 0.3,
+        widthSpread: 0.12,
+        widthWaistMeters: 0.45,
+        streakStrength: 0.62,
         streakSpeed: 1.35,
         streakScale: 13,
         streakThreadCount: 22,
-        breakupStrength: 0.55,
+        streakAcceleration: 0.9,
+        threadConvergence: 0.18,
+        breakupStrength: 0.85,
+        crestSpan: 0.09,
+        crestStrength: 0.5,
+        aerationStart: 0.42,
+        footFadeStart: 0.74,
+        footBreakupStrength: 1,
         impactFoamStrength: 0.72,
         impactFoamSpan: 0.3,
-        apronFoamStrength: 0.5,
+        impactPlumeStrength: 0.55,
+        apronFoamStrength: 0.42,
         apronMeters: 1.6,
-        bodyOpacity: 0.95
+        bodyOpacity: 0.92,
+        mist: {
+          count: { low: 6, medium: 12, high: 20 },
+          sizeMeters: 1.05,
+          spreadMeters: 2.2,
+          riseMeters: 1.9,
+          driftMeters: 1.4,
+          cycleSeconds: 4.6,
+          opacity: 0.28,
+          erosion: 0.85
+        }
       }
     },
     quality: {

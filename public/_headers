@@ -5,6 +5,8 @@
   Cache-Control: no-cache, no-store, must-revalidate
 /manifest.webmanifest
   Cache-Control: no-cache, no-store, must-revalidate
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
 
 # Fingerprinted JS and CSS bundles produced by Vite (filename changes per build)
 /assets/*.js
