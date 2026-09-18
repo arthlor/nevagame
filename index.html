@@ -73,7 +73,9 @@
       #neva-boot-shell h1 { font-size:clamp(48px,6vw,82px); margin:0 0 20px; font-weight:500; }
       #neva-boot-shell p { font-size:20px; } #neva-boot-shell button { width:max-content; padding:12px 24px; font:inherit; }
       #neva-boot-portrait { display:none; }
-      @media (pointer: coarse) and (orientation: portrait) {
+      /* A touch device in portrait must never see the loading lobby. `hover:
+         none` covers phones/tablets that report a fine pointer. */
+      @media (orientation: portrait) and (pointer: coarse), (orientation: portrait) and (hover: none) {
         #neva-boot-shell { justify-content:center; text-align:center; }
         #neva-boot-continue { display:none; }
         #neva-boot-portrait { display:block; }

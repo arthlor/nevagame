@@ -377,9 +377,19 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
       if (!gateBounds) throw new Error("Missing portrait gate bounds");
       expect(gateBounds.width).toBeGreaterThanOrEqual(390);
       expect(gateBounds.height).toBeGreaterThanOrEqual(844);
+      // The gate owns portrait: the title's Begin button must not be the
+      // element under the finger, or a player could start the game sideways.
+      const startButton = page.getByTestId("startup-start-button");
+      await expect(startButton).toBeAttached();
+      const gateOwnsStartButton = await startButton.evaluate((button) => {
+        const bounds = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        return hit?.closest(".mobile-orientation-gate") != null;
+      });
+      expect(gateOwnsStartButton).toBe(true);
       await page.setViewportSize({ width: 844, height: 390 });
       await expect(gate).not.toBeVisible();
-      await expect(page.getByTestId("startup-start-button")).toBeVisible();
+      await expect(startButton).toBeVisible();
     } finally {
       await context.close();
     }

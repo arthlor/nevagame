@@ -4616,6 +4616,14 @@
   -webkit-backdrop-filter: blur(8px) !important;
 }
 
+/* The title is interactive world chrome too: a phone that opens the URL in
+   portrait must land on the gate, not on Begin. Only the gate's own panel is
+   reachable until the device rotates. Modals (100) and the in-game
+   menu/calendar (110) stay above the gate on purpose. */
+#ui-container[data-mobile-device="true"][data-mobile-landscape="false"] .start-screen {
+  z-index: 80;
+}
+
 #ui-container .mobile-orientation-panel {
   max-width: min(360px, calc(100vw - 40px)) !important;
   padding: 32px 24px !important;
