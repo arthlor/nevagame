@@ -46,7 +46,10 @@ export function migrateOceanLayout20(previous: GameState): GameState {
   for (const boat of Object.values(state.boats)) {
     if (boat.isDocked && dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z)) continue;
     if (boat.isDocked) {
-      const candidate = nearestMooring(boat.x, boat.z, boat.boatTypeId, true);
+      // Islet moorings carry marketId null and are excluded by serviced-only
+      // lookup; a drifted islet-docked boat must re-dock at its islet, never
+      // teleport to the mainland.
+      const candidate = nearestMooring(boat.x, boat.z, boat.boatTypeId, boat.dockedMarketId !== null);
       if (candidate.marketId === boat.dockedMarketId || boat.dockedMarketId === null) {
         Object.assign(boat, { ...candidate.boatPosition, y: 0, speed: 0, isDocked: true, dockedMarketId: candidate.marketId });
         if (state.player.activeBoatId === boat.id) Object.assign(state.player, candidate.boatPosition, { y: candidate.boatPosition.y + 0.5 });

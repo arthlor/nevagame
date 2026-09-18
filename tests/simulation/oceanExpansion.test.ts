@@ -7,6 +7,7 @@ import { Simulation } from "../../src/simulation/Simulation";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { WORLD_DISCOVERIES } from "../../src/content/discoveries";
 import { drainMotorFuel } from "../../src/simulation/domains/NavigationDomain";
+import { migrateOceanLayout20 } from "../../src/persistence/migrateOceanLayout20";
 import { BOAT_MOORINGS, WORLD_SAILING_ROUTES, nearestMooring } from "../../src/world/WorldMoorings";
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "../../src/world/OceanIslets";
 import { FISHING_ECOLOGY_DEFINITIONS, SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
@@ -139,5 +140,21 @@ describe("ocean layout save preservation", () => {
     expect(after.state.quests).toEqual(before.state.quests);
     expect(after.state.journal).toEqual(before.state.journal);
     expect(validateSaveEnvelope(after)).toBe(true);
+  });
+
+  it("re-docks a drifted islet boat at its islet instead of teleporting it mainland", () => {
+    const sim = new Simulation();
+    const boat = skiff(sim);
+    const mooring = BOAT_MOORINGS.find((m) => m.islandId === OCEAN_ISLETS[0].id)!;
+    Object.assign(boat, {
+      x: mooring.boatPosition.x + 20,
+      z: mooring.boatPosition.z,
+      isDocked: true,
+      dockedMarketId: null
+    });
+    const migrated = migrateOceanLayout20(sim.state);
+    expect(migrated.boats[boat.id].dockedMarketId).toBeNull();
+    expect(migrated.boats[boat.id].x).toBe(mooring.boatPosition.x);
+    expect(migrated.boats[boat.id].z).toBe(mooring.boatPosition.z);
   });
 });
