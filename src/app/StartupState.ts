@@ -29,6 +29,8 @@ export interface StartupState {
   saveSummary: SaveSummary | null;
   progress?: { kind: "indeterminate" } | { kind: "measured"; completed: number; total: number };
   slow?: boolean;
+  /** Which entry the intro belongs to, so its hint can address the player. */
+  introKind?: "new" | "continue";
   degradedResources?: readonly string[];
   recovery?: "reload" | "save";
 }

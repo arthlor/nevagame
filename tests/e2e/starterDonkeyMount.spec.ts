@@ -4,6 +4,9 @@ import path from "node:path";
 import type { NevaDebugSnapshot } from "../../src/app/GameApp";
 import { STARTER_DONKEY_ANCHOR } from "../../src/world/FarmLayout";
 
+// Automated entry skips the optional entry cinematic (see gameplay.spec.ts).
+test.use({ contextOptions: { reducedMotion: "reduce" } });
+
 const DONKEY = {
   x: STARTER_DONKEY_ANCHOR.x,
   z: STARTER_DONKEY_ANCHOR.z

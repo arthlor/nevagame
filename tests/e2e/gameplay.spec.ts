@@ -6,6 +6,10 @@ import { CURRENT_SCHEMA_VERSION } from "../../src/persistence/SaveSchema";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import { dayOfSeason } from "../../src/simulation/core/GameClock";
 
+// These routes enter the world through the title screen. Automated entry skips
+// the optional cinematic; its presentation has no simulation contract, and
+// motion coverage lives in control-foundation.spec.ts.
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
   test.beforeEach(({ page }) => {

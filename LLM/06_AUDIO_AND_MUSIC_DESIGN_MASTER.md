@@ -107,7 +107,7 @@ a rejected visibility resume. Concurrent attempts share one resume operation,
 and an already running context does not need another. Visibility suspend/resume
 failures are handled without unhandled promise rejections; a completed resume
 cannot restart beds or action loops after disposal or while the page is hidden.
-Context unlock is separate from world-bed playback: title input may unlock audio, but ambience is requested only during the prepared-world reveal, after `syncWorldAudio` selects the saved location and weather. Mute and visibility remain authoritative, and audio failures never block startup. Existing cue IDs and music selection are reused.
+Context unlock is separate from world-bed playback: title input may unlock audio, but ambience is requested only during the prepared-world reveal, after `syncWorldAudio` selects the saved location and weather. Mute and visibility remain authoritative, and audio failures never block startup. A cinematic hold (`AudioManager.setCinematicHold`) silences the master bus while a pre-game film owns the output; the hold composes with the stored settings, so a volume change during the film cannot leak game audio, and it never touches the film's own HTML-media audio. Existing cue IDs and music selection are reused.
 These lifecycle rules are implemented independently of the design-stage bus,
 cue, adaptive-score and listening targets below; they do not add or rename
 manifest cues or establish in-game mix approval.

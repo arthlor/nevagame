@@ -116,6 +116,7 @@ export class AudioManager {
   private unlockPromise: Promise<void> | null = null;
   private disposed = false;
   private ambienceRequested = false;
+  private cinematicHold = false;
   private variationSeed = 1;
   private bedId: AudioBedId = "farm";
   private weatherId = "clear";
@@ -211,6 +212,17 @@ export class AudioManager {
     this.ambienceRequested = true;
     this.syncBeds();
     this.syncMusic();
+  }
+
+  /**
+   * Holds every game bus silent while a pre-game cinematic owns the output.
+   * The hold applies on top of the stored audio settings, so a volume change
+   * during the film cannot leak game audio underneath it.
+   */
+  setCinematicHold(held: boolean): void {
+    if (this.cinematicHold === held) return;
+    this.cinematicHold = held;
+    this.applySettings(audioSettings.get());
   }
 
   /** Loop the active region theme on the music bus; crossfades dynamically. */
@@ -372,7 +384,7 @@ export class AudioManager {
       return;
     }
     const now = this.context.currentTime;
-    setAudioParam(this.masterGain.gain, settings.masterMuted ? 0 : settings.master, now);
+    setAudioParam(this.masterGain.gain, settings.masterMuted || this.cinematicHold ? 0 : settings.master, now);
     setAudioParam(this.sfxGain.gain, settings.sfxMuted ? 0 : settings.sfx, now);
     setAudioParam(this.ambienceGain.gain, settings.ambienceMuted ? 0 : settings.ambience, now);
     setAudioParam(this.musicGain.gain, settings.musicMuted ? 0 : settings.music, now);

@@ -5,6 +5,9 @@ import { createInitialGameState } from "../../src/simulation/core/createInitialS
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { CURRENT_SCHEMA_VERSION } from "../../src/persistence/SaveSchema";
 
+// Automated entry skips the optional entry cinematic (see gameplay.spec.ts).
+test.use({ contextOptions: { reducedMotion: "reduce" } });
+
 async function seedEquipmentSave(page: Page): Promise<void> {
   const state = createInitialGameState(62_407);
   state.metadata.lastSavedUtcMs = Date.now();

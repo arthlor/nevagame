@@ -7,6 +7,9 @@ import { STARTER_FARM_LAYOUT, farmWellWorldAnchor } from "../../src/world/FarmLa
 import { VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 
+// Automated entry skips the optional entry cinematic (see gameplay.spec.ts).
+test.use({ contextOptions: { reducedMotion: "reduce" } });
+
 async function seedOldEpilogueSave(page: Page): Promise<void> {
   const simulation = new Simulation();
   simulation.state.player.x = STARTER_FARM_LAYOUT.origin.x;

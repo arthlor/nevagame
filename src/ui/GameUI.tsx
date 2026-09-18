@@ -225,6 +225,7 @@ export interface GameUIProps {
   startup?: StartupState;
   onStart?: () => void;
   onSkipIntro?: () => void;
+  onIntroFinished?: (played: boolean) => void;
   onStartNewGame?: () => void;
   onStartWithoutSaving?: () => void;
   onRetry?: () => void;
@@ -358,6 +359,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   startup = READY_STARTUP_STATE,
   onStart = () => {},
   onSkipIntro,
+  onIntroFinished,
   onStartNewGame = () => {},
   onStartWithoutSaving = onStart,
   onRetry = () => {},
@@ -465,6 +467,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           startup={startup}
           onStart={onStart}
           onSkipIntro={onSkipIntro}
+          onIntroFinished={onIntroFinished}
           onStartNewGame={onStartNewGame}
           onStartWithoutSaving={onStartWithoutSaving}
           onRetry={onRetry}

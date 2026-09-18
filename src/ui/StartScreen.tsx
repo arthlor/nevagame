@@ -11,6 +11,8 @@ import { PwaInstallPromptModal } from "./components/PwaInstallPromptModal";
 import { usePwaInstall } from "./pwa/usePwaInstall";
 import { GameSheet } from "./coastal/CoastalUI";
 import { dayOfSeason } from "../simulation/core/GameClock";
+import { IntroVideo } from "./IntroVideo";
+import type { IntroVideoHandle } from "./IntroVideo";
 
 import { AtlasImage } from "./chrome/AtlasImage";
 import { UI_MENU, UI_STATUS, UI_WORLD } from "./chrome/uiAtlas";
@@ -20,6 +22,7 @@ export interface StartScreenProps {
   startup: StartupState;
   onStart: () => void;
   onSkipIntro?: () => void;
+  onIntroFinished?: (played: boolean) => void;
   onStartNewGame: () => void;
   onStartWithoutSaving: () => void;
   onRetry: () => void;
@@ -86,6 +89,7 @@ export const StartScreen: FC<StartScreenProps> = ({
   startup,
   onStart,
   onSkipIntro,
+  onIntroFinished,
   onStartNewGame,
   onStartWithoutSaving,
   onRetry,
@@ -102,6 +106,7 @@ export const StartScreen: FC<StartScreenProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenMessage, setFullscreenMessage] = useState<string | null>(null);
   const [pwaPromptManualOpen, setPwaPromptManualOpen] = useState(false);
+  const introVideoRef = useRef<IntroVideoHandle>(null);
   const optionsCloseRef = useRef<HTMLButtonElement>(null);
   const newGameCancelRef = useRef<HTMLButtonElement>(null);
   const withoutSavingCancelRef = useRef<HTMLButtonElement>(null);
@@ -285,6 +290,14 @@ export const StartScreen: FC<StartScreenProps> = ({
       <div className="start-screen__backdrop" aria-hidden="true" />
       <div className="start-screen__shade" aria-hidden="true" />
 
+      {startup.status !== "title" && startup.status !== "error" && (
+        <IntroVideo
+          ref={introVideoRef}
+          active={startup.status === "intro"}
+          onFinished={played => onIntroFinished?.(played)}
+        />
+      )}
+
       {showUtilities && (
         <div className="start-screen__utilities" {...(dialogOpen ? { inert: "" } : {})} aria-hidden={dialogOpen || undefined}>
           {showPwaInstallUtility && (
@@ -332,7 +345,16 @@ export const StartScreen: FC<StartScreenProps> = ({
 
 
         {startup.status === "intro" ? (
-          <button type="button" className="start-screen__intro-skip" onClick={onSkipIntro}>Begin · press any key or tap</button>
+          <button
+            type="button"
+            className="start-screen__intro-skip"
+            data-testid="startup-intro-skip"
+            onClick={() => {
+              if (!introVideoRef.current?.skip()) onSkipIntro?.();
+            }}
+          >
+            {startup.introKind === "continue" ? "Continue" : "Begin"} · press any key or tap
+          </button>
         ) : startup.status === "error" ? (
           <div
             className="start-screen__state start-screen__state--error"
@@ -419,10 +441,10 @@ export const StartScreen: FC<StartScreenProps> = ({
               ) : null}
 
               {isTitle && startup.saveStatus === "available" && startup.saveSummary && (
-                <div className="start-screen__save-scroll-card" aria-label="Existing save summary">
+                <div className="start-screen__save-scroll-card" aria-label="Saved game summary">
                   <div className="save-scroll-header">
                     <AtlasImage src={UI_MENU.journal} size={20} alt="" />
-                    <strong>Current harbor log</strong>
+                    <strong>Welcome back</strong>
                   </div>
                   <div className="save-scroll-details">
                     {/* dayCount is the absolute day since the save began; the day *within*

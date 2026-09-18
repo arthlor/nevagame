@@ -769,6 +769,7 @@ export class GameApp {
   private lastMarketBoardRebuildMs = Number.NEGATIVE_INFINITY;
   private presentationHoldFrames = 0;
   private openingSkip: (() => void) | null = null;
+  private finishIntro: ((played: boolean) => void) | null = null;
   /** The world point the quest pointer is chasing, refreshed with the waypoint. */
   private questPointerTarget: QuestPointerTarget | null = null;
   private readonly uiContainer: HTMLElement;
@@ -1244,7 +1245,9 @@ export class GameApp {
     // A Continue action consumes the already-inspected, migrated, validated
     // envelope. New Game never constructs from it and never writes over it
     // until the new world has finished loading and is ready to play.
-    if (!this.persistenceDisabled && !shouldStartNewGame && !shouldPlayWithoutSaving && saveResult.status === "loaded") {
+    const resumedExistingSave = !this.persistenceDisabled && !shouldStartNewGame
+      && !shouldPlayWithoutSaving && saveResult.status === "loaded";
+    if (resumedExistingSave) {
       const candidate = structuredClone(saveResult.envelope.state);
       const awaySummary = applyOfflineProgression(candidate, Date.now());
       this.sim = new Simulation(candidate, { actionTimingScale: this.actionTimingScale });
@@ -1410,12 +1413,24 @@ export class GameApp {
     syncWorldAudio({ clock: this.sim.state.clock, position: this.sim.state.player, mode: this.mode, weather: this.sim.state.weather.type,
       sprintExhausted: this.sim.state.player.traversal.sprintExhausted, paused: false });
     gameAudio.startAmbience();
-    if (!debugStart && !this.benchmarkView && (shouldStartNewGame || shouldPlayWithoutSaving || saveResult.status === "empty")
+    if (!debugStart && !this.benchmarkView && !this.worldAcceptance && !query.has("debug")
       && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      this.updateStartupState({ status: "intro", phase: "complete", message: "" });
-      await playOpeningCamera(this.gameCamera.camera, ART_VIEW_PRESETS["farm-mountains"],
-        () => this.worldScene.render(this.gameCamera.camera, 0), attempt.signal, (skip) => { this.openingSkip = skip; });
-      attempt.check();
+      this.updateStartupState({ status: "intro", phase: "complete", message: "",
+        introKind: resumedExistingSave ? "continue" : "new" });
+      // The film owns the output; the prepared world's music and ambience wait
+      // muted underneath it instead of scoring over the narration.
+      gameAudio.setCinematicHold(true);
+      try {
+        const played = await this.awaitIntro(attempt);
+        attempt.check();
+        if (!played && (shouldStartNewGame || shouldPlayWithoutSaving || saveResult.status === "empty")) {
+          await playOpeningCamera(this.gameCamera.camera, ART_VIEW_PRESETS["farm-mountains"],
+            () => this.worldScene.render(this.gameCamera.camera, 0), attempt.signal, (skip) => { this.openingSkip = skip; });
+          attempt.check();
+        }
+      } finally {
+        gameAudio.setCinematicHold(false);
+      }
     }
     this.updateStartupState({ status: "revealing", phase: "complete", message: "Ready" });
     await new Promise<void>(resolve => {
@@ -1442,6 +1457,29 @@ export class GameApp {
       void this.layoutEditorReady?.then(() => this.setLayoutEditorActive(true));
     }
 
+  }
+
+  /**
+   * Resolves when the entry cinematic ends, is skipped, or reports that it
+   * could not play. The intro never throws for its own failure: a missing or
+   * blocked film must not fail startup, only lose its presentation.
+   */
+  private awaitIntro(attempt: StartupCoordinator): Promise<boolean> {
+    return new Promise<boolean>((resolve, reject) => {
+      const settle = (played: boolean): void => {
+        attempt.signal.removeEventListener("abort", abort);
+        if (this.finishIntro !== settle) return;
+        this.finishIntro = null;
+        resolve(played);
+      };
+      const abort = (): void => {
+        this.finishIntro = null;
+        reject(attempt.signal.reason);
+      };
+      attempt.check();
+      attempt.signal.addEventListener("abort", abort, { once: true });
+      this.finishIntro = settle;
+    });
   }
 
   private updateStartupState(update: Partial<StartupState>): void {
@@ -4753,6 +4791,7 @@ export class GameApp {
         startup: this.startupState,
         onStart: () => this.beginLoading(true, "continue"),
         onSkipIntro: () => this.openingSkip?.(),
+        onIntroFinished: (played: boolean) => this.finishIntro?.(played),
         onStartNewGame: () => this.beginLoading(true, "new-game"),
         onStartWithoutSaving: () => { if (this.saveDecision) this.saveDecision(false); else this.beginLoading(true, "without-saving"); },
         onRetry: this.retryStartup,
@@ -5166,6 +5205,7 @@ export class GameApp {
         startup: this.startupState,
         onStart: () => this.beginLoading(true, "continue"),
         onSkipIntro: () => this.openingSkip?.(),
+        onIntroFinished: (played: boolean) => this.finishIntro?.(played),
         onStartNewGame: () => this.beginLoading(true, "new-game"),
         onStartWithoutSaving: () => { if (this.saveDecision) this.saveDecision(false); else this.beginLoading(true, "without-saving"); },
         onRetry: this.retryStartup,

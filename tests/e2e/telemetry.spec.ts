@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 
+// Automated entry skips the optional entry cinematic (see gameplay.spec.ts).
+test.use({ contextOptions: { reducedMotion: "reduce" } });
+
 test.setTimeout(180_000);
 
 test("DEV telemetry surface is wired and reports elapsed session time", async ({ page }) => {
