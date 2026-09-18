@@ -63,3 +63,11 @@ export function worldRouteToMapSvgPath(points: readonly WorldPoint[]): string {
     })
     .join(" ");
 }
+
+export function mapSvgToWorldPoint(point: MapSvgPoint): WorldPoint {
+  return {
+    x: (point.x - WORLD_MAP_PROJECTION.originX) / WORLD_MAP_PROJECTION.scaleX,
+    z: (point.y - WORLD_MAP_PROJECTION.originY) / WORLD_MAP_PROJECTION.scaleZ
+  };
+}
+

@@ -7,6 +7,7 @@ import {
 import {
   WORLD_MAP_PROJECTION,
   worldPointToMapSvg,
+  mapSvgToWorldPoint,
   worldRouteToMapSvgPath
 } from "../../src/world/WorldMapProjection";
 
@@ -34,15 +35,32 @@ describe("WorldMapProjection", () => {
   });
 
   it("clamps geographic nodes and offshore player positions to the SVG frame", () => {
-    const projected = worldPointToMapSvg({ x: 1000, z: 1000 });
-    expect(projected).toEqual({
-      x: WORLD_MAP_PROJECTION.maxX,
-      y: WORLD_MAP_PROJECTION.maxY
+    const { originX, originY, scaleX, scaleZ, minX, maxX, minY, maxY } = WORLD_MAP_PROJECTION;
+    const projected = worldPointToMapSvg({
+      x: (maxX - originX) / scaleX + 100,
+      z: (maxY - originY) / scaleZ + 100
+    });
+    expect(projected).toEqual({ x: maxX, y: maxY });
+    expect(worldPointToMapSvg({
+      x: (minX - originX) / scaleX - 100,
+      z: (minY - originY) / scaleZ - 100
+    })).toEqual({ x: minX, y: minY });
+    expect(worldPointToMapSvg({ x: 1000, z: 0 })).toEqual({
+      x: originX + 1000 * scaleX,
+      y: originY
     });
     const origin = worldPointToMapSvg({ x: 0, z: 0 });
     expect(origin).toEqual({
       x: WORLD_MAP_PROJECTION.originX,
       y: WORLD_MAP_PROJECTION.originY
     });
+  });
+
+  it("inverts SVG canvas points back to canonical world coordinates", () => {
+    const originalWorld = { x: 140, z: -85 };
+    const projectedSvg = worldPointToMapSvg(originalWorld);
+    const unprojected = mapSvgToWorldPoint(projectedSvg);
+    expect(unprojected.x).toBeCloseTo(originalWorld.x, 3);
+    expect(unprojected.z).toBeCloseTo(originalWorld.z, 3);
   });
 });
