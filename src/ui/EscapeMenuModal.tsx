@@ -11,7 +11,8 @@ import {
   IconExpedition,
   IconJournal,
   IconLedger,
-  IconSatchel
+  IconSatchel,
+  IconSprout
 } from "./components/HudIcons";
 import { playUiSound } from "./audio/uiAudio";
 import { InterfaceSettings } from "./components/InterfaceSettings";
@@ -42,6 +43,8 @@ export interface EscapeMenuModalProps {
   graphicsQuality: GraphicsQualityPreference;
   effectiveGraphicsQuality: QualityTier;
   onGraphicsQualityChange: (quality: GraphicsQualityPreference) => void;
+  onPromptPwaInstall?: () => void;
+  isStandalone?: boolean;
 }
 
 /** Map-pin mark for Safe Return. HudIcons carries no pin, so it lives here. */
@@ -90,7 +93,9 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
   expeditionUnlocked = false,
   graphicsQuality,
   effectiveGraphicsQuality,
-  onGraphicsQualityChange
+  onGraphicsQualityChange,
+  onPromptPwaInstall,
+  isStandalone = false
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const safeReturnCancelRef = useRef<HTMLButtonElement>(null);
@@ -225,6 +230,11 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                 {onOpenGuide && (
                   <ChromeButton onClick={onOpenGuide}>
                     <IconCompass size={20} aria-hidden="true" /> Guide
+                  </ChromeButton>
+                )}
+                {onPromptPwaInstall && !isStandalone && (
+                  <ChromeButton onClick={onPromptPwaInstall}>
+                    <IconSprout size={20} aria-hidden="true" /> Add to Home Screen
                   </ChromeButton>
                 )}
                 <ChromeButton onClick={() => setPage("graphics")}>Settings</ChromeButton>

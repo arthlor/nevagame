@@ -12241,3 +12241,210 @@
   }
 }
 }
+
+/* ==========================================================================
+   GUILDCRAFT PWA INSTALL PROMPT
+   Mobile-first modal prompting players to install Nevaland to home screen
+   ========================================================================== */
+@layer neva-ui {
+  .pwa-install-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(8, 12, 11, 0.78);
+    backdrop-filter: blur(4px);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .pwa-install-sheet {
+    width: min(540px, 94vw) !important;
+    max-height: min(92vh, 480px) !important;
+    background: linear-gradient(175deg, rgba(28, 25, 20, 0.98) 0%, rgba(18, 16, 13, 0.99) 100%) !important;
+    border: 1px solid rgba(165, 139, 73, 0.4) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(212, 175, 55, 0.12) !important;
+    border-radius: 6px !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pwa-install-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px 10px !important;
+    border-bottom: 1px solid rgba(165, 139, 73, 0.25) !important;
+    background: rgba(14, 12, 10, 0.5) !important;
+  }
+
+  .pwa-install-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .pwa-install-emblem {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.18) 0%, rgba(18, 16, 13, 0.6) 100%);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
+    flex-shrink: 0;
+  }
+
+  .pwa-header-pill {
+    font: 600 10px/1 var(--font-sans);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--guild-gold-bright, #e8cf8d);
+    margin-bottom: 2px;
+  }
+
+  .pwa-title {
+    font: 600 20px/1.15 var(--font-serif) !important;
+    color: var(--guild-gold, #f3e5ab) !important;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .pwa-install-body {
+    padding: 14px 18px !important;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pwa-lead-text {
+    font: 400 13px/1.45 var(--font-sans);
+    color: var(--guild-ivory, #fff4dc);
+    margin: 0;
+    opacity: 0.9;
+  }
+
+  .pwa-benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 2px 0;
+  }
+
+  @media (max-width: 480px) {
+    .pwa-benefits-grid {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+  }
+
+  .pwa-benefit-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 8px;
+    background: rgba(18, 16, 12, 0.5);
+    border: 1px solid rgba(165, 139, 73, 0.2);
+    border-radius: 4px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  .pwa-benefit-icon-wrap {
+    color: var(--guild-gold, #d4af37);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+
+  .pwa-benefit-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .pwa-benefit-text strong {
+    font: 600 12px/1.2 var(--font-serif);
+    color: var(--guild-gold-bright, #f7ecd2);
+  }
+
+  .pwa-benefit-text span {
+    font: 400 11px/1.3 var(--font-sans);
+    color: var(--guild-muted, #c8beab);
+  }
+
+  .pwa-ios-instructions {
+    background: rgba(212, 175, 55, 0.08);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 4px;
+    padding: 10px 12px;
+  }
+
+  .pwa-instructions-heading {
+    font: 600 12px/1.2 var(--font-serif);
+    color: var(--guild-gold, #f3e5ab);
+    margin: 0 0 6px;
+  }
+
+  .pwa-steps-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .pwa-step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font: 400 12px/1.35 var(--font-sans);
+    color: var(--guild-ivory, #fff4dc);
+  }
+
+  .pwa-step-num {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(212, 175, 55, 0.2);
+    border: 1px solid var(--guild-gold, #d4af37);
+    color: var(--guild-gold-bright, #f7ecd2);
+    font: 600 10px/18px var(--font-sans);
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .pwa-quick-notice {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(212, 175, 55, 0.06);
+    border-left: 2px solid var(--guild-gold, #d4af37);
+    border-radius: 0 4px 4px 0;
+    font: 500 11px/1.3 var(--font-sans);
+    color: var(--guild-gold-bright, #e8cf8d);
+  }
+
+  .pwa-notice-bullet {
+    color: var(--guild-gold, #d4af37);
+  }
+
+  .pwa-install-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 10px 18px !important;
+    border-top: 1px solid rgba(165, 139, 73, 0.2) !important;
+    background: rgba(14, 12, 10, 0.5) !important;
+  }
+}
+

@@ -82,6 +82,8 @@ import type { FishingInputState, VirtualMoveVector } from "../input/InputRouter"
 import type { LayoutEditHudSelection } from "../layout-editor/layoutEdit";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
+import { usePwaInstall } from "./pwa/usePwaInstall";
+import { PwaInstallPromptModal } from "./components/PwaInstallPromptModal";
 
 const READY_STARTUP_STATE: StartupState = {
   status: "ready",
@@ -386,6 +388,15 @@ export const GameUI: React.FC<GameUIProps> = ({
     if (journalOpenRequest) setJournalInitialFolio(journalOpenRequest.folio);
   }, [journalOpenRequest]);
   const showTrophyModal = activeModal === "catch";
+
+  const pwa = usePwaInstall();
+  const [pwaPromptManualOpen, setPwaPromptManualOpen] = useState(false);
+
+  const showPwaPrompt =
+    (pwaPromptManualOpen || (mobileTouchDevice && !pwa.isStandalone && !pwa.isDismissed)) &&
+    !activeModal &&
+    !mobileOrientationBlocked &&
+    startup.status === "ready";
 
   const [customWaypoint, setCustomWaypoint] = useState<{ x: number; z: number } | null>(null);
 
@@ -747,6 +758,29 @@ export const GameUI: React.FC<GameUIProps> = ({
           graphicsQuality={graphicsQuality}
           effectiveGraphicsQuality={effectiveGraphicsQuality}
           onGraphicsQualityChange={onGraphicsQualityChange}
+          onPromptPwaInstall={() => {
+            onSetActiveModal(null);
+            setPwaPromptManualOpen(true);
+          }}
+          isStandalone={pwa.isStandalone}
+        />
+      )}
+
+      {showPwaPrompt && (
+        <PwaInstallPromptModal
+          platform={pwa.platform}
+          canPromptDirectly={pwa.canPromptDirectly}
+          onInstall={async () => {
+            const outcome = await pwa.promptInstall();
+            if (outcome === "accepted" || outcome === "dismissed") {
+              setPwaPromptManualOpen(false);
+              pwa.dismiss();
+            }
+          }}
+          onDismiss={() => {
+            setPwaPromptManualOpen(false);
+            pwa.dismiss();
+          }}
         />
       )}
 

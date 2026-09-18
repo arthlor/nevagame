@@ -415,9 +415,25 @@ The Field Journal is the player's core chronicle and knowledge repository. It co
     - **Streamlined Navigation Ribbon & Unified Organize Disclosure**:
       - Combined the category tabs (`All`, `Field`, `Fishing`, `Supplies`) and the `[Organize]` action onto one horizontal navigation bar (`.inventory-nav-bar`).
       - Expandable search and tidy tools slide in cleanly beneath when toggled.
-    - **Contextual Empty State & 1-Click Recovery**:
-      - Designed themed empty states (`IconSprout`, `IconFish`, `IconTools`, `IconSatchel`) with helpful descriptions.
-      - Added an inline `[View All Items]` action button so players can immediately recover if they click into an empty category.
+16. **Mobile PWA Install Prompt & Home Screen Integration (`PwaInstallPromptModal.tsx`, `usePwaInstall.ts`, `EscapeMenuModal.tsx`)**:
+    - **Physical Guildcraft Aesthetic & Benefits-First Presentation**:
+      - Designed a dedicated Guildcraft modal (`.pwa-install-sheet`) encased in ornate 9-slice gilded framing (`tone="slate"` with brass corner rivets and parchment filigree).
+      - Replaced raw browser banners with a maritime instrument prompt highlighting 3 key handheld player benefits:
+        1. *Pure Fullscreen Canvas*: Eliminates mobile URL address bars, tabs, and bottom navigation bars for distraction-free coastal gameplay.
+        2. *Instant 1-Tap Launch*: Adds a high-fidelity golden compass emblem icon to the player's home screen.
+        3. *Smoother 60 FPS Response*: Bypasses multi-tab browser overhead and prevents accidental pull-to-refresh or navigation swipe gestures.
+    - **Adaptive Platform Detection & Guided Workflows**:
+      - **Android (Chrome)**: Hooks directly into the browser's native `beforeinstallprompt` event for seamless 1-tap installation via `[✦ Add to Home Screen]`.
+      - **iOS (Safari / Chrome)**: Automatically provides an illustrated 3-step walkthrough tailored to the detected iOS browser:
+        - Step 1: Tap the Share icon (or Chrome menu button in toolbar).
+        - Step 2: Scroll down and select *"Add to Home Screen"*.
+        - Step 3: Tap *"Add"* in the top-right corner.
+    - **Persistent State & Dismissal Snooze**:
+      - Remembers user choice via `localStorage`: "Maybe Later" snoozes automatic prompts for 7 days (`neva_pwa_dismissed_until`).
+      - Hides automatic modal when already running in standalone display mode (`navigator.standalone` or `display-mode: standalone`).
+      - Permanent access retained via the in-game Escape Menu (`Add to Home Screen`), allowing players to revisit installation anytime.
+    - **Strict Zero-Emoji & SVG Standard Compliance**:
+      - All instructional icons, step indicators, and bullets use pure inline SVGs or `HudIcons` marks, adhering 100% to the project's strict `no_emoji_in_ui` test barrier.
 
 ---
 
