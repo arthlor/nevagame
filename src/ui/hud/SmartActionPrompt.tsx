@@ -142,6 +142,22 @@ function parseStructuredPrompt(
   };
 }
 
+/**
+ * Instruction segments that only make sense with a mouse or keyboard. Touch
+ * prompts come from the same world text the desktop HUD uses, so a detail like
+ * "Right-click inspect" would otherwise read as a dead instruction on a phone.
+ */
+const DESKTOP_ONLY_HINT = /\b(?:right-click|left-click|double-click|lmb|rmb|esc|escape|ctrl|cmd|f2)\b/i;
+
+function stripDesktopHints(detail: string | null): string | null {
+  if (!detail) return null;
+  const kept = detail
+    .split("·")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0 && !DESKTOP_ONLY_HINT.test(part));
+  return kept.length > 0 ? kept.join(" · ") : null;
+}
+
 export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
   promptText,
   toastMessage = null,
@@ -156,6 +172,9 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
 
   if (!parsed) return null;
 
+  const detail = touchChrome ? stripDesktopHints(parsed.detail) : parsed.detail;
+  const accessibleLabel = detail ? `${parsed.cleanLabel} · ${detail}` : parsed.cleanLabel;
+
   const isInsufficient =
     currentWork !== undefined &&
     parsed.laborCost != null &&
@@ -166,7 +185,7 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
       className={`smart-action-prompt interaction-prompt ${isInsufficient ? "is-insufficient" : ""} ${className}`.trim()}
       role="status"
       data-testid="context-prompt"
-      aria-label={parsed.fullLabel}
+      aria-label={accessibleLabel}
     >
       <div className="prompt-content-row banner-content-row">
         {/* Primary Keycap */}
@@ -191,7 +210,7 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
           ) : (
             <span className="prompt-target">{parsed.cleanLabel}</span>
           )}
-          {parsed.detail && <span className="prompt-detail"> · {parsed.detail}</span>}
+          {detail && <span className="prompt-detail"> · {detail}</span>}
         </span>
 
         {/* Labor Cost Badge */}

@@ -749,6 +749,33 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(html).not.toMatch(/prompt-action-description[^>]*>[^<]*\d+\s*Work/);
     });
 
+    it("drops desktop mouse and keyboard hints from touch prompts but keeps real details", () => {
+      const inspect = renderToString(React.createElement(SmartActionPrompt, {
+        promptText: "[E] Harvest Winter Carrot · 5 Work · Right-click inspect",
+        touchChrome: true
+      }));
+      expect(inspect).toContain("Harvest");
+      expect(inspect).toContain("-5 Work");
+      expect(inspect).not.toContain("Right-click");
+      expect(inspect).not.toContain("chrome-keycap");
+
+      const placement = renderToString(React.createElement(SmartActionPrompt, {
+        promptText: "[E / Click] Plant one Wheat · Right-click / Esc cancel",
+        touchChrome: true
+      }));
+      expect(placement).toContain("Plant");
+      expect(placement).toContain("Wheat");
+      expect(placement).not.toContain("Right-click");
+      expect(placement).not.toContain("Esc");
+
+      const kept = renderToString(React.createElement(SmartActionPrompt, {
+        promptText: "[E] Collect Honey · ready 14:00 · Right-click inspect",
+        touchChrome: true
+      }));
+      expect(kept).toContain("ready 14:00");
+      expect(kept).not.toContain("Right-click");
+    });
+
     it("styles SmartActionPrompt with warning class when player Work Capacity is insufficient", () => {
       const html = renderToString(
         React.createElement(SmartActionPrompt, {

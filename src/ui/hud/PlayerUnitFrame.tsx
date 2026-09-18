@@ -38,7 +38,7 @@ export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
         showLabel={false} showValue={false} fill={work.exhausted ? "danger" : "gold"}
         valueText={work.exhausted ? `${workCurrent} of ${workMaximum} — rest, eat, or work to recover` : undefined} />
       <GuildcraftArt art="meter" className="guild-vital-rim" />
-      <span className="guild-vital-readout">Work <strong>{workCurrent} / {workMaximum}</strong>
+      <span className="guild-vital-readout"><span className="guild-vital-label">Work</span> <strong>{workCurrent} / {workMaximum}</strong>
         {work.earnCap != null && <em className="guild-work-earned" data-testid="work-earned-today">
           {" "}+{work.earnedToday ?? 0}/{work.earnCap} today
         </em>}
@@ -51,8 +51,8 @@ export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
         data-testid="sprint-stamina" />
       <GuildcraftArt art="meter" className="guild-vital-rim" />
       <span className="guild-vital-readout">{sprint.exhausted
-        ? <>Sprint <span data-testid="sprint-stamina-winded" role="status">Winded</span></>
-        : <>Sprint <strong>{sprintCurrent} / {sprintMaximum}</strong></>}</span>
+        ? <><span className="guild-vital-label">Sprint</span> <span data-testid="sprint-stamina-winded" role="status">Winded</span></>
+        : <><span className="guild-vital-label">Sprint</span> <strong>{sprintCurrent} / {sprintMaximum}</strong></>}</span>
     </div>}
     {mount && <div className={`guild-vital-bar guild-sprint ${mount.exhausted ? "is-exhausted" : ""}`}>
       <Meter className="guild-vital-meter" label={mount.label} value={mountCurrent} max={mountMaximum}
@@ -61,8 +61,8 @@ export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
         data-testid="mount-stamina" />
       <GuildcraftArt art="meter" className="guild-vital-rim" />
       <span className="guild-vital-readout">{mount.exhausted
-        ? <>{mount.label} <span data-testid="mount-stamina-winded" role="status">Winded</span></>
-        : <>{mount.label} <strong>{mountCurrent} / {mountMaximum}</strong></>}</span>
+        ? <><span className="guild-vital-label">{mount.label}</span> <span data-testid="mount-stamina-winded" role="status">Winded</span></>
+        : <><span className="guild-vital-label">{mount.label}</span> <strong>{mountCurrent} / {mountMaximum}</strong></>}</span>
     </div>}
     {statusEffects.length > 0 && <div className="guild-status-effects" aria-label="Active status effects">
       {statusEffects.map((chip) => <span key={chip.id} className={`guild-status-effect status-chip--${chip.type}`}

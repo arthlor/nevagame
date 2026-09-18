@@ -308,7 +308,7 @@ test.describe("Neva control, physics, camera, and interaction foundation", () =>
       });
       expect(bottomLeftClearance).not.toBeNull();
       expect(bottomLeftClearance as number).toBeGreaterThanOrEqual(4);
-      for (const [id, name] of [["micro-btn-satchel", "Satchel"], ["micro-btn-journal", "Field Journal"], ["micro-btn-map", "Nautical Chart of Neva & Sunreach"]]) {
+      for (const [id, name] of [["micro-btn-satchel", "Satchel"], ["micro-btn-journal", "Field Journal"], ["micro-btn-map", "Nautical Chart of the Neva Archipelago"]]) {
         await page.getByTestId(id).tap();
         const dialog = page.getByRole("dialog", { name, exact: true });
         await expect(dialog).toBeVisible();
