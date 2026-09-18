@@ -89,45 +89,33 @@ function normalizedDirection(x: number, z: number): THREE.Vector2 {
 /** Render-only regional classification with soft estuary and offshore transitions. */
 export function waterSpatialProfile(x: number, z: number): WaterSpatialProfile {
   const marine = WorldLayout.marineSampleAt(x, z);
-  const usesSharedMarine = x > 260
-    || marine.ecologyWeights["ecology.sunreach"] > marine.ecologyWeights["ecology.neva"];
-  if (usesSharedMarine) {
-    const river = 0;
-    const ocean = THREE.MathUtils.clamp(
-      Math.max(
-        marine.openWaterExposure,
-        smoothstep(WATER_WAVE_CONFIG.oceanBlend[0], WATER_WAVE_CONFIG.oceanBlend[1], marine.signedShoreDistance)
-      ),
-      0,
-      1
-    );
-    const sea = Math.max(0, 1 - ocean);
-    const weights = { river, sea, ocean };
-    return {
-      region: dominantRegion(weights),
-      weights,
-      signedWaterDistance: marine.signedShoreDistance,
-      coastDistance: marine.signedShoreDistance,
-      localDirection: normalizedDirection(marine.waveDirection.x, marine.waveDirection.z)
-    };
-  }
-  const coastDistance = z - WorldLayout.coastlineZ(x);
-  const riverCore = 1 - smoothstep(
-    WATER_WAVE_CONFIG.riverBlend[0],
-    WATER_WAVE_CONFIG.riverBlend[1],
-    coastDistance
-  );
+  const southCoastZ = WorldLayout.coastlineZ(x);
+  const riverSignedDistance = WorldLayout.riverWaterSignedDistance(x, z);
+
+  // River corridor: bounded by finite headwater source and southern estuary
+  const inRiverCorridor = z >= NEVA_HEADWATERS.source.z - NEVA_HEADWATERS.sourceRadiusMeters
+    && z <= southCoastZ + 1.5;
+  const channelInfluence = inRiverCorridor
+    ? smoothstep(0, 0.8, riverSignedDistance)
+    : 0;
+
+  // Estuary flow: where the river enters the southern sea
+  const coastDistance = z - southCoastZ;
   const estuaryFlow = WorldLayout.estuaryInfluence(x, z)
-    * (1 - smoothstep(2, 27, coastDistance))
+    * (1 - smoothstep(2, 27, Math.max(0, coastDistance)))
     * 0.82;
-  const sourceInfluence = z < NEVA_HEADWATERS.source.z
-    ? smoothstep(-1, 0, WorldLayout.riverWaterSignedDistance(x, z))
-    : 1;
-  const river = Math.max(riverCore * sourceInfluence, estuaryFlow);
-  const ocean = smoothstep(
+
+  const river = Math.min(1, Math.max(channelInfluence, estuaryFlow));
+
+  const oceanBlend = smoothstep(
     WATER_WAVE_CONFIG.oceanBlend[0],
     WATER_WAVE_CONFIG.oceanBlend[1],
-    coastDistance
+    marine.signedShoreDistance
+  );
+  const ocean = THREE.MathUtils.clamp(
+    Math.max(marine.openWaterExposure, oceanBlend) * (1 - river),
+    0,
+    1
   );
   const sea = Math.max(0, 1 - river - ocean);
   const weights = { river, sea, ocean };
@@ -137,21 +125,31 @@ export function waterSpatialProfile(x: number, z: number): WaterSpatialProfile {
     WorldLayout.riverCenterX(z + sampleDistance) - WorldLayout.riverCenterX(z - sampleDistance),
     sampleDistance * 2
   );
-  const coastSlope = (
-    WorldLayout.coastlineZ(x + sampleDistance) - WorldLayout.coastlineZ(x - sampleDistance)
-  ) / (sampleDistance * 2);
-  const shoreward = normalizedDirection(coastSlope, -1);
-  const coastalTotal = Math.max(0.0001, river + sea);
+  const marineDir = normalizedDirection(marine.waveDirection.x, marine.waveDirection.z);
+  let coastalDirection = marineDir;
+  if (sea > 0.0001 && Math.abs(marine.signedShoreDistance) < 90) {
+    const shore = WorldLayout.shoreProjectionAt(x, z);
+    const shoreward = normalizedDirection(
+      -shore.waterwardNormalXZ.x,
+      -shore.waterwardNormalXZ.z
+    );
+    const shoreInfluence = (1 - smoothstep(18, 80, Math.abs(shore.signedDistanceMeters)))
+      * (1 - marine.openWaterExposure * 0.35);
+    coastalDirection = normalizedDirection(
+      THREE.MathUtils.lerp(marineDir.x, shoreward.x, shoreInfluence),
+      THREE.MathUtils.lerp(marineDir.y, shoreward.y, shoreInfluence)
+    );
+  }
   const localDirection = normalizedDirection(
-    (riverTangent.x * river + shoreward.x * sea) / coastalTotal,
-    (riverTangent.y * river + shoreward.y * sea) / coastalTotal
+    riverTangent.x * river + coastalDirection.x * sea + marineDir.x * ocean,
+    riverTangent.y * river + coastalDirection.y * sea + marineDir.y * ocean
   );
 
   return {
     region: dominantRegion(weights),
     weights,
     signedWaterDistance: marine.signedShoreDistance,
-    coastDistance,
+    coastDistance: marine.signedShoreDistance,
     localDirection
   };
 }

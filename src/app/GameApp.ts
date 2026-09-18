@@ -1,3 +1,4 @@
+import { isCarriage, carriagePoint, CARRIAGE_TUNING, canReachCarriageRear } from "../simulation/mounts/Carriage";
 import { playOpeningCamera } from "../render/camera/OpeningCameraSequence";
 import { buildNextWorldHint } from "../simulation/presentation/WorldGuidancePresentation";
 import { RewardFeedbackPresentation } from "../simulation/presentation/RewardFeedbackPresentation";
@@ -71,6 +72,7 @@ import { getAssetCoverageSummary, type AssetCoverageSummary } from "../render/as
 import { PhysicsWorld } from "../physics/PhysicsWorld";
 import type { CollisionDebugView } from "../diagnostics/CollisionDebugView";
 import { WorldLayout } from "../world/WorldLayout";
+import { HEADWATER_GRAYBOX_VIEWPOINTS } from "../world/HeadwaterWaterfallGraybox";
 import { NpcBarkOverlay } from "../ui/hud/NpcBarkOverlay";
 import { MarketBoardOverlay } from "../ui/hud/MarketBoardOverlay";
 import { QuestPointerOverlay, type QuestPointerTarget } from "../ui/hud/QuestPointerOverlay";
@@ -315,7 +317,7 @@ declare global {
   }
 }
 
-interface ArtViewPreset {
+export interface ArtViewPreset {
   playerPose: { x: number; y: number; z: number; rotationY: number };
   cameraPosition: { x: number; y: number; z: number };
   cameraTarget: { x: number; y: number; z: number };
@@ -577,6 +579,57 @@ const ART_VIEW_PRESETS: Readonly<Record<string, ArtViewPreset>> = {
     fovDegrees: 49
   }
 };
+
+/**
+ * Art-view lookup. The W05 headwater graybox viewpoints derive their presets
+ * from the fixture owner so the reviewed camera data cannot drift from the
+ * composition spec; terrain height is sampled lazily here, never at module load.
+ */
+export function resolveArtViewPreset(id: string): ArtViewPreset | undefined {
+  const preset = ART_VIEW_PRESETS[id];
+  if (preset) return preset;
+  const viewpoint = HEADWATER_GRAYBOX_VIEWPOINTS.find((candidate) => candidate.artViewId === id);
+  if (!viewpoint) return undefined;
+  const camera = viewpoint.cameraPosition;
+  const target = viewpoint.targetPosition;
+  // Stand the avatar a few metres along the view axis, on the ground. Placing
+  // the player at the camera position put the camera *inside* the character
+  // model, which filled review frames with its unlit interior; stepping blindly
+  // along the axis can drop the avatar into the water, so take the first valid
+  // standing point and fall back to the stance itself.
+  const dx = target.x - camera.x;
+  const dz = target.z - camera.z;
+  const length = Math.max(0.001, Math.hypot(dx, dz));
+  const isStandingGround = (x: number, z: number): boolean =>
+    WorldLayout.isWalkable(x, z)
+    && !WorldLayout.isWater(x, z)
+    && WorldLayout.terrainNormalY(x, z) >= 0.7;
+  let playerX = camera.x;
+  let playerZ = camera.z;
+  // In front of the camera first (the classic third-person read), then behind
+  // it when the stance faces open water. The whole band within ~1.7 m of the
+  // lens stays empty: that is inside the character model.
+  const candidateDistances = [3, 2.6, 2.2, 1.8, -2.4, -2.8, -3.2, -3.6, -4];
+  for (const distance of candidateDistances) {
+    const candidateX = camera.x + (dx / length) * distance;
+    const candidateZ = camera.z + (dz / length) * distance;
+    if (!isStandingGround(candidateX, candidateZ)) continue;
+    playerX = candidateX;
+    playerZ = candidateZ;
+    break;
+  }
+  return {
+    playerPose: {
+      x: playerX,
+      y: WorldLayout.traversalSurfaceHeight(playerX, playerZ) + 1.7,
+      z: playerZ,
+      rotationY: Math.atan2(dx, dz)
+    },
+    cameraPosition: { x: camera.x, y: camera.y, z: camera.z },
+    cameraTarget: { x: target.x, y: target.y, z: target.z },
+    fovDegrees: 50
+  };
+}
 
 export class GameApp {
   public sim!: Simulation;
@@ -1218,7 +1271,7 @@ export class GameApp {
 
     if (debugStart) this.applyDebugStartScenario(debugStart);
 
-    const benchmarkCameraView = benchmarkPreset ? ART_VIEW_PRESETS[benchmarkPreset] : undefined;
+    const benchmarkCameraView = benchmarkPreset ? resolveArtViewPreset(benchmarkPreset) : undefined;
     if (benchmarkCameraView) {
       this.sim.setDebugPlayerPose(benchmarkCameraView.playerPose);
       const minuteParameter = query.get("artMinute") ?? (benchmark.goldTestId ? "720" : null);
@@ -1850,7 +1903,7 @@ export class GameApp {
       }),
       this.sim.events.on("PlaceDiscovered", ({ title, view }) => {
         this.notify(`Discovered · ${title}`, "reward", 3600, "story");
-        const preset = view ? ART_VIEW_PRESETS[view] : undefined;
+        const preset = view ? resolveArtViewPreset(view) : undefined;
         if (preset && !this.activeModal && !this.benchmarkView) this.gameCamera.beginArrivalView(preset.cameraPosition, preset.cameraTarget, preset.fovDegrees);
         this.requestAutosave();
       }),
@@ -1915,14 +1968,18 @@ export class GameApp {
       }),
       this.sim.events.on("MountBoarded", ({ mountId }) => {
         this.setGameplayMode("mounted");
-        this.worldScene.beginPlayerAttachmentAction("mount", mountId);
-        this.beginMountTransition("mount");
-        this.setToast(mountId === STARTER_DONKEY_ID ? "Riding the donkey" : "Mounted", 1800);
+        if (!isCarriage(this.sim.state.mounts[mountId])) {
+          this.worldScene.beginPlayerAttachmentAction("mount", mountId);
+          this.beginMountTransition("mount");
+        }
+        this.setToast(mountId === STARTER_DONKEY_ID ? "Riding the donkey" : "Driving carriage · W/S move · A/D steer · Shift trot", 1800);
       }),
       this.sim.events.on("MountDisembarked", ({ mountId }) => {
         this.setGameplayMode("on-foot");
-        this.worldScene.beginPlayerAttachmentAction("dismount", mountId);
-        this.beginMountTransition("dismount");
+        if (!isCarriage(this.sim.state.mounts[mountId])) {
+          this.worldScene.beginPlayerAttachmentAction("dismount", mountId);
+          this.beginMountTransition("dismount");
+        }
       }),
       this.sim.events.on("FishHooked", () => this.worldScene.playPlayerAction("hookset")),
       this.sim.events.on("CropPlanted", ({ placedCropId }) => {
@@ -2359,7 +2416,7 @@ export class GameApp {
     }
 
     if (this.physicsWorld) {
-      const movement = this.mode === "boat-driving"
+      const movement = this.mode === "boat-driving" || isCarriage(this.sim.state.mounts[this.sim.state.player.activeMountId ?? ""])
         ? input.moveVector
         : this.gameCamera.cameraRelativeMovement(input.moveVector, this.movementIntent);
       const result = this.physicsWorld.step(
@@ -2719,7 +2776,7 @@ export class GameApp {
               worldPosition: { x: mount.x, y: mount.y, z: mount.z },
               modes: ["mounted"],
               requiresLineOfSight: false,
-              prompt: "[E] Dismount"
+              prompt: isCarriage(mount) ? `[E] Leave carriage · ${mount.fishCargoSlotIds?.filter(Boolean).length ?? 0}/2 packs` : "[E] Dismount"
             }]
           : [],
         { mode: this.mode, player: p }
@@ -2739,8 +2796,23 @@ export class GameApp {
           worldPosition: { x: mount.x, y: mount.y, z: mount.z },
           modes: ["on-foot"],
           requiresLineOfSight: false,
-          prompt: "[E] Ride donkey"
+          prompt: isCarriage(mount) ? `[E] Drive carriage · ${mount.fishCargoSlotIds?.filter(Boolean).length ?? 0}/2 packs` : "[E] Ride donkey"
         });
+      }
+    }
+
+    if (this.mode === "on-foot") {
+      for (const mount of Object.values(this.sim.state.mounts)) {
+        if (!canReachCarriageRear(this.sim.state, mount)) continue;
+        const rear = carriagePoint(mount, 0, CARRIAGE_TUNING.rearOffset);
+        const occupied = mount.fishCargoSlotIds?.filter(Boolean).length ?? 0;
+        const pickupId = mount.fishCargoSlotIds?.find(id => id && this.sim.canPickupFishCargo(id));
+        if (!p.carriedFishCargoId && !pickupId) continue;
+        candidates.push({ id: `carriage:${mount.id}:cargo`, entityId: p.carriedFishCargoId ? mount.id : pickupId!,
+          kind: "mount", action: p.carriedFishCargoId ? "load-carriage" : "pickup-cargo",
+          distanceMeters: Math.hypot(p.x - rear.x, p.z - rear.z), priority: -1,
+          worldPosition: { ...rear, y: mount.y }, modes: ["on-foot"], requiresLineOfSight: false,
+          prompt: p.carriedFishCargoId ? `[E] Load carriage · ${occupied}/2 packs` : `[E] Collect trade pack · ${occupied}/2 packs` });
       }
     }
 
@@ -3374,7 +3446,6 @@ export class GameApp {
     if (this.sim.state.player.activeMountId) return;
     if (this.mode === "farm-placement") this.exitCropPlacement();
     this.activeTool = target.requiresTool;
-    this.toolRevealToken += 1;
   }
 
   /**
@@ -3465,6 +3536,13 @@ export class GameApp {
           this.notify("Tank filled", "success", 2000);
           this.requestAutosave();
         }
+        break;
+      }
+      case "load-carriage": {
+        if (!picked.entityId) break;
+        const result = this.sim.execute({ type: "cargo.load-carriage", mountId: picked.entityId });
+        this.notify(result.success ? "Trade pack secured in carriage" : result.reason ?? "Could not load carriage", result.success ? "success" : "warning");
+        if (result.success) this.requestAutosave();
         break;
       }
       case "pickup-cargo": {
@@ -4650,7 +4728,7 @@ export class GameApp {
     this.setGameplayMode("on-foot");
     this.modeController.resume();
     this.syncOverlayState();
-    this.notify("Character safely returned to Starter Garden", "success", 3000);
+    this.notify("Character safely returned to the nearest landing", "success", 3000);
     this.requestAutosave();
   }
 

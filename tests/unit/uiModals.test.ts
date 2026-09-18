@@ -138,7 +138,7 @@ describe("UI Modals Server/Unit Render", () => {
         onClose: () => {}
       })
     );
-    expect(html).toContain("Nautical Chart of Neva");
+    expect(html).toContain("Nautical Chart of the Neva Archipelago");
   });
 
   it("documents the live tool-slot map in the field guide", () => {

@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "generatedAt": "2026-09-16T19:47:23.455Z",
+  "generatedAt": "2026-09-17T06:07:37.190Z",
   "specHash": "2d850cc18286cfa2b3f397e0f70bd136a5b97c30104c75e76417a38d20878b76",
   "paletteHash": "75afa4dc77fb1109ae8872e6d009f6853b2d4a7ea745bff76d64461900d3ba4f",
-  "toolchainHash": "13fadd267f8388b3fda0169fbe7082882bdb9dacba5b2c47fb816e623a7525c1",
+  "toolchainHash": "223b2ecc4670f45cc206dea6404595bfc1a491dc7073a4790861ea852c31881a",
   "blenderVersion": "Blender 5.2.0 LTS",
   "vertexColorSpace": "linear-srgb",
-  "durationMs": 106,
-  "aggregateBytes": 28660436,
+  "durationMs": 6282,
+  "aggregateBytes": 28660508,
   "summary": {
     "assetCount": 286,
     "referenceReady": 130,
@@ -19,11 +19,11 @@
     "productionMinimumTriangles": 145106,
     "qualityTargetTriangles": 510844,
     "hardMaximumTriangles": 1218360,
-    "fileSizeBytes": 28660436,
+    "fileSizeBytes": 28660508,
     "trianglePrimitives": 1529,
     "nodes": 7396,
-    "cacheHits": 5,
-    "cacheMisses": 281,
+    "cacheHits": 4,
+    "cacheMisses": 282,
     "artContractPassed": true
   },
   "assets": [
@@ -17273,9 +17273,9 @@
       "collision": "none",
       "lod": "medium",
       "readDistanceMeters": 30,
-      "durationMs": 1,
-      "inputHash": "3d587cf77b415b4b3b5a2df28a16fde0a30e87bf4eb1e3b3aaa9fbbc62aeb478",
-      "cacheHit": true,
+      "durationMs": 426,
+      "inputHash": "8d3e394149baf4a22391e1ab3c496f5723df30eb91fa289ad177908b0dcd0635",
+      "cacheHit": false,
       "budget": {
         "trianglesMin": 1500,
         "trianglesTarget": 4500,
@@ -17298,9 +17298,9 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 91764,
-      "fileHash": "4c7a8ee7cbff5cd8b3d9d887f421352020739e0494b64aab48ab3a1a2a7d72a7",
-      "semanticHash": "2305e72d3495e5d01097c5df6a90c25e166b8c77ddd71c110aa0e050339b44a1",
+      "bytes": 91836,
+      "fileHash": "422b98f1cf2c6ad923c1c8ad5f0ace993f9c1b7e22202d7138a0644d9d3d39de",
+      "semanticHash": "b87fb2f58be5a33fae994c698588b12998623b7c68c71ef0fc95fc08b576b40c",
       "qualityStatus": "on_target",
       "animationClips": [
         {

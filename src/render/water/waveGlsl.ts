@@ -1,4 +1,5 @@
 import { NEVA_HEADWATERS } from "../../world/NevaHeadwaters";
+import { WorldLayout } from "../../world/WorldLayout";
 
 /**
  * Shared CPU↔GPU wave math for water presentation.
@@ -46,16 +47,20 @@ export const WATER_PROFILE_FUNCTION_GLSL = /* glsl */ `
 
 /** These are derived world data, not a second set of authored elevations. */
 export function createHeadwaterUniforms() {
-  const { bounds, elevationKnots } = NEVA_HEADWATERS;
+  const { bounds, elevationKnots, fall } = NEVA_HEADWATERS;
   return {
     uHeadwaterBounds: { value: new Float32Array([bounds.minX, bounds.minZ, bounds.maxX, bounds.maxZ]) },
-    uHeadwaterElevations: { value: new Float32Array(elevationKnots.flatMap((knot) => [knot.z, knot.elevation])) }
+    uHeadwaterElevations: { value: new Float32Array(elevationKnots.flatMap((knot) => [knot.z, knot.elevation])) },
+    uHeadwaterFallBand: { value: new Float32Array([fall.lipZ, fall.landingZ]) },
+    uHeadwaterLandingXZ: { value: new Float32Array([WorldLayout.riverCenterX(fall.landingZ), fall.landingZ]) }
   };
 }
 
 export const WATER_HEADWATER_UNIFORMS_GLSL = /* glsl */ `
   uniform vec4 uHeadwaterBounds;
   uniform vec2 uHeadwaterElevations[${NEVA_HEADWATERS.elevationKnots.length}];
+  uniform vec2 uHeadwaterFallBand;
+  uniform vec2 uHeadwaterLandingXZ;
 `;
 
 /** The piecewise smoothstep and derivative mirror NevaHeadwaters exactly. */
@@ -63,6 +68,13 @@ export const WATER_HEADWATER_FUNCTION_GLSL = /* glsl */ `
   bool nevaHeadwaterContains(vec2 p) {
     return p.x >= uHeadwaterBounds.x && p.x <= uHeadwaterBounds.z
       && p.y >= uHeadwaterBounds.y && p.y <= uHeadwaterBounds.w;
+  }
+
+  // The authored falling segment owns its own sheet; horizontal water discards
+  // here so nothing draws a second surface over the drop.
+  bool nevaInsideHeadwaterFallBand(vec2 p) {
+    return nevaHeadwaterContains(p)
+      && p.y > uHeadwaterFallBand.x && p.y < uHeadwaterFallBand.y;
   }
 
   vec2 nevaHeadwaterElevationAndGrade(vec2 p) {

@@ -236,9 +236,9 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
               aria-labelledby="pause-safe-return-title"
               aria-describedby="pause-safe-return-description"
             >
-              <h2 id="pause-safe-return-title">Return to Starter Garden?</h2>
+              <h2 id="pause-safe-return-title">Return to safety?</h2>
               <p id="pause-safe-return-description">
-                This moves you to the Starter Garden immediately. Your cargo, money, and progress remain with you.
+                This moves you to the nearest safe landing immediately: the Starter Garden, or the Sunreach dock when sailing distant waters. Physical fish cargo must be landed first; money and progress remain with you.
               </p>
               <div className="pause-critical-actions">
                 <ChromeButton ref={safeReturnCancelRef} onClick={() => setPage("menu")}>

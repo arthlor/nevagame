@@ -224,6 +224,46 @@ function smoothstep(value: number): number {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
+function toFloat32BufferAttribute(
+  attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute | null | undefined,
+  targetItemSize = 3
+): THREE.BufferAttribute | null {
+  if (!attribute) return null;
+  const count = attribute.count;
+  const sourceItemSize = attribute.itemSize;
+  const array = new Float32Array(count * targetItemSize);
+  for (let i = 0; i < count; i++) {
+    for (let j = 0; j < targetItemSize; j++) {
+      array[i * targetItemSize + j] = j < sourceItemSize ? attribute.getComponent(i, j) : 1;
+    }
+  }
+  return new THREE.BufferAttribute(array, targetItemSize);
+}
+
+function toNormalizedUint8ColorAttribute(
+  attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute | null | undefined,
+  vertexCount: number
+): THREE.BufferAttribute {
+  const count = attribute ? attribute.count : vertexCount;
+  const array = new Uint8Array(count * 3);
+  if (!attribute) {
+    array.fill(255);
+    return new THREE.BufferAttribute(array, 3, true);
+  }
+  const sourceItemSize = attribute.itemSize;
+  for (let i = 0; i < count; i++) {
+    for (let j = 0; j < 3; j++) {
+      if (j >= sourceItemSize) {
+        array[i * 3 + j] = 255;
+        continue;
+      }
+      const val = attribute.getComponent(i, j);
+      array[i * 3 + j] = attribute.normalized || val <= 1.0 ? Math.round(val * 255) : Math.round(val);
+    }
+  }
+  return new THREE.BufferAttribute(array, 3, true);
+}
+
 function makeOblongSoilMoundGeometry(): THREE.BufferGeometry {
   const positions: number[] = [];
 
@@ -503,7 +543,26 @@ export class CropInstanceRenderer {
       if (!(object instanceof THREE.Mesh) || !object.visible || Array.isArray(object.material)) return;
       if ((object as THREE.SkinnedMesh).isSkinnedMesh || object.name.startsWith("COL_")) return;
       if (!(object.material instanceof THREE.MeshStandardMaterial)) return;
-      let geometry = object.geometry.clone();
+      // Dequantize meshopt quantized/interleaved attributes into standard Float32
+      // buffers before applying CPU transforms. Otherwise, normalized Int16 coordinates
+      // overflow whenever world positions exceed [-1.0, 1.0] meters (e.g. wheat heads,
+      // corn, sunflower, mature trees), wrapping coordinates and causing inverted vertical
+      // triangle stretches.
+      let geometry = new THREE.BufferGeometry();
+      const posAttr = toFloat32BufferAttribute(object.geometry.attributes.position, 3);
+      if (!posAttr) return;
+      geometry.setAttribute("position", posAttr);
+
+      const normAttr = toFloat32BufferAttribute(object.geometry.attributes.normal, 3);
+      if (normAttr) geometry.setAttribute("normal", normAttr);
+
+      const colAttr = toNormalizedUint8ColorAttribute(object.geometry.attributes.color, posAttr.count);
+      geometry.setAttribute("color", colAttr);
+
+      if (object.geometry.index) {
+        geometry.setIndex(object.geometry.index.clone());
+      }
+
       geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverseRoot, object.matrixWorld));
       // Catalog crop materials are texture-free palette materials. Blender may
       // still emit optional UV attributes on only some primitives, which
@@ -515,18 +574,7 @@ export class CropInstanceRenderer {
         geometry.dispose();
         geometry = nonIndexed;
       }
-      for (const attribute of Object.keys(geometry.attributes)) {
-        if (attribute !== "position" && attribute !== "normal" && attribute !== "color") {
-          geometry.deleteAttribute(attribute);
-        }
-      }
       if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
-      if (!geometry.getAttribute("color")) {
-        const vertexCount = geometry.getAttribute("position").count;
-        const colors = new Float32Array(vertexCount * 3);
-        colors.fill(1);
-        geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-      }
       geometry.morphAttributes = {};
       const geometries = geometriesByMaterial.get(object.material) ?? [];
       geometries.push(geometry);

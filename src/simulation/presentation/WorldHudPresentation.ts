@@ -5,6 +5,8 @@ import { LURE_ITEM_ID, accessibleFishingSupplyCount } from "../fishing/FishingSu
 import { resolveCargoHasIce } from "../fishing/calculateFreshness";
 import { freshnessTone } from "../fishing/freshnessBands";
 import { PLAYER_TRAVERSAL_TUNING, carriedLoadPenaltyPercent } from "../navigation/PlayerTraversal";
+import { isCarriage } from "../mounts/Carriage";
+import { MOUNT_TUNING } from "../mounts/Mounts";
 import type {
   CompassMarkerDto,
   ContextualHotbarSlotDto,
@@ -214,9 +216,13 @@ export function buildStatusChips(state: GameState): HudStatusChipDto[] {
 
   if (player.carriedFishCargoId) {
     // Name the penalty the physics actually applies rather than asserting a
-    // vague slowdown: the chip and the movement come from the same table.
+    // vague slowdown: the chip and the movement come from the same table. A
+    // mounted carrier is exempt — the animal carries the load — so the chip
+    // reports hands-full without a slowdown claim from the saddle.
     const carried = state.fishCargo[player.carriedFishCargoId] ?? null;
-    const penaltyPercent = carriedLoadPenaltyPercent(carried?.cargoClass ?? null);
+    const penaltyPercent = player.activeMountId
+      ? 0
+      : carriedLoadPenaltyPercent(carried?.cargoClass ?? null);
     chips.push({
       id: "overburdened",
       label: "Overburdened",
@@ -435,6 +441,8 @@ export function buildWorldHudDto(
     !player.activeMountId &&
     !state.basicFishing &&
     !state.sportFishing;
+  const activeMount = player.activeMountId ? state.mounts[player.activeMountId] : null;
+  const mountMaximum = MOUNT_TUNING.maximumGallopStamina;
   const workCurrent = Math.max(0, Math.floor(player.workCapacity.current));
   const workDay = workEarningsDayFor(clock.currentMinute);
   const sameWorkDay = player.workCapacity.earningsDay === workDay;
@@ -568,6 +576,14 @@ export function buildWorldHudDto(
           current: sprintCurrent,
           maximum: sprintMaximum,
           exhausted: player.traversal.sprintExhausted
+        }
+      : null,
+    mount: activeMount
+      ? {
+          current: Math.max(0, Math.min(mountMaximum, Math.round(activeMount.gallopStamina))),
+          maximum: mountMaximum,
+          exhausted: activeMount.gallopExhausted,
+          label: isCarriage(activeMount) ? "Trot" : "Gallop"
         }
       : null,
     equippedRodId: player.equippedRodId,

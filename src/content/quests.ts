@@ -207,7 +207,7 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.barnaby",
     introDialogue: [
       "To bring the big offshore fish to the surface, you need good chum to spark a feeding frenzy.",
-      "First, take your harvested wheat to the Hand Mill or Windmill to grind it into Ground Grain.",
+      "First, take your harvested wheat to the village mill to grind it into Ground Grain.",
       "Then bring that Ground Grain and Bait Worms to my workbench to craft a Chum Bucket!"
     ],
     completionDialogue: [
@@ -217,10 +217,10 @@ export const QUESTS: QuestDefinition[] = [
       {
         id: "step.act2_mill_grain",
         type: "craft-recipe",
-        description: "Grind Wheat into Ground Grain at the Hand Mill",
+        description: "Grind Wheat into Ground Grain at the village mill",
         targetId: "recipe.wheat_to_grain",
         targetQuantity: 1,
-        locationAnchor: { x: STARTER_MILL.x, z: STARTER_MILL.z, name: "Windmill" },
+        locationAnchor: { x: STARTER_MILL.x, z: STARTER_MILL.z, name: "Village Mill" },
         location: { kind: "station", id: "struct.starter_mill" }
       },
       {

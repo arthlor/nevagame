@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import baseline from "../../tools/world/neva-layout20-working-preservation.json";
+import baseline from "../../tools/world/neva-layout21-working-preservation.json";
 import { captureTerrainPreservation, compareTerrainPreservation } from "../../tools/world/terrain-preservation";
 
 describe("starter island terrain preservation", () => {

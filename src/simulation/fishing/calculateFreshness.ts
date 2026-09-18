@@ -38,6 +38,7 @@ export const FRESHNESS_STORAGE_MODIFIERS = {
   player: 1.0,
   "boat-hold": 0.8,
   "boat-hook": 1.0,
+  carriage: 1.0,
   "cold-storage": 0.15,
   crate: 0.9
 } as const;
@@ -88,6 +89,8 @@ export function resolveCargoTemperatureC(state: GameState, cargo: FishCargoState
   let holder: { x: number; z: number } = state.player;
   if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
     holder = state.boats[cargo.location.containerId] ?? holder;
+  } else if (cargo.location.type === "carriage") {
+    holder = state.mounts[cargo.location.containerId] ?? holder;
   } else if (cargo.location.type === "cold-storage" || cargo.location.type === "crate") {
     holder = state.world.structures[cargo.location.containerId] ?? holder;
   }
@@ -177,6 +180,7 @@ export function calculateFreshnessLoss(
 }
 
 export function getFreshnessPriceMultiplier(freshness: number): number {
+  if (freshness > 0 && freshness < 1) return 0.3;
   for (const bracket of FRESHNESS_PRICE_BRACKETS) {
     if (freshness >= bracket.atOrAbove) return bracket.multiplier;
   }

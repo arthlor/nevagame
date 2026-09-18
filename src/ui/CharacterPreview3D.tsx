@@ -14,6 +14,7 @@ export interface CharacterPreview3DProps {
   loadout: CharacterVisualLoadout;
   selectedSlot: EquipmentSlot | "rod" | null;
   descriptionId: string;
+  onRotateStart?: () => void;
 }
 
 function toolKeyForSlot(slot: CharacterPreview3DProps["selectedSlot"]): CharacterToolKey | null {
@@ -27,12 +28,15 @@ function toolKeyForSlot(slot: CharacterPreview3DProps["selectedSlot"]): Characte
 export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
   loadout,
   selectedSlot,
-  descriptionId
+  descriptionId,
+  onRotateStart
 }) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const assemblerRef = useRef<CharacterEquipmentAssembler | null>(null);
   const loadoutRef = useRef(loadout);
   const selectedSlotRef = useRef(selectedSlot);
+  const onRotateStartRef = useRef(onRotateStart);
+  onRotateStartRef.current = onRotateStart;
   const [rendererFallback, setRendererFallback] = useState<string | null>(null);
   const [characterFallback, setCharacterFallback] = useState<string | null>(null);
   const [equipmentFallback, setEquipmentFallback] = useState<string | null>(null);
@@ -155,12 +159,60 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
       if (!disposed) setCharacterFallback("3D preview unavailable. The text comparison remains accurate.");
     });
 
+    let isDragging = false;
+    let startPointerX = 0;
+    let targetAngle = -0.34;
+    let currentAngle = -0.34;
+    let lastInteractTime = 0;
+
+    const onPointerDown = (event: PointerEvent): void => {
+      isDragging = true;
+      startPointerX = event.clientX;
+      try {
+        canvas.setPointerCapture(event.pointerId);
+      } catch {}
+      canvas.style.cursor = "grabbing";
+      lastInteractTime = performance.now();
+      onRotateStartRef.current?.();
+    };
+
+    const onPointerMove = (event: PointerEvent): void => {
+      if (!isDragging) return;
+      const dx = event.clientX - startPointerX;
+      startPointerX = event.clientX;
+      targetAngle += dx * 0.016;
+      lastInteractTime = performance.now();
+    };
+
+    const onPointerUp = (event: PointerEvent): void => {
+      if (!isDragging) return;
+      isDragging = false;
+      try {
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      } catch {}
+      canvas.style.cursor = "grab";
+    };
+
+    canvas.style.cursor = "grab";
+    canvas.style.touchAction = "none";
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", onPointerUp);
+    canvas.addEventListener("pointercancel", onPointerUp);
+
     const animate = (): void => {
       if (disposed) return;
       const delta = Math.min(0.05, clock.getDelta());
       mixer?.update(delta);
-      if (model && !reducedMotion.matches) {
-        model.rotation.y = -0.34 + Math.sin(clock.elapsedTime * 0.45) * 0.12;
+      if (model) {
+        currentAngle += (targetAngle - currentAngle) * Math.min(1, delta * 14);
+        const timeSinceInteract = (performance.now() - lastInteractTime) / 1000;
+        const idleSway = (!reducedMotion.matches && timeSinceInteract > 2.5)
+          ? Math.sin(clock.elapsedTime * 0.45) * 0.08
+          : 0;
+        model.rotation.y = currentAngle + idleSway;
       }
       renderer.render(scene, camera);
       frame = requestAnimationFrame(animate);
@@ -173,6 +225,10 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
       observer.disconnect();
       canvas.removeEventListener("webglcontextlost", contextLost);
       canvas.removeEventListener("webglcontextrestored", contextRestored);
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerUp);
       assembler?.dispose();
       assemblerRef.current = null;
       mixer?.stopAllAction();

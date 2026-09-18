@@ -282,6 +282,8 @@ export class Simulation {
         return this.discardFishCargo(command.cargoId, command.marketId);
       case "cargo.release":
         return this.releaseFishCargo(command.cargoId, command.marketId);
+      case "cargo.load-carriage":
+        return this.cargoDomain.loadCarriage(command.mountId);
       case "cargo.pickup":
         return this.pickupFishCargo(command.cargoId);
       case "market.sell-item":

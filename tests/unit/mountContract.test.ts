@@ -101,7 +101,11 @@ describe("starter donkey asset and placement contract", () => {
 
     expect(donkeyClips.get("walk")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.walkSpeedMetersPerSecond);
     expect(donkeyClips.get("trot")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.trotSpeedMetersPerSecond);
-    expect(donkeyClips.get("gallop")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.gallopSpeedMetersPerSecond);
+    // Gallop retuned 8.4 → 7.5 m/s ahead of the Blender rebake (authorized
+    // interim): the baked 8.4 m/s cadence stands until fauna_donkey_a is
+    // regenerated, so playback runs at ~0.89x with feet planted.
+    expect(donkeyClips.get("gallop")?.referenceSpeedMetersPerSecond).toBe(8.4);
+    expect(MOUNT_TUNING.gallopSpeedMetersPerSecond / donkeyClips.get("gallop")!.referenceSpeedMetersPerSecond!).toBeCloseTo(7.5 / 8.4, 8);
     const playerAsset = await loadHumanoidAsset(ASSET_IDS.CHAR_PLAYER_A);
     const sourceClips = playerAsset.userData.animationClips as Array<{ name: string; duration: number }>;
     for (const name of ["walk", "run"]) {
@@ -111,7 +115,9 @@ describe("starter donkey asset and placement contract", () => {
     }
     expect(playerClips.get("mounted_walk")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.walkSpeedMetersPerSecond);
     expect(playerClips.get("mounted_trot")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.trotSpeedMetersPerSecond);
-    expect(playerClips.get("mounted_gallop")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.gallopSpeedMetersPerSecond);
+    // Same interim as the donkey gallop above: char_player_a is regenerated in
+    // the same pass.
+    expect(playerClips.get("mounted_gallop")?.referenceSpeedMetersPerSecond).toBe(8.4);
     expect(playerClips.get("mounted_walk")?.durationSeconds).toBe(donkeyClips.get("walk")?.durationSeconds);
     expect(playerClips.get("mounted_trot")?.durationSeconds).toBe(donkeyClips.get("trot")?.durationSeconds);
     expect(playerClips.get("mounted_gallop")?.durationSeconds).toBe(donkeyClips.get("gallop")?.durationSeconds);

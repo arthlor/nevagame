@@ -195,6 +195,11 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
           <span className="fishing-tension-zone fishing-tension-zone-danger" />
           <span className="fishing-tension-needle" style={{ left: `${hud.tensionPercent}%` }} />
         </div>
+        <div className="fishing-tension-labels" aria-hidden="true">
+          <span>Slack</span>
+          <span>Safe</span>
+          <span>Danger</span>
+        </div>
       </section>
 
       <section
@@ -229,7 +234,7 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
         </div>
 
         <dl className="fishing-telemetry-grid">
-          <div className="fishing-telemetry-cell">
+          <div className="fishing-telemetry-cell fishing-telemetry-depth">
             <dt>Depth</dt>
             <dd data-testid="fishing-depth">
               {telemetry.waterDepthMeters <= 0
@@ -237,7 +242,7 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
                 : `${telemetry.waterDepthMeters.toFixed(1)} m`}
             </dd>
           </div>
-          <div className="fishing-telemetry-cell">
+          <div className="fishing-telemetry-cell fishing-telemetry-rod">
             <dt>Rod</dt>
             <dd data-testid="fishing-rod-deflection">
               {rodLay === 0 ? "Centred" : `${rodLay > 0 ? "Right" : "Left"} ${Math.abs(rodLay)}%`}

@@ -1,3 +1,4 @@
+import { canReachCarriageRear, CARRIAGE_TUNING } from "../mounts/Carriage";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { advanceCargoFreshness } from "../fishing/calculateFreshness";
 import { InventoryManager } from "../inventory/InventoryManager";
@@ -176,8 +177,20 @@ export class CargoDomain {
     if (state.player.carriedFishCargoId) return { success: false, reason: "Your hands are already full" };
     const cargo = state.fishCargo[cargoId];
     if (!cargo) return { success: false, reason: "Fish cargo not found" };
+    if (cargo.location.type === "carriage") {
+      const mount = state.mounts[cargo.location.containerId];
+      const slot = cargo.location.slotIndex;
+      if (!canReachCarriageRear(state, mount) || typeof slot !== "number" || mount?.fishCargoSlotIds?.[slot] !== cargo.id) {
+        return { success: false, reason: "Stand at the rear of the parked carriage to collect this pack" };
+      }
+      mount.fishCargoSlotIds![slot] = null;
+      state.player.carriedFishCargoId = cargo.id;
+      cargo.location = { type: "player", containerId: "player" };
+      events.emit("CargoUnloaded", { cargoId: cargo.id, minute: state.clock.currentMinute });
+      return { success: true };
+    }
     if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") {
-      return { success: false, reason: "This fish is not in a boat hold" };
+      return { success: false, reason: "This fish is not in a transport" };
     }
     const slotIndex = cargo.location.slotIndex;
     const boat = state.boats[cargo.location.containerId];
@@ -202,7 +215,13 @@ export class CargoDomain {
     const { state } = this.context;
     if (state.player.activeMountId || state.player.carriedFishCargoId) return false;
     const cargo = state.fishCargo[cargoId];
-    if (!cargo || (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook")) return false;
+    if (!cargo) return false;
+    if (cargo.location.type === "carriage") {
+      const mount = state.mounts[cargo.location.containerId];
+      return canReachCarriageRear(state, mount) && typeof cargo.location.slotIndex === "number"
+        && mount?.fishCargoSlotIds?.[cargo.location.slotIndex] === cargo.id;
+    }
+    if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return false;
     const slotIndex = cargo.location.slotIndex;
     const boat = state.boats[cargo.location.containerId];
     return Boolean(
@@ -211,6 +230,22 @@ export class CargoDomain {
       boat.fishCargoSlotIds[slotIndex] === cargo.id &&
       this.navigation.canAccessBoatStores(boat.id)
     );
+  }
+
+  public loadCarriage(mountId: string): { success: boolean; reason?: string } {
+    const { state } = this.context;
+    const mount = state.mounts[mountId];
+    if (!canReachCarriageRear(state, mount)) return { success: false, reason: "Stand at the rear of the parked carriage to load it" };
+    const id = state.player.carriedFishCargoId;
+    const cargo = id ? state.fishCargo[id] : undefined;
+    if (!cargo || cargo.location.type !== "player" || cargo.location.containerId !== "player") return { success: false, reason: "Carry a trade pack to the carriage first" };
+    if (!cargoClassFits(cargo.cargoClass, CARRIAGE_TUNING.maximumCargoClass)) return { success: false, reason: "This pack is too large for the carriage" };
+    const slot = mount.fishCargoSlotIds?.findIndex(id => id === null) ?? -1;
+    if (slot < 0) return { success: false, reason: "Both carriage cargo slots are full" };
+    mount.fishCargoSlotIds![slot] = cargo.id;
+    state.player.carriedFishCargoId = null;
+    cargo.location = { type: "carriage", containerId: mount.id, slotIndex: slot };
+    return { success: true };
   }
 
   public tick(minutes: number, startMinute: number = this.context.state.clock.currentMinute - minutes): void {
@@ -225,6 +260,10 @@ export class CargoDomain {
       if (boat && typeof cargo.location.slotIndex === "number") {
         boat.fishCargoSlotIds[cargo.location.slotIndex] = null;
       }
+    }
+    if (cargo.location.type === "carriage" && typeof cargo.location.slotIndex === "number") {
+      const mount = state.mounts[cargo.location.containerId];
+      if (mount?.fishCargoSlotIds?.[cargo.location.slotIndex] === cargo.id) mount.fishCargoSlotIds[cargo.location.slotIndex] = null;
     }
     if (state.player.carriedFishCargoId === cargo.id) state.player.carriedFishCargoId = null;
   }

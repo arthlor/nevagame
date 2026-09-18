@@ -32,6 +32,7 @@ import {
   HARBOR_DOCK,
   HARBOR_PIER_DECK,
   HARBOR_SKIFF_MOORING,
+  VILLAGE_CROSSING,
   VILLAGE_MARKET,
   WORLD_LAYOUT_REVISION
 } from "../../src/world/WorldAnchors";
@@ -77,12 +78,21 @@ interface FootprintBox {
 function rotateYaw(x: number, z: number, yaw: number): { x: number; z: number } {
   const cosine = Math.cos(yaw);
   const sine = Math.sin(yaw);
-  return { x: x * cosine - z * sine, z: x * sine + z * cosine };
+  // Match Three.js' Y-axis rotation: local +Z turns toward world +X for a
+  // positive yaw. CollisionCatalogAdapter projects the same transform.
+  return { x: x * cosine + z * sine, z: -x * sine + z * cosine };
 }
 
 function footprintContainsPoint(box: FootprintBox, x: number, z: number): boolean {
   const local = rotateYaw(x - box.x, z - box.z, -box.yaw);
   return Math.abs(local.x) <= box.halfX && Math.abs(local.z) <= box.halfZ;
+}
+
+function distanceFromFootprint(box: FootprintBox, x: number, z: number): number {
+  const local = rotateYaw(x - box.x, z - box.z, -box.yaw);
+  const dx = Math.max(Math.abs(local.x) - box.halfX, 0);
+  const dz = Math.max(Math.abs(local.z) - box.halfZ, 0);
+  return Math.hypot(dx, dz);
 }
 
 function footprintCorners(box: FootprintBox): Array<{ x: number; z: number }> {
@@ -167,14 +177,16 @@ describe("WorldLayout", () => {
     expect(WorldLayout.nearbyFishingHabitat(50, WorldLayout.coastlineZ(50) - 2)).toBe("coast");
     expect(WorldLayout.nearbyFishingHabitat(72, WorldLayout.coastlineZ(72) - 2)).not.toBe("lake");
     expect(WORLD_BOUNDS).toEqual({ minX: -220, maxX: 200, minZ: -250, maxZ: 130 });
-    expect(SAILABLE_BOUNDS).toEqual({ minX: -270, maxX: 720, minZ: -300, maxZ: 300 });
+    // Ocean-expansion sailable bounds (v42/layout 20): Neva + translated
+    // Sunreach patch + three channel islets. WORLD_BOUNDS stays Neva-only.
+    expect(SAILABLE_BOUNDS).toEqual({ minX: -500, maxX: 1700, minZ: -650, maxZ: 650 });
     expect(WATER_SURFACE).toMatchObject({
-      width: 1150,
-      depth: 750,
-      centerX: 225,
-      centerZ: 20,
-      segmentsX: 221,
-      segmentsZ: 144
+      width: 2400,
+      depth: 1500,
+      centerX: 600,
+      centerZ: 0,
+      segmentsX: 461,
+      segmentsZ: 288
     });
     expect(WorldLayout.terrainHeightfield()).toHaveLength((TERRAIN_RESOLUTION + 1) ** 2);
     expect(WorldLayout.terrainBaseHeightfield()).toHaveLength((TERRAIN_RESOLUTION + 1) ** 2);
@@ -632,7 +644,11 @@ describe("WorldLayout", () => {
     expect(causalCount("island.neva", "tree")).toBeGreaterThanOrEqual(180);
     expect(causalCount("island.neva", "bush")).toBe(115);
     expect(causalCount("island.neva", "rock")).toBe(66);
-    expect(causalCount("island.neva", "reed")).toBe(55);
+    // The reed slope/mountain gate only ever lowers reed density, and the
+    // lip-crest box excludes the plunging edge; each retired exactly the
+    // reeds it targets (cliff/high/crest floaters). The remaining reeds keep
+    // their wet, depositional, low-access properties below.
+    expect(causalCount("island.neva", "reed")).toBe(51);
     expect(causalCount("island.sunreach", "tree")).toBe(48);
     expect(causalCount("island.sunreach", "bush")).toBe(62);
     expect(causalCount("island.sunreach", "rock")).toBe(38);
@@ -796,7 +812,12 @@ describe("WorldLayout", () => {
     expect(retainedCoastPebbles.length).toBeLessThanOrEqual(Math.round(GROUND_COVER_DENSITY.high.pebbles * 0.42));
 
     const coastalRocks = authored.filter((placement) => placement.assetId.startsWith("rock_coastal_"));
-    expect(coastalRocks).toHaveLength(3);
+    expect(coastalRocks.map((placement) => placement.id)).toEqual([
+      "authored.rock.headland-a",
+      "authored.rock.headland-b",
+      "authored.rock.western-shelf",
+      "authored.lantern.reef-stone"
+    ]);
     for (const placement of coastalRocks) {
       expect(WorldLayout.terrainNormal(placement.x, placement.z).y).toBeGreaterThan(0.8);
       expect(isPlacementFootprintStable(placement, 0.8, 1.1)).toBe(true);
@@ -898,6 +919,10 @@ describe("WorldLayout", () => {
       for (const point of protectedPoints) {
         expect(footprintContainsPoint(building, point.x, point.z), `${building.id} contains ${point.label}`).toBe(false);
       }
+      expect(
+        distanceFromFootprint(building, VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z),
+        `${building.id} overlaps the village-market interaction ring`
+      ).toBeGreaterThanOrEqual(VILLAGE_MARKET.radiusMeters);
       for (const millBox of millBoxes) {
         expect(footprintsOverlap(building, millBox), `${building.id} overlaps mill collider`).toBe(false);
       }
@@ -922,12 +947,6 @@ describe("WorldLayout", () => {
     const facing = layout.staticPlacements.filter((placement) => facingIds.has(placement.id));
     expect(facing).toHaveLength(facingIds.size);
     for (const placement of facing) {
-      // The compact village rings the market at roughly 10–16 m; the guard only
-      // has to keep dwellings outside the 6 m interaction ring and its margin.
-      expect(Math.hypot(
-        placement.x - VILLAGE_MARKET.position.x,
-        placement.z - VILLAGE_MARKET.position.z
-      )).toBeGreaterThan(9);
       const towardPlazaX = VILLAGE_MARKET.position.x - placement.x;
       const towardPlazaZ = VILLAGE_MARKET.position.z - placement.z;
       const length = Math.hypot(towardPlazaX, towardPlazaZ);
@@ -1032,9 +1051,9 @@ describe("WorldLayout", () => {
       point.x - WORLD_LAYOUT_V5.anchors.bridge.x,
       point.z - WORLD_LAYOUT_V5.anchors.bridge.z
     ) < 0.01)).toBe(true);
-    expect(farmVillage.at(-1)).toEqual(WORLD_LAYOUT_V5.anchors.villageMarket);
+    expect(farmVillage.at(-1)).toEqual({ ...VILLAGE_CROSSING });
     for (const route of routes.slice(1, 4)) {
-      expect(route.points[0]).toEqual(WORLD_LAYOUT_V5.anchors.villageMarket);
+      expect(route.points[0]).toEqual({ ...VILLAGE_CROSSING });
     }
     expect(routes[1].points.at(-1)).toEqual(WORLD_LAYOUT_V5.anchors.privateHomestead);
     expect(routes[2].points.at(-1)).toEqual(WORLD_LAYOUT_V5.anchors.fishMarket);
@@ -1208,7 +1227,11 @@ describe("WorldLayout", () => {
     );
     expect(first).toEqual(repeat);
     expect(differentSeed).not.toEqual(first);
-    expect(first.length).toBe(55);
+    // 55 before the reed gates; the slope/mountain gate retired one steep
+    // reed and the lip-crest box three crest floaters (verified: zero seeded
+    // reeds remain in the crest zone, pool margins untouched). Determinism
+    // and the wet/depositional/low-access properties still hold for all 51.
+    expect(first.length).toBe(51);
     expect(first.some((placement) => WorldLayout.riverBankSample(placement.x, placement.z).side === "left")).toBe(true);
     expect(first.some((placement) => WorldLayout.riverBankSample(placement.x, placement.z).side === "right")).toBe(true);
     expect(first.every((placement) => {

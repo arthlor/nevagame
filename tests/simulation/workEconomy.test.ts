@@ -77,6 +77,100 @@ describe("Work economy — earned labor", () => {
     expect(again.success).toBe(false);
   });
 
+  it("refuses a labor strike started before fishing or mounting, without consuming the station", () => {
+    const station = LABOR_STATIONS["labor.firewood"];
+    const sim = new Simulation();
+    sim.state.player.workCapacity.current = 0;
+    sim.state.player.x = station.position.x;
+    sim.state.player.z = station.position.z;
+
+    expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(true);
+    sim.tick(0.696);
+    sim.state.basicFishing = {
+      ecologyId: "ecology.neva",
+      phase: "waiting",
+      habitatId: "ocean",
+      remainingSeconds: 4,
+      willCatch: true
+    };
+    expect(sim.execute({ type: "labor.strike" }).success).toBe(false);
+    expect(sim.progression.hasWorkedLaborStation(station.id)).toBe(false);
+    sim.state.basicFishing = null;
+
+    expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(true);
+    sim.tick(0.696);
+    sim.state.player.activeBoatId = "boat.player_rowboat";
+    expect(sim.execute({ type: "labor.strike" }).success).toBe(false);
+    expect(sim.progression.hasWorkedLaborStation(station.id)).toBe(false);
+    sim.state.player.activeBoatId = null;
+  });
+
+  it("blocks labor start and an in-progress strike while carrying fish until release", () => {
+    const station = LABOR_STATIONS["labor.firewood"];
+    const sim = new Simulation();
+    sim.state.player.workCapacity.current = 0;
+    sim.state.player.x = station.position.x;
+    sim.state.player.z = station.position.z;
+    const carryFish = () => {
+      sim.state.player.carriedFishCargoId = "cargo.held";
+      sim.state.fishCargo["cargo.held"] = {
+        id: "cargo.held",
+        speciesId: "fish.trout",
+        weightKg: 3,
+        quality: "common",
+        caughtAtMinute: sim.state.clock.currentMinute,
+        freshness: 100,
+        cargoClass: "medium",
+        location: { type: "player", containerId: "player" }
+      };
+    };
+    const refusal = { success: false, reason: "Stow physical fish cargo before working" };
+
+    carryFish();
+    const beforeStart = structuredClone(sim.state);
+    const rngBeforeStart = sim.rng.getState();
+    const hudBeforeStart = sim.query({ type: "labor.get-hud" });
+    expect(sim.execute({ type: "labor.start", stationId: station.id })).toEqual(refusal);
+    expect(sim.state).toEqual(beforeStart);
+    expect(sim.rng.getState()).toBe(rngBeforeStart);
+    expect(sim.query({ type: "labor.get-hud" })).toEqual(hudBeforeStart);
+
+    expect(sim.execute({ type: "cargo.release", cargoId: "cargo.held" }).success).toBe(true);
+    expect(sim.state.player.carriedFishCargoId).toBeNull();
+    expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(true);
+    sim.tick(0.696);
+    carryFish();
+    const beforeStrike = structuredClone(sim.state);
+    const rngBeforeStrike = sim.rng.getState();
+    const hudBeforeStrike = sim.query({ type: "labor.get-hud" });
+    expect(sim.execute({ type: "labor.strike" })).toEqual(refusal);
+    expect(sim.state).toEqual(beforeStrike);
+    expect(sim.rng.getState()).toBe(rngBeforeStrike);
+    expect(sim.query({ type: "labor.get-hud" })).toEqual(hudBeforeStrike);
+    expect(sim.progression.hasWorkedLaborStation(station.id)).toBe(false);
+
+    expect(sim.execute({ type: "cargo.release", cargoId: "cargo.held" }).success).toBe(true);
+    expect(sim.state.player.carriedFishCargoId).toBeNull();
+    expect(sim.execute({ type: "labor.strike" })).toEqual({ success: true, yield: station.yield });
+    expect(sim.state.player.workCapacity.current).toBe(station.yield);
+    expect(sim.progression.hasWorkedLaborStation(station.id)).toBe(true);
+  });
+
+  it("refuses a strike that cannot fit the full grant, without consuming the station", () => {
+    const station = LABOR_STATIONS["labor.firewood"];
+    const sim = new Simulation();
+    sim.state.player.workCapacity.current = 0;
+    sim.state.player.x = station.position.x;
+    sim.state.player.z = station.position.z;
+    expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(true);
+    sim.tick(0.696);
+    // Shrink pool room below the full grant after the shift started.
+    sim.state.player.workCapacity.current = sim.state.player.workCapacity.maximum - 10;
+    expect(sim.execute({ type: "labor.strike" }).success).toBe(false);
+    expect(sim.progression.hasWorkedLaborStation(station.id)).toBe(false);
+    expect(sim.state.player.workCapacity.current).toBe(sim.state.player.workCapacity.maximum - 10);
+  });
+
   it("requires proximity before a labor shift can start", () => {
     const station = LABOR_STATIONS["labor.nets"];
     const sim = new Simulation();

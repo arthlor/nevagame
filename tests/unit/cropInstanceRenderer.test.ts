@@ -337,4 +337,66 @@ describe("CropInstanceRenderer 3D furrow mounds and visual changes", () => {
 
     renderer.dispose();
   });
+
+  it("dequantizes meshopt quantized position attributes into Float32 so positions exceeding 1.0m do not overflow Int16", async () => {
+    const source = new THREE.Group();
+    // Simulate a meshopt quantized Int16 normalized position attribute with parent transform placing vertices at y > 1.0
+    const geom = new THREE.BufferGeometry();
+    const rawPositions = new Int16Array([
+      0, 0, 0,
+      0, Math.round(0.5 * 32767), 0,
+      0, Math.round(0.8 * 32767), 0
+    ]);
+    geom.setAttribute("position", new THREE.BufferAttribute(rawPositions, 3, true));
+    const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: 0xd79a3a }));
+    // Position the mesh at Y = 0.5, so the top vertex reaches Y = 0.5 + 0.8 = 1.3m (exceeding 1.0m)
+    mesh.position.set(0, 0.5, 0);
+    source.add(mesh);
+    const loadModel = vi.spyOn(AssetLoader, "loadModel").mockResolvedValue(source);
+
+    try {
+      const renderer = new CropInstanceRenderer();
+      const state = new Simulation().getState() as unknown as MutableGameState;
+      const crop: PlacedCropState = {
+        id: "crop_dequantize_check",
+        farmId: "farm.starter_garden",
+        cropId: "crop.wheat",
+        stage: "mature",
+        x: 3,
+        z: 3,
+        rotationRadians: 0,
+        effectiveGrowthMinutes: 180,
+        plantedAtMinute: 0,
+        lastUpdatedMinute: 180,
+        moisture: 70,
+        health: 100,
+        averageMoistureAccum: 70,
+        moistureSampleCount: 1
+      };
+      state.crops = { [crop.id]: crop };
+      state.farms["farm.starter_garden"].placedCropIds = [crop.id];
+
+      await renderer.ensureAssets(state);
+      renderer.sync(state, 1.0);
+
+      const batch = renderer.group.getObjectByName(`${ASSET_IDS.CROP_WHEAT_MATURE}_instances`) as THREE.InstancedMesh;
+      expect(batch).toBeDefined();
+
+      const positions = batch.geometry.attributes.position;
+      expect(positions.array).toBeInstanceOf(Float32Array);
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (let i = 0; i < positions.count; i++) {
+        const y = positions.getY(i);
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+      expect(minY).toBeCloseTo(0.5, 2);
+      expect(maxY).toBeCloseTo(1.3, 2);
+
+      renderer.dispose();
+    } finally {
+      loadModel.mockRestore();
+    }
+  });
 });

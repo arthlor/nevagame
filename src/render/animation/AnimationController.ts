@@ -73,6 +73,7 @@ export interface BoatAnimationInput {
 
 export interface CharacterAnimationContext {
   mode: GameMode;
+  carriageDriver?: boolean;
   motion: PlayerMotionSample;
   /** Fraction of frame time consumed by movement; only distance-driven gaits use it. */
   locomotionTimeScale?: number;
@@ -768,6 +769,7 @@ export class HumanoidAnimator {
 
   private desiredLayers(context: CharacterAnimationContext): DesiredLayers {
     const { mode, motion, carrying, fishingInput, boatInput } = context;
+    if (context.carriageDriver) return { base: "rowboat_idle", upper: null };
     if (this.isAirborneForClip(motion) && (mode === "on-foot" || mode === "farm-placement")) {
       if (motion.airbornePhase === "rising") {
         return { base: "jump_start", upper: null };

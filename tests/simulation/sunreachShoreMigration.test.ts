@@ -4,6 +4,7 @@ import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
 import { clearReach } from "../../src/persistence/terrainMigrationSupport";
+import { STARTER_CARRIAGE_ID } from "../../src/simulation/mounts/Carriage";
 import { playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
 import { FishingEncounter } from "../../src/simulation/fishing/FishingEncounter";
 import { SeededRng } from "../../src/simulation/core/Rng";
@@ -46,7 +47,9 @@ describe("Sunreach continuous shore migration (v39 / layout17)", () => {
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(validateSaveEnvelope(after)).toBe(true);
     expect({ ...after.state.player, workCapacity: before.state.player.workCapacity }).toEqual(before.state.player);
-    expect(after.state.mounts).toEqual(before.state.mounts);
+    // v46 adds the inherited horse carriage; the donkey itself must be untouched.
+    expect(after.state.mounts["mount.donkey_starter"]).toEqual(before.state.mounts["mount.donkey_starter"]);
+    expect(after.state.mounts[STARTER_CARRIAGE_ID].fishCargoSlotIds).toEqual([null, null]);
     expect(migrateSaveData(after)).toEqual(after);
     preserveResources(after, before);
   });

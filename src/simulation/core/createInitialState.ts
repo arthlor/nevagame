@@ -1,3 +1,4 @@
+import { createStarterCarriageState } from "../mounts/Carriage";
 // src/simulation/core/createInitialState.ts
 
 import { CURRENT_SCHEMA_VERSION } from "../../persistence/SaveSchema";
@@ -200,7 +201,8 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
     sportFishing: null,
     boats: initialBoats,
     mounts: {
-      [starterDonkey.id]: starterDonkey
+      [starterDonkey.id]: starterDonkey,
+      [createStarterCarriageState().id]: createStarterCarriageState()
     },
     fishCargo: {},
     weather: initialWeather(worldSeed),

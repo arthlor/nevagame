@@ -27,7 +27,9 @@ describe("mountain river water", () => {
 
   it("tilts surface normals downhill with the actual raised water surface", () => {
     const step = 0.01;
-    for (const z of [-146, -143, -139, -132, -130, -126, -122, -120, -118]) {
+    // Graded run stations only: the lip crest, the pool shelf and the sea-level
+    // handoff are deliberate level surfaces (asserted separately below).
+    for (const z of [-146, -143, -139, -135.3, -121, -118]) {
       const x = WorldLayout.riverCenterX(z);
       const normal = waterNormal(x, z, 9);
       const dx = (waterHeight(x + step, z, 9) - waterHeight(x - step, z, 9)) / (2 * step);
@@ -37,6 +39,20 @@ describe("mountain river water", () => {
       expect(normal.length()).toBeCloseTo(1, 8);
       expect(normal.z).toBeGreaterThan(0.2);
     }
+  });
+
+  it("keeps the authored pool shelf level between the fall landing and the outlet", () => {
+    const fall = NEVA_HEADWATERS.fall;
+    for (const z of [-128, -126, -124]) {
+      const x = WorldLayout.riverCenterX(z);
+      const normal = waterNormal(x, z, 9);
+      expect(normal.z, `pool tilt at ${z}`).toBeLessThan(0.05);
+      expect(WorldLayout.waterSurfaceElevation(x, z)).toBeLessThanOrEqual(fall.landingElevation);
+      expect(WorldLayout.waterSurfaceElevation(x, z)).toBeGreaterThan(0);
+    }
+    // The fall face itself is the only steep segment in the upper reach.
+    expect(headwaterElevationAt(fall.lipZ)).toBe(fall.lipElevation);
+    expect(headwaterElevationAt(fall.landingZ)).toBe(fall.landingElevation);
   });
 
   it("ends the river flow field at the finite spring cap", () => {

@@ -1,5 +1,6 @@
-import { OCEAN_ISLETS, oceanIsletAt, isletShoreDistance, isletTerrainHeight } from "./OceanIslets";
+import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS, oceanIsletAt, isletShoreDistance, isletTerrainHeight } from "./OceanIslets";
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
+import { isInsideLoop } from "./WorldGeometry";
 import { surfaceFieldAttributeSteps } from "../render/materials/SurfaceFieldAttributes";
 import { runSync, runCooperatively } from "../utils/CooperativeTask";
 import * as THREE from "three";
@@ -45,8 +46,10 @@ import {
 } from "../render/materials/SurfaceFieldAttributes";
 import {
   FISHING_ECOLOGY_DEFINITIONS,
+  NEVA_COAST_LOOP,
   OPEN_CHANNEL_REQUIREMENT,
   SUNREACH_ANCHORS,
+  SUNREACH_COAST_LOOP,
   WORLD_ISLAND_DEFINITIONS,
   worldIslandDefinitions,
   signedDistanceToNevaCoast,
@@ -62,6 +65,13 @@ import {
   type WorldRegionId,
   type WorldTerrainPatchDefinition
 } from "./WorldIslands";
+import {
+  type ShoreProjection,
+  type ShoreKind,
+  type WorldVec2,
+  type ShoreTreatmentProfile,
+  SHORE_TREATMENT_TABLE
+} from "./WorldGeographyTypes";
 import {
   signedDistanceToSunreachCoast,
   SUNREACH_ROUTES,
@@ -140,6 +150,15 @@ export interface TraversalSurfaceSample {
   normal: Readonly<{ x: number; y: number; z: number }>;
   source: TraversalSurfaceSource;
 }
+
+export type {
+  ShoreProjection,
+  ShoreKind,
+  WorldVec2,
+  ShoreTreatmentProfile
+};
+
+export { SHORE_TREATMENT_TABLE };
 
 export interface CoastProfile {
   beach: number;
@@ -962,7 +981,7 @@ export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
     mountainSpring: NEVA_FOOTHILL_TRAILS[0].points.at(-1)!,
     westernOverlook: NEVA_FOOTHILL_TRAILS[1].points.at(-1)!,
     westernBeach: NEVA_FOOTHILL_TRAILS[2].points.at(-1)!,
-    northernBluff: NEVA_FOOTHILL_TRAILS[3].points.at(-1)!
+    northernBluff: NEVA_FOOTHILL_TRAILS[3].points.at(-1)!,
   },
   coast: COAST_SPLINE,
   river: [NEVA_HEADWATERS.source, ...RIVER_SPLINE.slice(1)],
@@ -1695,20 +1714,34 @@ export class WorldLayout {
       : 1 - smoothstep(25, 39, -mouthDistance);
     const headwaterBlend = 1 - smoothstep(-136, NEVA_HEADWATERS.endZ, z);
     const surfaceElevation = z < NEVA_HEADWATERS.endZ ? headwaterElevationAt(z) : 0;
+    // W08 plunge basin: the pool shelf widens and deepens at the fall landing
+    // and relaxes back toward the outflow. Authored in `NEVA_HEADWATERS.pool`.
+    // The depth relaxes asymmetrically: fast into the landing rapids upstream,
+    // sustained as a spillway to the handoff downstream. A symmetric bump
+    // leaves a shallow sill across the pool mouth that reads as a pale
+    // rectangle in depth color; widths and banks keep the symmetric footprint.
+    const pool = NEVA_HEADWATERS.pool;
+    const poolInfluence = 1 - smoothstep(0, pool.halfLengthMeters, Math.abs(z - pool.centerZ));
+    const poolDepthInfluence = z <= pool.centerZ
+      ? 1 - smoothstep(0, pool.halfLengthMeters, pool.centerZ - z)
+      : 1 - smoothstep(pool.centerZ, NEVA_HEADWATERS.endZ, z);
     return {
       z,
       centerX,
       tangent: { x: dx / tangentLength, z: 1 / tangentLength },
       curvature,
-      leftWaterWidth: THREE.MathUtils.lerp(leftWaterWidth, NEVA_HEADWATERS.sourceRadiusMeters, headwaterBlend),
-      rightWaterWidth: THREE.MathUtils.lerp(rightWaterWidth, NEVA_HEADWATERS.sourceRadiusMeters, headwaterBlend),
+      leftWaterWidth: THREE.MathUtils.lerp(leftWaterWidth, NEVA_HEADWATERS.sourceRadiusMeters, headwaterBlend)
+        + pool.widenMeters * poolInfluence,
+      rightWaterWidth: THREE.MathUtils.lerp(rightWaterWidth, NEVA_HEADWATERS.sourceRadiusMeters, headwaterBlend)
+        + pool.widenMeters * poolInfluence,
       surfaceElevation,
-      bedElevation: surfaceElevation + THREE.MathUtils.lerp(bedElevation, -0.75, headwaterBlend),
+      bedElevation: surfaceElevation + THREE.MathUtils.lerp(bedElevation, -0.75, headwaterBlend)
+        - pool.depthMeters * poolDepthInfluence,
       thalwegOffset: THREE.MathUtils.lerp(bendThalwegOffset, 0, bridgeLock),
-      leftBankRun: THREE.MathUtils.lerp(leftBankRun, 5, headwaterBlend),
-      rightBankRun: THREE.MathUtils.lerp(rightBankRun, 4, headwaterBlend),
-      leftFloodplainWidth: THREE.MathUtils.lerp(leftFloodplainWidth, 8, headwaterBlend),
-      rightFloodplainWidth: THREE.MathUtils.lerp(rightFloodplainWidth, 6, headwaterBlend),
+      leftBankRun: THREE.MathUtils.lerp(leftBankRun, 5, headwaterBlend) + poolInfluence * 0.9,
+      rightBankRun: THREE.MathUtils.lerp(rightBankRun, 4, headwaterBlend) + poolInfluence * 0.9,
+      leftFloodplainWidth: THREE.MathUtils.lerp(leftFloodplainWidth, 8, headwaterBlend) + poolInfluence * 1.4,
+      rightFloodplainWidth: THREE.MathUtils.lerp(rightFloodplainWidth, 6, headwaterBlend) + poolInfluence * 1.4,
       leftErosion: THREE.MathUtils.lerp(0.16 + leftOutside * 0.84, 0.18, bridgeLock),
       rightErosion: THREE.MathUtils.lerp(0.16 + rightOutside * 0.84, 0.18, bridgeLock),
       leftDeposition: THREE.MathUtils.lerp(0.18 + rightOutside * 0.82, 0.2, bridgeLock),
@@ -1916,6 +1949,178 @@ export class WorldLayout {
     return isInHeadwaterBounds(x, z) ? headwaterElevationAt(z) : 0;
   }
 
+  private static projectPointToCoastLoop(
+    x: number,
+    z: number,
+    loop: readonly Readonly<{ x: number; z: number }>[]
+  ): {
+    dist: number;
+    segIndex: number;
+    point: WorldVec2;
+    tangent: WorldVec2;
+    normal: WorldVec2;
+  } {
+    let bestDist = Number.POSITIVE_INFINITY;
+    let bestSegIndex = 0;
+    let bestQ: WorldVec2 = { x: loop[0].x, z: loop[0].z };
+    let bestTangent: WorldVec2 = { x: 1, z: 0 };
+
+    for (let i = 0; i < loop.length; i++) {
+      const a = loop[i];
+      const b = loop[(i + 1) % loop.length];
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const lenSq = dx * dx + dz * dz;
+      const t = lenSq > 0.000001
+        ? Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / lenSq))
+        : 0;
+      const qx = a.x + t * dx;
+      const qz = a.z + t * dz;
+      const d = Math.hypot(x - qx, z - qz);
+      if (d < bestDist) {
+        bestDist = d;
+        bestSegIndex = i;
+        bestQ = { x: qx, z: qz };
+        const len = Math.max(0.0001, Math.hypot(dx, dz));
+        bestTangent = { x: dx / len, z: dz / len };
+      }
+    }
+
+    let nx = -bestTangent.z;
+    let nz = bestTangent.x;
+    const probeDist = 0.2;
+    const probeInside = isInsideLoop(bestQ.x + probeDist * nx, bestQ.z + probeDist * nz, loop);
+    if (probeInside) {
+      nx = -nx;
+      nz = -nz;
+    }
+
+    return {
+      dist: bestDist,
+      segIndex: bestSegIndex,
+      point: bestQ,
+      tangent: bestTangent,
+      normal: { x: nx, z: nz }
+    };
+  }
+
+  /** Coherent projection of a world position onto the nearest authoritative shoreline (W03). */
+  public static shoreProjectionAt(x: number, z: number): ShoreProjection {
+    const nevaProj = this.projectPointToCoastLoop(x, z, NEVA_COAST_LOOP);
+    const sunreachProj = this.projectPointToCoastLoop(x, z, SUNREACH_COAST_LOOP);
+
+    let bestProj = nevaProj;
+    let bestIslandId: WorldIslandId = "island.neva";
+    let bestInside = isInsideLoop(x, z, NEVA_COAST_LOOP);
+
+    if (sunreachProj.dist < bestProj.dist) {
+      bestProj = sunreachProj;
+      bestIslandId = "island.sunreach";
+      bestInside = isInsideLoop(x, z, SUNREACH_COAST_LOOP);
+    }
+
+    for (const islet of OCEAN_ISLETS) {
+      const isletDef = OCEAN_ISLAND_DEFINITIONS[islet.id];
+      if (isletDef && isletDef.coastLoop) {
+        const isletProj = this.projectPointToCoastLoop(x, z, isletDef.coastLoop);
+        if (isletProj.dist < bestProj.dist) {
+          bestProj = isletProj;
+          bestIslandId = islet.id;
+          bestInside = isInsideLoop(x, z, isletDef.coastLoop);
+        }
+      }
+    }
+
+    const waterSampleX = bestProj.point.x + bestProj.normal.x * 1.5;
+    const waterSampleZ = bestProj.point.z + bestProj.normal.z * 1.5;
+    const marine = this.marineSampleAt(waterSampleX, waterSampleZ);
+    const boundaryX = bestProj.point.x;
+    const boundaryZ = bestProj.point.z;
+    let shoreKind: ShoreKind;
+    if (marine.coveShelter > 0.4 || harborCoastInfluence(boundaryX, boundaryZ) > 0.1) {
+      shoreKind = "sheltered";
+    } else if (bestIslandId === "island.neva") {
+      if (boundaryZ < -180) {
+        // Northern sea cliffs behind the mountain summits
+        shoreKind = "cliff";
+      } else if (boundaryX > 150 && boundaryZ < 20) {
+        // Eastern bluffs and rock shelves facing open channel
+        shoreKind = "rock-shelf";
+      } else {
+        const coast = this.coastProfile(boundaryX);
+        if (coast.cliff > 0.45 && coast.cliff > coast.rockShelf && coast.cliff > coast.beach) {
+          shoreKind = "cliff";
+        } else if (coast.rockShelf > 0.35 && coast.rockShelf > coast.beach) {
+          shoreKind = "rock-shelf";
+        } else {
+          shoreKind = "sand";
+        }
+      }
+    } else if (bestIslandId === "island.sunreach") {
+      if (marine.reefInfluence > 0.25) {
+        shoreKind = "rock-shelf";
+      } else {
+        shoreKind = "sand";
+      }
+    } else {
+      if (marine.openWaterExposure > 0.6) {
+        shoreKind = "rock-shelf";
+      } else {
+        shoreKind = "sand";
+      }
+    }
+
+    return {
+      islandId: bestIslandId,
+      segmentId: `${bestIslandId}.seg_${bestProj.segIndex}`,
+      boundaryPointXZ: bestProj.point,
+      tangentXZ: bestProj.tangent,
+      waterwardNormalXZ: bestProj.normal,
+      signedDistanceMeters: bestInside ? -bestProj.dist : bestProj.dist,
+      distanceIsMetric: true,
+      shoreKind,
+      exposure: marine.openWaterExposure,
+      shelter: marine.coveShelter
+    };
+  }
+
+  /** Coastal contact strength baked into the shared depth/optics map (W04). */
+  public static coastalContactWeightAt(x: number, z: number): number {
+    const harbor = harborCoastInfluence(x, z);
+    if (harbor > 0.001) {
+      return harbor;
+    }
+
+    const coastline = this.coastlineZ(x);
+    const inRiverSpan = z >= NEVA_HEADWATERS.source.z - NEVA_HEADWATERS.sourceRadiusMeters
+      && z <= RIVER_MOUTH.z + 1.5;
+    if (inRiverSpan && z <= coastline + 1.0) {
+      const riverDist = this.riverWaterSignedDistance(x, z);
+      if (riverDist > -5) {
+        return 0;
+      }
+    }
+
+    const shore = this.shoreProjectionAt(x, z);
+    const treatment = SHORE_TREATMENT_TABLE[shore.shoreKind];
+    const onWaterSide = shore.signedDistanceMeters >= 0;
+    const reach = onWaterSide ? treatment.waterReachMeters : treatment.landReachMeters;
+    const distance = Math.abs(shore.signedDistanceMeters);
+    if (distance >= reach) {
+      return 0;
+    }
+
+    const reachFade = 1 - smoothstep(reach * 0.45, reach, distance);
+    const strength = onWaterSide
+      ? treatment.waterContactStrength
+      : treatment.landContactStrength;
+    const exposureMod = 0.72 + shore.exposure * 0.28;
+    const shelterMod = 1 - shore.shelter * 0.12;
+    const weight = strength * exposureMod * shelterMod * reachFade;
+
+    return Math.max(0, Math.min(1, weight));
+  }
+
   public static isBridgeDeck(x: number, z: number): boolean {
     return (
       Math.abs(x - BRIDGE_CENTER.x) <= BRIDGE_HALF_SPAN + 0.000001 &&
@@ -2052,6 +2257,100 @@ export class WorldLayout {
     return clamp01(clearance);
   }
 
+  private static coastalCastSegmentIsClear(
+    startX: number,
+    startZ: number,
+    targetX: number,
+    targetZ: number
+  ): boolean {
+    const distance = Math.hypot(targetX - startX, targetZ - startZ);
+    if (distance <= 0.0001) return false;
+    const startGround = this.traversalSurfaceHeight(startX, startZ);
+    const steps = Math.max(2, Math.ceil(distance / 0.4));
+    let enteredWater = false;
+
+    for (let step = 1; step <= steps; step += 1) {
+      const amount = step / steps;
+      const sampleX = THREE.MathUtils.lerp(startX, targetX, amount);
+      const sampleZ = THREE.MathUtils.lerp(startZ, targetZ, amount);
+      if (this.isWater(sampleX, sampleZ)) {
+        enteredWater = true;
+        continue;
+      }
+
+      // Once the cast line enters water, an intervening dry tongue or structure
+      // means the selected target is not the adjacent reachable water.
+      if (enteredWater) return false;
+      const shelter = this.rainShelterHit(sampleX, sampleZ);
+      if (shelter && shelter.height > startGround + 0.45) return false;
+      if (this.traversalSurfaceHeight(sampleX, sampleZ) > startGround + 1.2) return false;
+    }
+
+    return enteredWater;
+  }
+
+  private static coastalFishingAccessAt(
+    x: number,
+    z: number,
+    reachMeters: number
+  ): FishingAccessSample | null {
+    const reach = Number.isFinite(reachMeters) ? Math.max(0, reachMeters) : 4.5;
+    const shore = this.shoreProjectionAt(x, z);
+    const boundaryDistance = Math.abs(shore.signedDistanceMeters);
+    if (shore.signedDistanceMeters > 0.05 || boundaryDistance >= reach) return null;
+
+    const supportedFooting = this.isWalkable(x, z)
+      && this.terrainNormalY(x, z) >= 0.7
+      && shore.shoreKind !== "cliff";
+    if (!supportedFooting) {
+      return {
+        habitat: null,
+        accessible: false,
+        target: null,
+        distanceMeters: boundaryDistance,
+        side: null,
+        reason: "blocked"
+      };
+    }
+
+    // The coast-loop distance is exact, but the public wet field deliberately
+    // preserves authored harbor/estuary unions. Search a bounded distance along
+    // the validated waterward normal and accept only the live water/habitat.
+    const minimumWaterOffset = 0.35;
+    const maximumWaterOffset = Math.max(0, reach - boundaryDistance);
+    for (
+      let waterOffset = minimumWaterOffset;
+      waterOffset <= maximumWaterOffset + 0.0001;
+      waterOffset += 0.35
+    ) {
+      const target = {
+        x: shore.boundaryPointXZ.x + shore.waterwardNormalXZ.x * waterOffset,
+        z: shore.boundaryPointXZ.z + shore.waterwardNormalXZ.z * waterOffset
+      };
+      const targetDistance = Math.hypot(target.x - x, target.z - z);
+      if (targetDistance > reach + 0.0001 || !this.isWater(target.x, target.z)) continue;
+      if (this.fishingHabitatAt(target.x, target.z) !== "coast") continue;
+      if (!this.coastalCastSegmentIsClear(x, z, target.x, target.z)) continue;
+      return {
+        habitat: "coast",
+        accessible: true,
+        target,
+        distanceMeters: targetDistance,
+        side: null,
+        reason: "coast"
+      };
+    }
+
+    return {
+      habitat: null,
+      accessible: false,
+      target: null,
+      distanceMeters: boundaryDistance,
+      side: null,
+      reason: "blocked"
+    };
+  }
+
   public static fishingAccessAt(x: number, z: number, reachMeters: number = 4.5): FishingAccessSample {
     if (this.isBridgeDeck(x, z)) {
       return {
@@ -2085,38 +2384,6 @@ export class WorldLayout {
       };
     }
 
-    const island = this.islandAt(x, z);
-    const marine = this.marineSampleAt(x, z);
-    if (
-      island === "island.sunreach"
-      && marine.signedShoreDistance <= 0
-      && marine.signedShoreDistance > -reachMeters
-    ) {
-      const epsilon = 0.5;
-      const gradientX = this.marineSampleAt(x + epsilon, z).signedShoreDistance
-        - this.marineSampleAt(x - epsilon, z).signedShoreDistance;
-      const gradientZ = this.marineSampleAt(x, z + epsilon).signedShoreDistance
-        - this.marineSampleAt(x, z - epsilon).signedShoreDistance;
-      const gradientLength = Math.hypot(gradientX, gradientZ);
-      if (gradientLength > 0.0001) {
-        const distance = Math.abs(marine.signedShoreDistance) + 1.2;
-        const target = {
-          x: x + gradientX / gradientLength * distance,
-          z: z + gradientZ / gradientLength * distance
-        };
-        const habitat = this.fishingHabitatAt(target.x, target.z);
-        const accessible = habitat !== null && this.isWalkable(x, z) && this.terrainNormalY(x, z) >= 0.7;
-        return {
-          habitat: accessible ? habitat : null,
-          accessible,
-          target: accessible ? target : null,
-          distanceMeters: Math.abs(marine.signedShoreDistance),
-          side: null,
-          reason: accessible ? "coast" : "blocked"
-        };
-      }
-    }
-
     const bank = this.riverBankSample(x, z);
     const riverEligible = z <= this.coastlineZ(x) + 1.5
       && bank.waterEdgeDistance >= 0
@@ -2147,20 +2414,9 @@ export class WorldLayout {
       };
     }
 
-    const coastDistance = z - this.coastlineZ(x);
-    if (coastDistance > -reachMeters && coastDistance <= 0) {
-      const target = { x, z: this.coastlineZ(x) + Math.min(2, reachMeters) };
-      const habitat = this.fishingHabitatAt(target.x, target.z);
-      const accessible = habitat !== null && this.isWalkable(x, z) && this.terrainNormalY(x, z) >= 0.7;
-      return {
-        habitat: accessible ? habitat : null,
-        accessible,
-        target: accessible ? target : null,
-        distanceMeters: Math.abs(coastDistance),
-        side: null,
-        reason: accessible ? "coast" : "blocked"
-      };
-    }
+    const coastal = this.coastalFishingAccessAt(x, z, reachMeters);
+    if (coastal) return coastal;
+
     return {
       habitat: null,
       accessible: false,
@@ -2448,7 +2704,17 @@ export class WorldLayout {
     const riverDeposition = riverSide === "left" ? riverSection.leftDeposition : riverSection.rightDeposition;
     const thalwegDistance = Math.abs(riverSignedLateral - riverSection.thalwegOffset);
     const riverBed = riverSection.bedElevation
-      - (1 - smoothstep(0.25, Math.max(1.8, riverWidth * 0.48), thalwegDistance)) * 0.24;
+      - (1 - smoothstep(0.25, Math.max(1.8, riverWidth * 0.48), thalwegDistance)) * 0.24
+      // Feather the plunge-basin deepening laterally back toward the channel
+      // bed, so the basin relaxes at its section edges instead of stepping at
+      // the widened box boundary (which reads as a rectangle in depth color).
+      // Zero in the channel (pool influence owns the center depth) and zero
+      // outside the basin's z range; the surface, banks and section contract
+      // are untouched.
+      + NEVA_HEADWATERS.pool.depthMeters
+      * (1 - smoothstep(0, NEVA_HEADWATERS.pool.halfLengthMeters,
+        Math.abs(z - NEVA_HEADWATERS.pool.centerZ)))
+      * smoothstep(riverWidth * 0.45, riverWidth + 1.2, riverDistance);
     const riverBankTop = Math.min(
       height,
       riverSection.surfaceElevation + 0.42 + riverDeposition * 0.32 + smoothstep(-180, 82, z) * 0.2
@@ -3145,11 +3411,18 @@ export class WorldLayout {
       * (1 - Math.max(path, shoulder) * 0.94);
     const springStone = headwaterSpringInfluence(x, z) * 0.82
       * (1 - river.channel) * (1 - Math.max(path, shoulder) * 0.94);
+    // Bare-rock logic: anything this steep is a rock face, coast or not.
+    // The coast and mountain terms above leave inland cliffs (the waterfall
+    // face, gorge walls, quarry-like cuts) classified as grass. A 63°+ face
+    // cannot hold soil in this world any more than it can in the field.
+    const steepRock = (1 - smoothstep(0.45, 0.72, normalY))
+      * (1 - Math.max(path, shoulder) * 0.94);
     const cliff = clamp01(
       coastBand * cliffProp * (0.28 + slopeCliff * 0.92)
       + coastBand * rockShelfProp * slopeCliff * 0.48
       + mountainCliff
       + springStone
+      + steepRock
     ) * (1 - estuary * 0.76);
     const siltShelf = estuary
       * Math.max(river.lowerBank, river.floodplain)
@@ -3173,6 +3446,18 @@ export class WorldLayout {
     const riverbed = waterDistance > 0
       ? 0.82 + estuary * 0.12 + river.channel * 0.04 + river.erosion * 0.02
       : 0;
+    // Plunge-basin bedrock: a scoured basin floor reads as dark rock, not
+    // pale bed. The pale basin shows every heightfield facet through clear
+    // shallow water as hard-edged rectangles; deep rock cures it and is
+    // geologically right (bedrock scour here, gravel runs downstream stay
+    // pale). Lateral variation comes free: margins stay shallow and sandy.
+    const poolBasin = NEVA_HEADWATERS.pool;
+    const basinZone = 1 - smoothstep(poolBasin.halfLengthMeters, poolBasin.halfLengthMeters + 2,
+      Math.abs(z - poolBasin.centerZ));
+    const basinDepth = river.section.surfaceElevation - this.terrainHeight(x, z);
+    const basinRock = waterDistance > 0
+      ? basinZone * smoothstep(0.8, 1.5, basinDepth) * 0.7
+      : 0;
     const remaining = clamp01(1 - Math.max(path, shoulder, drySoil, dampSoil, beach, riverbed, cliff));
     const sandCover = harborSandInfluence(x, z, this.coastlineZ(x));
     const oldWeights = normalizedSurfaceWeights({
@@ -3183,9 +3468,9 @@ export class WorldLayout {
         path,
         shoulder,
         beach,
-        riverbed,
+        riverbed: riverbed * (1 - basinRock),
         wetShoreline: wet * (0.56 + coastProfile.rockShelf * 0.22 + estuary * 0.22),
-        cliff
+        cliff: clamp01(cliff + basinRock * riverbed)
       });
     const coastalWeights = Object.fromEntries(Object.entries(oldWeights).map(([key, value]) =>
       [key, value * (1 - sandCover) + (key === "beach" ? sandCover : 0)]
@@ -3573,7 +3858,12 @@ export class WorldLayout {
       ? patchGeometries[0]
       : mergeGeometries(patchGeometries, false);
     if (!geometry) throw new Error("[WorldLayout] Could not merge terrain-conformed route patches");
-    const nevaUserData = patchGeometries[0].userData;
+    // Gateway slabs only exist on the Neva patch that owns the bridge. Since
+    // the v42 islet patches prepended the island order, patch[0] is no longer
+    // Neva — inherit gateway userData from the Neva patch explicitly.
+    const patchOrder = this.terrainPatches();
+    const nevaPatchIndex = patchOrder.findIndex((patch) => patch.id === "terrain.neva");
+    const nevaUserData = (nevaPatchIndex >= 0 ? patchGeometries[nevaPatchIndex] : patchGeometries[0]).userData;
     const roadTriangleCount = patchGeometries.reduce(
       (total, patchGeometry) => total + (patchGeometry.userData.roadTriangleCount as number),
       0

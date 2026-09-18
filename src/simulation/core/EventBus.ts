@@ -82,8 +82,9 @@ export interface DomainEvents {
   WeatherChanged: { weather: WeatherTag; minute: GameMinute };
   /**
    * The calendar turned over. Emitted once per crossing, from
-   * `applyElapsedGameMinutes`, so a long offline catch-up reports the season
-   * it landed in rather than every season it swept through.
+   * `applyElapsedGameMinutes`, so a long live sweep reports the season it
+   * landed in rather than every season it swept through. Offline catch-up has
+   * no bus yet and reports the turn through the away summary instead.
    */
   SeasonChanged: { season: SeasonId; previousSeason: SeasonId; year: number; minute: GameMinute };
   ProficiencyLeveledUp: { skill: SkillId; newRank: string; totalXp: number; minute: GameMinute };
@@ -120,7 +121,7 @@ export class EventBus {
   public emit<K extends keyof DomainEvents>(event: K, payload: DomainEvents[K]): void {
     const set = this.listeners.get(event);
     if (!set) return;
-    for (const callback of set) {
+    for (const callback of [...set]) {
       try {
         callback(payload);
       } catch (err) {

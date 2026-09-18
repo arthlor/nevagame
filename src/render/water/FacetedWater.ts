@@ -25,6 +25,7 @@ import {
 } from "./waveGlsl";
 import { WATER_SHADING_UNIFORMS_GLSL, WATER_SURFACE_SHADING_GLSL } from "./waterShadingGlsl";
 import { NearWaterPatch } from "./NearWaterPatch";
+import { HeadwaterFall } from "./HeadwaterFall";
 
 export interface WaterOptions {
   width?: number;
@@ -183,11 +184,28 @@ export function createWaterGeometry(
     const boundaries = [refinementStart, refinementEnd, ...elevationKnots.map((knot) => knot.z)]
       .filter((z) => z >= refinementStart && z <= refinementEnd)
       .sort((a, b) => a - b);
-    const spacing = CANONICAL_RENDER_CONFIG.waterSurface.headwaters.maxRowSpacingMeters;
+    const headwaterConfig = CANONICAL_RENDER_CONFIG.waterSurface.headwaters;
+    // The authored fall face drops metres over a few metres of run, so it gets
+    // its own finer rows; everywhere else keeps the band's default spacing.
+    // The transition feathers over 2.5 m either side: an abrupt density step
+    // at the lip/landing lines shades as a visible seam across the water.
+    const fall = NEVA_HEADWATERS.fall;
+    const spacingFor = (start: number, end: number): number => {
+      const mid = (start + end) * 0.5;
+      const distanceToBand = mid < fall.lipZ ? fall.lipZ - mid
+        : mid > fall.landingZ ? mid - fall.landingZ : 0;
+      const feather = THREE.MathUtils.smoothstep(distanceToBand, 0, 2.5);
+      return THREE.MathUtils.lerp(
+        Math.min(headwaterConfig.maxRowSpacingMeters, headwaterConfig.fallRowSpacingMeters),
+        headwaterConfig.maxRowSpacingMeters,
+        feather
+      );
+    };
     rows.push(refinementStart);
     for (let index = 1; index < boundaries.length; index++) {
       const start = boundaries[index - 1];
       const end = boundaries[index];
+      const spacing = spacingFor(start, end);
       const count = Math.max(1, Math.ceil((end - start) / spacing));
       for (let step = 1; step <= count; step++) rows.push(start + (end - start) * step / count);
     }
@@ -226,6 +244,7 @@ export class FacetedWater {
   public readonly coastalUniforms: CoastalUniforms;
   public readonly waterProfileBounds: THREE.Vector4;
   public readonly nearPatch: NearWaterPatch;
+  public readonly headwaterFall: HeadwaterFall;
   private qualityTier: QualityTier = CANONICAL_RENDER_CONFIG.qualityTier;
   private conditions: WaterConditions = {
     seaRoughness: 0.2,
@@ -335,7 +354,12 @@ export class FacetedWater {
         uRapidsFlowSpeed: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsFlowMetersPerSecond },
         uEdgeOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.edgeOpacity },
         uBodyOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.bodyOpacity },
-        uOpacityRampMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.opacityRampMeters }
+        uOpacityRampMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.opacityRampMeters },
+        // Per-surface hull state for the shared contact-energy function.
+        // Projection/near/far/SSR uniforms stay shared via coastalUniforms.
+        uBodyCount: { value: 0 },
+        uBodies: { value: Array.from({ length: 16 }, () => new THREE.Vector4(0, 0, 0, 0)) },
+        uBodyVel: { value: Array.from({ length: 16 }, () => new THREE.Vector2(0, 0)) }
       },
       transparent: true,
       opacity: 0.96,
@@ -379,6 +403,10 @@ export class FacetedWater {
       baseGridSpacing: new THREE.Vector2(width/segmentsX, depth/segmentsZ)
     });
     this.group.add(this.nearPatch.mesh);
+    // The falling sheet shares this material's uniform objects, so one update
+    // path drives the channel, the pool and the fall together.
+    this.headwaterFall = new HeadwaterFall({ sharedUniforms: material.uniforms });
+    this.group.add(this.headwaterFall.group);
     for (const mesh of [...this.meshes, this.nearPatch.mesh]) mesh.renderOrder = -100;
     this.setQuality(this.qualityTier);
   }
@@ -388,6 +416,8 @@ export class FacetedWater {
     const tierConfig = CANONICAL_RENDER_CONFIG.waterSurface.quality[tier];
     const mode = tierConfig.reflection === "flat" ? 0 : tierConfig.reflection === "skyGradient" ? 1 : 2;
     this.mesh.material.uniforms.uReflectionMode.value = mode;
+    // SSR is High-only; Medium/Low keep the analytic sky reflection.
+    this.coastalUniforms.uSsrEnabled.value = tier === "high" ? 1 : 0;
     this.coastalUniforms.uRippleNormalStrength.value = tierConfig.detailNormal
       ? CANONICAL_RENDER_CONFIG.waterSurface.optics.rippleNormalStrength : 0;
     this.mesh.material.uniforms.uNormalQuantization.value = CANONICAL_RENDER_CONFIG.waterSurface.normalQuantizationSteps;
@@ -395,13 +425,34 @@ export class FacetedWater {
       ? CANONICAL_RENDER_CONFIG.waterSurface.nearPatch.innerFadeRadiusMeters
       : 0;
     this.nearPatch.setQuality(tier);
+    this.headwaterFall.setQuality(tier);
+  }
+
+  public setFloatingBodies(
+    bodies: ReadonlyArray<{ x: number; z: number; radius: number; strength: number; vx: number; vz: number }>
+  ): void {
+    const count = Math.min(16, bodies.length);
+    for (const material of [this.mesh.material, this.nearPatch.mesh.material]) {
+      material.uniforms.uBodyCount.value = count;
+      for (let i = 0; i < count; i++) {
+        const b = bodies[i]!;
+        (material.uniforms.uBodies.value[i] as THREE.Vector4).set(b.x, b.z, b.radius, b.strength);
+        (material.uniforms.uBodyVel.value[i] as THREE.Vector2).set(b.vx, b.vz);
+      }
+    }
+  }
+
+  public updateCamera(camera: THREE.Camera): void {
+    this.coastalUniforms.uOpticsProjection.value.copy(camera.projectionMatrix);
+    if ("near" in camera) this.coastalUniforms.uCameraNear.value = (camera as THREE.PerspectiveCamera).near;
+    if ("far" in camera) this.coastalUniforms.uCameraFar.value = (camera as THREE.PerspectiveCamera).far;
   }
 
   public update(
     timeSeconds: number,
     conditions: WaterConditions,
     cameraTarget?: THREE.Vector3,
-    options?: { reducedMotion?: boolean }
+    options?: { reducedMotion?: boolean; camera?: THREE.Camera }
   ): void {
     this.conditions = {
       seaRoughness: THREE.MathUtils.clamp(conditions.seaRoughness, 0, 1),
@@ -420,6 +471,8 @@ export class FacetedWater {
       Math.sin(windRadians),
       Math.cos(windRadians)
     );
+
+    if (options?.camera) this.updateCamera(options.camera);
 
     if (cameraTarget) {
       if (this.nearPatch.mesh.visible) {
@@ -479,5 +532,6 @@ export class FacetedWater {
     for (const mesh of this.meshes) mesh.geometry.dispose();
     this.mesh.material.dispose();
     this.nearPatch.dispose();
+    this.headwaterFall.dispose();
   }
 }

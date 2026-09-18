@@ -126,14 +126,17 @@ describe("HUD notification rendering", () => {
         promptText: null,
         notices: [
           notice({ id: 1, text: "Sold for 40 G", tone: "reward" }),
-          notice({ id: 2, text: "Could not sell item", tone: "danger" })
+          notice({ id: 2, text: "Could not sell item", tone: "danger" }),
+          notice({ id: 3, text: "Harvest complete", tone: "success" })
         ]
       })
     );
     expect(html).toContain("hud-toast-pill--reward");
     expect(html).toContain("hud-toast-pill--danger");
+    expect(html).toContain("hud-toast-pill--success");
     expect(html).toContain("Sold for 40 G");
     expect(html).toContain("Could not sell item");
+    expect(html).toContain("Harvest complete");
   });
 
   it("shows a repeat count for coalesced notices", () => {

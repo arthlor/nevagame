@@ -97,22 +97,14 @@ export const WeatherHazardBanner: React.FC<WeatherHazardBannerProps> = ({
         <p className="hazard-banner-advisory">{resolved.navigationalAdvisory}</p>
       </div>
 
-      {onDismiss ? (
-        <ChromeClose
-          onClick={onDismiss}
-          label="Dismiss weather warning"
-          className="hazard-banner-close"
-        />
-      ) : (
-        <button
-          type="button"
-          className="hazard-banner-dismiss-btn"
-          aria-label="Hide warning"
-          onClick={() => setDismissed(true)}
-        >
-          ×
-        </button>
-      )}
+      <ChromeClose
+        onClick={() => {
+          onDismiss?.();
+          setDismissed(true);
+        }}
+        label="Dismiss weather warning"
+        className="hazard-banner-close hazard-banner-dismiss-btn"
+      />
     </aside>
   );
 };

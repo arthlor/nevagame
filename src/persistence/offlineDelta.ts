@@ -9,7 +9,7 @@ import { forEachWeatherBoundedSegment } from "../simulation/farming/weatherBound
 import { advanceCargoFreshness } from "../simulation/fishing/calculateFreshness";
 import { tickMarket } from "../simulation/economy/updateMarket";
 import { SeededRng } from "../simulation/core/Rng";
-import { rollWorkEarnings, restoreWorkOnRest, workEarningsDayFor } from "../simulation/domains/ProgressionDomain";
+import { rollWorkEarnings, restoreWorkOnRest, workEarningsDayFor, workWakeDayFor } from "../simulation/domains/ProgressionDomain";
 import { expireContracts, pruneSettledContracts, refillContracts } from "../simulation/domains/ContractDomain";
 import { expireSpentSchools } from "../simulation/domains/FishingDomain";
 import { drainMotorFuel } from "../simulation/domains/NavigationDomain";
@@ -95,7 +95,7 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
   // Work is earned, not passively regenerated. Away time grants at most one
   // night's rest if the absence crossed a wake boundary; it never stacks a
   // pool per elapsed hour.
-  if (workEarningsDayFor(state.clock.currentMinute) > workEarningsDayFor(startMinute)) {
+  if (workWakeDayFor(state.clock.currentMinute) > workWakeDayFor(startMinute)) {
     restoreWorkOnRest(state.player.workCapacity, state.clock.currentMinute);
   } else {
     rollWorkEarnings(state.player.workCapacity, workEarningsDayFor(state.clock.currentMinute));

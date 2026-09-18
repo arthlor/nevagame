@@ -4254,7 +4254,7 @@
 }
 
 #ui-container .catch-inspection-modal {
-  width: min(440px, calc(100vw - 32px));
+  width: min(520px, calc(100vw - 32px));
   background: linear-gradient(180deg, rgba(28, 38, 52, 0.98) 0%, rgba(16, 22, 32, 0.98) 100%) !important;
   border: 2px solid var(--mm-timber-mid, #8b5a2b) !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65), 0 0 24px rgba(212, 175, 55, 0.25);
@@ -4268,7 +4268,7 @@
 
 #ui-container .catch-modal-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(212, 175, 55, 0.2);
   padding-bottom: 8px;
@@ -4331,9 +4331,9 @@
 
 #ui-container .catch-modal-body {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 16px;
-  align-items: center;
+  grid-template-columns: 136px 1fr;
+  gap: 18px;
+  align-items: start;
 }
 
 #ui-container .catch-portrait-column {
@@ -4341,6 +4341,7 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  width: 136px;
 }
 
 #ui-container .catch-portrait-frame {
@@ -4357,16 +4358,28 @@
 
 #ui-container .catch-quality-badge-row {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  flex-wrap: nowrap;
-  white-space: nowrap;
+  gap: 4px;
+  width: 100%;
 }
 
 #ui-container .catch-stars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   color: #facc15;
-  font-size: 12px;
-  letter-spacing: 1px;
+  font-size: 14px;
+}
+
+#ui-container .catch-stars .is-earned {
+  color: #facc15;
+}
+
+#ui-container .catch-stars .is-unearned {
+  color: #64748b;
+  opacity: 0.5;
 }
 
 #ui-container .catch-cargo-class {
@@ -4375,6 +4388,7 @@
   font-weight: 700;
   color: #94a3b8;
   letter-spacing: 0.08em;
+  text-align: center;
 }
 
 #ui-container .catch-details-column {
@@ -4384,7 +4398,7 @@
 }
 
 #ui-container .catch-species-name {
-  font-size: 16px;
+  font-size: 17px;
   font-family: var(--font-serif);
   color: var(--mm-text-gold, #d4af37);
   margin: 0;
@@ -4425,13 +4439,22 @@
   gap: 3px;
 }
 
+#ui-container .catch-metric-tile.catch-metric-tile--freshness {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
 #ui-container .catch-metric-tile .coin-icon {
   color: #facc15;
 }
 
 #ui-container .catch-metric-tile .metric-freshness {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 6px;
 }
 
 #ui-container .catch-metric-tile .metric-freshness small {
@@ -4445,8 +4468,9 @@
   color: #cbd5e1;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 4px;
-  padding: 4px 6px;
+  padding: 5px 8px;
   background: rgba(0, 0, 0, 0.25);
   border-radius: 4px;
 }
@@ -4459,7 +4483,8 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 10px;
 }

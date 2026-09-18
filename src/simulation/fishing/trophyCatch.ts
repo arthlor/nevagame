@@ -49,7 +49,8 @@ const CATCH_STORAGE_LABEL: Record<CarryLocationType, string> = {
   "boat-hold": "Stowed in boat hold",
   "boat-hook": "Hung on transom hook",
   "cold-storage": "Stored in cold room",
-  crate: "Packed in a crate"
+  crate: "Packed in a crate",
+  carriage: "Stowed in carriage"
 };
 
 /** Where a landed catch now sits, in the catch summary's words — for every location. */

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   BasicFishingState,
   EquipmentId,
@@ -49,6 +49,7 @@ import type { StartupState } from "../app/StartupState";
 import type {
   CharacterEquipmentDto,
   CommodityQuote,
+  CompassMarkerDto,
   CropInspectionDto,
   FarmForecastDto,
   HoldStoresDto,
@@ -386,7 +387,38 @@ export const GameUI: React.FC<GameUIProps> = ({
   }, [journalOpenRequest]);
   const showTrophyModal = activeModal === "catch";
 
-  const trophyCatchDto = useMemo<TrophyCatchDto | null>(() => {
+  const [customWaypoint, setCustomWaypoint] = useState<{ x: number; z: number } | null>(null);
+
+  const effectiveWorldHud = React.useMemo(() => {
+    if (!customWaypoint) return worldHud;
+    const dx = customWaypoint.x - state.player.x;
+    const dz = customWaypoint.z - state.player.z;
+    const distanceMeters = Math.round(Math.hypot(dx, dz));
+    const targetAngleDeg = (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360;
+    const relativeBearingDeg = ((targetAngleDeg - worldHud.compass.headingDegrees + 540) % 360) - 180;
+
+    const waypointMarker: CompassMarkerDto = {
+      id: "custom-nav-waypoint",
+      type: "waypoint",
+      kind: "waypoint",
+      x: customWaypoint.x,
+      z: customWaypoint.z,
+      label: "WAYPOINT",
+      icon: "pin",
+      distanceMeters,
+      relativeBearingDeg
+    };
+
+    return {
+      ...worldHud,
+      compass: {
+        ...worldHud.compass,
+        nearbyMarkers: [waypointMarker, ...worldHud.compass.nearbyMarkers]
+      }
+    };
+  }, [worldHud, customWaypoint, state.player.x, state.player.z]);
+
+  const trophyCatchDto = ((): TrophyCatchDto | null => {
     if (!landedCatch) return null;
     if ("qualityStars" in landedCatch) return landedCatch;
     // Shelf life must use the cargo's real decay: an iced hold or cold room
@@ -402,7 +434,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         )
       : undefined;
     return buildTrophyCatchDto(landedCatch, landedCatchRecord, 1, 1, effectiveDecay);
-  }, [landedCatch, landedCatchRecord, state]);
+  })();
 
   // Debug sessions need the diagnostic surface while the real runtime boots;
   // the boot-ready attribute is the synchronization point for browser checks.
@@ -451,7 +483,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 
       {mode !== "sport-fishing" && (
         <HUD
-          hud={worldHud}
+          hud={effectiveWorldHud}
           playerPosition={state.player}
           blocked={!!activeModal}
           promptText={promptText}
@@ -653,6 +685,8 @@ export const GameUI: React.FC<GameUIProps> = ({
           questMarkers={worldHud.compass.nearbyMarkers.filter(
             (marker) => marker.kind === "quest" || marker.kind === "quest-secondary"
           )}
+          customWaypoint={customWaypoint}
+          onSetCustomWaypoint={setCustomWaypoint}
           onInspectMarketDemand={onInspectMarketDemand}
           onClose={() => onSetActiveModal(null)}
         />

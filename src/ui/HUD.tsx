@@ -146,7 +146,7 @@ export const HUD: React.FC<HUDProps> = ({
       {...(blocked ? { inert: "" } : {})}
     >
       <HudCluster edge="top-left" className="guild-status-anchor interactive" aria-label="Player resources">
-        <PlayerUnitFrame work={hud.work} sprint={hud.sprint} statusEffects={hud.statusEffects}
+        <PlayerUnitFrame work={hud.work} sprint={hud.sprint} mount={hud.mount} statusEffects={hud.statusEffects}
           onOpenCharacterSheet={() => handleModalOpen("character")} />
       </HudCluster>
       <HudCluster className="guild-objectives interactive" aria-label="Active objectives">

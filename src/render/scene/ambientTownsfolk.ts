@@ -59,7 +59,9 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
       dawn: { x: 49.5, z: -69.5 },
       day: { x: 48.8, z: -70.5 },
       dusk: { x: 47.6, z: -71.2 },
-      night: { x: 46.6, z: -70.4 }
+      // East of the dusk pose: the old night station's ring dipped 2 cm
+      // inside the market's 6 m interaction ring.
+      night: { x: 47.2, z: -70.0 }
     },
     waypoints: [
       { dx: 0, dz: 0 },
@@ -122,10 +124,15 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
     id: "townsfolk.well_keeper",
     assetId: ASSET_IDS.CHAR_NPC_ELSPETH_A,
     stations: {
-      dawn: { x: 37.6, z: -74.3 },
-      day: { x: 37.0, z: -75.0 },
-      dusk: { x: 36.4, z: -75.7 },
-      night: { x: 37.2, z: -76.1 }
+      // Southwest of the village well: the compact square packs the well
+      // inside the market's 6 m interaction ring, so tending the well itself
+      // reads as standing on the stall counter. These stations pace the open
+      // ground southwest of the well, clear of the market ring, buildings and
+      // workstations at every phase and ring pose.
+      dawn: { x: 35.8, z: -78.6 },
+      day: { x: 35.2, z: -79.1 },
+      dusk: { x: 34.7, z: -79.6 },
+      night: { x: 35.5, z: -79.8 }
     },
     waypoints: [
       { dx: 0, dz: 0 },

@@ -333,6 +333,12 @@ export interface VisualRenderConfig {
       swashPeriodSeconds: number;
       swashReachMeters: number;
       foamStrength: number;
+      /** High-tier screen-space reflection blend onto the analytic sky. */
+      ssrStrength: number;
+      /** Restrained backlit-crest translucency added to the shallow body. */
+      sssStrength: number;
+      /** Peak FBM-dissolved hull-ring energy; moored hulls use a fraction. */
+      boatFoamStrength: number;
     };
     polygonCellScaleMeters: number;
     polygonColorVariationStrength: number;
@@ -357,11 +363,42 @@ export interface VisualRenderConfig {
     headwaters: {
       /** Only the bounded headwater band receives these extra water rows. */
       maxRowSpacingMeters: number;
+      /**
+       * Row spacing across the authored fall face. The default band spacing
+       * cannot hold the fall's chord error, because a steeper drop needs
+       * proportionally finer rows.
+       */
+      fallRowSpacingMeters: number;
       rapidsFoamStrength: number;
       rapidsGradeStart: number;
       rapidsGradeFull: number;
       rapidsCellScaleMeters: number;
       rapidsFlowMetersPerSecond: number;
+      /**
+       * Dedicated presentation for the authored falling segment. Geometry,
+       * foam and streak tuning live here; the topology itself stays owned by
+       * `NEVA_HEADWATERS.fall`.
+       */
+      fall: {
+        /** Downstream bow of the sheet silhouette, in metres. */
+        bowMeters: number;
+        rows: Record<QualityTier, number>;
+        acrossSegments: number;
+        /** Animated sheet displacement; also widens the render bounds. */
+        rippleMeters: number;
+        streakStrength: number;
+        streakSpeed: number;
+        streakScale: number;
+        /** Across-sheet phase span: turns streak bands into falling threads. */
+        streakThreadCount: number;
+        breakupStrength: number;
+        impactFoamStrength: number;
+        impactFoamSpan: number;
+        /** Foam that spreads from the landing across the pool apron. */
+        apronFoamStrength: number;
+        apronMeters: number;
+        bodyOpacity: number;
+      };
     };
     quality: Record<QualityTier, WaterSurfaceTierQuality>;
     nearPatch: {
@@ -987,7 +1024,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       distantSlope: [18, 95, 0.035],
       swashPeriodSeconds: 10.8,
       swashReachMeters: 1.3,
-      foamStrength: 0.78
+      foamStrength: 0.78,
+      // WaterThreeJS adaptations, kept restrained for the cozy baseline:
+      // SSR stays a blend onto the sky (never a mirror), SSS a faint crest
+      // glow, and hull rings dissolve through FBM instead of stamping white.
+      ssrStrength: 0.55,
+      sssStrength: 0.22,
+      boatFoamStrength: 0.5
     },
     polygonCellScaleMeters: 3.2,
     polygonColorVariationStrength: 0.008,
@@ -1007,11 +1050,28 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     depthColorStrength: 0.78,
     headwaters: {
       maxRowSpacingMeters: 0.75,
+      fallRowSpacingMeters: 0.06,
       rapidsFoamStrength: 0.38,
       rapidsGradeStart: 0.15,
       rapidsGradeFull: 0.65,
       rapidsCellScaleMeters: 1.3,
-      rapidsFlowMetersPerSecond: 1.8
+      rapidsFlowMetersPerSecond: 1.8,
+      fall: {
+        bowMeters: 0.05,
+        rows: { low: 10, medium: 16, high: 24 },
+        acrossSegments: 8,
+        rippleMeters: 0.06,
+        streakStrength: 0.55,
+        streakSpeed: 1.35,
+        streakScale: 13,
+        streakThreadCount: 22,
+        breakupStrength: 0.55,
+        impactFoamStrength: 0.72,
+        impactFoamSpan: 0.3,
+        apronFoamStrength: 0.5,
+        apronMeters: 1.6,
+        bodyOpacity: 0.95
+      }
     },
     quality: {
       low: {

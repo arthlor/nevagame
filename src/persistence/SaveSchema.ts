@@ -1,3 +1,4 @@
+import { CARRIAGE_TYPE_ID, CARRIAGE_TUNING, STARTER_CARRIAGE_ID } from "../simulation/mounts/Carriage";
 import { dockedMooring } from "../world/WorldMoorings";
 // src/persistence/SaveSchema.ts
 
@@ -30,7 +31,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 45;
+export const CURRENT_SCHEMA_VERSION = 47;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -392,12 +393,15 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (schemaVersion >= 18) {
     const mounts = state.mounts as Record<string, unknown>;
     if (!Object.prototype.hasOwnProperty.call(mounts, STARTER_DONKEY_ID)) return false;
+    if (schemaVersion >= 46 && !Object.prototype.hasOwnProperty.call(mounts, STARTER_CARRIAGE_ID)) return false;
     for (const [mountId, mount] of Object.entries(mounts)) {
       if (
         !isRecord(mount) ||
-        mountId !== STARTER_DONKEY_ID ||
+        (mountId !== STARTER_DONKEY_ID && !(schemaVersion >= 46 && mountId === STARTER_CARRIAGE_ID)) ||
         mount.id !== mountId ||
-        mount.mountTypeId !== STARTER_DONKEY_TYPE_ID ||
+        mount.mountTypeId !== (mountId === STARTER_CARRIAGE_ID ? CARRIAGE_TYPE_ID : STARTER_DONKEY_TYPE_ID) ||
+        (mountId === STARTER_CARRIAGE_ID && (!Array.isArray(mount.fishCargoSlotIds) || mount.fishCargoSlotIds.length !== CARRIAGE_TUNING.cargoSlots)) ||
+        (mountId !== STARTER_CARRIAGE_ID && mount.fishCargoSlotIds !== undefined) ||
         !isFiniteInRange(mount.gallopStamina, 0, MOUNT_TUNING.maximumGallopStamina) ||
         !isFiniteInRange(mount.gallopRecoveryDelaySeconds, 0, MOUNT_TUNING.gallopRecoveryDelaySeconds) ||
         typeof mount.gallopExhausted !== "boolean" ||
@@ -407,12 +411,17 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     const activeMountId = state.player.activeMountId;
     if (activeMountId !== null) {
       const activeMount = mounts[activeMountId];
+      const carriesPack = state.player.carriedFishCargoId !== null && state.player.carriedFishCargoId !== undefined;
+      // A trade pack rides on the rider's back, so a mounted donkey may carry
+      // one. The carriage keeps its own bed slots and is loaded on foot, so a
+      // mounted carriage with a carried pack stays invalid.
+      const carriedOffDonkey = carriesPack && (!isRecord(activeMount) || activeMount.mountTypeId !== STARTER_DONKEY_TYPE_ID);
       if (
         !isRecord(activeMount) ||
         (state.player.activeBoatId !== null && state.player.activeBoatId !== undefined) ||
         state.basicFishing !== null ||
         state.sportFishing !== null ||
-        (state.player.carriedFishCargoId !== null && state.player.carriedFishCargoId !== undefined) ||
+        carriedOffDonkey ||
         state.player.traversal.isGrounded !== true ||
         !isValidPlayerMountGround(state.player as GameState["player"]) ||
         !isValidMountPose(activeMount as unknown as GameState["mounts"][string]) ||
@@ -593,6 +602,12 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     if (!species || cargo.cargoClass !== species.cargoClass || cargo.weightKg < species.weightKg.min || cargo.weightKg > species.weightKg.max) return false;
     if (cargo.location.type === "player") {
       if (cargo.location.containerId !== "player" || state.player.carriedFishCargoId !== cargoId) return false;
+    } else if (schemaVersion >= 46 && cargo.location.type === "carriage") {
+      const carriage = state.mounts?.[cargo.location.containerId];
+      const slot = cargo.location.slotIndex;
+      if (!carriage || carriage.mountTypeId !== CARRIAGE_TYPE_ID || !Number.isInteger(slot)
+        || typeof slot !== "number" || slot < 0 || slot >= CARRIAGE_TUNING.cargoSlots
+        || carriage.fishCargoSlotIds?.[slot] !== cargoId || !cargoClassFits(cargo.cargoClass, CARRIAGE_TUNING.maximumCargoClass)) return false;
     } else if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
       const boat = state.boats[cargo.location.containerId];
       const slotIndex = cargo.location.slotIndex;
@@ -613,6 +628,18 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       referencedBoatCargoIds.add(cargoId);
       const cargo = state.fishCargo[cargoId];
       if (!cargo || cargo.location.containerId !== boat.id || cargo.location.slotIndex !== slotIndex) return false;
+    }
+  }
+
+  if (schemaVersion >= 46 && state.mounts) {
+    for (const mount of Object.values(state.mounts)) {
+      for (const [slot, cargoId] of (mount.fishCargoSlotIds ?? []).entries()) {
+        if (cargoId === null) continue;
+        const cargo = typeof cargoId === "string" ? state.fishCargo[cargoId] : undefined;
+        if (!cargo || cargo.location.type !== "carriage" || cargo.location.containerId !== mount.id
+          || cargo.location.slotIndex !== slot || referencedBoatCargoIds.has(cargoId)) return false;
+        referencedBoatCargoIds.add(cargoId);
+      }
     }
   }
 

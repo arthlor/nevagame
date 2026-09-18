@@ -56,6 +56,18 @@ export interface CameraProfile {
 const degrees = THREE.MathUtils.degToRad;
 const REFERENCE_ASPECT_RATIO = 16 / 9;
 
+// Free-orbit exploration ranges (all non-sport, non-interior modes). Yaw is
+// already unbounded (360-degree wrap); these bounds open the vertical axis so
+// the player can tilt down to the sky (-75 deg) or up to a near-overhead
+// world view (+85 deg), and dolly from close inspection out far enough to
+// read the surrounding world. Defaults below are unchanged, so the resting
+// framing is identical — only the hand-orbit/zoom limits move. Sport-fishing
+// (plus its tuna variant) and the farmhouse interior keep their own tight
+// bounds and are intentionally excluded here.
+const FREE_ORBIT_MIN_DISTANCE = 3.5;
+const FREE_ORBIT_MIN_PITCH_RADIANS = degrees(-75);
+const FREE_ORBIT_MAX_PITCH_RADIANS = degrees(85);
+
 export const CAMERA_TUNING = Object.freeze({
   horizontalOrbitRadiansPerPixel: 0.0045,
   verticalOrbitRadiansPerPixel: 0.0038,
@@ -76,11 +88,11 @@ export const CAMERA_TUNING = Object.freeze({
 
 const ON_FOOT_PROFILE: CameraProfile = {
   distance: 11.2,
-  minDistance: 7,
-  maxDistance: 16,
+  minDistance: FREE_ORBIT_MIN_DISTANCE,
+  maxDistance: 26,
   pitchRadians: degrees(27.5),
-  minPitchRadians: degrees(16),
-  maxPitchRadians: degrees(58),
+  minPitchRadians: FREE_ORBIT_MIN_PITCH_RADIANS,
+  maxPitchRadians: FREE_ORBIT_MAX_PITCH_RADIANS,
   focusHeight: 1.22,
   lookAhead: 2.35,
   fovDegrees: 47
@@ -103,9 +115,11 @@ export const CAMERA_PROFILES: Readonly<Record<GameMode, CameraProfile>> = {
   "farm-placement": {
     ...ON_FOOT_PROFILE,
     distance: 14,
-    minDistance: 9.5,
-    maxDistance: 19,
+    minDistance: 4,
+    maxDistance: 30,
     pitchRadians: degrees(43),
+    minPitchRadians: FREE_ORBIT_MIN_PITCH_RADIANS,
+    maxPitchRadians: FREE_ORBIT_MAX_PITCH_RADIANS,
     focusHeight: 0.7,
     lookAhead: 1,
     fovDegrees: 44
@@ -113,9 +127,11 @@ export const CAMERA_PROFILES: Readonly<Record<GameMode, CameraProfile>> = {
   "boat-driving": {
     ...ON_FOOT_PROFILE,
     distance: 16.8,
-    minDistance: 11.2,
-    maxDistance: 23,
+    minDistance: 5,
+    maxDistance: 32,
     pitchRadians: degrees(30),
+    minPitchRadians: FREE_ORBIT_MIN_PITCH_RADIANS,
+    maxPitchRadians: FREE_ORBIT_MAX_PITCH_RADIANS,
     focusHeight: 1.46,
     lookAhead: 6.4,
     fovDegrees: 51
@@ -123,9 +139,11 @@ export const CAMERA_PROFILES: Readonly<Record<GameMode, CameraProfile>> = {
   mounted: {
     ...ON_FOOT_PROFILE,
     distance: 13.2,
-    minDistance: 9.5,
-    maxDistance: 19,
+    minDistance: 4,
+    maxDistance: 28,
     pitchRadians: degrees(29),
+    minPitchRadians: FREE_ORBIT_MIN_PITCH_RADIANS,
+    maxPitchRadians: FREE_ORBIT_MAX_PITCH_RADIANS,
     focusHeight: 1.55,
     lookAhead: 3.2,
     fovDegrees: 49
@@ -133,9 +151,11 @@ export const CAMERA_PROFILES: Readonly<Record<GameMode, CameraProfile>> = {
   "basic-fishing": {
     ...ON_FOOT_PROFILE,
     distance: 10.5,
-    minDistance: 8,
-    maxDistance: 14,
+    minDistance: 4,
+    maxDistance: 24,
     pitchRadians: degrees(31),
+    minPitchRadians: FREE_ORBIT_MIN_PITCH_RADIANS,
+    maxPitchRadians: FREE_ORBIT_MAX_PITCH_RADIANS,
     focusHeight: 1.25,
     lookAhead: 4.8,
     fovDegrees: 46
@@ -146,6 +166,8 @@ export const CAMERA_PROFILES: Readonly<Record<GameMode, CameraProfile>> = {
     minDistance: 8,
     maxDistance: 13,
     pitchRadians: degrees(34),
+    minPitchRadians: degrees(16),
+    maxPitchRadians: degrees(58),
     focusHeight: 1.45,
     lookAhead: 7,
     fovDegrees: 43

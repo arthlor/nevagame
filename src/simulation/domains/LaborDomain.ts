@@ -68,6 +68,9 @@ export class LaborDomain {
   }
 
   public start(stationId: string): InteractionResult {
+    if (this.context.state.player.carriedFishCargoId) {
+      return { success: false, reason: "Stow physical fish cargo before working" };
+    }
     if (this.runtime) return { success: false, reason: "Finish the job in hand" };
     if (this.context.state.basicFishing || this.context.state.sportFishing) {
       return { success: false, reason: "Put the rod away first" };
@@ -92,11 +95,21 @@ export class LaborDomain {
   }
 
   public strike(): InteractionResult {
+    if (this.context.state.player.carriedFishCargoId) {
+      return { success: false, reason: "Stow physical fish cargo before working" };
+    }
     const active = this.runtime;
     if (!active) return { success: false, reason: "No work in progress" };
     this.runtime = null;
     const station = laborStationAt(active.stationId);
     if (!station) return { success: false, reason: "There is no work here" };
+    if (this.context.state.basicFishing || this.context.state.sportFishing) {
+      return { success: false, reason: "Put the rod away first" };
+    }
+    const player = this.context.state.player;
+    if (player.activeBoatId || player.activeMountId) {
+      return { success: false, reason: "Dismount before working here" };
+    }
     // A shift does not freeze the player in place; a strike from out of reach
     // abandons the swing rather than crediting it.
     if (distance2d(this.context.state.player, station.position) > station.reachMeters) {
@@ -111,7 +124,11 @@ export class LaborDomain {
     if (fraction <= 0) {
       return { success: false, reason: "The strike glanced off — line up the swing" };
     }
-    const granted = this.progression.earnWork(Math.max(1, Math.round(station.yield * fraction)), station.id);
+    const requested = Math.max(1, Math.round(station.yield * fraction));
+    if (!this.progression.hasWorkRoom(requested)) {
+      return { success: false, reason: "You are full of energy already" };
+    }
+    const granted = this.progression.earnWork(requested, station.id);
     if (granted <= 0) return { success: false, reason: "You are full of energy already" };
     return { success: true, yield: granted };
   }

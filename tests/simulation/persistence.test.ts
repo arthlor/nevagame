@@ -29,6 +29,8 @@ import saveV25Layout9 from "../fixtures/save_v25_layout9.json";
 import saveV30Layout10 from "../fixtures/save_v30_layout10.json";
 import saveV36Layout15 from "../fixtures/save_v36_layout15.json";
 import saveV36RetiredMarketCommodity from "../fixtures/save_v36_retired_market_commodity.json";
+import saveV41Layout19 from "../fixtures/save_v41_layout19.json";
+import { STARTER_CARRIAGE_ID } from "../../src/simulation/mounts/Carriage";
 import {
   DAYS_PER_SEASON,
   GameClock,
@@ -119,11 +121,29 @@ function questsAfterTrackMigration(legacyQuests: Record<string, unknown>): Recor
   };
 }
 
+async function readRawSave(key: string): Promise<unknown> {
+  const request = indexedDB.open("neva_save_db", 1);
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  try {
+    return await new Promise<unknown>((resolve, reject) => {
+      const read = db.transaction("game_saves", "readonly").objectStore("game_saves").get(key);
+      read.onsuccess = () => resolve(read.result);
+      read.onerror = () => reject(read.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
 function v36EquipmentMigrationFixture(): SaveEnvelope {
   const state = createInitialGameState(saveV36Layout15.state.worldSeed);
   state.schemaVersion = 36;
   state.world.layoutRevision = saveV36Layout15.state.world.layoutRevision;
   delete (state.player as unknown as { equipment?: unknown }).equipment;
+  delete state.mounts[STARTER_CARRIAGE_ID];
   state.processingJobs = structuredClone(saveV36Layout15.state.processingJobs) as never;
   return {
     schemaVersion: saveV36Layout15.schemaVersion,
@@ -137,6 +157,7 @@ function v36RetiredMarketCommodityFixture(): SaveEnvelope {
   state.schemaVersion = 36;
   state.world.layoutRevision = saveV36RetiredMarketCommodity.state.world.layoutRevision;
   delete (state.player as unknown as { equipment?: unknown }).equipment;
+  delete state.mounts[STARTER_CARRIAGE_ID];
   const retired = saveV36RetiredMarketCommodity.state.markets["market.sunreach_cove"]
     .commodities["item.basic_lure"];
   state.markets["market.sunreach_cove"].commodities["item.basic_lure"] = structuredClone(retired);
@@ -567,11 +588,51 @@ describe("Persistence & Offline Progression", () => {
       expect(restored?.state.player.money).toBe(111);
     });
 
+    it.each([false, true])("recovers a current-schema older-layout slot and preserves backup on failed commit: %s", async (failCommit) => {
+      const repo = new IndexedDbSaveRepository();
+      const legacy = structuredClone(saveV41Layout19) as unknown as SaveEnvelope;
+      const expected = migrateSaveData(legacy);
+      const pending = structuredClone(expected);
+      pending.state.world.layoutRevision = legacy.state.world.layoutRevision;
+      for (const [id, structure] of Object.entries(legacy.state.world.structures)) {
+        pending.state.world.structures[id] = structuredClone(structure);
+      }
+      const backup: SaveEnvelope = { schemaVersion: CURRENT_SCHEMA_VERSION, savedAtUtcMs: 2, state: createInitialGameState() };
+      backup.state.player.money = 880;
+      await putRawSave("primary_save", pending);
+      await putRawSave("backup_save", backup);
+
+      const inspection = await repo.inspectGame();
+      expect(inspection.result).toEqual({ status: "loaded", envelope: expected });
+      expect(await repo.loadGameResult()).toEqual(inspection.result);
+      expect(await readRawSave("primary_save")).toEqual(pending);
+      expect(await readRawSave("backup_save")).toEqual(backup);
+      if (inspection.result.status !== "loaded") throw new Error("Expected layout recovery");
+      const next = structuredClone(inspection.result.envelope.state);
+      next.player.money = 990;
+      if (failCommit) patchIndexedDbPuts((key) => key === "primary_save");
+      const writer = new IndexedDbSaveRepository();
+      expect(await writer.saveGame(next)).toBe(!failCommit);
+      expect(await readRawSave("backup_save")).toEqual(failCommit ? backup : expected);
+      if (failCommit) {
+        expect(await readRawSave("primary_save")).toEqual(pending);
+      } else {
+        const reloaded = await repo.loadGame();
+        expect(reloaded?.state).toEqual(next);
+        expect(await repo.loadGame()).toEqual(reloaded);
+        expect(validateSaveEnvelope(reloaded)).toBe(true);
+      }
+    });
+
     it.each([
       ["a newer schema", (envelope: SaveEnvelope) => {
         envelope.schemaVersion = envelope.state.schemaVersion = CURRENT_SCHEMA_VERSION + 1;
       }],
       ["another layout revision", (envelope: SaveEnvelope) => {
+        envelope.state.world.layoutRevision = WORLD_LAYOUT_REVISION + 1;
+      }],
+      ["a future layout under an older schema", (envelope: SaveEnvelope) => {
+        envelope.schemaVersion = envelope.state.schemaVersion = 41;
         envelope.state.world.layoutRevision = WORLD_LAYOUT_REVISION + 1;
       }]
     ])("backs up an incompatible primary (%s) verbatim instead of destroying it", async (_label, makeIncompatible) => {

@@ -15,6 +15,8 @@ import {
   playerPoseFromMount,
   STARTER_DONKEY_ID
 } from "../../src/simulation/mounts/Mounts";
+import { STARTER_CARRIAGE_ID } from "../../src/simulation/mounts/Carriage";
+import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { BRIDGE_WORLD_PROFILE, WORLD_LAYOUT_V5, WorldLayout } from "../../src/world/WorldLayout";
 import { HARBOR_SKIFF_MOORING } from "../../src/world/WorldAnchors";
 
@@ -51,7 +53,7 @@ afterEach(() => vi.restoreAllMocks());
 describe("starter donkey mount", () => {
   it("initializes one persistent starter donkey in every fresh save", () => {
     const state = createInitialGameState(42891);
-    expect(Object.keys(state.mounts)).toEqual([STARTER_DONKEY_ID]);
+    expect(Object.keys(state.mounts)).toEqual([STARTER_DONKEY_ID, "mount.horse_carriage_starter"]);
     expect(state.mounts[STARTER_DONKEY_ID]).toMatchObject({
       id: STARTER_DONKEY_ID,
       mountTypeId: "mount.donkey",
@@ -148,7 +150,7 @@ describe("starter donkey mount", () => {
     });
     expect(simulation.execute({ type: "mount.dismount" })).toMatchObject({
       success: false,
-      reason: "You are not riding the donkey"
+      reason: "You are not riding a transport"
     });
   });
 
@@ -442,5 +444,170 @@ describe("starter donkey mount", () => {
     physics.dispose();
     expect(failures).toBe(0);
     expect(Math.hypot(simulation.state.player.x - start.x, simulation.state.player.z - start.z)).toBeGreaterThan(20);
+  });
+
+  it("rides the donkey while carrying a trade pack but refuses the carriage", async () => {
+    const simulation = new Simulation();
+    placePlayerAtMount(simulation);
+    const cargoClass = ContentRegistry.fishSpecies.get("fish.trout")!.cargoClass;
+    simulation.state.fishCargo["cargo.pack"] = {
+      id: "cargo.pack",
+      speciesId: "fish.trout",
+      weightKg: 3,
+      quality: "fine",
+      caughtAtMinute: simulation.state.clock.currentMinute,
+      freshness: 90,
+      cargoClass,
+      location: { type: "player", containerId: "player" }
+    };
+    simulation.state.player.carriedFishCargoId = "cargo.pack";
+
+    expect(simulation.canBoardMount(STARTER_DONKEY_ID)).toBe(true);
+    expect(simulation.execute({ type: "mount.board", mountId: STARTER_DONKEY_ID }).success).toBe(true);
+    expect(simulation.state.player.activeMountId).toBe(STARTER_DONKEY_ID);
+    expect(simulation.state.player.carriedFishCargoId).toBe("cargo.pack");
+
+    // The mount carries the load, so the Overburdened chip reports hands-full
+    // without claiming an on-foot slowdown from the saddle.
+    const { buildStatusChips } = await import("../../src/simulation/presentation/WorldHudPresentation");
+    const mountedChip = buildStatusChips(simulation.state).find((chip) => chip.id === "overburdened")!;
+    expect(mountedChip.description).toBe("Carrying a fish with both hands.");
+
+    // Fish-cargo handling stays a dismounted action even while the carried
+    // pack rides along.
+    expect(simulation.execute({ type: "cargo.pickup", cargoId: "cargo.pack" })).toMatchObject({
+      success: false,
+      reason: "Dismount before handling fish cargo"
+    });
+    expect(simulation.state.player.carriedFishCargoId).toBe("cargo.pack");
+
+    const envelope = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 1,
+      state: structuredClone(simulation.state)
+    };
+    expect(validateSaveEnvelope(envelope)).toBe(true);
+    const restored = new Simulation(structuredClone(envelope.state));
+    expect(restored.state.player.activeMountId).toBe(STARTER_DONKEY_ID);
+    expect(restored.state.player.carriedFishCargoId).toBe("cargo.pack");
+
+    const physics = await PhysicsWorld.create();
+    try {
+      const frame = physics.step(simulation.state, { x: 0, z: 1, sprint: false }, "mounted", 1 / 60, 0);
+      expect(simulation.commitPhysicsFrame(frame.frame).success).toBe(true);
+      expect(simulation.state.player.carriedFishCargoId).toBe("cargo.pack");
+    } finally {
+      physics.dispose();
+    }
+
+    expect(simulation.execute({ type: "mount.dismount" }).success).toBe(true);
+    expect(simulation.state.player.activeMountId).toBeNull();
+    expect(simulation.state.player.carriedFishCargoId).toBe("cargo.pack");
+    const dismountedChip = buildStatusChips(simulation.state).find((chip) => chip.id === "overburdened")!;
+    expect(dismountedChip.description).toContain("slower");
+
+    // The carriage keeps its own bed slots: boarding it while carrying stays
+    // blocked, and a carried pack on a mounted carriage stays an invalid save.
+    const carriage = simulation.state.mounts[STARTER_CARRIAGE_ID]!;
+    Object.assign(simulation.state.player, playerPoseFromMount(carriage), {
+      activeBoatId: null,
+      activeMountId: null,
+      traversal: { ...simulation.state.player.traversal, isGrounded: true }
+    });
+    expect(simulation.canBoardMount(STARTER_CARRIAGE_ID)).toBe(false);
+    expect(simulation.execute({ type: "mount.board", mountId: STARTER_CARRIAGE_ID })).toMatchObject({
+      success: false,
+      reason: "Stow physical fish cargo before riding"
+    });
+    expect(simulation.state.player.activeMountId).toBeNull();
+
+    simulation.state.player.carriedFishCargoId = null;
+    expect(simulation.execute({ type: "mount.board", mountId: STARTER_CARRIAGE_ID }).success).toBe(true);
+    simulation.state.fishCargo["cargo.pack"].location = { type: "player", containerId: "player" };
+    simulation.state.player.carriedFishCargoId = "cargo.pack";
+    expect(validateSaveEnvelope({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 1,
+      state: structuredClone(simulation.state)
+    })).toBe(false);
+  });
+
+  it("keeps mounted speed identical with and without a trade pack", async () => {
+    async function rideDistance(pack: boolean, sprint: boolean): Promise<{ distance: number; gaits: string }> {
+      const physics = await PhysicsWorld.create();
+      try {
+        const simulation = new Simulation();
+        placePlayerAtMount(simulation);
+        if (pack) {
+          simulation.state.fishCargo["cargo.pack"] = {
+            id: "cargo.pack",
+            speciesId: "fish.trout",
+            weightKg: 3,
+            quality: "fine",
+            caughtAtMinute: simulation.state.clock.currentMinute,
+            freshness: 90,
+            cargoClass: ContentRegistry.fishSpecies.get("fish.trout")!.cargoClass,
+            location: { type: "player", containerId: "player" }
+          };
+          simulation.state.player.carriedFishCargoId = "cargo.pack";
+        }
+        expect(simulation.execute({ type: "mount.board", mountId: STARTER_DONKEY_ID }).success).toBe(true);
+        const start = { x: simulation.state.player.x, z: simulation.state.player.z };
+        const gaits: string[] = [];
+        for (let index = 0; index < 600; index++) {
+          const frame = physics.step(simulation.state, { x: 0, z: 1, sprint }, "mounted", 1 / 60, index / 60);
+          gaits.push(frame.playerMotion.requestedGait);
+          expect(simulation.commitPhysicsFrame(frame.frame).success).toBe(true);
+        }
+        return {
+          distance: Math.hypot(simulation.state.player.x - start.x, simulation.state.player.z - start.z),
+          gaits: gaits.join(",")
+        };
+      } finally {
+        physics.dispose();
+      }
+    }
+
+    // The mount carries the load, so the pack penalty never reaches gait
+    // speed: laden and unladen runs must cover the same ground, trot and
+    // gallop alike.
+    const trotEmpty = await rideDistance(false, false);
+    const trotLaden = await rideDistance(true, false);
+    expect(trotLaden.distance).toBeCloseTo(trotEmpty.distance, 6);
+    expect(trotLaden.gaits).toBe(trotEmpty.gaits);
+
+    const gallopEmpty = await rideDistance(false, true);
+    const gallopLaden = await rideDistance(true, true);
+    expect(gallopLaden.distance).toBeCloseTo(gallopEmpty.distance, 6);
+    expect(gallopLaden.gaits).toBe(gallopEmpty.gaits);
+    expect(gallopEmpty.distance).toBeGreaterThan(trotEmpty.distance);
+  });
+
+  it("publishes the donkey's gallop stamina to the HUD while mounted", async () => {
+    const simulation = new Simulation();
+    expect(simulation.inspectWorldHud(null).mount).toBeNull();
+    expect(simulation.inspectWorldHud(null).sprint).not.toBeNull();
+
+    placePlayerAtMount(simulation);
+    expect(simulation.execute({ type: "mount.board", mountId: STARTER_DONKEY_ID }).success).toBe(true);
+    const mountedHud = simulation.inspectWorldHud(null);
+    expect(mountedHud.sprint).toBeNull();
+    expect(mountedHud.mount).toMatchObject({ current: 100, maximum: 100, exhausted: false });
+
+    // A sustained gallop spends the animal's budget, not the rider's, and the
+    // HUD tracks it down.
+    const physics = await PhysicsWorld.create();
+    try {
+      for (let index = 0; index < 300; index++) {
+        const frame = physics.step(simulation.state, { x: 0, z: 1, sprint: true }, "mounted", 1 / 60, index / 60);
+        expect(simulation.commitPhysicsFrame(frame.frame).success).toBe(true);
+      }
+    } finally {
+      physics.dispose();
+    }
+    const drainedHud = simulation.inspectWorldHud(null);
+    expect(drainedHud.mount!.current).toBeLessThan(100);
+    expect(drainedHud.mount!.maximum).toBe(100);
+    expect(simulation.state.player.traversal.sprintStamina).toBe(100);
   });
 });

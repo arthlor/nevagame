@@ -19,7 +19,7 @@ def build_workshop():
     bpy.context.window.scene=scene
     roots=[]
     for id,position in [('fauna_horse_draft_a',(0,-3.50,0)),('prop_merchant_carriage_a',(0,0,0)),
-                        ('prop_trade_pack_wheat_a',(0,-.08,.929)),('prop_trade_pack_barley_a',(0,.858,.929))]:
+                        ('prop_trade_pack_wheat_a',(0,0,0)),('prop_trade_pack_barley_a',(0,0,0))]:
         spec=by_id[id]; root=create_root(spec['rootNode']); roots.append(root)
         resolve_generator(spec['generator'])(spec,root)
         objects=[root,*root.children_recursive]

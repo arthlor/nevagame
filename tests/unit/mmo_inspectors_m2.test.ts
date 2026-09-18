@@ -396,6 +396,45 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         );
         expect(qualHtml).toContain("Your finest yet");
       });
+
+      it("renders large sport trophy catch modal with full layout contracts", () => {
+        const sailfishCatch: TrophyCatchDto = {
+          cargoId: "cargo.sailfish.1",
+          speciesId: "fish.sailfish",
+          speciesName: "Pacific Sailfish",
+          habitats: ["open-sea", "deep-ocean"],
+          cargoClass: "large",
+          weightKg: 43.90,
+          lengthCm: 81.3,
+          quality: "common",
+          qualityStars: 1,
+          freshnessPercent: 100,
+          freshnessTone: "fresh",
+          estimatedShelfLifeMinutes: 556,
+          estimatedMarketValue: 680,
+          record: null,
+          storageDestination: "boat-hook",
+          storageLocationLabel: "Hung on transom hook"
+        };
+        const html = renderToString(
+          React.createElement(CatchInspectionModal, {
+            catchData: sailfishCatch,
+            onDismiss: () => {},
+            onOpenHoldOrSatchel: () => {}
+          })
+        );
+        expect(html).toContain("Coastal Sport Angling");
+        expect(html).toContain("Catch landed");
+        expect(html).toContain("Pacific Sailfish");
+        expect(html).toContain("43.90 kg");
+        expect(html).toContain("81.3 cm");
+        expect(html).toContain("100%");
+        expect(html).toContain("~556m remaining");
+        expect(html).toContain("Hung on transom hook");
+        expect(html).toContain("LARGE CLASS");
+        expect(html).toContain("catch-metric-tile--freshness");
+        expect(html).toContain("catch-keycap");
+      });
     });
 
     describe("CatchSummaryToast Component Presentation", () => {

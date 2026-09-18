@@ -73,6 +73,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
       >
         <header className="catch-modal-header">
           <div className="catch-celebration-title">
+            <span className="catch-celebration-subtitle">Coastal Sport Angling</span>
             <strong id="catch-modal-title" className="catch-celebration-headline">
               Catch landed
             </strong>
@@ -127,11 +128,11 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
                 <dd className="metric-length">{`${catchData.lengthCm.toFixed(1)} cm`}</dd>
               </div>
 
-              <div className="catch-metric-tile">
+              <div className="catch-metric-tile catch-metric-tile--freshness">
                 <dt>Freshness</dt>
                 <dd className={`metric-freshness freshness-${catchData.freshnessTone}`}>
-                  <span>{`${catchData.freshnessPercent}%`}</span>
-                  <small>{`~${catchData.estimatedShelfLifeMinutes}m remaining`}</small>
+                  <span className="freshness-value">{`${catchData.freshnessPercent}%`}</span>
+                  <small className="freshness-shelf">{`~${catchData.estimatedShelfLifeMinutes}m remaining`}</small>
                 </dd>
               </div>
             </dl>
@@ -150,7 +151,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
               onClick={onOpenHoldOrSatchel}
               className="catch-inspect-hold-btn"
             >
-              Open Satchel <kbd>[I]</kbd>
+              Open Satchel <kbd className="catch-keycap">[I]</kbd>
             </ChromeButton>
           )}
           <ChromeButton
@@ -158,7 +159,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
             onClick={onDismiss}
             className="catch-continue-btn"
           >
-            Back to the coast <kbd>[Space]</kbd>
+            Back to the coast <kbd className="catch-keycap">[Space]</kbd>
           </ChromeButton>
         </footer>
       </GameSheet>

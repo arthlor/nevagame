@@ -839,9 +839,8 @@ landing is possible). `cargo.pickup` is the explicit, free transaction that
 moves one pack from an accessible boat slot into the player's hands; a docked
 hold is accessible, but it is never treated as carried cargo. The Harbor Fish
 Market does not sell these packs and does not offer a bulk shortcut. The player
-must walk the pack to the Village Produce Market, which is the inland trade
-center, and sell it from the Trade packs ledger. Each pack remains in exactly
-one boat slot or the player carry location throughout the handoff.
+must carry the pack to the Village Produce Market, which is the inland trade
+center, on foot or riding the donkey, and sell it from the Trade packs ledger. The inherited horse carriage carries two compatible small/medium packs in independent slots. At its rear, `cargo.load-carriage` moves the carried pack into the first free slot; `cargo.pickup` collects a stored pack. Both require an on-foot player within reach, refuse fishing/boarding conflicts and preserve cargo on rejection. A full bed never consumes or drops the carried pack. Each pack remains in exactly one boat slot, carriage slot or player carry location throughout the handoff. Cart cargo uses open-air freshness and the cart's local climate, including offline progression; no remote satchel ice cools it. Unload and carry each pack to the counter to sell it.
 
 ```ts
 interface FishCargoState {
@@ -852,7 +851,7 @@ interface FishCargoState {
   caughtAtMinute: GameMinute;
   freshness: number;
   cargoClass: "small" | "medium" | "large" | "gargantuan";
-  location: PlayerCarryLocation | BoatCargoLocation | ColdStorageLocation;
+  location: CargoLocation;
 }
 ```
 Freshness starts at **100**:
@@ -958,7 +957,7 @@ be a deliberate decision rather than a silent one; retiming them properly means
 re-authoring the imported humanoid's root motion, not editing a constant.
 
 Riding must beat walking at every tier, so `MOUNT_TUNING` moved with it: 2.3 /
-5.8 / 8.4 m/s for walk, trot and gallop. Mount clips are *derived* from those
+5.8 / 7.5 m/s for walk, trot and gallop. Mount clips are *derived* from those
 numbers — `tools/blender/generators/characters.py` computes each gait's
 duration from stride reach divided by the catalog reference speed and refuses
 to build if the two disagree — so changing mount tuning always means editing
@@ -966,19 +965,18 @@ to build if the two disagree — so changing mount tuning always means editing
 rider's own `mounted_walk` / `mounted_trot` / `mounted_gallop` clips on
 `char_player_a` mirror the same three numbers and must be re-baked with
 `tools/blender/adapt_imported_humanoid.py` in the same change, or the rider
-bobs out of step with the animal. Mounted playback is therefore exactly 1.0.
+bobs out of step with the animal. The gallop retune to 7.5 m/s landed ahead of
+that rebake: until both assets are regenerated via `art:generate`, gallop
+playback runs at tuning over catalog (~0.89x) with feet planted. Mounted playback is otherwise exactly 1.0.
 
 `slopeGaitScale()` uses the horizontal component of the upward support normal as downhill: movement against the height gradient gains the bounded downhill response, movement along it receives the uphill penalty, and contour travel is neutral. `PhysicsAdapter` reports signed tangential acceleration from resolved movement, so braking is negative and constant-speed turning is not forward acceleration. This motion evidence is transient presentation input, not additional saved traversal state.
 
 ## 11B. Mounts (LIVE)
 
-Mounts are a **traversal capability**, not a vehicle economy and not a second
-boat. The starter pack donkey exists from a fresh save; there is no mount
-purchase, breeding, feeding, durability, stabling, or mount cargo system, and
-none may be added without an explicit task.
+Mounts provide land traversal. The starter pack donkey and inherited horse carriage exist in fresh saves; migration adds the carriage to existing saves without replacing progress. The carriage parks on the open southern edge of the farmhouse yard, facing the exit, with two physical cargo slots governed by §10. There is no purchase, breeding, feeding, durability or stabling economy.
 
 `MountState` in `src/simulation/core/types.ts` owns pose and gallop-resource
-fields. `GameState.mounts` is keyed by stable mount ID;
+fields, plus the carriage-only physical cargo slot pointers. `GameState.mounts` is keyed by stable mount ID;
 `player.activeMountId` alone determines whether the player is riding.
 `"mounted"` is an explicit `GameplayMode`; migration history is in `01` §6.1.
 
@@ -989,13 +987,17 @@ Contract:
   `boardRadiusMeters` of a valid mount pose on mountable ground; dismount
   resolves to a cleared adjacent pose. A pose that is not on valid ground, or a
   frame that reports both an active boat and an active mount, is rejected.
+  Carrying a trade pack does not block boarding the donkey: the pack rides on
+  the rider's back at the mount's unpenalized speed. Boarding the carriage
+  while carrying stays blocked; load its bed at the rear on foot.
 - **Mounted traversal is free of Work costs and awards no XP.** Walk/trot
   remain available while gallop uses the mount-owned resource described below.
 - **Mounting suspends manual production.** Planting, crop tending, harvest,
   fertilizing, processing stations, fish-cargo handling, and both fishing modes
   refuse while `activeMountId` is set, with a `Dismount before …` reason. This
   is the intended boundary: the mount moves you between work sites, it does not
-  let you work from the saddle.
+  let you work from the saddle. Riding with an already-carried pack is passive
+  carrying, not handling, and stays allowed on the donkey.
 - **`MOUNT_TUNING` in `src/simulation/mounts/Mounts.ts` is the tuning owner** for
   walk/trot/gallop speed, gallop stamina and recovery, acceleration, pose offsets, board radius, ground tolerance,
   and maximum mountable slope. Do not scatter those numbers into presentation,
@@ -1011,7 +1013,11 @@ Contract:
   does not drain the player's sprint resource: `advanceMountGait` advances the
   mount's own persisted gallop stamina, recovery delay and exhaustion at the
   fixed traversal step. `PhysicsAdapter` returns that result and
-  `NavigationDomain` commits it to the active mount. Exhaustion prevents
+  `NavigationDomain` commits it to the active mount. The budget outlasts the
+  rider's own sprint (roughly seven seconds of gallop against four and a half),
+  and the HUD shows it as Gallop in the unit-frame stamina slot while mounted.
+  Carried trade packs never slow the mount: the animal carries the load, so
+  laden and unladen gaits resolve identically. Exhaustion prevents
   galloping until the configured recovery threshold is reached; ordinary
   movement remains available. Schema history belongs to `01` §6.1.
 - The mount mesh, animation, and rider attachment are presentation. Mount pose
@@ -1035,8 +1041,10 @@ Contract:
   pose. The rider socket and authored left/right stirrup sockets own pelvis and
   foot support; terrain contact solving does not modify mounted poses.
 
-Deferred for mounts: purchase/ownership progression, mount inventory or cargo,
-feeding, additional species, and mounted interaction verbs. The gallop budget
+The horse carriage uses `Carriage.ts` for capacity, interaction offsets, collision footprint, driving tuning and its trot stamina budget. W/S moves it forward or backward at the walk speed, A/D steers only while rolling, release brakes, and Shift trots while the budget lasts: roughly ten seconds of trot, then a forced walk until recovery. Walking and reversing stay free. `PhysicsWorld` advances the budget through the shared `advanceMountGait` stepper and commits it to the carriage mount, and the HUD shows it as Trot in the unit-frame stamina slot. `PhysicsWorld` checks the bed, shafts and horse across each fixed-step movement and turn against static collision and dry slope-safe support. Parked bed and horse colliders block pedestrians. The catalog horse gait follows resolved movement, the wheels follow signed travel, and the player sits at the authored driver socket. The initial parking pose and exit clearance are tested against the actual world collision projection. The carriage walk/trot retune to 1.6/3.2 m/s landed ahead of its clip rebake like the donkey gallop above: the presentation reference stays pinned to the baked 1.1/2.1 m/s cadence until the carriage assembly is regenerated.
+
+Deferred for mounts: purchase/ownership progression, general mount inventory,
+feeding, further species, and working while mounted. The gallop budget
 described above is live, not deferred.
 
 # 12. Weather & Sea Risk
@@ -1339,7 +1347,7 @@ completed simulation step, not a button that can be pressed early.
 
 **Fishing:** one active encounter/player; outcome deterministic for seed + input timeline; sport fish becomes cargo.
 
-**Boat:** one fish max per cargo slot; each fish exists in exactly one location.
+**Transport:** one fish max per boat or carriage cargo slot; each fish exists in exactly one location. A failed transfer changes neither side.
 
 **Market:** sale removes asset once, adds money once, uses simulation price state; a physical fish trade pack can only be sold from the player's carry location at the inland trade center, never directly from a boat hold or through the fish-market bulk lane.
 

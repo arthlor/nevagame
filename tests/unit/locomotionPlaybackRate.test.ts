@@ -59,17 +59,22 @@ describe("locomotion playback rate at the shipped tuning", () => {
     expect(fastest).toBeLessThanOrEqual(MAX_DOWNHILL_PLAYBACK);
   });
 
-  it("plays every mounted gait at its authored cadence", () => {
-    // The rider's seated clips and the donkey's gaits are authored at exactly
-    // the mount tuning, so mounted playback is 1.0 and cannot drift.
-    const gaits: Array<[string, string, number]> = [
+  it("plays walk and trot at authored cadence; gallop runs an interim ratio pending rebake", () => {
+    // Walk/trot clips match mount tuning exactly, so their playback is 1.0.
+    // Gallop retuned 8.4 → 7.5 m/s ahead of the Blender rebake (authorized
+    // interim): playback runs at tuning/catalog until fauna_donkey_a and
+    // char_player_a are regenerated. Unbounded playback keeps feet planted.
+    const exact: Array<[string, string, number]> = [
       ["mounted_walk", "walk", MOUNT_TUNING.walkSpeedMetersPerSecond],
-      ["mounted_trot", "trot", MOUNT_TUNING.trotSpeedMetersPerSecond],
-      ["mounted_gallop", "gallop", MOUNT_TUNING.gallopSpeedMetersPerSecond]
+      ["mounted_trot", "trot", MOUNT_TUNING.trotSpeedMetersPerSecond]
     ];
-    for (const [riderClip, donkeyClip, speed] of gaits) {
+    for (const [riderClip, donkeyClip, speed] of exact) {
       expect(clipReferenceSpeed(ASSET_IDS.CHAR_PLAYER_A, riderClip)).toBe(speed);
       expect(clipReferenceSpeed(ASSET_IDS.FAUNA_DONKEY_A, donkeyClip)).toBe(speed);
     }
+    const gallopReference = clipReferenceSpeed(ASSET_IDS.FAUNA_DONKEY_A, "gallop");
+    expect(gallopReference).toBe(8.4);
+    expect(clipReferenceSpeed(ASSET_IDS.CHAR_PLAYER_A, "mounted_gallop")).toBe(gallopReference);
+    expect(MOUNT_TUNING.gallopSpeedMetersPerSecond / gallopReference).toBeCloseTo(7.5 / 8.4, 8);
   });
 });

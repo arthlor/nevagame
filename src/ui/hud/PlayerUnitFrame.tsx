@@ -7,18 +7,21 @@ import { GuildcraftArt } from "./GuildcraftArt";
 export interface PlayerUnitFrameProps {
   work: WorldHudDto["work"];
   sprint: WorldHudDto["sprint"];
+  mount?: WorldHudDto["mount"];
   statusEffects?: readonly HudStatusChipDto[];
   onOpenCharacterSheet?: () => void;
   className?: string;
 }
 
 export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
-  work, sprint, statusEffects = [], onOpenCharacterSheet, className = ""
+  work, sprint, mount, statusEffects = [], onOpenCharacterSheet, className = ""
 }) => {
   const workCurrent = Math.round(work.current);
   const workMaximum = Math.round(work.maximum);
   const sprintCurrent = sprint ? Math.round(sprint.current) : 0;
   const sprintMaximum = sprint ? Math.round(sprint.maximum) : 0;
+  const mountCurrent = mount ? Math.round(mount.current) : 0;
+  const mountMaximum = mount ? Math.round(mount.maximum) : 0;
 
   return (
   <div className={`player-unit-frame guild-vitals ${className}`} role="region"
@@ -50,6 +53,16 @@ export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
       <span className="guild-vital-readout">{sprint.exhausted
         ? <>Sprint <span data-testid="sprint-stamina-winded" role="status">Winded</span></>
         : <>Sprint <strong>{sprintCurrent} / {sprintMaximum}</strong></>}</span>
+    </div>}
+    {mount && <div className={`guild-vital-bar guild-sprint ${mount.exhausted ? "is-exhausted" : ""}`}>
+      <Meter className="guild-vital-meter" label={mount.label} value={mountCurrent} max={mountMaximum}
+        valueText={mount.exhausted ? `Winded — ${mount.label.toLowerCase()} recovering` : undefined}
+        showLabel={false} showValue={false} fill={mount.exhausted ? "danger" : "sprint"}
+        data-testid="mount-stamina" />
+      <GuildcraftArt art="meter" className="guild-vital-rim" />
+      <span className="guild-vital-readout">{mount.exhausted
+        ? <>{mount.label} <span data-testid="mount-stamina-winded" role="status">Winded</span></>
+        : <>{mount.label} <strong>{mountCurrent} / {mountMaximum}</strong></>}</span>
     </div>}
     {statusEffects.length > 0 && <div className="guild-status-effects" aria-label="Active status effects">
       {statusEffects.map((chip) => <span key={chip.id} className={`guild-status-effect status-chip--${chip.type}`}

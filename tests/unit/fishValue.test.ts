@@ -41,6 +41,7 @@ describe("Fish Value & Freshness Calculations", () => {
     expect(getFreshnessPriceMultiplier(60)).toBe(0.8);
     expect(getFreshnessPriceMultiplier(30)).toBe(0.55);
     expect(getFreshnessPriceMultiplier(10)).toBe(0.3);
+    expect(getFreshnessPriceMultiplier(0.5)).toBe(0.3);
     expect(getFreshnessPriceMultiplier(0)).toBe(0.0);
   });
 

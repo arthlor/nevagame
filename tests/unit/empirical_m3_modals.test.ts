@@ -209,7 +209,7 @@ describe("Milestone M3 ornate modal presentation", () => {
       })
     );
 
-    expect(html).toContain("Nautical Chart of Neva");
+    expect(html).toContain("Nautical Chart of the Neva Archipelago");
     expect(html).toContain('data-testid="map-lenses"');
     expect(html).toContain("Chart");
     expect(html).toContain("Markets");

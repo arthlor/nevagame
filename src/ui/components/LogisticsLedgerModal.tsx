@@ -29,7 +29,14 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [transferNotice, setTransferNotice] = useState<string | null>(null);
+  const [selectedBoatId, setSelectedBoatId] = useState<string>(
+    stores.vessels[0]?.boatId ?? ""
+  );
   useModalAccessibility(modalRef, onClose);
+
+  const activeBoatId = stores.vessels.some((v) => v.boatId === selectedBoatId)
+    ? selectedBoatId
+    : (stores.vessels[0]?.boatId ?? "");
 
   const runTransfer = (
     itemId: string,
@@ -107,10 +114,38 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
 
           <div className="stores-vessels">
             {stores.vessels.length === 0 && <p className="expedition-empty">No vessel is registered.</p>}
+            {stores.vessels.length > 1 && (
+              <div className="stores-vessel-tabs" role="tablist" aria-label="Select vessel">
+                {stores.vessels.map((v) => {
+                  const isSelected = v.boatId === activeBoatId;
+                  return (
+                    <button
+                      key={v.boatId}
+                      type="button"
+                      role="tab"
+                      aria-selected={isSelected}
+                      className={`stores-vessel-tab ${isSelected ? "is-active" : ""}`}
+                      onClick={() => {
+                        playUiSound("click");
+                        setSelectedBoatId(v.boatId);
+                      }}
+                    >
+                      <IconBoat size={15} aria-hidden="true" />
+                      <span>{v.name}</span>
+                      <span className="stores-vessel-tab-badge">
+                        {v.occupiedSlots}/{v.cargoSlots.length}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {stores.vessels.map((vessel) => (
               <section
                 key={vessel.boatId}
-                className="ledger-section vessel-spatial-bay-section"
+                className={`ledger-section vessel-spatial-bay-section ${
+                  stores.vessels.length > 1 && vessel.boatId !== activeBoatId ? "is-vessel-hidden" : ""
+                }`}
                 aria-labelledby={`stores-${vessel.boatId}`}
               >
                 <div className="stores-vessel-heading">

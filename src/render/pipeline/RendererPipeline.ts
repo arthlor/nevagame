@@ -168,6 +168,9 @@ export class RendererPipeline {
     uniforms.uOpaqueDepth.value = snapshot.depthTexture;
     uniforms.uOpticsViewport.value.set(source.width, source.height);
     uniforms.uOpticsInverseProjection.value.copy(camera.projectionMatrixInverse);
+    uniforms.uOpticsProjection.value.copy(camera.projectionMatrix);
+    if ("near" in camera) uniforms.uCameraNear.value = (camera as THREE.PerspectiveCamera).near;
+    if ("far" in camera) uniforms.uCameraFar.value = (camera as THREE.PerspectiveCamera).far;
     uniforms.uSceneCaptureEnabled.value = 1;
     this.capturedWaterThisFrame = true;
   }

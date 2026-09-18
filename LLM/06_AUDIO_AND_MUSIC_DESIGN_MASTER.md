@@ -408,6 +408,11 @@ Seamless 2D/3D ambient beds establish an authentic, breathing coastal ecosystem.
 - **`ambience.bed.open_sea`**: Deep, oceanic swell rolling against the hull, whistling offshore breeze, eerie isolation, distant buoy bell clangs.
 - **`ambience.bed.interior`**: Cozy, crackling birch hearth fire, old pendulum wall-clock ticking steadily, rain pattering gently on cedar shingles.
 
+### Inland Water: Spring, Fall & River
+- **`sfx.world.headwater_fall_loop`**: The authored upper-reach fall heard from the pool — a broad mass of falling water with a low body and a light spray hiss on top, widening as the listener approaches and softening to a distant roar beyond the gorge. Positional loop at the landing; distance-shaped over roughly 45 m. Specified target: no asset is admitted for it yet, and the manifest has no close-water fall loop to reuse.
+- **`sfx.world.river_run_loop`**: Quieter shallow run/riffle character under the fall — water working over stone, brightest at the outflow and settling into the upper river. Layered beneath the fall when both are audible so the pool does not stop dead at the lip. Specified target, same asset gap.
+
+Both cues are meant to follow the existing local-loop pattern (positional `setActionLoop` fed by a presentation builder like the windmill loop), so the fall is audible on approach, brightest at the impact, and quieter downstream. Until a CC0 recording is admitted and normalized (see §5.1) they remain specified, not wired.
 ### Day / Night & Diurnal Cycles
 - **`ambience.time.dawn_chorus`**: Burst of cheerful morning birdsong and active rooster crows greeting the sunrise (05:00 - 07:30).
 - **`ambience.time.midday_breeze`**: Warm, active summer wind rustling canopies and drying fields (11:00 - 15:00).

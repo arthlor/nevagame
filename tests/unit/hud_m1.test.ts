@@ -131,6 +131,48 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(htmlExhaust).toContain("Winded");
       expect(htmlExhaust).toContain("sprint-stamina-winded");
     });
+
+    it("renders the mount's Gallop stamina in the Sprint slot while mounted", () => {
+      const state = createInitialGameState();
+      const hud = buildWorldHudDto(state);
+      expect(hud.mount).toBeNull();
+
+      const mountedHud = {
+        ...hud,
+        sprint: null,
+        mount: { current: 62, maximum: 100, exhausted: false, label: "Gallop" as const }
+      };
+      const html = renderToString(
+        React.createElement(PlayerUnitFrame, {
+          work: mountedHud.work,
+          sprint: mountedHud.sprint,
+          mount: mountedHud.mount
+        })
+      );
+      expect(html).toContain('data-testid="mount-stamina"');
+      expect(html).toContain("Gallop");
+      expect(html).toContain("62 / 100");
+      expect(html).not.toContain('data-testid="sprint-stamina"');
+
+      const windedHtml = renderToString(
+        React.createElement(PlayerUnitFrame, {
+          work: mountedHud.work,
+          sprint: null,
+          mount: { current: 0, maximum: 100, exhausted: true, label: "Gallop" as const }
+        })
+      );
+      expect(windedHtml).toContain("mount-stamina-winded");
+
+      const trotHtml = renderToString(
+        React.createElement(PlayerUnitFrame, {
+          work: mountedHud.work,
+          sprint: null,
+          mount: { current: 80, maximum: 100, exhausted: false, label: "Trot" as const }
+        })
+      );
+      expect(trotHtml).toContain("Trot");
+      expect(trotHtml).toContain("80 / 100");
+    });
   });
 
   // --------------------------------------------------------------------------

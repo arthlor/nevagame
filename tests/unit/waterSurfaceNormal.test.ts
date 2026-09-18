@@ -24,10 +24,6 @@ const POINTS: ReadonlyArray<readonly [number, number]> = [
   [8, 42],
   [-40, 120],
   [150, 260],
-  // NB: waterSpatialProfile has a hard branch cut at x = 260
-  // (usesSharedMarine switches formulation there), so no parity point may
-  // sit within one finite-difference stencil step of that plane: the stencil
-  // would straddle the cut and measure the formulation switch, not a slope.
   [250, 120],
 ];
 
@@ -103,7 +99,10 @@ describe("analytic water normal", () => {
           // Locally-constant-weights approximation: the reference includes
           // regional weight drift over the 0.15 m stencil, the analytic form
           // does not. Agreement must stay within ~1.5 degrees.
-          expect(analytic.dot(reference)).toBeGreaterThan(0.9996);
+          expect(
+            analytic.dot(reference),
+            `finite-difference parity at (${x}, ${z}), t=${time}, ${JSON.stringify(conditions)}`
+          ).toBeGreaterThan(0.9996);
         }
       }
       for (const [x, z] of ADVECTION_POINTS) {
@@ -113,7 +112,10 @@ describe("analytic water normal", () => {
           // Bounded agreement only (see ADVECTION_POINTS): the stencil is
           // dominated by field curvature there, so this guards against gross
           // error (wrong sign, unnormalized) rather than stencil equality.
-          expect(analytic.dot(reference)).toBeGreaterThan(0.985);
+          expect(
+            analytic.dot(reference),
+            `bounded advection parity at (${x}, ${z}), t=${time}, ${JSON.stringify(conditions)}`
+          ).toBeGreaterThan(0.985);
           expect(analytic.y).toBeGreaterThan(0.9);
         }
       }
@@ -246,9 +248,9 @@ describe("analytic water normal", () => {
 
       // The 12 m / 4 segment fixture uses the same 3 m lattice as its base.
       expect(water.nearPatch.mesh.position.x).toBe(15);
-      expect(water.nearPatch.mesh.position.z).toBe(-28);
+      expect(water.nearPatch.mesh.position.z).toBe(-30);
       expect(water.nearPatch.mesh.material.uniforms.uPatchCenter.value.x).toBe(15);
-      expect(water.nearPatch.mesh.material.uniforms.uPatchCenter.value.y).toBe(-28);
+      expect(water.nearPatch.mesh.material.uniforms.uPatchCenter.value.y).toBe(-30);
       expect(water.nearPatch.mesh.material.uniforms.uReducedMotion.value).toBe(1);
 
       // Normal motion

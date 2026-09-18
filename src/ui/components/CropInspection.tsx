@@ -54,7 +54,7 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
       right: "auto",
       bottom: "auto",
       transform: "none",
-      zIndex: 30
+      zIndex: 35
     };
   }, [projectedPosition]);
 
@@ -116,7 +116,8 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
                 label="Growth"
                 value={Math.round(inspection.maturityProgress * 100)}
                 max={100}
-                variant="fishing"
+                variant="labor"
+                fill="labor"
                 showLabel={false}
                 valueText={inspection.stageTimingLabel}
                 data-testid="crop-growth-meter"

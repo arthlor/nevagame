@@ -1,5 +1,5 @@
 import { getNextRank, getRankForXp } from "../../content/progression";
-import { MINUTES_PER_DAY } from "../core/GameClock";
+import { MINUTES_PER_DAY, REST_WAKE_MINUTE_OF_DAY } from "../core/GameClock";
 import type { GameMinute, SkillId, WorkActionId, WorkCapacityState } from "../core/types";
 import type { SkillProgressDto, WorkCostQuote } from "../core/contracts";
 import type { DomainContext } from "./DomainContext";
@@ -26,6 +26,15 @@ export const WORK_PASSIVE_REGEN_INTERVAL_SECONDS = 300;
 
 export function workEarningsDayFor(minute: GameMinute): number {
   return Math.floor(minute / MINUTES_PER_DAY);
+}
+
+/**
+ * Wake-boundary day for the offline rest rule (`01` §7): days start at
+ * `REST_WAKE_MINUTE_OF_DAY`, so 23:59→00:01 grants no rest while 07:59→08:01
+ * grants one night's. Distinct from the midnight earnings day above.
+ */
+export function workWakeDayFor(minute: GameMinute): number {
+  return Math.floor((minute - REST_WAKE_MINUTE_OF_DAY) / MINUTES_PER_DAY);
 }
 
 /** Resets the daily earning tallies when the calendar day rolls over. */

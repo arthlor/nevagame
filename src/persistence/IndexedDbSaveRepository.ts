@@ -243,8 +243,9 @@ export class IndexedDbSaveRepository {
     }
     if (
       structurallyReadable
-      && candidate.schemaVersion === CURRENT_SCHEMA_VERSION
-      && world.layoutRevision !== WORLD_LAYOUT_REVISION
+      && world
+      && typeof world.layoutRevision === "number"
+      && world.layoutRevision > WORLD_LAYOUT_REVISION
     ) {
       return "incompatible";
     }

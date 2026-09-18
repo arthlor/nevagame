@@ -577,11 +577,16 @@ export const StartScreen: FC<StartScreenProps> = ({
               Save storage is unavailable. Progress from this session will be lost when you leave or reload.
             </p>
             <div className="start-screen__dialog-actions">
-              <ChromeButton ref={withoutSavingCancelRef} onClick={closeWithoutSavingConfirmation}>
+              <ChromeButton
+                ref={withoutSavingCancelRef}
+                className="start-screen__secondary-button start-screen__secondary-button--dialog"
+                onClick={closeWithoutSavingConfirmation}
+              >
                 Cancel
               </ChromeButton>
               <ChromeButton
                 variant="danger"
+                className="start-screen__button start-screen__button--dialog"
                 soundCue="confirm"
                 onClick={() => {
                   setWithoutSavingConfirmationOpen(false);

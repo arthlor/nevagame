@@ -36,6 +36,24 @@ const QuestChevron: React.FC<{ x: number; y: number; angleDeg: number; focused: 
   </g>
 );
 
+const WaypointMark: React.FC<{ x: number; y: number }> = ({ x, y }) => (
+  <g transform={`translate(${x},${y})`}>
+    <circle r="6" fill="none" stroke="#e69c24" strokeWidth="1.2" strokeDasharray="2 2" />
+    <circle r="3.5" fill="#9a3528" stroke="#ffd700" strokeWidth="1" />
+    <polygon points="0,-2.5 1,-1 2.5,0 1,1 0,2.5 -1,1 -2.5,0 -1,-1" fill="#ffd700" />
+  </g>
+);
+
+const WaypointChevron: React.FC<{ x: number; y: number; angleDeg: number }> = ({
+  x, y, angleDeg
+}) => (
+  <g transform={`translate(${x},${y}) rotate(${angleDeg})`}>
+    <path d="M0 -7.5 L5 4 L0 1.2 L-5 4 Z"
+      fill="#ffd700"
+      stroke="#7c4a15" strokeWidth="1.2" strokeLinejoin="round" />
+  </g>
+);
+
 export const WorldMinimap: React.FC<{
   player: { x: number; z: number };
   compass: WorldHudDto["compass"];
@@ -45,11 +63,15 @@ export const WorldMinimap: React.FC<{
   const questMarkers = compass.nearbyMarkers.filter(
     (marker) => marker.kind === "quest" || marker.kind === "quest-secondary"
   );
+  const waypointMarker = compass.nearbyMarkers.find((marker) => marker.kind === "waypoint");
   const questLabel = questMarkers[0]
     ? ` Objective ${questMarkers[0].label}, ${questMarkers[0].distanceMeters} metres.`
     : "";
+  const waypointLabel = waypointMarker
+    ? ` Waypoint ${waypointMarker.distanceMeters} metres.`
+    : "";
   return <button type="button" disabled={!onOpenMap} className="guild-minimap" data-testid="world-minimap"
-    onClick={onOpenMap} aria-label={`${onOpenMap ? "Open nautical chart. " : "Current position. "}${compass.subRegionTitle}.${questLabel}`}
+    onClick={onOpenMap} aria-label={`${onOpenMap ? "Open nautical chart. " : "Current position. "}${compass.subRegionTitle}.${questLabel}${waypointLabel}`}
     title={`${compass.subRegionTitle}${onOpenMap ? " · Open chart (M)" : ""}`}>
     <svg className="guild-minimap-chart" viewBox={`${at.x - 84} ${at.y - 84} 168 168`}
       aria-hidden="true" focusable="false">
@@ -66,6 +88,20 @@ export const WorldMinimap: React.FC<{
         return Math.hypot(p.x - at.x, p.y - at.y) > VIEW_RADIUS ? null : <circle key={marker.id}
           cx={p.x} cy={p.y} r="4" fill="#396b6c" stroke="#eee1b9" strokeWidth="1" />;
       })}
+      {/* Plotted Custom Waypoint beacon on the minimap */}
+      {waypointMarker && (() => {
+        const p = worldPointToMapSvgUnclamped(waypointMarker);
+        const origin = worldPointToMapSvgUnclamped(player);
+        const dx = p.x - origin.x;
+        const dy = p.y - origin.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance <= VIEW_RADIUS) {
+          return <WaypointMark key={waypointMarker.id} x={p.x} y={p.y} />;
+        }
+        const scale = RIM_RADIUS / (distance || 1);
+        const angleDeg = (Math.atan2(dx, -dy) * 180) / Math.PI;
+        return <WaypointChevron key={waypointMarker.id} x={at.x + dx * scale} y={at.y + dy * scale} angleDeg={angleDeg} />;
+      })()}
       {questMarkers.map((marker) => {
         // Unclamped on both ends: a clamped player and a clamped target on the
         // same frame edge would collapse to a bearing of zero.

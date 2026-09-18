@@ -278,7 +278,8 @@ def merchant_carriage(spec, root):
                 (sign*.51,-length*.98,1.22),(sign*.48,-length*.5-p['shaftLength'],1.33)]
         add_limb_tube(prefix+'_shaft_'+str(sign),points,[.055,.052,.046,.035],honey,body,sides=8)
     add_marker(prefix+'_driver_socket',(0,-length*.40,bed+.85),body,marker_type='socket')
-    for index,y in enumerate([-.08,length*.33],1):
+    # Pack shoulder straps extend behind their origin; reserve tailgate clearance.
+    for index,y in enumerate([-.08,length*.29],1):
         add_marker(prefix+'_cargo_%02d'%index,(0,y,bed+.049),body,marker_type='socket')
         for sign in [-1,1]:
             add_ring(prefix+'_tie_%d_%d'%(index,sign),(sign*(width/2+.07),y,bed+.52),

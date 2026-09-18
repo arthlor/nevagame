@@ -1,3 +1,5 @@
+import { CarriagePresentation } from "../presentation/CarriagePresentation";
+import { STARTER_CARRIAGE_ID } from "../../simulation/mounts/Carriage";
 import { AMBIENT_BOAT_ROUTES, sampleAmbientBoatPose } from "./ambientBoats";
 import { AMBIENT_TOWNSFOLK_ROUTES, sampleAmbientTownsfolkPose, type AmbientTownsfolkRoute } from "./ambientTownsfolk";
 import { architectureWindowMaterial, disposeArchitectureWindows, updateArchitectureWindows } from "../materials/WindowMaterial";
@@ -752,6 +754,7 @@ export class WorldScene {
     WORLD_LAYOUT_V5.anchors.playerSpawn.z
   );
   private readonly visibilityLodCamera = new THREE.PerspectiveCamera();
+  private activeCamera?: THREE.Camera;
   private lastPresentationTime = 0;
   private hasPresentationTimestamp = false;
   private characterElapsedSeconds = 0;
@@ -781,6 +784,8 @@ export class WorldScene {
     nevaSmokeWind: { value: new THREE.Vector2(0, 0) }
   };
   private readonly faunaPresentations: FaunaPresentation[] = [];
+  private carriagePresentation: CarriagePresentation | null = null;
+  private readonly carriagePacks = new Map<string, { root: THREE.Object3D; slot: number }>();
   private donkeyPresentation: DonkeyPresentation | null = null;
   private readonly backgroundBoats: THREE.Object3D[] = [];
   private readonly ambientTownsfolk: AmbientTownsfolkPresentation[] = [];
@@ -995,6 +1000,15 @@ export class WorldScene {
   private checkAlive(): void {
     this.startupSignal?.throwIfAborted();
     if (this.disposed) throw new DOMException("World disposed", "AbortError");
+  }
+
+  private syncCarriagePacks(state: Readonly<GameState>): void {
+    for (const [id, pack] of this.carriagePacks) {
+      if (state.mounts[STARTER_CARRIAGE_ID]?.fishCargoSlotIds?.[pack.slot] !== id) {
+        pack.root.removeFromParent();
+        this.carriagePacks.delete(id);
+      }
+    }
   }
 
   private syncBoatFishPacks(state: Readonly<GameState>): void {
@@ -4405,7 +4419,7 @@ export class WorldScene {
       timeSeconds,
       waterConditions,
       this.visibilityAnchor,
-      { reducedMotion: this.prefersReducedMotion }
+      { reducedMotion: this.prefersReducedMotion, camera: this.activeCamera ?? this.visibilityLodCamera }
     );
     this.shoreFoam.update(timeSeconds, waterConditions);
     this.boatWakes.update(timeSeconds);
@@ -4417,6 +4431,7 @@ export class WorldScene {
       if (bundle) bundle.visible = false;
     }
 
+    const floatingBodies: Array<{ x: number; z: number; radius: number; strength: number; vx: number; vz: number }> = [];
     for (const [boatId, boatState] of Object.entries(state.boats)) {
       const bMesh = this.boatMeshes.get(boatId);
       if (!bMesh) continue;
@@ -4425,9 +4440,29 @@ export class WorldScene {
       bMesh.rotation.set(presentation.pitch, boatState.headingRadians, presentation.roll, "YXZ");
       bMesh.updateMatrixWorld(true);
       this.updateBoatWake(boatId, boatState, timeSeconds, waterConditions);
+      // Faint hull-ring energy for the water shader; the wake pool keeps the
+      // long trail. Radius follows the hull footprint so a rowboat never
+      // foams like a skiff, and moored hulls stay near 0.1 (no milky halo).
+      const speed = boatState.speed ?? 0;
+      const heading = boatState.headingRadians ?? 0;
+      const footprint = boatBuoyancyFootprint(boatState.boatTypeId);
+      const speedRatio = THREE.MathUtils.clamp(Math.abs(speed) / 8, 0, 1);
+      floatingBodies.push({
+        x: boatState.x,
+        z: boatState.z,
+        radius: Math.max(1.0, footprint.halfBeam * 1.4),
+        strength: 0.1 + speedRatio * 0.5,
+        vx: Math.sin(heading) * speed,
+        vz: Math.cos(heading) * speed
+      });
     }
+    this.water.setFloatingBodies(floatingBodies);
     this.syncSkiffMooringPreview(state, timeSeconds);
     this.updateDonkeyPresentation(state, playerPose, this.characterElapsedSeconds, delta, this.latestLocomotionTimeScale);
+    const carriageState = state.mounts[STARTER_CARRIAGE_ID];
+    const drivingCarriage = state.player.activeMountId === STARTER_CARRIAGE_ID;
+    if (carriageState) this.carriagePresentation?.update(carriageState, playerPose, drivingCarriage, delta, this.latestLocomotionTimeScale);
+    this.syncCarriagePacks(state);
 
     if (this.playerMesh) {
       const presentationMode = state.sportFishing
@@ -4467,6 +4502,7 @@ export class WorldScene {
       this.preparePlayerAttachmentTransition(playerPose, this.characterElapsedSeconds);
       const animationContext: CharacterAnimationContext = {
         mode: presentationMode,
+        carriageDriver: drivingCarriage,
         motion: playerPose.motion,
         locomotionTimeScale: this.latestLocomotionTimeScale,
         facingRadians: playerPose.rotationY,
@@ -4517,7 +4553,8 @@ export class WorldScene {
       const skiffFootSupports = activeBoat?.boatTypeId === "boat.skiff"
         ? this.boatSkiffFootSupports.get(activeBoat.id)
         : undefined;
-      const boatCharacterAnchor = fishingStation ?? driverSeat;
+      const carriageSeat = drivingCarriage ? this.carriagePresentation?.seat : undefined;
+      const boatCharacterAnchor = carriageSeat ?? fishingStation ?? driverSeat;
       const attachedToDonkey = state.player.activeMountId !== null
         && this.donkeyPresentation?.attachedMountId === state.player.activeMountId;
       const attachmentTransitionActive = this.updatePlayerAttachmentTransition(playerPose, this.characterElapsedSeconds);
@@ -4572,8 +4609,8 @@ export class WorldScene {
       }
       this.playerMesh.updateMatrixWorld(true);
       if (!attachmentTransitionActive) {
-        const pelvisSupport = attachedToDonkey ? this.donkeyPresentation?.riderSocket
-          : boatCharacterAnchor?.name === "boat_rowboat_rower_seat" ? boatCharacterAnchor : undefined;
+        const pelvisSupport = carriageSeat ?? (attachedToDonkey ? this.donkeyPresentation?.riderSocket
+          : boatCharacterAnchor?.name === "boat_rowboat_rower_seat" ? boatCharacterAnchor : undefined);
         if (pelvisSupport) {
           pelvisSupport.getWorldPosition(this.tempBoatSeatVec);
           this.playerAnimation?.alignPelvisSupport(this.tempBoatSeatVec);
@@ -4786,12 +4823,30 @@ export class WorldScene {
       const velocityX = npcFrameDelta > 0 ? (worldX - previousX) / npcFrameDelta : 0;
       const velocityZ = npcFrameDelta > 0 ? (worldZ - previousZ) / npcFrameDelta : 0;
       const walkSpeed = Math.hypot(velocityX, velocityZ);
+      // Acceleration derives from measured velocity against the same pose
+      // history the speed uses, so eased station beats produce a lean into the
+      // stride and a settle at corners like the player's response.
+      const lastVelocity = npc.lastAnimationContext?.motion.velocity
+        ?? { x: velocityX, y: 0, z: velocityZ };
+      const accelerationDelta = npcFrameDelta > 0 ? 1 / npcFrameDelta : 0;
+      const accelerationMagnitude = Math.min(
+        Math.hypot(velocityX - lastVelocity.x, velocityZ - lastVelocity.z) * accelerationDelta,
+        12
+      );
       const context: CharacterAnimationContext = {
         mode: "on-foot", carrying: false, talking: isDialogueTarget,
         facingRadians: npc.model.rotation.y,
         motion: npcPresentationMotion({
           velocity: { x: velocityX, y: 0, z: velocityZ },
           speedMetersPerSecond: walkSpeed,
+          // Sign with heading so accelerating forward leans forward and braking
+          // leans back; a pure magnitude would lean the same way both times.
+          accelerationMetersPerSecondSquared: accelerationMagnitude
+            * Math.sign(
+              (velocityX - lastVelocity.x) * Math.sin(npc.model.rotation.y)
+              + (velocityZ - lastVelocity.z) * Math.cos(npc.model.rotation.y)
+              || 1
+            ),
           // A corner can produce a wrapped turn difference near pi in one frame;
           // clamp the reported rate so the animator reads a believable turn
           // instead of a one-frame spike that snaps the whole body around.
@@ -5669,6 +5724,33 @@ export class WorldScene {
       }
     }
 
+    if (state.mounts[STARTER_CARRIAGE_ID] && !this.carriagePresentation) {
+      const cart = await this.loadModel(ASSET_IDS.PROP_MERCHANT_CARRIAGE_A);
+      const horse = await this.loadModel(ASSET_IDS.FAUNA_HORSE_DRAFT_A);
+      if (!this.carriagePresentation) {
+        this.carriagePresentation = new CarriagePresentation(cart, horse);
+        this.setShadowPolicy(this.carriagePresentation.root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
+        this.scene.add(this.carriagePresentation.root);
+        loadedNewMesh = true;
+      }
+    }
+    this.syncCarriagePacks(sim.getState());
+    const carriage = sim.getState().mounts[STARTER_CARRIAGE_ID];
+    if (carriage && this.carriagePresentation) {
+      for (const [slot, id] of (carriage.fishCargoSlotIds ?? []).entries()) {
+        if (!id || this.carriagePacks.has(id)) continue;
+        const cargo = sim.getState().fishCargo[id];
+        const assetId = cargo && fishCargoPackAsset(cargo.speciesId);
+        if (!assetId) throw new Error(`Carriage cargo ${id} has no registered model`);
+        const root = await this.loadModel(assetId);
+        if (sim.getState().mounts[STARTER_CARRIAGE_ID]?.fishCargoSlotIds?.[slot] !== id || this.carriagePacks.has(id)) continue;
+        this.carriagePresentation.sockets[slot].add(root);
+        this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
+        this.carriagePacks.set(id, { root, slot });
+        loadedNewMesh = true;
+      }
+    }
+
     await this.ensureSkiffMooringPreview(state);
 
     await this.cropInstances.ensureAssets(state);
@@ -5843,6 +5925,8 @@ export class WorldScene {
   }
 
   public render(camera: THREE.Camera, deltaSeconds = 1 / 60): void {
+    this.activeCamera = camera;
+    this.water?.updateCamera(camera);
     this.hasRenderedFrame = true;
     this.updateQuestWaypoint(camera, deltaSeconds);
     this.updateQualityTransition(deltaSeconds);
@@ -6024,6 +6108,9 @@ export class WorldScene {
     }
     this.ambientTownsfolk.length = 0;
     this.playerAnimationEvents.length = 0;
+    this.carriagePresentation?.dispose();
+    this.carriagePresentation = null;
+    this.carriagePacks.clear();
     this.donkeyPresentation?.mixer?.stopAllAction();
     if (this.donkeyPresentation) this.disposeDonkeyShadowPresentation(this.donkeyPresentation.root);
     this.donkeyPresentation = null;

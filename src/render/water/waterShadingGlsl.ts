@@ -2,12 +2,26 @@ import { COASTAL_FIELD_GLSL } from "./CoastalOptics";
 import { CLOUD_SHADOW_RECEIVER_GLSL } from "../atmosphere/CloudShadows";
 import { AERIAL_PERSPECTIVE_GLSL } from "../atmosphere/AerialPerspective";
 import { WATER_CAUSTICS_GLSL } from "./waterCausticsGlsl";
+import {
+  OCEAN_CONTACT_FOAM_UNIFORMS_GLSL,
+  OCEAN_CONTACT_FOAM_FUNCTION_GLSL,
+  OCEAN_NOISE_GLSL,
+  OCEAN_SSR_GLSL,
+} from "./oceanShaderGlsl";
 
 /** One optical response for coarse water and the near tessellation. */
 export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
   ${COASTAL_FIELD_GLSL}
   ${CLOUD_SHADOW_RECEIVER_GLSL}
   ${AERIAL_PERSPECTIVE_GLSL}
+  ${OCEAN_CONTACT_FOAM_UNIFORMS_GLSL}
+  uniform mat4 uOpticsProjection;
+  uniform float uCameraNear;
+  uniform float uCameraFar;
+  uniform int uSsrEnabled;
+  uniform float uSsrStrength;
+  uniform float uSssStrength;
+  uniform float uBoatFoamStrength;
   uniform vec3 uWaterAbsorption;
   uniform float uRefractionPixels;
   uniform float uRippleNormalStrength;
@@ -67,6 +81,9 @@ export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
 
 export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
   ${WATER_CAUSTICS_GLSL}
+  ${OCEAN_NOISE_GLSL}
+  ${OCEAN_CONTACT_FOAM_FUNCTION_GLSL}
+  ${OCEAN_SSR_GLSL}
   vec3 nevaViewPosition(vec2 uv, float depth) {
     vec4 point = uOpticsInverseProjection * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     return point.xyz / point.w;
@@ -77,6 +94,16 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     if (nevaHeadwaterContains(worldPosition.xz) || baselineElevation > 0.001) {
       signedWaterDistance = profileAt(worldPosition.xz).r * 32.0 - 16.0;
       if (signedWaterDistance <= 0.0) discard;
+    }
+    // W07 surface ownership: the falling segment is drawn by its own sheet, so
+    // no horizontal water surface may span the drop. The edge dissolves over
+    // 15 cm with a world-stable screen-door pattern instead of a hard line,
+    // so the sheet-to-surface join cannot shade as a seam. (The position hash
+    // is static in world space: no swimming, no sorting risk, unlike alpha.)
+    if (nevaInsideHeadwaterFallBand(worldPosition.xz)) {
+      float bandEdge = min(worldPosition.z - uHeadwaterFallBand.x, uHeadwaterFallBand.y - worldPosition.z);
+      float bandHash = fract(sin(dot(floor(worldPosition.xz * 9.0), vec2(12.9898, 78.233))) * 43758.5453);
+      if (bandHash > smoothstep(0.0, 0.15, bandEdge)) discard;
     }
     vec4 field = nevaOpticsField(worldPosition.xz);
     float waterDepth = max(0.0, field.r + waveHeight);
@@ -114,6 +141,11 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     vec3 body = mix(uShallowColor, uMidColor, smoothstep(0.15, uShallowEndMeters, waterDepth));
     body = mix(body, uDeepColor, smoothstep(uDepthRampStartMeters, uDepthRampEndMeters, waterDepth) * uDepthColorStrength);
     body *= light * mix(1.0, cloudSunlight, 0.55 * uDaylight);
+    // Restrained backlit-crest translucency (WaterThreeJS SSS): a faint warm
+    // glow through thin crests toward the sun, scaled by the configured
+    // strength so it never washes the sea cyan.
+    float sssBack = max(0.0, dot(viewDirection, -normalize(uSunDirection)));
+    body += uShallowColor * (sssBack * sssBack * smoothstep(0.02, 0.22, waveHeight) * uSssStrength * uDaylight * cloudSunlight);
     float refractedCos = sqrt(max(0.08, 1.0 - (1.0 - ndv * ndv) / (1.333 * 1.333)));
     float thickness = waterDepth / refractedCos;
     vec3 behind = vec3(0.0);
@@ -151,16 +183,33 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
         behind += bedRadiance * causticFocus * causticWeight * uCausticStrength;
       }
     }
+    // High-tier screen-space reflections (WaterThreeJS): march the shared
+    // snapshot and blend onto the analytic sky by the configured strength.
+    // Misses keep the sky, so the worst case is the current look.
+    vec3 reflectionColor = sky;
+    if (captured && uSsrEnabled == 1 && uSsrStrength > 0.001) {
+      float ssrHit = 0.0;
+      vec3 ssrColor = oceanRaymarchSSR(
+        worldPosition, reflectView, viewMatrix, uOpticsProjection,
+        uOpaqueColor, uOpaqueDepth, uCameraNear, uCameraFar, ssrHit);
+      reflectionColor = mix(sky, ssrColor, clamp(ssrHit, 0.0, 1.0) * uSsrStrength);
+    }
     vec3 transmission = exp(-uWaterAbsorption * min(thickness, 100.0));
     float averageTransmission = dot(transmission, vec3(0.2126, 0.7152, 0.0722));
     float alpha = clamp(1.0 - averageTransmission * (1.0 - fresnel), 0.045, 1.0);
-    vec3 color = body * (1.0 - transmission) * (1.0 - fresnel) + sky * light * fresnel;
+    vec3 color = body * (1.0 - transmission) * (1.0 - fresnel) + reflectionColor * light * fresnel;
     color = captured ? color + behind * transmission * (1.0 - fresnel) : color / max(0.045, alpha);
     if (uReflectionMode >= 2) {
       vec3 halfVector = normalize(viewDirection + normalize(uSunDirection));
       float exponent = mix(170.0, 48.0, clamp(uRoughness + pixelFootprint * 0.13, 0.0, 1.0));
       float glint = pow(max(dot(normal, halfVector), 0.0), exponent) * uSunGlintStrength * uKeyLightStrength;
-      color += uSunColor * glint * (0.25 + 0.75 * fresnel) * cloudSunlight;
+      // Distance-faded micro-sparkle (WaterThreeJS glitter): jittered lobe
+      // that dissolves with range and footprint instead of aliasing.
+      float glitterFade = exp(-cameraDistance * 0.012) * rippleFilter;
+      float sparkleJitter = oceanHash12(worldPosition.xz * 12.0 + floor(uTime * 4.0));
+      float sparkle = pow(max(dot(normal, halfVector), 0.0), 64.0)
+        * step(0.70, sparkleJitter) * 0.40 * uSunGlintStrength * glitterFade;
+      color += uSunColor * (glint + sparkle) * (0.25 + 0.75 * fresnel) * cloudSunlight;
     }
     vec3 wash = nevaCoastalWash(worldPosition.xz, field.b);
     float coastalFoam = wash.x * field.a;
@@ -168,7 +217,18 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     float rockFoam = captured ? (1.0 - smoothstep(0.035, 0.23, thickness))
       * smoothstep(0.25, 0.48, wash.z) * (1.0 - smoothstep(0.55, 0.72, wash.z))
       * smoothstep(0.9, 3.0, field.b) * field.a * 0.4 : 0.0;
-    float foam = max(coastalFoam, rockFoam);
+    // Hull contact energy dissolved through FBM (WaterThreeJS): dense only
+    // where energy is high, feathering out as it fades. Scaled restrained so
+    // moored hulls read as a faint ring and the wake pool keeps the trail.
+    float boatFoam = 0.0;
+    float boatEnergy = oceanContactEnergy(worldPosition.xz) * uBoatFoamStrength;
+    if (boatEnergy > 0.001) {
+      float boatTex = oceanFbm(worldPosition.xz * 0.5 - vec2(uTime * 0.12, uTime * 0.07));
+      float boatThr = 1.0 - clamp(boatEnergy, 0.0, 1.0);
+      boatFoam = smoothstep(boatThr - 0.2, boatThr + 0.2, boatTex)
+        * smoothstep(0.0, 0.12, boatEnergy);
+    }
+    float foam = max(max(coastalFoam, rockFoam), boatFoam);
     float downhillGrade = max(0.0, -surfaceGrade);
     if (downhillGrade > uRapidsGradeStart) {
       // The headwater profile descends toward +Z. Advect broken narrow ribbons
@@ -183,6 +243,20 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       float rapidFilter = 1.0 - smoothstep(0.12, 0.6, pixelFootprint / uRapidsCellScale);
       foam = max(foam, smoothstep(uRapidsGradeStart, uRapidsGradeFull, downhillGrade)
         * smoothstep(0.05, 0.5, waterDepth) * rapidRibbon * rapidPacket * rapidFilter * uRapidsFoamStrength);
+    }
+    // Landing apron: the plunge must read through the rapids below it, so the
+    // impact foams the horizontal water itself past the landing line,
+    // stretched downstream into the pool. Without this the sheet ends bright,
+    // the rapids below go dark, and the watercourse reads as cut in two. The
+    // floor keeps the whole apron lifted, not just the noise peaks.
+    {
+      vec2 landingDelta = worldPosition.xz - uHeadwaterLandingXZ;
+      landingDelta.y *= 0.5;
+      float landingReach = 1.0 - smoothstep(0.0, 3.5, length(landingDelta));
+      float apronPattern = nevaGradientNoise(worldPosition.xz * 1.4
+        + vec2(uTime * 0.22, -uTime * 0.5));
+      foam = max(foam, landingReach * (0.55 + 0.45 * apronPattern)
+        * uRapidsFoamStrength * 1.5);
     }
     float whitecap = smoothstep(0.7, 1.0, uRoughness) * regionWeights.z
       * smoothstep(0.13, 0.3, waveHeight) * smoothstep(0.012, 0.04, 1.0 - normal.y);

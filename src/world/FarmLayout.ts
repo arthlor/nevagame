@@ -138,8 +138,8 @@ const STARTER_STRUCTURE_ANCHORS = [
     // Farm kitchen in the yard pocket southeast of the farmhouse: east of the
     // home-lane approach, clear of the plantable rectangle, fences and the
     // well, with its working face opening north toward the house door.
-    x: 9.4,
-    z: -15.8,
+    x: 11.0,
+    z: -4.6,
     rotationY: 3.1416,
     clearanceRadius: 2.2,
     frontApproachDistanceMeters: 1.9
@@ -386,6 +386,9 @@ const FARM_LAYOUTS: Readonly<Record<string, FarmLayoutDefinition>> = {
   [PLAYER_HOMESTEAD_LAYOUT.farmId]: PLAYER_HOMESTEAD_LAYOUT,
   [SUNREACH_FARM_LAYOUT.farmId]: SUNREACH_FARM_LAYOUT
 };
+
+/** Parked on the open southern edge of the home yard, facing the farm exit. */
+export const STARTER_CARRIAGE_ANCHOR = { x: -51, z: -66.5, rotationY: Math.PI / 2 } as const;
 
 export const STARTER_DONKEY_ANCHOR: StarterDonkeyAnchor = {
   ...STARTER_DONKEY_LOCAL_ANCHOR,

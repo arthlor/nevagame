@@ -36,7 +36,7 @@ export const TidebookNavigation: React.FC<{
           style={{ left: `${50 + marker.relativeBearingDeg / 1.6}%` }}
           title={`${marker.label} · ${marker.distanceMeters} m`}>
           <HudIcon name={marker.icon} className="guild-compass-marker-mark" />
-          {(marker.kind === "quest" || marker.kind === "quest-secondary") && (
+          {(marker.kind === "quest" || marker.kind === "quest-secondary" || marker.kind === "waypoint") && (
             <span className="guild-compass-marker-range">{marker.distanceMeters} m</span>
           )}
         </span>

@@ -1,3 +1,4 @@
+import { isCarriage, carriagePoint, CARRIAGE_TUNING, canReachCarriageRear } from "../mounts/Carriage";
 import type { ResolvedPhysicsFrame } from "../core/PhysicsAdapter";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
@@ -21,8 +22,7 @@ import {
   playerPoseFromMount,
   resolveMountDismountPose,
   MOUNT_TUNING,
-  STARTER_DONKEY_ID,
-  STARTER_DONKEY_TYPE_ID
+  STARTER_DONKEY_ID
 } from "../mounts/Mounts";
 import {
   dockedMooring,
@@ -226,6 +226,12 @@ export class NavigationDomain {
     if (state.player.activeMountId) {
       return { success: false, reason: "Dismount first before using Safe Return" };
     }
+    if (state.player.carriedFishCargoId) {
+      return {
+        success: false,
+        reason: "Return to the harbor before using Safe Return while carrying physical fish cargo"
+      };
+    }
     const activeBoatId = state.player.activeBoatId;
     let recoverToSunreach = false;
     if (activeBoatId) {
@@ -319,17 +325,21 @@ export class NavigationDomain {
   private mountBoardFailure(mountId: MountId): string | null {
     const { state } = this.context;
     const mount = state.mounts[mountId];
-    if (mountId !== STARTER_DONKEY_ID || !mount || mount.mountTypeId !== STARTER_DONKEY_TYPE_ID) {
+    if (!mount || !isValidMountPose(mount)) {
       return "That mount is unavailable";
     }
     if (state.player.activeMountId) return "You are already riding a mount";
     if (state.player.activeBoatId) return "Disembark from the boat first";
     if (state.basicFishing || state.sportFishing) return "Finish fishing first";
-    if (state.player.carriedFishCargoId) return "Stow physical fish cargo before riding";
+    // A trade pack rides on the rider's back, so the donkey can carry it. The
+    // carriage keeps its own two bed slots and is loaded on foot at its rear,
+    // so boarding it while carrying stays blocked.
+    if (state.player.carriedFishCargoId && isCarriage(mount)) return "Stow physical fish cargo before riding";
     if (state.player.traversal.isGrounded !== true) return "Land before mounting";
     if (!isValidPlayerMountGround(state.player)) return "Move onto dry, walkable ground first";
-    if (!isValidMountPose(mount)) return "The donkey is not on stable ground";
-    if (distance2d(state.player, mount) > MOUNT_TUNING.boardRadiusMeters) return "Move closer to the donkey";
+    if (!isValidMountPose(mount)) return "The transport is not on stable ground";
+    const boardingPoint = isCarriage(mount) ? carriagePoint(mount, 0, CARRIAGE_TUNING.boardOffset) : mount;
+    if (distance2d(state.player, boardingPoint) > (isCarriage(mount) ? CARRIAGE_TUNING.interactionReach : MOUNT_TUNING.boardRadiusMeters)) return isCarriage(mount) ? "Move closer to the driver’s bench" : "Move closer to the donkey";
     return null;
   }
 
@@ -362,7 +372,7 @@ export class NavigationDomain {
       isPlayerAtMountPose(state.player, mount, 0.24) &&
       isValidPlayerMountGround(state.player) &&
       isValidMountPose(pose) &&
-      resolveMountDismountPose(state.player) !== null;
+      resolveMountDismountPose(state.player, mount) !== null;
   }
 
   public dismountMount(): { success: boolean; reason?: string } {
@@ -370,10 +380,10 @@ export class NavigationDomain {
     const mountId = state.player.activeMountId;
     const mount = mountId ? state.mounts[mountId] : undefined;
     if (!mountId || !mount || !isValidMountPose(mount)) {
-      return { success: false, reason: "You are not riding the donkey" };
+      return { success: false, reason: "You are not riding a transport" };
     }
     const pose = { ...mount, ...mountPoseFromPlayer(state.player) };
-    const dismountPose = resolveMountDismountPose(state.player);
+    const dismountPose = resolveMountDismountPose(state.player, mount);
     if (state.player.traversal.isGrounded !== true ||
       !isPlayerAtMountPose(state.player, mount, 0.24) ||
       !isValidPlayerMountGround(state.player) ||
@@ -442,6 +452,7 @@ export class NavigationDomain {
   public emergencyTow(): { success: boolean; reason?: string; cost?: number } {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before signaling a tow" };
+    if (state.basicFishing || state.sportFishing) return { success: false, reason: "Finish fishing first" };
     const boatId = state.player.activeBoatId;
     if (!boatId) return { success: false, reason: "Board a boat before signaling a tow" };
     const boat = state.boats[boatId];
@@ -574,6 +585,7 @@ export class NavigationDomain {
   public canAccessFishCargo(cargo: FishCargoState, marketId?: MarketId): boolean {
     const { state } = this.context;
     if (cargo.location.type === "player") return state.player.carriedFishCargoId === cargo.id;
+    if (cargo.location.type === "carriage") return canReachCarriageRear(state, state.mounts[cargo.location.containerId]);
     if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return false;
     const boat = state.boats[cargo.location.containerId];
     if (!boat) return false;

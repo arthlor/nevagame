@@ -7,7 +7,7 @@ import {
 } from "./WorldLayout";
 import { SUNREACH_ANCHORS, type WorldBiomeId, type WorldIslandId } from "./WorldIslands";
 import { sampleNevaLandforms } from "./NevaLandforms";
-import { headwaterSpringInfluence } from "./NevaHeadwaters";
+import { NEVA_HEADWATERS, headwaterSpringInfluence } from "./NevaHeadwaters";
 
 export type WorldDistrictId =
   | "farm"
@@ -462,6 +462,9 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
   )
     * (1 - structuralClearance)
     * routeEdgeDensity
+    // Alpine thinning: forest gives way to rock above the high contour,
+    // whatever the habitat below says. Lowland districts never reach it.
+    * (1 - smoothstep(24, 32, WorldLayout.terrainHeight(x, z)) * 0.85)
   );
   const bush = clamp01((
     (woodland * 0.62 + meadow * 0.26 + riparian * 0.48 + workingEdge * 0.34)
@@ -470,6 +473,8 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
   )
     * (1 - structuralClearance * 0.9)
     * routeEdgeDensity
+    // Bushes hold steep banks but not rock faces: nothing roots below ~55°.
+    * smoothstep(0.55, 0.7, WorldLayout.terrainNormalY(x, z))
   );
   const flower = clamp01(
     (meadow * 0.66 + orchard * 0.24 + riparian * 0.2)
@@ -489,6 +494,15 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
     * (1 - routeGateway)
     * (1 - river.erosion * 0.72)
     * (1 - springExposure)
+    // Reeds root in flat wet margins, never on cliff faces or high crags:
+    // the riparian field alone would plant them on any steep wet bank.
+    * smoothstep(0.6, 0.8, WorldLayout.terrainNormalY(x, z))
+    * (1 - mountainExposure)
+    // ...nor on the lip crest itself, where the water plunges beside rooted
+    // stems and reads as floating from below. (No waterline-height gate: the
+    // sea datum is not the local river level, so it would kill every
+    // legitimate bank reed; banks above calm water are correct reed ground.)
+    * (z > NEVA_HEADWATERS.fall.lipZ - 3 && z < NEVA_HEADWATERS.fall.landingZ + 1 ? 0 : 1)
   );
   const rock = clamp01(
     (exposed * 0.58 + river.erosion * Math.max(river.lowerBank, river.upperBank) * 0.76)

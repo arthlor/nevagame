@@ -1,3 +1,4 @@
+import { isCarriage, carriagePoseIsClear, CARRIAGE_TUNING } from "../simulation/mounts/Carriage";
 import type RAPIER from "@dimforge/rapier3d-compat";
 import { MathUtils } from "three";
 import { ContentRegistry } from "../content/ContentRegistry";
@@ -324,6 +325,9 @@ interface PlayerBodyRollback {
 }
 
 export class PhysicsWorld implements PhysicsAdapter {
+  private parkedCarriageBody: RAPIER.RigidBody | null = null;
+  private parkedCarriagePose = "";
+  private carriageCollision: readonly StaticCollisionProxy[] = [];
   private readonly rapier: typeof RAPIER;
   private readonly world: RAPIER.World;
   private readonly playerBody: RAPIER.RigidBody;
@@ -446,6 +450,7 @@ export class PhysicsWorld implements PhysicsAdapter {
   }
 
   private ingestStaticCollision(proxies: readonly StaticCollisionProxy[]): void {
+    this.carriageCollision = proxies;
     for (const proxy of proxies) {
       const centerX = Number.isFinite(proxy.center.x) ? proxy.center.x : 0;
       const centerY = Number.isFinite(proxy.center.y) ? proxy.center.y : 0;
@@ -1659,6 +1664,23 @@ export class PhysicsWorld implements PhysicsAdapter {
       committedAttachmentKey: this.lastPlayerAttachmentKey
     };
 
+    const cart = Object.values(state.mounts).find(isCarriage);
+    const cartKey = cart && state.player.activeMountId !== cart.id ? `${cart.x}:${cart.y}:${cart.z}:${cart.rotationY}` : "";
+    if (cartKey !== this.parkedCarriagePose) {
+      if (this.parkedCarriageBody) this.world.removeRigidBody(this.parkedCarriageBody);
+      this.parkedCarriageBody = null;
+      this.parkedCarriagePose = cartKey;
+      if (cart && cartKey) {
+        const body = this.world.createRigidBody(this.rapier.RigidBodyDesc.fixed().setTranslation(cart.x, cart.y, cart.z)
+          .setRotation({ x: 0, y: Math.sin(cart.rotationY / 2), z: 0, w: Math.cos(cart.rotationY / 2) }));
+        this.world.createCollider(this.rapier.ColliderDesc.cuboid(1.02, 0.75, 1.38).setTranslation(0, 0.95, 0), body);
+        this.world.createCollider(this.rapier.ColliderDesc.cuboid(0.48, 0.95, 1.1).setTranslation(0, 1.0, CARRIAGE_TUNING.horseOffset), body);
+        this.parkedCarriageBody = body;
+      }
+      this.dynamicBodyCountStale = true;
+      this.world.updateSceneQueries();
+    }
+
     let mountGaitStep: MountGaitStepResult | null = null;
     const boats: ResolvedPhysicsFrame["boats"] = {};
     const boatMotion: Record<string, BoatMotionSample> = {};
@@ -1730,6 +1752,55 @@ export class PhysicsWorld implements PhysicsAdapter {
         isCollisionBlocked: activeBoatMotion?.isCollisionBlocked ?? false,
         requestedGait: mode === "boat-driving" ? "vehicle" : "idle"
       };
+    } else if (mode === "mounted" && state.player.activeMountId && isCarriage(state.mounts[state.player.activeMountId])) {
+      const mount = state.mounts[state.player.activeMountId];
+      const dtSafe = Number.isFinite(dt) ? Math.max(0, Math.min(0.05, dt)) : 0;
+      const throttle = Number.isFinite(input.z) ? Math.max(-1, Math.min(1, -input.z)) : 0;
+      const steering = Number.isFinite(input.x) ? Math.max(-1, Math.min(1, input.x)) : 0;
+      if (this.lastPlayerAttachmentKey !== attachmentKey) this.previousResolvedPlayerSpeed = 0;
+      const previousSpeed = this.previousResolvedPlayerSpeed;
+      // The horse trots on the same budget semantic as the donkey gallops:
+      // Shift trots while the budget lasts, then the team drops to a walk
+      // until it recovers. Walking (and reversing) stays free.
+      mountGaitStep = advanceMountGait(
+        mount,
+        { wantsGallop: input.sprint, isMoving: Math.abs(throttle) > 0.01 },
+        dtSafe,
+        {
+          maximumGallopStamina: CARRIAGE_TUNING.staminaMaximum,
+          gallopDrainPerSecond: CARRIAGE_TUNING.trotDrainPerSecond,
+          gallopRecoveryPerSecond: CARRIAGE_TUNING.trotRecoveryPerSecond,
+          gallopRecoveryDelaySeconds: CARRIAGE_TUNING.trotRecoveryDelaySeconds,
+          gallopResumeThreshold: CARRIAGE_TUNING.trotResumeThreshold
+        }
+      );
+      const trotting = mountGaitStep.isGalloping;
+      const target = throttle * (trotting ? CARRIAGE_TUNING.trotSpeed : CARRIAGE_TUNING.walkSpeed);
+      const change = (Math.abs(target) > Math.abs(previousSpeed) ? CARRIAGE_TUNING.acceleration : CARRIAGE_TUNING.braking) * dtSafe;
+      let speed = previousSpeed + Math.max(-change, Math.min(change, target - previousSpeed));
+      const yaw = mount.rotationY - steering * CARRIAGE_TUNING.turnRate * Math.min(1, Math.abs(speed)) * Math.sign(speed) * dtSafe;
+      const candidate = { ...mount, rotationY: yaw,
+        x: mount.x + Math.sin(yaw) * speed * dtSafe,
+        z: mount.z + Math.cos(yaw) * speed * dtSafe };
+      // Each fixed step is shorter than 11 cm. Validate its midpoint too so the
+      // full horse/shaft/bed sweep cannot cut through a narrow obstacle on turns.
+      const midpoint = { ...candidate, x: (mount.x + candidate.x) / 2,
+        z: (mount.z + candidate.z) / 2, rotationY: (mount.rotationY + yaw) / 2 };
+      const clear = Math.abs(speed) < 0.00001 || (carriagePoseIsClear(midpoint, this.carriageCollision)
+        && carriagePoseIsClear(candidate, this.carriageCollision));
+      if (!clear) speed = 0;
+      const accepted = clear ? candidate : mount;
+      const support = WorldLayout.traversalSurfaceSample(accepted.x, accepted.z);
+      player = { ...player, x: accepted.x, z: accepted.z, y: support.height + MOUNT_TUNING.playerPoseGroundOffsetMeters,
+        rotationY: accepted.rotationY, traversal: { ...player.traversal, isGrounded: true } };
+      playerMotion = { ...playerMotion,
+        velocity: { x: Math.sin(accepted.rotationY) * speed, y: 0, z: Math.cos(accepted.rotationY) * speed },
+        speedMetersPerSecond: Math.abs(speed), accelerationMetersPerSecondSquared: dtSafe > 0 ? (Math.abs(speed) - Math.abs(previousSpeed)) / dtSafe : 0,
+        turnRateRadiansPerSecond: dtSafe > 0 ? (accepted.rotationY - mount.rotationY) / dtSafe : 0,
+        groundNormal: support.normal, slopeRadians: Math.acos(Math.max(-1, Math.min(1, support.normal.y))),
+        isGrounded: true, isCollisionBlocked: !clear, contactSurface: "path",
+        requestedGait: Math.abs(speed) < 0.01 ? "idle" : trotting ? "trot" : "walk" };
+      this.previousResolvedPlayerSpeed = speed;
     } else if (
       (mode === "on-foot" || mode === "farm-placement") ||
       (mode === "mounted" && state.player.activeMountId !== null)

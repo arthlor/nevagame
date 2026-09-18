@@ -21,6 +21,7 @@ import {
   WORLD_SPAWN
 } from "../../src/world/WorldAnchors";
 import { GameClock } from "../../src/simulation/core/GameClock";
+import { SPORT_FISHING_WORK_COST, SPORT_FISHING_WORK_COST_BY_CLASS } from "../../src/simulation/domains/FishingDomain";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
 import { FERTILITY_RESTORE } from "../../src/simulation/domains/FarmingDomain";
@@ -745,6 +746,89 @@ describe("Gameplay simulation fixes", () => {
     expect(boat.isDocked).toBe(false);
   });
 
+  it("refuses processing start and collect while boating or fishing", () => {
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [{ itemId: "produce.wheat", quantity: 2 }]);
+    movePlayerToProcessingFront(sim, "struct.starter_mill");
+    sim.state.player.activeBoatId = "boat.player_rowboat";
+    expect(sim.startProcessingJob("recipe.wheat_to_grain", "struct.starter_mill")).toMatchObject({ success: false });
+    sim.state.player.activeBoatId = null;
+    sim.state.basicFishing = {
+      ecologyId: "ecology.neva",
+      phase: "waiting",
+      habitatId: "ocean",
+      remainingSeconds: 4,
+      willCatch: true
+    };
+    expect(sim.startProcessingJob("recipe.wheat_to_grain", "struct.starter_mill")).toMatchObject({ success: false });
+    sim.state.basicFishing = null;
+    expect(sim.startProcessingJob("recipe.wheat_to_grain", "struct.starter_mill")).toMatchObject({ success: true });
+    const jobId = Object.keys(sim.state.processingJobs)[0];
+    sim.advanceGameMinutes(sim.state.processingJobs[jobId].effectiveDurationMinutes);
+    sim.state.player.activeBoatId = "boat.player_rowboat";
+    expect(sim.collectProcessingJob(jobId)).toMatchObject({ success: false });
+    expect(sim.state.processingJobs[jobId]).toMatchObject({ status: "complete" });
+    sim.state.player.activeBoatId = null;
+    movePlayerToProcessingFront(sim, "struct.starter_mill");
+    expect(sim.collectProcessingJob(jobId)).toMatchObject({ success: true });
+  });
+
+  it("refuses an emergency tow with a live fishing encounter", () => {
+    sim.state.player.money = 1200;
+    sim.state.player.proficiencies.fishing = 7500;
+    sim.state.player.x = HARBOR_SKIFF_MOORING.playerPosition.x;
+    sim.state.player.z = HARBOR_SKIFF_MOORING.playerPosition.z;
+    expect(sim.execute({ type: "boat.purchase-skiff" })).toMatchObject({ success: true });
+    expect(sim.boardBoat("boat.player_skiff")).toMatchObject({ success: true });
+    sim.state.boats["boat.player_skiff"].fuel = 0;
+    sim.state.basicFishing = {
+      ecologyId: "ecology.neva",
+      phase: "waiting",
+      habitatId: "ocean",
+      remainingSeconds: 4,
+      willCatch: true
+    };
+    expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({
+      success: false,
+      reason: "Finish fishing first"
+    });
+    expect(sim.state.player.activeBoatId).toBe("boat.player_skiff");
+    sim.state.basicFishing = null;
+    expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({ success: true });
+  });
+
+  it("grants offline Work rest on a wake-boundary crossing, not a midnight crossing", () => {
+    const now = Date.now();
+    sim.state.clock.currentMinute = 1439;
+    sim.state.player.workCapacity.current = 100;
+    sim.state.metadata.lastSavedUtcMs = now - 8000;
+    applyOfflineProgression(sim.state, now);
+    expect(sim.state.clock.currentMinute).toBe(1442);
+    expect(sim.state.player.workCapacity.current).toBe(100);
+
+    const later = Date.now();
+    sim.state.clock.currentMinute = 479;
+    sim.state.player.workCapacity.current = 100;
+    sim.state.metadata.lastSavedUtcMs = later - 8000;
+    applyOfflineProgression(sim.state, later);
+    expect(sim.state.clock.currentMinute).toBe(482);
+    expect(sim.state.player.workCapacity.current).toBe(150);
+  });
+
+  it("quotes the base hook cost when no school species has reachable water", () => {
+    const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
+    const schoolId = sim.spawnFishSchool("lake", lake.x, lake.z, ["fish.trout"]);
+    sim.state.player.x = lake.x;
+    sim.state.player.z = lake.z;
+    expect(sim.quoteSchoolHookWork(schoolId)).toBe(SPORT_FISHING_WORK_COST_BY_CLASS.small);
+    // Dry inland (the same reference point the habitat tests use): no species
+    // has reachable water, so the prompt must fall back to the base cost
+    // instead of quoting a hook that would refuse with "Move to open water".
+    sim.state.player.x = 50;
+    sim.state.player.z = 0;
+    expect(sim.quoteSchoolHookWork(schoolId)).toBe(SPORT_FISHING_WORK_COST);
+  });
+
   it("purchases, boards, docks, and reloads the progression skiff without changing the rowboat", () => {
     const initialMoney = 1200;
     sim.state.player.money = initialMoney;
@@ -1129,6 +1213,51 @@ describe("Gameplay simulation fixes", () => {
     expect(boat.dockedMarketId).toBe("market.sunreach_cove");
     expect(boat.x).toBe(SUNREACH_ANCHORS.dockBoat.x);
     expect(boat.z).toBe(SUNREACH_ANCHORS.dockBoat.z);
+  });
+
+  it("blocks Safe Return with on-foot carried cargo and recovers after releasing it", () => {
+    sim.prepareDebugHarborBoarding();
+    expect(sim.boardBoat("boat.player_rowboat")).toMatchObject({ success: true });
+    const boat = sim.state.boats["boat.player_rowboat"];
+    const cargoId = "cargo.safe_return_on_foot";
+    boat.fishCargoSlotIds[0] = cargoId;
+    sim.state.fishCargo[cargoId] = {
+      id: cargoId,
+      speciesId: "fish.trout",
+      weightKg: 3,
+      quality: "fine",
+      caughtAtMinute: sim.state.clock.currentMinute,
+      freshness: 100,
+      cargoClass: "small",
+      location: { type: "boat-hold", containerId: boat.id, slotIndex: 0 }
+    };
+    expect(sim.execute({ type: "boat.dock" })).toMatchObject({ success: true });
+    expect(sim.execute({ type: "cargo.pickup", cargoId })).toMatchObject({ success: true });
+    expect(sim.state.player.activeBoatId).toBeNull();
+    expect(sim.state.player.activeMountId).toBeNull();
+    expect(sim.state.player.carriedFishCargoId).toBe(cargoId);
+    const before = structuredClone(sim.state);
+    const rngBefore = sim.rng.getState();
+
+    expect(sim.execute({ type: "player.reset-safe" })).toMatchObject({
+      success: false,
+      reason: "Return to the harbor before using Safe Return while carrying physical fish cargo"
+    });
+    expect(sim.state).toEqual(before);
+    expect(sim.rng.getState()).toBe(rngBefore);
+
+    expect(sim.execute({ type: "cargo.release", cargoId })).toMatchObject({ success: true });
+    expect(sim.state.player.carriedFishCargoId).toBeNull();
+    expect(sim.execute({ type: "player.reset-safe" })).toMatchObject({ success: true });
+    expect(sim.state.player.x).toBe(WORLD_SPAWN.playerPosition.x);
+    expect(sim.state.player.z).toBe(WORLD_SPAWN.playerPosition.z);
+    expect(sim.state.player.y).toBeCloseTo(
+      WorldLayout.traversalSurfaceHeight(WORLD_SPAWN.playerPosition.x, WORLD_SPAWN.playerPosition.z) + 0.5,
+      6
+    );
+    expect(sim.state.boats).toEqual(before.boats);
+    expect(sim.state.inventories).toEqual(before.inventories);
+    expect(sim.state.player.money).toBe(before.player.money);
   });
 
   it("refuses Safe Return while an active boat carries physical fish cargo", () => {

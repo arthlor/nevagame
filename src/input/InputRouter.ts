@@ -351,6 +351,11 @@ export class InputRouter {
     const isTyping = this.isTypingTarget(event.target);
     if (isTyping && event.code !== "Escape") return;
     if (
+      event.code === "Space" &&
+      event.target instanceof Element &&
+      event.target.closest("button, summary, [role='button']")
+    ) return;
+    if (
       this.layoutEditorActive
       && (event.metaKey || event.ctrlKey)
       && (event.code === "KeyC" || event.code === "KeyV" || event.code === "KeyD")

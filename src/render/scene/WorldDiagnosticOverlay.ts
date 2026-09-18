@@ -1,6 +1,10 @@
 import * as THREE from "three";
 import { sampleWorldComposition } from "../../world/WorldCompositionField";
 import { WorldLayout } from "../../world/WorldLayout";
+import {
+  HEADWATER_GRAYBOX_ENVELOPE,
+} from "../../world/HeadwaterWaterfallGraybox";
+import { NEVA_HEADWATERS } from "../../world/NevaHeadwaters";
 
 export type WorldFieldOverlay =
   | "district"
@@ -15,7 +19,8 @@ export type WorldFieldOverlay =
   | "island"
   | "climate"
   | "marine"
-  | "drainage";
+  | "drainage"
+  | "graybox-envelope";
 
 export const WORLD_FIELD_OVERLAYS: readonly WorldFieldOverlay[] = [
   "district",
@@ -30,7 +35,8 @@ export const WORLD_FIELD_OVERLAYS: readonly WorldFieldOverlay[] = [
   "island",
   "climate",
   "marine",
-  "drainage"
+  "drainage",
+  "graybox-envelope"
 ] as const;
 
 function colorFor(mode: WorldFieldOverlay, worldSeed: number, x: number, z: number): THREE.Color {
@@ -145,7 +151,188 @@ function createPatchOverlay(
   return mesh;
 }
 
+/**
+ * W05.1: the local geometry-change envelope and its surrounding continuity
+ * band, drawn on live terrain so a reviewer can see where the headwater slice
+ * was allowed to edit and where the surrounding valley had to hold. The
+ * overlay only draws the declared envelope; it never edits terrain.
+ */
+const GRAYBOX_OVERLAY_STYLE = Object.freeze({
+  envelopeColor: 0x35c7ff,
+  continuityColor: 0xffa53a,
+  sourceColor: 0x7dff9b,
+  handoffColor: 0xff5e5e,
+  fallColor: 0xff6ad5,
+  bandWidthMeters: 0.9,
+  heightOffsetMeters: 0.3,
+  edgeSampleStepMeters: 4,
+  markerRadiusMeters: 0.75,
+  markerHeightMeters: 3.4
+});
+
+interface GrayboxBounds {
+  readonly minX: number;
+  readonly maxX: number;
+  readonly minZ: number;
+  readonly maxZ: number;
+}
+
+/** A flat terrain-following band ringing a rectangle; inward edge stays inside the bounds. */
+function createTerrainBandMesh(
+  bounds: GrayboxBounds,
+  color: number,
+  opacity: number,
+  name: string
+): THREE.Mesh {
+  const halfWidth = GRAYBOX_OVERLAY_STYLE.bandWidthMeters * 0.5;
+  const offset = GRAYBOX_OVERLAY_STYLE.heightOffsetMeters;
+  const step = GRAYBOX_OVERLAY_STYLE.edgeSampleStepMeters;
+  const edges = [
+    { from: { x: bounds.minX, z: bounds.minZ }, to: { x: bounds.maxX, z: bounds.minZ }, inward: { x: 0, z: 1 } },
+    { from: { x: bounds.maxX, z: bounds.minZ }, to: { x: bounds.maxX, z: bounds.maxZ }, inward: { x: -1, z: 0 } },
+    { from: { x: bounds.maxX, z: bounds.maxZ }, to: { x: bounds.minX, z: bounds.maxZ }, inward: { x: 0, z: -1 } },
+    { from: { x: bounds.minX, z: bounds.maxZ }, to: { x: bounds.minX, z: bounds.minZ }, inward: { x: 1, z: 0 } }
+  ] as const;
+
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (const edge of edges) {
+    const length = Math.hypot(edge.to.x - edge.from.x, edge.to.z - edge.from.z);
+    const segments = Math.max(1, Math.ceil(length / step));
+    for (let segment = 0; segment < segments; segment += 1) {
+      const t0 = segment / segments;
+      const t1 = (segment + 1) / segments;
+      const outerA = {
+        x: edge.from.x + (edge.to.x - edge.from.x) * t0,
+        z: edge.from.z + (edge.to.z - edge.from.z) * t0
+      };
+      const outerB = {
+        x: edge.from.x + (edge.to.x - edge.from.x) * t1,
+        z: edge.from.z + (edge.to.z - edge.from.z) * t1
+      };
+      const innerA = {
+        x: outerA.x + edge.inward.x * halfWidth * 2,
+        z: outerA.z + edge.inward.z * halfWidth * 2
+      };
+      const innerB = {
+        x: outerB.x + edge.inward.x * halfWidth * 2,
+        z: outerB.z + edge.inward.z * halfWidth * 2
+      };
+      const base = positions.length / 3;
+      for (const point of [outerA, outerB, innerA, innerB]) {
+        positions.push(
+          point.x,
+          WorldLayout.terrainHeight(point.x, point.z) + offset,
+          point.z
+        );
+      }
+      indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = name;
+  mesh.renderOrder = 900;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+/** Vertical post marking one locked endpoint or the fall lip/landing station. */
+function createGrayboxMarkerMesh(x: number, z: number, color: number, name: string): THREE.Mesh {
+  const height = GRAYBOX_OVERLAY_STYLE.markerHeightMeters;
+  const geometry = new THREE.CylinderGeometry(
+    GRAYBOX_OVERLAY_STYLE.markerRadiusMeters,
+    GRAYBOX_OVERLAY_STYLE.markerRadiusMeters,
+    height,
+    12,
+    1,
+    true
+  );
+  geometry.translate(0, height * 0.5, 0);
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false,
+    side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(x, WorldLayout.terrainHeight(x, z), z);
+  mesh.name = name;
+  mesh.renderOrder = 901;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+function createGrayboxEnvelopeOverlay(): THREE.Group {
+  const envelope = HEADWATER_GRAYBOX_ENVELOPE;
+  const margin = envelope.continuityMarginMeters;
+  const group = new THREE.Group();
+  group.name = "world-field-overlay:graybox-envelope";
+  group.add(createTerrainBandMesh(
+    envelope,
+    GRAYBOX_OVERLAY_STYLE.envelopeColor,
+    0.85,
+    "graybox-envelope:local-envelope"
+  ));
+  group.add(createTerrainBandMesh(
+    {
+      minX: envelope.minX - margin,
+      maxX: envelope.maxX + margin,
+      minZ: envelope.minZ - margin,
+      maxZ: envelope.maxZ + margin
+    },
+    GRAYBOX_OVERLAY_STYLE.continuityColor,
+    0.7,
+    "graybox-envelope:continuity-band"
+  ));
+
+  const fall = NEVA_HEADWATERS.fall;
+  const lipX = WorldLayout.riverCenterX(fall.lipZ);
+  const landingX = WorldLayout.riverCenterX(fall.landingZ);
+  group.add(createGrayboxMarkerMesh(
+    envelope.lockedSourceXZ.x,
+    envelope.lockedSourceXZ.z,
+    GRAYBOX_OVERLAY_STYLE.sourceColor,
+    "graybox-envelope:locked-source"
+  ));
+  group.add(createGrayboxMarkerMesh(
+    lipX,
+    fall.lipZ,
+    GRAYBOX_OVERLAY_STYLE.fallColor,
+    "graybox-envelope:fall-lip"
+  ));
+  group.add(createGrayboxMarkerMesh(
+    landingX,
+    fall.landingZ,
+    GRAYBOX_OVERLAY_STYLE.fallColor,
+    "graybox-envelope:fall-landing"
+  ));
+  group.add(createGrayboxMarkerMesh(
+    envelope.lockedSourceXZ.x,
+    envelope.lockedHandoffZ,
+    GRAYBOX_OVERLAY_STYLE.handoffColor,
+    "graybox-envelope:locked-handoff"
+  ));
+  return group;
+}
+
 export function createWorldDiagnosticOverlay(mode: WorldFieldOverlay, worldSeed: number): THREE.Group {
+  if (mode === "graybox-envelope") return createGrayboxEnvelopeOverlay();
   const group = new THREE.Group();
   group.name = `world-field-overlay:${mode}`;
   for (const patch of WorldLayout.terrainPatches()) {

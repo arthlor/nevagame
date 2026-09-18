@@ -32,7 +32,7 @@ const STANCE_LABELS: Record<ContextualStanceId, string> = {
  * all five tools and their number keys before it folds down to the active
  * socket; 1.4 seconds was shorter than a comfortable first read.
  */
-const COLLAPSE_DELAY_MS = 3200;
+const COLLAPSE_DELAY_MS = 1400;
 
 function toolPainting(icon: ContextualHotbarSlotDto["icon"]): string {
   switch (icon) {
@@ -64,9 +64,10 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
   const [nudge, setNudge] = React.useState(0);
   const [pointerInside, setPointerInside] = React.useState(false);
   const [focusInside, setFocusInside] = React.useState(false);
+  const prevStanceRef = React.useRef(stance);
+  const prevRevealRef = React.useRef(revealToken);
 
-  // Any nudge — a stance change, a keypress, an auto-equip — reopens the rank
-  // for a moment and then lets it fold away on its own.
+  // Auto-collapse after deliberate nudge
   React.useEffect(() => {
     if (alwaysExpanded) return;
     if (nudge === 0) return;
@@ -74,21 +75,29 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
     return () => window.clearTimeout(timeout);
   }, [nudge, alwaysExpanded]);
 
+  // Brief reveal only on stance transition (e.g. stepping onto a farm)
   React.useEffect(() => {
-    setNudge((count) => count + 1);
-  }, [revealToken, stance, activeSlot]);
+    if (prevStanceRef.current !== stance) {
+      prevStanceRef.current = stance;
+      setNudge((count) => count + 1);
+    }
+  }, [stance]);
+
+  // Reveal on explicit user/system reveal tokens
+  React.useEffect(() => {
+    if (revealToken > 0 && prevRevealRef.current !== revealToken) {
+      prevRevealRef.current = revealToken;
+      setNudge((count) => count + 1);
+    }
+  }, [revealToken]);
 
   if (hotbar.length === 0) return null;
 
-  // Two degrees of openness. The rank fans out for any nudge, including ones
-  // the player did not ask for; the nameplate only appears while they are
-  // deliberately browsing the belt, because it sits over the action prompt.
+  // Two degrees of openness: deliberate mouse/keyboard browsing vs transient nudge
   const browsing = pointerInside || focusInside;
   const expanded = alwaysExpanded || browsing || nudge > 0;
   const currentSlot = hotbar.find((slot) => slot.slot === activeSlot) ?? null;
-  // Collapsed, the belt shows the tool in hand. Nothing on this belt equipped
-  // still leaves a socket standing so the dock is never an empty frame — but
-  // it is not named, because naming it would claim it was drawn.
+  // Collapsed, the belt rests on the single tool in hand
   const restingSlot = currentSlot ?? hotbar[0];
 
   return (
@@ -118,6 +127,15 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
           const selected = slot.slot === activeSlot;
           const resting = slot.slot === restingSlot.slot;
           const slotName = slot.icon === "seeds" ? `${slot.name} (Seeds)` : slot.name;
+
+          // Contextual relevance logic:
+          // 1. Tool in hand is always relevant.
+          // 2. Empty consumable slots (0 seeds, 0 fertilizer, 0 lures) are useless clutter when not ready.
+          // 3. In agronomy, 'tool.harvest' is redundant with hand tools & [E] interaction unless equipped.
+          const isUselessConsumable = !slot.ready && (slot.icon === "seeds" || slot.icon === "fertilizer" || slot.icon === "lure");
+          const isRedundantHarvest = slot.id === "tool.harvest" && !selected;
+          const isRelevant = selected || (!isUselessConsumable && !isRedundantHarvest && slot.ready);
+
           return (
             <button key={slot.slot} type="button"
               className={[
@@ -125,14 +143,13 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
                 selected ? "is-active" : "",
                 slot.ready ? "" : "is-unavailable",
                 slot.active ? "is-armed" : "",
-                resting ? "is-resting" : ""
+                resting ? "is-resting" : "",
+                isRelevant ? "is-relevant" : "is-irrelevant"
               ].filter(Boolean).join(" ")}
               aria-label={`${slotName}, ${slot.detail}, slot ${slot.slot}`}
               title={`${slotName} — ${slot.detail} (${slot.shortcutKey})`}
               aria-pressed={selected}
-              // Collapsed, only the socket you can actually see takes a tab
-              // stop. Landing on it focuses the belt, which fans out the rest.
-              tabIndex={expanded || resting ? 0 : -1}
+              tabIndex={expanded && isRelevant || resting ? 0 : -1}
               data-testid={`tool-slot-${slot.slot}`} data-ready={slot.ready}
               onClick={() => { playUiSound("click"); setNudge((count) => count + 1); onSelectSlot?.(slot.slot); }}>
               <GuildcraftArt art={selected ? "slot-selected" : "slot"} className="guild-slot-frame" />

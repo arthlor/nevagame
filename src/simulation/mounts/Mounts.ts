@@ -1,3 +1,4 @@
+import { CARRIAGE_TYPE_ID, STARTER_CARRIAGE_ID, isCarriage, isCarriageGround, CARRIAGE_TUNING } from "./Carriage";
 import type { MountState, PlayerState } from "../core/types";
 import { STARTER_DONKEY_ANCHOR } from "../../world/FarmLayout";
 import { WorldLayout } from "../../world/WorldLayout";
@@ -12,7 +13,7 @@ export const MOUNT_TUNING = Object.freeze({
   // free cruise and the gallop is the quota-gated burst.
   walkSpeedMetersPerSecond: 2.3,
   trotSpeedMetersPerSecond: 5.8,
-  gallopSpeedMetersPerSecond: 8.4,
+  gallopSpeedMetersPerSecond: 7.5,
   maximumGallopStamina: 100,
   // Roughly seven seconds of gallop, against the player's four and a half, so
   // the mount reads as a genuine advantage rather than a reskinned sprint.
@@ -85,37 +86,49 @@ export interface MountGaitStepResult {
   isGalloping: boolean;
 }
 
+/** Stamina-budget numbers consumed by `advanceMountGait`. */
+export interface MountGaitStaminaTuning {
+  readonly maximumGallopStamina: number;
+  readonly gallopDrainPerSecond: number;
+  readonly gallopRecoveryPerSecond: number;
+  readonly gallopRecoveryDelaySeconds: number;
+  readonly gallopResumeThreshold: number;
+}
+
 /**
  * Advances the mount's gallop budget once per fixed simulation step.
  *
  * Deliberately mirrors `advancePlayerTraversal` so the two budgets behave
  * identically from the player's point of view and only differ in their numbers.
+ * The carriage drives the same stepper with `CARRIAGE_TUNING`'s trot budget so
+ * both animals share one exhaustion semantic.
  */
 export function advanceMountGait(
   current: Readonly<Pick<MountState, "gallopStamina" | "gallopRecoveryDelaySeconds" | "gallopExhausted">>,
   input: Readonly<MountGaitStepInput>,
-  fixedDeltaSeconds: number
+  fixedDeltaSeconds: number,
+  tuning: MountGaitStaminaTuning = MOUNT_TUNING
 ): MountGaitStepResult {
   const dt = Number.isFinite(fixedDeltaSeconds) ? Math.max(0, fixedDeltaSeconds) : 0;
-  const maximum = MOUNT_TUNING.maximumGallopStamina;
+  const maximum = tuning.maximumGallopStamina;
   const finiteOr = (value: number, fallback: number) => (Number.isFinite(value) ? value : fallback);
   let stamina = Math.min(maximum, Math.max(0, finiteOr(current.gallopStamina, maximum)));
   let recoveryDelay = Math.max(0, finiteOr(current.gallopRecoveryDelaySeconds, 0));
   let exhausted = current.gallopExhausted === true;
 
-  if (exhausted && stamina >= MOUNT_TUNING.gallopResumeThreshold) exhausted = false;
+  if (exhausted && stamina >= tuning.gallopResumeThreshold) exhausted = false;
 
   const isGalloping = input.wantsGallop && input.isMoving && !exhausted && stamina > 0;
   if (isGalloping) {
-    stamina = Math.max(0, stamina - MOUNT_TUNING.gallopDrainPerSecond * dt);
-    recoveryDelay = MOUNT_TUNING.gallopRecoveryDelaySeconds;
+    stamina = Math.max(0, stamina - tuning.gallopDrainPerSecond * dt);
+    recoveryDelay = tuning.gallopRecoveryDelaySeconds;
     if (stamina <= 0) exhausted = true;
   } else {
     recoveryDelay = Math.max(0, recoveryDelay - dt);
     if (recoveryDelay <= 0 && stamina < maximum) {
-      stamina = Math.min(maximum, stamina + MOUNT_TUNING.gallopRecoveryPerSecond * dt);
+      stamina = Math.min(maximum, stamina + tuning.gallopRecoveryPerSecond * dt);
     }
-    if (exhausted && stamina >= MOUNT_TUNING.gallopResumeThreshold) exhausted = false;
+    if (exhausted && stamina >= tuning.gallopResumeThreshold) exhausted = false;
   }
 
   return {
@@ -132,11 +145,11 @@ export function isValidMountPose(
 ): boolean {
   const heightTolerance = options.heightToleranceMeters ?? MOUNT_TUNING.terrainHeightToleranceMeters;
   if (
-    mount.id !== STARTER_DONKEY_ID ||
-    mount.mountTypeId !== STARTER_DONKEY_TYPE_ID ||
+    !((mount.id === STARTER_DONKEY_ID && mount.mountTypeId === STARTER_DONKEY_TYPE_ID) ||
+      (mount.id === STARTER_CARRIAGE_ID && mount.mountTypeId === CARRIAGE_TYPE_ID)) ||
     ![mount.x, mount.y, mount.z, mount.rotationY].every(Number.isFinite)
   ) return false;
-  if (!isMountableTraversalPoint(mount.x, mount.z)) return false;
+  if (!isMountableTraversalPoint(mount.x, mount.z) || (isCarriage(mount) && !isCarriageGround(mount))) return false;
   return Math.abs(mount.y - WorldLayout.traversalSurfaceHeight(mount.x, mount.z)) <= heightTolerance;
 }
 
@@ -181,13 +194,14 @@ export function isValidPlayerMountGround(
 }
 
 export function mountDismountPoseCandidates(
-  player: Pick<PlayerState, "x" | "y" | "z" | "rotationY">
+  player: Pick<PlayerState, "x" | "y" | "z" | "rotationY">,
+  clearance: number = MOUNT_TUNING.dismountClearanceMeters
 ): readonly [
   Pick<PlayerState, "x" | "y" | "z" | "rotationY">,
   Pick<PlayerState, "x" | "y" | "z" | "rotationY">
 ] {
-  const lateralX = Math.cos(player.rotationY) * MOUNT_TUNING.dismountClearanceMeters;
-  const lateralZ = -Math.sin(player.rotationY) * MOUNT_TUNING.dismountClearanceMeters;
+  const lateralX = Math.cos(player.rotationY) * clearance;
+  const lateralZ = -Math.sin(player.rotationY) * clearance;
   const poseAt = (x: number, z: number) => ({
     x,
     y: WorldLayout.traversalSurfaceHeight(x, z) + MOUNT_TUNING.playerPoseGroundOffsetMeters,
@@ -201,9 +215,10 @@ export function mountDismountPoseCandidates(
 }
 
 export function resolveMountDismountPose(
-  player: Pick<PlayerState, "x" | "y" | "z" | "rotationY">
+  player: Pick<PlayerState, "x" | "y" | "z" | "rotationY">,
+  mount?: MountState
 ): Pick<PlayerState, "x" | "y" | "z" | "rotationY"> | null {
-  const [left, right] = mountDismountPoseCandidates(player);
+  const [left, right] = mountDismountPoseCandidates(player, isCarriage(mount) ? CARRIAGE_TUNING.dismountOffset : MOUNT_TUNING.dismountClearanceMeters);
   if (isValidPlayerMountGround(left)) return left;
   if (isValidPlayerMountGround(right)) return right;
   return null;

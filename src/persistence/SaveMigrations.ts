@@ -1,3 +1,4 @@
+import { createStarterCarriageState, STARTER_CARRIAGE_ID } from "../simulation/mounts/Carriage";
 import { migrateOceanLayout20, translateLegacyOceanPositions } from "./migrateOceanLayout20";
 import { migrateTerrainLayout14 } from "./migrateTerrainLayout14";
 import { migrateOnboardingCredits35 } from "./migrateOnboardingCredits35";
@@ -9,6 +10,7 @@ import { migrateTerrainLayout19 } from "./migrateTerrainLayout19";
 import { migrateWorkCapacity43 } from "./migrateWorkCapacity43";
 import { migrateKnowledgeJournal44 } from "./migrateKnowledgeJournal44";
 import { migrateKitchen45 } from "./migrateKitchen45";
+import { migrateHeadwaterFall47 } from "./migrateHeadwaterFall47";
 // src/persistence/SaveMigrations.ts
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
@@ -1438,7 +1440,13 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   42: (state: unknown) => migrateOceanLayout20(state as GameState),
   43: (state: unknown) => migrateWorkCapacity43(state as GameState),
   44: (state: unknown) => migrateKnowledgeJournal44(state as GameState),
-  45: (state: unknown) => migrateKitchen45(state as GameState)
+  45: (state: unknown) => migrateKitchen45(state as GameState),
+  46: (state: unknown) => {
+    const previous = state as GameState;
+    return { ...previous, schemaVersion: 46, mounts: { ...previous.mounts,
+      [STARTER_CARRIAGE_ID]: previous.mounts[STARTER_CARRIAGE_ID] ?? createStarterCarriageState() } };
+  },
+  47: (state: unknown) => migrateHeadwaterFall47(state as GameState)
 };
 
 
@@ -1477,9 +1485,12 @@ export function migrateSaveData(envelope: SaveEnvelope): SaveEnvelope {
   if (layoutRevision(state) < WORLD_LAYOUT_REVISION) {
     if (layoutRevision(state) < 18) state = migrateTerrainLayout18(state as GameState);
     if (layoutRevision(state) < 19) state = migrateTerrainLayout19(state as GameState);
-    if (layoutRevision(state) < WORLD_LAYOUT_REVISION) {
+    if (layoutRevision(state) < 20) {
       translateLegacyOceanPositions(state as GameState);
       state = migrateOceanLayout20(state as GameState);
+    }
+    if (layoutRevision(state) < WORLD_LAYOUT_REVISION) {
+      state = migrateHeadwaterFall47(state as GameState);
     }
   }
 

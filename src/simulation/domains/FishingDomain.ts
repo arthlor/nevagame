@@ -1289,9 +1289,14 @@ export class FishingDomain {
       };
     }
     const weightKg = rollSpeciesWeightKg(speciesDef.weightKg, draftRng);
-    const quality = this.rollQuality(1, draftRng);
+    const quality = this.rollQuality(draftRng);
+    // Draw the transient instance id from the draft stream so the persisted
+    // rng state reproduces it; drawing from the real stream here would burn
+    // two draws that the commit below silently discards.
+    const idA = draftRng.intInclusive(1, 0x7fffffff).toString(36);
+    const idB = draftRng.intInclusive(0, 0xffff).toString(36);
     const fish: FishInstance = {
-      instanceId: this.context.nextEntityId("fish_inst"),
+      instanceId: `fish_inst_${idA}_${idB}`,
       speciesId,
       ecologyId: school.ecologyId,
       habitatId: school.habitatId,
@@ -1491,13 +1496,11 @@ export class FishingDomain {
     ).cost;
   }
 
-  private rollQuality(workMultiplier: number, rng: Rng = this.context.rng): FishQuality {
+  private rollQuality(rng: Rng = this.context.rng): FishQuality {
     const roll = rng.nextFloat();
-    const work = Math.max(0, Math.min(1, workMultiplier));
-    const effectiveRoll = Math.min(1, roll * work);
-    if (effectiveRoll > 0.92) return "trophy";
-    if (effectiveRoll > 0.75) return "exceptional";
-    if (effectiveRoll > 0.45) return "fine";
+    if (roll > 0.92) return "trophy";
+    if (roll > 0.75) return "exceptional";
+    if (roll > 0.45) return "fine";
     return "common";
   }
 
@@ -1726,6 +1729,7 @@ export class FishingDomain {
     const school = this.context.state.world.activeSchools[schoolId];
     if (!school) return SPORT_FISHING_WORK_COST;
     const rod = ContentRegistry.rods.get(this.context.state.player.equippedRodId);
+    const bearing = Math.atan2(school.x - this.context.state.player.x, school.z - this.context.state.player.z);
     const costs = school.speciesWeights.flatMap((entry) => {
       const species = ContentRegistry.fishSpecies.get(entry.speciesId);
       if (
@@ -1735,6 +1739,14 @@ export class FishingDomain {
         !cargoClassFits(species.cargoClass, rod.maximumCargoClass) ||
         !this.cargo.canLandCargoClass(species.cargoClass)
       ) return [];
+      const water = findFishingWater(
+        this.context.state.player.x,
+        this.context.state.player.z,
+        bearing,
+        sportFishingMaxStartDistanceMeters(species.cargoClass),
+        (x, z) => WorldLayout.isSailable(x, z)
+      );
+      if (!water) return [];
       return [SPORT_FISHING_WORK_COST_BY_CLASS[species.cargoClass]];
     });
     return costs.length > 0 ? Math.max(...costs) : SPORT_FISHING_WORK_COST;

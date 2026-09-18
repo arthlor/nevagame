@@ -3,7 +3,7 @@
  * Keep this module free of Three.js so simulation can consume it directly.
  */
 
-export const WORLD_LAYOUT_REVISION = 20 as const;
+export const WORLD_LAYOUT_REVISION = 21 as const;
 
 export const WORLD_SPAWN = {
   playerPosition: { x: -65, z: -60.5 },

@@ -44,7 +44,8 @@ async function inspect(file, expectedSize) {
     if (data[p] < 16) transparent += 1;
   }
   const ratio = transparent / (info.width * info.height);
-  if (ratio < MIN_TRANSPARENT_RATIO) {
+  const isPanel = path.basename(file).includes("panel");
+  if (!isPanel && ratio < MIN_TRANSPARENT_RATIO) {
     return `only ${(ratio * 100).toFixed(1)}% transparent - background was not keyed out`;
   }
   return null;

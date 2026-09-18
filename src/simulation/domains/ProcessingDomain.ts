@@ -145,6 +145,8 @@ export class ProcessingDomain {
   public start(recipeId: RecipeId, stationId: string): InteractionResult {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before using a station" };
+    if (state.player.activeBoatId) return { success: false, reason: "Disembark before using a station" };
+    if (state.basicFishing || state.sportFishing) return { success: false, reason: "Finish fishing first" };
     const handsBlocker = freeHandsBlocker(state.player);
     if (handsBlocker) return { success: false, reason: handsBlocker };
     const recipe = ContentRegistry.recipes.get(recipeId);
@@ -211,6 +213,8 @@ export class ProcessingDomain {
   public collect(jobId: ProcessingJobId): InteractionResult {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before using a station" };
+    if (state.player.activeBoatId) return { success: false, reason: "Disembark before using a station" };
+    if (state.basicFishing || state.sportFishing) return { success: false, reason: "Finish fishing first" };
     const handsBlocker = freeHandsBlocker(state.player);
     if (handsBlocker) return { success: false, reason: handsBlocker };
     const job = state.processingJobs[jobId];

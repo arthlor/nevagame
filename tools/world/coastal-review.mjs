@@ -134,6 +134,32 @@ try {
     }
     report.profile=report.profiles[0];
   }
+  // Fixed authored review cameras (art views), including the W05 headwater
+  // graybox viewpoints. `--graybox=headwater` attaches the candidate preview
+  // and `--overlay=<field>` draws a DEV field overlay in the same frame.
+  if (args.artViews) {
+    report.artViews = [];
+    for (const id of String(args.artViews).split(",")) {
+      const graybox = args.graybox ? `&graybox=${args.graybox}` : "";
+      const overlay = args.overlay ? `&fieldOverlay=${args.overlay}` : "";
+      await page.goto(`${base}/?debug=1&artView=${id}${graybox}${overlay}&worldAcceptance=1`, { waitUntil: "networkidle" });
+      await page.waitForFunction(() => window.__NEVA_DEBUG?.snapshot().bootReady, undefined, { timeout: 90000 });
+      await page.waitForFunction(() => window.__NEVA_RENDER_READY === true, undefined, { timeout: 60000 });
+      await page.evaluate(() => {
+        const diagnostics = document.querySelector('[data-testid="diagnostics"]');
+        if (diagnostics) diagnostics.style.display = "none";
+      });
+      await page.waitForTimeout(2500);
+      if (await page.locator("vite-error-overlay").count()) throw new Error(`Vite error overlay present at artView ${id}`);
+      const diagnostics = await page.evaluate(() => {
+        const d = window.__NEVA_DEBUG.renderDiagnostics();
+        return { camera: d.camera, render: d.world.render, fieldOverlay: d.world.fieldOverlay, qualityTier: d.world.qualityTier, snapshot: window.__NEVA_DEBUG.snapshot().playerPosition };
+      });
+      await page.screenshot({ path: path.join(output, `artview-${id}${overlay ? "-overlay" : ""}.png`) });
+      report.artViews.push({ id, graybox: args.graybox ?? null, overlay: args.overlay ?? null, diagnostics });
+    }
+    await fs.writeFile(path.join(output, "measurements.json"), JSON.stringify(report, null, 2));
+  }
   if (args.shots !== "false") for (const [name, x, z] of views) {
     await page.evaluate(({ x, z }) => window.__NEVA_DEBUG.teleport(x, z), { x, z });
     await page.waitForTimeout(1400);

@@ -85,6 +85,7 @@ export function rarityForEncounterWeight(weight: number): NonNullable<ItemInspec
 const STORAGE_LABEL: Record<CarryLocationType, string> = {
   player: "Carried open",
   "boat-hold": "Sheltered hold",
+  carriage: "Carriage bed",
   "boat-hook": "Transom hook",
   "cold-storage": "Cold room",
   crate: "Crate"

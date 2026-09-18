@@ -20,12 +20,12 @@ function settle(camera: GameCamera, weight: number, mode: "on-foot" | "farm-plac
 describe("exploration framing", () => {
   it("protects work and interior framing and opens both islands' unworked country", () => {
     expect(explorationFramingAt(42, -65, -55, "farm-placement")).toBe(0);
-    expect(explorationFramingAt(42, 455, 5, "on-foot")).toBe(0);
+    expect(explorationFramingAt(42, 455 + 800, 5, "on-foot")).toBe(0);
     const house = WorldLayout.landmark("farmhouse");
     expect(explorationFramingAt(42, house.x, house.z, "on-foot")).toBe(0);
     expect(explorationFramingAt(42, -115, -80, "on-foot")).toBeGreaterThan(0.2);
-    expect(explorationFramingAt(42, 565, 60, "on-foot")).toBeGreaterThan(0.2);
-    expect(explorationFramingAt(42, 455, 5, "basic-fishing")).toBe(0);
+    expect(explorationFramingAt(42, 565 + 800, 60, "on-foot")).toBeGreaterThan(0.2);
+    expect(explorationFramingAt(42, 455 + 800, 5, "basic-fishing")).toBe(0);
   });
 
   it("suppresses landscape context during an actual task without losing its cached geography", () => {

@@ -88,18 +88,22 @@ export function buildShoreFoamPatches(): ShoreFoamPatch[] {
     );
     const waterOffset = 0.24 + deterministicUnit(index, 4) * 0.68;
     const alongOffset = (deterministicUnit(index, 5) - 0.5) * 1.2;
+    const center = {
+      x: x + tangent.x * alongOffset + waterNormal.x * waterOffset,
+      z: shoreline + tangent.z * alongOffset + waterNormal.z * waterOffset
+    };
+    const continuousContact = WorldLayout.coastalContactWeightAt(center.x, center.z);
     patches.push({
       source: "coast",
-      center: {
-        x: x + tangent.x * alongOffset + waterNormal.x * waterOffset,
-        z: shoreline + tangent.z * alongOffset + waterNormal.z * waterOffset
-      },
+      center,
       tangent,
       waterNormal,
       length,
       width,
       phase: deterministicUnit(index, 6) * Math.PI * 2,
-      exposure
+      // These broken legacy patches remain a restrained accent wherever the
+      // continuous treatment now owns the same southern shoreline.
+      exposure: exposure * (1 - continuousContact * 0.82)
     });
     index += 1;
   }

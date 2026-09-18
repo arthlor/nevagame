@@ -43,7 +43,7 @@ export type ContractId = string;
 export type BoatUpgradeId = string;
 export type NpcId = string;
 export type MountId = string;
-export type MountTypeId = "mount.donkey";
+export type MountTypeId = "mount.donkey" | "mount.horse_carriage";
 
 
 export type GameMinute = number; // integer simulation minutes
@@ -306,6 +306,8 @@ export interface MountState {
   gallopStamina: number;
   gallopRecoveryDelaySeconds: number;
   gallopExhausted: boolean;
+  /** Present only on the horse carriage; one physical pack per slot. */
+  fishCargoSlotIds?: Array<FishCargoId | null>;
 }
 
 export interface FishSchoolState {
@@ -488,7 +490,7 @@ export interface BasicFishingState {
   minigameStepRemainderSeconds?: number;
 }
 
-export type CarryLocationType = "player" | "boat-hold" | "boat-hook" | "cold-storage" | "crate";
+export type CarryLocationType = "player" | "boat-hold" | "boat-hook" | "carriage" | "cold-storage" | "crate";
 
 export interface CargoLocation {
   type: CarryLocationType;

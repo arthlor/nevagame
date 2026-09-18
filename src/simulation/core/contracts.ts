@@ -247,7 +247,7 @@ export interface TrophyCatchDto {
   estimatedShelfLifeMinutes: number;
   estimatedMarketValue: number;
   record: "first" | "weight" | "quality" | null;
-  storageDestination: "player-carry" | "boat-hold" | "boat-hook" | "cold-storage" | "crate";
+  storageDestination: "player-carry" | "boat-hold" | "boat-hook" | "cold-storage" | "crate" | "carriage";
   storageLocationLabel: string;
 }
 
@@ -270,7 +270,8 @@ export type CompassMarkerKind =
   | "quest"
   | "quest-secondary"
   | "fish-school"
-  | "water";
+  | "water"
+  | "waypoint";
 
 /**
  * Semantic icon name. The presentation layer maps these to SVG marks; DTOs
@@ -411,6 +412,13 @@ export interface WorldHudDto {
     current: number;
     maximum: number;
     exhausted: boolean;
+  } | null;
+  /** The active mount's stamina budget. Null on foot: the rider's sprint above owns that case. */
+  mount: {
+    current: number;
+    maximum: number;
+    exhausted: boolean;
+    label: "Gallop" | "Trot";
   } | null;
   equippedRodId: RodId;
   carriedFish: WorldHudCargoDto | null;
@@ -839,6 +847,7 @@ export type InteractionAction =
   | "inspect"
   | "trade"
   | "pickup-cargo"
+  | "load-carriage"
   | "cast"
   | "read-water"
   | "read-notices"
@@ -1072,6 +1081,7 @@ export type GameCommand =
     }
   | { type: "cargo.discard"; cargoId: FishCargoId; marketId?: MarketId }
   | { type: "cargo.release"; cargoId: FishCargoId; marketId?: MarketId }
+  | { type: "cargo.load-carriage"; mountId: MountId }
   | { type: "cargo.pickup"; cargoId: FishCargoId }
   | { type: "inventory.sort-satchel" }
   | {

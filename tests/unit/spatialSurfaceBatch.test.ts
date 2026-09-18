@@ -109,18 +109,23 @@ describe("spatial surface batching", () => {
       original.updateMatrixWorld(true);
       batch.updateMatrixWorld(true);
       expect(batch.geometry.index!.count).toBe(source.index?.count ?? source.getAttribute("position").count);
-      for (const offsetX of [-100, -20, 0, 45, 120]) {
-        for (const offsetZ of [-100, -10, 0, 36, 120]) {
-          const ray = new THREE.Raycaster(
-            new THREE.Vector3(patch.center.x + offsetX + 0.31, 300, patch.center.z + offsetZ + 0.27),
-            new THREE.Vector3(0, -1, 0)
-          );
-          const expected = ray.intersectObject(original)[0];
-          const actual = ray.intersectObject(batch)[0];
-          expect(expected).toBeDefined();
-          expect(actual?.point.distanceTo(expected.point)).toBeLessThan(1e-6);
-          expect(actual?.face?.normal.distanceTo(expected.face!.normal)).toBeLessThan(1e-6);
-        }
+      // Probe rays must land on the mesh: the 128 m islet patches are smaller
+      // than the ±120 m spread written for the 600 m Neva field, so scale the
+      // spread to each patch (Neva and Sunreach keep the exact legacy points).
+      const span = Math.min(120, patch.sizeMeters / 2 - 2);
+      const factors: Array<[number, number]> = [-100, -20, 0, 45, 120].flatMap((offsetX) =>
+        [-100, -10, 0, 36, 120].map((offsetZ) =>
+          [offsetX * span / 120, offsetZ * span / 120] as [number, number]));
+      for (const [offsetX, offsetZ] of factors) {
+        const ray = new THREE.Raycaster(
+          new THREE.Vector3(patch.center.x + offsetX + 0.31, 300, patch.center.z + offsetZ + 0.27),
+          new THREE.Vector3(0, -1, 0)
+        );
+        const expected = ray.intersectObject(original)[0];
+        const actual = ray.intersectObject(batch)[0];
+        expect(expected).toBeDefined();
+        expect(actual?.point.distanceTo(expected.point)).toBeLessThan(1e-6);
+        expect(actual?.face?.normal.distanceTo(expected.face!.normal)).toBeLessThan(1e-6);
       }
       batch.dispose();
       source.dispose();

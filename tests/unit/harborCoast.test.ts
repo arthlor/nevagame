@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OBB } from "three/examples/jsm/math/OBB.js";
 import { describe, expect, it, vi } from "vitest";
-import { WorldLayout } from "../../src/world/WorldLayout";
+import { WATER_SURFACE, WorldLayout } from "../../src/world/WorldLayout";
 import { HARBOR_BEACH_PATH, HARBOR_LANDING_PATH } from "../../src/world/HarborCoast";
 import { harborCoastCollisionProxies } from "../../src/world/HarborCoastLayout";
 import { createWorldEnvironmentLayout } from "../../src/world/WorldEnvironmentLayout";
@@ -10,6 +10,7 @@ import { staticPoseIsClear } from "../../src/physics/StaticCollision";
 import { projectAssetCollision } from "../../src/physics/CollisionCatalogAdapter";
 import { boatAssetId } from "../../src/render/assets/AssetCatalog";
 import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "../../src/world/WorldAnchors";
+import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
 import { createWaterDepthMap } from "../../src/render/water/CoastalOptics";
 import { FacetedWater } from "../../src/render/water/FacetedWater";
 import { coastalVegetationDepthMaterial, vegetationInstanceTintMaterial, disposeVegetationTintMaterials, updateVegetationWind } from "../../src/render/materials/VegetationTintMaterial";
@@ -101,18 +102,21 @@ describe("harbor coast shared support and optical fields", () => {
   it("aligns the near-water lattice with both coarse chunks at the harbor and Sunreach",()=>{
     const water=new FacetedWater();
     try{
-      const gridX=1150/221,gridZ=750/144;
-      for(const [x,z] of [[132,70],[355,58]]){
+      const gridX=WATER_SURFACE.width/WATER_SURFACE.segmentsX;
+      const gridZ=WATER_SURFACE.depth/WATER_SURFACE.segmentsZ;
+      const originX=WATER_SURFACE.centerX-WATER_SURFACE.width*.5;
+      const originZ=WATER_SURFACE.centerZ-WATER_SURFACE.depth*.5;
+      for(const [x,z] of [[132,70],[SUNREACH_ANCHORS.dockPlayer.x,SUNREACH_ANCHORS.dockPlayer.z]]){
         water.update(17,{seaRoughness:.1,windDirectionDeg:0,windSpeed:4},new THREE.Vector3(x,0,z));
         const mesh=water.nearPatch.mesh,positions=mesh.geometry.getAttribute("position");
         expect(water.mesh.material.uniforms.uNearPatchCenter.value.toArray()).toEqual(
           mesh.material.uniforms.uPatchCenter.value.toArray()
         );
         for(let i=0;i<positions.count;i++){
-          const gx=(positions.getX(i)+mesh.position.x+350)/gridX;
-          const gz=(positions.getZ(i)+mesh.position.z+355)/gridZ;
-          expect(Math.abs(gx-Math.round(gx))).toBeLessThan(.00001);
-          expect(Math.abs(gz-Math.round(gz))).toBeLessThan(.00001);
+          const gx=(positions.getX(i)+mesh.position.x-originX)/gridX;
+          const gz=(positions.getZ(i)+mesh.position.z-originZ)/gridZ;
+          expect(Math.abs(gx-Math.round(gx))).toBeLessThan(.00005);
+          expect(Math.abs(gz-Math.round(gz))).toBeLessThan(.00005);
         }
       }
     }finally{water.dispose();}

@@ -7,7 +7,7 @@ import {
   type NoticeDelta,
   type NoticeTone
 } from "../notifications";
-import { IconCoin, IconWarning, type IconProps, IconEnergy} from "./HudIcons";
+import { IconCheck, IconCoin, IconEnergy, IconWarning, type IconProps } from "./HudIcons";
 import { Notice as CoastalNotice } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForCrop, atlasForFish, atlasForItem } from "../chrome/uiAtlas";
@@ -20,7 +20,8 @@ export interface NoticeStackProps {
 const TONE_ICON: Partial<Record<NoticeTone, React.FC<IconProps>>> = {
   warning: IconWarning,
   danger: IconWarning,
-  reward: IconCoin
+  reward: IconCoin,
+  success: IconCheck
 };
 
 /**

@@ -244,7 +244,10 @@ export class NearWaterPatch {
         uRapidsFlowSpeed: { value: CANONICAL_RENDER_CONFIG.waterSurface.headwaters.rapidsFlowMetersPerSecond },
         uEdgeOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.edgeOpacity },
         uBodyOpacity: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.bodyOpacity },
-        uOpacityRampMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.opacityRampMeters }
+        uOpacityRampMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.opacityRampMeters },
+        uBodyCount: { value: 0 },
+        uBodies: { value: Array.from({ length: 16 }, () => new THREE.Vector4(0, 0, 0, 0)) },
+        uBodyVel: { value: Array.from({ length: 16 }, () => new THREE.Vector2(0, 0)) }
       },
       transparent: true,
       depthWrite: true,

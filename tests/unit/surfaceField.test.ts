@@ -29,7 +29,7 @@ describe("shared world surface field", () => {
   it("derives dry-island color from canonical drainage without changing surface truth", () => {
     const neva = WorldLayout.terrainSurfaceSample(-65, -55);
     expect(terrainDryClimateWeight(neva)).toBe(0);
-    const sunreach = WorldLayout.terrainSurfaceSample(570, 80);
+    const sunreach = WorldLayout.terrainSurfaceSample(570 + 800, 80);
     const original = structuredClone(sunreach);
     expect(sunreach.drainage?.islandId).toBe("island.sunreach");
     expect(terrainDryClimateWeight(sunreach)).toBeCloseTo(1 - sunreach.drainage!.moisturePotential);

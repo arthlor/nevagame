@@ -4,7 +4,7 @@ import { NEVA_HEADWATERS, headwaterElevationAt, headwaterGradientAt } from "../.
 import { WorldLayout } from "../../src/world/WorldLayout";
 
 describe("starter island mountain landform", () => {
-  it("has three authored summit heights and substantial western foothills", () => {
+  it("reaches every authored summit height and keeps substantial western foothills", () => {
     for (const peak of NEVA_SUMMITS) {
       expect(WorldLayout.terrainHeight(peak.x, peak.z), peak.id).toBeCloseTo(peak.elevation, 4);
     }
