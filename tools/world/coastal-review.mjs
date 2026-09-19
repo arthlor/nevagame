@@ -138,13 +138,22 @@ try {
   }
   // Fixed authored review cameras (art views), including the W05 headwater
   // graybox viewpoints. `--graybox=headwater` attaches the candidate preview
-  // and `--overlay=<field>` draws a DEV field overlay in the same frame.
+  // and `--overlay=<field>` draws a DEV field overlay in the same frame. Each
+  // view navigates afresh, so `--minute`/`--weather`/`--phase` ride the stateless
+  // `artMinute`/`artWeather`/`artTimeSeconds` URL contract; setting the review
+  // environment before this loop would be discarded by the first navigation.
   if (args.artViews) {
     report.artViews = [];
     for (const id of String(args.artViews).split(",")) {
       const graybox = args.graybox ? `&graybox=${args.graybox}` : "";
       const overlay = args.overlay ? `&fieldOverlay=${args.overlay}` : "";
-      await page.goto(`${base}/?debug=1&artView=${id}${graybox}${overlay}&worldAcceptance=1`, { waitUntil: "domcontentloaded" });
+      const minute = `&artMinute=${Number(args.minute ?? 720)}`;
+      const weather = `&artWeather=${args.weather ?? "clear"}`;
+      const phase = args.phase ? `&artTimeSeconds=${Number(args.phase)}` : "";
+      // Art-view presets take their tier from `artQuality`; the persisted
+      // preference init script does not apply on this path.
+      const quality = `&artQuality=${tier}`;
+      await page.goto(`${base}/?debug=1&artView=${id}${graybox}${overlay}&worldAcceptance=1${minute}${weather}${phase}${quality}`, { waitUntil: "domcontentloaded" });
       await page.waitForFunction(() => window.__NEVA_DEBUG?.snapshot().bootReady, undefined, { timeout: 90000 });
       await page.waitForFunction(() => window.__NEVA_RENDER_READY === true, undefined, { timeout: 60000 });
       await page.evaluate(() => {
@@ -158,7 +167,14 @@ try {
         return { camera: d.camera, render: d.world.render, fieldOverlay: d.world.fieldOverlay, qualityTier: d.world.qualityTier, snapshot: window.__NEVA_DEBUG.snapshot().playerPosition };
       });
       await page.screenshot({ path: path.join(output, `artview-${id}${overlay ? "-overlay" : ""}.png`) });
-      report.artViews.push({ id, graybox: args.graybox ?? null, overlay: args.overlay ?? null, diagnostics });
+      report.artViews.push({
+        id,
+        graybox: args.graybox ?? null,
+        overlay: args.overlay ?? null,
+        minute: Number(args.minute ?? 720),
+        weather: args.weather ?? "clear",
+        diagnostics
+      });
     }
     await fs.writeFile(path.join(output, "measurements.json"), JSON.stringify(report, null, 2));
   }
