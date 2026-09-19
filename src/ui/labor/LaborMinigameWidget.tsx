@@ -1,4 +1,7 @@
 import type { LaborHudDto } from "../../simulation/core/contracts";
+import { IconEnergy } from "../components/HudIcons";
+import { ChromeButton, ChromeKeycap } from "../chrome/Chrome";
+import { GameSheet } from "../coastal/CoastalUI";
 
 interface LaborMinigameWidgetProps {
   hud: LaborHudDto;
@@ -7,72 +10,87 @@ interface LaborMinigameWidgetProps {
 }
 
 /**
- * The Work-shift timing readout. It displays a simulation-owned meter and two
- * commands; it never derives the sweet spot or the reward itself.
+ * The Work-shift timing instrument. It displays a simulation-owned meter and
+ * sweet-spot band plus two commands; it never derives the sweet spot, the
+ * strike grade or the reward itself. The needle and band are positioned
+ * straight from the HUD DTO, so the display cannot drift from the simulation.
  */
 export function LaborMinigameWidget({ hud, onStrike, onCancel }: LaborMinigameWidgetProps) {
   const meterPercent = Math.round(hud.meter * 100);
   const sweetLeft = Math.round(hud.targetMin * 100);
-  const sweetWidth = Math.round((hud.targetMax - hud.targetMin) * 100);
+  const sweetWidth = Math.max(2, Math.round((hud.targetMax - hud.targetMin) * 100));
+  const inSweet = hud.meter >= hud.targetMin && hud.meter <= hud.targetMax;
+  const yieldPreview = Math.max(0, Math.round(hud.yield));
+
   return (
-    <div
-      data-testid="labor-minigame"
-      style={{
-        position: "fixed",
-        left: "50%",
-        bottom: "18%",
-        transform: "translateX(-50%)",
-        width: "min(340px, 78vw)",
-        padding: "14px 16px",
-        borderRadius: "14px",
-        background: "rgba(24, 20, 16, 0.9)",
-        color: "#f4ead7",
-        zIndex: 40,
-        pointerEvents: "auto"
-      }}
-      className="interactive"
-    >
-      <div style={{ fontWeight: 600, marginBottom: 8 }}>{hud.stationName}</div>
-      <div
-        role="meter"
-        aria-label={`${hud.stationName} timing`}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={meterPercent}
-        style={{ position: "relative", height: 14, borderRadius: 7, background: "rgba(255,255,255,0.14)" }}
+    <div className="labor-shift-container" data-testid="labor-minigame">
+      <GameSheet
+        family="ink"
+        tone="slate"
+        corners
+        className={`labor-shift${inSweet ? " is-in-sweet" : ""}`}
       >
+        <header className="labor-shift__header">
+          <span className="labor-shift__title">
+            <IconEnergy size={15} aria-hidden="true" />
+            {hud.stationName}
+          </span>
+          {yieldPreview > 0 && (
+            <span
+              className="labor-shift__reward"
+              title={`A clean strike earns ${yieldPreview} Work`}
+              data-testid="labor-shift-reward"
+            >
+              {`+${yieldPreview} Work`}
+            </span>
+          )}
+        </header>
+
         <div
-          style={{
-            position: "absolute",
-            left: `${sweetLeft}%`,
-            width: `${sweetWidth}%`,
-            top: 0,
-            bottom: 0,
-            borderRadius: 7,
-            background: "rgba(226, 178, 84, 0.55)"
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: `${meterPercent}%`,
-            top: -3,
-            width: 4,
-            height: 20,
-            marginLeft: -2,
-            borderRadius: 2,
-            background: "#fff6e0"
-          }}
-        />
-      </div>
-      <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-        <button type="button" onClick={onStrike} style={{ flex: 1 }}>
-          Strike
-        </button>
-        <button type="button" onClick={onCancel} style={{ flex: 1 }}>
-          Stop
-        </button>
-      </div>
+          className="labor-shift__meter"
+          role="meter"
+          aria-label={`${hud.stationName} timing`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={meterPercent}
+          aria-valuetext={
+            inSweet
+              ? `${meterPercent} percent — in the sweet spot`
+              : `${meterPercent} percent`
+          }
+        >
+          <div className="labor-shift__track">
+            <span
+              className="labor-shift__sweet"
+              style={{ left: `${sweetLeft}%`, width: `${sweetWidth}%` }}
+              aria-hidden="true"
+            />
+            <span
+              className="labor-shift__needle"
+              style={{ left: `${meterPercent}%` }}
+              aria-hidden="true"
+            />
+          </div>
+        </div>
+
+        <p className="labor-shift__readout">
+          {inSweet ? "In the sweet spot — strike now" : "Line up the swing with the gold band"}
+        </p>
+
+        <div className="labor-shift__actions">
+          <ChromeButton
+            variant="gold"
+            soundCue="confirm"
+            className="labor-shift__strike"
+            onClick={onStrike}
+          >
+            Strike <ChromeKeycap keyName="E" />
+          </ChromeButton>
+          <ChromeButton variant="secondary" className="labor-shift__stop" onClick={onCancel}>
+            Stop
+          </ChromeButton>
+        </div>
+      </GameSheet>
     </div>
   );
 }

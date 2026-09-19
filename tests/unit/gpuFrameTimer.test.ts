@@ -90,6 +90,34 @@ describe("GPU frame timing and render-target diagnostics", () => {
     });
   });
 
+  it("attributes named pass segments and sums repeated names within a frame", () => {
+    const timer = new GpuFrameTimer(mockTimerContext({
+      results: [4_000_000, 3_000_000, 6_000_000, 1_000_000]
+    }));
+    timer.setPassTimingEnabled(true);
+
+    expect(timer.beginFrame()).toBe(true);
+    timer.beginPass("atmosphere");
+    timer.beginPass("scene");
+    timer.beginPass("water-capture");
+    timer.beginPass("scene");
+    timer.endFrame();
+
+    // Whole-frame parity alternates; the second frame restores the frame query.
+    expect(timer.beginFrame()).toBe(false);
+    timer.endFrame();
+
+    expect(timer.snapshot()).toMatchObject({
+      sampleCount: 1,
+      p50Milliseconds: 1,
+      passes: [
+        { name: "atmosphere", samples: 1, p50Milliseconds: 4 },
+        { name: "scene", samples: 1, p50Milliseconds: 4 },
+        { name: "water-capture", samples: 1, p50Milliseconds: 6 }
+      ]
+    });
+  });
+
   it("accounts for color, multisample, depth, and stencil storage", () => {
     const target = new THREE.WebGLRenderTarget(10, 20, {
       type: THREE.HalfFloatType,

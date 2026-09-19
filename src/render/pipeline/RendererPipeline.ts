@@ -159,10 +159,15 @@ export class RendererPipeline {
       this.renderer.initRenderTarget(this.opaqueSnapshot);
     }
     const snapshot = this.opaqueSnapshot;
+    // The capture happens mid-scene, so measure it as an interrupt segment and
+    // resume the scene pass afterwards; same-named segments are summed per frame.
+    const interruptedPass = this.gpuTimer?.currentPassName ?? null;
+    this.gpuTimer?.beginPass("water-capture");
     this.renderer.copyTextureToTexture(source.texture, snapshot.texture);
     this.renderer.copyTextureToTexture(source.depthTexture, snapshot.depthTexture!);
     // r174 depth blits bind read/draw framebuffers; restore the active scene target.
     this.renderer.setRenderTarget(source);
+    if (interruptedPass) this.gpuTimer?.beginPass(interruptedPass);
     const uniforms = this.coastalUniforms;
     uniforms.uOpaqueColor.value = snapshot.texture;
     uniforms.uOpaqueDepth.value = snapshot.depthTexture;
@@ -182,6 +187,15 @@ export class RendererPipeline {
     this.generation += 1;
     this.disposeComposer();
     this.initialization = null;
+  }
+
+  /**
+   * Alternates named pass queries with whole-frame queries. Debug/acceptance
+   * only: a context allows a single active timer query, so enabling this trades
+   * whole-frame coverage on alternate frames for pass attribution.
+   */
+  public setPassTimingEnabled(enabled: boolean): void {
+    this.gpuTimer?.setPassTimingEnabled(enabled);
   }
 
   /** Fades the high-tier AO contribution at the edge of a quality handoff. */
@@ -219,13 +233,16 @@ export class RendererPipeline {
     this.renderer.info.reset();
     this.gpuTimer?.beginFrame();
     try {
+      this.gpuTimer?.beginPass("atmosphere");
       this.sky?.render(this.renderer, camera);
       const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
       if (quality.ambientOcclusion !== "gtao") {
+        this.gpuTimer?.beginPass("scene");
         this.renderer.render(this.scene, camera);
         return;
       }
       if (!this.composer || this.activeCamera !== camera) {
+        this.gpuTimer?.beginPass("scene");
         this.beginInitialization(camera);
         this.renderer.render(this.scene, camera);
         return;
@@ -292,7 +309,8 @@ export class RendererPipeline {
         sampleCount: 0,
         disjointCount: 0,
         p50Milliseconds: null,
-        p95Milliseconds: null
+        p95Milliseconds: null,
+        passes: []
       },
       renderTargets: targets,
       memory: {
@@ -334,6 +352,11 @@ export class RendererPipeline {
     });
     const composer = new EffectComposer(this.renderer, sceneTarget);
     const renderPass = new RenderPass(this.scene, camera);
+    const renderScenePass = renderPass.render.bind(renderPass);
+    renderPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
+      this.gpuTimer?.beginPass("scene");
+      renderScenePass(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
+    };
     const gtaoPass = new GTAOPass(this.scene, camera, this.width, this.height);
     bindGtaoSceneDepth(gtaoPass, sceneTarget);
     const config = CANONICAL_RENDER_CONFIG.gtao;
@@ -351,6 +374,7 @@ export class RendererPipeline {
     // frame, so motion never freezes when AO refreshes are skipped.
     const renderFreshGtao = gtaoPass.render.bind(gtaoPass);
     gtaoPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
+      this.gpuTimer?.beginPass("gtao");
       bindGtaoSceneDepth(gtaoPass, readBuffer);
       if (this.gtaoRefreshThisFrame || gtaoPass.output !== 0) {
         renderFreshGtao(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
@@ -367,7 +391,13 @@ export class RendererPipeline {
     };
     composer.addPass(renderPass);
     composer.addPass(gtaoPass);
-    composer.addPass(new OutputPass());
+    const outputPass = new OutputPass();
+    const renderOutputPass = outputPass.render.bind(outputPass);
+    outputPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
+      this.gpuTimer?.beginPass("post");
+      renderOutputPass(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
+    };
+    composer.addPass(outputPass);
     this.composer = composer;
     this.gtaoPass = gtaoPass;
     this.activeCamera = camera;

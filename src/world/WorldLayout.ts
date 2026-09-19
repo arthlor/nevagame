@@ -889,8 +889,8 @@ export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
     // Nudged north off the village-homestead lane and shrunk to its real
     // thatched-cottage footprint so the rotated pad corners stay on the flat
     // upland bench instead of the graded road shoulder.
-    center: { x: 68.4, z: -51 },
-    rotationY: villageArchitectureRotation({ x: 68.4, z: -51 }),
+    center: { x: 68.1, z: -51.2},
+    rotationY: -2.0497,
     envelope: [4.5, 3.8],
     frontageClearanceMeters: 7,
     frontApproachMeters: 6
@@ -921,18 +921,20 @@ export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
     // West cottage on the square ring; its door opens onto the market court.
     center: { x: 30.5, z: -59.5 },
     rotationY: villageArchitectureRotation({ x: 30.5, z: -59.5 }),
-    envelope: [2.7, 2.4],
-    frontageClearanceMeters: 4.5,
-    frontApproachMeters: 4.5
+    envelope: [3.6, 3.2],
+    frontageClearanceMeters: 5.9,
+    frontApproachMeters: 5.9
   },
   {
     id: "village.cottage-south",
-    // South cottage closing the square; door faces north to the market.
-    center: { x: 42.5, z: -79.5 },
-    rotationY: villageArchitectureRotation({ x: 42.5, z: -79.5 }),
-    envelope: [2.5, 2.7],
-    frontageClearanceMeters: 4.3,
-    frontApproachMeters: 4.5
+    // South cottage closing the square; door faces north to the market. The
+    // larger built volume sits one step farther back so the market interaction
+    // ring keeps its full clearance.
+    center: { x: 44.5, z: -79.75 },
+    rotationY: villageArchitectureRotation({ x: 44.5, z: -79.75 }),
+    envelope: [3.3, 3.6],
+    frontageClearanceMeters: 5.7,
+    frontApproachMeters: 5.9
   }
 ];
 

@@ -12,6 +12,7 @@ import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRende
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import type { WeatherAppearance } from "../weather/WeatherPresentation";
 import { updateAerialPerspective } from "../atmosphere/AerialPerspective";
+import { ShadowAtlasCompositor, type ShadowAtlasDiagnostics } from "./ShadowAtlasCompositor";
 
 export interface LightingFrame {
   sunDirection: THREE.Vector3;
@@ -409,6 +410,8 @@ export class LightingRig {
   public readonly moon: THREE.DirectionalLight;
   public readonly skyFill: THREE.HemisphereLight;
   public readonly lightning: THREE.DirectionalLight;
+  /** Dual-map static-atlas compositor that owns the shadow refresh budget. */
+  public readonly shadowAtlas: ShadowAtlasCompositor;
   private readonly scene: THREE.Scene;
   private readonly renderer: THREE.WebGLRenderer;
   private qualityTier: QualityTier;
@@ -419,6 +422,8 @@ export class LightingRig {
   private readonly frame = createLightingFrame();
   private presentedMinuteOfDay: number | null = null;
   private lastPresentationUpdateSeconds = Number.NEGATIVE_INFINITY;
+  private readonly originalShadowRender: (lights: THREE.Light[], scene: THREE.Scene, camera: THREE.Camera) => void;
+  private readonly shadowRenderWrapper: (lights: THREE.Light[], scene: THREE.Scene, camera: THREE.Camera) => void;
 
   public constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
     this.scene = scene;
@@ -452,6 +457,14 @@ export class LightingRig {
     );
     this.lightning.castShadow = false;
     this.scene.add(this.lightning, this.lightning.target);
+
+    this.shadowAtlas = new ShadowAtlasCompositor(renderer, CANONICAL_RENDER_CONFIG.shadows.atlas);
+    this.shadowAtlas.registerScene(scene);
+    this.originalShadowRender = this.renderer.shadowMap.render.bind(this.renderer.shadowMap);
+    this.shadowRenderWrapper = (lights, shadowScene, camera) => {
+      this.shadowAtlas.render(this.originalShadowRender, lights, shadowScene, camera);
+    };
+    this.renderer.shadowMap.render = this.shadowRenderWrapper;
     this.setQuality(this.qualityTier);
   }
 
@@ -486,6 +499,17 @@ export class LightingRig {
 
   public pixelRatioCap(): number {
     return CANONICAL_RENDER_CONFIG.quality[this.qualityTier].pixelRatioCap;
+  }
+
+  public shadowAtlasDiagnostics(): ShadowAtlasDiagnostics {
+    return this.shadowAtlas.diagnostics();
+  }
+
+  public dispose(): void {
+    if (this.renderer.shadowMap.render === this.shadowRenderWrapper) {
+      this.renderer.shadowMap.render = this.originalShadowRender;
+    }
+    this.shadowAtlas.dispose();
   }
 
   public contactShadowsEnabled(): boolean {

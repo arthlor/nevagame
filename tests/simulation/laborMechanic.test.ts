@@ -18,6 +18,7 @@ import { FARMING_ACTION_COST } from "../../src/simulation/domains/FarmingDomain"
 import { BASIC_FISHING_WORK_COST } from "../../src/simulation/domains/FishingDomain";
 import { PROCESSING_WORK_COST } from "../../src/simulation/domains/ProcessingDomain";
 import { ACTION_WORK_COSTS } from "../../src/ui/components/FarmingActionStatus";
+import type { LaborHudDto } from "../../src/simulation/core/contracts";
 
 function movePlayerToStarterFarm(sim: Simulation, x: number = 0, z: number = 0): { x: number; z: number } {
   const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x, z });
@@ -311,6 +312,51 @@ describe("Work Capacity mechanic", () => {
       expect(sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z))
         .toMatchObject({ success: true });
       expect(sim.state.player.workCapacity.current).toBe(0);
+    });
+  });
+
+  describe("labor shift strike grading", () => {
+    function startFirewoodShift(): Simulation {
+      const sim = new Simulation();
+      sim.state.player.workCapacity.current = 100;
+      sim.state.player.x = 64.9;
+      sim.state.player.z = -40.1;
+      expect(sim.execute({ type: "labor.start", stationId: "labor.firewood" }).success).toBe(true);
+      return sim;
+    }
+
+    it("grades a strike inside the band as clean and previews the station yield", () => {
+      const sim = startFirewoodShift();
+      const hud = sim.query({ type: "labor.get-hud" }) as LaborHudDto;
+      expect(hud.yield).toBe(20);
+
+      // The needle reaches the 0.72–0.88 band at 1.15 meter-units per second.
+      sim.tick(0.7);
+      const inBand = sim.query({ type: "labor.get-hud" }) as LaborHudDto;
+      expect(inBand.meter).toBeGreaterThanOrEqual(inBand.targetMin);
+      expect(inBand.meter).toBeLessThanOrEqual(inBand.targetMax);
+
+      const strike = sim.execute({ type: "labor.strike" });
+      expect(strike).toMatchObject({ success: true, yield: 20, grade: "clean" });
+      expect(sim.state.player.workCapacity.current).toBe(120);
+      expect(sim.progression.hasWorkedLaborStation("labor.firewood")).toBe(true);
+    });
+
+    it("grades the padded edge as glancing and a distant strike as a miss", () => {
+      const glancingSim = startFirewoodShift();
+      // 0.783 s puts the needle just past the band but inside its padding.
+      glancingSim.tick(0.783);
+      const glancing = glancingSim.execute({ type: "labor.strike" });
+      expect(glancing.success).toBe(true);
+      expect(glancing.grade).toBe("glancing");
+      expect(glancing.yield).toBe(10);
+
+      const missSim = startFirewoodShift();
+      missSim.tick(0.2);
+      const miss = missSim.execute({ type: "labor.strike" });
+      expect(miss.success).toBe(false);
+      expect(miss.grade).toBeUndefined();
+      expect(missSim.state.player.workCapacity.current).toBe(100);
     });
   });
 });

@@ -74,6 +74,29 @@ describe("ground-cover frustum submission", () => {
     expect(near.count).toBe(record.renderedIndices.length);
   });
 
+  it("cell-level rejection submits exactly the instances the per-instance frustum test accepts", async () => {
+    // Spread roots across several 20 m spatial cells so whole cells fall outside
+    // the view; a rejected cell must never hide an instance the direct test keeps.
+    const points: Array<[number, number]> = [];
+    for (let x = -60; x <= 60; x += 7) points.push([x, -10]);
+    const { cover, record } = await buildCover(points);
+    const camera = cameraLookingAt(-1);
+    camera.updateMatrixWorld(true);
+    cover.updateRenderVisibility(camera);
+
+    const viewProjection = new THREE.Matrix4().multiplyMatrices(
+      camera.projectionMatrix,
+      camera.matrixWorldInverse
+    );
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(viewProjection);
+    const expected = record.visibleIndices.filter((index) =>
+      frustum.intersectsSphere(record.instances[index].bounds)
+    );
+    expect(expected.length).toBeGreaterThan(0);
+    expect(expected.length).toBeLessThan(record.visibleIndices.length);
+    expect(record.renderedIndices).toEqual(expected);
+  });
+
   it("seats distributed roots on the terrain tangent while retaining the authored scale", async () => {
     const normal = new THREE.Vector3(-0.25, 1, 0.15).normalize();
     const { record } = await buildCover([[0, 0]], 1, normal);

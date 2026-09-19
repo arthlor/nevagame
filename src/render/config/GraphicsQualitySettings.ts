@@ -59,12 +59,15 @@ export class GraphicsQualitySettings {
   }
 
   /** Auto mode adapts slowly and with asymmetric hysteresis to prevent quality thrashing. */
-  public sampleFrame(deltaSeconds: number, nowMs: number): boolean {
-    if (this.preferenceValue !== "auto" || deltaSeconds <= 0 || deltaSeconds >= 0.1) return false;
-    const frameMs = deltaSeconds * 1000;
+  public sampleFrame(rawDeltaSeconds: number, nowMs: number): boolean {
+    // The caller owns hidden-tab resumption. Frames up to a full second are
+    // real, visible work and must move the average: ignoring them behind the
+    // simulation clamp hid sustained low-FPS periods from auto quality.
+    if (this.preferenceValue !== "auto" || rawDeltaSeconds <= 0 || rawDeltaSeconds >= 1) return false;
+    const frameMs = rawDeltaSeconds * 1000;
     this.frameTimeEmaMs += (frameMs - this.frameTimeEmaMs) * 0.04;
-    this.slowSeconds = this.frameTimeEmaMs > 22 ? this.slowSeconds + deltaSeconds : 0;
-    this.fastSeconds = this.frameTimeEmaMs < 15.2 ? this.fastSeconds + deltaSeconds : 0;
+    this.slowSeconds = this.frameTimeEmaMs > 22 ? this.slowSeconds + rawDeltaSeconds : 0;
+    this.fastSeconds = this.frameTimeEmaMs < 15.2 ? this.fastSeconds + rawDeltaSeconds : 0;
     if (nowMs - this.lastAdjustmentMs < 5_000) return false;
 
     const index = QUALITY_ORDER.indexOf(this.effectiveValue);

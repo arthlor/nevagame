@@ -57,6 +57,8 @@ export interface LaborHudDto {
   active: boolean;
   stationId: string | null;
   stationName: string;
+  /** Work a clean strike grants at this station, for the reward preview. */
+  yield: number;
   meter: number;
   targetMin: number;
   targetMax: number;
@@ -79,6 +81,8 @@ export interface InteractionResult {
   reason?: string;
   reasonCode?: string;
   yield?: number;
+  /** Labor-shift strike grading; presentation only, owned by `LaborDomain`. */
+  grade?: "clean" | "glancing";
   quality?: FishQuality | CropQuality;
   placedCropId?: PlacedCropId;
   cost?: number;

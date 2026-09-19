@@ -151,7 +151,7 @@ describe("Work economy — earned labor", () => {
 
     expect(sim.execute({ type: "cargo.release", cargoId: "cargo.held" }).success).toBe(true);
     expect(sim.state.player.carriedFishCargoId).toBeNull();
-    expect(sim.execute({ type: "labor.strike" })).toEqual({ success: true, yield: station.yield });
+    expect(sim.execute({ type: "labor.strike" })).toEqual({ success: true, yield: station.yield, grade: "clean" });
     expect(sim.state.player.workCapacity.current).toBe(station.yield);
     expect(sim.progression.hasWorkedLaborStation(station.id)).toBe(true);
   });

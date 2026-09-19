@@ -17,6 +17,13 @@ export class RigidAnimationBatch {
   private readonly batches: RigidBatch[] = [];
   private readonly inverseRoot = new THREE.Matrix4();
   private readonly instanceMatrix = new THREE.Matrix4();
+  /**
+   * Instance transforms only need resyncing when an owner actually moved a
+   * rigid part. `markDirty()` is the explicit pose/visibility revision; absent
+   * one, `update()` skips the forced world-matrix traversal and per-instance
+   * comparisons entirely.
+   */
+  private dirty = true;
 
   public constructor(private readonly root: THREE.Object3D) {
     const groups = new Map<string, THREE.Mesh<THREE.BufferGeometry, THREE.Material>[]>();
@@ -84,8 +91,17 @@ export class RigidAnimationBatch {
     this.update();
   }
 
-  public update(): void {
-    if (this.batches.length === 0) return;
+  public markDirty(): void {
+    this.dirty = true;
+  }
+
+  public update(force = false): boolean {
+    if (this.batches.length === 0) return false;
+    if (!force && !this.dirty) return false;
+    // An invisible actor casts no shadow and renders nothing; leave the
+    // pending request in place so the next visible frame syncs its parts.
+    if (!this.root.visible) return false;
+    this.dirty = false;
     this.root.updateWorldMatrix(true, true);
     this.inverseRoot.copy(this.root.matrixWorld).invert();
     for (const { mesh, instances } of this.batches) {
@@ -114,6 +130,7 @@ export class RigidAnimationBatch {
         mesh.computeBoundingSphere();
       }
     }
+    return true;
   }
 
   public dispose(): void {

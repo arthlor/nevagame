@@ -161,6 +161,23 @@ export interface VisualRenderConfig {
     castSmallProps: boolean;
     castRocks: boolean;
     castAmbientFlyers: boolean;
+    /**
+     * Dual-map shadow compositing. A committed static atlas (all non-dynamic
+     * casters, re-rendered on a bounded budget) is combined with a per-frame
+     * dynamic map (characters, fauna, boats, packs) into the light's shadow
+     * map. The committed light-space frame is held between atlas refreshes so
+     * map content and sampled matrix always agree. Disabled falls back to the
+     * single per-frame shadow map.
+     */
+    atlas: {
+      enabled: boolean;
+      /** Frames a static atlas render stays valid before wind motion refreshes it. */
+      staticRefreshFrames: number;
+      /** Re-center the committed shadow frame before focus nears the ortho edge. */
+      recenterMeters: number;
+      /** Sun/moon direction delta that invalidates cached static depth. */
+      directionEpsilonRadians: number;
+    };
   };
   quality: Record<
     QualityTier,
@@ -385,6 +402,17 @@ export interface VisualRenderConfig {
       riverFlowDepthFullMeters: number;
       /** Extra normal detail carried by the drifting current. */
       riverFlowNormalStrength: number;
+      /**
+       * Large advected lanes that survive distance filtering, so a wide river
+       * still reads as moving water from the bank and from above.
+       */
+      riverFlowLaneStrength: number;
+      /** How strongly the carved thalweg darkens the river body. */
+      riverDepthShadeStrength: number;
+      /** Shallow bank water fades in over this depth instead of cutting. */
+      riverEdgeDepthFadeMeters: number;
+      /** Opacity the river water thins to at the waterline. */
+      riverEdgeOpacity: number;
       /** Broken foam lace that travels with the current at the water's edge. */
       riverEdgeFoamStrength: number;
       riverEdgeFoamScaleMeters: number;
@@ -420,6 +448,16 @@ export interface VisualRenderConfig {
         /** Mid-fall waist, where the accelerating sheet narrows before impact. */
         widthWaistMeters: number;
         /**
+         * Submerged foot. The sheet continues down the ballistic arc past the
+         * landing, so its geometry edge sits below the pool surface and the
+         * plunge enters the water instead of ending on a visible cut line.
+         * `sinkRunMeters` is the downstream extension; because the final
+         * descent is near-vertical, a few centimetres bury the tip by about a
+         * metre. `sinkRows` are the rows reserved below the landing.
+         */
+        sinkRunMeters: number;
+        sinkRows: number;
+        /**
          * Falling thread tuning. Threads stretch with descent (arc-dependent
          * phase stretch) instead of scrolling as rigid bands.
          */
@@ -438,10 +476,8 @@ export interface VisualRenderConfig {
         crestStrength: number;
         /** Arc where falling water starts to read as aerated white water. */
         aerationStart: number;
-        /** Arc where the sheet begins dissolving into falling spray. */
-        footFadeStart: number;
-        /** How hard the foot breaks into separate falling threads. */
-        footBreakupStrength: number;
+        /** Opacity of the falling body outside the glassy crest band. */
+        bodyOpacity: number;
         impactFoamStrength: number;
         impactFoamSpan: number;
         /** Vertical impact plumes that rise off the plunge boil. */
@@ -449,7 +485,6 @@ export interface VisualRenderConfig {
         /** Foam that spreads from the landing across the pool apron. */
         apronFoamStrength: number;
         apronMeters: number;
-        bodyOpacity: number;
         /**
          * Falling-water spray above the plunge pool: deterministic billboard
          * puffs that rise and dissolve. No texture, one draw call per tier.
@@ -861,7 +896,18 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     castCharacters: true,
     castSmallProps: true,
     castRocks: true,
-    castAmbientFlyers: false
+    castAmbientFlyers: false,
+    atlas: {
+      enabled: true,
+      // Wind-deformed casters live in the static atlas, so it is re-rendered on
+      // a short bounded age to keep canopy shadows moving with the mesh. The
+      // committed light frame is unchanged by these refreshes.
+      staticRefreshFrames: 8,
+      // 84 m half-extent; 24 m gives the player room before the shadow region
+      // needs to follow, so walking re-centers rarely.
+      recenterMeters: 24,
+      directionEpsilonRadians: 0.006
+    }
   },
   quality: {
     low: {
@@ -1127,6 +1173,10 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       riverFlowDepthStart: 0.22,
       riverFlowDepthFullMeters: 1.5,
       riverFlowNormalStrength: 0.018,
+      riverFlowLaneStrength: 0.05,
+      riverDepthShadeStrength: 0.45,
+      riverEdgeDepthFadeMeters: 1.1,
+      riverEdgeOpacity: 0.18,
       riverEdgeFoamStrength: 0.2,
       riverEdgeFoamScaleMeters: 1.7,
       plungeRingSpeedMetersPerSecond: 1.7,
@@ -1136,37 +1186,50 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       fall: {
         rows: { low: 12, medium: 20, high: 30 },
         acrossSegments: 14,
-        rippleMeters: 0.06,
-        nappeDetach: 0.75,
+        /**
+         * Animated sheet displacement; also widens the render bounds. The
+         * fragment normal does not follow this displacement, so the amplitude
+         * stays in the micro-texture range: larger values shaded as transverse
+         * corrugation when the fall was seen from above.
+         */
+        rippleMeters: 0.025,
+        nappeDetach: 0.5,
         crossBulgeMeters: 0.3,
         widthSpread: 0.12,
         widthWaistMeters: 0.45,
+        sinkRunMeters: 0.12,
+        sinkRows: 2,
         streakStrength: 0.62,
         streakSpeed: 1.35,
-        streakScale: 13,
+        /**
+         * Cycles of the thread phase along the fall. This is a *band* count
+         * when it is large: from the lip or from above, the near-horizontal
+         * jet face showed the phase as transverse corrugation (13 read as
+         * regular wavy ribs). Long filaments need only a couple of cycles;
+         * across-thread count carries the texture.
+         */
+        streakScale: 2.6,
         streakThreadCount: 22,
         streakAcceleration: 0.9,
         threadConvergence: 0.18,
         breakupStrength: 0.85,
         crestSpan: 0.09,
         crestStrength: 0.5,
-        aerationStart: 0.42,
-        footFadeStart: 0.74,
-        footBreakupStrength: 1,
+        aerationStart: 0.4,
+        bodyOpacity: 1,
         impactFoamStrength: 0.72,
         impactFoamSpan: 0.3,
         impactPlumeStrength: 0.55,
         apronFoamStrength: 0.42,
         apronMeters: 1.6,
-        bodyOpacity: 0.92,
         mist: {
           count: { low: 6, medium: 12, high: 20 },
-          sizeMeters: 1.05,
-          spreadMeters: 2.2,
+          sizeMeters: 0.85,
+          spreadMeters: 1.6,
           riseMeters: 1.9,
-          driftMeters: 1.4,
+          driftMeters: 1.1,
           cycleSeconds: 4.6,
-          opacity: 0.28,
+          opacity: 0.32,
           erosion: 0.85
         }
       }
@@ -1271,7 +1334,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       splashSizeTerrain: 0.18,
       splashSizeWater: 0.24,
       streakOpacity: 0.26,
-      splashOpacity: 0.42
+      splashOpacity: 0.36
     }
   },
   fog: {

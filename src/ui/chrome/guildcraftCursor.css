@@ -1,74 +1,29 @@
 /* ==========================================================================
    GUILDCRAFT CURSOR
-   The painted navigation pointer from the Guildcraft atlas replaces the
-   system cursor for fine-pointer devices once the sprite has loaded. This
-   file is imported into the `guild-cursor` layer, declared before `neva-ui`,
-   so its `cursor: none !important` outranks every HUD cursor rule regardless
-   of selector specificity. JS owns activation (GuildcraftCursor.ts); the
-   element is appended to <body>, outside the HUD zoom.
+   The painted navigation pointer replaces the system cursor for fine-pointer
+   devices. Cursor motion stays on the browser compositor: GuildcraftCursor.ts
+   derives cursor-sized rasters from the published sprite and publishes them as
+   `--guild-cursor*` custom properties, while this file maps them to the live
+   hover/press/unavailable states. The `guild-cursor` layer is declared before
+   `neva-ui`, so these `!important` rules outrank every HUD cursor rule
+   regardless of selector specificity in both DEV and the production bundle.
    ========================================================================== */
 html.guild-cursor-active,
 html.guild-cursor-active * {
-  cursor: none !important;
+  cursor: var(--guild-cursor) !important;
 }
 
-.guild-cursor {
-  /* Classic up-left pointer tilt; the sprite's tip stays on the pointer. */
-  --guild-cursor-tilt: -45deg;
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 0;
-  height: 0;
-  z-index: 100001;
-  pointer-events: none;
-  opacity: 0;
-  will-change: transform;
+html.guild-cursor-active.guild-cursor-hover,
+html.guild-cursor-active.guild-cursor-hover * {
+  cursor: var(--guild-cursor-hover) !important;
 }
 
-.guild-cursor.is-visible {
-  opacity: 1;
+html.guild-cursor-active.guild-cursor-unavailable,
+html.guild-cursor-active.guild-cursor-unavailable * {
+  cursor: var(--guild-cursor-unavailable) !important;
 }
 
-.guild-cursor__art {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 30px;
-  height: 30px;
-  transform: translate(-50%, 0) rotate(var(--guild-cursor-tilt)) scale(1);
-  transform-origin: 50% 0;
-  transition: transform 110ms ease, filter 110ms ease;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 5px rgba(0, 0, 0, 0.5));
-}
-
-.guild-cursor.is-interactive .guild-cursor__art {
-  transform: translate(-50%, 0) rotate(var(--guild-cursor-tilt)) scale(1.12);
-  filter: brightness(1.08) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 7px rgba(245, 218, 150, 0.7));
-}
-
-.guild-cursor.is-disabled .guild-cursor__art {
-  transform: translate(-50%, 0) rotate(var(--guild-cursor-tilt)) scale(0.94);
-  filter: grayscale(0.65) brightness(0.8) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.65));
-}
-
-.guild-cursor.is-pressed .guild-cursor__art {
-  transform: translate(-50%, 0) rotate(var(--guild-cursor-tilt)) scale(0.86);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .guild-cursor__art {
-    transition: none;
-  }
-}
-
-@media (pointer: coarse) {
-  html.guild-cursor-active,
-  html.guild-cursor-active * {
-    cursor: auto !important;
-  }
-
-  .guild-cursor {
-    display: none;
-  }
+html.guild-cursor-active.guild-cursor-pressed,
+html.guild-cursor-active.guild-cursor-pressed * {
+  cursor: var(--guild-cursor-pressed) !important;
 }

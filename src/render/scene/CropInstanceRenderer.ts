@@ -154,6 +154,39 @@ interface RenderEntry {
   cutProgress?: number;
 }
 
+/**
+ * Placement-derived values are immutable until the crop moves or is replanted.
+ * Caching them keeps terrain height, hash variation and wind phase out of every
+ * rebuild and out of per-frame transient updates.
+ */
+interface CropPlacement {
+  farmId: string;
+  x: number;
+  z: number;
+  rotationRadians: number;
+  worldX: number;
+  worldZ: number;
+  terrainY: number;
+  variation: number;
+  soilVariation: number;
+  windPhase: number;
+  cutLean: number;
+  furrowJitter: number;
+}
+
+/**
+ * Where one crop currently lives inside a template batch. Transient
+ * presentation (selection pulse, harvest punch) rewrites only this slot's
+ * matrix and highlight attributes instead of rebuilding the whole farm.
+ */
+interface CropSlot {
+  batch: TemplateBatch;
+  index: number;
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  baseScale: THREE.Vector3;
+}
+
 interface CropWindUniforms {
   uTime: { value: number };
   uWindDir: { value: THREE.Vector2 };
@@ -424,12 +457,35 @@ export class CropInstanceRenderer {
   private presentationTime = 0;
   private reducedFeedbackMotion = false;
   private readonly harvestPunches = new Map<string, number>();
+  private readonly slots = new Map<string, CropSlot>();
+  private readonly placementCache = new Map<string, CropPlacement>();
+  /** Slots whose transient presentation is currently applied (for restore). */
+  private readonly transientAppliedIds = new Set<string>();
+  private cropSlotWrites = 0;
+  private cropMatrixUploadRanges = 0;
+  private cropHighlightUploadRanges = 0;
 
   public setHighlight(id: string | null, reducedMotion: boolean): void {
     const resolved = id && this.lastCrops.has(id) ? id : null;
-    if (resolved !== this.highlightedId) this.cropSignature = Number.NaN;
     this.highlightedId = resolved;
     this.reducedFeedbackMotion = reducedMotion;
+  }
+
+  /** Instance work counters for the performance acceptance checks. */
+  public presentationWorkStats(): {
+    slots: number;
+    placements: number;
+    slotWrites: number;
+    matrixUploadRanges: number;
+    highlightUploadRanges: number;
+  } {
+    return {
+      slots: this.slots.size,
+      placements: this.placementCache.size,
+      slotWrites: this.cropSlotWrites,
+      matrixUploadRanges: this.cropMatrixUploadRanges,
+      highlightUploadRanges: this.cropHighlightUploadRanges
+    };
   }
 
   public punchHarvest(id: string, timeSeconds: number): void {
@@ -468,6 +524,7 @@ export class CropInstanceRenderer {
       };
     });
     this.cropSignature = Number.NaN;
+    this.placementCache.clear();
   }
 
   private templateRevision = 0;
@@ -516,6 +573,25 @@ export class CropInstanceRenderer {
       if (assetId) assetIds.add(assetId);
     }
     await Promise.all([...assetIds].map((assetId) => this.ensureTemplate(assetId)));
+  }
+
+  /**
+   * Whether every stage asset the current crop population needs is loaded.
+   * Used by the world reconciliation gate, so a changed stage (or a newly added
+   * decorative crop) triggers `ensureAssets` without scanning every frame.
+   */
+  public assetStatusSignature(state: Readonly<GameState>): string {
+    let expected = 0;
+    let loaded = 0;
+    const seen = new Set<AssetId>();
+    for (const crop of [...Object.values(state.crops), ...this.staticCrops]) {
+      const assetId = CROP_STAGE_ASSETS[crop.cropId]?.[crop.stage];
+      if (!assetId || seen.has(assetId)) continue;
+      seen.add(assetId);
+      expected += 1;
+      if (this.templates.has(assetId)) loaded += 1;
+    }
+    return `${loaded}/${expected}`;
   }
 
   private async ensureTemplate(assetId: AssetId): Promise<void> {
@@ -580,6 +656,11 @@ export class CropInstanceRenderer {
       geometries.push(geometry);
       geometriesByMaterial.set(object.material, geometries);
     });
+    // Everything retained below is copied or merged and materials are cloned,
+    // so this loader clone stops owning the cached template here. Errors before
+    // this point intentionally leave the count high: retention is the safe
+    // failure direction for shared geometry.
+    AssetLoader.releaseModel(root);
 
     const batches: TemplateBatch[] = [];
     for (const [sourceMaterial, geometries] of geometriesByMaterial) {
@@ -654,17 +735,21 @@ export class CropInstanceRenderer {
     }
 
     const signature = this.computeCropSignature(renderCrops, isFarmGisMode);
-    const animationActive =
+    const structuralAnimation =
       this.transitions.size > 0 ||
       this.harvestTransitions.size > 0 ||
-      this.harvestPunches.size > 0 ||
-      this.highlightedId !== null ||
       this.plantedTransitions.size > 0;
+    const transientActive = this.highlightedId !== null || this.harvestPunches.size > 0;
     if (
       signature === this.cropSignature
-      && !animationActive
+      && !structuralAnimation
       && this.renderedTemplateRevision === this.templateRevision
-    ) return;
+    ) {
+      // Selection pulse and harvest punch are per-slot presentation. They must
+      // not rebuild every crop's placement, tint and wind attributes.
+      if (transientActive || this.transientAppliedIds.size > 0) this.updateTransientPresentation();
+      return;
+    }
     this.cropSignature = signature;
     this.renderedTemplateRevision = this.templateRevision;
 
@@ -682,6 +767,8 @@ export class CropInstanceRenderer {
         this.lastStages.delete(id);
         this.lastCrops.delete(id);
         this.transitions.delete(id);
+        this.slots.delete(id);
+        this.placementCache.delete(id);
       }
     }
 
@@ -753,6 +840,86 @@ export class CropInstanceRenderer {
       }
     }
     this.updateMoistureBatch(renderCrops, state, isFarmGisMode);
+    // The rebuild already wrote the current transient values; remember which
+    // slots own them so a later deselect/punch-expiry can restore its slot.
+    this.transientAppliedIds.clear();
+    if (this.highlightedId) this.transientAppliedIds.add(this.highlightedId);
+    for (const id of this.harvestPunches.keys()) this.transientAppliedIds.add(id);
+  }
+
+  private placementFor(crop: PlacedCropState): CropPlacement {
+    const cached = this.placementCache.get(crop.id);
+    if (
+      cached
+      && cached.farmId === crop.farmId
+      && cached.x === crop.x
+      && cached.z === crop.z
+      && cached.rotationRadians === crop.rotationRadians
+    ) return cached;
+    const world = farmLocalToWorld(crop.farmId, crop);
+    const placement: CropPlacement = {
+      farmId: crop.farmId,
+      x: crop.x,
+      z: crop.z,
+      rotationRadians: crop.rotationRadians,
+      worldX: world.x,
+      worldZ: world.z,
+      terrainY: WorldLayout.terrainHeight(world.x, world.z),
+      variation: 0.93 + hashUnit(`${crop.id}:scale`) * 0.14,
+      soilVariation: 0.88 + hashUnit(`${crop.id}:soil`) * 0.16,
+      windPhase: hashUnit(`${crop.id}:wind`) * Math.PI * 2,
+      cutLean: 0.82 + hashUnit(`${crop.id}:cut`) * 0.24,
+      furrowJitter: (hashUnit(`${crop.id}:rot`) - 0.5) * 0.08
+    };
+    this.placementCache.set(crop.id, placement);
+    return placement;
+  }
+
+  /**
+   * Rewrites only the slots whose transient presentation is active. Used while
+   * a crop is selected or a harvest punch is in flight; every other instance
+   * keeps the attributes written by the last full rebuild.
+   */
+  private updateTransientPresentation(): void {
+    const breathe = this.reducedFeedbackMotion ? 0 : Math.sin(this.presentationTime * 3);
+    const touched = new Set<string>();
+    if (this.highlightedId) touched.add(this.highlightedId);
+    for (const id of this.harvestPunches.keys()) touched.add(id);
+    // A deselect or punch expiry must restore the slot it no longer owns.
+    const restores = [...this.transientAppliedIds].some((id) => !touched.has(id));
+    const missing = [...touched].some((id) => !this.transientAppliedIds.has(id));
+    const animated = !this.reducedFeedbackMotion && touched.size > 0;
+    if (!restores && !missing && !animated) return;
+    for (const id of this.transientAppliedIds) touched.add(id);
+    for (const id of touched) {
+      const slot = this.slots.get(id);
+      if (!slot) continue;
+      const selected = id === this.highlightedId;
+      const punchStart = this.harvestPunches.get(id);
+      const punch = punchStart === undefined
+        ? 0
+        : Math.sin(Math.PI * Math.min(1, (this.presentationTime - punchStart) / 0.32)) * 0.14;
+      const selectedScale = selected && !this.reducedFeedbackMotion
+        ? 0.015 * (1 + breathe)
+        : 0;
+      this.scale.copy(slot.baseScale).multiplyScalar(1 + punch + selectedScale);
+      this.matrix.compose(slot.position, slot.quaternion, this.scale);
+      slot.batch.mesh.setMatrixAt(slot.index, this.matrix);
+      const matrixAttribute = slot.batch.mesh.instanceMatrix;
+      matrixAttribute.addUpdateRange(slot.index * 16, 16);
+      matrixAttribute.needsUpdate = true;
+      this.cropMatrixUploadRanges += 1;
+      const highlightAttribute = slot.batch.highlightAttribute;
+      if (highlightAttribute) {
+        highlightAttribute.setX(slot.index, selected ? 0.13 + breathe * 0.035 : 0);
+        highlightAttribute.addUpdateRange(slot.index, 1);
+        highlightAttribute.needsUpdate = true;
+        this.cropHighlightUploadRanges += 1;
+      }
+    }
+    this.transientAppliedIds.clear();
+    if (this.highlightedId) this.transientAppliedIds.add(this.highlightedId);
+    for (const id of this.harvestPunches.keys()) this.transientAppliedIds.add(id);
   }
 
   private updateWind(
@@ -797,11 +964,11 @@ export class CropInstanceRenderer {
       const entry = entries[index];
       const crop = entry.crop;
       const cropDef = ContentRegistry.crops.get(crop.cropId)!;
-      const world = farmLocalToWorld(crop.farmId, crop);
+      const placement = this.placementFor(crop);
       const growth = crop.effectiveGrowthMinutes / Math.max(1, cropDef.baseGrowthMinutes);
       const range = STAGE_RANGE[crop.stage];
       const withinStage = THREE.MathUtils.clamp((growth - range.start) / Math.max(0.001, range.end - range.start), 0, 1);
-      const variation = 0.93 + hashUnit(`${crop.id}:scale`) * 0.14;
+      const variation = placement.variation;
       const continuousScale = variation * THREE.MathUtils.lerp(0.94, 1.04, withinStage);
       const transitionScale = entry.isIncoming
         ? THREE.MathUtils.lerp(0.82, 1, entry.weight)
@@ -827,9 +994,9 @@ export class CropInstanceRenderer {
       const cut = entry.cutProgress ?? 0;
       const elevationScale = entry.cutProgress != null ? Math.max(0, 1 - smoothstep(cut)) : plantedElevation;
       const cropElevation = FURROW_SURFACE_OFFSET + MOUND_APEX_HEIGHT * elevationScale;
-      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z) + cropElevation, world.z);
+      this.position.set(placement.worldX, placement.terrainY + cropElevation, placement.worldZ);
 
-      const cutLean = smoothstep(cut) * (0.82 + hashUnit(`${crop.id}:cut`) * 0.24);
+      const cutLean = smoothstep(cut) * placement.cutLean;
       this.euler.set(
         cutLean,
         crop.rotationRadians,
@@ -848,13 +1015,30 @@ export class CropInstanceRenderer {
       const breathe = this.reducedFeedbackMotion ? 0 : Math.sin(this.presentationTime * 3);
       const punchStart = this.harvestPunches.get(crop.id);
       const punch = punchStart === undefined ? 0 : Math.sin(Math.PI * Math.min(1, (this.presentationTime - punchStart) / 0.32)) * 0.14;
+      // Static dressing never highlights or punches, so it does not need a
+      // transient slot; live crops record the pose before the pulse multiply.
+      if (!this.staticCropIds.has(crop.id)) {
+        const slot = this.slots.get(crop.id) ?? {
+          batch,
+          index,
+          position: new THREE.Vector3(),
+          quaternion: new THREE.Quaternion(),
+          baseScale: new THREE.Vector3()
+        };
+        slot.batch = batch;
+        slot.index = index;
+        slot.position.copy(this.position);
+        slot.quaternion.copy(this.quaternion);
+        slot.baseScale.copy(this.scale);
+        this.slots.set(crop.id, slot);
+      }
       this.scale.multiplyScalar(1 + punch + (selected && !this.reducedFeedbackMotion ? 0.015 * (1 + breathe) : 0));
       batch.highlightAttribute?.setX(index, selected ? 0.13 + breathe * 0.035 : 0);
       this.matrix.compose(this.position, this.quaternion, this.scale);
       batch.mesh.setMatrixAt(index, this.matrix);
       this.instanceTint(crop, entry.weight, this.color);
       batch.mesh.setColorAt(index, this.color);
-      batch.phaseAttribute?.setX(index, hashUnit(`${crop.id}:wind`) * Math.PI * 2);
+      batch.phaseAttribute?.setX(index, placement.windPhase);
       batch.windResponseAttribute?.setX(index, windResponse);
       batch.cropIds.push(
         this.staticCropIds.has(crop.id) || entry.cutProgress != null ? "" : crop.id
@@ -866,6 +1050,7 @@ export class CropInstanceRenderer {
     if (batch.phaseAttribute) batch.phaseAttribute.needsUpdate = count > 0;
     if (batch.windResponseAttribute) batch.windResponseAttribute.needsUpdate = count > 0;
     if (batch.highlightAttribute) batch.highlightAttribute.needsUpdate = count > 0;
+    this.cropSlotWrites += count;
   }
 
   private instanceTint(crop: PlacedCropState, transitionWeight: number, target: THREE.Color): void {
@@ -897,8 +1082,8 @@ export class CropInstanceRenderer {
       const crop = crops[i];
       const definition = ContentRegistry.crops.get(crop.cropId);
       if (!definition) continue;
-      const world = farmLocalToWorld(crop.farmId, crop);
-      const variation = 0.88 + hashUnit(`${crop.id}:soil`) * 0.16;
+      const placement = this.placementFor(crop);
+      const variation = placement.soilVariation;
 
       const plantedStart = this.plantedTransitions.get(crop.id);
       let scaleY = 1;
@@ -914,10 +1099,9 @@ export class CropInstanceRenderer {
         scaleXZ = 1 - bounce * 0.12;
       }
 
-      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z) + FURROW_SURFACE_OFFSET, world.z);
+      this.position.set(placement.worldX, placement.terrainY + FURROW_SURFACE_OFFSET, placement.worldZ);
       // Furrow-aligned oblong mound: subtle organic variation around furrow Z axis
-      const furrowJitter = (hashUnit(`${crop.id}:rot`) - 0.5) * 0.08;
-      this.quaternion.setFromEuler(this.euler.set(0, furrowJitter, 0));
+      this.quaternion.setFromEuler(this.euler.set(0, placement.furrowJitter, 0));
       this.scale.set(
         definition.footprint.width * variation * scaleXZ,
         scaleY,
@@ -959,8 +1143,8 @@ export class CropInstanceRenderer {
       const crop = transition.crop;
       const definition = ContentRegistry.crops.get(crop.cropId);
       if (!definition) continue;
-      const world = farmLocalToWorld(crop.farmId, crop);
-      const variation = 0.88 + hashUnit(`${crop.id}:soil`) * 0.16;
+      const placement = this.placementFor(crop);
+      const variation = placement.soilVariation;
       const harvestProgress = THREE.MathUtils.clamp(
         (this.presentationTime - transition.startedAtSeconds) / HARVEST_CUT_SECONDS,
         0,
@@ -968,9 +1152,8 @@ export class CropInstanceRenderer {
       );
       const sinkScaleY = Math.max(0.001, 1 - smoothstep(harvestProgress));
 
-      this.position.set(world.x, WorldLayout.terrainHeight(world.x, world.z) + FURROW_SURFACE_OFFSET, world.z);
-      const furrowJitter = (hashUnit(`${crop.id}:rot`) - 0.5) * 0.08;
-      this.quaternion.setFromEuler(this.euler.set(0, furrowJitter, 0));
+      this.position.set(placement.worldX, placement.terrainY + FURROW_SURFACE_OFFSET, placement.worldZ);
+      this.quaternion.setFromEuler(this.euler.set(0, placement.furrowJitter, 0));
       this.scale.set(
         definition.footprint.width * variation,
         sinkScaleY,
@@ -1080,6 +1263,9 @@ export class CropInstanceRenderer {
     }
     this.templates.clear();
     this.loading.clear();
+    this.slots.clear();
+    this.placementCache.clear();
+    this.transientAppliedIds.clear();
     this.pickMeshes.length = 0;
     this.pickHits.length = 0;
     this.moistureBatch.mesh.removeFromParent();

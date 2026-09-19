@@ -5,7 +5,7 @@ import { InventoryManager } from "../inventory/InventoryManager";
 import type { GameState } from "../core/types";
 
 export interface RewardFeedbackDto {
-  kind: "money" | "item" | "xp" | "record";
+  kind: "money" | "item" | "xp" | "record" | "work";
   text: string;
   amount: number;
   itemId?: string;
@@ -16,6 +16,7 @@ export interface RewardFeedbackDto {
 
 interface RewardSnapshot {
   money: number;
+  work: number;
   xp: Record<string, number>;
   items: Map<string, number>;
 }
@@ -32,7 +33,7 @@ export class RewardFeedbackPresentation {
     for (const slot of state.inventories[state.player.inventoryId].slots) {
       if (slot.itemId) items.set(slot.itemId, (items.get(slot.itemId) ?? 0) + InventoryManager.getSlotQuantity(slot));
     }
-    const next = { money: state.player.money, xp: { ...state.player.proficiencies }, items };
+    const next = { money: state.player.money, work: state.player.workCapacity.current, xp: { ...state.player.proficiencies }, items };
     const before = this.previous;
     this.previous = next;
     if (!before) {
@@ -45,6 +46,11 @@ export class RewardFeedbackPresentation {
       : { x: origin.x, y: origin.y + 1.2, z: origin.z };
     const money = next.money - before.money;
     if (money !== 0) feedback.push({ ...point, kind: "money", amount: money, text: `${money > 0 ? "+" : "−"}${Math.abs(money)} G` });
+    // Work is an economy resource, so earned shifts and paid actions read in
+    // the same place as money and items. Fractional pool arithmetic rounds to
+    // whole Work; a sub-unit drift is not a reward.
+    const work = Math.round(next.work - before.work);
+    if (work !== 0) feedback.push({ ...point, kind: "work", amount: work, text: `${work > 0 ? "+" : "−"}${Math.abs(work)} Work` });
     for (const [id, quantity] of next.items) {
       const gain = quantity - (before.items.get(id) ?? 0);
       if (gain > 0) feedback.push({ ...point, kind: "item", itemId: id, amount: gain,

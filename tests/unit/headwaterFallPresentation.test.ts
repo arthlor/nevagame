@@ -30,6 +30,11 @@ function attributes(geometry: THREE.BufferGeometry) {
   };
 }
 
+/** Sheet row that sits exactly on the landing; later rows are the submerged foot. */
+function landingRowIndex(rows: number): number {
+  return rows - FALL_CONFIG.sinkRows;
+}
+
 describe("W07 headwater fall sheet", () => {
   it("connects exactly to the lip crest and the pool landing", () => {
     const rows = FALL_CONFIG.rows.high;
@@ -41,15 +46,23 @@ describe("W07 headwater fall sheet", () => {
       // Positions are float32 attributes, so compare at 4 decimals.
       expect(position.getZ(0)).toBeCloseTo(FALL.lipZ, 4);
       expect(position.getY(0)).toBeCloseTo(headwaterElevationAt(FALL.lipZ), 4);
-      // Last row: the landing station at the pool's own surface.
-      const lastIndex = position.count - 1;
-      expect(position.getZ(lastIndex)).toBeCloseTo(FALL.landingZ, 4);
-      expect(position.getY(lastIndex)).toBeCloseTo(headwaterElevationAt(FALL.landingZ), 4);
+      // The landing row sits on the landing station at the pool's own surface.
+      const landingRow = landingRowIndex(rows);
+      const landingIndex = landingRow * (across + 1);
+      expect(position.getZ(landingIndex)).toBeCloseTo(FALL.landingZ, 3);
+      expect(position.getY(landingIndex)).toBeCloseTo(headwaterElevationAt(FALL.landingZ), 3);
       expect(WorldLayout.riverSectionAt(FALL.landingZ).surfaceElevation)
         .toBeCloseTo(headwaterElevationAt(FALL.landingZ), 6);
-      // Arc coordinates run lip -> landing so streaks can follow the sheet.
+      // The sheet continues past the landing: its geometry edge is buried in
+      // the pool, so the plunge never ends on a visible cut line.
+      const tip = headwaterFallSheetPoint(rows, 0, rows, across);
+      expect(tip.z).toBeGreaterThan(FALL.landingZ);
+      expect(tip.y).toBeLessThan(FALL.landingElevation);
+      expect(FALL.landingElevation - tip.y).toBeGreaterThan(0.2);
+      expect(FALL.landingElevation - tip.y).toBeLessThan(2.5);
+      // Arc coordinates run lip -> submerged tip so streaks can follow the sheet.
       expect(uv.getY(0)).toBe(0);
-      expect(uv.getY(lastIndex)).toBe(1);
+      expect(uv.getY(position.count - 1)).toBe(1);
       expect(position.count).toBe((rows + 1) * (across + 1));
       // Width tracks the live channel it hands off to.
       const section = WorldLayout.riverSectionAt(FALL.lipZ);
@@ -62,9 +75,10 @@ describe("W07 headwater fall sheet", () => {
 
   it("follows the authored ballistic nappe and lands on the live profile", () => {
     const rows = FALL_CONFIG.rows.high;
+    const landingRow = landingRowIndex(rows);
     const heights: number[] = [];
     let maximumDetach = 0;
-    for (let row = 0; row <= rows; row += 1) {
+    for (let row = 0; row <= landingRow; row += 1) {
       const point = headwaterFallSheetPoint(row, 0, rows, FALL_CONFIG.acrossSegments);
       heights.push(point.y);
       const profileY = headwaterElevationAt(point.z);
@@ -86,19 +100,25 @@ describe("W07 headwater fall sheet", () => {
     expect(drop / run, "fall face grade").toBeGreaterThan(2.5);
     expect(heights[0]).toBeCloseTo(FALL.lipElevation, 6);
     expect(heights.at(-1)).toBeCloseTo(FALL.landingElevation, 6);
+    // The submerged foot keeps descending past the landing.
+    for (let row = landingRow + 1; row <= rows; row += 1) {
+      const point = headwaterFallSheetPoint(row, 0, rows, FALL_CONFIG.acrossSegments);
+      expect(point.y).toBeLessThan(FALL.landingElevation);
+    }
   });
 
   it("gives the falling curtain a convex cross-section that vanishes at both ends", () => {
     const rows = FALL_CONFIG.rows.high;
     const across = FALL_CONFIG.acrossSegments;
-    const midRow = Math.round(rows / 2);
+    const landingRow = landingRowIndex(rows);
+    const midRow = Math.round(landingRow / 2);
     const center = headwaterFallSheetPoint(midRow, across / 2, rows, across);
     const leftEdge = headwaterFallSheetPoint(midRow, 0, rows, across);
     const rightEdge = headwaterFallSheetPoint(midRow, across, rows, across);
     // The centre of the sheet pushes out past both edges along the flow.
     expect(center.z).toBeGreaterThan(leftEdge.z);
     expect(center.z).toBeGreaterThan(rightEdge.z);
-    for (const row of [0, rows]) {
+    for (const row of [0, landingRow]) {
       const edgePoint = headwaterFallSheetPoint(row, 0, rows, across);
       const centerPoint = headwaterFallSheetPoint(row, across / 2, rows, across);
       // No bulge at the pins: the lip join and the landing stay exact.
@@ -110,14 +130,15 @@ describe("W07 headwater fall sheet", () => {
   it("spreads toward the pool with a mid-fall waist", () => {
     const rows = FALL_CONFIG.rows.high;
     const across = FALL_CONFIG.acrossSegments;
+    const landingRow = landingRowIndex(rows);
     const halfWidth = (row: number): number => {
       const left = headwaterFallSheetPoint(row, 0, rows, across);
       const right = headwaterFallSheetPoint(row, across, rows, across);
       return (right.x - left.x) * 0.5;
     };
     const lip = halfWidth(0);
-    const waist = halfWidth(Math.round(rows / 2));
-    const landing = halfWidth(rows);
+    const waist = halfWidth(Math.round(landingRow / 2));
+    const landing = halfWidth(landingRow);
     expect(landing).toBeGreaterThan(lip);
     expect(waist).toBeLessThan(lip);
   });
@@ -135,8 +156,12 @@ describe("W07 headwater fall sheet", () => {
     const geometry = createHeadwaterFallGeometry("high");
     try {
       const { position } = attributes(geometry);
+      const landingRow = landingRowIndex(FALL_CONFIG.rows.high);
       expect(position.getZ(0)).toBeCloseTo(FALL.lipZ, 4);
-      expect(position.getZ(position.count - 1)).toBeCloseTo(FALL.landingZ, 4);
+      expect(position.getZ(landingRow * (FALL_CONFIG.acrossSegments + 1))).toBeCloseTo(FALL.landingZ, 3);
+      // Only the submerged foot extends past the authored landing.
+      expect(position.getZ(position.count - 1)).toBeGreaterThan(FALL.landingZ);
+      expect(position.getZ(position.count - 1)).toBeLessThan(FALL.landingZ + 0.35);
     } finally {
       geometry.dispose();
     }
@@ -162,12 +187,26 @@ describe("W07 headwater fall sheet", () => {
   });
 
   it("advects and stretches streaks along the sheet arc instead of world Z", () => {
-    // Linkage evidence: the fragment phase is driven by vArc, stretched as the
-    // water accelerates, and the vertex stage derives vArc from the sheet uv.
-    expect(HEADWATER_FALL_FRAGMENT_GLSL).toContain("vArc * uFallStreakScale * stretch - time * uFallStreakSpeed");
+    // Linkage evidence: the fragment phase is driven by the ballistic arc
+    // parameter, stretched as the water accelerates, and the vertex stage
+    // derives vArc from the sheet uv.
+    expect(HEADWATER_FALL_FRAGMENT_GLSL).toContain("dryArc * uFallStreakScale * stretch - time * uFallStreakSpeed");
     expect(HEADWATER_FALL_VERTEX_GLSL).toContain("vArc = uv.y;");
     expect(HEADWATER_FALL_FRAGMENT_GLSL).not.toContain("rapidUv");
     expect(HEADWATER_FALL_FRAGMENT_GLSL).not.toContain("worldPosition.z - time");
+  });
+
+  it("keeps the falling body opaque so the gorge cannot show through it", () => {
+    // The body alpha has no foot-dissolve term: only the ragged rim and the
+    // glassy crest may go soft. The foot is buried by geometry instead.
+    expect(HEADWATER_FALL_FRAGMENT_GLSL).toContain("uFallBodyOpacity");
+    expect(HEADWATER_FALL_FRAGMENT_GLSL).toContain("uFallLandingArc");
+    expect(HEADWATER_FALL_FRAGMENT_GLSL).not.toContain("footAlpha");
+    expect(HEADWATER_FALL_FRAGMENT_GLSL).not.toContain("bottomFade");
+    const config = FALL_CONFIG;
+    expect(config.bodyOpacity).toBeGreaterThanOrEqual(1);
+    expect(config.sinkRunMeters).toBeGreaterThan(0);
+    expect(config.nappeDetach).toBeLessThan(0.75);
   });
 
   it("never samples the opaque capture, so refraction cannot feed back", () => {

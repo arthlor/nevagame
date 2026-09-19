@@ -48,6 +48,7 @@ import type { BoatMotionSample } from "../simulation/core/PhysicsAdapter";
 
 import { StartScreen } from "../ui/StartScreen";
 import { GameUI } from "../ui/GameUI";
+import type { LaborShiftFeedbackDto } from "../ui/labor/LaborShiftResult";
 import { MobileOrientationGate } from "../ui/MobileControls";
 import type { JournalFolio } from "../ui/JournalModal";
 import {
@@ -270,6 +271,8 @@ export interface NevaDebugApi {
   setCaptureRenderMode: (mode: CaptureRenderMode) => void;
   setFieldOverlay: (mode: WorldFieldOverlay | null) => void;
   setWorldOnly: (worldOnly: boolean) => void;
+  /** DEV-only A/B for the dual-map shadow compositor. */
+  setShadowAtlas: (enabled: boolean) => void;
   /** Local, persistence-disabled comparisons without replacing the gameplay camera. */
   setReviewEnvironment: (options: { minute: number; weather: WeatherTag; presentationTimeSeconds: number | null }) => void;
   acceptanceRoute: (routeId: string) => readonly { x: number; z: number; distance: number }[];
@@ -299,6 +302,21 @@ export interface NevaCaptureDiagnostics {
     weather: string;
     timeSeconds: number;
     fps: number;
+    frameTiming?: {
+      samples: number;
+      p50Ms: number;
+      p95Ms: number;
+      maxMs: number;
+      stallsOver50Ms: number;
+    };
+    startupTiming?: ReadonlyArray<{ phase: string; atMs: number }>;
+    phaseTiming?: ReadonlyArray<{
+      phase: string;
+      samples: number;
+      p50Ms: number;
+      p95Ms: number;
+      maxMs: number;
+    }>;
   };
   world: WorldRenderDiagnostics;
 }
@@ -651,6 +669,13 @@ export class GameApp {
   /** Session activity log behind the bottom-left Coastal Chronicle. */
   private readonly chronicle = new ChronicleLog();
   private chronicleFilter: ChronicleFilter = "all";
+  /**
+   * Slow journal data is only rebuilt while its modal is open. The People and
+   * Notices folios have no other consumer, so a fishing indicator repainting
+   * must not reconstruct them; the cached value stays valid for the next open.
+   */
+  private cachedPeoplePage: ReturnType<typeof buildPeoplePageDto> | null = null;
+  private cachedVillageNotices: ReturnType<typeof selectVillageNotices> = [];
   private saleBatch = { units: 0, gold: 0, lastMs: -Infinity };
   private activeMarketId: MarketId | null = null;
   private activeCraftingStationId: string | null = null;
@@ -677,6 +702,18 @@ export class GameApp {
   private fps: number = 60;
   private frameCount: number = 0;
   private fpsTimer: number = 0;
+  /**
+   * Raw frame elapsed times, independent of the bounded simulation delta.
+   * Reporting that reused the 100 ms simulation clamp turned repeated 200 ms
+   * frames into "10 FPS" and hid visible stalls from the quality sampler.
+   */
+  private readonly frameTimeRingMs = new Float32Array(240);
+  private frameTimeRingCount = 0;
+  private frameTimeRingCursor = 0;
+  private frameStallCount = 0;
+  private readonly phaseTimings = new Map<string, { ring: Float32Array; cursor: number; count: number }>();
+  /** rAF does not run while hidden; the first visible frame is a resumption, not a stall. */
+  private hiddenSinceLastFrame = false;
   private lastUiFrameMs = Number.NEGATIVE_INFINITY;
   private lastDiagnosticsFrameMs = Number.NEGATIVE_INFINITY;
   private lastInteractionEvaluationMs = Number.NEGATIVE_INFINITY;
@@ -783,6 +820,9 @@ export class GameApp {
   private activeDialogueNpcId: string | null = null;
   private activeHint: { hintId: string; title: string; message: string; icon?: string } | null = null;
   private laborHud: LaborHudDto | null = null;
+  private laborShiftFeedback: LaborShiftFeedbackDto | null = null;
+  private laborShiftFeedbackUntilMs = 0;
+  private laborShiftFeedbackToken = 0;
   private isFarmGisHeld: boolean = false;
   private pendingCatchCargo: FishCargoState | null = null;
   private pendingCatchRecord: "first" | "weight" | "quality" | null = null;
@@ -1101,6 +1141,19 @@ export class GameApp {
       requestedFieldOverlay as WorldFieldOverlay | null,
       benchmark.worldSeed
     );
+    // `?debug` already pays diagnostics cost; pass attribution on alternate
+    // frames turns the same run into measurable shadow/atmosphere/water/post
+    // evidence without changing any rendered output.
+    this.worldScene.setGpuPassTimingEnabled(this.diagnosticsEnabled);
+    // Debug-only sub-phase split for the render phase (`render:world-update`
+    // vs `render:pipeline`) plus the shadow-atlas CPU rings.
+    this.worldScene.setPhaseRecorder(
+      this.diagnosticsEnabled ? (phase, elapsedMs) => this.recordPhase(phase, elapsedMs) : null
+    );
+    // `?shadowAtlas=0` keeps the legacy single-map path for A/B measurement.
+    if ((import.meta.env.DEV || this.worldAcceptance) && query.get("shadowAtlas") === "0") {
+      this.worldScene.setShadowAtlasEnabled(false);
+    }
     const benchmarkPreset = benchmark.preset;
     const debugStartParameter = import.meta.env.DEV || this.worldAcceptance ? query.get("debugStart") : null;
     const debugStart = debugStartParameter && DEBUG_START_SCENARIOS.has(debugStartParameter as DebugStartScenario)
@@ -2139,9 +2192,18 @@ export class GameApp {
     const deltaSeconds = Math.min(0.1, elapsedSeconds);
     this.lastTimeMs = nowMs;
 
-    // FPS calculation
-    this.frameCount++;
-    this.fpsTimer += deltaSeconds;
+    // FPS and quality sampling read raw elapsed time. The bounded delta above is
+    // only the simulation catch-up guard; reusing it here understated stalls.
+    const resumedFromHiddenTab = this.hiddenSinceLastFrame;
+    this.hiddenSinceLastFrame = false;
+    if (resumedFromHiddenTab) {
+      this.frameCount = 0;
+      this.fpsTimer = 0;
+    } else {
+      this.frameCount++;
+      this.fpsTimer += elapsedSeconds;
+      this.recordFrameTiming(elapsedSeconds);
+    }
     if (this.fpsTimer >= 0.5) {
       this.fps = Math.round(this.frameCount / this.fpsTimer);
       this.frameCount = 0;
@@ -2158,7 +2220,12 @@ export class GameApp {
       return;
     }
 
-    if (!this.benchmarkView && this.graphicsQuality.sampleFrame(deltaSeconds, nowMs)) {
+    // Debug-only main-thread phase attribution. Shipped frames pay nothing.
+    const frameStartMark = performance.now();
+    let phaseMark = frameStartMark;
+
+    if (!this.benchmarkView && !resumedFromHiddenTab
+      && this.graphicsQuality.sampleFrame(elapsedSeconds, nowMs)) {
       this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
     }
 
@@ -2190,6 +2257,8 @@ export class GameApp {
       this.physicsAccumulatorSeconds -= 1 / 60;
       this.physicsStepCount++;
     }
+    this.recordPhase("physics", performance.now() - phaseMark);
+    phaseMark = performance.now();
 
     // 2. Cross authored action commit markers before advancing simulation time.
     this.farmingActions.update(nowMs, this.sim.clock.isPaused());
@@ -2204,6 +2273,8 @@ export class GameApp {
     if (nowMs - this.lastAutosaveMs >= 60_000) {
       this.requestAutosave();
     }
+    this.recordPhase("simulation", performance.now() - phaseMark);
+    phaseMark = performance.now();
 
     // 4. Synchronize 3D Visuals
     const state = this.sim.getState();
@@ -2285,6 +2356,8 @@ export class GameApp {
       this.benchmarkLightingFocus ?? playerPos
     );
     const sportFishingCameraHint = this.worldScene.getSportFishingCameraHint();
+    this.recordPhase("sync", performance.now() - phaseMark);
+    phaseMark = performance.now();
 
     // 5. Update Camera, then resolve ray-originated world targets.
     if (this.benchmarkCameraView) {
@@ -2325,6 +2398,8 @@ export class GameApp {
       );
     }
     this.gameCamera.camera.getWorldDirection(this.audioForward);
+    this.recordPhase("camera", performance.now() - phaseMark);
+    phaseMark = performance.now();
     gameAudio.setListener(this.gameCamera.camera.position, this.audioForward);
     const boatMotion = activeBoat ? this.lastBoatMotion[activeBoat.id] : undefined;
     const encounter = this.sim.activeFishingEncounter?.getState();
@@ -2375,6 +2450,8 @@ export class GameApp {
     } else {
       this.evaluateInteractionTarget(nowMs, false);
     }
+    this.recordPhase("audio+interaction", performance.now() - phaseMark);
+    phaseMark = performance.now();
 
     // 6. Render 3D Scene
     if (this.physicsWorld) {
@@ -2382,6 +2459,8 @@ export class GameApp {
     }
     if (this.presentationHoldFrames > 0) this.presentationHoldFrames -= 1;
     else this.worldScene.render(this.gameCamera.camera, deltaSeconds);
+    this.recordPhase("render", performance.now() - phaseMark);
+    phaseMark = performance.now();
     this.questPointer.update(this.questPointerTarget, this.gameCamera.camera, {
       width: this.canvasContainer.clientWidth || window.innerWidth,
       height: this.canvasContainer.clientHeight || window.innerHeight
@@ -2422,6 +2501,8 @@ export class GameApp {
       (x, z) => WorldLayout.traversalSurfaceHeight(x, z),
       nowMs
     );
+    this.recordPhase("overlays", performance.now() - phaseMark);
+    phaseMark = performance.now();
     if (this.renderReadyFramesRemaining > 0) {
       this.renderReadyFramesRemaining -= 1;
       if (this.renderReadyFramesRemaining === 0) {
@@ -2431,6 +2512,8 @@ export class GameApp {
 
     // 7. Render 2D UI Overlay
     this.renderUiForFrame(nowMs);
+    this.recordPhase("ui", performance.now() - phaseMark);
+    this.recordPhase("frame", performance.now() - frameStartMark);
 
     if (this.benchmarkView && window.__NEVA_RENDER_READY && !this.worldAcceptance) return;
     requestAnimationFrame(this.loop);
@@ -2640,6 +2723,19 @@ export class GameApp {
     if (this.sim.questDomain.isHintShown(hintId)) return;
     this.activeHint = { hintId, title, message, icon };
     this.sim.questDomain.recordHintShown(hintId);
+  }
+
+  /**
+   * First-shift coaching. The ambient hint (`hint.labor_shift_timing`) covers a
+   * player who lingers at the station; this covers the player who starts a
+   * shift before that card fires, and records the same one-time flag so the
+   * lesson never repeats within a save.
+   */
+  private announceLaborTimingOnce(): void {
+    const hintId = "hint.labor_shift_timing";
+    if (this.sim.questDomain.isHintShown(hintId)) return;
+    this.sim.questDomain.recordHintShown(hintId);
+    this.notify("Time the strike — press E as the needle crosses the gold band", "info", 4200);
   }
 
 
@@ -3494,6 +3590,33 @@ export class GameApp {
     this.setActiveModal("journal");
   }
 
+  /**
+   * One strike path for both the interact key and the widget button, so the
+   * result notice, world Work float and the transient grade plaque can never
+   * disagree about what the simulation granted.
+   */
+  private strikeLaborShift(): void {
+    const result = this.sim.execute({ type: "labor.strike" });
+    const granted = result.yield ?? 0;
+    this.laborShiftFeedback = {
+      token: ++this.laborShiftFeedbackToken,
+      outcome: result.success ? result.grade ?? "clean" : "miss",
+      granted,
+      reason: result.success ? undefined : result.reason
+    };
+    // The grade plaque outlives the shift briefly; after this window a modal
+    // remount must not replay a stale result.
+    this.laborShiftFeedbackUntilMs = performance.now() + 2600;
+    if (result.success) {
+      const gradeLabel = this.laborShiftFeedback.outcome === "clean" ? "Clean strike" : "Glancing blow";
+      this.notify(`${gradeLabel} · +${granted} Work`, "success", 2200);
+      this.requestAutosave();
+    } else {
+      this.notify(result.reason ?? "The strike missed", "warning");
+    }
+    this.renderUI();
+  }
+
   private handleContextInteract(): void {
     if (
       this.isMountTransitionActive() ||
@@ -3504,13 +3627,7 @@ export class GameApp {
 
     // A work shift owns the interact input while its meter is running.
     if (this.laborHud?.active) {
-      const strike = this.sim.execute({ type: "labor.strike" });
-      if (strike.success) {
-        this.notify(`Shift worked · +${strike.yield ?? 0} Work`, "success", 2200);
-        this.requestAutosave();
-      } else {
-        this.notify(strike.reason ?? "The strike missed", "warning");
-      }
+      this.strikeLaborShift();
       return;
     }
 
@@ -3559,6 +3676,11 @@ export class GameApp {
         if (!picked.entityId) break;
         const result = this.sim.execute({ type: "labor.start", stationId: picked.entityId });
         if (!result.success) this.notify(result.reason ?? "Cannot work there", "warning");
+        else {
+          this.laborShiftFeedback = null;
+          this.laborShiftFeedbackUntilMs = 0;
+          this.announceLaborTimingOnce();
+        }
         this.renderUI();
         break;
       }
@@ -3727,7 +3849,10 @@ export class GameApp {
             minute: this.sim.state.clock.currentMinute,
             weather: this.sim.state.weather.type,
             timeSeconds: this.lastPresentationTimeSeconds,
-            fps: this.fps
+            fps: this.fps,
+            frameTiming: this.frameTimingSnapshot(),
+            startupTiming: this.startupTimingSnapshot(),
+            phaseTiming: this.phaseTimingSnapshot()
           },
           world
         };
@@ -3742,6 +3867,7 @@ export class GameApp {
       setWorldOnly: (worldOnly) => {
         this.uiContainer.style.display = worldOnly ? "none" : "";
       },
+      setShadowAtlas: (enabled) => this.worldScene.setShadowAtlasEnabled(enabled),
       setReviewEnvironment: ({ minute, weather, presentationTimeSeconds }) => {
         if (!this.worldAcceptance) throw new Error("Review environment requires persistence-disabled local world acceptance");
         this.sim.setDebugMinute(minute);
@@ -4639,7 +4765,10 @@ export class GameApp {
   }
 
   private onVisibilityChange = (): void => {
-    if (document.hidden) this.requestAutosave();
+    if (document.hidden) {
+      this.hiddenSinceLastFrame = true;
+      this.requestAutosave();
+    }
   };
 
   private requestMobileLandscape = (): void => {
@@ -4812,6 +4941,9 @@ export class GameApp {
     }
     const laborHud = this.sim.query({ type: "labor.get-hud" }) as LaborHudDto;
     this.laborHud = laborHud.active ? laborHud : null;
+    if (this.laborShiftFeedback && performance.now() >= this.laborShiftFeedbackUntilMs) {
+      this.laborShiftFeedback = null;
+    }
     const worldHud = this.sim.inspectWorldHud(this.selectedCropId);
     if (!this.activeHint && !this.activeModal && !this.benchmarkView) {
       const hint = buildNextWorldHint(this.sim.state);
@@ -4829,6 +4961,13 @@ export class GameApp {
     }
 
     const state = this.sim.getState();
+    // The People and Notices folios are rebuilt only for a visible Journal.
+    // They read mutable state, so they cannot be memoized on state identity;
+    // rebuilding them on open is the revision boundary instead.
+    if (this.activeModal === "journal") {
+      this.cachedVillageNotices = selectVillageNotices(villageNoticeContext(state));
+      this.cachedPeoplePage = buildPeoplePageDto(state);
+    }
     // Keep the fishing widget on a detached snapshot. React is presentation;
     // even an accidental child mutation must not alter the live fishing
     // attempt that the simulation will tick or persist.
@@ -4888,8 +5027,8 @@ export class GameApp {
         promptText: this.promptText,
         worldHud,
         notices: this.currentNotices(),
-        villageNotices: selectVillageNotices(villageNoticeContext(state)),
-        people: buildPeoplePageDto(state),
+        villageNotices: this.cachedVillageNotices,
+        people: this.cachedPeoplePage ?? undefined,
         journalOpenRequest: this.journalOpenRequest,
         chronicleEntries: this.chronicle.list(),
         chronicleFilter: this.chronicleFilter,
@@ -4999,15 +5138,8 @@ export class GameApp {
 
         sportFishingHud: this.sim.inspectSportFishingHud(),
         laborHud: this.laborHud,
-        onLaborStrike: () => {
-          const result = this.sim.execute({ type: "labor.strike" });
-          if (result.success) {
-            this.notify(`Shift worked · +${result.yield ?? 0} Work`, "success", 2200);
-            this.requestAutosave();
-          } else {
-            this.notify(result.reason ?? "The strike missed", "warning");
-          }
-        },
+        laborShiftFeedback: this.laborShiftFeedback,
+        onLaborStrike: () => this.strikeLaborShift(),
         onLaborCancel: () => {
           this.sim.execute({ type: "labor.cancel" });
           this.renderUI();
@@ -5252,12 +5384,93 @@ export class GameApp {
     const animationCritical = this.bootReady && (
       this.mode === "sport-fishing"
       || this.mode === "basic-fishing"
+      || Boolean(this.laborHud?.active)
       || this.farmingActions.isActive
     );
     const intervalMs = animationCritical ? 1000 / 30 : 100;
     if (nowMs - this.lastUiFrameMs < intervalMs) return;
     this.lastUiFrameMs = nowMs;
     this.renderUI();
+  }
+
+  /**
+   * Time-to-play evidence: each startup phase mark relative to `begin`.
+   * Progressive residency must be designed before this can be more than a
+   * measurement, but the numbers are the gate for that design.
+   */
+  private startupTimingSnapshot(): Array<{ phase: string; atMs: number }> {
+    const marks = performance.getEntriesByType("mark") as PerformanceMark[];
+    const begin = marks.find((mark) => mark.name === "neva.startup.begin")?.startTime;
+    if (begin === undefined) return [];
+    return marks
+      .filter((mark) => mark.name.startsWith("neva.startup.") && mark.name !== "neva.startup.begin")
+      .map((mark) => ({
+        phase: mark.name.replace("neva.startup.", ""),
+        atMs: Number((mark.startTime - begin).toFixed(1))
+      }));
+  }
+
+  /** Debug-only main-thread phase rings: stall attribution, not a shipped cost. */
+  private recordPhase(phase: string, elapsedMs: number): void {
+    if (!this.diagnosticsEnabled) return;
+    let entry = this.phaseTimings.get(phase);
+    if (!entry) {
+      entry = { ring: new Float32Array(120), cursor: 0, count: 0 };
+      this.phaseTimings.set(phase, entry);
+    }
+    entry.ring[entry.cursor] = elapsedMs;
+    entry.cursor = (entry.cursor + 1) % entry.ring.length;
+    entry.count = Math.min(entry.count + 1, entry.ring.length);
+  }
+
+  private phaseTimingSnapshot(): Array<{
+    phase: string;
+    samples: number;
+    p50Ms: number;
+    p95Ms: number;
+    maxMs: number;
+  }> {
+    return [...this.phaseTimings.entries()].map(([phase, entry]) => {
+      const values = Array.from(entry.ring.slice(0, entry.count)).sort((a, b) => a - b);
+      const percentile = (fraction: number): number => values.length === 0
+        ? 0
+        : values[Math.min(values.length - 1, Math.floor(fraction * values.length))];
+      return {
+        phase,
+        samples: values.length,
+        p50Ms: Number(percentile(0.5).toFixed(2)),
+        p95Ms: Number(percentile(0.95).toFixed(2)),
+        maxMs: Number((values.at(-1) ?? 0).toFixed(2))
+      };
+    }).sort((left, right) => right.p95Ms - left.p95Ms);
+  }
+
+  private recordFrameTiming(elapsedSeconds: number): void {
+    const frameMs = elapsedSeconds * 1000;
+    this.frameTimeRingMs[this.frameTimeRingCursor] = frameMs;
+    this.frameTimeRingCursor = (this.frameTimeRingCursor + 1) % this.frameTimeRingMs.length;
+    this.frameTimeRingCount = Math.min(this.frameTimeRingCount + 1, this.frameTimeRingMs.length);
+    if (frameMs > 50) this.frameStallCount += 1;
+  }
+
+  /** Raw visible-frame percentiles; hidden-tab resumptions are excluded. */
+  private frameTimingSnapshot(): {    samples: number;
+    p50Ms: number;
+    p95Ms: number;
+    maxMs: number;
+    stallsOver50Ms: number;
+  } {
+    const values = Array.from(this.frameTimeRingMs.slice(0, this.frameTimeRingCount)).sort((a, b) => a - b);
+    const percentile = (fraction: number): number => values.length === 0
+      ? 0
+      : values[Math.min(values.length - 1, Math.floor(fraction * values.length))];
+    return {
+      samples: values.length,
+      p50Ms: Number(percentile(0.5).toFixed(2)),
+      p95Ms: Number(percentile(0.95).toFixed(2)),
+      maxMs: Number((values.at(-1) ?? 0).toFixed(2)),
+      stallsOver50Ms: this.frameStallCount
+    };
   }
 
   private syncFarmGisHold(): void {

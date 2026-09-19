@@ -17,6 +17,22 @@ import { configureConservativeSkinnedBounds } from "./CharacterCullingBounds";
 
 const PRELOAD_ASSET_IDS: readonly AssetId[] = ASSET_CATALOG.map((asset) => asset.id);
 const DEFAULT_PRELOAD_CONCURRENCY = 6;
+/**
+ * Ceiling for retained, currently-unused model templates. Published Neva
+ * models are palette materials over geometry, so geometry bytes are the
+ * meaningful eviction signal; session-shared canonical materials and
+ * supporting-map textures are owned elsewhere and are never disposed here.
+ * Templates with live clones are never evicted, so this is a memory ceiling,
+ * not a streaming budget.
+ */
+const TEMPLATE_CACHE_BUDGET_BYTES = 128 * 1024 * 1024;
+
+export interface AssetCacheStats {
+  templates: number;
+  bytes: number;
+  liveConsumers: number;
+  budgetBytes: number;
+}
 
 export interface AssetPreloadProgress {
   assetId: AssetId;
@@ -60,6 +76,59 @@ export class AssetLoader {
   private static loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   private static modelCache: Map<AssetId, THREE.Group> = new Map();
   private static loadingPromises: Map<AssetId, Promise<THREE.Group>> = new Map();
+  /** Approximate retained geometry bytes per cached template. */
+  private static templateBytes: Map<AssetId, number> = new Map();
+  private static templateConsumers: Map<AssetId, number> = new Map();
+  private static templateLastUse: Map<AssetId, number> = new Map();
+  /** Makes `releaseModel` idempotent per clone; a double release must never
+   *  let a still-referenced template be evicted. */
+  private static readonly releasedModels = new WeakSet<THREE.Object3D>();
+
+  private static estimateGeometryBytes(root: THREE.Object3D): number {
+    let bytes = 0;
+    const geometries = new Set<THREE.BufferGeometry>();
+    root.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (mesh.geometry) geometries.add(mesh.geometry);
+    });
+    for (const geometry of geometries) {
+      for (const attribute of Object.values(geometry.attributes)) {
+        const buffer = attribute as THREE.BufferAttribute;
+        if (buffer.array) bytes += buffer.array.byteLength;
+      }
+      if (geometry.index?.array) bytes += geometry.index.array.byteLength;
+    }
+    return bytes;
+  }
+
+  private static disposeTemplateGeometry(root: THREE.Object3D): void {
+    const geometries = new Set<THREE.BufferGeometry>();
+    root.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (mesh.geometry) geometries.add(mesh.geometry);
+    });
+    for (const geometry of geometries) geometry.dispose();
+  }
+
+  /** Evicts only unused templates, least-recently-used first. */
+  private static enforceTemplateBudget(): void {
+    let total = 0;
+    for (const bytes of this.templateBytes.values()) total += bytes;
+    if (total <= TEMPLATE_CACHE_BUDGET_BYTES) return;
+    const evictable = [...this.modelCache.keys()]
+      .filter((assetId) => (this.templateConsumers.get(assetId) ?? 0) === 0)
+      .sort((a, b) => (this.templateLastUse.get(a) ?? 0) - (this.templateLastUse.get(b) ?? 0));
+    for (const assetId of evictable) {
+      if (total <= TEMPLATE_CACHE_BUDGET_BYTES) break;
+      const model = this.modelCache.get(assetId);
+      if (!model) continue;
+      this.disposeTemplateGeometry(model);
+      this.modelCache.delete(assetId);
+      total -= this.templateBytes.get(assetId) ?? 0;
+      this.templateBytes.delete(assetId);
+      this.templateLastUse.delete(assetId);
+    }
+  }
 
   private static cloneModel(source: THREE.Group): THREE.Group {
     const cloned = source.userData.hasSkinnedMeshes
@@ -139,6 +208,10 @@ export class AssetLoader {
               configureRuntimeLod(root, spec);
             }
             this.modelCache.set(assetId, root);
+            this.templateBytes.set(assetId, this.estimateGeometryBytes(root));
+            this.templateLastUse.set(assetId, performance.now());
+            if (!this.templateConsumers.has(assetId)) this.templateConsumers.set(assetId, 0);
+            this.enforceTemplateBudget();
             this.loadingPromises.delete(assetId);
             resolve(root);
           } catch (error) {
@@ -175,7 +248,36 @@ export class AssetLoader {
   }
 
   public static async loadModel(assetId: AssetId): Promise<THREE.Group> {
-    return this.cloneModel(await this.loadCached(assetId));
+    const clone = this.cloneModel(await this.loadCached(assetId));
+    this.templateConsumers.set(assetId, (this.templateConsumers.get(assetId) ?? 0) + 1);
+    this.templateLastUse.set(assetId, performance.now());
+    return clone;
+  }
+
+  /**
+   * Drops one live clone's ownership of its cached template. Call this when a
+   * presentation object is despawned; idempotent per object, and it never
+   * disposes anything directly. Shared geometry survives until both the clone
+   * and the budget allow eviction.
+   */
+  public static releaseModel(model: THREE.Object3D): void {
+    const assetId = model.userData.assetId as AssetId | undefined;
+    if (!assetId || this.releasedModels.has(model)) return;
+    this.releasedModels.add(model);
+    this.templateConsumers.set(assetId, Math.max(0, (this.templateConsumers.get(assetId) ?? 1) - 1));
+  }
+
+  public static cacheStats(): AssetCacheStats {
+    let bytes = 0;
+    let liveConsumers = 0;
+    for (const value of this.templateBytes.values()) bytes += value;
+    for (const value of this.templateConsumers.values()) liveConsumers += value;
+    return {
+      templates: this.modelCache.size,
+      bytes,
+      liveConsumers,
+      budgetBytes: TEMPLATE_CACHE_BUDGET_BYTES
+    };
   }
 
   public static async preloadAll(
@@ -220,6 +322,10 @@ export class AssetLoader {
   public static invalidateCache(assetId: AssetId): void {
     this.modelCache.delete(assetId);
     this.loadingPromises.delete(assetId);
+    // Bookkeeping only: live clones and hot-swap callers may still reference the
+    // template's shared geometry, so disposal is left to budget eviction.
+    this.templateBytes.delete(assetId);
+    this.templateLastUse.delete(assetId);
   }
 
   /** Alias for invalidateCache */

@@ -5194,6 +5194,23 @@
   font-weight: 500;
   opacity: 0.9;
 }
+/* Work gain/spend pulse: the pool bar itself acknowledges the transaction. */
+@keyframes guild-work-gain {
+  0% { filter: brightness(1) saturate(1); }
+  20% { filter: brightness(1.7) saturate(1.2); }
+  100% { filter: brightness(1) saturate(1); }
+}
+@keyframes guild-work-spend {
+  0% { filter: brightness(1) saturate(1); }
+  22% { filter: brightness(0.68) saturate(0.72); }
+  100% { filter: brightness(1) saturate(1); }
+}
+#ui-container[data-ui="guildcraft"] .guild-work.is-gaining .chrome-meter-track > span {
+  animation: guild-work-gain 680ms ease-out !important;
+}
+#ui-container[data-ui="guildcraft"] .guild-work.is-spending .chrome-meter-track > span {
+  animation: guild-work-spend 680ms ease-out !important;
+}
 #ui-container[data-ui="guildcraft"] .guild-sprint { top: 66px; height: 25px; width: 245px; }
 #ui-container[data-ui="guildcraft"] .guild-sprint .guild-vital-meter { inset: 5px 14px 5px 8px !important; }
 #ui-container[data-ui="guildcraft"] .guild-sprint .guild-vital-readout { font-size: 14px; }
@@ -11384,6 +11401,7 @@
 }
 .world-reward[data-kind="money"] { color: #f0c169; }
 .world-reward[data-kind="xp"] { color: #bbd8bd; font-size: 14px; }
+.world-reward[data-kind="work"] { color: #f2d99d; font-size: 15px; }
 .world-reward[data-loss="true"] { color: #e9b2a0; }
 .world-reward[hidden], .world-pickup-arc[hidden] { display: none; }
 .world-pickup-arc { width: 32px; height: 32px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)); }
@@ -12491,5 +12509,280 @@
     border-top: 1px solid rgba(165, 139, 73, 0.2) !important;
     background: rgba(14, 12, 10, 0.5) !important;
   }
+}
+
+/* -------------------------------------------------------------------------
+   Work-shift instrument (labor minigame)
+   A compact Guildcraft timing plaque: station and reward header, a recessed
+   travel track with the simulation-owned sweet-spot band, a hot state that
+   lights while the needle is inside the band, and one transient grade result
+   after the strike ends the shift. Declared last inside the Guildcraft layer
+   so it outranks the shared `.game-sheet--ink` skin.
+   ------------------------------------------------------------------------- */
+@layer neva-ui {
+#ui-container[data-ui="guildcraft"] .labor-shift-container {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: calc(var(--ui-safe-bottom) + 126px) !important;
+  top: auto !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  z-index: 36 !important;
+  pointer-events: auto;
+  animation: labor-shift-enter 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes labor-shift-enter {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+#ui-container[data-ui="guildcraft"] .labor-shift {
+  width: min(360px, calc(100vw - 32px)) !important;
+  box-sizing: border-box !important;
+  border: 1px solid rgba(185, 148, 80, 0.45) !important;
+  border-image: none !important;
+  border-left-width: 1px !important;
+  border-radius: 6px !important;
+  background:
+    linear-gradient(180deg, rgba(26, 22, 16, 0.97) 0%, rgba(14, 12, 9, 0.98) 100%),
+    var(--guild-paper-grain) center / 192px !important;
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 235, 175, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5) !important;
+  padding: 10px 12px 11px !important;
+  color: var(--guild-ivory) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  isolation: isolate;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+  animation: none !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift.is-in-sweet {
+  border-color: rgba(245, 218, 150, 0.85) !important;
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.85),
+    0 0 18px rgba(201, 167, 94, 0.32),
+    inset 0 1px 0 rgba(255, 235, 175, 0.28) !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 6px !important;
+  border-bottom: 1px solid rgba(165, 139, 73, 0.22) !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__title {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: var(--guild-gold-bright) !important;
+  font: 600 14.5px/1.2 var(--font-serif) !important;
+  letter-spacing: 0.02em !important;
+  text-shadow: 0 1px 2px #000;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__title svg,
+#ui-container[data-ui="guildcraft"] .labor-shift__title .atlas-image {
+  color: #ffd98a !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__reward {
+  flex: 0 0 auto !important;
+  background: rgba(223, 189, 115, 0.1) !important;
+  border: 1px solid rgba(201, 167, 94, 0.4) !important;
+  border-radius: 3px !important;
+  color: #f2d99d !important;
+  font: 600 11px/1.2 var(--font-serif) !important;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 7px !important;
+  letter-spacing: 0.04em !important;
+  text-shadow: 0 1px 2px #000;
+  transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift.is-in-sweet .labor-shift__reward {
+  background: rgba(223, 189, 115, 0.2) !important;
+  border-color: rgba(245, 218, 150, 0.75) !important;
+  color: #fff3cd !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__meter {
+  display: block !important;
+  width: 100% !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__track {
+  position: relative !important;
+  height: 20px !important;
+  border-radius: 3px !important;
+  background: #0d0b08 !important;
+  border: 1px solid rgba(165, 139, 73, 0.35) !important;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.85) !important;
+  overflow: hidden;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__sweet {
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(201, 167, 94, 0.55) 0 5px,
+    rgba(201, 167, 94, 0.4) 5px 10px
+  ) !important;
+  box-shadow: inset 0 0 8px rgba(245, 218, 150, 0.35) !important;
+  transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift.is-in-sweet .labor-shift__sweet {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(245, 218, 150, 0.85) 0 5px,
+    rgba(223, 189, 115, 0.72) 5px 10px
+  ) !important;
+  box-shadow: inset 0 0 12px rgba(255, 240, 190, 0.6) !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__needle {
+  position: absolute !important;
+  top: -3px !important;
+  bottom: -3px !important;
+  width: 4px !important;
+  margin-left: -2px !important;
+  border-radius: 2px !important;
+  background: #fff6e0 !important;
+  box-shadow: 0 0 8px rgba(255, 246, 224, 0.85), 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+  will-change: left;
+  transition: left 34ms linear;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift.is-in-sweet .labor-shift__needle {
+  background: #ffe9ad !important;
+  box-shadow: 0 0 12px rgba(255, 226, 150, 0.95), 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+  animation: labor-needle-hot 260ms ease-in-out infinite alternate;
+}
+@keyframes labor-needle-hot {
+  from { transform: scaleY(0.92); }
+  to { transform: scaleY(1.08); }
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__readout {
+  margin: 7px 0 0 !important;
+  color: #9c8e76 !important;
+  font: 500 11.5px/1.3 var(--font-serif) !important;
+  letter-spacing: 0.02em !important;
+  text-align: center !important;
+  text-shadow: 0 1px 2px #000;
+  transition: color 140ms ease;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift.is-in-sweet .labor-shift__readout {
+  color: #f5da96 !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__actions {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: 10px !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__strike {
+  flex: 1.4 1 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift__stop {
+  flex: 1 1 0 !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift .chrome-keycap {
+  font-size: 10px !important;
+  padding: 1px 5px !important;
+  vertical-align: middle;
+}
+/* The shift instrument owns the action prompt while it runs. */
+#ui-container[data-ui="guildcraft"]:has(.labor-shift) :is(.interaction-prompt, .guild-interaction-anchor) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Transient strike grade after the shift ends. */
+#ui-container[data-ui="guildcraft"] .labor-shift-result {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: calc(var(--ui-safe-bottom) + 126px) !important;
+  top: auto !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  z-index: 36 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 7px 14px !important;
+  border: 1px solid rgba(185, 148, 80, 0.45) !important;
+  border-radius: 5px !important;
+  background:
+    linear-gradient(180deg, rgba(26, 22, 16, 0.97) 0%, rgba(14, 12, 9, 0.98) 100%),
+    var(--guild-paper-grain) center / 192px !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 235, 175, 0.18) !important;
+  color: var(--guild-ivory) !important;
+  font: 600 13px/1.2 var(--font-serif) !important;
+  text-shadow: 0 1px 3px #000;
+  pointer-events: none !important;
+  animation: labor-shift-result 2400ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+@keyframes labor-shift-result {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.96); }
+  10% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  78% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-16px) scale(0.99); }
+}
+#ui-container[data-ui="guildcraft"] .labor-shift-result svg,
+#ui-container[data-ui="guildcraft"] .labor-shift-result .atlas-image {
+  flex: 0 0 auto !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift-result__label {
+  color: var(--guild-gold-bright) !important;
+  letter-spacing: 0.03em !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift-result__amount {
+  color: #fff3cd !important;
+  font-variant-numeric: tabular-nums;
+  padding-left: 2px !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift-result__reason {
+  color: #d8c6a6 !important;
+  font-weight: 500 !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift-result.is-clean {
+  border-color: rgba(245, 218, 150, 0.7) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.8), 0 0 16px rgba(201, 167, 94, 0.35) !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift-result.is-glancing .labor-shift-result__label {
+  color: #dfbd73 !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift-result.is-miss {
+  border-color: rgba(185, 104, 79, 0.55) !important;
+}
+#ui-container[data-ui="guildcraft"] .labor-shift-result.is-miss .labor-shift-result__label {
+  color: #e8b49e !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  #ui-container[data-ui="guildcraft"] .labor-shift-container,
+  #ui-container[data-ui="guildcraft"] .labor-shift-result {
+    animation: none !important;
+  }
+  #ui-container[data-ui="guildcraft"] .labor-shift-result {
+    opacity: 1;
+  }
+  #ui-container[data-ui="guildcraft"] .labor-shift__needle,
+  #ui-container[data-ui="guildcraft"] .labor-shift.is-in-sweet .labor-shift__needle,
+  #ui-container[data-ui="guildcraft"] .guild-work.is-gaining .chrome-meter-track > span,
+  #ui-container[data-ui="guildcraft"] .guild-work.is-spending .chrome-meter-track > span {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+#ui-container[data-mobile-device="true"] .labor-shift {
+  width: min(320px, calc(100vw - 28px)) !important;
+}
+#ui-container[data-mobile-device="true"] .labor-shift-container,
+#ui-container[data-mobile-device="true"] .labor-shift-result {
+  bottom: var(--mobile-hud-lift) !important;
+}
+#ui-container[data-mobile-device="true"] .labor-shift :is(.labor-shift__strike, .labor-shift__stop) {
+  min-height: 40px !important;
+}
 }
 

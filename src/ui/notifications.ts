@@ -204,6 +204,10 @@ export const CHRONICLE_MAX_ENTRIES = 50;
 export class ChronicleLog {
   private entries: ChronicleEntry[] = [];
   private readonly maxEntries: number;
+  private revision = 0;
+  private cachedRevision = -1;
+  private cachedFilter: ChronicleFilter | null = null;
+  private cachedList: readonly ChronicleEntry[] = [];
 
   constructor(maxEntries: number = CHRONICLE_MAX_ENTRIES) {
     this.maxEntries = Math.max(1, maxEntries);
@@ -226,6 +230,7 @@ export class ChronicleLog {
     // was logged in between, so match anywhere in the log rather than only the
     // newest line. Update in place to preserve chronological order.
     const existingIndex = this.entries.findIndex((entry) => entry.id === notice.id);
+    this.revision += 1;
     if (existingIndex >= 0) {
       const existing = this.entries[existingIndex];
       this.entries[existingIndex] = {
@@ -251,8 +256,16 @@ export class ChronicleLog {
 
   /** Newest first, optionally narrowed to one strand. */
   public list(filter: ChronicleFilter = "all"): readonly ChronicleEntry[] {
+    // The chronicle is always part of the HUD, but it only changes when a line
+    // is recorded; rebuilding and reversing the array every UI frame was pure
+    // presentation churn.
+    if (this.cachedRevision === this.revision && this.cachedFilter === filter) return this.cachedList;
     const ordered = [...this.entries].reverse();
-    return filter === "all" ? ordered : ordered.filter((entry) => entry.category === filter);
+    const filtered = filter === "all" ? ordered : ordered.filter((entry) => entry.category === filter);
+    this.cachedRevision = this.revision;
+    this.cachedFilter = filter;
+    this.cachedList = filtered;
+    return filtered;
   }
 
   public get size(): number {
@@ -261,5 +274,6 @@ export class ChronicleLog {
 
   public clear(): void {
     this.entries = [];
+    this.revision += 1;
   }
 }

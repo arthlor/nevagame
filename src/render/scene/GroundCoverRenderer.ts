@@ -64,6 +64,16 @@ interface InstancedAssetRecord {
   activeCount: number;
   instances: GroundCoverInstance[];
   spatialIndex: GroundCoverSpatialIndex;
+  /**
+   * One conservative bounding sphere per spatial cell, with the instance's cell
+   * id recorded per index. Frustum culling tests a cell once per frame and
+   * skips every instance inside a rejected cell, instead of sphere-testing the
+   * full nearby set on every camera rotation.
+   */
+  cellSpheres: THREE.Sphere[];
+  instanceCellIds: Int32Array;
+  cellVisibilityStamp: Int32Array;
+  cellVisible: Uint8Array;
   meshes: InstancedSourceMesh[];
   visibleIndices: number[];
   renderedIndices: number[];
@@ -259,6 +269,7 @@ export class GroundCoverRenderer {
   private readonly frustum = new THREE.Frustum();
   private readonly frustumSphere = new THREE.Sphere();
   private visibilityDirty = true;
+  private cellVisibilityEpoch = 0;
   private qualityLevel: number;
 
   constructor(tier: QualityTier) {
@@ -377,6 +388,8 @@ export class GroundCoverRenderer {
         return { mesh, relative: sourceMesh.relative, phaseAttribute, exposureAttribute,
           lodIndex: sourceMesh.lodIndex, renderedIndices: [] as number[] };
       });
+      const spatialIndex = buildGroundCoverSpatialIndex(instances);
+      const { cellSpheres, instanceCellIds } = buildGroundCoverCellSpheres(instances, spatialIndex.cellSize);
       this.records.push({
         category,
         lodDistances: sourceMeshes.some((mesh) => mesh.lodIndex > 0)
@@ -385,7 +398,11 @@ export class GroundCoverRenderer {
         highCount: orderedPlacements.length,
         activeCount: orderedPlacements.length,
         instances,
-        spatialIndex: buildGroundCoverSpatialIndex(instances),
+        spatialIndex,
+        cellSpheres,
+        instanceCellIds,
+        cellVisibilityStamp: new Int32Array(cellSpheres.length).fill(-1),
+        cellVisible: new Uint8Array(cellSpheres.length),
         meshes,
         visibleIndices: [],
         renderedIndices: [],
@@ -530,11 +547,24 @@ export class GroundCoverRenderer {
     this.group.updateWorldMatrix(true, false);
     this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(this.group.matrixWorld);
     this.frustum.setFromProjectionMatrix(this.viewProjection, camera.coordinateSystem);
+    const epoch = (this.cellVisibilityEpoch += 1);
     for (const record of this.records) {
       const candidates = record.candidateIndices;
       candidates.length = 0;
       for (const index of record.visibleIndices) {
         const instance = record.instances[index];
+        const cellId = record.instanceCellIds[index];
+        let cellVisible: boolean;
+        if (record.cellVisibilityStamp[cellId] === epoch) {
+          cellVisible = record.cellVisible[cellId] === 1;
+        } else {
+          record.cellVisibilityStamp[cellId] = epoch;
+          this.frustumSphere.copy(record.cellSpheres[cellId]);
+          this.frustumSphere.radius += record.windPadding;
+          cellVisible = this.frustum.intersectsSphere(this.frustumSphere);
+          record.cellVisible[cellId] = cellVisible ? 1 : 0;
+        }
+        if (!cellVisible) continue;
         this.frustumSphere.copy(instance.bounds);
         this.frustumSphere.radius += record.windPadding;
         if (this.frustum.intersectsSphere(this.frustumSphere)) candidates.push(index);
@@ -576,6 +606,29 @@ export class GroundCoverRenderer {
     }
     this.records.length = 0;
   }
+}
+
+function buildGroundCoverCellSpheres(
+  instances: readonly GroundCoverInstance[],
+  cellSize: number
+): { cellSpheres: THREE.Sphere[]; instanceCellIds: Int32Array } {
+  const cellIds = new Map<string, number>();
+  const cellSpheres: THREE.Sphere[] = [];
+  const instanceCellIds = new Int32Array(instances.length);
+  for (let index = 0; index < instances.length; index += 1) {
+    const instance = instances[index];
+    const key = `${Math.floor(instance.x / cellSize)}:${Math.floor(instance.z / cellSize)}`;
+    let cellId = cellIds.get(key);
+    if (cellId === undefined) {
+      cellId = cellSpheres.length;
+      cellIds.set(key, cellId);
+      cellSpheres.push(instance.bounds.clone());
+    } else {
+      cellSpheres[cellId].union(instance.bounds);
+    }
+    instanceCellIds[index] = cellId;
+  }
+  return { cellSpheres, instanceCellIds };
 }
 
 function sourceHeightBounds(sourceMeshes: readonly SourceMeshData[]): { minY: number; maxY: number } {

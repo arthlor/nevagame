@@ -74,6 +74,10 @@ export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
   uniform float uRiverFlowDepthStart;
   uniform float uRiverFlowDepthFull;
   uniform float uRiverFlowNormalStrength;
+  uniform float uRiverFlowLaneStrength;
+  uniform float uRiverDepthShadeStrength;
+  uniform float uRiverEdgeDepthFade;
+  uniform float uRiverEdgeOpacity;
   uniform float uRiverEdgeFoamStrength;
   uniform float uRiverEdgeFoamScale;
   uniform float uPlungeRingSpeed;
@@ -173,6 +177,15 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     // strength so it never washes the sea cyan.
     float sssBack = max(0.0, dot(viewDirection, -normalize(uSunDirection)));
     body += uShallowColor * (sssBack * sssBack * smoothstep(0.02, 0.22, waveHeight) * uSssStrength * uDaylight * cloudSunlight);
+    // River hydraulics: the carved thalweg is the deepest water and reads
+    // darkest, the depositional shelf on a bend's inside stays pale. This is
+    // the actual bed depth, not a painted stripe.
+    float riverDepth = smoothstep(0.35, 1.9, waterDepth) * riverWeight;
+    body = mix(body, uDeepColor, riverDepth * uRiverDepthShadeStrength * (1.0 - fresnel * 0.5));
+    // Slow advected lanes survive the distance filter, so a wide channel still
+    // reads as moving water from the bank and from above.
+    float laneField = nevaGradientNoise((worldPosition.xz - flowOffset * 0.6) * vec2(0.09, 0.3));
+    body *= 1.0 + (laneField * 0.5 + 0.25) * uRiverFlowLaneStrength * riverWeight;
     float refractedCos = sqrt(max(0.08, 1.0 - (1.0 - ndv * ndv) / (1.333 * 1.333)));
     float thickness = waterDepth / refractedCos;
     vec3 behind = vec3(0.0);
@@ -224,6 +237,11 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     vec3 transmission = exp(-uWaterAbsorption * min(thickness, 100.0));
     float averageTransmission = dot(transmission, vec3(0.2126, 0.7152, 0.0722));
     float alpha = clamp(1.0 - averageTransmission * (1.0 - fresnel), 0.045, 1.0);
+    // The river thins into the bank over its first centimetres of depth
+    // instead of cutting at the depth threshold, so the waterline reads as a
+    // wet shallowing edge. Open sea keeps its existing surf transition.
+    alpha *= mix(1.0, mix(uRiverEdgeOpacity, 1.0,
+      smoothstep(0.0, max(0.05, uRiverEdgeDepthFade), waterDepth)), riverWeight);
     vec3 color = body * (1.0 - transmission) * (1.0 - fresnel) + reflectionColor * light * fresnel;
     color = captured ? color + behind * transmission * (1.0 - fresnel) : color / max(0.045, alpha);
     if (uReflectionMode >= 2) {
@@ -300,11 +318,15 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     // Radial rings leave the impact and spread into the pool, while the base
     // reach keeps the whole apron lifted; without this the sheet ends bright,
     // the rapids below go dark, and the watercourse reads as cut in two.
+    // Steep chute water only carries the impact haze: concentric standing
+    // rings on the plunging face compressed into transverse corrugation from
+    // above, so they stay on the pool and the apron keeps a flat-water gate.
     {
       vec2 landingDelta = worldPosition.xz - uHeadwaterLandingXZ;
       landingDelta.y *= 0.5;
       float landingDistance = length(landingDelta);
       float landingReach = 1.0 - smoothstep(0.0, 3.5, landingDistance);
+      float apronFlat = 1.0 - smoothstep(0.1, 0.3, downhillGrade);
       float apronPattern = nevaGradientNoise(worldPosition.xz * 1.4
         + vec2(uTime * 0.22, -uTime * 0.5));
       float ringPhase = landingDistance - uTime * uPlungeRingSpeed * (1.0 - uReducedMotion * 0.7);
@@ -314,8 +336,9 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       float rings = pow(ringWave, 3.0);
       float ringFade = (1.0 - smoothstep(0.0, uPlungeRingSpan, landingDistance))
         * smoothstep(0.15, 0.9, landingDistance);
-      foam = max(foam, landingReach * (0.5 + 0.5 * apronPattern) * uRapidsFoamStrength * 1.1);
-      foam = max(foam, rings * ringFade * uPlungeRingStrength * (0.6 + 0.4 * apronPattern));
+      foam = max(foam, landingReach * (0.5 + 0.5 * apronPattern) * uRapidsFoamStrength * 1.1
+        * mix(0.35, 1.0, apronFlat));
+      foam = max(foam, rings * ringFade * uPlungeRingStrength * (0.6 + 0.4 * apronPattern) * apronFlat);
     }
     float whitecap = smoothstep(0.7, 1.0, uRoughness) * regionWeights.z
       * smoothstep(0.13, 0.3, waveHeight) * smoothstep(0.012, 0.04, 1.0 - normal.y);

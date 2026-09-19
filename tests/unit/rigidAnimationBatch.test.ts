@@ -51,6 +51,7 @@ describe("rigid animation batching", () => {
       new THREE.VectorKeyframeTrack("head.position", [0, 1], [0, 1, 0, 0, 2, 0])
     ])).play();
     mixer.update(0.5);
+    helper.markDirty();
     helper.update();
     expect(body.position.x).toBe(1);
     const inverse = root.matrixWorld.clone().invert();
@@ -63,6 +64,27 @@ describe("rigid animation batching", () => {
     helper.update();
     expect(upload).not.toHaveBeenCalled();
     mixer.stopAllAction();
+    helper.dispose();
+  });
+
+  it("does no upload work until a revision marks the batch dirty", () => {
+    const root = new THREE.Group();
+    const material = new THREE.MeshStandardMaterial();
+    const sources = [new THREE.Mesh(geometry(), material), new THREE.Mesh(geometry(), material)];
+    root.add(...sources);
+    const helper = new RigidAnimationBatch(root);
+    const batch = batches(root)[0];
+    // Constructor syncs once; a settled actor must then skip the forced
+    // traversal and matrix comparison entirely.
+    const upload = vi.spyOn(batch, "setMatrixAt");
+    expect(helper.update()).toBe(false);
+    expect(upload).not.toHaveBeenCalled();
+    sources[0].position.x = 5;
+    expect(helper.update()).toBe(false);
+    expect(upload).not.toHaveBeenCalled();
+    helper.markDirty();
+    expect(helper.update()).toBe(true);
+    expect(upload).toHaveBeenCalled();
     helper.dispose();
   });
 
@@ -81,15 +103,18 @@ describe("rigid animation batching", () => {
       camera.position.z = distance;
       camera.updateMatrixWorld(true);
       lod.update(camera);
+      helper.markDirty();
       helper.update();
       expect(batch.getVisibleAt(0)).toBe(distance === 0);
       expect(batch.getVisibleAt(1)).toBe(distance !== 0);
     }
     lod.visible = false;
+    helper.markDirty();
     helper.update();
     expect(batch.getVisibleAt(0)).toBe(false);
     expect(batch.getVisibleAt(1)).toBe(false);
     lod.visible = true;
+    helper.markDirty();
     helper.update();
     expect(batch.getVisibleAt(0)).toBe(true);
     helper.dispose();
@@ -191,6 +216,7 @@ describe("rigid animation batching", () => {
       for (const progress of [0.1, 0.3, 0.5]) {
         mixer.update(clip.duration * progress);
         controlMixer.update(clip.duration * progress);
+        helper.markDirty();
         helper.update();
         control.updateWorldMatrix(true, true);
         control.traverse((node) => {

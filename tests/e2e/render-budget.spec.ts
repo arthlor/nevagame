@@ -42,7 +42,12 @@ test("production build stays within the representative render budget", async ({ 
   page.on("console", (message) => {
     if (message.type() === "error") runtimeErrors.push(message.text());
   });
-  page.on("requestfailed", (request) => runtimeErrors.push(`${request.url()}: ${request.failure()?.errorText}`));
+  page.on("requestfailed", (request) => {
+    // Analytics beacons are aborted on scroll/unload by design. They say
+    // nothing about the game's render or runtime health.
+    if (new URL(request.url()).hostname.endsWith("google-analytics.com")) return;
+    runtimeErrors.push(`${request.url()}: ${request.failure()?.errorText}`);
+  });
   page.on("response", (response) => {
     if (response.status() >= 400) runtimeErrors.push(`${response.status()}: ${response.url()}`);
   });
@@ -58,11 +63,11 @@ test("production build stays within the representative render budget", async ({ 
 
   // Sample repeatedly and keep the worst frame.
   //
-  // A single sample is bimodal: shadowMap.autoUpdate is false, so most frames
-  // skip the shadow pass entirely and a frame that happens to include it
-  // reports ~1.8x the triangles and ~1.25x the draw calls. Three identical runs
-  // measured 1.55M / 2.77M / 1.55M. A budget is a worst-frame guarantee, so
-  // take the max rather than whichever frame the poll happened to land on.
+  // A single sample is under-reporting: although the light rig keeps
+  // `shadowMap.autoUpdate = false`, it sets `shadowMap.needsUpdate = true` on
+  // every presentation update, so most visible frames do include the shadow
+  // pass. Earlier runs still measured 1.55M / 2.77M / 1.55M, so take the max
+  // rather than whichever frame the poll happened to land on.
   let drawCalls = 0;
   let triangles = 0;
   let text = "";
@@ -78,10 +83,8 @@ test("production build stays within the representative render budget", async ({ 
       }
       drawCalls = Math.max(drawCalls, sampledDraws);
     }
-    // Advance the clock between samples so the sun moves and the shadow map is
-    // forced to refresh. Waiting for a natural refresh is unreliable — a 3 s
-    // window caught it twice in three runs, which is how this gate ended up
-    // reporting 2.80M / 2.80M / 1.40M for an identical build.
+    // Advance the clock between samples so the sun moves; pacing the window
+    // this way keeps sampling deterministic regardless of frame cadence.
     await page.evaluate(() => {
       const debug = (window as unknown as { __NEVA_DEBUG?: { advanceGameMinutes?: (m: number) => void } }).__NEVA_DEBUG;
       debug?.advanceGameMinutes?.(15);
@@ -95,14 +98,26 @@ test("production build stays within the representative render budget", async ({ 
   // answer it in the failure output rather than making someone go and measure.
   const snapshot = await page.evaluate(() => {
     const debug = (window as unknown as { __NEVA_DEBUG?: { renderDiagnostics: () => unknown } }).__NEVA_DEBUG;
-    const world = debug ? (debug.renderDiagnostics() as {
-      world?: { trianglesByGroup?: unknown; qualityTier?: string; pipeline?: unknown }
-    }).world : undefined;
+    const diagnostics = debug ? (debug.renderDiagnostics() as {
+      world?: { trianglesByGroup?: unknown; qualityTier?: string; pipeline?: unknown; presentationWork?: unknown; assetCache?: unknown };
+      presentation?: {
+        frameTiming?: {
+          samples: number;
+          p50Ms: number;
+          p95Ms: number;
+          maxMs: number;
+          stallsOver50Ms: number;
+        };
+      };
+    }) : undefined;
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio },
-      qualityTier: world?.qualityTier,
-      pipeline: world?.pipeline,
-      trianglesByGroup: world?.trianglesByGroup
+      qualityTier: diagnostics?.world?.qualityTier,
+      pipeline: diagnostics?.world?.pipeline,
+      trianglesByGroup: diagnostics?.world?.trianglesByGroup,
+      presentationWork: diagnostics?.world?.presentationWork,
+      assetCache: diagnostics?.world?.assetCache,
+      frameTiming: diagnostics?.presentation?.frameTiming
     };
   });
   console.info(`[E2E] Render scenario: ${JSON.stringify(snapshot)}`);
@@ -114,6 +129,18 @@ test("production build stays within the representative render budget", async ({ 
       ? `, ${objectStats[1]} meshes, ${objectStats[2]} shadow casters, ${objectStats[3]} batches, ${objectStats[4]} instanced meshes`
       : "")
   );
+  console.info(`[E2E] Raw frame timing: ${JSON.stringify(snapshot.frameTiming)}`);
+
+  // Companion to the draw/triangle budget: those can stay flat while CPU-side
+  // rebuild work regresses. These bounds are deliberately wide — they catch
+  // order-of-magnitude regressions without turning hardware variance into a
+  // false failure, and the percentiles above are the actionable record.
+  const frameTiming = snapshot.frameTiming;
+  expect(frameTiming?.samples ?? 0, "raw frame-time ring never filled").toBeGreaterThan(30);
+  expect(frameTiming!.p50Ms).toBeGreaterThan(0);
+  expect(frameTiming!.p95Ms).toBeLessThan(250);
+  expect(frameTiming!.maxMs).toBeLessThan(2000);
+  expect(frameTiming!.stallsOver50Ms).toBeLessThanOrEqual(120);
 
   // Batching is the whole reason this gate is meaningful here. If a production
   // build reports zero batches, the budget below would be measuring the dev
@@ -130,4 +157,103 @@ test("production build stays within the representative render budget", async ({ 
   expect(snapshot.qualityTier).toBe("high");
   expect(drawCalls).toBeLessThanOrEqual(highSceneBudget.drawCalls.preferredMax);
   expect(triangles).toBeLessThanOrEqual(highSceneBudget.visibleTriangles.targetMax);
+});
+
+/**
+ * Repeatable gameplay-performance routes.
+ *
+ * The frozen-camera test above answers "does the settled frame fit its draw
+ * budget"; it cannot see a populated farm, a loaded harbor, boat travel,
+ * fishing presentation, storm weather or dawn/dusk. Each scenario below boots
+ * the same production bundle into a deterministic state through the existing
+ * `debugStart`/`goldTest` entry points, optionally orbits the camera, and
+ * records raw frame percentiles, main-thread phase attribution and per-pass GPU
+ * timings. Bounds are wide on purpose: the value is the recorded evidence.
+ */
+const performanceScenarios = [
+  { id: "populated-farm", query: "debugStart=farm-art", settleMs: 5_000, rotate: true },
+  { id: "harbor-skiff", query: "debugStart=harbor-skiff", settleMs: 5_000, rotate: true },
+  { id: "boat-driving", query: "debugStart=boat-driving", settleMs: 5_000, rotate: false },
+  { id: "sport-fishing", query: "debugStart=sport-fishing", settleMs: 6_000, rotate: true },
+  { id: "storm-river-source", query: "goldTest=river_source&artWeather=storm", settleMs: 5_000, rotate: false },
+  { id: "dawn-farm", query: "goldTest=starter_farm&artMinute=420", settleMs: 5_000, rotate: false }
+] as const;
+
+test.describe("gameplay performance routes", () => {
+  for (const scenario of performanceScenarios) {
+    test(`${scenario.id} records frame, phase and GPU evidence`, async ({ page, browserName }) => {
+      test.skip(browserName !== "chromium", "Production performance routes are measured once in Chromium");
+      test.setTimeout(300_000);
+
+      const runtimeErrors: string[] = [];
+      page.on("pageerror", (error) => runtimeErrors.push(error.message));
+      page.on("console", (message) => {
+        if (message.type() === "error") runtimeErrors.push(message.text());
+      });
+      page.on("requestfailed", (request) => {
+        if (new URL(request.url()).hostname.endsWith("google-analytics.com")) return;
+        runtimeErrors.push(`${request.url()}: ${request.failure()?.errorText}`);
+      });
+
+      await page.addInitScript(() => window.localStorage.setItem("neva.graphics-quality.v1", "high"));
+      await page.goto(`/?debug=1&worldAcceptance=1&${scenario.query}`);
+      const diagnostics = page.getByTestId("diagnostics");
+      await expect(diagnostics).toHaveAttribute("data-boot-ready", "true", { timeout: 300_000 });
+      await page.waitForTimeout(scenario.settleMs);
+
+      if (scenario.rotate) {
+        const bounds = await page.locator("#game-canvas").boundingBox();
+        if (bounds) {
+          const centreX = bounds.x + bounds.width / 2;
+          const centreY = bounds.y + bounds.height / 2;
+          await page.mouse.move(centreX, centreY);
+          await page.mouse.down({ button: "right" });
+          for (let step = 1; step <= 10; step += 1) {
+            await page.mouse.move(centreX - step * 14, centreY + step * 2, { steps: 1 });
+          }
+          await page.mouse.up({ button: "right" });
+          await page.waitForTimeout(1_200);
+        }
+      }
+
+      const metrics = await page.evaluate(() => {
+        const debug = window.__NEVA_DEBUG;
+        const rendered = debug?.renderDiagnostics();
+        if (!rendered) return null;
+        return {
+          renderMode: rendered.renderMode,
+          qualityTier: rendered.world.qualityTier,
+          draws: rendered.world.render.calls,
+          triangles: rendered.world.render.triangles,
+          frame: rendered.presentation.frameTiming ?? null,
+          phase: rendered.presentation.phaseTiming ?? null,
+          gpu: rendered.world.pipeline.gpuTiming,
+          atlas: rendered.world.shadowAtlas,
+          work: rendered.world.presentationWork
+        };
+      });
+
+      console.info(`[E2E] Scenario ${scenario.id}: ${JSON.stringify(metrics)}`);
+      const runDirectory = process.env.NEVA_BUDGET_RUN_DIR;
+      if (runDirectory) {
+        fs.mkdirSync(runDirectory, { recursive: true });
+        fs.writeFileSync(
+          path.join(runDirectory, `scenario-${scenario.id}.json`),
+          JSON.stringify({ scenario: scenario.id, query: scenario.query, metrics }, null, 1)
+        );
+      }
+      expect(runtimeErrors).toEqual([]);
+      expect(metrics, `${scenario.id} never produced render diagnostics`).not.toBeNull();
+      expect(metrics!.draws).toBeGreaterThan(0);
+      expect(metrics!.triangles).toBeGreaterThan(0);
+      expect(metrics!.qualityTier).toBe("high");
+      // Same wide stall bound as the frozen-camera gate; percentiles are the record.
+      expect(metrics!.frame?.samples ?? 0, `${scenario.id} frame ring never filled`).toBeGreaterThan(20);
+      expect(metrics!.frame!.p95Ms).toBeLessThan(250);
+      // `maxMs` is deliberately not gated here: boot-time shader compilation
+      // for a first-seen weather state (storm) still sits inside the ring and
+      // is a recorded finding, not a scenario regression.
+      expect(metrics!.phase?.length ?? 0, `${scenario.id} phase attribution missing`).toBeGreaterThan(0);
+    });
+  }
 });

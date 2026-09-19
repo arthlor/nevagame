@@ -19,6 +19,7 @@ import { MarketModal } from "./MarketModal";
 import { FishingHUD } from "./FishingHUD";
 import { BasicFishingMinigameWidget } from "./fishing/BasicFishingMinigameWidget";
 import { LaborMinigameWidget } from "./labor/LaborMinigameWidget";
+import { LaborShiftResult, type LaborShiftFeedbackDto } from "./labor/LaborShiftResult";
 import { ExpeditionBoard } from "./ExpeditionBoard";
 import { JournalFolio, JournalModal } from "./JournalModal";
 import { EscapeMenuModal } from "./EscapeMenuModal";
@@ -160,6 +161,8 @@ export interface GameUIProps {
   sportFishingHud: SportFishingHudDto | null;
   /** Active Work-shift timing readout; null when no shift is in progress. */
   laborHud: LaborHudDto | null;
+  /** Last completed strike, held for its short result animation. */
+  laborShiftFeedback?: LaborShiftFeedbackDto | null;
   onLaborStrike: () => void;
   onLaborCancel: () => void;
   onSetFishingInput: (input: {
@@ -304,6 +307,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onDismissCatchSummary,
   sportFishingHud,
   laborHud,
+  laborShiftFeedback = null,
   onLaborStrike,
   onLaborCancel,
   onSetFishingInput,
@@ -596,6 +600,10 @@ export const GameUI: React.FC<GameUIProps> = ({
 
       {laborHud && !activeModal && mode !== "sport-fishing" && mode !== "basic-fishing" && (
         <LaborMinigameWidget hud={laborHud} onStrike={onLaborStrike} onCancel={onLaborCancel} />
+      )}
+
+      {!laborHud && laborShiftFeedback && !activeModal && mode !== "sport-fishing" && mode !== "basic-fishing" && (
+        <LaborShiftResult key={laborShiftFeedback.token} feedback={laborShiftFeedback} />
       )}
 
       {mode === "sport-fishing" && !activeModal && <div className="guild-fishing-map interactive">

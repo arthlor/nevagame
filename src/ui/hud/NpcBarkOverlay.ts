@@ -12,6 +12,8 @@ export class NpcBarkOverlay {
   private activeId: string | null = null;
   private expiresAt = 0;
   private nextBubbleAt = 0;
+  private lastScreenX = Number.NaN;
+  private lastScreenY = Number.NaN;
 
   constructor(parent: HTMLElement) {
     this.root.className = "npc-world-bark";
@@ -27,15 +29,23 @@ export class NpcBarkOverlay {
     const project = (npc: NpcBarkDto) => projectWorldToScreen(
       { x: npc.x, y: heightAt(npc.x, npc.z) + 2.25, z: npc.z }, camera, viewport);
     let active = candidates.find((npc) => npc.npcId === this.activeId);
-    if (!active || nowMs >= this.expiresAt || !project(active).onScreen) {
+    let projected = active ? project(active) : null;
+    if (!active || !projected || nowMs >= this.expiresAt || !projected.onScreen) {
       this.activeId = null;
       active = undefined;
+      projected = null;
       this.root.hidden = true;
     }
     if (!active && nowMs >= this.nextBubbleAt) {
-      active = candidates.find((npc) => npc.lines.length > 0 &&
-        nowMs >= (this.nextAllowed.get(npc.npcId) ?? 0) && project(npc).onScreen);
-      if (active) {
+      for (const npc of candidates) {
+        if (npc.lines.length === 0 || nowMs < (this.nextAllowed.get(npc.npcId) ?? 0)) continue;
+        const candidateProjection = project(npc);
+        if (!candidateProjection.onScreen) continue;
+        active = npc;
+        projected = candidateProjection;
+        break;
+      }
+      if (active && projected) {
         const index = this.lineIndices.get(active.npcId) ?? 0;
         const line = active.lines[index % active.lines.length];
         this.lineIndices.set(active.npcId, index + 1);
@@ -48,10 +58,15 @@ export class NpcBarkOverlay {
         this.root.hidden = false;
       }
     }
-    if (active) {
-      const point = project(active);
-      this.root.style.left = `${Math.max(150, Math.min(viewport.width - 150, point.x))}px`;
-      this.root.style.top = `${Math.max(100, point.y)}px`;
+    if (active && projected) {
+      const x = Math.max(150, Math.min(viewport.width - 150, projected.x));
+      const y = Math.max(100, projected.y);
+      if (x !== this.lastScreenX || y !== this.lastScreenY) {
+        this.lastScreenX = x;
+        this.lastScreenY = y;
+        this.root.style.left = `${x}px`;
+        this.root.style.top = `${y}px`;
+      }
     }
   }
 

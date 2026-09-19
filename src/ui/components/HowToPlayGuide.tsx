@@ -74,7 +74,9 @@ const ActionsGuide: React.FC = () => (
         <p className="guide-lead">
           Follow the prompt above your tools to talk, tend crops, or cast.
           Work is spent on successful tasks and refilled by resting, eating
-          provisions, or working a labor shift. Sprinting uses its own stamina.
+          provisions, or working a labor shift — press E at a chore station
+          and strike as the needle crosses the gold band for the full share.
+          Sprinting uses its own stamina.
         </p>
       </div>
     </div>

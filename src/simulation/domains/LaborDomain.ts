@@ -33,13 +33,14 @@ export class LaborDomain {
   public inspectHud(): LaborHudDto {
     const active = this.runtime;
     if (!active) {
-      return { active: false, stationId: null, stationName: "", meter: 0, targetMin: 0, targetMax: 0 };
+      return { active: false, stationId: null, stationName: "", yield: 0, meter: 0, targetMin: 0, targetMax: 0 };
     }
     const station = laborStationAt(active.stationId);
     return {
       active: true,
       stationId: active.stationId,
       stationName: station?.name ?? "Work",
+      yield: station?.yield ?? 0,
       meter: active.meter,
       targetMin: station?.targetMin ?? 0,
       targetMax: station?.targetMax ?? 0
@@ -130,7 +131,7 @@ export class LaborDomain {
     }
     const granted = this.progression.earnWork(requested, station.id);
     if (granted <= 0) return { success: false, reason: "You are full of energy already" };
-    return { success: true, yield: granted };
+    return { success: true, yield: granted, grade: fraction >= 1 ? "clean" : "glancing" };
   }
 
   public cancel(): InteractionResult {

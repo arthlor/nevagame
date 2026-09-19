@@ -43,6 +43,10 @@ export class WorldRewardOverlay {
   }
 
   update(camera: Camera, viewport: { width: number; height: number }, now: number): void {
+    // The satchel button is a stable HUD node; look it up and measure it once
+    // per frame instead of once per animating reward slot.
+    let satchel: HTMLElement | null | undefined;
+    let satchelRect: DOMRect | null = null;
     for (const slot of this.slots) {
       if (!slot.reward) continue;
       const age = (now - slot.born) / 1900;
@@ -50,17 +54,20 @@ export class WorldRewardOverlay {
       const projection = projectWorldToScreen(slot.reward, camera, viewport);
       slot.node.hidden = !projection.onScreen;
       if (slot.reward.kind === "item" && slot.reward.itemId) {
-        const destination = document.querySelector<HTMLElement>("[data-testid=micro-btn-satchel]");
+        if (satchel === undefined) {
+          satchel = document.querySelector<HTMLElement>("[data-testid=micro-btn-satchel]");
+          satchelRect = satchel?.getBoundingClientRect() ?? null;
+        }
         const travel = Math.min(1, age * 2.5);
-        if (destination && projection.onScreen && !this.motion.matches && ITEM_ART[slot.reward.itemId] && travel < 1) {
-          const rect = destination.getBoundingClientRect();
-          const endX = rect.left + rect.width / 2, endY = rect.top + rect.height / 2;
+        if (satchel && satchelRect && projection.onScreen && !this.motion.matches && ITEM_ART[slot.reward.itemId] && travel < 1) {
+          const endX = satchelRect.left + satchelRect.width / 2;
+          const endY = satchelRect.top + satchelRect.height / 2;
           slot.icon.hidden = false;
           slot.icon.style.transform = `translate(${projection.x + (endX - projection.x) * travel}px, ${projection.y + (endY - projection.y) * travel - Math.sin(travel * Math.PI) * 90}px) translate(-50%, -50%) scale(${1 - travel * 0.45})`;
         } else slot.icon.hidden = true;
         if (!slot.landed && (travel >= 1 || this.motion.matches)) {
           slot.landed = true;
-          destination?.animate([{ filter: "brightness(1.7)" }, { filter: "brightness(1)" }], { duration: 420 });
+          satchel?.animate([{ filter: "brightness(1.7)" }, { filter: "brightness(1)" }], { duration: 420 });
         }
       }
       const rise = this.motion.matches ? 0 : 42 * (1 - (1 - age) ** 2);

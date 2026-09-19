@@ -175,6 +175,45 @@ export interface WorldRenderDiagnostics {
   };
   pipeline: RendererPipelineDiagnostics;
   fieldOverlay: WorldFieldOverlay | null;
+  /** Per-frame reconciliation, sync and instance-write counters. */
+  presentationWork: {
+    immediateSyncCalls: number;
+    reconciliationRuns: number;
+    reconciliationSkips: number;
+    rigidBatchUpdates: number;
+    rigidBatchSkips: number;
+    slots: number;
+    placements: number;
+    slotWrites: number;
+    matrixUploadRanges: number;
+    highlightUploadRanges: number;
+  };
+  /** Retained template ownership and the eviction ceiling. */
+  assetCache: {
+    templates: number;
+    bytes: number;
+    liveConsumers: number;
+    budgetBytes: number;
+  };
+  /** Dual-map shadow compositor state and refresh counters. */
+  shadowAtlas: {
+    enabled: boolean;
+    dimension: number;
+    staticRefreshes: number;
+    dynamicRefreshes: number;
+    combines: number;
+    lastStaticRefreshReason: string | null;
+    staticCasters: number;
+    dynamicCasters: number;
+    committedFocus: { x: number; y: number; z: number } | null;
+    cpu: {
+      frames: number;
+      staticP50Ms: number;
+      dynamicP50Ms: number;
+      combineP50Ms: number;
+      totalP50Ms: number;
+    } | null;
+  };
 }
 import { ShoreFoam } from "../water/ShoreFoam";
 
@@ -216,7 +255,7 @@ import {
   sampleWeatherMotionSignal,
   type WeatherMotionSignal
 } from "../motion/WeatherMotionSignal";
-import { WeatherPresentation } from "../weather/WeatherPresentation";
+import { WeatherPresentation, type WeatherAppearance } from "../weather/WeatherPresentation";
 import {
   createSportFishingPresentationSample,
   sampleSportFishingPresentation,
@@ -251,6 +290,7 @@ interface AmbientTownsfolkPresentation {
   animator: HumanoidAnimator;
   motionFrame: CharacterMotionFrame | null;
   lastAnimationContext: CharacterAnimationContext | null;
+  pendingAnimationSeconds: number;
 }
 
 const CHARACTER_DETAIL_DISTANCE_METERS = 14;
@@ -261,6 +301,9 @@ const AMBIENT_TOWNSFOLK_VISIBILITY_METERS = 110;
 /** Enter/exit gap so a villager drifting on the edge does not blink. */
 const AMBIENT_TOWNSFOLK_VISIBILITY_HYSTERESIS_METERS = 6;
 const NPC_VISIBILITY_HYSTERESIS_METERS = 5;
+/** Ambient townsfolk animation throttles like named NPCs once they are distant. */
+const AMBIENT_TOWNSFOLK_ANIMATION_FULL_RATE_METERS = 40;
+const AMBIENT_TOWNSFOLK_ANIMATION_MID_RATE_METERS = 90;
 /** Only stations close enough to read emit visible work cues. */
 const STATION_ACTIVITY_RADIUS_METERS = 55;
 /** Cue height above the station surface, per station family. */
@@ -777,7 +820,8 @@ export class WorldScene {
     windSpeed: 0
   };
   private playerContactShadow: ContactShadowMesh | null = null;
-  private windmillRotor: THREE.Group | null = null;
+  /** Authored `*_rotor` pivots (one per LOD level) turned by the ambient wind. */
+  private readonly windmillRotors: THREE.Object3D[] = [];
   private farmhouseSmoke: THREE.Group | null = null;
   private readonly farmhouseSmokeUniforms = {
     nevaSmokeTime: { value: 0 },
@@ -792,6 +836,19 @@ export class WorldScene {
   private readonly ambientFlyers: AmbientFlyerPresentation[] = [];
   private readonly rigidAnimationBatches = new Map<THREE.Object3D, RigidAnimationBatch>();
   private syncInFlight: Promise<void> | null = null;
+  private phaseRecorder: ((phase: string, elapsedMs: number) => void) | null = null;
+  /**
+   * Entity reconciliation is not a per-frame presentation pass. This signature
+   * covers every descriptor `loadMissingMeshes` reacts to (plus whether each
+   * presentation object actually exists yet, so failed loads keep retrying);
+   * when it is unchanged the settled world skips the scan entirely.
+   */
+  private lastReconciliationSignature: string | null = null;
+  private immediateSyncCalls = 0;
+  private reconciliationRuns = 0;
+  private reconciliationSkips = 0;
+  private rigidBatchUpdates = 0;
+  private rigidBatchSkips = 0;
   private readonly wakeEmitState = new Map<string, { x: number; z: number; timeSeconds: number }>();
   private readonly rowboatPresentationRigs = new Map<string, RowboatPresentationRig>();
   private readonly boatDriverSeats = new Map<string, THREE.Object3D>();
@@ -923,6 +980,9 @@ export class WorldScene {
   private activeDialogueNpcId: string | null = null;
   private readonly weatherMotion: WeatherMotionSignal = createWeatherMotionSignal();
   private readonly weatherPresentation = new WeatherPresentation();
+  private frameWeatherAppearance: WeatherAppearance | null = null;
+  private frameWeatherAppearanceTime = Number.NaN;
+  private frameWeatherAppearanceSeed = Number.NaN;
   private lastAmbientMotionTimeSeconds = 0;
   /** Unpaused presentation clock for the ambient drift; frozen while paused. */
   private ambientTownsfolkElapsedSeconds = 0;
@@ -1006,6 +1066,7 @@ export class WorldScene {
     for (const [id, pack] of this.carriagePacks) {
       if (state.mounts[STARTER_CARRIAGE_ID]?.fishCargoSlotIds?.[pack.slot] !== id) {
         pack.root.removeFromParent();
+        AssetLoader.releaseModel(pack.root);
         this.carriagePacks.delete(id);
       }
     }
@@ -1015,6 +1076,7 @@ export class WorldScene {
     for (const [id, pack] of this.boatFishPacks) {
       if (!state.fishCargo[id] || state.boats[pack.boatId]?.fishCargoSlotIds[pack.slot] !== id) {
         pack.root.removeFromParent();
+        AssetLoader.releaseModel(pack.root);
         this.boatFishPacks.delete(id);
       }
     }
@@ -1090,6 +1152,9 @@ export class WorldScene {
           ?? createWorldEnvironmentLayout(worldSeed);
         WorldScene.preparedStartupLayouts.delete(worldSeed);
         await this.populateEnvironment(layout);
+        // One classification pass over the finished world; later dynamic
+        // registrations mark the lists dirty again.
+        this.lightingRig.shadowAtlas.markCastersDirty();
       })();
     }
     return this.readyPromise;
@@ -1626,7 +1691,17 @@ export class WorldScene {
         programs: this.renderer.info.programs?.length ?? 0
       },
       pipeline: this.rendererPipeline.diagnostics(),
-      fieldOverlay: this.diagnosticOverlayMode
+      fieldOverlay: this.diagnosticOverlayMode,
+      presentationWork: {
+        immediateSyncCalls: this.immediateSyncCalls,
+        reconciliationRuns: this.reconciliationRuns,
+        reconciliationSkips: this.reconciliationSkips,
+        rigidBatchUpdates: this.rigidBatchUpdates,
+        rigidBatchSkips: this.rigidBatchSkips,
+        ...this.cropInstances.presentationWorkStats()
+      },
+      assetCache: AssetLoader.cacheStats(),
+      shadowAtlas: this.lightingRig.shadowAtlasDiagnostics()
     };
   }
 
@@ -2178,28 +2253,25 @@ export class WorldScene {
     });
   }
 
+  /**
+   * The windmill's sails live under authored `windmill_rotor` / `*_LOD<n>_rotor`
+   * empties, one per generated LOD level. Turning those pivots in place keeps
+   * every level's own rotor, instead of reparenting the LOD0 meshes out of their
+   * level (which left the other level's static rotor spinning next to the moving
+   * one and duplicated sails). Marking the pivots and their meshes dynamic keeps
+   * them out of the shared static batches and lets the shadow atlas redraw them
+   * each frame.
+   */
   private configureWindmillRotor(windmill: THREE.Group): void {
-    windmill.updateMatrixWorld(true);
-    const hub = windmill.getObjectByName("windmill_hub");
-    if (!hub) return;
-    const pivot = new THREE.Group();
-    pivot.name = "windmill_runtime_rotor";
-    pivot.position.copy(windmill.worldToLocal(hub.getWorldPosition(new THREE.Vector3())));
-    windmill.add(pivot);
-    pivot.updateMatrixWorld(true);
-    const movingParts: THREE.Object3D[] = [];
     windmill.traverse((object) => {
-      if (
-        object !== pivot &&
-        (object.name === "windmill_hub" ||
-          object.name.startsWith("windmill_spar_") ||
-          object.name.startsWith("windmill_sail_"))
-      ) {
-        movingParts.push(object);
-      }
+      if (object.name !== "windmill_rotor" && !/_LOD\d+_rotor$/.test(object.name)) return;
+      if (this.windmillRotors.includes(object)) return;
+      object.userData.dynamicPresentation = true;
+      object.traverse((child) => {
+        child.userData.dynamicPresentation = true;
+      });
+      this.windmillRotors.push(object);
     });
-    for (const part of movingParts) pivot.attach(part);
-    this.windmillRotor = pivot;
   }
 
   /**
@@ -2449,7 +2521,6 @@ export class WorldScene {
         }
       }
     }
-    if (this.windmillRotor) this.batchCompatibleMeshes(this.windmillRotor, () => false);
 
     for (const child of staticAssetRoots) {
       this.environmentGroup.remove(child);
@@ -2674,7 +2745,7 @@ export class WorldScene {
     this.batchCompatibleMeshes(this.staticPrefabGroup, (object) => {
       let ancestor: THREE.Object3D | null = object;
       while (ancestor) {
-        if (ancestor.name === "windmill_runtime_rotor" || ancestor.userData.dynamicPresentation) {
+        if (ancestor.userData.dynamicPresentation) {
           return true;
         }
         ancestor = ancestor.parent;
@@ -2684,15 +2755,21 @@ export class WorldScene {
     // The visible LOD0 meshes now live in shared static batches. Remove the
     // original LOD controllers so a later camera update cannot reveal their
     // unbatched fallback levels and silently restore hundreds of draw calls.
+    // A controller that still owns live dynamic content (the windmill rotors)
+    // stays: it is the only thing toggling those meshes with distance.
     const flattenedLods: THREE.LOD[] = [];
     this.staticPrefabGroup.traverse((object) => {
       if (!(object instanceof THREE.LOD)) return;
+      let dynamic = false;
+      object.traverse((child) => {
+        if (child.userData.dynamicPresentation) dynamic = true;
+      });
       let ancestor: THREE.Object3D | null = object.parent;
-      while (ancestor) {
-        if (ancestor.userData.dynamicPresentation) return;
+      while (!dynamic && ancestor) {
+        if (ancestor.userData.dynamicPresentation) dynamic = true;
         ancestor = ancestor.parent;
       }
-      flattenedLods.push(object);
+      if (!dynamic) flattenedLods.push(object);
     });
     for (const lod of flattenedLods) lod.removeFromParent();
   }
@@ -2982,6 +3059,10 @@ export class WorldScene {
     this.updateCharacterDetailLod();
     this.updateStaticLodBatches();
     this.updateStaticBatchChunkVisibility();
+    // Runtime LOD changes mirror into rigid batch instance visibility; the
+    // revision gate would otherwise hold the previous level until the actor's
+    // next animation tick.
+    for (const batch of this.rigidAnimationBatches.values()) batch.markDirty();
   }
 
   private batchPlayerRigidMeshes(root: THREE.Group): void {
@@ -3042,12 +3123,30 @@ export class WorldScene {
     this.boatResponses.trigger(boatId, kind, timeSeconds, slotIndex);
   }
 
+  /**
+   * One weather transition per presentation frame. Lighting, motion sampling
+   * and the water conditions all read the same appearance instead of advancing
+   * the transition three times.
+   */
+  private weatherAppearance(state: Readonly<GameState>, timeSeconds: number): WeatherAppearance {
+    if (
+      !this.frameWeatherAppearance
+      || timeSeconds !== this.frameWeatherAppearanceTime
+      || state.worldSeed !== this.frameWeatherAppearanceSeed
+    ) {
+      this.frameWeatherAppearance = this.weatherPresentation.sample(state.weather, state.worldSeed, timeSeconds);
+      this.frameWeatherAppearanceTime = timeSeconds;
+      this.frameWeatherAppearanceSeed = state.worldSeed;
+    }
+    return this.frameWeatherAppearance;
+  }
+
   public updateEnvironment(
     state: Readonly<GameState>,
     timeSeconds: number,
     focus: THREE.Vector3
   ): void {
-    const appearance = this.weatherPresentation.sample(state.weather, state.worldSeed, timeSeconds);
+    const appearance = this.weatherAppearance(state, timeSeconds);
     const frame = this.lightingRig.update(state, timeSeconds, focus, this.prefersReducedMotion, appearance);
     this.atmosphereSky?.update(frame, appearance.weather, state.worldSeed, timeSeconds, this.prefersReducedMotion);
     if (this.practicalLightFocus.distanceToSquared(focus) >= 0.25) {
@@ -3540,7 +3639,7 @@ export class WorldScene {
   }
 
   private updateAmbientMotion(state: Readonly<GameState>, timeSeconds: number): void {
-    sampleWeatherMotionSignal(this.weatherPresentation.sample(state.weather, state.worldSeed, timeSeconds).weather, timeSeconds, this.weatherMotion);
+    sampleWeatherMotionSignal(this.weatherAppearance(state, timeSeconds).weather, timeSeconds, this.weatherMotion);
     const delta = this.lastAmbientMotionTimeSeconds > 0
       ? THREE.MathUtils.clamp(timeSeconds - this.lastAmbientMotionTimeSeconds, 0, 0.1)
       : 1 / 60;
@@ -3555,9 +3654,10 @@ export class WorldScene {
       this.interactionFeedback.material.opacity = 0.62 + breathe * 0.1;
       for (const material of this.interactionMaterials.get(this.activeInteractionMaterialId ?? "") ?? []) material.emissiveIntensity = 0.07 + breathe * 0.025;
     }
-    if (this.windmillRotor) {
+    if (this.windmillRotors.length > 0) {
       const rotorSpeed = (0.18 + this.weatherMotion.effectiveWindSpeed * 0.035) * motionScale;
-      this.windmillRotor.rotation.z = -timeSeconds * rotorSpeed;
+      const rotorAngle = -timeSeconds * rotorSpeed;
+      for (const rotor of this.windmillRotors) rotor.rotation.z = rotorAngle;
     }
     if (this.farmhouseSmoke) {
       this.farmhouseSmokeUniforms.nevaSmokeTime.value = timeSeconds * motionScale;
@@ -3647,7 +3747,12 @@ export class WorldScene {
 
   private disposeSchoolEffect(group: THREE.Group): void {
     const members = group.userData.fishMembers as FishPresentationMember[] | undefined;
-    for (const member of members ?? []) this.disposeFishVisibility(member);
+    for (const member of members ?? []) {
+      AssetLoader.releaseModel(member.root);
+      this.disposeFishVisibility(member);
+    }
+    const gull = group.userData.schoolGull as THREE.Object3D | undefined;
+    if (gull) AssetLoader.releaseModel(gull);
     (group.userData.surfaceRipples as SchoolSurfaceRipples | undefined)?.dispose();
     group.removeFromParent();
   }
@@ -3705,11 +3810,11 @@ export class WorldScene {
       idleAction.play();
       idleAction.time = stablePresentationPhase(id) * idleAction.getClip().duration;
     }
+    this.lightingRig.shadowAtlas.registerDynamicRoot(root);
     this.donkeyPresentation = {
       id,
       placementId,
-      root,
-      riderSocket,
+      root,      riderSocket,
       stirrupLeftSocket,
       stirrupRightSocket,
       reinLeftGrip,
@@ -4051,10 +4156,15 @@ export class WorldScene {
       const dx = fauna.root.position.x - this.visibilityAnchor.x;
       const dz = fauna.root.position.z - this.visibilityAnchor.z;
       const distanceSq = dx * dx + dz * dz;
-      fauna.root.visible = distanceSq <= 150 * 150;
-      if (!fauna.root.visible) continue;
+      const visible = distanceSq <= 150 * 150;
+      if (visible !== fauna.root.visible) {
+        fauna.root.visible = visible;
+        this.rigidAnimationBatches.get(fauna.root)?.markDirty();
+      }
+      if (!visible) continue;
       const interval = distanceSq <= 36 * 36 ? 0 : distanceSq <= 85 * 85 ? 1 / 12 : 0.4;
       if (timeSeconds - fauna.lastMotionUpdateSeconds < interval) continue;
+      this.rigidAnimationBatches.get(fauna.root)?.markDirty();
       const faunaDelta = fauna.lastMotionUpdateSeconds > 0
         ? Math.min(0.4, timeSeconds - fauna.lastMotionUpdateSeconds)
         : delta;
@@ -4186,7 +4296,7 @@ export class WorldScene {
         this.environmentGroup.add(model);
         this.ambientTownsfolk.push({
           route, model, animator: new HumanoidAnimator(model),
-          motionFrame: null, lastAnimationContext: null
+          motionFrame: null, lastAnimationContext: null, pendingAnimationSeconds: 0
         });
       } catch (error) {
         console.warn(`[WorldScene] Failed to load townsfolk ${route.id}:`, error);
@@ -4223,10 +4333,15 @@ export class WorldScene {
       const dz = pose.z - this.visibilityAnchor.z;
       const distanceSq = dx * dx + dz * dz;
       const visibilityDistance = flyer.kind === "butterfly" ? 120 : 190;
-      flyer.object.visible = distanceSq <= visibilityDistance * visibilityDistance;
-      if (!flyer.object.visible) continue;
+      const visible = distanceSq <= visibilityDistance * visibilityDistance;
+      if (visible !== flyer.object.visible) {
+        flyer.object.visible = visible;
+        this.rigidAnimationBatches.get(flyer.object)?.markDirty();
+      }
+      if (!visible) continue;
       flyer.object.position.set(pose.x, pose.y, pose.z);
       flyer.object.rotation.y = pose.heading;
+      this.rigidAnimationBatches.get(flyer.object)?.markDirty();
       // Near gulls flap; far gulls glide. Blend across 45–70 m so the switch
       // never pops, and so both shipped clips are actually used.
       const glideBlend = Math.max(0, Math.min(1, (Math.sqrt(distanceSq) - 45) / 25));
@@ -4385,8 +4500,9 @@ export class WorldScene {
     boatPresentationInput: BoatPresentationInput | null = this.latestBoatPresentationInput,
     locomotionTimeScale = this.latestLocomotionTimeScale
   ): void {
+    this.immediateSyncCalls += 1;
     const state = sim.getState();
-    sampleWeatherMotionSignal(this.weatherPresentation.sample(state.weather, state.worldSeed, timeSeconds).weather, timeSeconds, this.weatherMotion);
+    sampleWeatherMotionSignal(this.weatherAppearance(state, timeSeconds).weather, timeSeconds, this.weatherMotion);
     if (presentedPlayer) this.latestPresentedPlayer = presentedPlayer;
     this.latestBoatPresentationInput = boatPresentationInput;
     this.latestLocomotionTimeScale = THREE.MathUtils.clamp(locomotionTimeScale, 0, 1);
@@ -4868,8 +4984,10 @@ export class WorldScene {
       }
       const interval = contextChanged || walkSpeed > 0.01 || isDialogueTarget || distSq <= 40 * 40 ? 0 : distSq <= 90 * 90 ? 1 / 12 : 0.4;
       npc.pendingAnimationSeconds += npcFrameDelta;
+      let npcAnimationDelta = 0;
       if (npc.pendingAnimationSeconds >= interval) {
         const animationDelta = npc.pendingAnimationSeconds;
+        npcAnimationDelta = animationDelta;
         npc.pendingAnimationSeconds = 0;
         npc.motionFrame = npc.animator.update(animationDelta, context, this.prefersReducedMotion);
         // Talking always faces the player; otherwise the head turns to
@@ -4907,8 +5025,13 @@ export class WorldScene {
         );
       }
       npc.lastAnimationContext = context;
-      npc.model.updateMatrixWorld(true);
-      npc.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z), npcFrameDelta);
+      // Contact solving forces a world-matrix refresh, so distant, settled
+      // actors pay it on their animation cadence instead of every frame.
+      if (npcAnimationDelta > 0 || distSq <= 40 * 40) {
+        npc.model.updateMatrixWorld(true);
+        npc.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z),
+          npcAnimationDelta > 0 ? npcAnimationDelta : npcFrameDelta);
+      }
     }
 
     this.updateAmbientTownsfolk(state, timeSeconds, delta);
@@ -4992,18 +5115,36 @@ export class WorldScene {
           requestedGait: speed > 0.01 ? "walk" : "idle"
         })
       };
-      person.motionFrame = person.animator.update(delta, context, this.prefersReducedMotion);
-      const passiveHeadYaw = acknowledgeHeadYaw(
-        this.playerPresence,
-        pose.x,
-        pose.z,
-        person.model.rotation.y
-      );
-      const eventHeadYaw = wrapPresentationAngle(reactionHeading - person.model.rotation.y);
-      person.animator.lookTowardHeading(
-        THREE.MathUtils.lerp(passiveHeadYaw, eventHeadYaw, socialReaction.attention),
-        delta
-      );
+      // Distant villagers update on the same cadence as distant named NPCs; the
+      // pose clock still advances every frame, so this throttles skinning work
+      // without making the walk cycle step.
+      const contextChanged = !person.lastAnimationContext
+        || (person.lastAnimationContext.motion.speedMetersPerSecond > 0.01) !== (speed > 0.01);
+      if (contextChanged && person.lastAnimationContext && person.pendingAnimationSeconds > 0) {
+        person.animator.update(person.pendingAnimationSeconds, person.lastAnimationContext, this.prefersReducedMotion);
+        person.pendingAnimationSeconds = 0;
+      }
+      const interval = speed > 0.01 || distance < AMBIENT_TOWNSFOLK_ANIMATION_FULL_RATE_METERS
+        ? 0
+        : distance < AMBIENT_TOWNSFOLK_ANIMATION_MID_RATE_METERS ? 1 / 12 : 0.4;
+      person.pendingAnimationSeconds += delta;
+      let animationDelta = 0;
+      if (person.pendingAnimationSeconds >= interval) {
+        animationDelta = person.pendingAnimationSeconds;
+        person.pendingAnimationSeconds = 0;
+        person.motionFrame = person.animator.update(animationDelta, context, this.prefersReducedMotion);
+        const passiveHeadYaw = acknowledgeHeadYaw(
+          this.playerPresence,
+          pose.x,
+          pose.z,
+          person.model.rotation.y
+        );
+        const eventHeadYaw = wrapPresentationAngle(reactionHeading - person.model.rotation.y);
+        person.animator.lookTowardHeading(
+          THREE.MathUtils.lerp(passiveHeadYaw, eventHeadYaw, socialReaction.attention),
+          animationDelta
+        );
+      }
       if (person.motionFrame) {
         const weatherPosture = sampleWeatherPosture(
           this.weatherPresentation.current?.weather ?? state.weather,
@@ -5022,8 +5163,11 @@ export class WorldScene {
         );
       }
       person.lastAnimationContext = context;
-      person.model.updateMatrixWorld(true);
-      person.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z), delta);
+      if (animationDelta > 0 || distance < AMBIENT_TOWNSFOLK_ANIMATION_FULL_RATE_METERS) {
+        person.model.updateMatrixWorld(true);
+        person.animator.resolveGroundContacts(context, (x, z) => WorldLayout.traversalSurfaceSample(x, z),
+          animationDelta > 0 ? animationDelta : delta);
+      }
     }
   }
 
@@ -5665,6 +5809,7 @@ export class WorldScene {
         }
         this.playerPelvis = pelvis;
         this.playerMesh = mesh;
+        this.lightingRig.shadowAtlas.registerDynamicRoot(mesh);
         this.playerBackpackSocket = createTradePackBackSocket(mesh);
         this.playerEquipmentAssembler = new CharacterEquipmentAssembler(mesh, {
           loadModel: (assetId) => this.loadModel(assetId),
@@ -5714,6 +5859,7 @@ export class WorldScene {
           });
           this.scene.add(bMesh);
           this.boatMeshes.set(boatId, bMesh);
+          this.lightingRig.shadowAtlas.registerDynamicRoot(bMesh);
           loadedNewMesh = true;
           if (boatState.boatTypeId === "boat.rowboat") {
             this.configureRowboatPresentation(boatId, bMesh);
@@ -5731,6 +5877,7 @@ export class WorldScene {
         this.carriagePresentation = new CarriagePresentation(cart, horse);
         this.setShadowPolicy(this.carriagePresentation.root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
         this.scene.add(this.carriagePresentation.root);
+        this.lightingRig.shadowAtlas.registerDynamicRoot(this.carriagePresentation.root);
         loadedNewMesh = true;
       }
     }
@@ -5746,6 +5893,7 @@ export class WorldScene {
         if (sim.getState().mounts[STARTER_CARRIAGE_ID]?.fishCargoSlotIds?.[slot] !== id || this.carriagePacks.has(id)) continue;
         this.carriagePresentation.sockets[slot].add(root);
         this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
+        this.lightingRig.shadowAtlas.registerDynamicRoot(root);
         this.carriagePacks.set(id, { root, slot });
         loadedNewMesh = true;
       }
@@ -5758,7 +5906,10 @@ export class WorldScene {
 
     const carriedId = state.player.carriedFishCargoId;
     if (this.carriedFishPresentation?.cargoId !== carriedId) {
-      this.carriedFishPresentation?.root.removeFromParent();
+      if (this.carriedFishPresentation) {
+        this.carriedFishPresentation.root.removeFromParent();
+        AssetLoader.releaseModel(this.carriedFishPresentation.root);
+      }
       this.carriedFishPresentation = null;
     }
     const carriedCargo = carriedId ? state.fishCargo[carriedId] : null;
@@ -5795,6 +5946,7 @@ export class WorldScene {
         attachBoatTradePack(mesh, boat.boatTypeId, slot, root);
         root.userData.cargoId = cargoId;
         this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
+        this.lightingRig.shadowAtlas.registerDynamicRoot(root);
         this.boatFishPacks.set(cargoId, { root, boatId, slot });
         loadedNewMesh = true;
       }
@@ -5805,6 +5957,7 @@ export class WorldScene {
       : null;
     if (this.hookedFishAssetId !== sportFishAssetId) {
       this.disposeFishVisibility(this.hookedFishPresentation);
+      if (this.hookedFishModel) AssetLoader.releaseModel(this.hookedFishModel);
       this.hookedFishModel?.removeFromParent();
       this.hookedFishModel = null;
       this.hookedFishAssetId = null;
@@ -5898,10 +6051,47 @@ export class WorldScene {
     if (loadedNewMesh) {
       this.runtimeLodsDirty = true;
       this.distanceVisibilityDirty = true;
+      this.lightingRig.shadowAtlas.markCastersDirty();
+      // Newly loaded meshes need their world transform initialized before they
+      // can render. This is the only case that needs a second presentation
+      // pass; a reconciliation that loaded nothing must not run one.
+      this.checkAlive();
+      this.applyImmediateSync(sim, Math.max(timeSeconds, this.lastPresentationTime), this.latestPresentedPlayer);
     }
-    // Newly loaded meshes use the same presentation path as every later frame.
-    this.checkAlive();
-    this.applyImmediateSync(sim, Math.max(timeSeconds, this.lastPresentationTime), this.latestPresentedPlayer);
+  }
+
+  /**
+   * Cheap descriptor of everything `loadMissingMeshes` can create or replace.
+   * Includes actual presentation presence so a failed load differs from its
+   * settled state and retries, exactly like the pre-gate behavior.
+   */
+  private computeReconciliationSignature(sim: Simulation): string {
+    const state = sim.getState();
+    const parts: string[] = [
+      this.playerMesh ? "player" : "player-missing",
+      this.playerEquipmentAssembler
+        ? JSON.stringify(characterVisualLoadoutFromState(state))
+        : "equipment-missing",
+      state.player.carriedFishCargoId ?? "carry-none",
+      this.carriedFishPresentation?.cargoId ?? "carry-model-none",
+      state.sportFishing?.fish.speciesId ?? "no-sport-fish",
+      this.hookedFishAssetId ?? "hooked-none",
+      this.skiffMooringPreview ? "skiff-preview" : this.ownedSkiffMeshReady(state) ? "skiff-owned" : "skiff-missing",
+      this.cropInstances.assetStatusSignature(state)
+    ];
+    for (const boat of Object.values(state.boats)) {
+      parts.push(`boat:${boat.id}:${boat.boatTypeId}:${this.boatMeshes.has(boat.id) ? "mesh" : "missing"}:${boat.fishCargoSlotIds.join(",")}`);
+    }
+    const carriage = state.mounts[STARTER_CARRIAGE_ID];
+    if (carriage) {
+      parts.push(`carriage:${this.carriagePresentation ? "mesh" : "missing"}:${(carriage.fishCargoSlotIds ?? []).join(",")}`);
+    }
+    for (const cargoId of this.boatFishPacks.keys()) parts.push(`boat-pack:${cargoId}`);
+    for (const cargoId of this.carriagePacks.keys()) parts.push(`carriage-pack:${cargoId}`);
+    for (const schoolId of Object.keys(state.world.activeSchools)) {
+      parts.push(`school:${schoolId}:${this.schoolEffects.has(schoolId) ? "yes" : "missing"}`);
+    }
+    return parts.join("|");
   }
 
   /**
@@ -5918,13 +6108,30 @@ export class WorldScene {
     this.applyImmediateSync(sim, timeSeconds, presentedPlayer ?? null, boatPresentationInput, locomotionTimeScale);
 
     if (!this.syncInFlight) {
-      this.syncInFlight = this.loadMissingMeshes(sim, timeSeconds).finally(() => { this.syncInFlight = null; });
+      const signature = this.computeReconciliationSignature(sim);
+      if (signature !== this.lastReconciliationSignature) {
+        this.reconciliationRuns += 1;
+        this.syncInFlight = this.loadMissingMeshes(sim, timeSeconds)
+          // Recompute after the run: a state change that landed during an
+          // await must trigger another reconciliation rather than being
+          // swallowed by this one.
+          .then(() => { this.lastReconciliationSignature = this.computeReconciliationSignature(sim); })
+          .catch((error) => {
+            this.lastReconciliationSignature = null;
+            throw error;
+          })
+          .finally(() => { this.syncInFlight = null; });
+      } else {
+        this.reconciliationSkips += 1;
+      }
     }
-    await this.syncInFlight;
+    if (this.syncInFlight) await this.syncInFlight;
     this.checkAlive();
   }
 
   public render(camera: THREE.Camera, deltaSeconds = 1 / 60): void {
+    const record = this.phaseRecorder;
+    let mark = record ? performance.now() : 0;
     this.activeCamera = camera;
     this.water?.updateCamera(camera);
     this.hasRenderedFrame = true;
@@ -5935,8 +6142,22 @@ export class WorldScene {
     this.groundCover.updateRenderVisibility(camera);
     this.meadowField.update(this.visibilityAnchor.x, this.visibilityAnchor.z);
     this.meadowField.updateRenderVisibility(camera);
-    for (const batch of this.rigidAnimationBatches.values()) batch.update();
+    for (const batch of this.rigidAnimationBatches.values()) {
+      if (batch.update()) this.rigidBatchUpdates += 1;
+      else this.rigidBatchSkips += 1;
+    }
+    if (record) {
+      record("render:world-update", performance.now() - mark);
+      mark = performance.now();
+    }
     this.rendererPipeline.render(camera);
+    if (record) record("render:pipeline", performance.now() - mark);
+  }
+
+  /** Debug-only main-thread split of `render()`; null disables measurement. */
+  public setPhaseRecorder(recorder: ((phase: string, elapsedMs: number) => void) | null): void {
+    this.phaseRecorder = recorder;
+    this.lightingRig.shadowAtlas.setCpuTimingEnabled(recorder !== null);
   }
 
   public prepareForVisualCapture(camera: THREE.Camera): Promise<void> { return this.prepareForEntry(camera); }
@@ -5948,12 +6169,22 @@ export class WorldScene {
     // asset load happened to land before or after the last update.
     this.distanceVisibilityDirty = true;
     this.updateDistanceManagedPresentation();
-    for (const batch of this.rigidAnimationBatches.values()) batch.update();
+    for (const batch of this.rigidAnimationBatches.values()) batch.update(true);
     return this.rendererPipeline.prepareForEntry(camera);
   }
 
   public setCaptureRenderMode(mode: CaptureRenderMode): void {
     this.rendererPipeline.setCaptureRenderMode(mode);
+  }
+
+  /** Debug/acceptance: alternate named pass GPU queries with whole-frame ones. */
+  public setGpuPassTimingEnabled(enabled: boolean): void {
+    this.rendererPipeline.setPassTimingEnabled(enabled);
+  }
+
+  /** Debug/acceptance A/B for the dual-map shadow compositor. */
+  public setShadowAtlasEnabled(enabled: boolean): void {
+    this.lightingRig.shadowAtlas.setEnabled(enabled);
   }
 
   public setDiagnosticOverlay(mode: WorldFieldOverlay | null, worldSeed: number): void {
@@ -6091,9 +6322,15 @@ export class WorldScene {
     this.playerEquipmentAssembler?.dispose();
     this.playerEquipmentAssembler = null;
     this.playerPelvis = null;
-    this.carriedFishPresentation?.root.removeFromParent();
+    if (this.carriedFishPresentation) {
+      this.carriedFishPresentation.root.removeFromParent();
+      AssetLoader.releaseModel(this.carriedFishPresentation.root);
+    }
     this.carriedFishPresentation = null;
-    for (const pack of this.boatFishPacks.values()) pack.root.removeFromParent();
+    for (const pack of this.boatFishPacks.values()) {
+      pack.root.removeFromParent();
+      AssetLoader.releaseModel(pack.root);
+    }
     this.boatFishPacks.clear();
     this.playerBackpackSocket = null;
     this.lastPlayerDiscontinuitySequence = -1;
@@ -6110,6 +6347,10 @@ export class WorldScene {
     this.playerAnimationEvents.length = 0;
     this.carriagePresentation?.dispose();
     this.carriagePresentation = null;
+    for (const pack of this.carriagePacks.values()) {
+      pack.root.removeFromParent();
+      AssetLoader.releaseModel(pack.root);
+    }
     this.carriagePacks.clear();
     this.donkeyPresentation?.mixer?.stopAllAction();
     if (this.donkeyPresentation) this.disposeDonkeyShadowPresentation(this.donkeyPresentation.root);
@@ -6149,10 +6390,12 @@ export class WorldScene {
     }
     this.schoolEffects.clear();
     this.disposeFishVisibility(this.hookedFishPresentation);
+    if (this.hookedFishModel) AssetLoader.releaseModel(this.hookedFishModel);
     this.hookedFishModel?.removeFromParent();
     this.hookedFishModel = null;
     this.hookedFishAssetId = null;
     this.hookedFishPresentation = null;
+    if (this.skiffMooringPreview) AssetLoader.releaseModel(this.skiffMooringPreview);
     this.skiffMooringPreview?.removeFromParent();
     this.skiffMooringPreview = null;
 
@@ -6259,6 +6502,7 @@ export class WorldScene {
 
     this.lightingRig.sun.shadow.map?.dispose();
     this.lightingRig.moon.shadow.map?.dispose();
+    this.lightingRig.dispose();
     this.renderer.dispose();
   }
 
@@ -6276,9 +6520,12 @@ export class WorldScene {
     this.playerMesh?.traverse((object) => {
       if (object instanceof THREE.BatchedMesh) batches.add(object);
     });
-    this.windmillRotor?.traverse((object) => {
-      if (object instanceof THREE.BatchedMesh) batches.add(object);
-    });
+    for (const rotor of this.windmillRotors) {
+      rotor.traverse((object) => {
+        if (object instanceof THREE.BatchedMesh) batches.add(object);
+      });
+    }
+    this.windmillRotors.length = 0;
     for (const boat of this.boatMeshes.values()) {
       boat.traverse((object) => {
         if (object instanceof THREE.BatchedMesh) batches.add(object);

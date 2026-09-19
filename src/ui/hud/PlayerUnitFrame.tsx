@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { HudStatusChipDto, WorldHudDto } from "../../simulation/core/contracts";
 import { HudIcon } from "../components/HudIcons";
 import { Meter } from "../coastal/CoastalUI";
@@ -23,6 +23,19 @@ export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
   const mountCurrent = mount ? Math.round(mount.current) : 0;
   const mountMaximum = mount ? Math.round(mount.maximum) : 0;
 
+  // A Work change pulses the pool bar so an earned shift or a paid action is
+  // legible on the HUD itself, not only in a toast. Presentation-only state.
+  const previousWork = useRef(workCurrent);
+  const [workPulse, setWorkPulse] = useState<"" | "is-gaining" | "is-spending">("");
+  useEffect(() => {
+    const before = previousWork.current;
+    previousWork.current = workCurrent;
+    if (workCurrent === before) return;
+    setWorkPulse(workCurrent > before ? "is-gaining" : "is-spending");
+    const timer = window.setTimeout(() => setWorkPulse(""), 700);
+    return () => window.clearTimeout(timer);
+  }, [workCurrent]);
+
   return (
   <div className={`player-unit-frame guild-vitals ${className}`} role="region"
     aria-label="Player unit status" data-testid="player-unit-frame">
@@ -33,7 +46,7 @@ export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
       <GuildcraftArt art="seal" className="guild-profile-seal" />
     </button>
     <span className="guild-player-name">Wayfarer</span>
-    <div className={`guild-vital-bar guild-work ${work.exhausted ? "is-exhausted" : ""}`}>
+    <div className={`guild-vital-bar guild-work ${work.exhausted ? "is-exhausted" : ""}${workPulse ? ` ${workPulse}` : ""}`}>
       <Meter className="guild-vital-meter" label="Work" value={workCurrent} max={workMaximum}
         showLabel={false} showValue={false} fill={work.exhausted ? "danger" : "gold"}
         valueText={work.exhausted ? `${workCurrent} of ${workMaximum} — rest, eat, or work to recover` : undefined} />

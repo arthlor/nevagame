@@ -24,14 +24,11 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
   className = ""
 }) => {
   const isDocked = Boolean(boat.isDocked);
-  const resolvedHeadingDeg = (boat as any).headingDegrees ?? headingDegrees;
-  const resolvedHeadingCard = (boat as any).headingCardinal ?? headingCardinal;
 
   const defaultInsignia = useMemo(() => {
-    if ((boat as any).registrationInsignia) return (boat as any).registrationInsignia;
     if (registrationInsignia) return registrationInsignia;
     return boat.boatId.includes("skiff") ? "REG · NV-SKF-02" : "REG · NV-ROW-01";
-  }, [boat.boatId, (boat as any).registrationInsignia, registrationInsignia]);
+  }, [boat.boatId, registrationInsignia]);
 
   const hullDamageClass = useMemo(() => {
     const pct = boat.hull.percent;
@@ -92,7 +89,7 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
                 {`${boat.speedKnots} kn · ${boat.seaState}`}
               </span>
               <span className="boat-bearing-label" title="Heading Bearing">
-                {`· ${String(resolvedHeadingDeg).padStart(3, "0")}° ${resolvedHeadingCard}`}
+                {`· ${String(headingDegrees).padStart(3, "0")}° ${headingCardinal}`}
               </span>
             </div>
 

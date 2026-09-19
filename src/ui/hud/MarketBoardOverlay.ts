@@ -58,6 +58,8 @@ export class MarketBoardOverlay {
   private acknowledgmentSequence = 0;
   private readonly renderedAcknowledgments = new Map<string, number>();
   private responseEndsAtMs = 0;
+  private lastScreenX = Number.NaN;
+  private lastScreenY = Number.NaN;
 
   constructor(parent: HTMLElement) {
     this.root.className = "market-world-board";
@@ -99,8 +101,13 @@ export class MarketBoardOverlay {
       this.title.textContent = nearest.board.marketName;
       this.renderRows(nearest.board);
     }
-    this.root.style.left = `${projected.x}px`;
-    this.root.style.top = `${projected.y}px`;
+    // Only touch layout-affecting style when the board actually moved on screen.
+    if (projected.x !== this.lastScreenX || projected.y !== this.lastScreenY) {
+      this.lastScreenX = projected.x;
+      this.lastScreenY = projected.y;
+      this.root.style.left = `${projected.x}px`;
+      this.root.style.top = `${projected.y}px`;
+    }
     this.root.hidden = false;
     this.activeId = nearest.board.marketId;
 

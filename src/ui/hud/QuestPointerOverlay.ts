@@ -59,6 +59,10 @@ export class QuestPointerOverlay {
   private readonly caption: HTMLSpanElement;
   private readonly range: HTMLSpanElement;
   private visible = false;
+  private lastX = Number.NaN;
+  private lastY = Number.NaN;
+  private lastChevronRotation = Number.NaN;
+  private lastState = "";
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement("div");
@@ -105,11 +109,25 @@ export class QuestPointerOverlay {
       this.visible = true;
     }
 
-    this.root.dataset.state = projection.onScreen ? "on-screen" : "off-screen";
-    this.root.style.transform = `translate(${Math.round(fitted.x)}px, ${Math.round(fitted.y)}px)`;
-    this.chevron.style.transform = projection.onScreen
-      ? "rotate(180deg)"
-      : `rotate(${Math.round(projection.angleDeg)}deg)`;
+    const x = Math.round(fitted.x);
+    const y = Math.round(fitted.y);
+    if (x !== this.lastX || y !== this.lastY) {
+      this.lastX = x;
+      this.lastY = y;
+      this.root.style.transform = `translate(${x}px, ${y}px)`;
+    }
+    const chevronRotation = projection.onScreen ? 180 : Math.round(projection.angleDeg);
+    if (chevronRotation !== this.lastChevronRotation) {
+      this.lastChevronRotation = chevronRotation;
+      this.chevron.style.transform = projection.onScreen
+        ? "rotate(180deg)"
+        : `rotate(${chevronRotation}deg)`;
+    }
+    const state = projection.onScreen ? "on-screen" : "off-screen";
+    if (state !== this.lastState) {
+      this.lastState = state;
+      this.root.dataset.state = state;
+    }
 
     if (this.caption.textContent !== target.label) {
       this.caption.textContent = target.label;

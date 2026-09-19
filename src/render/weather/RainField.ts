@@ -102,8 +102,13 @@ export class RainField {
       this.dropMaterial,
       this.drops.length
     );
+    // A splash is a flat ripple disc. The previous squashed octahedron read as
+    // a solid pale square from above — the "white squares" floating on water
+    // and banks in rain — because a diamond seen from the top is a quad.
+    const splashGeometry = new THREE.CircleGeometry(1, 8);
+    splashGeometry.rotateX(-Math.PI / 2);
     this.splashMesh = new THREE.InstancedMesh(
-      new THREE.OctahedronGeometry(1, 0),
+      splashGeometry,
       this.splashMaterial,
       this.splashes.length
     );
@@ -201,10 +206,12 @@ export class RainField {
       }
       // Clamp both ends: a presentation-time rewind can put `bornAt` after
       // `timeSeconds`, and a negative sine scale flips every splash instance.
+      // The flat disc keeps the authored footprint (2 * 1.15 * size) without
+      // the oversized diamond read the octahedron had.
       const scale = splash.size * Math.sin(Math.max(0, Math.min(1, progress)) * Math.PI);
       this.dummy.position.set(splash.x, splash.y, splash.z);
       this.dummy.quaternion.identity();
-      this.dummy.scale.set(scale * 1.6, scale * 0.55, scale * 1.6);
+      this.dummy.scale.set(scale * 1.15, 1, scale * 1.15);
       this.dummy.updateMatrix();
       this.splashMesh.setMatrixAt(visibleSplashes, this.dummy.matrix);
       visibleSplashes += 1;

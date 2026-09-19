@@ -2040,12 +2040,14 @@ function animate(frameMilliseconds: number): void {
     actor.object.rotation.x = Math.cos(elapsedSeconds * 1.1 + actor.phase) * actor.pitchAmplitude;
   }
 
-  // Windmill sails animation in showcase
+  // Windmill sails animation in showcase. Turn every authored LOD pivot so a
+  // level switch never shows a frozen rotor, with the runtime's spin sign.
   if (currentModel) {
-    const rotor = currentModel.getObjectByName("windmill_rotor");
-    if (rotor) {
-      rotor.rotation.z += delta * 0.6;
-    }
+    currentModel.traverse((object) => {
+      if (object.name === "windmill_rotor" || /_LOD\d+_rotor$/.test(object.name)) {
+        object.rotation.z -= delta * 0.6;
+      }
+    });
   }
 
   const frame = lightingRig.update(previewState(), elapsedSeconds, controls.target);

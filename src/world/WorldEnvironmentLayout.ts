@@ -66,7 +66,9 @@ export interface PlacementOverride {
 
 /** DEV layout-editor pins for seeded/layout-derived instances. Empty until an in-game drop writes an id. */
 export const PLACEMENT_OVERRIDES: Readonly<Record<string, PlacementOverride>> = {
-  
+  "seeded-fill.landscape.work.orchard.1": { x: 86.6, z: -73.9, rotationY: 0.05 },
+  "seeded-fill.landscape.work.orchard.0": { x: 94.3, z: -80.2, rotationY: 0.3 },
+  "seeded-fill.landscape.work.orchard.2": { x: 87.8, z: -74.2, rotationY: 0.35 },
 };
 
 /** Seeded/layout-derived instances removed by the DEV layout editor. */
@@ -425,11 +427,11 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.arrival.bluff.cairn", { assetId: "rock_field_a", x: -55, z: -220, rotationY: 1.1, scale: [0.9, 0.9, 0.9], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.bluff.bench", { assetId: "prop_bench_wood_a", x: -49, z: -220, rotationY: 3.1, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.bluff.sign", { assetId: "prop_signpost_trail_a", x: -49, z: -216, rotationY: 0.4, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.crate", { assetId: "prop_crate_wood_a", x: 65.4, z: -50.3, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.barrel", { assetId: "prop_barrel_wood_a", x: 65.1, z: -51.6, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.crate", { assetId: "prop_crate_wood_a", x: 64.7, z: -48.8, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.barrel", { assetId: "prop_barrel_wood_a", x: 64.2, z: -50.6, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   
   authoredPlacement("authored.arrival.village.rack", { assetId: "prop_fish_drying_rack_a", x: 61, z: -40.8, rotationY: 3.1416, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.firewood", { assetId: "prop_firewood_stack_a", x: 64.9, z: -40.1, rotationY: 0, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.firewood", { assetId: "prop_firewood_stack_a", x: 66.4, z: -39.8, rotationY: 1.5708, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.village.crate-inn", { assetId: "prop_crate_wood_a", x: 62.9, z: -40.7, rotationY: -0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
 
   // Working village frontage and a neighboring orchard homestead. No additional shop/quest owners.
@@ -537,7 +539,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.headwater.lip-rock-west-outer", { assetId: "rock_field_a", x: -37.2, z: -137.2, rotationY: 0.4, scale: [1, 0.85, 1], grounding: [0.85, 0.75] }),
   authoredPlacement("authored.headwater.lip-rock-west-inner", { assetId: "rock_field_a", x: -37.4, z: -137.4, rotationY: 1.35, scale: [0.92, 0.8, 0.95], grounding: [0.85, 0.75] }),
   authoredPlacement("authored.headwater.lip-rock-west-crest", { assetId: "rock_boulder_large_a", x: -36.6, z: -137.2, rotationY: 0.6, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
-  authoredPlacement("authored.headwater.lip-rock-east-inner", { assetId: "rock_field_a", x: -24.0, z: -137.6, rotationY: 2.1, scale: [0.95, 0.8, 1], grounding: [0.85, 0.75] }),
+  authoredPlacement("authored.headwater.lip-rock-east-inner", { assetId: "rock_field_a", x: -34.8, z: -137.6, rotationY: 2.1, scale: [0.95, 0.8, 1], grounding: [0.85, 0.75] }),
   authoredPlacement("authored.headwater.lip-rock-east-crest", { assetId: "rock_boulder_large_a", x: -22.8, z: -137.6, rotationY: -0.8, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
   authoredPlacement("authored.headwater.lip-rock-east-outer", { assetId: "rock_field_a", x: -23.2, z: -137.4, rotationY: -0.25, scale: [0.88, 0.75, 0.9], grounding: [0.85, 0.75] }),
   // East-shoulder boulders were tried here (spire, hero boulder, needle) and
@@ -553,7 +555,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   // rock. Both stand clear of the trail corridor and the spring furniture.
   // The spire runs squat (wide base, 0.85 height): its sedimentary bedding
   // reads as rock strata on a crag knob, never as a painted tower.
-  authoredPlacement("authored.headwater.springhead-spire", { assetId: "rock_spire_a", x: -31.8, z: -154.2, rotationY: 1.309, scale: [1.25, 0.85, 1.25], grounding: [0.65, 0.73] }),
+  
   authoredPlacement("authored.headwater.springhead-boulder", { assetId: "rock_boulder_large_a", x: -30.2, z: -156.0, rotationY: -0.4, scale: [1, 0.95, 1], grounding: [1.1, 0.99] }),
   // W08 basin rim: two embedded outcrops break the carved pool edge so it
   // reads as rock the water worked into, not a smooth trench. Stances of the
@@ -577,13 +579,13 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.headwater.reeds-west-8", { assetId: "foliage_reeds_a", x: -34.6, z: -123.6, rotationY: 2.2, scale: [1.0, 1.0, 1.0] }),
   authoredPlacement("authored.headwater.bush-west-a", { assetId: "foliage_bush_round_a", x: -36.8, z: -125.6, rotationY: 0.8, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
   authoredPlacement("authored.headwater.bush-west-b", { assetId: "foliage_bush_a", x: -36.4, z: -122.8, rotationY: 2.4, scale: [0.95, 0.95, 0.95], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.bush-east-a", { assetId: "foliage_bush_a", x: -22.0, z: -125.7, rotationY: 1.3, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
+  authoredPlacement("authored.headwater.bush-east-a", { assetId: "foliage_bush_a", x: -21.7, z: -126.4, rotationY: 1.3, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
   authoredPlacement("authored.headwater.bush-east-b", { assetId: "foliage_bush_round_a", x: -17.5, z: -123.4, rotationY: 3.1, scale: [1.05, 1.05, 1.05], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.tree-maple-east", { assetId: "tree_maple_a", x: -15.8, z: -126.4, rotationY: 0.7, scale: [1, 1, 1], grounding: [0.6, 0.6] }),
-  authoredPlacement("authored.headwater.tree-oak-east", { assetId: "tree_oak_broadleaf_a", x: -14.6, z: -122.6, rotationY: 2.2, scale: [0.95, 0.95, 0.95], grounding: [0.6, 0.6] }),
+  authoredPlacement("authored.headwater.tree-maple-east", { assetId: "tree_maple_a", x: -21.7, z: -130.1, rotationY: 0.7, scale: [1, 1, 1], grounding: [0.6, 0.6] }),
+  authoredPlacement("authored.headwater.tree-oak-east", { assetId: "tree_oak_broadleaf_a", x: -22.3, z: -131.5, rotationY: 2.2, scale: [0.95, 0.95, 0.95], grounding: [0.6, 0.6] }),
   authoredPlacement("authored.headwater.tree-maple-west", { assetId: "tree_maple_a", x: -39.2, z: -123.4, rotationY: 4.0, scale: [1.02, 1.02, 1.02], grounding: [0.6, 0.6] }),
-  authoredPlacement("authored.headwater.log-outflow-west", { assetId: "prop_driftwood_log_a", x: -33.4, z: -120.6, rotationY: 1.35, scale: [0.9, 0.9, 0.9] }),
-  authoredPlacement("authored.headwater.log-outflow-east", { assetId: "prop_driftwood_log_a", x: -21.4, z: -118.4, rotationY: 2.6, scale: [0.82, 0.82, 0.82] }),
+  authoredPlacement("authored.headwater.log-outflow-west", { assetId: "prop_driftwood_log_a", x: -23.7, z: -132.1, rotationY: 0.5236, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.headwater.log-outflow-east", { assetId: "prop_driftwood_log_a", x: -32.9, z: -132.7, rotationY: 2.6, scale: [0.82, 0.82, 0.82] }),
   authoredPlacement("authored.prop.lamp.village-west", { assetId: "prop_lamp_post_a", x: 30.0, z: -64.5, rotationY: -1.0472, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.lamp.village-east", { assetId: "prop_lamp_post_a", x: 52.5, z: -63.5, rotationY: 3.1416, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.lamp.village-mill", { assetId: "prop_lamp_post_a", x: 75.3, z: -71.3, rotationY: 1.0472, scale: [1, 1, 1], practicalLight: true }),
@@ -673,7 +675,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.village.bench.copy.1", { assetId: "prop_bench_wood_a", x: 36.1, z: -60.7, rotationY: 1.5708, scale: [1, 1, 1] }),
   authoredPlacement("authored.village.bench.copy.2", { assetId: "prop_bench_wood_a", x: 36.1, z: -62.9, rotationY: 1.309, scale: [1, 1, 1] }),
   authoredPlacement("authored.village.well", { assetId: "prop_water_well_a", x: 37.5, z: -75.5, rotationY: 0, scale: [1, 1, 1], grounding: [1.1, 0.95] }),
-  authoredPlacement("authored.village.clay-oven", { assetId: "prop_clay_oven_a", x: 34.2, z: -57.6, rotationY: 8.1158, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.clay-oven", { assetId: "prop_clay_oven_a", x: 35.5, z: -56.9, rotationY: 8.1158, scale: [1, 1, 1] }),
   // Small produce stand on the court's southwest lip, beside the market building: the village
   // keeps a second stall face without crowding the crossing.
   authoredPlacement("authored.village.produce-stand", { assetId: "prop_produce_stall_a", x: 34.9, z: -69.2, rotationY: 0.97, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
@@ -686,7 +688,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.village.hay-bale-a", { assetId: "prop_hay_bale_a", x: 27.8, z: -68.5, rotationY: 0.2, scale: [1, 1, 1] }),
   authoredPlacement("authored.village.hay-bale-b", { assetId: "prop_hay_bale_a", x: 26.6, z: -69.8, rotationY: 1.1, scale: [0.92, 0.92, 0.92] }),
   
-  authoredPlacement("authored.village.firewood", { assetId: "prop_firewood_stack_a", x: 32.6, z: -60.2, rotationY: 5.236, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.firewood", { assetId: "prop_firewood_stack_a", x: 34.0, z: -60.7, rotationY: 5.236, scale: [1, 1, 1] }),
   authoredPlacement("authored.fauna.chicken.village-a", { assetId: "fauna_chicken_a", x: 34.0, z: -76.0, rotationY: 0.6, scale: [1.05, 1.05, 1.05] }),
   authoredPlacement("authored.fauna.chicken.village-b", { assetId: "fauna_chicken_a", x: 35.6, z: -76.8, rotationY: -0.8, scale: [0.95, 0.95, 0.95] }),
   authoredPlacement("authored.fauna.chicken.village-c", { assetId: "fauna_chicken_a", x: 32.9, z: -77.2, rotationY: 1.6, scale: [1, 1, 1] }),
@@ -706,7 +708,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredArchitecturePlacement("authored.village.approach-inn", "house_farmhouse_a", "village.approach-inn", [0.9, 0.9, 0.9]),
 
   // Forest fallen log on the inland meadow slope
-  authoredPlacement("authored.forest.fallen-log", { assetId: "prop_fallen_log_a", x: 26, z: -20.1, rotationY: 0.6, scale: [1, 1, 1] }),
+  authoredPlacement("authored.forest.fallen-log", { assetId: "prop_fallen_log_a", x: 25.8, z: -21.6, rotationY: 0.6, scale: [1, 1, 1] }),
   // Driftwood log washed up on the beach west of harbor
   authoredPlacement("authored.coast.driftwood-log", { assetId: "prop_driftwood_log_a", x: 30, z: WorldLayout.coastlineZ(30) - 3, rotationY: 0.8, scale: [1, 1, 1] }),
   // Beach grass tuft near the driftwood

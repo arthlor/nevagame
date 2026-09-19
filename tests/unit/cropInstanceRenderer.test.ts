@@ -399,4 +399,71 @@ describe("CropInstanceRenderer 3D furrow mounds and visual changes", () => {
       loadModel.mockRestore();
     }
   });
+
+  it("updates only the selected slot for a highlight pulse instead of rebuilding the farm", async () => {
+    const source = new THREE.Group();
+    source.add(new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 1.0, 0.2).toNonIndexed(),
+      new THREE.MeshStandardMaterial({ color: 0xd79a3a })
+    ));
+    const loadModel = vi.spyOn(AssetLoader, "loadModel").mockResolvedValue(source);
+
+    const makeCrop = (id: string, x: number): PlacedCropState => ({
+      id,
+      farmId: "farm.starter_garden",
+      cropId: "crop.wheat",
+      stage: "mature",
+      x,
+      z: 3,
+      rotationRadians: 0,
+      effectiveGrowthMinutes: 180,
+      plantedAtMinute: 0,
+      lastUpdatedMinute: 180,
+      moisture: 70,
+      health: 100,
+      averageMoistureAccum: 70,
+      moistureSampleCount: 1
+    });
+
+    try {
+      const renderer = new CropInstanceRenderer();
+      const state = new Simulation().getState() as unknown as MutableGameState;
+      const first = makeCrop("crop_highlight_a", 3);
+      const second = makeCrop("crop_highlight_b", 4);
+      state.crops = { [first.id]: first, [second.id]: second };
+      state.farms["farm.starter_garden"].placedCropIds = [first.id, second.id];
+
+      await renderer.ensureAssets(state);
+      renderer.sync(state, 1.0);
+      const afterInitialSync = renderer.presentationWorkStats();
+      expect(afterInitialSync.slotWrites).toBe(2);
+
+      // Selecting a crop must not rewrite other crops' slots; the settled farm
+      // keeps its attributes and only the selection slot is uploaded.
+      renderer.setHighlight(first.id, false);
+      renderer.sync(state, 1.1);
+      const afterHighlight = renderer.presentationWorkStats();
+      expect(afterHighlight.slotWrites).toBe(afterInitialSync.slotWrites);
+      expect(afterHighlight.matrixUploadRanges).toBe(1);
+      expect(afterHighlight.highlightUploadRanges).toBe(1);
+
+      const batch = renderer.group.getObjectByName(`${ASSET_IDS.CROP_WHEAT_MATURE}_instances`) as THREE.InstancedMesh;
+      const highlight = batch.geometry.getAttribute("instanceHighlight") as THREE.InstancedBufferAttribute;
+      expect(highlight.getX(0)).toBeGreaterThan(0);
+
+      // Growth still changes simulation-dependent appearance: a changed
+      // effective growth must go through the full rebuild.
+      state.crops[first.id] = { ...first, effectiveGrowthMinutes: 240 };
+      renderer.sync(state, 1.2);
+      expect(renderer.presentationWorkStats().slotWrites).toBe(afterInitialSync.slotWrites + 2);
+
+      renderer.setHighlight(null, false);
+      renderer.sync(state, 1.3);
+      expect(highlight.getX(0)).toBe(0);
+
+      renderer.dispose();
+    } finally {
+      loadModel.mockRestore();
+    }
+  });
 });
