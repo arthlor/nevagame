@@ -29,7 +29,9 @@ try {
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
   const bootStart = Date.now();
-  await page.goto(`${base}/?debug=1&debugStart=${args.scenario ?? "harbor"}&worldAcceptance=1`, { waitUntil: "networkidle" });
+  // `networkidle` never settles against the full GLB catalog plus the intro
+  // video; the explicit bootReady gate below is the real readiness contract.
+  await page.goto(`${base}/?debug=1&debugStart=${args.scenario ?? "harbor"}&worldAcceptance=1`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__NEVA_DEBUG?.snapshot().bootReady, undefined, { timeout: 90000 });
   report.bootReadyMs = Date.now() - bootStart;
   await page.evaluate(({minute, weather, phase}) => {
@@ -142,7 +144,7 @@ try {
     for (const id of String(args.artViews).split(",")) {
       const graybox = args.graybox ? `&graybox=${args.graybox}` : "";
       const overlay = args.overlay ? `&fieldOverlay=${args.overlay}` : "";
-      await page.goto(`${base}/?debug=1&artView=${id}${graybox}${overlay}&worldAcceptance=1`, { waitUntil: "networkidle" });
+      await page.goto(`${base}/?debug=1&artView=${id}${graybox}${overlay}&worldAcceptance=1`, { waitUntil: "domcontentloaded" });
       await page.waitForFunction(() => window.__NEVA_DEBUG?.snapshot().bootReady, undefined, { timeout: 90000 });
       await page.waitForFunction(() => window.__NEVA_RENDER_READY === true, undefined, { timeout: 60000 });
       await page.evaluate(() => {

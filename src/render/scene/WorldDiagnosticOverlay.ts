@@ -1,10 +1,13 @@
 import * as THREE from "three";
 import { sampleWorldComposition } from "../../world/WorldCompositionField";
 import { WorldLayout } from "../../world/WorldLayout";
+import { worldIslandDefinitions } from "../../world/WorldIslands";
+import { harborCoastInfluence } from "../../world/HarborCoast";
 import {
   HEADWATER_GRAYBOX_ENVELOPE,
 } from "../../world/HeadwaterWaterfallGraybox";
 import { NEVA_HEADWATERS } from "../../world/NevaHeadwaters";
+import { buildShoreFoamPatches } from "../water/ShoreFoam";
 
 export type WorldFieldOverlay =
   | "district"
@@ -20,7 +23,8 @@ export type WorldFieldOverlay =
   | "climate"
   | "marine"
   | "drainage"
-  | "graybox-envelope";
+  | "graybox-envelope"
+  | "shore-contact";
 
 export const WORLD_FIELD_OVERLAYS: readonly WorldFieldOverlay[] = [
   "district",
@@ -36,7 +40,8 @@ export const WORLD_FIELD_OVERLAYS: readonly WorldFieldOverlay[] = [
   "climate",
   "marine",
   "drainage",
-  "graybox-envelope"
+  "graybox-envelope",
+  "shore-contact"
 ] as const;
 
 function colorFor(mode: WorldFieldOverlay, worldSeed: number, x: number, z: number): THREE.Color {
@@ -331,8 +336,100 @@ function createGrayboxEnvelopeOverlay(): THREE.Group {
   return group;
 }
 
+/**
+ * W04.2 all-side coverage overlay: one marker on every coast loop sample of
+ * every island, colored by the shared contact weight that owns shore foam.
+ * Orange marks the protected harbor treatment, red is a coverage gap, blue to
+ * green is rising continuous contact. Small white points mark the broken
+ * foam-patch accents so double coverage is visible rather than assumed.
+ */
+const SHORE_CONTACT_OVERLAY_STYLE = Object.freeze({
+  sampleStepMeters: 4,
+  waterSideOffsetMeters: 1.5,
+  heightOffsetMeters: 0.45,
+  coveragePointSize: 1.7,
+  patchPointSize: 0.9
+});
+
+function createShoreContactOverlay(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "world-field-overlay:shore-contact";
+  const coveragePositions: number[] = [];
+  const coverageColors: number[] = [];
+  const color = new THREE.Color();
+  for (const island of worldIslandDefinitions()) {
+    const loop = island.coastLoop;
+    for (let segment = 0; segment < loop.length; segment += 1) {
+      const from = loop[segment];
+      const to = loop[(segment + 1) % loop.length];
+      const dx = to.x - from.x;
+      const dz = to.z - from.z;
+      const segmentLength = Math.hypot(dx, dz);
+      const steps = Math.max(1, Math.round(segmentLength / SHORE_CONTACT_OVERLAY_STYLE.sampleStepMeters));
+      for (let step = 0; step < steps; step += 1) {
+        const sampleT = (step + 0.5) / steps;
+        const shore = WorldLayout.shoreProjectionAt(from.x + dx * sampleT, from.z + dz * sampleT);
+        const boundary = shore.boundaryPointXZ;
+        const contact = WorldLayout.coastalContactWeightAt(boundary.x, boundary.z);
+        if (harborCoastInfluence(boundary.x, boundary.z) > 0.001) {
+          color.setHex(0xffa53a);
+        } else if (contact <= 0) {
+          color.setHex(0xff5e5e);
+        } else {
+          color.setRGB(0.1 + contact * 0.25, 0.35 + contact * 0.6, 0.55 + contact * 0.4);
+        }
+        const offset = SHORE_CONTACT_OVERLAY_STYLE.waterSideOffsetMeters;
+        const x = boundary.x + shore.waterwardNormalXZ.x * offset;
+        const z = boundary.z + shore.waterwardNormalXZ.z * offset;
+        const y = Math.max(WorldLayout.terrainHeight(x, z), 0) + SHORE_CONTACT_OVERLAY_STYLE.heightOffsetMeters;
+        coveragePositions.push(x, y, z);
+        coverageColors.push(color.r, color.g, color.b);
+      }
+    }
+  }
+  const coverageGeometry = new THREE.BufferGeometry();
+  coverageGeometry.setAttribute("position", new THREE.Float32BufferAttribute(coveragePositions, 3));
+  coverageGeometry.setAttribute("color", new THREE.Float32BufferAttribute(coverageColors, 3));
+  const coverage = new THREE.Points(coverageGeometry, new THREE.PointsMaterial({
+    size: SHORE_CONTACT_OVERLAY_STYLE.coveragePointSize,
+    sizeAttenuation: true,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false
+  }));
+  coverage.name = "shore-contact:coverage";
+  coverage.renderOrder = 901;
+  coverage.frustumCulled = false;
+  group.add(coverage);
+
+  const patches = buildShoreFoamPatches();
+  const patchPositions = new Float32Array(patches.length * 3);
+  patches.forEach((patch, index) => {
+    patchPositions[index * 3] = patch.center.x;
+    patchPositions[index * 3 + 1] = SHORE_CONTACT_OVERLAY_STYLE.heightOffsetMeters;
+    patchPositions[index * 3 + 2] = patch.center.z;
+  });
+  const patchGeometry = new THREE.BufferGeometry();
+  patchGeometry.setAttribute("position", new THREE.BufferAttribute(patchPositions, 3));
+  const patchPoints = new THREE.Points(patchGeometry, new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: SHORE_CONTACT_OVERLAY_STYLE.patchPointSize,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false
+  }));
+  patchPoints.name = "shore-contact:broken-patches";
+  patchPoints.renderOrder = 902;
+  patchPoints.frustumCulled = false;
+  group.add(patchPoints);
+  return group;
+}
+
 export function createWorldDiagnosticOverlay(mode: WorldFieldOverlay, worldSeed: number): THREE.Group {
   if (mode === "graybox-envelope") return createGrayboxEnvelopeOverlay();
+  if (mode === "shore-contact") return createShoreContactOverlay();
   const group = new THREE.Group();
   group.name = `world-field-overlay:${mode}`;
   for (const patch of WorldLayout.terrainPatches()) {

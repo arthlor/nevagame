@@ -7,7 +7,8 @@ import { FacetedWater, SHORE_MASK_METERS_PER_TEXEL } from "../../src/render/wate
 import { buildShoreFoamPatches, SHORE_FOAM_STYLE, ShoreFoam } from "../../src/render/water/ShoreFoam";
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
 import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
-import { TERRAIN_SIZE_METERS } from "../../src/world/WorldLayout";
+import { TERRAIN_SIZE_METERS, WorldLayout } from "../../src/world/WorldLayout";
+import { harborCoastInfluence } from "../../src/world/HarborCoast";
 import { createContactShadowMesh, setContactShadowOpacity } from "../../src/render/scene/ContactShadow";
 
 const WATER_CONDITIONS = {
@@ -122,17 +123,25 @@ describe("renderer foundation", () => {
     second.dispose();
   });
 
-  it("keeps foam to broken coast segments and leaves the river banks clear", () => {
+  it("keeps foam on every island's waterline and leaves the river and harbor clear", () => {
     const patches = buildShoreFoamPatches();
-    const coast = patches.filter((patch) => patch.source === "coast");
-    const mouth = { x: 15, z: 82 };
-    expect(patches.length).toBeGreaterThan(20);
+    expect(patches.length).toBeGreaterThan(40);
     expect(patches.every((patch) => patch.source === "coast")).toBe(true);
-    expect(coast.every((patch) => Math.abs(patch.center.x - mouth.x) > 8)).toBe(true);
-    const widestGap = coast
-      .slice(1)
-      .reduce((gap, patch, index) => Math.max(gap, patch.center.x - coast[index].center.x), 0);
-    expect(widestGap).toBeGreaterThan(SHORE_FOAM_STYLE.coastSpacing * 1.5);
+    // W04.2: no dry-ground spill — the whole quad footprint stays water-side.
+    expect(patches.every((patch) =>
+      WorldLayout.waterSignedDistance(patch.center.x, patch.center.z) > patch.width * 0.5
+    )).toBe(true);
+    // The reference harbor is protected and the river/estuary banks stay clear.
+    expect(patches.every((patch) => harborCoastInfluence(patch.center.x, patch.center.z) === 0)).toBe(true);
+    expect(patches.every((patch) => WorldLayout.estuaryInfluence(patch.center.x, patch.center.z) <= 0.06)).toBe(true);
+    // All four Neva sides, Sunreach, and each islet carry the broken accent.
+    expect(patches.some((patch) => patch.center.x < -150 && patch.center.z > -200 && patch.center.z < 100)).toBe(true);
+    expect(patches.some((patch) => patch.center.z < -180)).toBe(true);
+    expect(patches.some((patch) => patch.center.x > 150 && patch.center.x < 300 && patch.center.z > 60)).toBe(true);
+    expect(patches.some((patch) => patch.center.x > 700)).toBe(true);
+    expect(patches.some((patch) => Math.hypot(patch.center.x - 420, patch.center.z - 215) < 60)).toBe(true);
+    expect(patches.some((patch) => Math.hypot(patch.center.x - 735, patch.center.z + 65) < 70)).toBe(true);
+    expect(patches.some((patch) => Math.hypot(patch.center.x - 960, patch.center.z - 295) < 70)).toBe(true);
     expect(SHORE_MASK_METERS_PER_TEXEL).toBeLessThanOrEqual(3);
   });
 
