@@ -150,19 +150,15 @@ def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angl
     for polygon in mesh.polygons:
         normal = (rest_normal @ polygon.normal).normalized()
         face_values.data[polygon.index].value = .91 + .07 * max(-1.0, min(1.0, normal.z))
-    mesh.calc_loop_triangles()
-    warped = set()
-    for triangle in mesh.loop_triangles:
-        polygon = mesh.polygons[triangle.polygon_index]
-        if len(polygon.vertices) > 3 and triangle.normal.dot(polygon.normal) < .5:
-            warped.add(polygon.index)
+    # Smooth normals must be evaluated against the exact planes the exporter
+    # emits. A folded quad has no single geometric normal, so split every
+    # polygon before smoothing while retaining one authored face color.
+    warped = [polygon.index for polygon in mesh.polygons if len(polygon.vertices) > 3]
     if warped:
-        # A strongly folded quad has no single geometric normal. Split its
-        # planes before smoothing, while retaining one authored face color.
         editable = bmesh.new()
         editable.from_mesh(mesh)
         editable.faces.ensure_lookup_table()
-        bmesh.ops.triangulate(editable, faces=[editable.faces[index] for index in sorted(warped)], quad_method="BEAUTY", ngon_method="BEAUTY")
+        bmesh.ops.triangulate(editable, faces=[editable.faces[index] for index in warped], quad_method="BEAUTY", ngon_method="BEAUTY")
         editable.to_mesh(mesh)
         editable.free()
         mesh.update()
@@ -223,6 +219,13 @@ def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angl
                         break
             for loop_index in loops:
                 corner_normals[loop_index] = tuple(normal)
+    # Every polygon is a triangle here, so a corner normal that leans hard away
+    # from its own face can only create a culling/winding contradiction (and a
+    # quantized sliver can flip it outright). Fall back to the face normal.
+    for polygon in mesh.polygons:
+        for loop_index in polygon.loop_indices:
+            if Vector(corner_normals[loop_index]).dot(polygon.normal) < .5:
+                corner_normals[loop_index] = tuple(polygon.normal)
     for polygon in mesh.polygons:
         polygon.use_smooth = rounded[polygon.index]
     mesh.normals_split_custom_set(corner_normals)

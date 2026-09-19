@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse, hashlib, json, math, re, statistics, sys
 from collections import Counter
 from pathlib import Path
+import bmesh
 import bpy
 from mathutils import Matrix, Quaternion, Vector
 from mathutils.kdtree import KDTree
@@ -133,124 +134,280 @@ def tied_hair_accessories(meshes,rig,spec,col):
     return [head_bound('half_up_bun',bun,faces,style['hairToken']),head_bound('hair_tie',tie,tie_faces,style['tieToken'])]
 
 
-def role_accessories(meshes,rig,spec,col):
-    """Small clothing panels use source weights; anatomy is never reconstructed."""
-    bpy.context.view_layer.update()
-    role=spec['humanoidAuthoring']['role'];u=spec['humanoidAuthoring']['heightMeters']/1.9
-    extras=tied_hair_accessories(meshes,rig,spec,col)
-    if role=='dockmaster':
-        head=rig.matrix_world@rig.data.bones['Head'].head_local
-        points=[]
-        for z,width,depth in [(.075,.095,.045),(-.035,.088,.065),(-.095,.040,.025)]:
-            for i in range(8):
-                angle=i*math.tau/8;points.append(head+Vector((math.cos(angle)*width,-.12+math.sin(angle)*depth,z))*u)
-        faces=[tuple(range(7,-1,-1)),tuple(range(16,24))]
-        for ring in range(2):
-            for i in range(8):faces.append((ring*8+i,ring*8+(i+1)%8,(ring+1)*8+(i+1)%8,(ring+1)*8+i))
-        data=bpy.data.meshes.new(spec['id']+'_beard_mesh');data.from_pydata(points,[],faces);data.update()
-        obj=bpy.data.objects.new(spec['id']+'_beard_LOD0',data);col.objects.link(obj);data.materials.append(get_or_create_material('hair_silver_01'))
-        uv=data.uv_layers.new(name='UVMap');colors=data.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='CORNER')
-        for loop in data.loops:colors.data[loop.index].color=hex_to_linear_rgba(MATERIAL_SPECS['hair_silver_01']['hex']);v=data.vertices[loop.vertex_index].co;uv.data[loop.index].uv=(v.x/u+.5,v.z/u)
-        group=obj.vertex_groups.new(name='Head');group.add(list(range(len(points))),1,'REPLACE');mod=obj.modifiers.new('SourceRig','ARMATURE');mod.object=rig
-        return extras+[obj]
-    if role not in ('gardener','market_keeper','handyman'):return extras
-    # Fit the whole panel, including its centre, to the original torso AND
-    # trousers. Edge-only samples made a flat chord through the waist/thighs.
+def _weighted_source(meshes):
+    """Source body envelope, ray casts, and nearest-vertex weights for garments."""
     supports=[obj for obj in meshes if any(part in obj.name for part in ('Body','Legs','Pants'))]
-    source_points=[];source_weights=[];source_faces=[]
+    points=[];weight_rows=[];faces=[]
     for obj in supports:
-        offset=len(source_points);obj.data.calc_loop_triangles()
-        source_points.extend(obj.matrix_world@v.co for v in obj.data.vertices)
-        source_weights.extend(weights(obj))
-        source_faces.extend(tuple(offset+i for i in tri.vertices) for tri in obj.data.loop_triangles)
-    surface=BVHTree.FromPolygons(source_points,source_faces,all_triangles=True)
-    def interpolate_weights(indices,factors):
+        offset=len(points);obj.data.calc_loop_triangles()
+        points.extend(obj.matrix_world@v.co for v in obj.data.vertices)
+        weight_rows.extend(weights(obj))
+        faces.extend(tuple(offset+i for i in tri.vertices) for tri in obj.data.loop_triangles)
+    if not points:raise ValueError('Character role clothing requires the retained body surfaces')
+    surface=BVHTree.FromPolygons(points,faces,all_triangles=True)
+    def normalize(combined):
+        values=sorted(combined.items(),key=lambda item:(-item[1],item[0]))[:4];total=sum(weight for _,weight in values)
+        if total<=0:raise ValueError('Character role clothing sample has no source skin weights')
+        return [(name,weight/total) for name,weight in values]
+    def interpolate(indices,factors):
         combined=Counter()
         for index,factor in zip(indices,factors):
-            for name,weight in source_weights[index]:combined[name]+=weight*max(0.,factor)
-        values=sorted(combined.items(),key=lambda item:(-item[1],item[0]))[:4]
-        total=sum(weight for _,weight in values)
-        if total<=0:raise ValueError('Apron surface sample has no source skin weights')
-        return [(name,weight/total) for name,weight in values]
-    def sample(x,height):
-        hit,_,face,_=surface.ray_cast(Vector((x,-2*u,height)),Vector((0,1,0)))
+            for name,weight in weight_rows[index]:combined[name]+=weight*max(0.,factor)
+        return normalize(combined)
+    tree=KDTree(len(points))
+    for index,point in enumerate(points):tree.insert(point,index)
+    tree.balance()
+    def nearest(point):
+        combined=Counter()
+        for _,index,distance in tree.find_n(point,4):
+            factor=1.0/max(distance,1e-5)
+            for name,weight in weight_rows[index]:combined[name]+=weight*factor
+        return normalize(combined)
+    def cast(origin,direction):
+        hit,_,face,_=surface.ray_cast(origin,direction)
         if hit is None:return None
-        indices=source_faces[face];a,b,c=[source_points[i] for i in indices]
+        indices=faces[face];a,b,c=[points[i] for i in indices]
         ab=b-a;ac=c-a;ap=hit-a;denom=ab.length_squared*ac.length_squared-ab.dot(ac)**2
         v=(ac.length_squared*ap.dot(ab)-ab.dot(ac)*ap.dot(ac))/denom
         w=(ab.length_squared*ap.dot(ac)-ab.dot(ac)*ap.dot(ab))/denom
-        return hit.y,interpolate_weights(indices,(1-v-w,v,w))
-    material='cloth_teal_01' if role=='market_keeper' else 'canvas_cream_01'
-    # Leave the retained native thumb swing clear at the hip. The lower hem
-    # flares modestly beneath that sweep, while the bib stays torso-width.
-    outline=[(.76,.14),(.91,.115),(1.07,.13),(1.26,.125)]
+        return hit,interpolate(indices,(1-v-w,v,w))
+    def front(x,height):
+        result=cast(Vector((x,-2.,height)),Vector((0,1,0)))
+        return None if result is None else (result[0].y,result[1])
+    def back(x,height):
+        result=cast(Vector((x,2.,height)),Vector((0,-1,0)))
+        return None if result is None else (result[0].y,result[1])
+    return points,weight_rows,cast,front,back,nearest
+
+
+def _emit_garment(name,points,faces,influences,material,spec,rig,col,u):
+    data=bpy.data.meshes.new(spec['id']+'_'+name+'_mesh');data.from_pydata(points,[],faces);data.update()
+    editable=bmesh.new();editable.from_mesh(data);bmesh.ops.recalc_face_normals(editable,faces=editable.faces);editable.to_mesh(data);editable.free()
+    obj=bpy.data.objects.new(spec['id']+'_'+name+'_LOD0',data);col.objects.link(obj)
+    data.materials.append(get_or_create_material(material))
+    uv=data.uv_layers.new(name='UVMap');colors=data.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='CORNER')
+    for poly in data.polygons:
+        for loop in poly.loop_indices:
+            colors.data[loop].color=hex_to_linear_rgba(MATERIAL_SPECS[material]['hex'])
+            point=data.vertices[data.loops[loop].vertex_index].co;uv.data[loop].uv=(point.x/u+.5,point.z/u)
+    for bone in rig.data.bones:obj.vertex_groups.new(name=bone.name)
+    for index,groups in enumerate(influences):
+        for bone_name,weight in groups:obj.vertex_groups[bone_name].add([index],weight,'REPLACE')
+    modifier=obj.modifiers.new('SourceRig','ARMATURE');modifier.object=rig
+    return obj
+
+
+def _panel(name,profile,sampler,sampler_back,material,spec,rig,col,u,*,columns=9,clearance=.018,push=.016,flare=0.,flare_start=1.07,flare_span=.31,x0=-1.,x1=1.,mirror=False):
     rows=[]
-    for (low,lw),(high,hw) in zip(outline,outline[1:]):
+    for (low,lw),(high,hw) in zip(profile,profile[1:]):
         steps=math.ceil((high-low)/.045)
         rows.extend((low+(high-low)*i/steps,lw+(hw-lw)*i/steps) for i in range(steps))
-    rows.append(outline[-1]);columns=9
-    clearance_profile=spec['humanoidAuthoring'].get('apronClearanceProfile',[])
-    if any(a['heightMeters']>=b['heightMeters'] for a,b in zip(clearance_profile,clearance_profile[1:])):
-        raise ValueError('Apron clearance profile heights must increase')
-    def authored_ease(height):
-        # Source jackets can have a projecting lower hem. The catalog owns
-        # any local tailoring allowance; source skin and motions stay intact.
-        for low,high in zip(clearance_profile,clearance_profile[1:]):
-            if low['heightMeters']<=height<=high['heightMeters']:
-                fraction=(height-low['heightMeters'])/(high['heightMeters']-low['heightMeters'])
-                return low['additionalForwardMeters']+(high['additionalForwardMeters']-low['additionalForwardMeters'])*fraction
-        return 0.
+    rows.append(profile[-1])
     points=[];influences=[]
     for height,width in rows:
-        xs=[width*u*(2*i/(columns-1)-1) for i in range(columns)]
+        xs=[width*u*(x0+(x1-x0)*i/(columns-1))*(-1 if mirror else 1) for i in range(columns)]
         hull=[]
         for i in range(81):
-            x=width*u*(2*i/80-1);value=sample(x,height*u)
+            x=width*u*(2*i/80-1);value=(sampler_back if sampler_back else sampler)(x,height*u)
             if value is None:continue
-            point=(x,*value)
-            # Cloth spans the recessed crotch and trouser creases. A literal
-            # front ray at x=0 otherwise wraps the apron into those grooves.
+            depth=-value[0] if sampler_back else value[0]
+            point=(x,depth,value[1])
             while len(hull)>1:
                 a,b=hull[-2:]
                 cross=(b[0]-a[0])*(point[1]-a[1])-(b[1]-a[1])*(point[0]-a[0])
                 if cross>1e-10:break
                 hull.pop()
             hull.append(point)
-        if not hull:raise ValueError('Apron row misses source torso/trouser envelope')
+        if not hull:raise ValueError('Garment row '+name+' misses the source envelope')
+        limit=min(point[1] for point in hull)+clearance
         for x in xs:
             a=max((point for point in hull if point[0]<=x),key=lambda point:point[0],default=hull[0])
             b=min((point for point in hull if point[0]>=x),key=lambda point:point[0],default=hull[-1])
             blend=0 if a[0]==b[0] else (x-a[0])/(b[0]-a[0])
             combined=Counter()
             for point,factor in ((a,1-blend),(b,blend)):
-                for name,weight in point[2]:combined[name]+=weight*factor
-            groups=sorted(combined.items(),key=lambda item:(-item[1],item[0]))[:4];total=sum(w for _,w in groups)
-            y=a[1]+(b[1]-a[1])*blend;groups=[(n,w/total) for n,w in groups]
-            # An apron hangs across the front; it does not turn around the
-            # thigh sides into the native arm swing. Keep only a shallow bow.
-            y=min(y,min(point[1] for point in hull)+.02*u)
-            # Blended left/right thigh weights shorten the hanging center
-            # during a step. A small hem flare clears that measured envelope
-            # without moving the whole bib or changing the native stride.
-            hem_flare=.018*max(0,min(1,(1.07-height)/.31))
-            points.append(Vector((x,y-(.018+hem_flare)*u-authored_ease(height*u),height*u)));influences.append(groups)
-    front_count=len(points);points += [p+Vector((0,.004*u,0)) for p in points];influences += list(influences)
-    faces=[(row*columns+column,row*columns+column+1,(row+1)*columns+column+1,(row+1)*columns+column)
-           for row in range(len(rows)-1) for column in range(columns-1)]
-    faces += [tuple(front_count+j for j in reversed(face)) for face in list(faces)]
-    edge=[*range(columns),*(row*columns+columns-1 for row in range(1,len(rows))),
-          *range(front_count-2,front_count-columns-1,-1),*(row*columns for row in range(len(rows)-2,0,-1))]
-    faces += [(a,a+front_count,b+front_count,b) for a,b in zip(edge,edge[1:]+edge[:1])]
-    data=bpy.data.meshes.new(spec['id']+'_apron_mesh');data.from_pydata(points,[],faces);data.update()
-    obj=bpy.data.objects.new(spec['id']+'_apron_LOD0',data);col.objects.link(obj)
-    data.materials.append(get_or_create_material(material));uv=data.uv_layers.new(name='UVMap');colors=data.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='CORNER')
-    for poly in data.polygons:
-        for loop in poly.loop_indices:colors.data[loop].color=hex_to_linear_rgba(MATERIAL_SPECS[material]['hex']);v=data.vertices[data.loops[loop].vertex_index].co;uv.data[loop].uv=(v.x/u+.5,v.z/u)
-    for name in rig.data.bones:obj.vertex_groups.new(name=name.name)
-    for index,groups in enumerate(influences):
-        for name,weight in groups:obj.vertex_groups[name].add([index],weight,'REPLACE')
-    mod=obj.modifiers.new('SourceRig','ARMATURE');mod.object=rig
-    return extras+[obj]
+                for bone_name,weight in point[2]:combined[bone_name]+=weight*factor
+            values=sorted(combined.items(),key=lambda item:(-item[1],item[0]))[:4];total=sum(weight for _,weight in values)
+            depth=min(a[1]+(b[1]-a[1])*blend,limit)
+            edge=flare*max(0.,min(1.,(flare_start-height)/max(1e-6,flare_span)))
+            direction=-1. if sampler_back else 1.
+            y=depth*direction-direction*(push+edge)*u
+            points.append(Vector((x,y,height*u)));influences.append([(bone_name,weight/total) for bone_name,weight in values])
+    layer=len(points);points+=[point+Vector((0,(-.004 if sampler_back else .004)*u,0)) for point in points];influences+=list(influences)
+    faces=[(row*columns+column,row*columns+column+1,(row+1)*columns+column+1,(row+1)*columns+column) for row in range(len(rows)-1) for column in range(columns-1)]
+    faces+=[tuple(layer+j for j in reversed(face)) for face in list(faces)]
+    edge=[*range(columns),*(row*columns+columns-1 for row in range(1,len(rows))),*range(layer-2,layer-columns-1,-1),*(row*columns for row in range(len(rows)-2,0,-1))]
+    faces+=[(a,layer+a,layer+b,b) for a,b in zip(edge,edge[1:]+edge[:1])]
+    return _emit_garment(name,points,faces,influences,material,spec,rig,col,u)
+
+
+def _band(name,cast,z_bottom,z_top,axis_y,material,spec,rig,col,u,*,sides=12,clearance=.010,thickness=.012):
+    outer=[];inner=[];groups_list=[]
+    for z in (z_bottom,z_top):
+        axis=Vector((0,axis_y,z*u))
+        for index in range(sides):
+            angle=math.tau*index/sides
+            origin=axis+Vector((math.cos(angle),math.sin(angle),0))
+            result=cast(origin,(axis-origin).normalized())
+            if result is None:raise ValueError('Garment band '+name+' misses the source torso')
+            hit,groups=result;outward=(hit-axis).normalized()
+            outer.append(hit+outward*(clearance*u));inner.append(hit+outward*((clearance-thickness)*u));groups_list.append(groups)
+    influences=[[(bone_name,weight) for bone_name,weight in groups] for groups in groups_list+groups_list]
+    faces=[]
+    for i in range(sides):
+        j=(i+1)%sides
+        faces.append((i,j,sides+j,sides+i))
+        faces.append((2*sides+i,2*sides+j,3*sides+j,3*sides+i))
+        faces.append((sides+i,sides+j,3*sides+j,3*sides+i))
+        faces.append((i,j,2*sides+j,2*sides+i))
+    return _emit_garment(name,outer+inner,faces,influences,material,spec,rig,col,u)
+
+
+def _cuff(name,bone_name,tip_name,material,spec,rig,col,u,source,*,sides=8,clearance=.007,thickness=.008,start=.55,end=.95):
+    points,weight_rows=source[0],source[1]
+    bone=rig.data.bones[bone_name];head=rig.matrix_world@bone.head_local;tail=rig.matrix_world@rig.data.bones[tip_name].head_local
+    axis=(tail-head);length=axis.length;axis=axis.normalized()
+    radius=0.
+    for index,point in enumerate(points):
+        if not any(group_name==bone_name and weight>.4 for group_name,weight in weight_rows[index]):continue
+        offset=(point-head).dot(axis)
+        if start*length<=offset<=end*length:radius=max(radius,(point-head-axis*offset).length)
+    radius=max(radius,.025)+clearance
+    reference=Vector((0,0,1)) if abs(axis.z)<.99 else Vector((1,0,0))
+    side=axis.cross(reference).normalized();up=side.cross(axis).normalized()
+    outer=[];inner=[]
+    for t in (start,end):
+        center=head+axis*(t*length)
+        for index in range(sides):
+            angle=math.tau*index/sides
+            radial=side*math.cos(angle)+up*math.sin(angle)
+            outer.append(center+radial*radius);inner.append(center+radial*(radius-thickness))
+    influences=[[(bone_name,1.)] for _ in range(len(outer)+len(inner))]
+    faces=[]
+    for i in range(sides):
+        j=(i+1)%sides
+        faces.append((i,j,sides+j,sides+i))
+        faces.append((2*sides+i,2*sides+j,3*sides+j,3*sides+i))
+        faces.append((sides+i,sides+j,3*sides+j,3*sides+i))
+        faces.append((i,j,2*sides+j,2*sides+i))
+    return _emit_garment(name,outer+inner,faces,influences,material,spec,rig,col,u)
+
+
+def _pouch(name,center,size,groups,material,spec,rig,col,u):
+    half=Vector((size[0]*.5,size[1]*.5,size[2]*.5))
+    points=[center+Vector((sx*half.x,sy*half.y,sz*half.z)) for sx in (-1,1) for sy in (-1,1) for sz in (-1,1)]
+    faces=[(0,1,3,2),(4,6,7,5),(0,4,5,1),(2,3,7,6),(0,2,6,4),(1,5,7,3)]
+    return _emit_garment(name,points,faces,[list(groups)]*8,material,spec,rig,col,u)
+
+
+def _strap(name,anchors,width,thickness,anchor_groups,material,spec,rig,col,u):
+    if len(anchors)<2:raise ValueError('Garment strap needs two distinct anchors')
+    rings=[]
+    for index,anchor in enumerate(anchors):
+        if index==0:direction=(anchors[1]-anchors[0]).normalized()
+        elif index==len(anchors)-1:direction=(anchors[-1]-anchors[-2]).normalized()
+        else:direction=(anchors[index+1]-anchors[index-1]).normalized()
+        reference=Vector((0,0,1)) if abs(direction.z)<.99 else Vector((1,0,0))
+        side=direction.cross(reference).normalized();up=side.cross(direction).normalized()
+        rings.append([anchor+side*(width*.5)+up*(thickness*.5),anchor-side*(width*.5)+up*(thickness*.5),anchor-side*(width*.5)-up*(thickness*.5),anchor+side*(width*.5)-up*(thickness*.5)])
+    points=[point for ring in rings for point in ring]
+    influences=[[(bone_name,weight) for bone_name,weight in groups] for ring,groups in zip(rings,anchor_groups) for _ in ring]
+    faces=[]
+    for row in range(len(rings)-1):
+        a,b=row*4,(row+1)*4
+        for left,right in ((0,1),(1,2),(2,3),(3,0)):
+            faces.append((a+left,b+left,b+right,a+right))
+    faces.append((3,2,1,0));faces.append(tuple((len(rings)-1)*4+i for i in range(4)))
+    return _emit_garment(name,points,faces,influences,material,spec,rig,col,u)
+
+
+def _surface_strap(name,front,start,end,width,push,thickness,material,spec,rig,col,u,nearest,*,steps=7):
+    path=[];groups=[]
+    for step in range(steps):
+        fraction=step/(steps-1)
+        x=(start[0]+(end[0]-start[0])*fraction)*u
+        z=(start[1]+(end[1]-start[1])*fraction)*u
+        sample=front(x,z)
+        if sample is None:raise ValueError('Garment strap '+name+' leaves the retained surface')
+        point=Vector((x,sample[0]-push*u,z))
+        path.append(point);groups.append(sample[1])
+    outer=[];inner=[]
+    for index,center in enumerate(path):
+        if index==0:tangent=path[1]-path[0]
+        elif index==len(path)-1:tangent=path[-1]-path[-2]
+        else:tangent=path[index+1]-path[index-1]
+        lateral=tangent.cross(Vector((0,-1,0))).normalized()
+        outer.extend([center+lateral*(width*.5*u),center-lateral*(width*.5*u)])
+        inner.extend([center+lateral*(width*.5*u)+Vector((0,thickness*u,0)),center-lateral*(width*.5*u)+Vector((0,thickness*u,0))])
+    points=outer+inner
+    influences=[[(bone_name,weight) for bone_name,weight in groups[row]] for row in range(steps) for _ in range(2)]
+    influences=influences+[[(bone_name,weight) for bone_name,weight in groups[row]] for row in range(steps) for _ in range(2)]
+    faces=[]
+    for row in range(steps-1):
+        a,b=row*2,(row+1)*2;ia,ib=len(outer)+row*2,len(outer)+(row+1)*2
+        faces.append((a,b,b+1,a+1))
+        faces.append((ia,ib,ib+1,ia+1))
+        faces.append((a,ia,ib,b))
+        faces.append((a+1,ia+1,ib+1,b+1))
+    faces.append((0,len(outer),len(outer)+1,1))
+    faces.append(((steps-1)*2,len(outer)+(steps-1)*2,len(outer)+(steps-1)*2+1,(steps-1)*2+1))
+    return _emit_garment(name,points,faces,influences,material,spec,rig,col,u)
+
+
+def role_accessories(meshes,rig,spec,col):
+    """Role workwear layers fitted to the retained source surfaces and skin."""
+    bpy.context.view_layer.update()
+    authoring=spec['humanoidAuthoring'];role=authoring['role'];u=authoring['heightMeters']/1.9
+    extras=tied_hair_accessories(meshes,rig,spec,col)
+    kits={
+        'gardener':{'apron':'canvas_cream_01','sash':'cloth_olive_01','cuffs':'cloth_olive_01'},
+        'market_keeper':{'apron':'cloth_teal_01','sash':'canvas_cream_01','cuffs':'canvas_cream_01'},
+        'handyman':{'apron':'canvas_cream_01','belt':'leather_harness_01','cuffs':'cloth_ochre_01'},
+        'dockmaster':{'coat':'cloth_slate_01','belt':'leather_harness_01','cuffs':'canvas_cream_01'},
+        'merchant':{'vest':'cloth_rust_01','sash':'canvas_cream_01','satchel':'leather_harness_01','cuffs':'cloth_rust_01'},
+        'grower':{'apron':'cloth_olive_01','sash':'canvas_cream_01','cuffs':'canvas_cream_01','pouch':'leather_harness_01'},
+    }
+    if role not in kits:return extras
+    kit=kits[role]
+    source=_weighted_source(meshes)
+    cast,front,back,nearest=source[2],source[3],source[4],source[5]
+    def bone(key):return rig.matrix_world@rig.data.bones[SEMANTICS[key]].head_local
+    hip=bone('hips').z;waist=bone('spine_02').z;chest=bone('chest').z;neck=bone('neck').z
+    def ring_axis(z):
+        hits=[sampler(0.,z*u)[0] for sampler in (front,back) if sampler(0.,z*u) is not None]
+        if len(hits)!=2:raise ValueError('Garment band needs both torso sides')
+        return (hits[0]+hits[1])*.5
+    if 'apron' in kit:
+        profile=[(hip-.20,.125),(hip-.04,.105),(hip+.06,.12),(chest-.12,.108)]
+        extras.append(_panel('apron',profile,front,None,kit['apron'],spec,rig,col,u,clearance=.02,push=(.024 if role=='handyman' else .018),flare=.018,flare_start=waist+.01))
+        top_height=chest-.12;top_width=.108
+        for side in (-1,1):
+            extras.append(_surface_strap('apron_strap_'+('left' if side<0 else 'right'),front,(side*(top_width-.016),top_height+.014),(side*.052,neck-.03),.024,.026,.010,kit['apron'],spec,rig,col,u,nearest))
+    if 'vest' in kit:
+        profile=[(waist-.02,.15),(chest-.14,.145),(chest+.02,.16),(neck-.02,.165)]
+        for mirror in (False,True):
+            extras.append(_panel('vest_'+('right' if mirror else 'left'),profile,front,None,kit['vest'],spec,rig,col,u,clearance=.02,push=.014,x0=.18,x1=1.,mirror=mirror))
+        extras.append(_panel('vest_back',profile,None,back,kit['vest'],spec,rig,col,u,clearance=.02,push=.014))
+    if 'coat' in kit:
+        profile=[(hip-.10,.15),(waist,.155),(chest-.12,.16),(neck-.02,.17)]
+        for mirror in (False,True):
+            extras.append(_panel('coat_'+('right' if mirror else 'left'),profile,front,None,kit['coat'],spec,rig,col,u,clearance=.022,push=.016,x0=.16,x1=1.,mirror=mirror))
+        extras.append(_panel('coat_back',profile,None,back,kit['coat'],spec,rig,col,u,clearance=.022,push=.016))
+    if 'sash' in kit:
+        extras.append(_band('sash',cast,waist-.035,waist+.035,ring_axis(waist),kit['sash'],spec,rig,col,u))
+    if 'belt' in kit:
+        extras.append(_band('belt',cast,hip-.005,hip+.045,ring_axis(hip+.02),kit['belt'],spec,rig,col,u))
+    if 'cuffs' in kit:
+        for side in ('left','right'):
+            extras.append(_cuff('cuff_'+side,SEMANTICS['forearm_'+side],SEMANTICS['hand_'+side],kit['cuffs'],spec,rig,col,u,source))
+    if 'satchel' in kit:
+        center=Vector((-.16*u,-.10*u,hip+.04*u))
+        extras.append(_pouch('satchel',center,(.20*u,.10*u,.22*u),nearest(center),kit['satchel'],spec,rig,col,u))
+        extras.append(_surface_strap('satchel_strap',front,(-.105,chest-.08),(.115,waist+.01),.034,.020,.010,kit['satchel'],spec,rig,col,u,nearest))
+    if 'pouch' in kit:
+        center=Vector((.15*u,-.09*u,hip+.05*u))
+        extras.append(_pouch('tool_pouch',center,(.13*u,.07*u,.16*u),nearest(center),kit['pouch'],spec,rig,col,u))
+    return extras
 
 
 def make_lod(meshes,col,root):

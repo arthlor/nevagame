@@ -6,6 +6,8 @@ single unmistakable silhouette cue rather than surface detail.
 
 from __future__ import annotations
 
+from common.design_primitives import add_crafted_box
+
 import math
 
 from common.geometry import (
@@ -33,7 +35,10 @@ def item_carrot(spec: dict, root) -> None:
          (0, .024, .050), (0, .044, .030))], orange, root, sides=8)
     # Growth rings around the shoulder are the read that says "root vegetable".
     for index in range(3):
-        add_ring(f"carrot_ring_{index}", (0, 0, -0.10 + index * 0.032), 0.042 - index * 0.007, 0.004, shadow, root,
+        # Match the tapered root at this height instead of hanging hoops in air.
+        z = -.10 + index * .032
+        radius = .016 + (z + .145) / .075 * .019 if z <= -.07 else .035 + (z + .07) / .094 * .015
+        add_ring(f"carrot_ring_{index}", (0, 0, z), radius - .001, .0017, shadow, root,
                  major_segments=8, minor_segments=4)
 
     crown_z = -0.145 + root_len + 0.010
@@ -89,8 +94,8 @@ def item_apple(spec: dict, root) -> None:
     add_cone("apple_stem_well", (0, 0, 0.043), 0.030, 0.014, 0.018, wood, root, vertices=8)
     add_cone("apple_calyx", (0, 0, -0.049), 0.022, 0.008, 0.014, wood, root, vertices=6)
     add_tapered_beam("apple_stalk", (0, 0, 0.046), (0.006, 0.004, 0.075), 0.005, 0.0035, wood, root, vertices=5)
-    add_tri_prism("apple_leaf", (0.026, 0.008, 0.070), (0.020, 0.042, 0.008), leaf, root,
-                  rotation=(math.radians(72), 0, math.radians(28)))
+    add_leaf_blade("apple_leaf", (.004, .003, .067), (.049, .022, .078), .023,
+                   leaf, root, thickness=.0018, cup=.15, stations=4)
 
 
 def item_bread_loaf(spec: dict, root) -> None:
@@ -212,7 +217,7 @@ def treasure_chest(spec: dict, root) -> None:
     lid_cx = 0.0
     lid_cy = hinge_y + math.cos(tilt) * lid_len * 0.5
     lid_cz = lid_pivot_z - math.sin(tilt) * lid_len * 0.5
-    add_box("chest_lid", (lid_cx, lid_cy, lid_cz), (width, lid_len, 0.075), wood, root, rotation=(tilt, 0, 0), bevel=0.012)
+    add_crafted_box("chest_lid", (lid_cx, lid_cy, lid_cz), (width, lid_len, 0.075), wood, root, rotation=(tilt, 0, 0), bevel=0.012)
     add_cylinder("chest_lid_barrel", (0, hinge_y - 0.02, lid_pivot_z + 0.030), 0.055, width, dark, root,
                  vertices=8, rotation=(0, math.radians(90), 0))
     for index, sx in enumerate((-width * 0.28, width * 0.28)):

@@ -1,4 +1,4 @@
-"""Faceted sky clouds: cute, plump, bubbly spherical cotton-puff cumulus clouds."""
+"""Authored cumulus silhouettes: broad banks and asymmetric billowing towers."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def _add_lobe(
 
 
 def _center_children(root) -> None:
-    """Keep catalog pivot=center at the visual mass centroid."""
+    """Keep the catalog pivot at the local-space bounds centre, even under a transformed root."""
     meshes = [child for child in root.children if child.type == "MESH"]
     if not meshes:
         return
@@ -63,7 +63,7 @@ def _center_children(root) -> None:
     zs: list[float] = []
     for mesh in meshes:
         for vertex in mesh.data.vertices:
-            world = mesh.matrix_world @ vertex.co
+            world = root.matrix_world.inverted() @ mesh.matrix_world @ vertex.co
             xs.append(world.x)
             ys.append(world.y)
             zs.append(world.z)
@@ -79,116 +79,73 @@ def _scaled(unit: tuple[float, ...], width: float, depth: float, height: float) 
     return (unit[0] * width, unit[1] * depth, unit[2] * height)
 
 
-def _build_bank(spec: dict, root) -> None:
-    """Cute, chubby, bubbly cotton puff: plump spherical marshmallow balls clustered naturally."""
-    params = spec["parameters"]
-    rng = seeded_rng(spec["seed"])
-    width = float(_required(params, "width"))
-    depth = float(_required(params, "depth"))
-    height = float(_required(params, "height"))
-    clusters = int(_required(params, "clusters"))
-    token = _token(spec)
 
-    # (unit_loc, unit_scale, loft, subdivisions)
-    # Plump spherical lobes with balanced X/Y/Z dimensions
-    lobes = (
-        # Central large chubby core ball
-        ((0.00, 0.00, 0.00), (0.46, 0.44, 0.44), 0.04, 2),
-        # Round side cheeks
-        ((-0.32, -0.02, -0.02), (0.38, 0.36, 0.36), 0.03, 2),
-        ((0.32, 0.02, -0.02), (0.36, 0.34, 0.34), 0.03, 2),
-        # Front & back rounded bellies
-        ((0.00, -0.28, -0.02), (0.34, 0.34, 0.32), 0.02, 2),
-        ((0.04, 0.26, 0.02), (0.32, 0.32, 0.30), 0.02, 2),
-        # Top bubbly domes
-        ((0.02, 0.02, 0.30), (0.34, 0.32, 0.32), 0.06, 2),
-        ((-0.20, 0.04, 0.24), (0.28, 0.26, 0.26), 0.05, 2),
-        ((0.20, -0.04, 0.22), (0.26, 0.24, 0.24), 0.05, 2),
+def _build_cloud_recipe(spec, root, kind):
+    params = spec["parameters"]
+    width, depth, height = (float(_required(params, key)) for key in ("width", "depth", "height"))
+    requested = _required(params, "clusters")
+    clusters = int(requested)
+    if any(not math.isfinite(v) or v <= 0 for v in (width, depth, height)) or clusters < 1 or clusters != requested:
+        raise ValueError("Cloud dimensions must be positive and clusters a positive integer")
+    # Ordered anchors: the mass remains recognisable even with a small count.
+    # Extra scallops stay on existing shoulders instead of increasing the footprint.
+    bank = (
+        ((0, 0, -.06), (.47, .40, .32)),
+        ((-.32, .02, -.11), (.35, .31, .27)),
+        ((.33, .03, -.11), (.31, .28, .26)),
+        ((-.10, .02, .23), (.34, .32, .35)),
+        ((.22, -.04, .14), (.27, .28, .28)),
+        ((-.10, -.25, -.06), (.31, .24, .25)),
+        ((.07, .25, -.08), (.30, .23, .24)),
+        ((-.42, -.02, .06), (.20, .22, .22)),
     )
-    for index, (unit_loc, unit_scale, loft, subdiv) in enumerate(lobes):
+    tower = (
+        ((-.04, 0, .00), (.38, .37, .40)),
+        ((-.16, .02, .27), (.32, .32, .34)),
+        ((.28, .02, -.16), (.33, .31, .29)),
+        ((-.34, .04, -.16), (.31, .28, .28)),
+        ((.20, -.05, .17), (.27, .26, .29)),
+        ((-.04, -.25, -.13), (.31, .26, .29)),
+        ((-.10, .23, -.09), (.31, .25, .27)),
+        ((-.39, .03, .12), (.21, .22, .25)),
+        ((.43, -.01, -.03), (.20, .21, .22)),
+        ((-.09, -.19, .30), (.20, .21, .22)),
+        ((.19, .22, .02), (.23, .22, .25)),
+        ((-.26, -.19, .03), (.23, .24, .27)),
+    )
+    anchors = bank if kind == "bank" else tower
+    for index in range(clusters):
+        rng = seeded_rng(spec["seed"] + index*53 + 11)
+        if index < len(anchors):
+            location, scale = anchors[index]
+            detail = 2
+        else:
+            # Per-index seeded selection is prefix-stable when count changes.
+            j = index-len(anchors)
+            angle = j*2.39996323+.35
+            center, _ = anchors[j % len(anchors)]
+            location = (max(-.49,min(.49,center[0]+.09*math.cos(angle))),
+                        max(-.31,min(.31,center[1]+.09*math.sin(angle))),
+                        max(-.16,min(.34,center[2]+.025*math.sin(angle))))
+            r = rng.uniform(.12,.17)
+            scale, detail = (r,r*.94,r*.88), 1
         _add_lobe(
-            f"cloud_bank_{index:02d}",
-            _scaled(unit_loc, width, depth, height),
-            _scaled(unit_scale, width, depth, height),
-            token,
-            root,
-            spec["seed"] + 11 + index,
-            loft=loft,
-            rotation=(rng.uniform(-0.06, 0.06), rng.uniform(-0.06, 0.06), rng.uniform(-0.08, 0.08)),
-            subdivisions=subdiv,
+            f"cloud_{kind}_{index:02d}", _scaled(location,width,depth,height),
+            _scaled(scale,width,depth,height), _token(spec), root,
+            spec["seed"]+11+index, loft=.035 if kind == "bank" else .055,
+            rotation=(rng.uniform(-.04,.04),rng.uniform(-.04,.04),rng.uniform(-.06,.06)),
+            subdivisions=detail,
         )
-    extra = max(0, clusters - len(lobes))
-    for index in range(extra):
-        side = -1.0 if index % 2 else 1.0
-        _add_lobe(
-            f"cloud_bank_puff_{index:02d}",
-            (side * width * (0.36 + index * 0.05), rng.uniform(-0.06, 0.06) * depth, height * (0.04 + index * 0.04)),
-            (width * 0.18, depth * 0.18, height * 0.18),
-            token,
-            root,
-            spec["seed"] + 41 + index,
-            loft=0.03,
-            rotation=(rng.uniform(-0.08, 0.08), rng.uniform(-0.08, 0.08), rng.uniform(-0.10, 0.10)),
-            subdivisions=1,
-        )
+
+
+def _build_bank(spec: dict, root) -> None:
+    """Build the bank recipe using the catalog's exact cluster count."""
+    _build_cloud_recipe(spec, root, "bank")
 
 
 def _build_tower(spec: dict, root) -> None:
-    """Cute grand billowing cloud cluster: expansive, fluffy, rounded cotton mounds."""
-    params = spec["parameters"]
-    rng = seeded_rng(spec["seed"])
-    width = float(_required(params, "width"))
-    depth = float(_required(params, "depth"))
-    height = float(_required(params, "height"))
-    clusters = int(_required(params, "clusters"))
-    token = _token(spec)
-
-    # (unit_loc, unit_scale, loft, subdivisions)
-    lobes = (
-        # Main central chubby ball
-        ((0.00, 0.00, 0.02), (0.40, 0.38, 0.38), 0.04, 2),
-        # Mid-flank round balls
-        ((-0.28, 0.03, 0.00), (0.36, 0.34, 0.34), 0.03, 2),
-        ((0.28, -0.03, 0.00), (0.34, 0.32, 0.32), 0.03, 2),
-        # Outer flank rounded balls
-        ((-0.44, -0.02, -0.02), (0.28, 0.26, 0.26), 0.02, 2),
-        ((0.44, 0.02, -0.02), (0.26, 0.24, 0.24), 0.02, 2),
-        # Front & back round bellies
-        ((-0.12, -0.22, -0.02), (0.28, 0.28, 0.26), 0.02, 2),
-        ((0.14, -0.20, -0.02), (0.26, 0.26, 0.24), 0.02, 2),
-        ((-0.10, 0.22, 0.02), (0.26, 0.26, 0.24), 0.02, 2),
-        ((0.12, 0.20, 0.04), (0.24, 0.24, 0.22), 0.02, 2),
-        # Top billow crests
-        ((-0.02, 0.04, 0.28), (0.32, 0.30, 0.30), 0.06, 2),
-        ((-0.22, -0.02, 0.24), (0.28, 0.26, 0.26), 0.05, 2),
-        ((0.20, 0.04, 0.22), (0.26, 0.24, 0.24), 0.05, 2),
-    )
-    for index, (unit_loc, unit_scale, loft, subdiv) in enumerate(lobes):
-        _add_lobe(
-            f"cloud_tower_{index:02d}",
-            _scaled(unit_loc, width, depth, height),
-            _scaled(unit_scale, width, depth, height),
-            token,
-            root,
-            spec["seed"] + 17 + index,
-            loft=loft,
-            rotation=(rng.uniform(-0.06, 0.06), rng.uniform(-0.06, 0.06), rng.uniform(-0.08, 0.08)),
-            subdivisions=subdiv,
-        )
-    extra = max(0, clusters - len(lobes))
-    for index in range(extra):
-        side = -1.0 if index % 2 else 1.0
-        _add_lobe(
-            f"cloud_tower_puff_{index:02d}",
-            (side * width * (0.40 + index * 0.04), rng.uniform(-0.06, 0.06) * depth, height * (0.06 + index * 0.03)),
-            (width * 0.16, depth * 0.16, height * 0.16),
-            token,
-            root,
-            spec["seed"] + 53 + index,
-            loft=0.03,
-            rotation=(rng.uniform(-0.06, 0.06), rng.uniform(-0.06, 0.06), rng.uniform(-0.10, 0.10)),
-            subdivisions=1,
-        )
+    """Build the tower recipe using the catalog's exact cluster count."""
+    _build_cloud_recipe(spec, root, "tower")
 
 
 def faceted_cloud(spec: dict, root) -> None:

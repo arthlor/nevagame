@@ -1,5 +1,7 @@
 """Reference-led timber backpack carriers; cargo identity stays catalog-owned."""
 
+from common.design_primitives import add_crafted_box
+
 import math
 
 import bpy
@@ -27,22 +29,22 @@ def _frame(spec, root, detail):
         for back in (False, True):
             y = d * (.43 if back else -.43)
             ph = h if back else rim + .045
-            add_box(n(f'post_{side}_{back}'), (x, y, ph/2), (.075, .075, ph), wood, root, bevel=.012)
+            add_crafted_box(n(f'post_{side}_{back}'), (x, y, ph/2), (.075, .075, ph), wood, root, bevel=.012)
             for z in (.12, ph-.13):
                 points = [(x + .058*math.cos(i*math.tau/12), y + .058*math.sin(i*math.tau/12), z+i*.0025)
                           for i in range(25 if detail else 13)]
                 add_rope_line(n(f'lashing_{side}_{back}_{int(z*100)}'), points, .012, rope, root, vertices=5)
-        add_box(n(f'runner_{side}'), (x, 0, .09), (.09, d+.12, .09), dark, root, bevel=.012)
+        add_crafted_box(n(f'runner_{side}'), (x, 0, .09), (.09, d+.12, .09), dark, root, bevel=.012)
     add_plank_field(n('floor'), (0, 0, .16), w-.08, d-.06, .045,
                     (wood, dark), root, count=6 if detail else 4, seed=spec['seed'], bevel=.006)
     for side in (-1, 1):
         for row in range(3):
             z = .23 + row*(rim-.23)/3
-            add_box(n(f'front_board_{side}_{row}'), (0, side*d*.43, z),
+            add_crafted_box(n(f'front_board_{side}_{row}'), (0, side*d*.43, z),
                     (w-.03, .04, (rim-.20)/3*.91), wood, root, bevel=.006)
-            add_box(n(f'side_board_{side}_{row}'), (side*w*.46, 0, z),
+            add_crafted_box(n(f'side_board_{side}_{row}'), (side*w*.46, 0, z),
                     (.035, d-.04, (rim-.20)/3*.91), wood, root, bevel=.006)
-        add_box(n(f'crossbar_{side}'), (0, d*.43, h*(.31 if side<0 else .86)),
+        add_crafted_box(n(f'crossbar_{side}'), (0, d*.43, h*(.31 if side<0 else .86)),
                 (w, .065, .075), dark, root, bevel=.01)
         add_limb_tube(n(f'brace_{side}'), [(side*w*.42, d*.39, h*.84),(0,d*.39,h*.53)],
                       [(.025,.035)]*2, wood, root, sides=4, normal_mode='planar')
@@ -104,13 +106,17 @@ def _fish_payload(spec, root, detail, w, d, rim):
     created=set(bpy.context.scene.objects)-before
     for obj in sorted(created,key=lambda ob:ob.name):
         if obj.type!='MESH': continue
+        for modifier in list(obj.modifiers):
+            if modifier.type=='ARMATURE': obj.modifiers.remove(modifier)
         obj.data.transform(transform @ obj.matrix_world)
         obj.parent=root
         obj.matrix_parent_inverse.identity()
         obj.matrix_basis.identity()
         obj.name=f'{root.name}_{obj.name}'
     for obj in created:
-        if obj.type=='EMPTY': bpy.data.objects.remove(obj,do_unlink=True)
+        # The catch is flattened into the carrier, so its rig and motion
+        # carriers must not survive as a stray hierarchy or skin.
+        if obj.type in {'EMPTY','ARMATURE'}: bpy.data.objects.remove(obj,do_unlink=True)
     bpy.data.objects.remove(holder,do_unlink=True)
     rope,canvas,ink=_roles(spec)[3],_roles(spec)[2],_roles(spec)[6]
     rng=seeded_rng(spec['seed'])

@@ -45,9 +45,11 @@ def _tapered_trunk(prefix, base_radius, top_radius, height, lean, token, root, *
 
 
 def _canopy_blob(name, center, scale, token, root, *, rng, subdivisions=2):
-    return add_canopy_lobe(name, center, scale, token, root,
-        seed=rng.randrange(1_000_000),detail=1,
+    obj = add_canopy_lobe(name, center, scale, token, root,
+        seed=rng.randrange(1_000_000), detail=int(subdivisions > 1),
         rotation=(rng.uniform(-.2,.2),rng.uniform(-.2,.2),rng.uniform(0,math.pi)))
+    set_surface_normals(obj, "foliage")
+    return obj
 
 
 def broadleaf_oak(spec: dict, root) -> None:
@@ -147,8 +149,9 @@ def maple_tree(spec: dict, root) -> None:
     # Crown built as an upright ovoid around the leader, autumn tones on the sunlit side.
     for index, tip in enumerate(tips):
         radius = rng.uniform(0.62, 0.86)
-        sunlit = tip[0] > 0.0
-        token = ochre if (sunlit and index % 2 == 0) else olive
+        # Autumn colour grows in contiguous canopy regions, not alternating beads.
+        warm_patch = tip[2] > height * .72 or (tip[0] > spread * .24 and tip[1] < spread * .28)
+        token = ochre if warm_patch else olive
         _canopy_blob(
             f"maple_canopy_{index:02d}",
             (tip[0] * 0.88, tip[1] * 0.88, tip[2] + radius * 0.34),

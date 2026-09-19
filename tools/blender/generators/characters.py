@@ -1158,12 +1158,18 @@ def fauna_chicken(spec: dict, root) -> None:
     add_ico("chicken_eye_left", (-0.08 * s, -0.30 * s, 0.74 * s), (0.018 * s, 0.018 * s, 0.018 * s), dark, root, subdivisions=1)
     add_ico("chicken_eye_right", (0.08 * s, -0.30 * s, 0.74 * s), (0.018 * s, 0.018 * s, 0.018 * s), dark, root, subdivisions=1)
     for comb in range(3):
-        add_box(
+        add_ico(
             f"chicken_comb_{comb}",
             (0, (-0.24 + comb * 0.04) * s, (0.82 + (1 if comb == 1 else 0) * 0.03) * s),
-            (0.03 * s, 0.06 * s, 0.08 * s * comb_scale), comb_token, root, bevel=0.0,
+            (0.018 * s, 0.035 * s, 0.052 * s * comb_scale), comb_token, root,
+            subdivisions=1, normal_mode="rounded",
         )
-    add_box("chicken_wattle", (0, -0.32 * s, 0.62 * s), (0.025 * s, 0.06 * s, 0.08 * s), comb_token, root, bevel=0.0)
+    add_lofted_form("chicken_wattle", [
+        ((0, -.325*s, .575*s), .006*s, .012*s),
+        ((0, -.332*s, .595*s), .016*s, .029*s),
+        ((0, -.325*s, .625*s), .012*s, .022*s),
+        ((0, -.315*s, .652*s), .005*s, .010*s),
+    ], comb_token, root, sides=8)
     for side, sign in (("left", -1), ("right", 1)):
         add_cylinder(f"chicken_leg_{side}", (sign * 0.09 * s, 0.02 * s, 0.16 * s), 0.016 * s, 0.30 * s, beak_token, root, vertices=5)
         add_box(f"chicken_foot_{side}", (sign * 0.09 * s, -0.03 * s, 0.02 * s), (0.07 * s, 0.10 * s, 0.02 * s), beak_token, root, bevel=0.0)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from common.design_primitives import add_folded_leaf as _authored_leaf
+
 import math
 
 import bpy
@@ -80,33 +82,9 @@ def _add_octahedron(
 
 def _add_folded_leaf(name, base, length, width, facing_angle, token, root, *,
                      pitch=0.42, droop=0.0, cup=0.10):
-    """Closed folded blade with an upright shoulder and a falling dry tip.
-
-    Four diamond sections spend faces on the midrib and arch, so a leaf stays
-    readable edge-on without alpha cards or coincident back-facing triangles.
-    """
-    forward = Vector((math.cos(facing_angle), math.sin(facing_angle), 0))
-    across = Vector((-forward.y, forward.x, 0))
-    origin = Vector(base)
-    vertices, faces = [], []
-    for t, breadth in ((0, .035), (.32, .45), (.70, .34), (1, .008)):
-        reach = length * (math.cos(pitch) * t + .12 * t * t)
-        rise = length * (math.sin(pitch) * t + .20 * math.sin(math.pi*t)
-                         - droop * .92 * t*t)
-        center = origin + forward*reach + Vector((0,0,rise))
-        tangent = forward*(math.cos(pitch)+.24*t) + Vector((0,0,
-            math.sin(pitch)+.20*math.pi*math.cos(math.pi*t)-1.84*droop*t))
-        normal = tangent.normalized().cross(across).normalized()
-        ridge = max(.001, width*(.07+cup*.35)*math.sin(math.pi*(.04+.92*t)))
-        for offset in (across*width*breadth, normal*ridge,
-                       -across*width*breadth, -normal*max(.001,width*.025)):
-            vertices.append(tuple(center+offset))
-    for row in range(3):
-        for side in range(4):
-            a=row*4+side; b=row*4+(side+1)%4
-            faces.append((a,b,b+4,a+4))
-    faces.extend(((3,2,1,0),(12,13,14,15)))
-    _add_custom_mesh(name, vertices, faces, token, root, normal_mode="planar")
+    """Curved five-section blade, with a petiole, shoulder, midrib and turned tip."""
+    _authored_leaf(name, base, length, width, facing_angle, token, root,
+                   pitch=pitch, droop=droop, cup=cup)
 
 
 def _add_culm(
@@ -630,7 +608,7 @@ def corn_crop(spec: dict, root) -> None:
             knee=0.08 if stage == "withered" else 0.025,
         )
 
-        leaf_count = 3 if stage == "sprout" else 7 if stage in ("mature", "overripe") else 5
+        leaf_count = 3 if stage == "sprout" else 9 if stage == "mature" else 8 if stage == "overripe" else 6
         for l_idx in range(leaf_count):
             t = (l_idx + 1) / (leaf_count + 1.2)
             node_pos = (
@@ -1193,8 +1171,9 @@ def sunflower_crop(spec, root):
     base=(0,0,.012); shoulder=(.015,.0,height*.86)
     tip=(.12 if dry else .025,-.06 if dry else 0,height*(.82 if dry else 1))
     add_limb_tube("sunflower_stem",[base,shoulder,tip],[.027,.019,.014],tokens[1],root,sides=6)
-    for i in range(p["leafCount"]):
-        t=.15+.65*i/max(1,p["leafCount"]-1)
+    leaf_total = p["leafCount"] + (1 if stage == "growing" else 0)
+    for i in range(leaf_total):
+        t=.15+.65*i/max(1,leaf_total-1)
         _add_folded_leaf(f"sunflower_leaf_{i}",(.015*t,0,height*t),p["leafLength"]*(1-.27*t),
             p["leafWidth"]*(1-.22*t),i*GOLDEN_ANGLE+.3,tokens[0],root,pitch=.38,droop=droop,cup=.25)
     if stage=="growing":

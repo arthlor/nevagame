@@ -7,6 +7,8 @@ frame above the fill. Palette order is fixed by the catalog entry.
 
 from __future__ import annotations
 
+from common.design_primitives import add_crafted_box
+
 import math
 
 from common.geometry import (
@@ -36,47 +38,47 @@ def apiary_hive(spec: dict, root) -> None:
         (-width * 0.42, -depth * 0.40), (width * 0.42, -depth * 0.40),
         (-width * 0.42, depth * 0.40), (width * 0.42, depth * 0.40),
     )):
-        add_box(f"hive_stand_leg_{index}", (sx, sy, stand_h * 0.5), (0.06, 0.06, stand_h), frame, root, bevel=0.0)
+        add_crafted_box(f"hive_stand_leg_{index}", (sx, sy, stand_h * 0.5), (0.06, 0.06, stand_h), frame, root, bevel=0.0)
 
     # Bottom board overhangs to the front so the landing ramp has something to sit on.
     board_z = stand_h + 0.025
-    add_box("hive_bottom_board", (0, 0.02, board_z), (width + 0.06, depth + 0.10, 0.05), frame, root, bevel=0.012)
-    add_box(
+    add_crafted_box("hive_bottom_board", (0, 0.02, board_z), (width + 0.06, depth + 0.10, 0.05), frame, root, bevel=0.012)
+    add_crafted_box(
         "hive_landing_board", (0, -depth * 0.5 - 0.11, board_z + 0.004),
         (width * 0.72, 0.20, 0.028), frame, root, rotation=(math.radians(-9), 0, 0), bevel=0.008,
     )
     # Entrance reducer slot, dark so the hive mouth reads at a distance.
-    add_box("hive_entrance", (0, -depth * 0.5 + 0.01, board_z + 0.042), (width * 0.52, 0.05, 0.030), metal, root, bevel=0.0)
+    add_crafted_box("hive_entrance", (0, -depth * 0.5 + 0.01, board_z + 0.042), (width * 0.52, 0.05, 0.030), metal, root, bevel=0.0)
 
     super_h = 0.195
     base_z = board_z + 0.025
     for index in range(3):
         z = base_z + super_h * index
-        add_box(f"hive_super_{index}", (0, 0, z + super_h * 0.5), (width, depth, super_h), body, root, bevel=0.010)
+        add_crafted_box(f"hive_super_{index}", (0, 0, z + super_h * 0.5), (width, depth, super_h), body, root, bevel=0.010)
         # Routed hand-hold on both long sides: the detail that makes it a beehive, not a crate.
         for side_index, sign in enumerate((-1, 1)):
-            add_box(
+            add_crafted_box(
                 f"hive_handhold_{index}_{side_index}",
                 (sign * (width * 0.5 - 0.008), 0, z + super_h * 0.62),
                 (0.022, depth * 0.56, 0.036), frame, root, bevel=0.0,
             )
         # Frame rebate lip reads as the joint between boxes.
-        add_box(f"hive_rebate_{index}", (0, 0, z + 0.008), (width + 0.022, depth + 0.022, 0.016), frame, root, bevel=0.006)
+        add_crafted_box(f"hive_rebate_{index}", (0, 0, z + 0.008), (width + 0.022, depth + 0.022, 0.016), frame, root, bevel=0.006)
 
     # A Langstroth hive wears a flat telescoping cover, and a gable perched two
     # boxes above the stack read as a slab hovering over the hive. Seat the
     # cover on the inner board with a real skirt down its sides.
     lid_z = base_z + super_h * 3
-    add_box("hive_inner_cover", (0, 0, lid_z + 0.02), (width + 0.03, depth + 0.03, 0.04), frame, root, bevel=0.008)
+    add_crafted_box("hive_inner_cover", (0, 0, lid_z + 0.02), (width + 0.03, depth + 0.03, 0.04), frame, root, bevel=0.008)
     cover_z = lid_z + 0.040
-    add_box("hive_cover_top", (0, 0, cover_z + 0.026), (width + 0.09, depth + 0.09, 0.052), roof, root, bevel=0.010)
-    add_box("hive_cover_flashing", (0, 0, cover_z - 0.044), (width + 0.105, depth + 0.105, 0.014), metal, root, bevel=0.005)
+    add_crafted_box("hive_cover_top", (0, 0, cover_z + 0.026), (width + 0.09, depth + 0.09, 0.052), roof, root, bevel=0.010)
+    add_crafted_box("hive_cover_flashing", (0, 0, cover_z - 0.044), (width + 0.105, depth + 0.105, 0.014), metal, root, bevel=0.005)
     for side_index, sign in enumerate((-1, 1)):
-        add_box(
+        add_crafted_box(
             f"hive_cover_skirt_x_{side_index}", (sign * (width + 0.09) * 0.5, 0, cover_z - 0.016),
             (0.016, depth + 0.09, 0.062), roof, root, bevel=0.006,
         )
-        add_box(
+        add_crafted_box(
             f"hive_cover_skirt_y_{side_index}", (0, sign * (depth + 0.09) * 0.5, cover_z - 0.016),
             (width + 0.09, 0.016, 0.062), roof, root, bevel=0.006,
         )
@@ -96,7 +98,7 @@ def potting_bench(spec: dict, root) -> None:
         (-width * 0.46, -depth * 0.38), (width * 0.46, -depth * 0.38),
         (-width * 0.46, depth * 0.38), (width * 0.46, depth * 0.38),
     )):
-        add_box(f"bench_leg_{index}", (sx, sy, top_h * 0.5), (0.075, 0.075, top_h), dark, root, bevel=0.012)
+        add_crafted_box(f"bench_leg_{index}", (sx, sy, top_h * 0.5), (0.075, 0.075, top_h), dark, root, bevel=0.012)
 
     # Lower shelf carries the weight that would otherwise rack the legs.
     add_plank_field(
@@ -104,8 +106,8 @@ def potting_bench(spec: dict, root) -> None:
         (wood, dark), root, count=4, axis="y", seed=spec["seed"] + 3, bevel=0.008,
     )
     for index, sy in enumerate((-depth * 0.38, depth * 0.38)):
-        add_box(f"bench_shelf_rail_{index}", (0, sy, 0.235), (width - 0.05, 0.055, 0.055), dark, root, bevel=0.010)
-        add_box(f"bench_apron_{index}", (0, sy, top_h - 0.10), (width - 0.05, 0.05, 0.09), dark, root, bevel=0.010)
+        add_crafted_box(f"bench_shelf_rail_{index}", (0, sy, 0.235), (width - 0.05, 0.055, 0.055), dark, root, bevel=0.010)
+        add_crafted_box(f"bench_apron_{index}", (0, sy, top_h - 0.10), (width - 0.05, 0.05, 0.09), dark, root, bevel=0.010)
 
     # Work surface: front half is solid boards, back third is an open soil trough.
     add_plank_field(
@@ -113,10 +115,10 @@ def potting_bench(spec: dict, root) -> None:
         (wood, dark), root, count=6, axis="x", seed=spec["seed"] + 11, bevel=0.008,
     )
     trough_y = depth * 0.28
-    add_box("bench_trough_floor", (0, trough_y, top_h - 0.045), (width * 0.92, depth * 0.40, 0.030), dark, root, bevel=0.008)
-    add_box("bench_trough_back", (0, trough_y + depth * 0.20, top_h + 0.02), (width * 0.92, 0.035, 0.16), dark, root, bevel=0.008)
-    add_box("bench_trough_lip", (0, trough_y - depth * 0.20, top_h + 0.01), (width * 0.92, 0.035, 0.13), wood, root, bevel=0.008)
-    add_box("bench_trough_soil", (0, trough_y, top_h - 0.015), (width * 0.86, depth * 0.36, 0.045), soil, root, bevel=0.0)
+    add_crafted_box("bench_trough_floor", (0, trough_y, top_h - 0.045), (width * 0.92, depth * 0.40, 0.030), dark, root, bevel=0.008)
+    add_crafted_box("bench_trough_back", (0, trough_y + depth * 0.20, top_h + 0.02), (width * 0.92, 0.035, 0.16), dark, root, bevel=0.008)
+    add_crafted_box("bench_trough_lip", (0, trough_y - depth * 0.20, top_h + 0.01), (width * 0.92, 0.035, 0.13), wood, root, bevel=0.008)
+    add_crafted_box("bench_trough_soil", (0, trough_y, top_h - 0.015), (width * 0.86, depth * 0.36, 0.045), soil, root, bevel=0.0)
     for index in range(5):
         add_ico(
             f"bench_soil_clod_{index}",
@@ -126,9 +128,9 @@ def potting_bench(spec: dict, root) -> None:
 
     # Backsplash with a hanging rail: the reason the bench faces one way.
     for index, sx in enumerate((-width * 0.46, width * 0.46)):
-        add_box(f"bench_back_post_{index}", (sx, depth * 0.46, top_h + 0.17), (0.06, 0.06, 0.34), dark, root, bevel=0.010)
-    add_box("bench_back_rail", (0, depth * 0.46, top_h + 0.30), (width - 0.02, 0.05, 0.07), dark, root, bevel=0.010)
-    add_box("bench_back_panel", (0, depth * 0.48, top_h + 0.14), (width - 0.10, 0.028, 0.22), wood, root, bevel=0.006)
+        add_crafted_box(f"bench_back_post_{index}", (sx, depth * 0.46, top_h + 0.17), (0.06, 0.06, 0.34), dark, root, bevel=0.010)
+    add_crafted_box("bench_back_rail", (0, depth * 0.46, top_h + 0.30), (width - 0.02, 0.05, 0.07), dark, root, bevel=0.010)
+    add_crafted_box("bench_back_panel", (0, depth * 0.48, top_h + 0.14), (width - 0.10, 0.028, 0.22), wood, root, bevel=0.006)
 
     # Two seedling pots on the boards, so scale reads instantly.
     for index, px in enumerate((-width * 0.30, -width * 0.10)):
@@ -207,43 +209,43 @@ def wheelbarrow(spec: dict, root) -> None:
             vertices=8, rotation=(math.radians(80), 0, 0), bevel=0.008,
         )
         # Both legs: a wheelbarrow parks on two, not one.
-        add_box(
+        add_crafted_box(
             f"barrow_leg_{index}", (sign * tray_w * 0.40, 0.31, 0.135), (0.055, 0.055, 0.27), dark, root,
             rotation=(0, sign * math.radians(-5), 0), bevel=0.008,
         )
-        add_box(f"barrow_foot_{index}", (sign * tray_w * 0.40, 0.31, 0.018), (0.085, 0.13, 0.036), dark, root, bevel=0.008)
+        add_crafted_box(f"barrow_foot_{index}", (sign * tray_w * 0.40, 0.31, 0.018), (0.085, 0.13, 0.036), dark, root, bevel=0.008)
         add_beam(
             f"barrow_leg_brace_{index}",
             (sign * tray_w * 0.40, 0.29, 0.24), (sign * tray_w * 0.42, 0.05, 0.36),
             0.016, dark, root, vertices=6,
         )
 
-    add_box("barrow_tray_floor", (0, 0.0, tray_z - 0.075), (tray_w * 0.86, tray_len, 0.032), wood, root,
+    add_crafted_box("barrow_tray_floor", (0, 0.0, tray_z - 0.075), (tray_w * 0.86, tray_len, 0.032), wood, root,
             rotation=(math.radians(-7), 0, 0), bevel=0.010)
     for index, sign in enumerate((-1, 1)):
-        add_box(
+        add_crafted_box(
             f"barrow_tray_side_{index}", (sign * tray_w * 0.45, 0.0, tray_z + 0.010),
             (0.030, tray_len, 0.20), wood, root, rotation=(math.radians(-7), sign * math.radians(11), 0), bevel=0.010,
         )
-    add_box("barrow_tray_back", (0, tray_len * 0.5 - 0.02, tray_z + 0.030), (tray_w * 0.90, 0.030, 0.20), wood, root,
+    add_crafted_box("barrow_tray_back", (0, tray_len * 0.5 - 0.02, tray_z + 0.030), (tray_w * 0.90, 0.030, 0.20), wood, root,
             rotation=(math.radians(-10), 0, 0), bevel=0.010)
-    add_box("barrow_tray_front", (0, -tray_len * 0.5 + 0.02, tray_z - 0.075), (tray_w * 0.80, 0.030, 0.15), wood, root,
+    add_crafted_box("barrow_tray_front", (0, -tray_len * 0.5 + 0.02, tray_z - 0.075), (tray_w * 0.80, 0.030, 0.15), wood, root,
             rotation=(math.radians(12), 0, 0), bevel=0.010)
     # Iron edging caps the rim of the tray; it must not close over the opening.
     for index, sign in enumerate((-1, 1)):
-        add_box(
+        add_crafted_box(
             f"barrow_tray_edge_{index}", (sign * tray_w * 0.45, 0.0, tray_z + 0.105),
             (0.048, tray_len, 0.022), metal, root,
             rotation=(math.radians(-7), sign * math.radians(11), 0), bevel=0.005,
         )
-    add_box("barrow_tray_edge_back", (0, tray_len * 0.5 - 0.02, tray_z + 0.128), (tray_w * 0.92, 0.048, 0.022), metal, root,
+    add_crafted_box("barrow_tray_edge_back", (0, tray_len * 0.5 - 0.02, tray_z + 0.128), (tray_w * 0.92, 0.048, 0.022), metal, root,
             rotation=(math.radians(-10), 0, 0), bevel=0.005)
 
     # Wheel captured between two fork cheeks on a real axle.
     axle_y = -0.535
     axle_z = 0.175
     for index, sign in enumerate((-1, 1)):
-        add_box(
+        add_crafted_box(
             f"barrow_fork_{index}", (sign * 0.085, axle_y + 0.03, axle_z + 0.075), (0.022, 0.115, 0.165), metal, root,
             rotation=(math.radians(16), 0, 0), bevel=0.005,
         )
@@ -257,7 +259,7 @@ def wheelbarrow(spec: dict, root) -> None:
                  rotation=(0, math.radians(90), 0), bevel=0.006)
     for index in range(4):
         angle = index * math.pi / 4
-        add_box(
+        add_crafted_box(
             f"barrow_spoke_{index}", (0, axle_y, axle_z), (0.022, 0.240, 0.022), wood, root,
             rotation=(angle, 0, 0), bevel=0.0,
         )
@@ -270,14 +272,14 @@ def water_trough(spec: dict, root) -> None:
     length, width, wall_h = 1.52, 0.54, 0.42
 
     for index, sx in enumerate((-length * 0.36, length * 0.36)):
-        add_box(f"trough_foot_{index}", (sx, 0, 0.045), (0.16, width + 0.04, 0.09), dark, root, bevel=0.012)
+        add_crafted_box(f"trough_foot_{index}", (sx, 0, 0.045), (0.16, width + 0.04, 0.09), dark, root, bevel=0.012)
 
     floor_z = 0.11
-    add_box("trough_floor", (0, 0, floor_z), (length, width, 0.06), dark, root, bevel=0.012)
+    add_crafted_box("trough_floor", (0, 0, floor_z), (length, width, 0.06), dark, root, bevel=0.012)
     for index, sign in enumerate((-1, 1)):
-        add_box(f"trough_side_{index}", (0, sign * (width * 0.5 - 0.03), floor_z + wall_h * 0.5),
+        add_crafted_box(f"trough_side_{index}", (0, sign * (width * 0.5 - 0.03), floor_z + wall_h * 0.5),
                 (length, 0.06, wall_h), wood, root, bevel=0.012)
-        add_box(f"trough_end_{index}", (sign * (length * 0.5 - 0.03), 0, floor_z + wall_h * 0.5),
+        add_crafted_box(f"trough_end_{index}", (sign * (length * 0.5 - 0.03), 0, floor_z + wall_h * 0.5),
                 (0.06, width, wall_h), wood, root, bevel=0.012)
         # Iron strap girdles: what stops a plank trough from splitting open.
         for side in (-1, 1):
@@ -285,15 +287,15 @@ def water_trough(spec: dict, root) -> None:
                     (.045, .014, wall_h), metal, root, bevel=.004)
         add_box(f"trough_strap_base_{index}", (sign * length * .28, 0, floor_z - .037),
                 (.045, width + .028, .014), metal, root, bevel=.004)
-        add_box(f"trough_rim_long_{index}", (0, sign * width / 2, floor_z + wall_h + .02),
+        add_crafted_box(f"trough_rim_long_{index}", (0, sign * width / 2, floor_z + wall_h + .02),
                 (length + .05, .065, .045), wood, root, bevel=.01)
-        add_box(f"trough_rim_end_{index}", (sign * length / 2, 0, floor_z + wall_h + .02),
+        add_crafted_box(f"trough_rim_end_{index}", (sign * length / 2, 0, floor_z + wall_h + .02),
                 (.065, width - .065, .045), wood, root, bevel=.01)
 
     # Water sits below the rim with a rippled surface, not flush to the top.
-    add_box("trough_water", (0, 0, floor_z + wall_h * 0.62), (length - 0.11, width - 0.11, 0.028), water, root, bevel=0.0)
+    add_crafted_box("trough_water", (0, 0, floor_z + wall_h * 0.62), (length - 0.11, width - 0.11, 0.028), water, root, bevel=0.0)
     for index in range(3):
-        add_box(
+        add_crafted_box(
             f"trough_ripple_{index}",
             (-length * 0.26 + index * length * 0.26, rng.uniform(-0.08, 0.08), floor_z + wall_h * 0.62 + 0.016),
             (0.20, 0.10, 0.010), water, root, rotation=(0, 0, rng.uniform(-0.35, 0.35)), bevel=0.0,
@@ -375,13 +377,13 @@ def fence_section(spec: dict, root) -> None:
     posts = (-length * 0.5 + 0.06, 0.0, length * 0.5 - 0.06)
     for index, px in enumerate(posts):
         lean = rng.uniform(-0.022, 0.022)
-        add_box(f"fence_post_{index}", (px, 0, height * 0.5 - 0.02), (0.11, 0.11, height + 0.04), wood, root,
+        add_crafted_box(f"fence_post_{index}", (px, 0, height * 0.5 - 0.02), (0.11, 0.11, height + 0.04), wood, root,
                 rotation=(lean, 0, rng.uniform(-0.05, 0.05)), bevel=0.014)
         # Weathered chamfered cap sheds rain off the end grain.
         add_cone(f"fence_post_cap_{index}", (px, 0, height + 0.03), 0.075, 0.045, 0.055, weathered, root, vertices=6)
 
     for index, rail_z in enumerate((0.30, 0.62, 0.92)):
-        add_box(f"fence_rail_{index}", (0, 0.0, rail_z), (length, 0.055, 0.105), weathered, root,
+        add_crafted_box(f"fence_rail_{index}", (0, 0.0, rail_z), (length, 0.055, 0.105), weathered, root,
                 rotation=(0, rng.uniform(-0.012, 0.012), 0), bevel=0.010)
         for jindex, px in enumerate(posts):
             add_cylinder(f"fence_nail_{index}_{jindex}", (px, -0.048, rail_z), 0.010, 0.030, metal, root,

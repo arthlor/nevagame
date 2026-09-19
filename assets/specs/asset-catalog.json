@@ -16002,7 +16002,7 @@
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
         "sourceBlend": "art/imported/poly-pizza/char_npc_elspeth_a.blend",
-        "sourceSha256": "91723074ac4355b33c9f6d0f2a1d1fcc14520ea6092349ca293ed066fff06104",
+        "sourceSha256": "6822ebb9f2bb0f75c07b9b308cc8dec4d2f23938d00801d80f70ddb242b5ab2f",
         "attribution": "animated_woman by Quaternius, https://poly.pizza/m/qJ2gsTUBHL. CC0-1.0. Original source shape, rig and native timing retained."
       },
       "humanoidRig": {
@@ -16508,7 +16508,9 @@
         },
         "headSourceSha256": "55c654d09a2a5ff6e3bd6158d4a1b462f181cd6f1e12a0f5e9d959f9c3abc438",
         "accessoryPalette": [
-          "canvas_cream_01"
+          "canvas_cream_01",
+          "cloth_ochre_01",
+          "leather_harness_01"
         ],
         "apronClearanceProfile": [
           {
@@ -16537,7 +16539,7 @@
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
         "sourceBlend": "art/imported/poly-pizza/char_npc_barnaby_a.blend",
-        "sourceSha256": "57956bab7dc3293e0f836624868b08358f09354e5ca202c08b64149551cb0f80",
+        "sourceSha256": "a1700d6a10ab5b0e87fa547d34a932ab81aabfb6e84439d48c85e3a4daee0828",
         "attribution": "worker by Quaternius, https://quaternius.com/packs/ultimatemodularcharacters.html. CC0-1.0. Original source shape, rig and native timing retained."
       },
       "humanoidRig": {
@@ -17042,7 +17044,10 @@
           "Adventurer_Legs/Brown2": "cloth_olive_01"
         },
         "accessoryPalette": [
-          "hair_silver_01"
+          "hair_silver_01",
+          "cloth_slate_01",
+          "canvas_cream_01",
+          "leather_harness_01"
         ]
       },
       "sourceProvenance": {
@@ -17053,7 +17058,7 @@
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
         "sourceBlend": "art/imported/poly-pizza/char_npc_silas_a.blend",
-        "sourceSha256": "684d892dc0900f285ed7ababdea60dc1e435955999b823140a85833c16a7396f",
+        "sourceSha256": "52a9ae4f3c7cf9d3eecf069260a62e973c635d447fa46527d82703a0d249d74a",
         "attribution": "adventurer by Quaternius, https://quaternius.com/packs/ultimatemodularcharacters.html. CC0-1.0. Original source shape, rig and native timing retained."
       },
       "humanoidRig": {
@@ -17554,7 +17559,8 @@
         },
         "accessoryPalette": [
           "cloth_teal_01",
-          "hair_brown_01"
+          "hair_brown_01",
+          "canvas_cream_01"
         ],
         "hairStyle": {
           "style": "half_up_bun",
@@ -17570,7 +17576,7 @@
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
         "sourceBlend": "art/imported/poly-pizza/char_npc_maeve_a.blend",
-        "sourceSha256": "bd57642ce8fbc4af1e3f0cd4a15b10a09a61c3912fdc53dd36d4177efcbfba53",
+        "sourceSha256": "ead764fdd4a64d4adc3689fe09b701aa158d77f7a1132023b4d948de65daccf7",
         "attribution": "animated_woman by Quaternius, https://poly.pizza/m/qJ2gsTUBHL. CC0-1.0. Original source shape, rig and native timing retained."
       },
       "humanoidRig": {
@@ -19623,16 +19629,17 @@
       },
       "palette": [
         "stone_warm_01",
-        "wood_weathered_01",
+        "plaster_warm_01",
+        "wood_honey_01",
         "wood_dark_01",
-        "metal_dark_01",
-        "roof_terracotta_01"
+        "roof_terracotta_01",
+        "emissive_window_01"
       ],
       "budget": {
         "trianglesMin": 1500,
         "trianglesTarget": 9500,
         "trianglesMax": 19000,
-        "materialsMax": 5
+        "materialsMax": 6
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -23538,9 +23545,9 @@
       "generator": "imported_blend",
       "seed": 421,
       "dimensions": {
-        "width": 6.2,
-        "depth": 4.024824,
-        "height": 5.89241
+        "width": 8.2,
+        "depth": 5.323154,
+        "height": 7.793187
       },
       "palette": [
         "stone_warm_01",
@@ -23578,14 +23585,14 @@
         {
           "id": "main",
           "center": [
-            0,
-            2.1,
-            0
+            0.0,
+            2.777419,
+            0.0
           ],
           "halfExtents": [
-            2.6,
-            2.1,
-            2.3
+            3.43871,
+            2.777419,
+            3.041935
           ]
         }
       ],
@@ -23627,7 +23634,7 @@
               "proportion",
               "structure"
             ],
-            "notes": "The immutable Quaternius CC0 Fantasy House owns the LOD0 topology, split normals, UVs, and nine material regions. It is uniformly scaled to a 6.2 m source width, rotated to model-forward orientation, and extended only with a separately declared physical doorway lantern."
+            "notes": "The immutable Quaternius CC0 Fantasy House owns the LOD0 topology, split normals, UVs, and nine material regions. It is uniformly scaled to a 8.2 m source width, rotated to model-forward orientation, and extended only with a separately declared physical doorway lantern."
           }
         ],
         "components": [
@@ -23769,7 +23776,7 @@
         "sourceNode": "House_2",
         "scaleReference": {
           "axis": "width",
-          "meters": 6.2
+          "meters": 8.2
         },
         "yawDegrees": -90,
         "materialMap": {
@@ -23832,7 +23839,7 @@
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
         "sourceBlend": "art/imported/poly-pizza/house_cottage_a.blend",
-        "sourceSha256": "3c0f416162e74f331524ea3c24aaa75f1c9c62dadd54b51afeda8d83c3d023df",
+        "sourceSha256": "9100bb4f40912a7c407163c6c2cb0035ead35a80a13f0753122bd831576ec15c",
         "attribution": "\"Fantasy House\" by Quaternius, https://poly.pizza/m/dcPho4SUA3. Licence at https://creativecommons.org/publicdomain/zero/1.0/"
       }
     },
@@ -25286,7 +25293,11 @@
           "Casual2_Head/Eye": "wood_dark_01",
           "Casual2_Legs/LightBlue": "cloth_slate_01"
         },
-        "accessoryPalette": []
+        "accessoryPalette": [
+          "cloth_rust_01",
+          "canvas_cream_01",
+          "leather_harness_01"
+        ]
       },
       "sourceProvenance": {
         "provider": "quaternius",
@@ -25296,7 +25307,7 @@
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
         "sourceBlend": "art/imported/poly-pizza/char_npc_tomas_a.blend",
-        "sourceSha256": "3968c655daf58227f7e7f1ff9fb26e535542a1bef74a2cf0c550b6808ef62f9a",
+        "sourceSha256": "1bd4424ef7655af5157b13cb191129ff587630cbc8ad7f1ea989ca7812b7e66f",
         "attribution": "casual_2 by Quaternius, https://quaternius.com/packs/ultimatemodularcharacters.html. CC0-1.0. Original source shape, rig and native timing retained."
       },
       "humanoidRig": {
@@ -25797,7 +25808,7 @@
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
         "sourceBlend": "art/imported/poly-pizza/char_npc_ines_a.blend",
-        "sourceSha256": "b55019884fc95ff3c944f2e9d106b1328665e846b900c35067c4322214c8ebeb",
+        "sourceSha256": "0108cf4002839a1b5c2d2e307d5fd073f2fe4822eb03a456091d2426f2de1a4a",
         "attribution": "animated_woman by Quaternius, https://poly.pizza/m/qJ2gsTUBHL. CC0-1.0. Original source shape, rig and native timing retained."
       },
       "humanoidAuthoring": {
@@ -25816,7 +25827,11 @@
           "Casual_Head/Brown": "wood_dark_01",
           "Casual_Legs/Orange": "cloth_slate_01"
         },
-        "accessoryPalette": []
+        "accessoryPalette": [
+          "cloth_olive_01",
+          "canvas_cream_01",
+          "leather_harness_01"
+        ]
       },
       "humanoidRig": {
         "bones": {

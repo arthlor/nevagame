@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from common.design_primitives import add_geological_mass
+
 import math
 
 import bpy
@@ -19,6 +21,8 @@ def _shape_rock(rock, seed) -> None:
         vertex.co.y *= 1.0 + 0.09 * math.cos(vertex.co.z * 2.2 + seed)
         vertex.co.z *= 1.0 + 0.08 * math.sin(vertex.co.x * 1.8 + seed)
         vertex.co.x += vertex.co.z * lean
+    rock.data.update()
+    bpy.context.view_layer.update()
     world_min_z = min((rock.matrix_world @ vertex.co).z for vertex in rock.data.vertices)
     rock.location.z -= world_min_z
     bpy.context.view_layer.update()
@@ -75,7 +79,7 @@ def _faceted_rock(spec: dict, root) -> None:
         is_single_coastal_mass = profile == "coastal" and cluster_count == 1
         coastal_depth = 0.76 if silhouette == "spine" else 0.90 if silhouette == "shelf" else 0.84
         coastal_height = 1.18 if silhouette == "spine" else 0.72 if silhouette == "shelf" else 1.0
-        rock = add_ico(
+        rock = add_geological_mass(
             f"rock_mass_{index:02d}",
             (ox * scale[0], oy * scale[1], scale[2] * height_factor),
             (
@@ -83,7 +87,8 @@ def _faceted_rock(spec: dict, root) -> None:
                 scale[1] * factor * (coastal_depth if profile == "coastal" else 1.0),
                 scale[2] * factor * (coastal_height if profile == "coastal" else 1.0),
             ),
-            base_token, root, subdivisions=4 if is_single_coastal_mass else 3,
+            base_token, root, subdivisions=2 if lod_index == 0 else 1,
+            rings=4 if lod_index == 0 else 3,
             rotation=(
                 params["tilt"] + rng.uniform(-0.12, 0.12),
                 rng.uniform(-0.18, 0.18),
@@ -91,10 +96,8 @@ def _faceted_rock(spec: dict, root) -> None:
             ),
         )
         _shape_rock(rock, spec["seed"] + index * 17)
-        if lod_index > 0:
-            _decimate_facets(rock, 0.13 if is_single_coastal_mass else 0.20)
-        elif is_single_coastal_mass:
-            _decimate_facets(rock, 0.60)
+        # The new mesh spends faces on authored planes; decimating it again would
+        # collapse the bedded base and remove the fracture shoulder.
     fracture_count = 0 if lod_index > 0 else params["fractureCount"]
     for index in range(fracture_count):
         angle = index * math.tau / params["fractureCount"] + rng.uniform(-0.18, 0.18)
@@ -146,7 +149,7 @@ def pebble_cluster(spec: dict, root) -> None:
         angle = index * 2.39996 + rng.uniform(-0.22, 0.22)
         radius = params["spread"] * (0.18 + 0.74 * ((index * 5) % count) / max(1, count - 1))
         size = params["size"] * rng.uniform(0.62, 1.12)
-        pebble = add_ico(
+        pebble = add_geological_mass(
             f"pebble_{index:02d}",
             (math.cos(angle) * radius, math.sin(angle) * radius * 0.72, size * 0.28),
             (size, size * rng.uniform(0.62, 0.88), size * rng.uniform(0.38, 0.58)),
@@ -181,7 +184,7 @@ def path_slab(spec: dict, root) -> None:
     for index in range(chip_count):
         angle = index * 2.39996 + rng.uniform(-0.2, 0.2)
         chip_radius = radius * rng.uniform(0.42, 0.78)
-        chip = add_ico(
+        chip = add_geological_mass(
             f"path_slab_chip_{index:02d}",
             (math.cos(angle) * chip_radius, math.sin(angle) * chip_radius * 0.82, height * 0.72),
             (radius * 0.22, radius * 0.18, height * 0.55),

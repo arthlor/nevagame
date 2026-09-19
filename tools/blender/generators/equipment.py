@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from common.design_primitives import add_hat_brim, add_draped_panel
+
 import math
 import bpy
 
@@ -33,8 +35,7 @@ def _field_hat(root, cloth: str, trim: str, accent: str) -> None:
         ((0.0, 0.17), (0.12, 0.19), (0.25, 0.145), (0.31, 0.09)),
         0.018, cloth, anchor, sides=12,
     )
-    add_ring("field_hat_brim", (0, 0, 0.015), 0.30, 0.065, cloth, anchor,
-             major_segments=14, minor_segments=5)
+    add_hat_brim("field_hat_brim", (0, 0, 0.015), 0.17, 0.365, cloth, anchor)
     add_ring("field_hat_band", (0, 0, 0.13), 0.18, 0.022, trim, anchor,
              major_segments=12, minor_segments=4)
     add_box("field_hat_tie", (0.17, 0.02, 0.12), (0.09, 0.035, 0.14), accent, anchor,
@@ -58,10 +59,10 @@ def _tidewatch_cap(root, cloth: str, trim: str, accent: str) -> None:
 
 def _harvest_apron(root, cloth: str, trim: str, accent: str) -> None:
     anchor = _anchor("wearable_body_anchor", root)
-    add_box("harvest_apron_bib", (0, -0.16, 0.10), (0.44, 0.035, 0.58), cloth, anchor,
-            rotation=(0.03, 0, 0), bevel=0.006)
-    add_box("harvest_apron_skirt", (0, -0.18, -0.40), (0.58, 0.04, 0.52), cloth, anchor,
-            rotation=(0.04, 0, 0), bevel=0.007)
+    add_draped_panel("harvest_apron_bib", (0, -0.16, 0.10), (0.44, 0.035, 0.58), cloth, anchor,
+            rotation=(0.03, 0, 0), fold=0.006)
+    add_draped_panel("harvest_apron_skirt", (0, -0.18, -0.40), (0.58, 0.04, 0.52), cloth, anchor,
+            rotation=(0.04, 0, 0), fold=0.007)
     add_catenary_rope("harvest_apron_neck", (-0.18, -0.13, 0.38), (0.18, -0.13, 0.38),
                       -0.18, 0.018, trim, anchor, segments=7, vertices=5)
     add_box("harvest_apron_waist", (0, -0.20, -0.12), (0.72, 0.032, 0.07), trim, anchor,
@@ -80,10 +81,10 @@ def _oilskin_coat(root, cloth: str, trim: str, accent: str) -> None:
         ((0.0, 0.34), (0.28, 0.36), (0.62, 0.31), (0.90, 0.27), (1.08, 0.23)),
         0.045, cloth, anchor, sides=10,
     )
-    add_box("oilskin_coat_front_left", (-0.17, -0.30, -0.18), (0.31, 0.055, 0.82),
-            cloth, anchor, bevel=0.008)
-    add_box("oilskin_coat_front_right", (0.17, -0.30, -0.18), (0.31, 0.055, 0.82),
-            cloth, anchor, bevel=0.008)
+    add_draped_panel("oilskin_coat_front_left", (-0.17, -0.30, -0.18), (0.31, 0.055, 0.82),
+            cloth, anchor, fold=0.008)
+    add_draped_panel("oilskin_coat_front_right", (0.17, -0.30, -0.18), (0.31, 0.055, 0.82),
+            cloth, anchor, fold=0.008)
     add_ring("oilskin_coat_collar", (0, 0, 0.34), 0.22, 0.055, trim, anchor,
              major_segments=10, minor_segments=4)
     for index, z in enumerate((0.19, -0.02, -0.23, -0.44)):

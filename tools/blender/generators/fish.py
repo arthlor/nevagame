@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from common.geometry import add_limb_tube
+
 import math
 
 import bmesh
@@ -13,6 +15,10 @@ from common.creature import author_creature_clip, bone, build_creature_armature,
 
 
 FRAME_RATE = 25.0
+
+# Static payloads (fish trade packs) flatten the catch and declare no clips,
+# but the shared body builder still authors its wave on a neutral timeline.
+_STATIC_PAYLOAD_CLIP_SECONDS = {"swim": 0.8, "turn": 0.48, "burst": 0.4, "struggle": 0.6}
 
 # A tail is the one silhouette cue a player reads at fishing distance, so each
 # species gets the caudal form it actually has rather than a shared star.
@@ -83,6 +89,34 @@ def _longitudinal_profile(species: str, position: float, tail_peduncle: float) -
     shoulder = 1.04 + 0.08 * (1.0 - abs(position + 0.20))
     rear = 1.0 - (1.0 - tail_peduncle) * _smoothstep(0.18, 1.0, position)
     return min(nose, shoulder, rear)
+
+
+
+def _flank_point(species, params, y, height_fraction, side, offset=0.0):
+    """Seat detail on the authored polygonal head/flank, not a global girth box.
+
+    Longitudinal ring interpolation matches the body's sampled silhouette;
+    angular interpolation follows the radial polygon rather than an ellipsoid.
+    """
+    length, girth = params["length"], params["girth"]
+    count, radial = params["bodySegments"], params["radialSegments"]
+    progress = max(0.0, min(1.0, y / length + .5))
+    ring = min(count - 1, int(progress * count))
+    t = progress * count - ring
+    p0, p1 = ring / count, (ring + 1) / count
+    radius = (1-t)*_longitudinal_profile(species, 2*p0-1, params["tailPeduncle"]) + t*_longitudinal_profile(species, 2*p1-1, params["tailPeduncle"])
+    lift = {"trout": .055, "catfish": -.035, "arowana": .075, "sturgeon": -.02}.get(species, .025)
+    center_z = ((1-t)*math.sin(p0*math.pi) + t*math.sin(p1*math.pi))*girth*lift
+    h = max(-.92, min(.92, height_fraction))
+    angle = math.asin(h)
+    step = math.tau / radial
+    a = math.floor(angle / step) * step
+    b = a + step
+    v = (h-math.sin(a)) / (math.sin(b)-math.sin(a))
+    x0 = math.cos(a)*(.96+.04*math.cos(2*a))
+    x1 = math.cos(b)*(.96+.04*math.cos(2*b))
+    return (side * (girth*radius*((1-v)*x0+v*x1)+offset),
+            y, center_z + h*girth*params["bodyDepth"]*radius)
 
 
 def _add_profiled_body(species: str, params: dict, dorsal: str, belly: str, root):
@@ -306,43 +340,28 @@ def stylized_fish(spec: dict, root) -> None:
             root,
             rotation=(-math.pi / 2, 0, 0),
         )
-        # Sitting proud of the flank and carrying a highlight is what makes an eye
-        # read; the old dorsal-coloured bead sank into the back at any distance.
+        sign = -1 if x < 0 else 1
         eye_y = -length * (0.38 if is_trout else 0.40)
-        eye_z = height * (0.34 if species == "catfish" else 0.42 if is_trout else 0.40)
-        eye_x = x * (0.86 if is_trout else 0.92)
         eye_r = girth * (0.17 if is_trout else 0.13)
-        eye_d = eye_r * 0.62
+        eye_d = eye_r * .62
+        eye_x, _, eye_z = _flank_point(species, params, eye_y, .42, sign, eye_d*.28)
         add_ico(
-            f"{species}_eye_{side}",
-            (eye_x, eye_y, eye_z),
-            (eye_r, eye_d, eye_r),
-            dorsal,
-            root,
-            subdivisions=1,
+            f"{species}_eye_{side}", (eye_x, eye_y, eye_z),
+            (eye_d, eye_r, eye_r), dorsal, root, subdivisions=1,
         )
         add_ico(
             f"{species}_eye_glint_{side}",
-            (eye_x + (-1 if x < 0 else 1) * eye_d * 0.55, eye_y - eye_r * 0.34, eye_z + eye_r * 0.32),
-            (eye_r * 0.40, eye_d * 0.40, eye_r * 0.40),
-            belly,
-            root,
-            subdivisions=1,
+            (eye_x + sign*eye_d*.86, eye_y-eye_r*.24, eye_z+eye_r*.24),
+            (eye_d*.22, eye_r*.28, eye_r*.28), belly, root, subdivisions=1,
         )
-        # The gill cover is a line on the flank. Buried at 0.64 of the half-girth
-        # it sat inside the body and only surfaced as a smear.
-        add_ico(
-            f"{species}_gill_plate_{side}",
-            (x * 0.94, -length * 0.29, height * 0.015),
-            (
-                girth * 0.045,
-                length * 0.020,
-                height * (0.34 if is_trout else 0.38),
-            ),
-            accent,
-            root,
-            subdivisions=2,
-        )
+        # One closed gill seam follows the body; its existing name retains head binding.
+        gill_points = [
+            _flank_point(species, params, -length*(.29-.018*math.cos(t*math.pi)),
+                         -.48+.99*t, sign, girth*.006)
+            for t in (0, .2, .4, .6, .8, 1)
+        ]
+        add_limb_tube(f"{species}_gill_plate_{side}", gill_points,
+                      [girth*.017]*len(gill_points), accent, root, sides=5)
         add_tri_prism(
             f"{species}_pelvic_{side}",
             (x * 0.50, length * 0.05, -height * 0.72),
@@ -379,11 +398,9 @@ def stylized_fish(spec: dict, root) -> None:
             for index in range(9):
                 add_ico(
                     f"trout_spot_{'l' if side_sign < 0 else 'r'}_{index:02d}",
-                    (
-                        side_sign * girth * 0.94,
-                        -length * 0.28 + index * length * 0.068,
-                        height * (0.08 + 0.20 * (index % 3) / 2.0),
-                    ),
+                    _flank_point(species, params,
+                                 -length*.28 + index*length*.068,
+                                 .08+.20*(index%3)/2, side_sign, spot_d*.20),
                     (spot_d, spot_r, spot_r),
                     accent,
                     root,
@@ -494,7 +511,9 @@ def stylized_fish(spec: dict, root) -> None:
     rest_creature_pose(rig)
 
     def durations(name: str) -> float:
-        return next(clip["durationSeconds"] for clip in spec["animationClips"] if clip["name"] == name)
+        clips = spec.get("animationClips") or []
+        return next((clip["durationSeconds"] for clip in clips if clip["name"] == name),
+                    _STATIC_PAYLOAD_CLIP_SECONDS.get(name, 0.8))
 
     def wave(name: str, amplitudes, cycles: float = 1.0, lag: float = 0.12, step: int = 2):
         """A travelling body wave: each bone lags the one ahead of it."""

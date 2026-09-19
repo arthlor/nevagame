@@ -6,6 +6,8 @@ material variation, never a fixed sunlight direction.
 """
 from __future__ import annotations
 
+from common.design_primitives import add_crafted_box
+
 import math
 import bpy
 import bmesh
@@ -22,7 +24,7 @@ def _mesh(name, vertices, faces, token, parent, weights=None, smooth=False):
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     obj.parent = parent
-    set_surface_normals(obj, "rounded" if smooth else "planar")
+    set_surface_normals(obj, "foliage" if weights is not None else "rounded" if smooth else "planar")
     mesh.materials.append(get_or_create_material(token))
     for polygon in mesh.polygons:
         polygon.use_smooth = smooth
@@ -61,10 +63,10 @@ def _lods(spec, root, builder, wind=False):
 
 
 def _ribbon(name, centers, widths, side, token, parent, weights, fold=0.08):
-    """Closed, creased blade: readable upper/lower normals without alpha cards."""
+    """Closed, creased blade with pointed ends: readable upper/lower normals without alpha cards."""
     centers = [Vector(center) for center in centers]
     side = Vector(side).normalized()
-    verts, faces, bend = [], [], []
+    rings, bend = [], []
     previous_tangent = None
     for index, (center, width, weight) in enumerate(zip(centers, widths, weights)):
         tangent = (centers[min(len(centers) - 1, index + 1)] - centers[max(0, index - 1)]).normalized()
@@ -76,16 +78,23 @@ def _ribbon(name, centers, widths, side, token, parent, weights, fold=0.08):
             side = previous_tangent.rotation_difference(tangent) @ side
         previous_tangent = tangent
         up = tangent.cross(side).normalized()
-        for point in (center - side * width, center + up * max(.0025, fold * width), center + side * width,
-                      center - up * .014):
-            verts.append(tuple(point))
-            bend.append(weight)
-    for row in range(len(centers) - 1):
-        a, b = row * 4, (row + 1) * 4
-        for left, right in ((0, 1), (1, 2), (2, 3), (3, 0)):
-            faces.append((a + left, b + left, b + right, a + right))
-    faces.extend([(0, 1, 2, 3), tuple((len(centers) - 1) * 4 + i for i in reversed(range(4)))])
-    obj = _mesh(name, verts, faces, token, parent, bend, smooth=False)
+        if index in (0, len(centers) - 1):
+            rings.append([center])
+            bend.append([weight])
+            continue
+        rings.append([center - side * width, center + up * max(.0025, fold * width),
+                      center + side * width, center - up * .014])
+        bend.append([weight] * 4)
+    verts = [tuple(point) for ring in rings for point in ring]
+    weights_per_vertex = [weight for ring in bend for weight in ring]
+    faces, first, n = [], 1, 4
+    faces.extend((0, first+(j+1)%n, first+j) for j in range(n))
+    for row in range(len(rings) - 3):
+        a, b = first+row*n, first+(row+1)*n
+        faces.extend((a+j, a+(j+1)%n, b+(j+1)%n, b+j) for j in range(n))
+    last, tip = first + (len(rings) - 3) * n, len(verts) - 1
+    faces.extend((last+j, last+(j+1)%n, tip) for j in range(n))
+    obj = _mesh(name, verts, faces, token, parent, weights_per_vertex, smooth=False)
     # A consistent closed shell keeps both sides of the fold visible under culling.
     edit = bmesh.new()
     edit.from_mesh(obj.data)
@@ -144,8 +153,10 @@ def _palm(spec, parent, lod):
         _ribbon(f"frond_rib_{frond}", [spine(i / segments) for i in range(segments + 1)],
                 [.035 * (1 - .85 * i / segments) for i in range(segments + 1)], side, token, parent,
                 [(i / segments) ** 1.5 * .65 for i in range(segments + 1)])
-        pairs = p["leafletPairs"] if lod == 0 else max(6, p["leafletPairs"] // 2)
-        for j in range(pairs):
+        pairs = p["leafletPairs"]
+        # The low LOD thins the same authored leaflets; it does not regrow the palm.
+        selected_pairs = range(pairs) if lod == 0 else sorted(set(range(0, pairs, 2)) | {pairs-1})
+        for j in selected_pairs:
             t = .09 + .85 * j / pairs
             length_leaf = (.16 + .72 * math.sin(math.pi * t) ** .65) * (length / 3.2)
             for sign in (-1, 1):
@@ -266,9 +277,9 @@ def _hut(spec, parent, lod):
     for i in range(boards):
         x = (i + .5) * w / boards - w / 2
         token = wood if i % 5 else dark
-        add_box(f"rear_board_{i}", (x, d / 2, floor + h / 2), (w / boards - .013, .085, h + rng.uniform(-.035, .035)), token, parent, bevel=.008)
+        add_crafted_box(f"rear_board_{i}", (x, d / 2, floor + h / 2), (w / boards - .013, .085, h + rng.uniform(-.035, .035)), token, parent, bevel=.008)
         if store and abs(x) > .72:
-            add_box(f"front_board_{i}", (x, -d / 2, floor + h / 2), (w / boards - .014, .085, h), token, parent, bevel=.008)
+            add_crafted_box(f"front_board_{i}", (x, -d / 2, floor + h / 2), (w / boards - .014, .085, h), token, parent, bevel=.008)
     side_count = 14 if lod == 0 else 8
     for sign in (-1, 1):
         for i in range(side_count):
@@ -287,7 +298,7 @@ def _hut(spec, parent, lod):
     for side in (-1, 1):
         for i in range(roof_count):
             y = -d / 2 - .5 + (i + .5) * (d + 1) / roof_count
-            add_box(f"roof_plank_{side}_{i}", (side * half / 2, y, floor + h + rise / 2),
+            add_crafted_box(f"roof_plank_{side}_{i}", (side * half / 2, y, floor + h + rise / 2),
                     (half / math.cos(pitch) + .025, (d + 1) / roof_count - .009, .11), roof if i % 5 else wood, parent,
                     rotation=(0, side * pitch, 0), bevel=.014)
         for y in (-d / 2 - .36, d / 2 + .36):

@@ -6,6 +6,8 @@ that sit into the ground, and the smoke plume widens and dissipates as it rises.
 
 from __future__ import annotations
 
+from common.design_primitives import add_crafted_box
+
 import math
 
 from common.geometry import (
@@ -134,17 +136,17 @@ def trail_kiosk(spec: dict, root) -> None:
     width, post_h = 1.32, 1.62
 
     for index, sx in enumerate((-width * 0.5 + 0.07, width * 0.5 - 0.07)):
-        add_box(f"kiosk_post_{index}", (sx, 0, post_h * 0.5 + 0.05), (0.10, 0.10, post_h), dark, root, bevel=0.012)
-        add_box(f"kiosk_post_foot_{index}", (sx, 0, 0.045), (0.18, 0.20, 0.09), dark, root, bevel=0.012)
+        add_crafted_box(f"kiosk_post_{index}", (sx, 0, post_h * 0.5 + 0.05), (0.10, 0.10, post_h), dark, root, bevel=0.012)
+        add_crafted_box(f"kiosk_post_foot_{index}", (sx, 0, 0.045), (0.18, 0.20, 0.09), dark, root, bevel=0.012)
         # Knee brace from post to head rail: what stops the board racking.
         add_beam(f"kiosk_brace_{index}", (sx, 0.02, post_h * 0.72), (sx * 0.42, 0.02, post_h + 0.02), 0.024, dark, root, vertices=6)
 
     board_z = post_h * 0.66
-    add_box("kiosk_board_back", (0, 0.035, board_z), (width - 0.06, 0.045, 0.86), wood, root, bevel=0.012)
-    add_box("kiosk_board_face", (0, -0.005, board_z), (width - 0.16, 0.020, 0.76), paper, root, bevel=0.006)
+    add_crafted_box("kiosk_board_back", (0, 0.035, board_z), (width - 0.06, 0.045, 0.86), wood, root, bevel=0.012)
+    add_crafted_box("kiosk_board_face", (0, -0.005, board_z), (width - 0.16, 0.020, 0.76), paper, root, bevel=0.006)
     for index, sign in enumerate((-1, 1)):
-        add_box(f"kiosk_board_frame_{index}", (sign * (width * 0.5 - 0.07), 0.010, board_z), (0.055, 0.055, 0.90), dark, root, bevel=0.010)
-        add_box(f"kiosk_board_rail_{index}", (0, 0.010, board_z + sign * 0.445), (width - 0.06, 0.055, 0.055), dark, root, bevel=0.010)
+        add_crafted_box(f"kiosk_board_frame_{index}", (sign * (width * 0.5 - 0.07), 0.010, board_z), (0.055, 0.055, 0.90), dark, root, bevel=0.010)
+        add_crafted_box(f"kiosk_board_rail_{index}", (0, 0.010, board_z + sign * 0.445), (width - 0.06, 0.055, 0.055), dark, root, bevel=0.010)
     # Pinned notices at slight angles: the reason a noticeboard exists.
     for index in range(3):
         add_box(
@@ -153,10 +155,10 @@ def trail_kiosk(spec: dict, root) -> None:
         )
 
     head_z = post_h + 0.08
-    add_box("kiosk_head_rail", (0, 0, head_z), (width + 0.06, 0.12, 0.075), dark, root, bevel=0.010)
+    add_crafted_box("kiosk_head_rail", (0, 0, head_z), (width + 0.06, 0.12, 0.075), dark, root, bevel=0.010)
     add_shingle_rows("kiosk_shingle", width + 0.22, 0.16, head_z + 0.02, 24.0, (roof, dark), root,
                      rows=3, columns=4, seed=spec["seed"] + 5)
-    add_box("kiosk_ridge", (0, 0, head_z + 0.20), (width + 0.26, 0.09, 0.055), dark, root, bevel=0.010)
+    add_crafted_box("kiosk_ridge", (0, 0, head_z + 0.20), (width + 0.26, 0.09, 0.055), dark, root, bevel=0.010)
 
 
 def trail_signpost(spec: dict, root) -> None:
@@ -165,15 +167,15 @@ def trail_signpost(spec: dict, root) -> None:
     post_h = 1.80
 
     add_cone("signpost_cairn", (0, 0, 0.085), 0.30, 0.20, 0.17, dark, root, vertices=8)
-    add_box("signpost_post", (0, 0, post_h * 0.5 + 0.10), (0.115, 0.115, post_h), wood, root, bevel=0.012)
+    add_crafted_box("signpost_post", (0, 0, post_h * 0.5 + 0.10), (0.115, 0.115, post_h), wood, root, bevel=0.012)
     add_cone("signpost_finial", (0, 0, post_h + 0.20), 0.095, 0.020, 0.14, dark, root, vertices=6)
 
     arms = ((post_h - 0.06, math.radians(0), 0.52), (post_h - 0.34, math.radians(128), 0.46), (post_h - 0.60, math.radians(233), 0.42))
     for index, (z, yaw, length) in enumerate(arms):
         cx = math.cos(yaw) * length * 0.5
         cy = math.sin(yaw) * length * 0.5
-        add_box(f"signpost_arm_{index}", (cx, cy, z), (length, 0.045, 0.145), wood, root, rotation=(0, 0, yaw), bevel=0.010)
-        add_box(f"signpost_arm_face_{index}", (cx, cy, z), (length * 0.82, 0.020, 0.095), cream, root, rotation=(0, 0, yaw), bevel=0.0)
+        add_crafted_box(f"signpost_arm_{index}", (cx, cy, z), (length, 0.045, 0.145), wood, root, rotation=(0, 0, yaw), bevel=0.010)
+        add_crafted_box(f"signpost_arm_face_{index}", (cx, cy, z), (length * 0.82, 0.020, 0.095), cream, root, rotation=(0, 0, yaw), bevel=0.0)
         # Pointed tip is what makes a fingerpost point.
         add_tri_prism(
             f"signpost_arm_tip_{index}",
@@ -196,7 +198,7 @@ def picnic_table(spec: dict, root) -> None:
                 f"picnic_leg_{index}_{jindex}", (sign * 0.36, sy, top_h * 0.5 - 0.02),
                 (0.075, 0.085, top_h + 0.16), dark, root, rotation=(0, sign * math.radians(-19), 0), bevel=0.012,
             )
-        add_box(f"picnic_bench_bearer_{index}", (0, sy, bench_h - 0.045), (1.52, 0.10, 0.070), dark, root, bevel=0.010)
+        add_crafted_box(f"picnic_bench_bearer_{index}", (0, sy, bench_h - 0.045), (1.52, 0.10, 0.070), dark, root, bevel=0.010)
         add_box(f"picnic_top_bearer_{index}", (0, sy, top_h - 0.055), (0.90, 0.10, 0.075), dark, root, bevel=0.010)
         add_cylinder(f"picnic_bolt_{index}", (0, sy, bench_h - 0.045), 0.016, 0.13, metal, root, vertices=6,
                      rotation=(math.radians(90), 0, 0))
@@ -218,23 +220,23 @@ def wood_bench(spec: dict, root) -> None:
 
     for index, sx in enumerate((-length * 0.5 + 0.07, length * 0.5 - 0.07)):
         # Front and rear legs of the end frame, plus a foot pad.
-        add_box(f"bench_leg_front_{index}", (sx, -0.16, seat_h * 0.5), (0.065, 0.075, seat_h), dark, root, bevel=0.010)
-        add_box(f"bench_leg_rear_{index}", (sx, 0.17, seat_h * 0.5 + 0.02), (0.065, 0.075, seat_h + 0.04), dark, root,
+        add_crafted_box(f"bench_leg_front_{index}", (sx, -0.16, seat_h * 0.5), (0.065, 0.075, seat_h), dark, root, bevel=0.010)
+        add_crafted_box(f"bench_leg_rear_{index}", (sx, 0.17, seat_h * 0.5 + 0.02), (0.065, 0.075, seat_h + 0.04), dark, root,
                 rotation=(math.radians(4), 0, 0), bevel=0.010)
-        add_box(f"bench_foot_{index}", (sx, 0.0, 0.030), (0.085, 0.50, 0.060), dark, root, bevel=0.010)
-        add_box(f"bench_seat_bearer_{index}", (sx, 0.0, seat_h + 0.020), (0.075, 0.46, 0.055), dark, root,
+        add_crafted_box(f"bench_foot_{index}", (sx, 0.0, 0.030), (0.085, 0.50, 0.060), dark, root, bevel=0.010)
+        add_crafted_box(f"bench_seat_bearer_{index}", (sx, 0.0, seat_h + 0.020), (0.075, 0.46, 0.055), dark, root,
                 rotation=(math.radians(-4), 0, 0), bevel=0.010)
         # Raked back stile continues the rear leg upward.
-        add_box(f"bench_back_stile_{index}", (sx, 0.24, seat_h + 0.24), (0.065, 0.070, 0.46), dark, root,
+        add_crafted_box(f"bench_back_stile_{index}", (sx, 0.24, seat_h + 0.24), (0.065, 0.070, 0.46), dark, root,
                 rotation=(math.radians(11), 0, 0), bevel=0.010)
         add_cylinder(f"bench_bolt_{index}", (sx, 0.0, seat_h + 0.020), 0.014, 0.10, metal, root, vertices=6,
                      rotation=(0, math.radians(90), 0))
 
-    add_box("bench_stretcher", (0, 0.0, 0.16), (length - 0.22, 0.060, 0.060), dark, root, bevel=0.010)
+    add_crafted_box("bench_stretcher", (0, 0.0, 0.16), (length - 0.22, 0.060, 0.060), dark, root, bevel=0.010)
     add_plank_field("bench_seat_slat", (0, -0.02, seat_h + 0.060), length, 0.42, 0.035, (wood, dark), root,
                     count=3, axis="y", seed=spec["seed"] + 4, bevel=0.008)
     for index, z in enumerate((seat_h + 0.20, seat_h + 0.32, seat_h + 0.44)):
-        add_box(f"bench_back_slat_{index}", (0, 0.235 + index * 0.026, z), (length - 0.14, 0.032, 0.095), wood, root,
+        add_crafted_box(f"bench_back_slat_{index}", (0, 0.235 + index * 0.026, z), (length - 0.14, 0.032, 0.095), wood, root,
                 rotation=(math.radians(11), 0, 0), bevel=0.008)
 
 

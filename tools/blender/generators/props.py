@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from common.design_primitives import add_crafted_box
+
 import math
 
 from common.geometry import (
@@ -84,7 +86,7 @@ def water_well(spec: dict, root) -> None:
     post_h = spec["parameters"].get("postHeight", 1.42)
     post_size = 0.26
     for p_idx, px in enumerate((-post_x, post_x)):
-        add_box(
+        add_crafted_box(
             f"well_post_{p_idx}",
             (px, 0, basin_h + post_h * 0.5 - 0.12),
             (post_size, post_size, post_h),
@@ -181,7 +183,7 @@ def water_well(spec: dict, root) -> None:
         )
         for plank in range(5):
             along = -roof_d * 0.42 + plank * roof_d * 0.21
-            add_box(
+            add_crafted_box(
                 f"well_roof_plank_{name}_{plank}",
                 (side * half_rw * 0.50, along, roof_base_z + roof_rise * 0.52),
                 (slope_len * 0.96, roof_d * 0.18, 0.08),
@@ -536,7 +538,7 @@ def fish_drying_rack(spec: dict, root) -> None:
                 bevel=0.014,
             )
     for y_index, y in enumerate((-half_depth, half_depth)):
-        add_box(
+        add_crafted_box(
             f"fish_drying_top_rail_{y_index}",
             (0, y, top_z),
             (width + 0.16, 0.10, 0.11),
@@ -545,7 +547,7 @@ def fish_drying_rack(spec: dict, root) -> None:
             bevel=0.016,
         )
     for x_index, x in enumerate((-half_width, half_width)):
-        add_box(
+        add_crafted_box(
             f"fish_drying_side_rail_{x_index}",
             (x, 0, height * 0.52),
             (0.09, depth, 0.09),
@@ -633,14 +635,14 @@ def wood_crate(spec: dict, root) -> None:
     for face, y in (("front", -size * 0.48), ("back", size * 0.48)):
         for index in range(slats):
             z = spacing * (index + 0.5)
-            add_box(f"crate_{face}_slat_{index:02d}", (0, y, z), (size, 0.075, spacing * 0.82), wood, root, bevel=0.015)
+            add_crafted_box(f"crate_{face}_slat_{index:02d}", (0, y, z), (size, 0.075, spacing * 0.82), wood, root, bevel=0.015)
     for side, x in (("left", -size * 0.48), ("right", size * 0.48)):
         for index in range(3):
             z = size * (0.18 + index * 0.32)
-            add_box(f"crate_{side}_slat_{index:02d}", (x, 0, z), (0.075, size, size * 0.20), wood, root, bevel=0.015)
+            add_crafted_box(f"crate_{side}_slat_{index:02d}", (x, 0, z), (0.075, size, size * 0.20), wood, root, bevel=0.015)
     for index, (x, y) in enumerate(((-0.36, -0.36), (0.36, -0.36), (-0.36, 0.36), (0.36, 0.36))):
-        add_box(f"crate_corner_{index}", (x, y, size * 0.5), (0.10, 0.10, size), dark, root, bevel=0.018)
-    add_box("crate_bottom", (0, 0, 0.045), (size, size, 0.09), wood, root, bevel=0.012)
+        add_crafted_box(f"crate_corner_{index}", (x, y, size * 0.5), (0.10, 0.10, size), dark, root, bevel=0.018)
+    add_crafted_box("crate_bottom", (0, 0, 0.045), (size, size, 0.09), wood, root, bevel=0.012)
     for face, y, direction in (("front", -size * 0.535, 1), ("back", size * 0.535, -1)):
         add_beam(f"crate_{face}_brace_a", (-size * 0.38, y, size * 0.16), (size * 0.38, y, size * 0.84), 0.035, dark, root, vertices=6)
         add_beam(f"crate_{face}_brace_b", (size * 0.38, y, size * 0.16), (-size * 0.38, y, size * 0.84), 0.035, dark, root, vertices=6)
@@ -683,13 +685,13 @@ def wood_fence(spec: dict, root) -> None:
     for index in range(posts):
         x = -length * 0.5 + index * bay
         lean = math.radians((-2, 1, -1)[index % 3])
-        add_box(f"fence_post_{index:02d}", (x, 0, 0.58), (0.18, 0.20, 1.16), dark, root, rotation=(0, lean, 0), bevel=0.025)
+        add_crafted_box(f"fence_post_{index:02d}", (x, 0, 0.58), (0.18, 0.20, 1.16), dark, root, rotation=(0, lean, 0), bevel=0.025)
         add_tri_prism(f"fence_post_cap_{index:02d}", (x, 0, 1.20), (0.24, 0.22, 0.22), dark, root)
     for index in range(spec["parameters"]["rails"]):
         z = 0.38 + index * 0.42
         remaining = length - bay
         if has_gate and remaining > 0.35:
-            add_box(
+            add_crafted_box(
                 f"fence_rail_{index:02d}",
                 (bay * 0.5, 0, z),
                 (remaining, 0.12, 0.15),
@@ -699,13 +701,13 @@ def wood_fence(spec: dict, root) -> None:
                 bevel=0.02,
             )
         elif not has_gate:
-            add_box(f"fence_rail_{index:02d}", (0, 0, z), (length, 0.12, 0.15), wood, root, rotation=(0, math.radians(1.5 * (index - 0.5)), 0), bevel=0.02)
+            add_crafted_box(f"fence_rail_{index:02d}", (0, 0, z), (length, 0.12, 0.15), wood, root, rotation=(0, math.radians(1.5 * (index - 0.5)), 0), bevel=0.02)
         segments = spec["parameters"]["railSegments"]
         for segment in range(segments):
             if has_gate and (segment + 0.5) / segments < bay / length:
                 continue
             x = -length * 0.5 + length * (segment + 0.5) / segments
-            add_box(
+            add_crafted_box(
                 f"fence_rail_face_{index:02d}_{segment:02d}",
                 (x, -0.075, z + math.sin((segment + index) * 1.7) * 0.018),
                 (length / segments * 0.90, 0.055, 0.19), wood if segment % 3 else dark, root,
@@ -713,8 +715,8 @@ def wood_fence(spec: dict, root) -> None:
             )
     if has_gate:
         gate_x = -length * 0.5 + bay * 0.5
-        add_box("fence_gate_leaf", (gate_x, 0.02, 0.62), (bay * 0.82, 0.08, 1.02), wood, root, rotation=(0, 0, math.radians(8)), bevel=0.018)
-        add_box("fence_gate_brace", (gate_x, 0.0, 0.62), (bay * 0.72, 0.05, 0.10), dark, root, rotation=(0, math.radians(-28), math.radians(8)), bevel=0.01)
+        add_crafted_box("fence_gate_leaf", (gate_x, 0.02, 0.62), (bay * 0.82, 0.08, 1.02), wood, root, rotation=(0, 0, math.radians(8)), bevel=0.018)
+        add_crafted_box("fence_gate_brace", (gate_x, 0.0, 0.62), (bay * 0.72, 0.05, 0.10), dark, root, rotation=(0, math.radians(-28), math.radians(8)), bevel=0.01)
         add_fasteners(
             "fence_gate_hinge",
             ((-length * 0.5 + 0.08, -0.12, 0.38), (-length * 0.5 + 0.08, -0.12, 0.80)),
@@ -841,13 +843,13 @@ def lamp_post(spec: dict, root) -> None:
     add_cone("lamp_post_column", (0, 0, height * 0.48), 0.15, 0.09, height * 0.96, wood, root, vertices=8)
     add_beam("lamp_post_arm", (0, 0, height * 0.84), (spec["parameters"]["armLength"], 0, height * 0.92), 0.065, brass, root, vertices=7)
     lamp_x = spec["parameters"]["armLength"]
-    add_box("lamp_post_lantern_frame", (lamp_x, 0, height * 0.80), (0.42, 0.42, 0.62), brass, root, bevel=0.035)
+    add_crafted_box("lamp_post_lantern_frame", (lamp_x, 0, height * 0.80), (0.42, 0.42, 0.62), brass, root, bevel=0.035)
     add_ico("lamp_post_glow", (lamp_x, 0, height * 0.80), (0.16, 0.16, 0.24), glow, root, subdivisions=2)
     add_tri_prism("lamp_post_cap", (lamp_x, 0, height * 0.80 + 0.43), (0.58, 0.58, 0.30), brass, root, rotation=(math.pi / 2, 0, math.pi / 2))
     for side, (x, y) in enumerate(((-0.20, -0.20), (0.20, -0.20), (-0.20, 0.20), (0.20, 0.20))):
-        add_box(f"lamp_post_lantern_corner_{side}", (lamp_x + x, y, height * 0.80), (0.055, 0.055, 0.66), brass, root, bevel=0.008)
+        add_crafted_box(f"lamp_post_lantern_corner_{side}", (lamp_x + x, y, height * 0.80), (0.055, 0.055, 0.66), brass, root, bevel=0.008)
     for side, (x, y, w, d) in enumerate(((lamp_x, -0.215, 0.32, 0.035), (lamp_x, 0.215, 0.32, 0.035), (lamp_x - 0.215, 0, 0.035, 0.32), (lamp_x + 0.215, 0, 0.035, 0.32))):
-        add_box(f"lamp_post_lantern_pane_{side}", (x, y, height * 0.80), (w, d, 0.48), glow, root, bevel=0.008)
+        add_crafted_box(f"lamp_post_lantern_pane_{side}", (x, y, height * 0.80), (w, d, 0.48), glow, root, bevel=0.008)
     add_ring("lamp_post_hanging_loop", (lamp_x, 0, height * 0.80 + 0.62), 0.16, 0.025, brass, root, major_segments=8, minor_segments=4, rotation=(math.pi / 2, 0, 0))
     add_ring("lamp_post_lantern_base_rim", (lamp_x, 0, height * 0.80 - 0.34), 0.24, 0.022, brass, root, major_segments=8, minor_segments=4)
     add_ring("lamp_post_lantern_top_rim", (lamp_x, 0, height * 0.80 + 0.34), 0.24, 0.022, brass, root, major_segments=8, minor_segments=4)
@@ -881,7 +883,7 @@ def worm_compost_bin(spec: dict, root) -> None:
     hx = width * 0.5 - post_w * 0.45
     hy = depth * 0.5 - post_d * 0.45
     for index, (px, py) in enumerate(((-hx, -hy), (hx, -hy), (-hx, hy), (hx, hy))):
-        add_box(
+        add_crafted_box(
             f"compost_post_{index:02d}",
             (px, py, post_h * 0.5),
             (post_w, post_d, post_h),
@@ -899,7 +901,7 @@ def worm_compost_bin(spec: dict, root) -> None:
         )
 
     # 2. Bottom Floor
-    add_box(
+    add_crafted_box(
         "compost_floor",
         (0, 0, 0.04),
         (width * 0.88, depth * 0.88, 0.06),
@@ -918,7 +920,7 @@ def worm_compost_bin(spec: dict, root) -> None:
         for face_name, fy in (("front", -depth * 0.5 + slat_thick * 0.4), ("back", depth * 0.5 - slat_thick * 0.4)):
             token = wood if (tier + (0 if face_name == "front" else 1)) % 3 != 2 else dark_wood
             slat_len = width - post_w * 0.6
-            add_box(
+            add_crafted_box(
                 f"compost_slat_{face_name}_{tier:02d}",
                 (0, fy, sz + rng.uniform(-0.005, 0.005)),
                 (slat_len, slat_thick, slat_h),
@@ -929,7 +931,7 @@ def worm_compost_bin(spec: dict, root) -> None:
         for side_name, fx in (("left", -width * 0.5 + slat_thick * 0.4), ("right", width * 0.5 - slat_thick * 0.4)):
             token = wood if (tier + (1 if side_name == "left" else 0)) % 3 != 2 else dark_wood
             slat_len = depth - post_d * 0.6
-            add_box(
+            add_crafted_box(
                 f"compost_slat_{side_name}_{tier:02d}",
                 (fx, 0, sz + rng.uniform(-0.005, 0.005)),
                 (slat_thick, slat_len, slat_h),
@@ -940,7 +942,7 @@ def worm_compost_bin(spec: dict, root) -> None:
 
     # 4. Interior Vermicompost Bedding (Faceted dark soil mounds)
     soil_bed_h = height * soil_fill_ratio
-    add_box(
+    add_crafted_box(
         "compost_soil_base",
         (0, 0, soil_bed_h * 0.5),
         (width * 0.82, depth * 0.82, soil_bed_h),
@@ -987,7 +989,7 @@ def worm_compost_bin(spec: dict, root) -> None:
     for b_idx in range(board_count):
         bx = -lid_w * 0.5 + board_w * (b_idx + 0.5)
         b_token = wood if b_idx % 2 == 0 else dark_wood
-        add_box(
+        add_crafted_box(
             f"compost_lid_board_{b_idx:02d}",
             (bx, lid_cy, lid_cz),
             (board_w * 0.94, lid_len, lid_thick),
@@ -1001,7 +1003,7 @@ def worm_compost_bin(spec: dict, root) -> None:
         batten_dist = lid_len * batten_along
         batten_y = hinge_y - batten_dist * math.cos(lid_angle) + math.sin(lid_angle) * (lid_thick * 0.7)
         batten_z = hinge_z + batten_dist * math.sin(lid_angle) + math.cos(lid_angle) * (lid_thick * 0.7)
-        add_box(
+        add_crafted_box(
             f"compost_lid_batten_{batten_idx:02d}",
             (0, batten_y, batten_z),
             (lid_w * 0.92, 0.06, 0.035),
@@ -1058,7 +1060,7 @@ def worm_compost_bin(spec: dict, root) -> None:
     for cx_side in (-hx, hx):
         for cy_side in (-hy, hy):
             for b_z in (0.16, height * 0.84):
-                add_box(
+                add_crafted_box(
                     f"compost_bracket_fb_{len(bracket_positions)}",
                     (cx_side, cy_side + (0.055 if cy_side > 0 else -0.055), b_z),
                     (0.08, 0.02, 0.08),
@@ -1134,8 +1136,8 @@ def wagon_cart(spec: dict, root) -> None:
             (honey, dark), root, count=5, axis="y", bevel=0.012,
         )
         add_box(f"wagon_side_cap_{side}", (side_x, 0.08, bed_z + 0.52), (0.08, length * 0.84, 0.08), dark, root, bevel=0.01)
-    add_box("wagon_front_board", (0, -length * 0.40, bed_z + 0.28), (width * 0.92, 0.10, 0.50), honey, root, bevel=0.016)
-    add_box("wagon_tail_board", (0, length * 0.42, bed_z + 0.22), (width * 0.92, 0.10, 0.38), dark, root, bevel=0.016)
+    add_crafted_box("wagon_front_board", (0, -length * 0.40, bed_z + 0.28), (width * 0.92, 0.10, 0.50), honey, root, bevel=0.016)
+    add_crafted_box("wagon_tail_board", (0, length * 0.42, bed_z + 0.22), (width * 0.92, 0.10, 0.38), dark, root, bevel=0.016)
 
     for side, sign in (("left", -1), ("right", 1)):
         add_beam(
@@ -1187,14 +1189,14 @@ def produce_crate(spec: dict, root) -> None:
     for face, y in (("front", -size * 0.48), ("back", size * 0.48)):
         for index in range(slats):
             z = spacing * (index + 0.5)
-            add_box(f"p_crate_{face}_slat_{index:02d}", (0, y, z), (size, 0.075, spacing * 0.82), wood, root, bevel=0.012)
+            add_crafted_box(f"p_crate_{face}_slat_{index:02d}", (0, y, z), (size, 0.075, spacing * 0.82), wood, root, bevel=0.012)
     for side, x in (("left", -size * 0.48), ("right", size * 0.48)):
         for index in range(slats):
             z = spacing * (index + 0.5)
-            add_box(f"p_crate_{side}_slat_{index:02d}", (x, 0, z), (0.075, size, spacing * 0.82), wood, root, bevel=0.012)
+            add_crafted_box(f"p_crate_{side}_slat_{index:02d}", (x, 0, z), (0.075, size, spacing * 0.82), wood, root, bevel=0.012)
     for index, (x, y) in enumerate(((-size * 0.44, -size * 0.44), (size * 0.44, -size * 0.44), (-size * 0.44, size * 0.44), (size * 0.44, size * 0.44))):
-        add_box(f"p_crate_corner_{index}", (x, y, size * 0.5), (0.09, 0.09, size), dark, root, bevel=0.015)
-    add_box("p_crate_bottom", (0, 0, 0.045), (size, size, 0.09), wood, root, bevel=0.012)
+        add_crafted_box(f"p_crate_corner_{index}", (x, y, size * 0.5), (0.09, 0.09, size), dark, root, bevel=0.015)
+    add_crafted_box("p_crate_bottom", (0, 0, 0.045), (size, size, 0.09), wood, root, bevel=0.012)
 
     # Produce Fill
     if content == "pumpkins":
@@ -1221,7 +1223,7 @@ def farm_workbench(spec: dict, root) -> None:
     leg_x = width * 0.40
     leg_y = depth * 0.34
     for index, (x, y) in enumerate(((-leg_x, -leg_y), (leg_x, -leg_y), (-leg_x, leg_y), (leg_x, leg_y))):
-        add_box(
+        add_crafted_box(
             f"workbench_leg_{index}",
             (x, y, top_height * 0.48),
             (0.18, 0.18, top_height * 0.96),
@@ -1256,7 +1258,7 @@ def farm_workbench(spec: dict, root) -> None:
         root,
         depth=0.08,
     )
-    add_box(
+    add_crafted_box(
         "workbench_lower_shelf",
         (0, 0.04, top_height * 0.32),
         (width * 0.78, depth * 0.78, 0.12),
@@ -1273,7 +1275,7 @@ def farm_workbench(spec: dict, root) -> None:
         root,
         vertices=6,
     )
-    add_box(
+    add_crafted_box(
         "workbench_backboard",
         (0, depth * 0.44, top_height + 0.46),
         (width * 0.90, 0.12, 0.78),
@@ -1281,7 +1283,7 @@ def farm_workbench(spec: dict, root) -> None:
         root,
         bevel=0.02,
     )
-    add_box(
+    add_crafted_box(
         "workbench_tool_rail",
         (0, depth * 0.38, top_height + 0.58),
         (width * 0.72, 0.08, 0.08),
@@ -1322,7 +1324,7 @@ def farm_workbench(spec: dict, root) -> None:
         root,
         vertices=6,
     )
-    add_box(
+    add_crafted_box(
         "workbench_chisel_blade",
         (0.0, depth * 0.30, top_height + 0.22),
         (0.045, 0.02, 0.14),
@@ -1330,7 +1332,7 @@ def farm_workbench(spec: dict, root) -> None:
         root,
         bevel=0.006,
     )
-    add_box(
+    add_crafted_box(
         "workbench_plane_body",
         (width * 0.26, depth * 0.28, top_height + 0.34),
         (0.28, 0.10, 0.08),
@@ -1338,7 +1340,7 @@ def farm_workbench(spec: dict, root) -> None:
         root,
         bevel=0.014,
     )
-    add_box(
+    add_crafted_box(
         "workbench_plane_blade",
         (width * 0.18, depth * 0.28, top_height + 0.30),
         (0.04, 0.08, 0.10),
@@ -1346,7 +1348,7 @@ def farm_workbench(spec: dict, root) -> None:
         root,
         bevel=0.006,
     )
-    add_box(
+    add_crafted_box(
         "workbench_plane_tote",
         (width * 0.34, depth * 0.28, top_height + 0.42),
         (0.05, 0.04, 0.12),
@@ -1357,7 +1359,7 @@ def farm_workbench(spec: dict, root) -> None:
 
     vise_x = width * 0.34
     vise_y = -depth * 0.48
-    add_box(
+    add_crafted_box(
         "workbench_vise_fixed_jaw",
         (vise_x, vise_y + 0.08, top_height + 0.06),
         (0.32, 0.10, 0.26),
@@ -1365,7 +1367,7 @@ def farm_workbench(spec: dict, root) -> None:
         root,
         bevel=0.016,
     )
-    add_box(
+    add_crafted_box(
         "workbench_vise_moving_jaw",
         (vise_x, vise_y - 0.10, top_height + 0.06),
         (0.32, 0.10, 0.26),
@@ -1395,7 +1397,7 @@ def farm_workbench(spec: dict, root) -> None:
         rotation=(0, math.pi / 2, 0),
         bevel=0.004,
     )
-    add_box(
+    add_crafted_box(
         "workbench_drawer",
         (-width * 0.22, -depth * 0.42, top_height * 0.62),
         (0.46, 0.14, 0.16),
@@ -1403,7 +1405,7 @@ def farm_workbench(spec: dict, root) -> None:
         root,
         bevel=0.014,
     )
-    add_box(
+    add_crafted_box(
         "workbench_drawer_pull",
         (-width * 0.22, -depth * 0.50, top_height * 0.62),
         (0.10, 0.04, 0.04),
@@ -1426,7 +1428,7 @@ def produce_stall(spec: dict, root) -> None:
     post_size = 0.22
 
     for index, (x, y) in enumerate(((-post_x, -post_y), (post_x, -post_y), (-post_x, post_y), (post_x, post_y))):
-        add_box(
+        add_crafted_box(
             f"produce_stall_post_{index}",
             (x, y, roof_height * 0.48),
             (post_size, post_size, roof_height * 0.96),
@@ -1526,7 +1528,7 @@ def produce_stall(spec: dict, root) -> None:
         bevel=0.012,
     )
 
-    add_box(
+    add_crafted_box(
         "produce_stall_ridge",
         (0, 0, roof_height + 0.04),
         (width * 1.02, 0.14, 0.12),
@@ -1540,7 +1542,7 @@ def produce_stall(spec: dict, root) -> None:
         (0.0, math.radians(4), 0.04),
         (depth * 0.22, math.radians(-10), -0.02),
     )):
-        add_box(
+        add_crafted_box(
             f"produce_stall_canopy_panel_{index}",
             (0, y_off, roof_height - 0.08 + z_off),
             (width * 1.08, depth * 0.46, 0.07),
@@ -1551,7 +1553,7 @@ def produce_stall(spec: dict, root) -> None:
         )
     for rafter in range(5):
         rx = -width * 0.42 + width * 0.84 * rafter / 4
-        add_box(
+        add_crafted_box(
             f"produce_stall_canopy_rafter_{rafter}",
             (rx, 0, roof_height - 0.15),
             (0.08, depth * 1.10, 0.08),
@@ -1561,7 +1563,7 @@ def produce_stall(spec: dict, root) -> None:
         )
     for index in range(5):
         x = -width * 0.40 + index * width * 0.20
-        add_box(
+        add_crafted_box(
             f"produce_stall_canopy_flap_{index}",
             (x, -depth * 0.58, roof_height - 0.22),
             (width * 0.12, 0.05, 0.36),
@@ -1584,10 +1586,10 @@ def produce_stall(spec: dict, root) -> None:
 
     # Side ladder with thick rails and rungs.
     ladder_x = -width * 0.52
-    add_box("produce_stall_ladder_rail_a", (ladder_x, -0.12, 1.15), (0.08, 0.08, 2.20), dark, root, bevel=0.012)
-    add_box("produce_stall_ladder_rail_b", (ladder_x, 0.18, 1.15), (0.08, 0.08, 2.20), dark, root, bevel=0.012)
+    add_crafted_box("produce_stall_ladder_rail_a", (ladder_x, -0.12, 1.15), (0.08, 0.08, 2.20), dark, root, bevel=0.012)
+    add_crafted_box("produce_stall_ladder_rail_b", (ladder_x, 0.18, 1.15), (0.08, 0.08, 2.20), dark, root, bevel=0.012)
     for rung in range(6):
-        add_box(
+        add_crafted_box(
             f"produce_stall_ladder_rung_{rung}",
             (ladder_x, 0.03, 0.28 + rung * 0.34),
             (0.08, 0.34, 0.06),
@@ -1596,7 +1598,7 @@ def produce_stall(spec: dict, root) -> None:
             bevel=0.008,
         )
 
-    add_box(
+    add_crafted_box(
         "produce_stall_sign",
         (0, -depth * 0.52, roof_height - 0.58),
         (width * 0.46, 0.08, 0.32),
@@ -1622,8 +1624,8 @@ def produce_stall(spec: dict, root) -> None:
         (width * 0.32, -depth * 0.38, 1.12, 0.30),
     )
     for crate_i, (cx, cy, cz, size) in enumerate(crate_spots):
-        add_box(f"produce_stall_crate_{crate_i}", (cx, cy, cz), (size, size * 0.86, 0.22), wood, root, bevel=0.014)
-        add_box(
+        add_crafted_box(f"produce_stall_crate_{crate_i}", (cx, cy, cz), (size, size * 0.86, 0.22), wood, root, bevel=0.014)
+        add_crafted_box(
             f"produce_stall_crate_brace_{crate_i}",
             (cx, cy - size * 0.40, cz),
             (size * 0.82, 0.04, 0.18),
@@ -1672,7 +1674,7 @@ def produce_stall(spec: dict, root) -> None:
             root,
             subdivisions=1,
         )
-    add_box(
+    add_crafted_box(
         "produce_stall_squash",
         (width * 0.18, -depth * 0.20, 1.18),
         (0.22, 0.16, 0.14),
@@ -1680,7 +1682,7 @@ def produce_stall(spec: dict, root) -> None:
         root,
         bevel=0.04,
     )
-    add_box(
+    add_crafted_box(
         "produce_stall_melon",
         (-width * 0.08, -depth * 0.22, 1.18),
         (0.20, 0.16, 0.16),

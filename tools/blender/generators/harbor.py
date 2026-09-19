@@ -6,6 +6,8 @@ catenaries, and the anchor balances on its crown rather than floating.
 
 from __future__ import annotations
 
+from common.design_primitives import add_crafted_box
+
 import math
 
 from common.geometry import (
@@ -65,7 +67,7 @@ def dock_platform(spec: dict, root) -> None:
         (weathered, dark), root, count=9, axis="x", seed=spec["seed"] + 5, bevel=0.008,
     )
     # Bull rail along the outer edge: what a line gets thrown over.
-    add_box("dock_bull_rail", (0, -depth * 0.5 + 0.02, deck_z + 0.095), (width, 0.075, 0.11), weathered, root, bevel=0.010)
+    add_crafted_box("dock_bull_rail", (0, -depth * 0.5 + 0.02, deck_z + 0.095), (width, 0.075, 0.11), weathered, root, bevel=0.010)
     add_fasteners(
         "dock_deck_spike",
         tuple((-width * 0.36 + index * width * 0.24, -depth * 0.5 + 0.02, deck_z + 0.135) for index in range(4)),
@@ -92,7 +94,7 @@ def pier_railing(spec: dict, root) -> None:
         add_cylinder(f"railing_post_{index}", (px, 0, height * 0.5 - 0.03), 0.070, height - 0.06, weathered, root,
                      vertices=8, rotation=(rng.uniform(-0.012, 0.012), 0, 0), bevel=0.010)
         add_cone(f"railing_post_cap_{index}", (px, 0, height - 0.005), 0.078, 0.048, 0.055, dark, root, vertices=8)
-        add_box(f"railing_post_base_{index}", (px, 0, 0.030), (0.16, 0.16, 0.06), dark, root, bevel=0.010)
+        add_crafted_box(f"railing_post_base_{index}", (px, 0, 0.030), (0.16, 0.16, 0.06), dark, root, bevel=0.010)
 
     # Ropes sag between posts under their own weight instead of running dead straight.
     for span in range(3):
@@ -143,10 +145,10 @@ def gangplank(spec: dict, root) -> None:
     # Ramp body, sloped along +Y and resting on a hooked lip at each end.
     # Rotating by +pitch about X raises the surface toward +Y, which is where the
     # ship end and every cleat below are placed.
-    add_box("plank_ramp", (0, 0, rise * 0.5 + 0.10), (width, math.hypot(length, rise), 0.075), weathered, root,
+    add_crafted_box("plank_ramp", (0, 0, rise * 0.5 + 0.10), (width, math.hypot(length, rise), 0.075), weathered, root,
             rotation=(pitch, 0, 0), bevel=0.012)
     for index, sign in enumerate((-1, 1)):
-        add_box(f"plank_stringer_{index}", (sign * (width * 0.5 - 0.03), 0, rise * 0.5 + 0.08),
+        add_crafted_box(f"plank_stringer_{index}", (sign * (width * 0.5 - 0.03), 0, rise * 0.5 + 0.08),
                 (0.055, math.hypot(length, rise), 0.13), dark, root, rotation=(pitch, 0, 0), bevel=0.010)
 
     # Anti-slip cleats spaced along the run: what makes it walkable, not a board.
@@ -155,13 +157,13 @@ def gangplank(spec: dict, root) -> None:
         t = (index + 0.5) / cleats
         y = -length * 0.5 + length * t
         z = 0.10 + rise * t + 0.055
-        add_box(f"plank_cleat_{index}", (0, y, z), (width - 0.06, 0.055, 0.030), dark, root,
+        add_crafted_box(f"plank_cleat_{index}", (0, y, z), (width - 0.06, 0.055, 0.030), dark, root,
                 rotation=(pitch, 0, 0), bevel=0.006)
 
     # Hooked landing lip low end, iron shoe high end.
-    add_box("plank_shore_lip", (0, -length * 0.5 - 0.06, 0.055), (width, 0.20, 0.045), metal, root,
+    add_crafted_box("plank_shore_lip", (0, -length * 0.5 - 0.06, 0.055), (width, 0.20, 0.045), metal, root,
             rotation=(math.radians(6), 0, 0), bevel=0.008)
-    add_box("plank_ship_hook", (0, length * 0.5 + 0.04, rise + 0.115), (width, 0.16, 0.055), metal, root, bevel=0.008)
+    add_crafted_box("plank_ship_hook", (0, length * 0.5 + 0.04, rise + 0.115), (width, 0.16, 0.055), metal, root, bevel=0.008)
 
     # Two stanchions and a hand line only on the outboard side.
     for index, t in enumerate((0.30, 0.72)):
@@ -211,8 +213,8 @@ def hanging_signboard(spec: dict, root) -> None:
     wood, dark, metal, cream = spec["palette"]
     post_h = 1.86
 
-    add_box("sign_post_base", (-0.44, 0, 0.055), (0.26, 0.26, 0.11), dark, root, bevel=0.012)
-    add_box("sign_post", (-0.44, 0, post_h * 0.5 + 0.10), (0.105, 0.105, post_h), wood, root, bevel=0.012)
+    add_crafted_box("sign_post_base", (-0.44, 0, 0.055), (0.26, 0.26, 0.11), dark, root, bevel=0.012)
+    add_crafted_box("sign_post", (-0.44, 0, post_h * 0.5 + 0.10), (0.105, 0.105, post_h), wood, root, bevel=0.012)
     add_cone("sign_post_cap", (-0.44, 0, post_h + 0.13), 0.085, 0.030, 0.08, dark, root, vertices=6)
 
     arm_z = post_h - 0.06
@@ -229,10 +231,10 @@ def hanging_signboard(spec: dict, root) -> None:
         add_cylinder(f"sign_link_{index}", (hx, 0, board_top - 0.025), 0.009, 0.075, metal, root, vertices=6)
 
     board_z = board_top - 0.36
-    add_box("sign_board", (-0.07, 0, board_z), (0.86, 0.048, 0.60), wood, root, bevel=0.012)
-    add_box("sign_board_face", (-0.07, -0.032, board_z), (0.74, 0.014, 0.48), cream, root, bevel=0.0)
+    add_crafted_box("sign_board", (-0.07, 0, board_z), (0.86, 0.048, 0.60), wood, root, bevel=0.012)
+    add_crafted_box("sign_board_face", (-0.07, -0.032, board_z), (0.74, 0.014, 0.48), cream, root, bevel=0.0)
     for index, sign in enumerate((-1, 1)):
-        add_box(f"sign_board_batten_{index}", (-0.07, 0.030, board_z + sign * 0.245), (0.86, 0.026, 0.070), dark, root, bevel=0.008)
+        add_crafted_box(f"sign_board_batten_{index}", (-0.07, 0.030, board_z + sign * 0.245), (0.86, 0.026, 0.070), dark, root, bevel=0.008)
     # A painted fish glyph so the board is a sign, not a blank panel.
     add_ico("sign_glyph_body", (-0.10, -0.044, board_z + 0.02), (0.15, 0.010, 0.085), dark, root)
     add_tri_prism("sign_glyph_tail", (0.10, -0.044, board_z + 0.02), (0.13, 0.010, 0.14), dark, root,
@@ -339,21 +341,21 @@ def cargo_crate_large(spec: dict, root) -> None:
     size = 0.74
     half = size * 0.5
 
-    add_box("crate_body", (0, 0, half + 0.02), (size, size, size), wood, root, bevel=0.010)
+    add_crafted_box("crate_body", (0, 0, half + 0.02), (size, size, size), wood, root, bevel=0.010)
     # Corner posts and edge rails stand proud, the way a real crate is framed.
     for index, (sx, sy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1))):
-        add_box(f"crate_post_{index}", (sx * half, sy * half, half + 0.02), (0.075, 0.075, size + 0.02), dark, root, bevel=0.010)
+        add_crafted_box(f"crate_post_{index}", (sx * half, sy * half, half + 0.02), (0.075, 0.075, size + 0.02), dark, root, bevel=0.010)
     for index, sz in enumerate((0.09, half + 0.02, size - 0.05)):
-        add_box(f"crate_rail_x_{index}", (0, 0, sz), (size + 0.03, size + 0.03, 0.055), dark, root, bevel=0.008)
-    add_box("crate_lid", (0, 0, size + 0.045), (size + 0.05, size + 0.05, 0.055), dark, root, bevel=0.010)
+        add_crafted_box(f"crate_rail_x_{index}", (0, 0, sz), (size + 0.03, size + 0.03, 0.055), dark, root, bevel=0.008)
+    add_crafted_box("crate_lid", (0, 0, size + 0.045), (size + 0.05, size + 0.05, 0.055), dark, root, bevel=0.010)
 
     # Steel strapping over the lid, plus a stencilled shipping mark.
     for index, sign in enumerate((-1, 1)):
         add_box(f"crate_strap_{index}", (sign * size * 0.24, 0, half + 0.03), (0.032, size + 0.06, size + 0.06), metal, root, bevel=0.0)
-    add_box("crate_stencil", (0, -half - 0.010, half + 0.10), (0.30, 0.014, 0.16), cream, root, bevel=0.0)
-    add_box("crate_stencil_bar", (0, -half - 0.010, half - 0.14), (0.20, 0.014, 0.040), cream, root, bevel=0.0)
+    add_crafted_box("crate_stencil", (0, -half - 0.010, half + 0.10), (0.30, 0.014, 0.16), cream, root, bevel=0.0)
+    add_crafted_box("crate_stencil_bar", (0, -half - 0.010, half - 0.14), (0.20, 0.014, 0.040), cream, root, bevel=0.0)
     for index, (cx, cy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1))):
-        add_box(f"crate_corner_plate_{index}", (cx * half, cy * half, size + 0.03), (0.11, 0.11, 0.045), metal, root, bevel=0.006)
+        add_crafted_box(f"crate_corner_plate_{index}", (cx * half, cy * half, size + 0.03), (0.11, 0.11, 0.045), metal, root, bevel=0.006)
 
 
 def driftwood_log(spec: dict, root) -> None:

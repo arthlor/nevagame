@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from common.design_primitives import add_lobed_volume
+
 import math
 
 import bpy
@@ -100,8 +102,11 @@ def oak_tree(spec: dict, root) -> None:
 
 def _leaf_mass(name, center, scale, token, root, *, subdivisions=2, rotation=(0,0,0), normal_mode=None):
     seed = sum((i+1)*ord(c) for i,c in enumerate(name))
-    return add_canopy_lobe(name, center, scale, token, root, seed=seed,
-                           detail=subdivisions>1, rotation=rotation)
+    obj = add_canopy_lobe(name, center, scale, token, root, seed=seed,
+                          detail=subdivisions>1, rotation=rotation)
+    # Leaf pads need foliage normals; bark and hard props never take this path.
+    set_surface_normals(obj, "foliage" if normal_mode in (None, "rounded", "foliage") else normal_mode)
+    return obj
 
 
 def _olive_tree(spec: dict, root) -> None:
@@ -154,7 +159,7 @@ def _olive_tree(spec: dict, root) -> None:
         _leaf_mass(
             f"olive_canopy_{index:02d}", center,
             (size * 1.14, size * 0.78, size * 0.52),
-            highlight if index % 4 == 0 else leaves,
+            highlight if center[2] > height * .78 and center[1] < spread * .22 else leaves,
             root,
             subdivisions=1 if lod_index else 2,
             rotation=(rng.uniform(-0.18, 0.18), rng.uniform(-0.18, 0.18), angle * 0.24),
@@ -272,11 +277,11 @@ def _apple_tree(spec: dict, root) -> None:
         radius = spread * (0.50 + 0.18 * ((index * 5) % 7) / 6)
         face_offset = spread * (-0.46 if index % 4 in (0, 1) else 0.38)
         fruit_z = height * (0.72 + 0.16 * ((index * 3) % 5) / 4)
-        add_ico(
+        add_lobed_volume(
             f"apple_fruit_{index:02d}",
             (math.cos(angle) * radius, math.sin(angle) * radius * 0.72 + face_offset, fruit_z),
-            (0.16, 0.15, 0.16), fruit, root, subdivisions=1,
-        normal_mode="rounded")
+            (0.16, 0.15, 0.16), fruit, root, kind="apple", sides=8,
+        seed=spec["seed"] + index)
         add_cone(
             f"apple_stem_{index:02d}",
             (math.cos(angle) * radius, math.sin(angle) * radius * 0.72 + face_offset, fruit_z + 0.12),
@@ -286,11 +291,11 @@ def _apple_tree(spec: dict, root) -> None:
         for fallen in range(3):
             f_angle = fallen * 2.1 + 0.5
             f_rad = 0.55 + 0.35 * (fallen % 2)
-            add_ico(
+            add_lobed_volume(
                 f"apple_fallen_{fallen:02d}",
                 (math.cos(f_angle) * f_rad, math.sin(f_angle) * f_rad, 0.07),
-                (0.14, 0.14, 0.12), fruit, root, subdivisions=1,
-            normal_mode="rounded")
+                (0.14, 0.14, 0.12), fruit, root, kind="apple", sides=8,
+            seed=spec["seed"] + fallen)
         for bloom in range(max(4, params["fruitCount"] // 3)):
             angle = bloom * 2.39996 + 0.7
             radius = spread * (0.30 + 0.28 * ((bloom * 3) % 5) / 4)

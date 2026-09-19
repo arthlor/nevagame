@@ -4,6 +4,8 @@ The horse has connected anatomy and deterministic region weights. Locomotion
 solves a two-link leg against a planted/swinging hoof trajectory before baking
 the bones. Cargo markers describe presentation fit, never inventory capacity.
 """
+
+from common.design_primitives import add_crafted_box
 import math
 import bpy
 from mathutils import Matrix, Vector
@@ -247,7 +249,9 @@ def merchant_carriage(spec, root):
     prefix=spec['id']; bed=radius+.32
     body=add_marker(prefix+'_body',(0,0,0),root)
     def box(name,loc,size,token=honey,parent=body,bevel=.012):
-        return add_box(prefix+'_'+name,loc,size,token,parent,bevel=bevel)
+        # Metal braces/steps remain precise; timber retains its original envelope/pivot.
+        builder = add_box if token in (iron, brass) else add_crafted_box
+        return builder(prefix+'_'+name,loc,size,token,parent,bevel=bevel)
     for sign in [-1,1]:
         box('chassis_'+str(sign),(sign*width*.33,0,bed-.20),(.14,length+.28,.19),dark)
     for index in range(9):

@@ -7,14 +7,22 @@ the weather actually reaches.
 
 from __future__ import annotations
 
+from common.design_primitives import add_geological_mass, add_canopy_mass
+
 import math
 
 from common.geometry import add_box, add_collision_primitives, add_cone, add_cylinder, add_ico, seeded_rng
 
 
 def _faceted_mass(name, center, scale, token, root, *, rng, subdivisions=1):
-    add_ico(name, center, scale, token, root, subdivisions=subdivisions,
-            rotation=(rng.uniform(-0.35, 0.35), rng.uniform(-0.35, 0.35), rng.uniform(0, math.pi)))
+    """Distinct stone planes; vegetation stains remain low leafy pads."""
+    seed = rng.randrange(1_000_000)
+    rotation = (rng.uniform(-.12,.12), rng.uniform(-.12,.12), rng.uniform(0,math.pi))
+    if any(word in name for word in ("moss", "lichen", "weed")):
+        add_canopy_mass(name, center, scale, token, root, rotation=rotation, subdivisions=1)
+    else:
+        add_geological_mass(name, center, scale, token, root, seed=seed,
+                            rotation=rotation, subdivisions=subdivisions)
 
 
 def sea_stack(spec: dict, root) -> None:
