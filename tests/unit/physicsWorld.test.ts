@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import type RAPIER from "@dimforge/rapier3d-compat";
+import { describe, expect, it, vi } from "vitest";
 import { projectAssetCollision } from "../../src/physics/CollisionCatalogAdapter";
 import { PhysicsWorld } from "../../src/physics/PhysicsWorld";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
@@ -79,6 +80,97 @@ function findDryShoreApproach(normalX: number, normalZ: number): { x: number; z:
 }
 
 describe("PhysicsWorld", () => {
+  it("reuses the static query tree while remote hulls bob and the player walks", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    placePlayer(sim);
+    const initial = physics.step(sim.state, { x: 0, z: 0, sprint: false }, "on-foot", 1 / 60, 0);
+    physics.onCommitResult(sim.commitPhysicsFrame(initial.frame).success);
+    const world = (physics as unknown as { world: { updateSceneQueries(): void } }).world;
+    const refresh = vi.spyOn(world, "updateSceneQueries");
+    for (let frame = 0; frame < 4; frame++) {
+      refresh.mockClear();
+      const result = physics.step(sim.state, { x: 1, z: 0, sprint: false }, "on-foot", 1 / 60, frame / 60);
+      const committed = sim.commitPhysicsFrame(result.frame).success;
+      expect(committed).toBe(true);
+      physics.onCommitResult(committed);
+      const { x, y, z } = sim.state.player;
+      physics.resolveCameraPosition({ x, y: y + 1, z }, { x, y: y + 3, z: z - 5 });
+      physics.hasLineOfSight({ x, y: y + 1, z }, { x: x + 2, y: y + 1, z });
+      expect(refresh).not.toHaveBeenCalled();
+    }
+    refresh.mockRestore();
+    physics.dispose();
+  });
+
+  it("refreshes a hull entering the capsule sweep even when its indexed position was remote", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    placePlayer(sim);
+    const internal = physics as unknown as {
+      world: RAPIER.World;
+      controller: RAPIER.KinematicCharacterController;
+      sceneQueriesDirty: boolean;
+      ensureBoat(id: string, type: string, x: number, y: number, z: number, heading: number, speed: number): {
+        body: RAPIER.RigidBody; colliders: RAPIER.Collider[];
+      };
+      resolvePlayer(state: Simulation["state"], input: { x: number; z: number; sprint: boolean }, dt: number,
+        synchronize: boolean): { player: { x: number }; motion: { isCollisionBlocked: boolean } };
+    };
+    // A physical fixture places the real catalog hull beside a dry, flat capsule
+    // to isolate query invalidation from the marine navigation boundary.
+    const hullY = WorldLayout.traversalSurfaceHeight(0, 0) + 0.6;
+    const hull = internal.ensureBoat("query-fixture", Object.values(sim.state.boats)[0].boatTypeId,
+      100, hullY, 0, 0, 0);
+    internal.resolvePlayer(sim.state, { x: 0, z: 0, sprint: false }, 1 / 60, true);
+    const refresh = vi.spyOn(internal.world, "updateSceneQueries");
+    hull.body.setTranslation({ x: 1.14, y: hullY, z: 0 }, true);
+    internal.sceneQueriesDirty = true;
+    const y = hullY + 0.4;
+    expect(physics.resolveCameraPosition({ x: -2, y, z: 0 }, { x: 4, y, z: 0 }).obstructed).toBe(false);
+    expect(physics.hasLineOfSight({ x: -2, y, z: 0 }, { x: 4, y, z: 0 })).toBe(true);
+    expect(refresh).not.toHaveBeenCalled();
+    const result = internal.resolvePlayer(sim.state, { x: 1, z: 0, sprint: false }, 0.2, false);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(result.motion.isCollisionBlocked).toBe(true);
+    const contacts = Array.from({ length: internal.controller.numComputedCollisions() }, (_, index) =>
+      internal.controller.computedCollision(index)?.collider);
+    expect(contacts.some(collider => collider !== null && hull.colliders.includes(collider!))).toBe(true);
+    expect(result.player.x).toBeLessThan(0.05);
+    refresh.mockRestore();
+    physics.dispose();
+  });
+
+  it("refreshes removed hulls immediately even while the player is remote", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    placePlayer(sim);
+    physics.step(sim.state, { x: 0, z: 0, sprint: false }, "on-foot", 1 / 60, 0);
+    const world = (physics as unknown as { world: RAPIER.World }).world;
+    const refresh = vi.spyOn(world, "updateSceneQueries");
+    sim.state.boats = {};
+    physics.step(sim.state, { x: 0, z: 0, sprint: false }, "on-foot", 1 / 60, 1 / 60);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    refresh.mockRestore();
+    physics.dispose();
+  });
+
+  it("refreshes edited static obstacles before camera and line-of-sight queries", async () => {
+    const physics = await PhysicsWorld.create();
+    const y = WorldLayout.terrainHeight(0, 0) + 3;
+    const from = { x: 0, y, z: 0 };
+    const to = { x: 0, y, z: 5 };
+    expect(physics.resolveCameraPosition(from, to).obstructed).toBe(false);
+    physics.replaceStaticCollision([{ kind: "box", id: "edited-wall", center: { x: 0, y, z: 2.5 },
+      halfExtents: { x: 2, y: 2, z: 0.25 }, rotation: { x: 0, y: 0, z: 0, w: 1 } }]);
+    expect(physics.resolveCameraPosition(from, to).obstructed).toBe(true);
+    expect(physics.hasLineOfSight(from, to)).toBe(false);
+    physics.replaceStaticCollision([]);
+    expect(physics.resolveCameraPosition(from, to).obstructed).toBe(false);
+    expect(physics.hasLineOfSight(from, to)).toBe(true);
+    physics.dispose();
+  });
+
   it("moves a grounded player while preserving the shoreline boundary", async () => {
     const physics = await PhysicsWorld.create();
     const sim = new Simulation();
@@ -952,7 +1044,9 @@ describe("PhysicsWorld", () => {
     expect(sim.state.player.x).toBeCloseTo(boat.x, 5);
 
     sim.state.player.activeBoatId = null;
-    placePlayer(sim, -120, -100);
+    // Isolate ownership transfer from downhill contact correction.
+    const landing = FARMHOUSE_INTERIOR_DOOR.enterSpawn;
+    placePlayer(sim, landing.x, landing.z);
     sim.state.player.traversal.isGrounded = true;
     frame = physics.step(
       sim.state,
@@ -962,8 +1056,9 @@ describe("PhysicsWorld", () => {
       1 / 60
     );
     expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
-    expect(sim.state.player.x).toBeCloseTo(-120, 5);
-    expect(sim.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(-120, -100) + 0.5, 5);
+    expect(sim.state.player.x).toBeCloseTo(landing.x, 5);
+    expect(sim.state.player.z).toBeCloseTo(landing.z, 5);
+    expect(sim.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(landing.x, landing.z) + 0.5, 5);
 
     const mount = Object.values(sim.state.mounts)[0];
     sim.state.player.activeMountId = mount.id;
@@ -987,7 +1082,7 @@ describe("PhysicsWorld", () => {
     );
 
     sim.state.player.activeMountId = null;
-    placePlayer(sim, -118.75, -100);
+    placePlayer(sim, landing.x + 1.25, landing.z);
     frame = physics.step(
       sim.state,
       { x: 0, z: 0, sprint: false },
@@ -996,7 +1091,7 @@ describe("PhysicsWorld", () => {
       3 / 60
     );
     expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
-    expect(sim.state.player.x).toBeCloseTo(-118.75, 5);
+    expect(sim.state.player.x).toBeCloseTo(landing.x + 1.25, 5);
     expect(frame.playerMotion.isGrounded).toBe(true);
   });
 

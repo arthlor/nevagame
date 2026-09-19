@@ -87,7 +87,7 @@ describe("shadow atlas caster classification", () => {
   it("falls back to the legacy shadow path on non-PCF shadow types", () => {
     const previous = CANONICAL_RENDER_CONFIG.shadows.type;
     try {
-      CANONICAL_RENDER_CONFIG.shadows.type = THREE.VSMShadowMap;
+      CANONICAL_RENDER_CONFIG.shadows.type = { low: THREE.VSMShadowMap, medium: THREE.VSMShadowMap, high: THREE.VSMShadowMap };
       const compositor = new ShadowAtlasCompositor(stubRenderer(), CONFIG);
       expect(compositor.diagnostics().enabled).toBe(false);
     } finally {

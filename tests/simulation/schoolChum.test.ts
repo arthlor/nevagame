@@ -109,6 +109,7 @@ describe("specialty chum", () => {
       sim.state.sportFishing!.lineTension = 35;
       sim.state.sportFishing!.dynamics!.landReadySeconds = 1;
       sim.tick(0.1);
+      expect(sim.execute({ type: "fishing.keep-catch" }).success).toBe(true);
       const carried = sim.state.player.carriedFishCargoId!;
       expect(sim.execute({ type: "cargo.discard", cargoId: carried }).success).toBe(true);
     }

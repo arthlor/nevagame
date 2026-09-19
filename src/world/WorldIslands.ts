@@ -1,13 +1,14 @@
 import { OCEAN_ISLAND_DEFINITIONS, type OceanIsletId } from "./OceanIslets";
 import type { WorldBounds, WorldPoint } from "./WorldLayout";
 import { isInsideLoop, pointSegmentDistance } from "./WorldGeometry";
+import { MAINLAND_BOUNDS, type MainlandBiomeId } from "./NevaMainland";
 
 export { isInsideLoop, pointSegmentDistance } from "./WorldGeometry";
 
 export const SUNREACH_OFFSET_X = 800;
 
 export type WorldIslandId = "island.neva" | "island.sunreach" | OceanIsletId;
-export type WorldBiomeId = "biome.neva_temperate" | "biome.sunreach_warm_dry";
+export type WorldBiomeId = MainlandBiomeId | "biome.sunreach_warm_dry";
 export type FishingEcologyId = "ecology.neva" | "ecology.sunreach";
 
 export type WorldRegionId =
@@ -17,13 +18,16 @@ export type WorldRegionId =
   | "region.harbor"
   | "region.offshore"
   | "region.open_channel"
+  | "region.pinewatch"
+  | "region.reedhaven"
+  | "region.highridge"
   | "region.sunreach_cove"
   | "region.sunreach_terraces"
   | "region.sunreach_scrub"
   | "region.sunreach_ridge";
 
 export interface WorldTerrainPatchDefinition {
-  id: "terrain.neva" | "terrain.sunreach" | "terrain.gull_rest" | "terrain.driftwood" | "terrain.lantern";
+  id: "terrain.neva" | "terrain.neva_north" | "terrain.neva_northwest" | "terrain.neva_west" | "terrain.neva_southwest" | "terrain.neva_south" | "terrain.sunreach" | "terrain.gull_rest" | "terrain.driftwood" | "terrain.lantern";
   islandId: WorldIslandId;
   center: Readonly<WorldPoint>;
   sizeMeters: number;
@@ -44,7 +48,7 @@ export interface WorldClimateWeatherInput {
 export interface WorldClimateSample {
   islandId: WorldIslandId;
   biomeId: WorldBiomeId;
-  climateId: "temperate" | "warm";
+  climateId: "temperate" | "warm" | "cool";
   temperatureC: number;
   temperatureOffsetC: number;
   precipitation: number;
@@ -169,20 +173,17 @@ export const NEVA_COAST_LOOP = [
   { x: 172, z: -100 },
   { x: 160, z: -150 },
   { x: 140, z: -190 },
-  { x: 100, z: -218 },
-  // Northern sea cliffs (behind the mountain summits)
-  { x: 50, z: -228 },
-  { x: 0, z: -234 },
-  { x: -50, z: -236 },
-  { x: -100, z: -232 },
-  { x: -145, z: -218 },
-  // Western coast (beaches and rock shelves past western foothills)
-  { x: -175, z: -180 },
-  { x: -188, z: -140 },
-  { x: -192, z: -90 },
-  { x: -190, z: -40 },
-  { x: -188, z: 10 },
-  { x: -184, z: 50 }
+  { x: 164, z: -220 },
+  // The old northern hills now lead inland into a broad mountain-backed continent.
+  { x: 165, z: -350 }, { x: 120, z: -590 }, { x: -30, z: -710 },
+  { x: -310, z: -760 }, { x: -555, z: -735 }, { x: -755, z: -585 },
+  { x: -860, z: -330 }, { x: -880, z: -30 }, { x: -850, z: 260 },
+  { x: -780, z: 555 }, { x: -570, z: 690 }, { x: -350, z: 650 },
+  // A long southern headland cups the water; the mouth remains open to the east.
+  { x: -230, z: 525 }, { x: -340, z: 440 }, { x: -440, z: 390 },
+  { x: -485, z: 350 }, { x: -490, z: 305 }, { x: -510, z: 240 },
+  { x: -500, z: 175 }, { x: -460, z: 130 }, { x: -395, z: 101 },
+  { x: -340, z: 99 }
 ] as const;
 
 /** Positive in water, negative on Neva dry land. */
@@ -242,6 +243,14 @@ export const SUNREACH_ANCHORS = Object.freeze({
 });
 
 const NEVA_TERRAIN_PATCH = terrainPatch("terrain.neva", "island.neva", { x: 0, z: 0 }, 600, 384, 18);
+/** Non-overlapping extensions retain the detailed original gameplay grid. */
+export const MAINLAND_TERRAIN_PATCHES = [
+  terrainPatch("terrain.neva_northwest", "island.neva", { x: -600, z: -600 }, 600, 192, 0),
+  terrainPatch("terrain.neva_north", "island.neva", { x: 0, z: -600 }, 600, 192, 0),
+  terrainPatch("terrain.neva_west", "island.neva", { x: -600, z: 0 }, 600, 192, 0),
+  terrainPatch("terrain.neva_southwest", "island.neva", { x: -600, z: 600 }, 600, 192, 0),
+  terrainPatch("terrain.neva_south", "island.neva", { x: 0, z: 600 }, 600, 192, 0)
+] as const;
 const SUNREACH_TERRAIN_PATCH = terrainPatch("terrain.sunreach", "island.sunreach", { x: 500 + SUNREACH_OFFSET_X, z: 60 }, 360, 256, 16);
 
 export const WORLD_ISLAND_DEFINITIONS: Readonly<Record<WorldIslandId, Readonly<WorldIslandDefinition>>> = Object.freeze({
@@ -249,12 +258,12 @@ export const WORLD_ISLAND_DEFINITIONS: Readonly<Record<WorldIslandId, Readonly<W
   "island.neva": Object.freeze({
     id: "island.neva",
     biomeId: "biome.neva_temperate",
-    label: "Neva",
+    label: "Neva Mainland",
     terrainPatch: NEVA_TERRAIN_PATCH,
-    authoredBounds: Object.freeze({ minX: -220, maxX: 200, minZ: -250, maxZ: 130 }),
+    authoredBounds: MAINLAND_BOUNDS,
     coastLoop: NEVA_COAST_LOOP,
     fishingEcologyId: "ecology.neva",
-    regions: ["region.village", "region.farm", "region.coast", "region.harbor", "region.offshore"] as const,
+    regions: ["region.village", "region.farm", "region.coast", "region.harbor", "region.offshore", "region.pinewatch", "region.reedhaven", "region.highridge"] as const,
     anchors: Object.freeze({})
   }),
   "island.sunreach": Object.freeze({
@@ -276,6 +285,10 @@ export const WORLD_ISLAND_DEFINITIONS: Readonly<Record<WorldIslandId, Readonly<W
 });
 
 export const WORLD_ISLAND_IDS = Object.freeze(Object.keys(WORLD_ISLAND_DEFINITIONS) as WorldIslandId[]);
+export const WORLD_TERRAIN_PATCHES = Object.freeze([
+  ...WORLD_ISLAND_IDS.map(id => WORLD_ISLAND_DEFINITIONS[id].terrainPatch),
+  ...MAINLAND_TERRAIN_PATCHES
+]);
 
 export const FISHING_ECOLOGY_DEFINITIONS: Readonly<Record<FishingEcologyId, Readonly<FishingEcologyDefinition>>> = Object.freeze({
   "ecology.neva": Object.freeze({
@@ -296,7 +309,10 @@ export const FISHING_ECOLOGY_DEFINITIONS: Readonly<Record<FishingEcologyId, Read
       // a re-roll of the one they already know.
       { x: -40, z: 250, habitatId: "offshore" as const, reviewSpeciesId: "fish.swordfish" },
       { x: 420, z: 325, habitatId: "offshore" as const, reviewSpeciesId: "fish.swordfish" },
-      { x: 605, z: 110, habitatId: "coast" as const, reviewSpeciesId: "fish.tuna" }
+      { x: 605, z: 110, habitatId: "coast" as const, reviewSpeciesId: "fish.tuna" },
+      { x: -590, z: -180, habitatId: "lake" as const, reviewSpeciesId: "fish.trout" },
+      { x: -550, z: 70, habitatId: "river" as const, reviewSpeciesId: "fish.trout" },
+      { x: -460, z: 333, habitatId: "coast" as const, reviewSpeciesId: "fish.tuna" }
     ])
   }),
   "ecology.sunreach": Object.freeze({

@@ -164,7 +164,14 @@ export const GULL_ORBITS: readonly AmbientFlyerOrbit[] = [
   { originX: -18, originY: 11.4, originZ: 78, radiusX: 21, radiusZ: 13, altitude: 0.4, phase: 3.5, speed: 0.17 },
   { originX: -120, originY: 12.8, originZ: 82, radiusX: 18, radiusZ: 12, altitude: 0.5, phase: 4.9, speed: 0.15 },
   { originX: -84, originY: 9.8, originZ: -24, radiusX: 17, radiusZ: 11, altitude: 0.35, phase: 1.15, speed: 0.18 },
-  { originX: 72, originY: 11.8, originZ: -20, radiusX: 16, radiusZ: 10, altitude: 0.45, phase: 4.8, speed: 0.16 }
+  { originX: 72, originY: 11.8, originZ: -20, radiusX: 16, radiusZ: 10, altitude: 0.45, phase: 4.8, speed: 0.16 },
+  // Sheltered landings and lake margins carry the same coastal life inland.
+  { originX: -380, originY: 10, originZ: 102, radiusX: 22, radiusZ: 13, altitude: 0, phase: 0.8, speed: 0.13 },
+  { originX: -390, originY: 13, originZ: 88, radiusX: 17, radiusZ: 11, altitude: 0.4, phase: 3.2, speed: 0.16 },
+  { originX: -483, originY: 11, originZ: 337, radiusX: 25, radiusZ: 17, altitude: 0.2, phase: 1.6, speed: 0.14 },
+  { originX: -516, originY: 9, originZ: 292, radiusX: 19, radiusZ: 12, altitude: 0.3, phase: 4.2, speed: 0.17 },
+  { originX: -588, originY: 12, originZ: -171, radiusX: 16, radiusZ: 21, altitude: 0, phase: 2.1, speed: 0.12 },
+  { originX: -546, originY: 10, originZ: 162, radiusX: 18, radiusZ: 12, altitude: 0.4, phase: 5.1, speed: 0.15 }
 ];
 
 export const BUTTERFLY_ORBITS: readonly AmbientFlyerOrbit[] = [
@@ -187,7 +194,16 @@ export const BUTTERFLY_ORBITS: readonly AmbientFlyerOrbit[] = [
   { originX: 58, originY: 1.18, originZ: -54, radiusX: 2.3, radiusZ: 1.7, altitude: 0.24, phase: 5.7, speed: 0.46 },
   { originX: 16, originY: 1.16, originZ: 2, radiusX: 2.6, radiusZ: 2.1, altitude: 0.2, phase: 1.4, speed: 0.57 },
   { originX: -10, originY: 1.24, originZ: -12, radiusX: 2, radiusZ: 2.4, altitude: 0.3, phase: 2.8, speed: 0.5 },
-  { originX: 104, originY: 1.16, originZ: -46, radiusX: 2.5, radiusZ: 1.9, altitude: 0.22, phase: 4.9, speed: 0.6 }
+  { originX: 104, originY: 1.16, originZ: -46, radiusX: 2.5, radiusZ: 1.9, altitude: 0.22, phase: 4.9, speed: 0.6 },
+  ...[
+    [-235, -25], [-330, 10], [-409, 35], [-423, -88],
+    [-642, -204], [-696, -100], [-668, 80], [-625, 215],
+    [-580, 324], [-551, 365], [-348, -344], [-318, -396]
+  ].map(([x, z], index) => ({
+    originX: x, originY: 1.05, originZ: z,
+    radiusX: 2.3 + index % 3 * 0.35, radiusZ: 1.9 + index % 2 * 0.4,
+    altitude: 0.2, phase: index * 1.17, speed: 0.45 + index % 4 * 0.04
+  }))
 ];
 
 /**

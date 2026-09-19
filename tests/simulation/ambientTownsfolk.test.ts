@@ -10,6 +10,7 @@ import { HARBOR_DOCK, VILLAGE_MARKET, HARBOR_MARKET } from "../../src/world/Worl
 import { WORLD_ARCHITECTURE_PADS } from "../../src/world/WorldLayout";
 import { WORLD_STATION_DEFINITIONS } from "../../src/world/WorldGameplayLocations";
 import { FARMHOUSE_OUTSIDE_DOOR } from "../../src/world/FarmhouseInterior";
+import { MAINLAND_VILLAGES } from "../../src/world/NevaMainland";
 
 const PHASES = [4, 8, 18, 22];
 const MAX_WALKABLE_SLOPE_NORMAL_Y = Math.cos((38 * Math.PI) / 180);
@@ -112,7 +113,9 @@ describe("ambient townsfolk", () => {
     // one around the harbor, on top of the scheduled named cast.
     expect(near(VILLAGE_MARKET.position.x, VILLAGE_MARKET.position.z, 22)).toBeGreaterThanOrEqual(1);
     expect(near(HARBOR_MARKET.position.x, HARBOR_MARKET.position.z, 22)).toBeGreaterThanOrEqual(1);
-    expect(AMBIENT_TOWNSFOLK_ROUTES).toHaveLength(6);
+    for (const village of Object.values(MAINLAND_VILLAGES)) {
+      expect(near(village.market.x, village.market.z, 24), village.id).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it("walks for part of its loop and rests for the rest", () => {

@@ -8,26 +8,20 @@
 export const NEVA_HEADWATERS = Object.freeze({
   source: Object.freeze({ x: -30, z: -150 }),
   endZ: -116,
-  sourceRadiusMeters: 3,
+  sourceRadiusMeters: 2.2,
   // Dry padding lets water vertices follow the same profile before shoreline clipping.
   bounds: Object.freeze({ minX: -55, maxX: -5, minZ: -158, maxZ: -110 }),
-  /**
-   * Lip crest at z = -136.5/-136 (12 m), then a near-vertical face down to the
-   * landing at -134.5 (4.5 m): 7.5 m of drop over 1.5 m of run. The water sheet
-   * follows this profile exactly, so the fall is where the terrain actually
-   * drops instead of hanging in front of it. From the landing the surface eases
-   * into the pool shelf (3.5 m from -128 to -124) and the flush sea-level
-   * handoff at -116. Every knot keeps zero graded slope, so CPU and rendered
-   * normals stay continuous at the joins.
-   */
+  /** A shallow spring run spills over a bedrock lip into a level plunge pool.
+   * All optical and support consumers use these same stations. */
   elevationKnots: Object.freeze([
     { z: -150, elevation: 20 },
-    { z: -136.5, elevation: 12 },
-    { z: -136, elevation: 12 },
+    { z: -141, elevation: 19.65 },
+    { z: -136.5, elevation: 19 },
+    { z: -136, elevation: 19 },
     { z: -134.5, elevation: 4.5 },
-    { z: -132, elevation: 3.875 },
-    { z: -128, elevation: 3.5 },
-    { z: -124, elevation: 3.5 },
+    { z: -132, elevation: 4.5 },
+    { z: -128, elevation: 4.5 },
+    { z: -124, elevation: 4.5 },
     { z: -116, elevation: 0 }
   ]),
   /** Falling segment between the named reaches; presentation sheets are W07's owner. */
@@ -36,7 +30,7 @@ export const NEVA_HEADWATERS = Object.freeze({
     upstreamReachId: "reach.neva_headwaters",
     downstreamReachId: "reach.neva_main",
     lipZ: -136,
-    lipElevation: 12,
+    lipElevation: 19,
     landingZ: -134.5,
     landingElevation: 4.5
   }),
@@ -48,9 +42,9 @@ export const NEVA_HEADWATERS = Object.freeze({
   pool: Object.freeze({
     id: "reach.neva_headwaters_pool",
     centerZ: -130,
-    halfLengthMeters: 5,
-    widenMeters: 1.8,
-    depthMeters: 1.5
+    halfLengthMeters: 7,
+    widenMeters: 3.2,
+    depthMeters: 2.1
   })
 });
 

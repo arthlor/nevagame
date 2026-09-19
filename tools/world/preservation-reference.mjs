@@ -1,8 +1,13 @@
 /** Frozen references are revision-specific; a missing field must never silently pass. */
 export function preservationDifferences(current, reference) {
-  return ["layoutRevision", "terrainWaterHash", "routeHash", "landmarkHash", "sampleCount"]
+  const differences = ["layoutRevision", "terrainWaterHash", "routeHash", "landmarkHash", "sampleCount"]
     .filter((key) => current[key] === undefined || reference[key] === undefined || current[key] !== reference[key])
     .map((key) => `${key}: ${current[key]} != ${reference[key]}`);
+  if (Number(current.layoutRevision) >= 22 && (!current.terrainSampling || !reference.terrainSampling
+    || JSON.stringify(current.terrainSampling) !== JSON.stringify(reference.terrainSampling))) {
+    differences.push("terrainSampling: changed or missing sampling domain");
+  }
+  return differences;
 }
 
 export function placementDifferences(seeds, reference) {

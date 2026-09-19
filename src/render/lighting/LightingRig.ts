@@ -482,7 +482,7 @@ export class LightingRig {
     this.qualityTier = tier;
     const quality = CANONICAL_RENDER_CONFIG.quality[tier];
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = CANONICAL_RENDER_CONFIG.shadows.type;
+    this.renderer.shadowMap.type = CANONICAL_RENDER_CONFIG.shadows.type[tier];
     this.renderer.shadowMap.needsUpdate = true;
     for (const light of [this.sun, this.moon]) {
       light.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);

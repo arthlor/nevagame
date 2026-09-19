@@ -97,9 +97,15 @@ describe("economy balance sheet", () => {
   it("allows modest workshop processing margins while every purchased input still resells at a loss", () => {
     const sim = new Simulation();
     const center = (marketId: "market.village" | "market.harbor", itemId: string): void => {
-      const commodity = sim.state.markets[marketId].commodities[itemId];
-      commodity.localSupply = commodity.targetSupply;
-      commodity.seasonalModifier = 1;
+      // Purchased-input margins are measured at rest across the whole market
+      // network, since the retail floor observes every destination's quote.
+      expect(sim.state.markets[marketId].commodities[itemId]).toBeDefined();
+      for (const market of Object.values(sim.state.markets)) {
+        const commodity = market.commodities[itemId];
+        if (!commodity) continue;
+        commodity.localSupply = commodity.targetSupply;
+        commodity.seasonalModifier = 1;
+      }
     };
     for (const [marketId, itemId] of [
       ["market.village", "produce.flax"],

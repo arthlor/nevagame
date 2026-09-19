@@ -73,6 +73,21 @@ export function advanceNpcStationBeat(
  * the actor never leaves interaction range of its clock-derived anchor.
  */
 export const NPC_STATION_BEATS: Readonly<Record<string, NpcStationBeatSpec>> = {
+  "npc.rowan": {
+    waypoints: [{ dx: 0, dz: 0 }, { dx: 0.5, dz: 0.1 }, { dx: 0.4, dz: 0.55 }, { dx: 0, dz: 0.5 }],
+    pauseSeconds: 2.4,
+    walkSpeedMetersPerSecond: 1.38
+  },
+  "npc.mara": {
+    waypoints: [{ dx: 0, dz: 0 }, { dx: 0.45, dz: 0 }, { dx: 0.5, dz: 0.45 }, { dx: 0.1, dz: 0.6 }],
+    pauseSeconds: 2.6,
+    walkSpeedMetersPerSecond: 1.16
+  },
+  "npc.ada": {
+    waypoints: [{ dx: 0, dz: 0 }, { dx: 0.6, dz: 0.1 }, { dx: 0.45, dz: 0.5 }, { dx: 0, dz: 0.4 }],
+    pauseSeconds: 2.8,
+    walkSpeedMetersPerSecond: 1.18
+  },
   "npc.elspeth": {
     waypoints: [
       { dx: 0, dz: 0 },

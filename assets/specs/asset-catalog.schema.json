@@ -57,7 +57,19 @@
           "required": ["normalPolicy", "facetColors"],
           "properties": {
             "normalPolicy": { "const": "authored" },
-            "facetColors": { "const": "rest_face" }
+            "facetColors": { "const": "rest_face" },
+            "valueZones": {
+              "description": "Optional bounded overrides for the broad authored value-zone multipliers applied by the rest-face bake; omitted zones keep the shared defaults owned by tools/blender/common/geometry.py.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "sunTop": { "type": "number", "minimum": 0.8, "maximum": 1.1 },
+                "weatherSide": { "type": "number", "minimum": 0.8, "maximum": 1.1 },
+                "groundContact": { "type": "number", "minimum": 0.8, "maximum": 1.1 },
+                "patch": { "type": "number", "minimum": 0.8, "maximum": 1.1 },
+                "wear": { "type": "number", "minimum": 0.8, "maximum": 1.1 }
+              }
+            }
           }
         },
         "id": {

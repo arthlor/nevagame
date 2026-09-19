@@ -28,16 +28,21 @@ export function isVillageSeedCrop(cropId: string): boolean {
 }
 
 /**
- * The inland counter where a player presents physical fish trade packs for
- * sale. Owned here so app/UI routing, the market domain gate and the expedition
- * board cannot drift onto different markets.
+ * Stable starter trade center for onboarding and legacy callers. Market sale
+ * capability is owned by each definition's acceptsFishTradePacks flag.
  */
 export const FISH_TRADE_CENTER_MARKET_ID = "market.village" as const;
+
+/** One content capability shared by market commands and their callers. */
+export function marketAcceptsFishTradePacks(marketId: string | null): boolean {
+  return marketId !== null && MARKETS[marketId]?.acceptsFishTradePacks === true;
+}
 
 export const MARKETS: Record<string, MarketDefinition> = {
   "market.village": {
     id: "market.village",
     name: "Village Produce Market",
+    acceptsFishTradePacks: true,
     regionId: "region.village",
     description: "The bustling trade center for agriculture and daily staples. It also buys hand-carried fish trade packs brought inland from the boats.",
     interactionPosition: {
@@ -87,9 +92,8 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "item.meal_harvest_bowl", basePrice: 28, targetSupply: 12, consumptionRatePerHour: 1.2, seasonalFactors: {} },
       { itemId: "item.meal_fish_stew", basePrice: 42, targetSupply: 10, consumptionRatePerHour: 1.0, seasonalFactors: {} },
       { itemId: "item.meal_orchard_tart", basePrice: 36, targetSupply: 10, consumptionRatePerHour: 1.0, seasonalFactors: {} },
-      // Physical sport/basic catches use the trade-pack lane. The Village
-      // Produce Market is the inland trade center for those packs; the Harbor
-      // Fish Market remains a tackle, supply, and ordinary fish-item stall.
+      // Physical sport/basic catches use the manual trade-pack lane here and
+      // at the regional village counters; the harbor keeps its supply role.
       { itemId: "fish.trout", basePrice: 50, targetSupply: 15, consumptionRatePerHour: 1.2, seasonalFactors: { winter: 1.2 } },
       { itemId: "fish.catfish", basePrice: 75, targetSupply: 10, consumptionRatePerHour: 0.8, seasonalFactors: { summer: 1.15 } },
       { itemId: "fish.pike", basePrice: 90, targetSupply: 8, consumptionRatePerHour: 0.6, seasonalFactors: { autumn: 1.2 } },
@@ -107,7 +111,7 @@ export const MARKETS: Record<string, MarketDefinition> = {
     id: "market.harbor",
     name: "Harbor Fish Market & Wholesaler",
     regionId: "region.harbor",
-    description: "A wharf-side stall for tackle, supplies, and ordinary fish goods. Physical sport catches travel inland as trade packs for the Village Produce Market.",
+    description: "A wharf-side stall for tackle, supplies, and ordinary fish goods. Carry physical catches to Neva Village, Pinewatch, Reedhaven or Highridge to sell them as trade packs.",
     interactionPosition: {
       x: WorldLayout.landmark("fish-market").x,
       z: WorldLayout.landmark("fish-market").z,
@@ -198,3 +202,117 @@ export const MARKETS: Record<string, MarketDefinition> = {
     ]
   }
 };
+
+/** Regional stalls share base values; their stock, throughput and seasons differ. */
+function regionalCommodity(
+  itemId: string,
+  targetSupply: number,
+  consumptionRatePerHour: number,
+  seasonalFactors?: MarketDefinition["commodities"][number]["seasonalFactors"]
+): MarketDefinition["commodities"][number] {
+  const source = Object.values(MARKETS).flatMap((market) => market.commodities)
+    .find((commodity) => commodity.itemId === itemId);
+  if (!source) throw new Error(`Mainland market references unpriced commodity '${itemId}'`);
+  return { ...source, targetSupply, consumptionRatePerHour, seasonalFactors: seasonalFactors ?? source.seasonalFactors };
+}
+
+function mainlandMarketPosition(marketId: string): MarketDefinition["interactionPosition"] {
+  const location = WORLD_MARKET_LOCATIONS[marketId];
+  return { ...location.position, radiusMeters: location.radiusMeters };
+}
+
+Object.assign(MARKETS, {
+  "market.pinewatch": {
+    id: "market.pinewatch",
+    name: "Pinewatch Timber & Trade",
+    routeHint: "Woodland road or sheltered cove",
+    regionId: "region.pinewatch",
+    description: "The forest village supplies timber and cloth. Its kitchens need field produce and fresh fish; the cove landing offers a shorter return than the woodland road.",
+    acceptsFishTradePacks: true,
+    interactionPosition: mainlandMarketPosition("market.pinewatch"),
+    retail: {
+      seedCropIds: ["crop.flax", "crop.apple_tree"],
+      itemIds: ["item.hardwood_blank", "item.linen_roll", "produce.flax", "item.basic_lure", "item.boat_fuel"],
+      workshopSupplyItemIds: ["produce.flax", "item.linen_roll"]
+    },
+    commodities: [
+      regionalCommodity("item.hardwood_blank", 55, 4),
+      regionalCommodity("item.linen_roll", 28, 1.8),
+      regionalCommodity("produce.flax", 45, 3),
+      regionalCommodity("item.basic_lure", 20, 1.5),
+      regionalCommodity("item.boat_fuel", 24, 2),
+      regionalCommodity("produce.wheat", 30, 4.5, { spring: 1.12, summer: 1.15, autumn: 1, winter: 1.25 }),
+      regionalCommodity("produce.potato", 25, 4, { spring: 1.1, summer: 1.1, autumn: 1.05, winter: 1.25 }),
+      regionalCommodity("produce.tomato", 20, 3, { spring: 1.15, summer: 1.1, autumn: 1.2, winter: 1.4 }),
+      regionalCommodity("produce.apple", 40, 2.5),
+      regionalCommodity("item.salt_cured_fish", 15, 2.5, { spring: 1.15, summer: 1.1, autumn: 1.15, winter: 1.3 }),
+      ...MARKETS["market.village"].commodities.filter((entry) => entry.itemId.startsWith("fish.")).map((entry) =>
+        regionalCommodity(entry.itemId, Math.max(3, entry.targetSupply), Math.max(0.5, entry.consumptionRatePerHour),
+          { spring: 1.1, summer: 1.15, autumn: 1.15, winter: 1.2 }))
+    ]
+  },
+  "market.reedhaven": {
+    id: "market.reedhaven",
+    name: "Reedhaven Marsh Exchange",
+    routeHint: "Raised marsh road or cove landing",
+    regionId: "region.reedhaven",
+    description: "Reedhaven keeps the marsh landing supplied with bait and ice. Grain, orchard fruit and seafish find buyers among its reed beds and fishing cottages.",
+    acceptsFishTradePacks: true,
+    interactionPosition: mainlandMarketPosition("market.reedhaven"),
+    retail: {
+      seedCropIds: ["crop.barley", "crop.carrot", "crop.flax"],
+      itemIds: ["item.bait_worms", "item.compost_starter", "item.crushed_ice", "item.boat_fuel", "item.fish_scraps"],
+      workshopSupplyItemIds: ["item.fish_scraps"],
+      rodIds: ["rod.river", "rod.heavy_sport"]
+    },
+    commodities: [
+      regionalCommodity("item.bait_worms", 100, 7),
+      regionalCommodity("item.compost_starter", 35, 2.5),
+      regionalCommodity("item.crushed_ice", 45, 4),
+      regionalCommodity("item.boat_fuel", 25, 2),
+      regionalCommodity("item.fish_scraps", 90, 6),
+      regionalCommodity("produce.wheat", 25, 4, { spring: 1.15, summer: 1.2, autumn: 1.1, winter: 1.25 }),
+      regionalCommodity("produce.barley", 40, 3),
+      regionalCommodity("produce.carrot", 40, 3),
+      regionalCommodity("produce.flax", 35, 3),
+      regionalCommodity("produce.apple", 20, 3, { spring: 1.3, summer: 1.2, autumn: 1.05, winter: 1.25 }),
+      regionalCommodity("fish.carp", 30, 2),
+      regionalCommodity("fish.perch", 45, 3),
+      ...MARKETS["market.village"].commodities.filter((entry) => entry.itemId.startsWith("fish.")).map((entry) =>
+        regionalCommodity(entry.itemId, Math.max(4, entry.targetSupply), Math.max(0.7, entry.consumptionRatePerHour),
+          ["fish.trout", "fish.catfish", "fish.pike", "fish.arowana", "fish.sturgeon"].includes(entry.itemId)
+            ? { spring: 0.95, summer: 1, autumn: 0.95, winter: 1.05 }
+            : { spring: 1.15, summer: 1.2, autumn: 1.2, winter: 1.25 }))
+    ]
+  },
+  "market.highridge": {
+    id: "market.highridge",
+    name: "Highridge Provisions",
+    routeHint: "Mountain road; no boat landing",
+    regionId: "region.highridge",
+    description: "Above the cove, the mountain village trades root crops and workshop supplies. Fresh seafood earns its place after the climb; the road is the only way to this counter.",
+    acceptsFishTradePacks: true,
+    interactionPosition: mainlandMarketPosition("market.highridge"),
+    retail: {
+      seedCropIds: ["crop.potato", "crop.carrot", "crop.barley"],
+      itemIds: ["item.tool_steel", "item.tanned_leather", "item.copper_sheet", "item.brass_fittings", "item.crushed_ice"]
+    },
+    commodities: [
+      regionalCommodity("item.tool_steel", 28, 1.5),
+      regionalCommodity("item.tanned_leather", 32, 2),
+      regionalCommodity("item.copper_sheet", 30, 2),
+      regionalCommodity("item.brass_fittings", 28, 1.8),
+      regionalCommodity("item.crushed_ice", 20, 2),
+      regionalCommodity("produce.potato", 70, 5),
+      regionalCommodity("produce.carrot", 60, 4),
+      regionalCommodity("produce.barley", 50, 4),
+      regionalCommodity("produce.tomato", 18, 3, { spring: 1.2, summer: 1.15, autumn: 1.3, winter: 1.4 }),
+      regionalCommodity("produce.corn", 25, 3, { spring: 1.2, summer: 1.15, autumn: 1.25, winter: 1.35 }),
+      regionalCommodity("produce.olive", 15, 2, { spring: 1.2, summer: 1.25, autumn: 1.2, winter: 1.3 }),
+      regionalCommodity("item.salt_cured_fish", 18, 3, { spring: 1.2, summer: 1.15, autumn: 1.25, winter: 1.35 }),
+      ...MARKETS["market.village"].commodities.filter((entry) => entry.itemId.startsWith("fish.")).map((entry) =>
+        regionalCommodity(entry.itemId, Math.max(4, entry.targetSupply), Math.max(0.7, entry.consumptionRatePerHour),
+          { spring: 1.2, summer: 1.25, autumn: 1.3, winter: 1.35 }))
+    ]
+  }
+} satisfies Record<string, MarketDefinition>);

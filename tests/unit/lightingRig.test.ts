@@ -59,11 +59,17 @@ describe("LightingRig", () => {
         autoUpdate: true,
         enabled: false,
         type: THREE.PCFSoftShadowMap,
-        needsUpdate: false
+        needsUpdate: false,
+        render: () => undefined
       },
       toneMappingExposure: 1
     } as unknown as THREE.WebGLRenderer;
     const rig = new LightingRig(new THREE.Scene(), renderer);
+    for (const tier of ["low", "medium", "high"] as const) {
+      rig.setQuality(tier);
+      expect(renderer.shadowMap.enabled).toBe(true);
+      expect(renderer.shadowMap.type).toBe(tier === "low" ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap);
+    }
     const state = createInitialGameState(42);
     const focus = new THREE.Vector3(4, 0.5, -6);
 

@@ -19,6 +19,7 @@ import {
   WorldLayout
 } from "../../src/world/WorldLayout";
 import { SUNREACH_ROUTES } from "../../src/world/SunreachWorld";
+import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
 import {
   PLAYER_HOMESTEAD_LAYOUT,
   STARTER_FARM_LAYOUT,
@@ -177,16 +178,16 @@ describe("WorldLayout", () => {
     expect(WorldLayout.nearbyFishingHabitat(50, WorldLayout.coastlineZ(50) - 2)).toBe("coast");
     expect(WorldLayout.nearbyFishingHabitat(72, WorldLayout.coastlineZ(72) - 2)).not.toBe("lake");
     expect(WORLD_BOUNDS).toEqual({ minX: -220, maxX: 200, minZ: -250, maxZ: 130 });
-    // Ocean-expansion sailable bounds (v42/layout 20): Neva + translated
-    // Sunreach patch + three channel islets. WORLD_BOUNDS stays Neva-only.
-    expect(SAILABLE_BOUNDS).toEqual({ minX: -500, maxX: 1700, minZ: -650, maxZ: 650 });
+    // The mainland and its outer coast fit inside the same navigable world.
+    // WORLD_BOUNDS retains the starter composition sampling domain.
+    expect(SAILABLE_BOUNDS).toEqual({ minX: -1000, maxX: 1700, minZ: -950, maxZ: 900 });
     expect(WATER_SURFACE).toMatchObject({
-      width: 2400,
-      depth: 1500,
-      centerX: 600,
+      width: 2900,
+      depth: 2100,
+      centerX: 350,
       centerZ: 0,
-      segmentsX: 461,
-      segmentsZ: 288
+      segmentsX: 557,
+      segmentsZ: 403
     });
     expect(WorldLayout.terrainHeightfield()).toHaveLength((TERRAIN_RESOLUTION + 1) ** 2);
     expect(WorldLayout.terrainBaseHeightfield()).toHaveLength((TERRAIN_RESOLUTION + 1) ** 2);
@@ -523,7 +524,7 @@ describe("WorldLayout", () => {
       "lane", "trail", "lane", "trail", "trail",
       "trail", "trail", "trail", "trail",
       // ...then Sunreach: cove-terraces, terraces-scrub, scrub-ridge, scrub-reef.
-      "arterial", "lane", "trail", "trail"
+      "arterial", "lane", "trail", "trail", ...MAINLAND_ROUTES.map(route => route.kind)
     ]);
     expect(WORLD_ROUTE_PROFILES.arterial.crownMeters).toBeGreaterThan(WORLD_ROUTE_PROFILES.lane.crownMeters);
     expect(WORLD_ROUTE_PROFILES.lane.crownMeters).toBeGreaterThan(WORLD_ROUTE_PROFILES.trail.crownMeters);
@@ -560,10 +561,11 @@ describe("WorldLayout", () => {
     expect(Object.values(weights).reduce((sum, value) => sum + value, 0)).toBeCloseTo(1, 6);
     const first = createWorldEnvironmentLayout(42891).groundCoverPlacements;
     const second = createWorldEnvironmentLayout(42891).groundCoverPlacements;
-    // `GROUND_COVER_DENSITY.high` is Neva's tier; Sunreach carries its own
-    // 360/72/96 budget and is asserted separately in the placement-count test.
+    // This budget belongs to the retained starter dressing. Mainland accents
+    // have their own bounded envelope in mainlandEnvironment.test.ts.
     const firstNeva = first.filter(
       (placement) => placement.compositionTag?.islandId !== "island.sunreach"
+        && !placement.id.startsWith("seeded-fill.mainland.")
     );
     expect(second).toEqual(first);
     // The authored harbor removes scatter from open sand and clear passages.
@@ -629,7 +631,7 @@ describe("WorldLayout", () => {
     const authored = byOrigin(layout.staticPlacements, "authored");
     const layoutDerived = byOrigin(layout.staticPlacements, "layout-derived");
     const seeded = byOrigin(layout.staticPlacements, "seeded-fill");
-    const causal = seeded.filter((placement) => placement.compositionTag);
+    const causal = seeded.filter((placement) => placement.compositionTag && !placement.id.startsWith("seeded-fill.mainland."));
     const landscapeDressing = seeded.filter((placement) => placement.id.startsWith("seeded-fill.landscape."));
 
     expect(authored.length).toBeGreaterThanOrEqual(43);
@@ -676,7 +678,7 @@ describe("WorldLayout", () => {
       expect(WorldLayout.isWalkable(placement.x, placement.z)).toBe(true);
       expect(WorldLayout.isWater(placement.x, placement.z)).toBe(false);
       expect(WorldLayout.isInterior(placement.x, placement.z)).toBe(false);
-      if (placement.compositionTag) {
+      if (placement.compositionTag && !placement.id.startsWith("seeded-fill.mainland.")) {
         const sample = sampleWorldComposition(42891, placement.x, placement.z);
         // Traversal-critical clearances are strict on both islands.
         expect(sample.route.clearance).toBeLessThanOrEqual(0.08);
@@ -705,7 +707,7 @@ describe("WorldLayout", () => {
       && sampleWorldComposition(42891, placement.x, placement.z).habitat.orchard >= 0.34
     )).toBe(true);
 
-    // Counted for Neva only. Sunreach dresses its dry scrub with
+    // Counted for the retained Neva district only. Sunreach dresses its dry scrub with
     // `foliage_meadow_tall_a` / `foliage_beach_grass_a`, which fall into Neva's
     // meadowTall bucket and would silently inflate these density targets.
     const groundCoverAssetCounts = new Map<string, number>();
@@ -719,7 +721,7 @@ describe("WorldLayout", () => {
     expect(sunreachCoverByCategory("pebbles")).toBe(96);
 
     for (const placement of layout.groundCoverPlacements) {
-      if (placement.compositionTag?.islandId !== "island.sunreach") {
+      if (placement.compositionTag?.islandId !== "island.sunreach" && !placement.id.startsWith("seeded-fill.mainland.")) {
         groundCoverAssetCounts.set(
           placement.assetId,
           (groundCoverAssetCounts.get(placement.assetId) ?? 0) + 1
@@ -741,6 +743,7 @@ describe("WorldLayout", () => {
     }
     const retainedCount = (category: string) => layout.groundCoverPlacements.filter(
       (placement) => placement.category === category && placement.compositionTag?.islandId !== "island.sunreach"
+        && !placement.id.startsWith("seeded-fill.mainland.")
     ).length;
     // The connected short-grass carpet is grown by the renderer's MeadowField.
     expect(["foliage_grass_a", "foliage_grass_b", "foliage_grass_c"]
@@ -768,11 +771,11 @@ describe("WorldLayout", () => {
     expect(otherCover.prop_driftwood_b).toBeGreaterThan(0);
     expect(otherCover.prop_driftwood_c).toBeGreaterThan(0);
 
-    // The per-category scale, slope and wetness contracts below are Neva's.
-    // Sunreach authors its own dry-scrub cover, so scope these to Neva.
+    // The retained starter district owns these scale, slope and wetness contracts.
     const nevaCover = (category: string) => layout.groundCoverPlacements.filter(
       (placement) => placement.category === category
         && placement.compositionTag?.islandId !== "island.sunreach"
+        && !placement.id.startsWith("seeded-fill.mainland.")
     );
     const flowers = nevaCover("flowers");
     expect(flowers.every((placement) => placement.scale[1] >= 1.59 && placement.scale[1] <= 2.33)).toBe(true);
@@ -826,7 +829,8 @@ describe("WorldLayout", () => {
     expect(authored.filter((placement) => placement.id === "authored.spawn.bush-right")).toHaveLength(1);
     expect(authored.filter((placement) => placement.id === "authored.spawn.rock-foreground")).toHaveLength(1);
     expect(authored.filter((placement) => placement.assetId === "fauna_chicken_a")).toHaveLength(5);
-    expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(2);
+    const starterAuthored = authored.filter((placement) => !placement.id.startsWith("authored.mainland."));
+    expect(starterAuthored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(2);
     expect(authored.filter((placement) => placement.assetId === "fauna_cow_a")).toHaveLength(1);
     // Three rabbits that used to sit right on the spawn apron were removed to
     // clear the opening shot; one spawn companion remains to the west.
@@ -842,10 +846,10 @@ describe("WorldLayout", () => {
       expect(WorldLayout.farmSoilInfluence(rabbit.x, rabbit.z), rabbit.id).toBeLessThan(0.05);
       expect(WorldLayout.terrainNormal(rabbit.x, rabbit.z).y, rabbit.id).toBeGreaterThan(0.98);
     }
-    expect(authored.filter((placement) => placement.assetId === "prop_fishing_net_rack_a")).toHaveLength(2);
-    expect(authored.filter((placement) => placement.assetId === "house_farmhouse_a")).toHaveLength(2);
-    expect(authored.filter((placement) => placement.assetId === "house_cottage_a")).toHaveLength(2);
-    expect(authored.filter((placement) => placement.assetId === "building_thatched_cottage_a")).toHaveLength(1);
+    expect(starterAuthored.filter((placement) => placement.assetId === "prop_fishing_net_rack_a")).toHaveLength(2);
+    expect(starterAuthored.filter((placement) => placement.assetId === "house_farmhouse_a")).toHaveLength(2);
+    expect(starterAuthored.filter((placement) => placement.assetId === "house_cottage_a")).toHaveLength(2);
+    expect(starterAuthored.filter((placement) => placement.assetId === "building_thatched_cottage_a")).toHaveLength(1);
     const kelp = seeded.filter((placement) => placement.assetId === "foliage_kelp_a");
     expect(kelp.length).toBeGreaterThanOrEqual(16);
     expect(kelp.every((placement) => placement.z - WorldLayout.coastlineZ(placement.x) > 1.2)).toBe(true);
@@ -1072,7 +1076,7 @@ describe("WorldLayout", () => {
 
   it("compiles the farmstead paths into the canonical network with shared junctions and a door endpoint", () => {
     expect(WORLD_ROUTE_NETWORK.map((route) => route.id)).toEqual([
-      ...WORLD_ROUTES.slice(0, 5), ...FARM_ROUTES, ...WORLD_ROUTES.slice(5), ...SUNREACH_ROUTES
+      ...WORLD_ROUTES.slice(0, 5), ...FARM_ROUTES, ...WORLD_ROUTES.slice(5), ...SUNREACH_ROUTES, ...MAINLAND_ROUTES
     ].map((route) => route.id));
     expect(FARM_ROUTES.map((route) => route.id)).toEqual([
       "farm-entry",
@@ -1081,7 +1085,7 @@ describe("WorldLayout", () => {
     ]);
     expect(FARM_ROUTES.every((route) => route.scope === "farmstead")).toBe(true);
     expect(WORLD_ROUTE_NETWORK.filter((route) => route.scope === "regional")).toHaveLength(
-      WORLD_ROUTES.length + SUNREACH_ROUTES.length
+      WORLD_ROUTES.length + SUNREACH_ROUTES.length + MAINLAND_ROUTES.length
     );
 
     const farmEntry = FARM_ROUTES.find((route) => route.id === "farm-entry")!;

@@ -42,6 +42,7 @@ export function buildSatchelDto(state: GameState): SatchelDto {
         categoryLabel: null,
         inventoryCategory: null,
         quantity: 0,
+        quality: null,
         cropId: null,
         cropName: null,
         isFish: false
@@ -58,6 +59,7 @@ export function buildSatchelDto(state: GameState): SatchelDto {
       categoryLabel: item?.category.replaceAll("-", " ") ?? (fish ? "fish" : "item"),
       inventoryCategory: inventoryCategory(item?.category, slot.itemId),
       quantity,
+      quality: slot.quality ?? null,
       cropId: crop?.id ?? null,
       cropName: crop?.name ?? null,
       isFish: Boolean(fish)

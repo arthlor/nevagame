@@ -274,6 +274,10 @@ export class Simulation {
         return this.fishingDomain.togglePreparedLure();
       case "fishing.set-drag":
         return this.fishingDomain.setDragNotch(command.notch);
+      case "fishing.keep-catch":
+        return this.fishingDomain.keepLandedFish();
+      case "fishing.release-catch":
+        return this.fishingDomain.releaseLandedFish();
       case "fishing.control":
         return this.setSportFishingInput(command.input)
           ? { success: true }
@@ -1076,8 +1080,13 @@ export class Simulation {
   // ==========================================
   // ECONOMY & MARKET ACTIONS
   // ==========================================
-  public sellItemAtMarket(marketId: MarketId, itemId: ItemId, quantity: number): { success: boolean; revenue?: number; reason?: string } {
-    return this.marketDomain.sellItem(marketId, itemId, quantity);
+  public sellItemAtMarket(
+    marketId: MarketId,
+    itemId: ItemId,
+    quantity: number,
+    quality?: CropQuality
+  ): { success: boolean; revenue?: number; reason?: string } {
+    return this.marketDomain.sellItem(marketId, itemId, quantity, quality);
   }
 
   public inspectCommodityAtMarket(

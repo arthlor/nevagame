@@ -410,5 +410,41 @@ export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
     rewardBaseMultiplier: 1.8,
     rewardSkill: "fishing",
     requiredXp: 1000
+  },
+  {
+    id: "contract.pinewatch_grain", type: "produce", requesterName: "Rowan",
+    deliveryMarketId: "market.pinewatch", itemOrSpeciesPool: ["produce.wheat"],
+    quantityRange: [10, 16], durationMinutes: 1440, rewardBaseMultiplier: 1.6,
+    rewardSkill: "trading", requiredXp: 500, tags: ["mainland", "pinewatch"]
+  },
+  {
+    id: "contract.pinewatch_fish", type: "fresh-fish", requesterName: "Pinewatch Bakehouse",
+    deliveryMarketId: "market.pinewatch", itemOrSpeciesPool: ["fish.trout", "fish.tuna"],
+    quantityRange: [1, 2], minFreshness: 75, durationMinutes: 960, rewardBaseMultiplier: 1.75,
+    rewardSkill: "fishing", requiredXp: 1000, tags: ["mainland", "pinewatch"]
+  },
+  {
+    id: "contract.reedhaven_grain", type: "produce", requesterName: "Mara",
+    deliveryMarketId: "market.reedhaven", itemOrSpeciesPool: ["produce.wheat"],
+    quantityRange: [10, 16], durationMinutes: 1440, rewardBaseMultiplier: 1.7,
+    rewardSkill: "trading", requiredXp: 500, tags: ["mainland", "reedhaven"]
+  },
+  {
+    id: "contract.reedhaven_orchard", type: "produce", requesterName: "Reedhaven Preserver",
+    deliveryMarketId: "market.reedhaven", itemOrSpeciesPool: ["produce.apple"],
+    quantityRange: [6, 10], durationMinutes: 1920, rewardBaseMultiplier: 1.8,
+    rewardSkill: "farming", requiredXp: 7500, tags: ["mainland", "reedhaven"]
+  },
+  {
+    id: "contract.highridge_greens", type: "produce", requesterName: "Ada",
+    deliveryMarketId: "market.highridge", itemOrSpeciesPool: ["produce.tomato", "produce.corn"],
+    quantityRange: [8, 14], durationMinutes: 1920, rewardBaseMultiplier: 1.85,
+    rewardSkill: "farming", requiredXp: 1000, tags: ["mainland", "highridge"]
+  },
+  {
+    id: "contract.highridge_fresh_fish", type: "fresh-fish", requesterName: "Highridge Innkeeper",
+    deliveryMarketId: "market.highridge", itemOrSpeciesPool: ["fish.trout", "fish.tuna", "fish.sea_bream"],
+    quantityRange: [1, 2], minFreshness: 75, durationMinutes: 1440, rewardBaseMultiplier: 1.9,
+    rewardSkill: "fishing", requiredXp: 3000, tags: ["mainland", "highridge"]
   }
 ];

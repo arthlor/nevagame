@@ -2,6 +2,30 @@
 
 import type { ClockState } from "../../simulation/core/types";
 import { ASSET_IDS } from "../assets/AssetCatalog";
+import { MAINLAND_VILLAGES } from "../../world/NevaMainland";
+
+const MAINLAND_TOWNSFOLK: readonly AmbientTownsfolkRoute[] = Object.values(MAINLAND_VILLAGES).flatMap((village, villageIndex) =>
+  [-1, 1].map((side, index) => {
+    const x = village.market.x + side * 15;
+    const z = village.market.z - (side < 0 ? 7 : 8);
+    return {
+      id: `townsfolk.${village.id}.${side < 0 ? "yard-worker" : "neighbour"}`,
+      assetId: side < 0 ? ASSET_IDS.CHAR_NPC_TOMAS_A : ASSET_IDS.CHAR_NPC_ELSPETH_A,
+      stations: {
+        dawn: { x: x - 0.3, z: z + 0.4 }, day: { x, z },
+        dusk: { x: x + 0.4, z: z - 0.2 }, night: { x: x - 0.4, z: z - 0.3 }
+      },
+      waypoints: [
+        { dx: 0, dz: 0 }, { dx: 1.15, dz: 0.45 },
+        { dx: 0.5, dz: 1.3 }, { dx: -0.8, dz: 0.7 }, { dx: -1.1, dz: -0.35 }
+      ],
+      radiusMeters: 1.45,
+      loopSeconds: 20 + villageIndex * 2 + index * 3,
+      restFraction: 0.52 + index * 0.08,
+      phase: (villageIndex * 0.29 + index * 0.43) % 1
+    };
+  })
+);
 
 /**
  * Background villagers. Presentation only: they are deliberately absent from
@@ -187,7 +211,8 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
     loopSeconds: 21,
     restFraction: 0.45,
     phase: 0.56
-  }
+  },
+  ...MAINLAND_TOWNSFOLK
 ];
 
 export interface AmbientTownsfolkPose {

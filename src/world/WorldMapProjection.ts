@@ -11,10 +11,10 @@ export interface MapSvgPoint {
  * map cannot grow a second, approximate road layout.
  */
 export const WORLD_MAP_PROJECTION = Object.freeze({
-  originX: 50 + 500 * (900 / 2200),
-  originY: 350,
-  scaleX: 900 / 2200,
-  scaleZ: 900 / 2200,
+  originX: 50 + 1000 * (900 / 2700),
+  originY: 360,
+  scaleX: 900 / 2700,
+  scaleZ: 900 / 2700,
   minX: 50,
   maxX: 950,
   minY: 50,
@@ -70,4 +70,3 @@ export function mapSvgToWorldPoint(point: MapSvgPoint): WorldPoint {
     z: (point.y - WORLD_MAP_PROJECTION.originY) / WORLD_MAP_PROJECTION.scaleZ
   };
 }
-

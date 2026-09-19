@@ -28,7 +28,7 @@ function arrive(sim: Simulation, x: number, z: number) {
 
 describe("expanded ocean expeditions", () => {
   it("keeps a continuous long crossing and a comfortable round trip fuel reserve", () => {
-    const points = WORLD_SAILING_ROUTES[0].points;
+    const points = WORLD_SAILING_ROUTES.find((route) => route.id === "sailing.neva-sunreach")!.points;
     let distance = 0;
     for (let i = 1; i < points.length; i++) {
       const a = points[i - 1], b = points[i];

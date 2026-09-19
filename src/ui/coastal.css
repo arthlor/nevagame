@@ -2149,6 +2149,48 @@
   color: #6d532d !important;
 }
 
+#ui-container .comm-lots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+#ui-container .comm-lot-tag {
+  padding: 0 4px;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  color: #6d532d;
+  border: 1px solid rgba(76, 61, 40, 0.35);
+}
+
+#ui-container .comm-lot-tag.is-prize,
+#ui-container .comm-lot-tag.is-exceptional {
+  color: #7a4a1f;
+  border-color: rgba(122, 74, 31, 0.55);
+}
+
+#ui-container .market-quality-breakdown {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 6px 0 0;
+  list-style: none;
+  font-size: 0.76rem;
+  color: var(--coast-paper-muted);
+  border-top: 1px solid rgba(76, 61, 40, 0.2);
+}
+
+#ui-container .market-quality-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#ui-container .market-quality-breakdown strong {
+  color: #6d532d;
+}
+
 #ui-container .market-fish-breakdown {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -4240,6 +4282,32 @@
   border: 0 !important;
   border-left: 2px solid var(--coast-ochre) !important;
   border-radius: 0 !important;
+}
+
+#ui-container .fishing-landing-choice {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0 2px;
+  text-align: center;
+}
+
+#ui-container .fishing-landing-choice strong {
+  color: var(--coast-cream) !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.82rem;
+}
+
+#ui-container .fishing-landing-choice p {
+  margin: 0;
+  color: var(--coast-cream-muted) !important;
+  font-size: 0.78rem;
+}
+
+#ui-container .fishing-landing-choice-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
 }
 
 #ui-container .fishing-tension-zone-slack { background: #587b82 !important; }

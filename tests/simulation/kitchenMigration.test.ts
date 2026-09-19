@@ -90,7 +90,7 @@ describe("Farm kitchen (v45)", () => {
     expect(Math.hypot(previousKitchen.x - anchor.x, previousKitchen.z - anchor.z)).toBeGreaterThan(1);
 
     const migrated = migrateSaveData(envelope);
-    expect(migrated.schemaVersion).toBe(48);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     const kitchen = migrated.state.world.structures["struct.kitchen"];
     expect(kitchen.x).toBe(anchor.x);
     expect(kitchen.z).toBe(anchor.z);

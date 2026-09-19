@@ -10,6 +10,8 @@ import { yieldToTask } from "../../utils/CooperativeTask";
 import * as THREE from "three";
 import { setRainSurfaceWetness } from "../materials/RainSurfaceMaterial";
 import { createSpatialSurfaceBatch } from "./spatialSurfaceBatch";
+import { configureStaticBatchSubmission } from "./staticBatchSubmission";
+import { EditableStaticSources } from "./EditableStaticSources";
 import { RigidAnimationBatch } from "./RigidAnimationBatch";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
@@ -36,7 +38,7 @@ import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
 import { CultivatedSurfaceMaterial } from "../materials/CultivatedSurfaceMaterial";
 import { RoadSurfaceMaterial } from "../materials/RoadSurfaceMaterial";
-import { coastalVegetationDepthMaterial, disposeVegetationTintMaterials, updateVegetationWind, vegetationInstanceTintMaterial } from "../materials/VegetationTintMaterial";
+import { coastalVegetationDepthMaterial, disposeVegetationTintMaterials, updateVegetationObstruction, updateVegetationWind, vegetationInstanceTintMaterial } from "../materials/VegetationTintMaterial";
 import {
   isTerrainDebugMode,
   TerrainSurfaceMaterial
@@ -427,8 +429,17 @@ interface StaticLodBatchInstance extends StaticBatchInstance {
 
 interface StaticBatchSource {
   mesh: THREE.Mesh;
+  geometry: THREE.BufferGeometry;
   chunkKey: string;
-  lod?: { levelIndex: number; distances: readonly number[]; position: THREE.Vector3 };
+  detail: boolean;
+  lod?: { key: string; levelIndex: number; distances: readonly number[]; position: THREE.Vector3 };
+}
+
+interface StaticLodPlacement {
+  position: THREE.Vector3;
+  distances: readonly number[];
+  instances: StaticLodBatchInstance[];
+  selectedLevel: number;
 }
 
 interface StaticBatchChunk {
@@ -437,6 +448,7 @@ interface StaticBatchChunk {
   center: THREE.Vector3;
   radius: number;
   visible: boolean;
+  detail: boolean;
 }
 
 const STATIC_BATCH_CHUNK_SIZE_METERS = 80;
@@ -863,6 +875,9 @@ export class WorldScene {
   private readonly terrainMeshes: THREE.Mesh[] = [];
   private readonly raycaster = new THREE.Raycaster();
   private readonly layoutEditRoots: THREE.Object3D[] = [];
+  private layoutEditingEnabled = false;
+  private readonly editableStaticSources = new EditableStaticSources();
+  private readonly staticPrefabBatches = new Set<THREE.BatchedMesh>();
   private layoutEditHelper: THREE.BoxHelper | null = null;
   private layoutEditLockedObject: THREE.Object3D | null = null;
   private qualityTier: QualityTier = CANONICAL_RENDER_CONFIG.qualityTier;
@@ -918,6 +933,7 @@ export class WorldScene {
   private readyWorldSeed: number | null = null;
   private staticCollisionProxyList: StaticCollisionProxy[] = [];
   private readonly staticLodBatchInstances: StaticLodBatchInstance[] = [];
+  private readonly staticLodPlacements = new Map<string, StaticLodPlacement>();
   private readonly staticBatchChunks: StaticBatchChunk[] = [];
   private readonly runtimeLods: THREE.LOD[] = [];
   private runtimeLodsDirty = true;
@@ -1211,7 +1227,7 @@ export class WorldScene {
   /** DEV layout editor: reproject catalog colliders from the current prefab poses. */
   public rebuildStaticCollisionProxies(): readonly StaticCollisionProxy[] {
     this.staticPrefabGroup.updateMatrixWorld(true);
-    const roots = this.staticPrefabGroup.children.filter(
+    const roots = [...this.staticPrefabGroup.children, ...this.editableStaticSources.detachedRoots()].filter(
       (child) => Boolean(child.userData.assetId)
     );
     this.staticCollisionProxyList = this.buildStaticCollisionProxies(roots);
@@ -1721,6 +1737,32 @@ export class WorldScene {
       ?? this.cropInstances.pick(camera, pointerNdc);
   }
 
+  /** DEV-only presentation transition. Source identity, edits and collision survive both directions. */
+  public setLayoutEditingEnabled(active: boolean): void {
+    if (!import.meta.env.DEV || active === this.layoutEditingEnabled) return;
+    this.layoutEditingEnabled = active;
+    if (active) {
+      for (const batch of this.staticPrefabBatches) {
+        batch.removeFromParent();
+        batch.dispose();
+      }
+      this.staticPrefabBatches.clear();
+      this.staticBatchChunks.length = 0;
+      this.staticLodBatchInstances.length = 0;
+      this.staticLodPlacements.clear();
+      this.editableStaticSources.restore();
+      for (const root of this.staticPrefabGroup.children) this.applyLayoutEditShadowFollow(root);
+    } else {
+      const roots = [...this.staticPrefabGroup.children];
+      for (const root of roots) this.applyStaticShadowPolicy(root);
+      this.mergeStaticPrefabMeshes();
+      this.editableStaticSources.detachDormantRoots(roots);
+    }
+    this.runtimeLodsDirty = true;
+    this.distanceVisibilityDirty = true;
+    this.lightingRig.shadowAtlas.markCastersDirty();
+  }
+
   public pickLayoutEditable(
     camera: THREE.Camera,
     pointerNdc: { x: number; y: number }
@@ -1875,7 +1917,7 @@ export class WorldScene {
     }
     this.attachPracticalLights(root, options.practicalLightFallback === true);
     this.applyStaticShadowPolicy(root);
-    if (import.meta.env.DEV) this.applyLayoutEditShadowFollow(root);
+    if (import.meta.env.DEV && this.layoutEditingEnabled) this.applyLayoutEditShadowFollow(root);
   }
 
   private unbindLayoutInstanceFeatures(root: THREE.Object3D): void {
@@ -2510,9 +2552,9 @@ export class WorldScene {
     this.staticCollisionProxyList = this.buildStaticCollisionProxies(staticAssetRoots);
     for (const root of spawnedRoots) this.applyStaticShadowPolicy(root);
     for (const root of spawnedRoots) this.applyVegetationInstanceVariation(root);
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && this.layoutEditingEnabled) {
       for (const root of spawnedRoots) this.applyLayoutEditShadowFollow(root);
-    } else {
+    } else if (!import.meta.env.DEV) {
       for (const root of spawnedRoots) {
         const assetId = root.userData.assetId as AssetId | undefined;
         if (assetId && (this.faunaKindForAsset(assetId)
@@ -2526,10 +2568,9 @@ export class WorldScene {
       this.environmentGroup.remove(child);
       this.staticPrefabGroup.add(child);
     }
-    // Mesh merge pulls visible geometry into BatchedMesh siblings and then
-    // strips LOD children, leaving layout-edit tags on empty groups. DEV
-    // keeps live meshes so F2 picking/dragging can hit the object you see.
-    if (!import.meta.env.DEV) this.mergeStaticPrefabMeshes();
+    // Normal DEV play uses the same static batches. F2 restores the retained
+    // source hierarchies before picking; production can discard those sources.
+    if (!this.layoutEditingEnabled) this.mergeStaticPrefabMeshes();
 
     const farmhouseSmoke = await this.loadModel(STATIC_LANDMARK_ASSETS.farmhouseSmoke);
     farmhouseSmoke.name = "farmhouse_chimney_smoke";
@@ -2580,7 +2621,10 @@ export class WorldScene {
     });
     farmhouse.add(farmhouseSmoke);
     this.farmhouseSmoke = farmhouseSmoke;
-    if (!import.meta.env.DEV) this.detachEmptyStaticSourceRoots(staticAssetRoots);
+    if (!this.layoutEditingEnabled) {
+      if (import.meta.env.DEV) this.editableStaticSources.detachDormantRoots(staticAssetRoots);
+      else this.detachEmptyStaticSourceRoots(staticAssetRoots);
+    }
 
     await this.loadNpcPresentations();
     this.runtimeLodsDirty = true;
@@ -2752,6 +2796,7 @@ export class WorldScene {
       }
       return false;
     });
+    if (import.meta.env.DEV) return;
     // The visible LOD0 meshes now live in shared static batches. Remove the
     // original LOD controllers so a later camera update cannot reveal their
     // unbatched fallback levels and silently restore hundreds of draw calls.
@@ -2790,17 +2835,28 @@ export class WorldScene {
     >();
     const uvStrippedGeometries = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
     root.traverse((object) => {
-      if (!(object instanceof THREE.Mesh) || !object.visible) return;
+      if (!(object instanceof THREE.Mesh) || object instanceof THREE.BatchedMesh || !object.visible) return;
       if (Array.isArray(object.material)) return;
       if ((object as THREE.SkinnedMesh).isSkinnedMesh || object.morphTargetInfluences) return;
-      let lod: { levelIndex: number; distances: readonly number[]; position: THREE.Vector3 } | undefined;
+      let lod: StaticBatchSource["lod"];
+      let detail = false;
       let child: THREE.Object3D = object;
       let ancestor: THREE.Object3D | null = object.parent;
       while (ancestor && ancestor !== root) {
+        const assetId = ancestor.userData.assetId as AssetId | undefined;
+        const spec = assetId ? ASSET_BY_ID.get(assetId) : undefined;
+        if (spec) {
+          // Structural silhouettes remain present at every tier; a bush or
+          // small rock need not pay horizon-distance cost in a dense forest.
+          detail = (spec.family === "vegetation" && !assetId!.startsWith("tree_"))
+            || (spec.family === "rock" && spec.lod === "small")
+            || (spec.family === "prop" && spec.collision === "none" && spec.readDistanceMeters <= 12);
+        }
         if (ancestor instanceof THREE.LOD && trackStaticLods) {
           const levelIndex = ancestor.levels.findIndex((level) => level.object === child);
           if (levelIndex >= 0) {
             lod = {
+              key: ancestor.uuid,
               levelIndex,
               distances: ancestor.levels.map((level) => level.distance),
               position: ancestor.getWorldPosition(new THREE.Vector3())
@@ -2837,6 +2893,7 @@ export class WorldScene {
       // Published Neva materials are palette-only. Some GLBs still carry an
       // unused TEXCOORD_0 accessor, which needlessly splits otherwise
       // compatible static/boat batches from their non-UV counterparts.
+      let batchGeometry = object.geometry;
       if (!hasTexture && object.geometry.getAttribute("uv")) {
         let geometry = uvStrippedGeometries.get(object.geometry);
         if (!geometry) {
@@ -2845,9 +2902,9 @@ export class WorldScene {
           uvStrippedGeometries.set(object.geometry, stripped);
           geometry = stripped;
         }
-        object.geometry = geometry;
+        batchGeometry = geometry;
       }
-      const attributes = (Object.entries(object.geometry.attributes) as Array<
+      const attributes = (Object.entries(batchGeometry.attributes) as Array<
         [string, THREE.BufferAttribute]
       >)
         .map(([name, attribute]) =>
@@ -2859,15 +2916,15 @@ export class WorldScene {
       const worldZ = object.matrixWorld.elements[14];
       const islandBatchKey = WorldLayout.islandAt(worldX, worldZ) ?? "ocean";
       const chunkKey = trackStaticLods
-        ? `${islandBatchKey}:${Math.floor(worldX / STATIC_BATCH_CHUNK_SIZE_METERS)}:${Math.floor(worldZ / STATIC_BATCH_CHUNK_SIZE_METERS)}`
+        ? `${islandBatchKey}:${detail ? "detail" : "structure"}:${Math.floor(worldX / STATIC_BATCH_CHUNK_SIZE_METERS)}:${Math.floor(worldZ / STATIC_BATCH_CHUNK_SIZE_METERS)}`
         : "unbounded";
       const batchRegion = trackStaticLods ? islandBatchKey : "unbounded";
-      const signature = `${batchRegion}|${object.material.uuid}|cast:${object.castShadow}|receive:${object.receiveShadow}|indexed:${Boolean(object.geometry.index)}|${attributes}`;
+      const signature = `${batchRegion}|${object.material.uuid}|cast:${object.castShadow}|receive:${object.receiveShadow}|indexed:${Boolean(batchGeometry.index)}|${attributes}`;
       const group = compatibleGroups.get(signature) ?? {
         material: object.material,
         sources: [] as StaticBatchSource[]
       };
-      group.sources.push({ mesh: object, lod, chunkKey });
+      group.sources.push({ mesh: object, geometry: batchGeometry, lod, chunkKey, detail });
       compatibleGroups.set(signature, group);
     });
 
@@ -2875,7 +2932,7 @@ export class WorldScene {
     for (const { material, sources } of compatibleGroups.values()) {
       if (sources.length < 2 && !(trackStaticLods && sources.some((source) => source.lod))) continue;
       const uniqueGeometries = new Map<string, THREE.BufferGeometry>();
-      for (const { mesh } of sources) uniqueGeometries.set(mesh.geometry.uuid, mesh.geometry);
+      for (const { geometry } of sources) uniqueGeometries.set(geometry.uuid, geometry);
       const maxVertexCount = [...uniqueGeometries.values()].reduce(
         (sum, geometry) => sum + geometry.getAttribute("position").count,
         0
@@ -2895,8 +2952,8 @@ export class WorldScene {
         geometryIds.set(geometry.uuid, batched.addGeometry(geometry));
       }
       const chunks = new Map<string, { chunk: StaticBatchChunk; bounds: THREE.Sphere }>();
-      for (const { mesh, lod, chunkKey } of sources) {
-        const geometryId = geometryIds.get(mesh.geometry.uuid);
+      for (const { mesh, geometry, lod, chunkKey, detail } of sources) {
+        const geometryId = geometryIds.get(geometry.uuid);
         if (geometryId === undefined) continue;
         const instanceId = batched.addInstance(geometryId);
         const relativeMatrix = new THREE.Matrix4().multiplyMatrices(rootWorldInverse, mesh.matrixWorld);
@@ -2905,7 +2962,7 @@ export class WorldScene {
           let chunkRecord = chunks.get(chunkKey);
           if (!chunkRecord) {
             chunkRecord = {
-              chunk: { batch: batched, instances: [], center: new THREE.Vector3(), radius: 0, visible: true },
+              chunk: { batch: batched, instances: [], center: new THREE.Vector3(), radius: 0, visible: true, detail },
               bounds: new THREE.Sphere().makeEmpty()
             };
             chunks.set(chunkKey, chunkRecord);
@@ -2919,9 +2976,19 @@ export class WorldScene {
           };
           chunkRecord.chunk.instances.push(instance);
           chunkRecord.bounds.union(batched.getBoundingSphereAt(geometryId, new THREE.Sphere())!.applyMatrix4(relativeMatrix));
-          if (lod) this.staticLodBatchInstances.push(Object.assign(instance, lod));
+          if (lod) {
+            const lodInstance = Object.assign(instance, lod);
+            this.staticLodBatchInstances.push(lodInstance);
+            let placement = this.staticLodPlacements.get(lod.key);
+            if (!placement) {
+              placement = { position: lod.position, distances: lod.distances, instances: [], selectedLevel: -1 };
+              this.staticLodPlacements.set(lod.key, placement);
+            }
+            placement.instances.push(lodInstance);
+          }
         }
-        mesh.parent?.remove(mesh);
+        if (trackStaticLods && import.meta.env.DEV) this.editableStaticSources.hide(mesh);
+        else mesh.parent?.remove(mesh);
       }
       batched.name = `runtime_batch_${batchIndex++}`;
       batched.computeBoundingBox();
@@ -2930,6 +2997,10 @@ export class WorldScene {
       batched.castShadow = sources[0].mesh.castShadow;
       batched.customDepthMaterial = sources[0].mesh.customDepthMaterial;
       batched.receiveShadow = sources[0]?.mesh.receiveShadow ?? true;
+      if (trackStaticLods) {
+        configureStaticBatchSubmission(batched);
+        this.staticPrefabBatches.add(batched);
+      }
       root.add(batched);
       for (const { chunk, bounds } of chunks.values()) {
         bounds.applyMatrix4(root.matrixWorld);
@@ -2945,12 +3016,14 @@ export class WorldScene {
     const fogFar = this.scene.fog instanceof THREE.Fog
       ? this.scene.fog.far
       : CANONICAL_RENDER_CONFIG.fog.far;
+    const detailDistance = qualityValueAtLevel(this.qualityLevel, quality => quality.landscapeDetailDrawDistanceMeters);
     for (const chunk of this.staticBatchChunks) {
       const distance = Math.hypot(
         this.visibilityAnchor.x - chunk.center.x,
         this.visibilityAnchor.z - chunk.center.z
       );
-      const visible = distance <= fogFar + chunk.radius + STATIC_BATCH_FOG_MARGIN_METERS;
+      const range = chunk.detail ? Math.min(fogFar, detailDistance) : fogFar;
+      const visible = distance <= range + chunk.radius + STATIC_BATCH_FOG_MARGIN_METERS;
       if (visible === chunk.visible) continue;
       chunk.visible = visible;
       for (const instance of chunk.instances) this.updateStaticBatchInstanceVisibility(instance);
@@ -2959,20 +3032,25 @@ export class WorldScene {
 
   private updateStaticLodBatches(): void {
     const distanceScale = qualityValueAtLevel(this.qualityLevel, (quality) => quality.lodDistanceScale);
-    for (const instance of this.staticLodBatchInstances) {
+    for (const placement of this.staticLodPlacements.values()) {
+      if (!placement.instances.some(instance => instance.chunk.visible)) continue;
       const distance = Math.hypot(
-        this.visibilityAnchor.x - instance.position.x,
-        this.visibilityAnchor.z - instance.position.z
+        this.visibilityAnchor.x - placement.position.x,
+        this.visibilityAnchor.z - placement.position.z
       );
-      let selectedLevel = instance.distances.length - 1;
-      for (let index = 1; index < instance.distances.length; index++) {
-        if (distance < instance.distances[index] * distanceScale) {
+      let selectedLevel = placement.distances.length - 1;
+      for (let index = 1; index < placement.distances.length; index++) {
+        if (distance < placement.distances[index] * distanceScale) {
           selectedLevel = index - 1;
           break;
         }
       }
-      instance.lodVisible = selectedLevel === instance.levelIndex;
-      this.updateStaticBatchInstanceVisibility(instance);
+      if (placement.selectedLevel === selectedLevel) continue;
+      placement.selectedLevel = selectedLevel;
+      for (const instance of placement.instances) {
+        instance.lodVisible = selectedLevel === instance.levelIndex;
+        this.updateStaticBatchInstanceVisibility(instance);
+      }
     }
   }
 
@@ -3057,8 +3135,8 @@ export class WorldScene {
     this.distanceVisibilityDirty = false;
     this.updateWorldAnchoredRuntimeLods();
     this.updateCharacterDetailLod();
-    this.updateStaticLodBatches();
     this.updateStaticBatchChunkVisibility();
+    this.updateStaticLodBatches();
     // Runtime LOD changes mirror into rigid batch instance visibility; the
     // revision gate would otherwise hold the previous level until the actor's
     // next animation tick.
@@ -4328,11 +4406,22 @@ export class WorldScene {
       object.visible = Math.hypot(pose.x - this.visibilityAnchor.x, pose.z - this.visibilityAnchor.z) < 430;
     });
     for (const flyer of this.ambientFlyers) {
+      const visibilityDistance = flyer.kind === "butterfly" ? 120 : 190;
+      const orbitReach = visibilityDistance + Math.max(flyer.orbit.radiusX, flyer.orbit.radiusZ) + 3;
+      const originX = flyer.orbit.originX - this.visibilityAnchor.x;
+      const originZ = flyer.orbit.originZ - this.visibilityAnchor.z;
+      // Reject a distant orbit before sampling its terrain or animating it.
+      if (originX * originX + originZ * originZ > orbitReach * orbitReach) {
+        if (flyer.object.visible) {
+          flyer.object.visible = false;
+          this.rigidAnimationBatches.get(flyer.object)?.markDirty();
+        }
+        continue;
+      }
       const pose = sampleAmbientFlyerPose(flyer.orbit, timeSeconds, motionScale, this.playerPresence);
       const dx = pose.x - this.visibilityAnchor.x;
       const dz = pose.z - this.visibilityAnchor.z;
       const distanceSq = dx * dx + dz * dz;
-      const visibilityDistance = flyer.kind === "butterfly" ? 120 : 190;
       const visible = distanceSq <= visibilityDistance * visibilityDistance;
       if (visible !== flyer.object.visible) {
         flyer.object.visible = visible;
@@ -6133,6 +6222,7 @@ export class WorldScene {
     const record = this.phaseRecorder;
     let mark = record ? performance.now() : 0;
     this.activeCamera = camera;
+    updateVegetationObstruction(camera, this.playerMesh?.getWorldPosition(this.tempCharacterWorldPosition) ?? null);
     this.water?.updateCamera(camera);
     this.hasRenderedFrame = true;
     this.updateQuestWaypoint(camera, deltaSeconds);
@@ -6163,6 +6253,7 @@ export class WorldScene {
   public prepareForVisualCapture(camera: THREE.Camera): Promise<void> { return this.prepareForEntry(camera); }
 
   public prepareForEntry(camera: THREE.Camera): Promise<void> {
+    updateVegetationObstruction(camera, this.playerMesh?.getWorldPosition(this.tempCharacterWorldPosition) ?? null);
     // Distance-managed LOD and visibility only recompute when the anchor moves
     // or a load dirties them, and a fixed benchmark camera never moves. Force
     // one pass here so the captured frame cannot depend on whether an async
@@ -6372,6 +6463,7 @@ export class WorldScene {
     this.rainField?.dispose();
     this.rainField?.group.removeFromParent();
     this.disposeBatchedMeshes();
+    this.editableStaticSources.restore();
     disposeVegetationTintMaterials();
     disposeArchitectureWindows();
     this.water?.dispose();
@@ -6507,11 +6599,13 @@ export class WorldScene {
   }
 
   private disposeBatchedMeshes(): void {
-    const batches = new Set<THREE.BatchedMesh>();
+    const batches = new Set<THREE.BatchedMesh>(this.staticPrefabBatches);
+    this.staticPrefabBatches.clear();
     for (const instance of this.staticLodBatchInstances) {
       batches.add(instance.batch);
     }
     this.staticLodBatchInstances.length = 0;
+    this.staticLodPlacements.clear();
     for (const chunk of this.staticBatchChunks) batches.add(chunk.batch);
     this.staticBatchChunks.length = 0;
     this.staticPrefabGroup.traverse((object) => {

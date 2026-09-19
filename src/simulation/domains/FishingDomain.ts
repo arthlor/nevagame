@@ -39,6 +39,8 @@ import {
   consumeAccessibleFishingSupply
 } from "../fishing/FishingSupplies";
 import { isSpeciesInSeason, speciesSeasonWeight } from "../fishing/seasonalAvailability";
+import { sportFishReleaseXp } from "../economy/calculateFishXp";
+import type { InteractionResult } from "../core/contracts";
 
 /** Telemetry ratios are reported as -1..1 before being scaled to a percentage. */
 const clampUnit = (value: number): number =>
@@ -422,7 +424,7 @@ export class FishingDomain {
     context.state.world.fishingPressureByHabitat ??= {};
     context.state.player.preparedLureItemId ??= null;
     const savedEncounter = context.state.sportFishing;
-    if (savedEncounter?.result === "active") {
+    if (savedEncounter?.result === "active" || savedEncounter?.awaitingLandingChoice === true) {
       try {
         this.encounter = FishingEncounter.fromState(savedEncounter, context.rng, {
           originX: context.state.player.x, originZ: context.state.player.z,
@@ -452,7 +454,10 @@ export class FishingDomain {
 
   public inspectSportFishingHud(): SportFishingHudDto | null {
     const encounter = this.encounter?.getState() ?? this.context.state.sportFishing;
-    if (!encounter || encounter.result !== "active") return null;
+    if (!encounter) return null;
+    const awaitingLandingChoice =
+      encounter.result === "landed" && encounter.awaitingLandingChoice === true;
+    if (encounter.result !== "active" && !awaitingLandingChoice) return null;
     const species = ContentRegistry.fishSpecies.get(encounter.fish.speciesId);
     const profile = species ? ContentRegistry.fishBehaviors.get(species.behaviorProfileId) : undefined;
     const rod = ContentRegistry.rods.get(encounter.rodId);
@@ -529,6 +534,10 @@ export class FishingDomain {
       landingProgress: landingWindow
         ? Math.max(0, Math.min(1, landReadySeconds / FISHING_TUNING.landReadySeconds))
         : null,
+      awaitingLandingChoice,
+      keepAvailable: awaitingLandingChoice && species
+        ? this.cargo.canStowClass(species.cargoClass)
+        : false,
       telemetry: {
         runDistanceMeters: Math.round(encounter.distanceMeters * 10) / 10,
         landingDistanceMeters: FISHING_TUNING.landingDistance,
@@ -723,6 +732,73 @@ export class FishingDomain {
     return { success: true, prepared: true };
   }
 
+  /**
+   * Keep a landed fish: stow it, consume the school's catch potential, award
+   * the landing XP and the landing Work rebate.
+   *
+   * When nothing can hold the catch the fish stays on the line — the choice is
+   * not lost, so the angler can release it or make room and keep it.
+   */
+  public keepLandedFish(): InteractionResult {
+    if (!this.encounter) return { success: false, reason: "No fish is waiting at the landing" };
+    const encounterState = this.encounter.getState();
+    if (encounterState.awaitingLandingChoice !== true) {
+      return { success: false, reason: "The fight is still running" };
+    }
+    const landing = this.cargo.landCaughtFish(
+      encounterState.fish,
+      true,
+      () => this.commitSchoolCatch()
+    );
+    if (!landing.success) {
+      return {
+        success: false,
+        reason: landing.reason === "No cargo space"
+          ? "No room for this fish — release it or clear a hold slot"
+          : landing.reason ?? "Could not stow the catch"
+      };
+    }
+    this.clearResolvedEncounter();
+    this.progression.earnWork(SPORT_FISHING_LANDING_WORK_REBATE);
+    return { success: true };
+  }
+
+  /**
+   * Let a landed fish go: no cargo, no record, no school consumption. The
+   * fight still pays release XP and the landing Work rebate, so releasing is a
+   * real answer to "no room" rather than a punishment.
+   */
+  public releaseLandedFish(): InteractionResult {
+    const { state, events } = this.context;
+    if (!this.encounter) return { success: false, reason: "No fish is waiting at the landing" };
+    const encounterState = this.encounter.getState();
+    if (encounterState.awaitingLandingChoice !== true) {
+      return { success: false, reason: "The fight is still running" };
+    }
+    const species = ContentRegistry.fishSpecies.get(encounterState.fish.speciesId);
+    this.clearResolvedEncounter();
+    if (species) {
+      this.progression.addProficiencyXp(
+        "fishing",
+        sportFishReleaseXp(species, encounterState.fish.weightKg, encounterState.fish.quality)
+      );
+    }
+    this.progression.earnWork(SPORT_FISHING_LANDING_WORK_REBATE);
+    events.emit("SportFishReleased", {
+      speciesId: encounterState.fish.speciesId,
+      weightKg: encounterState.fish.weightKg,
+      quality: encounterState.fish.quality,
+      minute: state.clock.currentMinute
+    });
+    return { success: true };
+  }
+
+  private clearResolvedEncounter(): void {
+    this.encounter = null;
+    this.pendingLandSchoolId = null;
+    this.context.state.sportFishing = null;
+  }
+
   public cancelAll(): void {
     this.encounter = null;
     this.pendingLandSchoolId = null;
@@ -738,32 +814,12 @@ export class FishingDomain {
       this.encounter.setAnchor(state.player.x, state.player.z);
       const outcome = this.encounter.tick(realDeltaSeconds);
       if (outcome === "landed") {
-        const encounterState = this.encounter.getState();
-        // Read before the fight is cleared: the charged Work lives on the
-        // persisted encounter, and a lost landing still owes a refund.
-        const chargedWork = state.sportFishing?.workCharged;
-        // Cargo and quest listeners are synchronous. Clear the resolved fight
-        // before landCaughtFish emits FishLanded so an autosave triggered by
-        // that event can only observe a valid, non-active sport-fishing state.
-        this.encounter = null;
-        state.sportFishing = null;
-        const landing = this.cargo.landCaughtFish(
-          encounterState.fish,
-          true,
-          () => this.commitSchoolCatch()
-        );
-        if (!landing.success) {
-          this.pendingLandSchoolId = null;
-          this.refundLostFightWork(encounterState.fish.speciesId, chargedWork);
-          events.emit("FishEscaped", {
-            speciesId: encounterState.fish.speciesId,
-            reason: "no-cargo-space",
-            minute: state.clock.currentMinute
-          });
-        } else {
-          // Landing rewards the labor that earned the hook. Capped by the same
-          // daily Work ceiling as meals and chores, so it cannot be ground.
-          this.progression.earnWork(SPORT_FISHING_LANDING_WORK_REBATE);
+        // The fight is won but nothing is stowed yet: hold the persisted
+        // encounter until the angler chooses keep or release. Later ticks
+        // re-enter this branch, so it must not re-arm anything.
+        if (!state.sportFishing?.awaitingLandingChoice) {
+          state.sportFishing = this.encounter.getState();
+          state.sportFishing.awaitingLandingChoice = true;
         }
       } else if (outcome === "escaped" || outcome === "line-snapped") {
         const encounterState = this.encounter.getState();

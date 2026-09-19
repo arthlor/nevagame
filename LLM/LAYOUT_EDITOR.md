@@ -181,7 +181,7 @@ On drag, rotate, drop, paste, delete, Escape deselect, and F2 exit:
 1. **Physics** — `WorldScene.syncLayoutEditPresentation()` reprojects catalog collision boxes from current prefab poses; `PhysicsWorld.replaceStaticCollision` swaps Rapier static cuboids.
 2. **Grounding** — the merged `static_contact_grounding` mesh is rebuilt from tagged roots that have `grounding`. Drag and rotate also rebuild so contact discs follow the mesh, not only drop/paste.
 3. **Practical lights** — In DEV, PointLights are parented to `_glow` / `_beacon` nodes (or the root for AABB fallback) so they follow drag. Production keeps scene-rooted lights so mesh merge cannot strip them. Quality budget uses world position. Paste registers a new light; delete disposes it.
-4. **Shadows (DEV)** — colliding props self-cast. Production still merges static meshes and uses the baked `static_shadow_silhouette_proxy`.
+4. **Shadows (active DEV editor)** — colliding props self-cast so shadows follow their poses. Leaving Place restores the family shadow policy and shared static batches; both transitions invalidate shadow-caster classification.
 5. **Fauna** — paste registers a new mixer on the duplicated cow/chicken/rabbit; delete stops and uncaches that mixer.
 6. **Interact (unique objects only)** — `applyLayoutEditLiveSession` on move of objects that cannot be copied:
    - produce stall → `VILLAGE_MARKET` + `market.village` interaction
@@ -197,22 +197,26 @@ These session mutations are **not** the save. Closing the tab without a successf
 
 ---
 
-# 7. Why DEV skips mesh merge
+# 7. Static batching and F2 restoration
 
-Production `mergeStaticPrefabMeshes` pulls visible LOD meshes into `BatchedMesh` siblings and then strips the original LOD children. Layout tags stay on the empty group. Raycasts against those roots miss, so F2 looked “on” (green Place chip) while clicks did nothing.
+Normal DEV play uses the same compatible static-prefab batches as production.
+`EditableStaticSources` keeps the original tagged mesh hierarchy available off-scene,
+with its original geometry and layer membership. Dormant tree/prop hierarchies do
+not remain in per-frame scene traversal. Roots containing lights, sprites or live
+dynamic pieces retain those working parts.
 
-DEV therefore:
+Entering F2 or Place disposes the static batches and restores the exact source
+meshes before picking. Leaving restores the ordinary family shadow policy,
+re-batches the edited poses and removes dormant sources from traversal again.
+This transition does not reload, rewrite a save or change catalog collision.
+A pending paste can finish after exit; collider rebuilds include both retained
+sources and newly added live objects. Terrain meshes remain available in DEV for
+BVH snapping. Production still excludes the editor module and commit endpoint.
 
-- does **not** merge static prefabs
-- does **not** add the baked sun-shadow proxy
-- forces colliding meshes to `castShadow` so the shadow follows the drag
-
-Draw-call cost is higher in `npm run dev`. That is the intended trade for
-picking the mesh you see. These DEV measurements are editor diagnostics, not
-P0.75 production-budget evidence: `npm run art:benchmark` must be interpreted
-with this unmerged layout-editor path in mind, and its current farm/coast
-over-budget result remains an open technical render gate rather than a reason
-to change the scene budgets.
+Active editor draw-call cost is higher because the picker must reach individual
+meshes. Normal DEV no longer pays that cost for the whole dense continent.
+Performance evidence still uses the matching production build; an active F2
+session is editor diagnostics rather than a production-budget measurement.
 
 Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short tap between animation frames is not lost. The router still requires the event target to be the canvas (`#game-canvas`). Full-screen overlays (`StartScreen`, dialogue backdrop, pause menu) eat LMB; close them first.
 
@@ -234,7 +238,7 @@ Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short ta
 8. **Farmhouse door follow** when the house moves; processing-station yaw convention preserved.
 9. **Live collision, grounding, parented lights, fauna mixers, and unique-object interact** so a moved stall or pasted lamp is not a hollow shadow + dark copy.
 10. **Place chip in the normal DEV HUD** (`http://localhost:3000/` without `?debug`), not hidden behind a chrome rule.
-11. **DEV unmerged meshes + pointerdown pick queue** so the chip being green actually means you can click the well.
+11. **F2 source restoration + pointerdown pick queue** so normal DEV play can batch the world while an active Place session still selects the mesh you see.
 12. **Terrain-aware placement + transactional history** so drag/paste reject unsafe slopes and move/rotate/paste/delete can be undone without partial source/live-scene divergence.
 
 ---
@@ -249,7 +253,7 @@ Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short ta
 | `src/app/GameApp.ts` | F2, input, live sync, collider rebuild, HUD |
 | `src/input/InputRouter.ts` | layout LMB capture, pick queue, suppress use-primary |
 | `src/ui/PlacementEditorHud.tsx` | Place chip + banner |
-| `src/render/scene/WorldScene.ts` | tags, pick, duplicate/remove, feature bind, DEV skip merge, collider rebuild |
+| `src/render/scene/WorldScene.ts` | tags, pick, duplicate/remove, feature bind, reversible DEV batches, collider rebuild |
 | `src/physics/PhysicsWorld.ts` | `replaceStaticCollision` / `ingestStaticCollision` |
 | `src/world/ProcessingStationApproach.ts` | `debugRelocateProcessingStationApproach` |
 | `tools/vite/layoutEditorPlugin.ts` | serve-only POST + HMR suppress |

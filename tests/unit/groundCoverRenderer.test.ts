@@ -46,6 +46,22 @@ afterEach(() => {
 });
 
 describe("ground-cover frustum submission", () => {
+  it("bounds nearby submission independently of continent population and restores detail across tiers", async () => {
+    const points: Array<[number, number]> = Array.from({ length: 5000 }, (_, index) => [index % 50 * 0.1, -Math.floor(index / 50) * 0.1]);
+    const { cover, record } = await buildCover(points);
+    expect(record.instances).toHaveLength(5000);
+    expect(record.visibleIndices).toHaveLength(2800);
+    cover.setQuality("low");
+    cover.update(0, 0);
+    expect(record.visibleIndices).toHaveLength(800);
+    cover.setQuality("medium");
+    cover.update(0, 0);
+    expect(record.visibleIndices).toHaveLength(1600);
+    cover.setQuality("high");
+    cover.update(0, 0);
+    expect(record.visibleIndices).toHaveLength(2800);
+    expect(record.instances).toHaveLength(5000);
+  });
   it("submits one grass detail level per root and keeps level selection anchored to the player", async () => {
     const source = new THREE.Group();
     for (const level of [0, 1]) {

@@ -10,6 +10,7 @@ import {
   SPORT_FISHING_WORK_COST_BY_CLASS,
   SPORT_FISHING_WORK_REFUND_RATIO
 } from "../../src/simulation/domains/FishingDomain";
+import { FISHING_TUNING } from "../../src/simulation/fishing/FishingTuning";
 
 describe("Fishing, cargo, quest, and habitat fixes", () => {
   let sim: Simulation;
@@ -135,7 +136,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(sim.state.basicFishing).toBeNull();
   });
 
-  it("resolves a won sport fight as an escape when cargo is full", () => {
+  it("holds a won sport fight for the landing choice when cargo is full", () => {
     const inv = sim.state.inventories[sim.state.player.inventoryId];
     InventoryManager.addItemsAtomically(inv, [{ itemId: "item.chum_bucket", quantity: 1 }]);
     const lake = { x: 18, z: WorldLayout.coastlineZ(18) + 12 };
@@ -166,9 +167,9 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
 
     sim.clock.setSpeed(0);
     for (let step = 0; step < 400; step++) {
-      if (!sim.activeFishingEncounter) break;
-      const state = sim.activeFishingEncounter.getState();
-      if (state.result === "landed") break;
+      if (sim.state.sportFishing?.awaitingLandingChoice) break;
+      const state = sim.activeFishingEncounter?.getState();
+      if (!state) break;
       const isReeling = state.lineTension < 70;
       const isBracing = state.behavior === "dive" || state.behavior === "burst";
       const isSlacking = state.lineTension > 80;
@@ -181,7 +182,18 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
       sim.tick(0.5);
     }
 
-    expect(escaped).toEqual([{ speciesId: "fish.trout", reason: "no-cargo-space" }]);
+    // The won fight waits: nothing is stowed and nothing escapes until the
+    // angler chooses. Keep is unavailable, Release is the way out.
+    expect(sim.state.sportFishing?.awaitingLandingChoice).toBe(true);
+    expect(sim.inspectSportFishingHud()?.keepAvailable).toBe(false);
+    expect(sim.execute({ type: "fishing.keep-catch" }).success).toBe(false);
+    expect(sim.state.sportFishing?.awaitingLandingChoice).toBe(true);
+    expect(sim.activeFishingEncounter).not.toBeNull();
+    expect(escaped).toEqual([]);
+    expect(Object.values(sim.state.fishCargo).some((cargo) => cargo.speciesId === "fish.trout")).toBe(false);
+    expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
+
+    expect(sim.execute({ type: "fishing.release-catch" }).success).toBe(true);
     expect(sim.activeFishingEncounter).toBeNull();
     expect(sim.state.sportFishing).toBeNull();
     expect(Object.values(sim.state.fishCargo).some((cargo) => cargo.speciesId === "fish.trout")).toBe(false);
@@ -212,9 +224,14 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     sim.state.sportFishing!.lineTension = 35;
     // The sustained landing hold is already earned; this test only cares that the
     // FishLanded listener sees a valid envelope.
-    sim.state.sportFishing!.dynamics!.landReadySeconds = 1;
+    sim.state.sportFishing!.dynamics!.landReadySeconds = FISHING_TUNING.landReadySeconds;
     sim.tick(0.1);
 
+    // The decision now sits between the win and FishLanded: the listener runs
+    // when the angler keeps, and must still see a valid envelope.
+    expect(sim.state.sportFishing?.awaitingLandingChoice).toBe(true);
+    expect(validDuringEvent).toBe(false);
+    expect(sim.execute({ type: "fishing.keep-catch" }).success).toBe(true);
     expect(validDuringEvent).toBe(true);
     expect(sim.state.sportFishing).toBeNull();
   });
@@ -308,13 +325,22 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     // Landing is no longer instantaneous: `canLand()` requires the green-band
     // window to be held for `landReadySeconds`, and that counter starts at
     // zero on a reload, so a single 0.1 s tick cannot satisfy it.
-    for (let step = 0; step < 20 && reloaded.state.sportFishing; step += 1) {
+    for (let step = 0; step < 20 && !reloaded.state.sportFishing?.awaitingLandingChoice; step += 1) {
       reloaded.tick(0.1);
     }
+    // The pending choice survives the reload; Keep is refused with a full
+    // carry and changes nothing, and Release closes the fight cleanly.
+    expect(reloaded.state.sportFishing?.awaitingLandingChoice).toBe(true);
+    expect(reloaded.inspectSportFishingHud()?.keepAvailable).toBe(false);
+    expect(reloaded.execute({ type: "fishing.keep-catch" }).success).toBe(false);
+    expect(reloaded.state.sportFishing?.awaitingLandingChoice).toBe(true);
+    expect(reloaded.activeFishingEncounter).not.toBeNull();
+    expect(escaped).toEqual([]);
+    expect(reloaded.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
+
+    expect(reloaded.execute({ type: "fishing.release-catch" }).success).toBe(true);
     expect(reloaded.activeFishingEncounter).toBeNull();
     expect(reloaded.state.sportFishing).toBeNull();
-    expect(escaped).toEqual(["no-cargo-space"]);
-    expect(reloaded.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
   });
 
   it("blocks hooking sport-fish when Work is insufficient and allows it when Work is available", () => {

@@ -4,6 +4,8 @@ import {
   VEGETATION_TINT_PROGRAM_CACHE_KEY,
   disposeVegetationTintMaterials,
   updateVegetationWind,
+  updateVegetationObstruction,
+  coastalVegetationDepthMaterial,
   vegetationInstanceTintMaterial
 } from "../../src/render/materials/VegetationTintMaterial";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
@@ -88,7 +90,42 @@ describe("vegetation canopy wind", () => {
     const { material } = compileVariant();
     expect(VEGETATION_TINT_PROGRAM_CACHE_KEY).toContain("wind");
     expect((material as THREE.Material).customProgramCacheKey?.())
-      .toBe(`${VEGETATION_TINT_PROGRAM_CACHE_KEY}:world-atmosphere-v1`);
+      .toBe(`${VEGETATION_TINT_PROGRAM_CACHE_KEY}:foliage:world-atmosphere-v1`);
+  });
+
+  it("clears only main-view foliage along the presented-player sightline without unbatching or changing shadows", () => {
+    const foliage = compileVariant("NormalTree_Leaves", "foliage_sage_01");
+    const bark = compileVariant("NormalTree_Bark", "wood_warm_01");
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(12, 8, 4);
+    camera.lookAt(5, 2, -6);
+    const feet = new THREE.Vector3(5, 1, -6);
+    updateVegetationObstruction(camera, feet);
+    const expected = feet.clone();
+    expected.y += CANONICAL_RENDER_CONFIG.foliageObstruction.focusHeightMeters;
+    expected.applyMatrix4(camera.matrixWorldInverse);
+    expect(foliage.shader.uniforms.nevaFoliageFocusView.value).toEqual(expected);
+    expect(foliage.shader.uniforms.nevaFoliageObstructionEnabled.value).toBe(1);
+    expect(foliage.shader.uniforms.nevaFoliageCameraWorld.value).toEqual(camera.position);
+    expect(foliage.shader.uniforms.nevaFoliageCameraForward.value).toEqual(camera.getWorldDirection(new THREE.Vector3()));
+    expect(foliage.shader.fragmentShader).toContain("distance(cameraPosition, nevaFoliageCameraWorld) < 0.001");
+    expect(foliage.shader.fragmentShader).toContain("dot(nevaRenderedViewForward, nevaFoliageCameraForward) > 0.9999");
+    expect(foliage.shader.fragmentShader).toContain("vec3 nevaFoliagePoint = -vViewPosition");
+    expect(foliage.shader.fragmentShader).toContain("if (nevaFoliageDither >= nevaFoliageVisibility) discard");
+    expect(bark.shader.fragmentShader).not.toContain("nevaFoliageVisibility");
+    expect(bark.shader.uniforms.nevaFoliageFocusView).toBeUndefined();
+    expect(foliage.material.customProgramCacheKey()).not.toBe(bark.material.customProgramCacheKey());
+    expect(foliage.material.transparent).toBe(false);
+    expect(foliage.material.depthWrite).toBe(true);
+    const shadow = coastalVegetationDepthMaterial(foliage.material);
+    const shadowShader: PatchedShader = {
+      vertexShader: THREE.ShaderLib.depth.vertexShader, fragmentShader: THREE.ShaderLib.depth.fragmentShader, uniforms: {}
+    };
+    (shadow.onBeforeCompile as (s: PatchedShader) => void)(shadowShader);
+    expect(shadowShader.fragmentShader).not.toContain("nevaFoliageVisibility");
+    updateVegetationObstruction(camera, null);
+    expect(foliage.shader.uniforms.nevaFoliageObstructionEnabled.value).toBe(0);
+    expect(feet).toEqual(new THREE.Vector3(5, 1, -6));
   });
 
   it("drives time, heading and strength from the shared weather signal", () => {

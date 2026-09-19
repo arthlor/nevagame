@@ -77,6 +77,7 @@ describe("windmill rotor animation pivots", () => {
     const world = Object.assign(Object.create(WorldScene.prototype), {
       staticPrefabGroup: new THREE.Group(),
       staticLodBatchInstances: [],
+      staticLodPlacements: new Map(),
       staticBatchChunks: [],
       visibilityAnchor: new THREE.Vector3(),
       qualityLevel: 2,

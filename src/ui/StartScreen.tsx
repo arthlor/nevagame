@@ -362,7 +362,7 @@ export const StartScreen: FC<StartScreenProps> = ({
             data-startup-error-phase={startup.errorPhase ?? undefined}
           >
             <GameSheet className="start-screen__tray start-screen__recovery" tone="ghost">
-              <h2>{startup.recovery === "save" ? "Your island is ready" : "The coast did not open"}</h2>
+              <h2>{startup.recovery === "save" ? "Your world is ready" : "The coast did not open"}</h2>
               <p className="start-screen__error" role="alert">
                 <span className="start-screen__icon-well" aria-hidden="true">
                   <AtlasImage src={UI_STATUS.warning} size={18} />

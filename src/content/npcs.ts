@@ -1,3 +1,4 @@
+import { MAINLAND_VILLAGES } from "../world/NevaMainland";
 import { SUNREACH_OFFSET_X } from "../world/WorldIslands";
 // src/content/npcs.ts
 
@@ -144,7 +145,7 @@ export const NPCS: NpcDefinition[] = [
       { phase: "dusk", position: { x: 54, z: -39, rotationY: 1.5, locationName: "Village Inn Porch" } }
     ],
     idleDialogue: [
-      "Got some scraps? Throw 'em in the compost bin! Worms do the best work on this island.",
+      "Got some scraps? Throw 'em in the compost bin! Worms do the best work round this cove.",
       "A sturdy bench and a handful of good grain can outfit any angler for sea.",
       "Always keep your tools sharp and your timber dry."
     ],
@@ -206,7 +207,7 @@ export const NPCS: NpcDefinition[] = [
         requiresKnowledgeIds: ["knowledge.open_horizons"],
         lines: [
           "You have outgrown the bench, I think. That is not a complaint.",
-          "Everything worth keeping on this farm, somebody fixed it until the next person could use it. You just did that with a whole island."
+          "Everything worth keeping on this farm, somebody fixed it until the next person could use it. You just did that with a whole cove."
         ]
       }
     ]
@@ -440,7 +441,7 @@ export const NPCS: NpcDefinition[] = [
         id: "dialogue.tomas_open_horizons",
         requiresKnowledgeIds: ["knowledge.open_horizons"],
         lines: [
-          "The cove has a route to the main island that will not die with the next storm. You built that.",
+          "The cove has a route to the mainland that will not die with the next storm. You built that.",
           "Go on and take the horizon. Leave the marker buoys lit for whoever comes after."
         ]
       }
@@ -497,7 +498,7 @@ export const NPCS: NpcDefinition[] = [
         requiresCompletedQuestIds: ["quest.act8_dry_season"],
         lines: [
           "That pump of yours does in one pass what I do in a morning with two cans.",
-          "I am not too proud about it. I am only sorry it took somebody from the other island to bring one across."
+          "I am not too proud about it. I am only sorry it took somebody from the mainland to bring one across."
         ]
       },
       {
@@ -517,5 +518,41 @@ export const NPCS: NpcDefinition[] = [
         ]
       }
     ]
+  },
+  {
+    id: "npc.rowan", name: "Rowan", title: "Timberwright & Cove Trader", district: "Pinewatch Forest",
+    portraitIcon: "pack", assetId: ASSET_IDS.CHAR_NPC_BARNABY_A,
+    anchor: { ...MAINLAND_VILLAGES.pinewatch.npc, rotationY: -Math.PI / 2, locationName: "Pinewatch Trade Yard" },
+    idleDialogue: [
+      "The woodland road carries carts in any weather. The cove cuts the corner when the water is kind.",
+      "We have timber and cloth to spare. Flour and a fresh supper are another matter."
+    ],
+    beckonLines: ["Bring your ledger over. There is room for another reliable route."],
+    recognitionDialogue: [{ id: "dialogue.rowan_trade_route", requiresCompletedQuestIds: ["quest.tradelanes_pinewatch"],
+      lines: ["Your grain is in the bakehouse. Take a look at the timber before you set off; an empty return is a wasted trip."] }]
+  },
+  {
+    id: "npc.mara", name: "Mara", title: "Reedkeeper & Landing Steward", district: "Reedhaven Marsh",
+    portraitIcon: "fish", assetId: ASSET_IDS.CHAR_NPC_INES_A,
+    anchor: { ...MAINLAND_VILLAGES.reedhaven.npc, rotationY: -Math.PI / 2, locationName: "Reedhaven Exchange" },
+    idleDialogue: [
+      "Stay on the raised road through the reeds. The low ground belongs to the water.",
+      "Worms and scraps are plentiful here. We still need grain from the farms and fruit from the woods."
+    ],
+    beckonLines: ["Over here, by the dry boards. Let us see what travelled well."],
+    recognitionDialogue: [{ id: "dialogue.mara_trade_route", requiresCompletedQuestIds: ["quest.tradelanes_reedhaven"],
+      lines: ["A catch at the counter, bait for the return. That is how a marsh village stays connected."] }]
+  },
+  {
+    id: "npc.ada", name: "Ada", title: "Highridge Provisioner", district: "Highridge Uplands",
+    portraitIcon: "coin", assetId: ASSET_IDS.CHAR_NPC_MAEVE_A,
+    anchor: { ...MAINLAND_VILLAGES.highridge.npc, rotationY: -Math.PI / 2, locationName: "Highridge Provisions" },
+    idleDialogue: [
+      "Roots grow well up here. Fresh fish does not walk up the pass on its own.",
+      "Bring a loaded carriage round the bends slowly. A shorter line over the slope is no road at all."
+    ],
+    beckonLines: ["Come warm your hands a moment. The village has an order to discuss."],
+    recognitionDialogue: [{ id: "dialogue.ada_trade_route", requiresCompletedQuestIds: ["quest.tradelanes_highridge"],
+      lines: ["Fresh fish made it up the pass again. People are beginning to plan their suppers around your rounds."] }]
   }
 ];

@@ -9,7 +9,8 @@ import {
   ChromeButton,
   ChromeClose,
   ChromeDivider,
-  ChromeAlert
+  ChromeAlert,
+  ChromeQuality
 } from "./chrome/Chrome";
 import { IconFish, IconSatchel, IconSprout, IconTools } from "./components/HudIcons";
 import { GameSheet, ItemSlot } from "./coastal/CoastalUI";
@@ -402,9 +403,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     filled
                     selected={isSelectable && isSelected}
                     quantity={slot.quantity > 1 ? slot.quantity : undefined}
+                    badge={slot.quality ? <ChromeQuality quality={slot.quality} showLabel={false} /> : undefined}
                     onSelect={isSelectable ? () => setSelectedSlotIndex(index) : undefined}
                     label={isSelectable
-                      ? `${slot.name}, count ${slot.quantity}`
+                      ? `${slot.name}, ${slot.quality ? `${slot.quality} quality, ` : ""}count ${slot.quantity}`
                       : `${slot.name}, hidden by the active filter`}
                     role="option"
                     aria-selected={isSelectable && isSelected}
@@ -444,6 +446,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
                 <div className="inventory-selected-strip">
                   <span>{selectedSlot.categoryLabel ?? "item"}</span>
+                  {selectedSlot.quality && <ChromeQuality quality={selectedSlot.quality} />}
                   <strong>{selectedSlot.quantity} carried</strong>
                 </div>
 

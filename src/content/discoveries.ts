@@ -1,4 +1,5 @@
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "../world/OceanIslets";
+import { MAINLAND_VILLAGES } from "../world/NevaMainland";
 
 export interface WorldDiscovery {
   id: string; title: string; position: Readonly<{ x: number; z: number }>; view: string | null; summary: string;
@@ -23,5 +24,11 @@ export const WORLD_DISCOVERIES: readonly WorldDiscovery[] = [
     summary: "Someone sealed a fuel can and a bucket of chum inside the old camp chest. The supplies are in your satchel now; the empty camp remains a useful landing.",
     reward: [{ itemId: "item.boat_fuel", quantity: 1 }, { itemId: "item.chum_bucket", quantity: 1 }] },
   { id: "knowledge.discovery.channel_seam", title: "The Channel Seam", position: { x: 610, z: 110 }, radiusMeters: 35, arrival: "boat", view: null,
-    summary: "The crossing opens in every direction here. Watch for surface schools before choosing the northern cay or the direct course to Sunreach. Keep fuel for the way back." }
+    summary: "The crossing opens in every direction here. Watch for surface schools before choosing the northern cay or the direct course to Sunreach. Keep fuel for the way back." },
+  { id: "knowledge.discovery.pinewatch", title: "Pinewatch", position: MAINLAND_VILLAGES.pinewatch.market, view: null, arrival: "foot", radiusMeters: 18,
+    summary: "Pinewatch's timber yard and cloth counter stand above a sheltered cove landing. The woodland road carries carts; the water offers another way home." },
+  { id: "knowledge.discovery.reedhaven", title: "Reedhaven", position: MAINLAND_VILLAGES.reedhaven.market, view: null, arrival: "foot", radiusMeters: 18,
+    summary: "Raised roads carry grain and orchard fruit into the marsh village. Its exchange supplies bait and ice for the fishing grounds beyond the reeds." },
+  { id: "knowledge.discovery.highridge", title: "Highridge", position: MAINLAND_VILLAGES.highridge.market, view: null, arrival: "foot", radiusMeters: 18,
+    summary: "The high pass reaches a village of root gardens and workshop stores. Fresh fish has travelled a long way by the time it reaches Ada's counter." }
 ];

@@ -18,7 +18,7 @@ export type RegionId = string;
 export type ClimateId = "temperate" | "warm" | "cool" | "arid" | "subarctic";
 export type SeasonId = "spring" | "summer" | "autumn" | "winter";
 export type TimeWindowId = "dawn" | "day" | "dusk" | "night";
-export type WeatherTag = "clear" | "cloudy" | "light-rain" | "heavy-rain" | "windy" | "fog" | "storm";
+export type WeatherTag = "clear" | "cloudy" | "light-rain" | "heavy-rain" | "windy" | "fog" | "storm" | "drought";
 export type StationType = "hand-mill" | "workbench" | "fish-table" | "compost-bin" | "kitchen";
 export type StructureId = string;
 export type SkillId = "farming" | "fishing" | "processing" | "trading";
@@ -229,6 +229,13 @@ export interface PlacedCropState {
 export interface InventorySlot {
   itemId?: ItemId;
   quantity?: number;
+  /**
+   * Harvest grade for one produce lot. Stacks merge only when item and grade
+   * match, so a satchel can hold Common and Prize wheat side by side. Absent
+   * means an ungraded commodity: processed output, market stock, seeds and
+   * every legacy stack.
+   */
+  quality?: CropQuality;
 }
 
 export interface InventoryState {
@@ -240,6 +247,8 @@ export interface InventoryState {
 export interface ItemStack {
   itemId: ItemId;
   quantity: number;
+  /** Optional harvest grade; see `InventorySlot.quality`. */
+  quality?: CropQuality;
 }
 
 export type ProcessingWorkTier = "standard" | "masterwork";
@@ -419,6 +428,12 @@ export interface FishingEncounterState {
   workCharged?: number;
   slackTimerSeconds: number;
   snapTimerSeconds: number;
+  /**
+   * The fight is won (`result: "landed"`) and the encounter waits for the
+   * angler's keep/release choice. Persisted so a reload resumes the same
+   * decision instead of silently stowing or losing the catch.
+   */
+  awaitingLandingChoice?: boolean;
   result: "active" | "landed" | "escaped" | "line-snapped";
 }
 

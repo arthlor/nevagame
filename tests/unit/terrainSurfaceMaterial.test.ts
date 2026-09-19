@@ -164,8 +164,20 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("terrainDebugSlope");
     expect(shader.fragmentShader).toContain("roughnessFactor = mix(");
     expect(shader.fragmentShader).not.toContain("displacement");
-    // Terrain wears the same meadow field the grass carpet samples at its roots.
-    expect(shader.fragmentShader).toContain("NevaMeadowSample terrainMeadow = nevaMeadowSample(");
+    // Filter sub-grid brightness before interpolating the shared palette;
+    // grass retains its detailed field through the four-argument overload.
+    expect(shader.vertexShader).toContain("NevaMeadowSample terrainMeadow = nevaMeadowSample(");
+    expect(shader.vertexShader).toContain("clamp(surfaceWeights0.w + surfaceCauses.w * 0.45, 0.0, 1.0),\n    0.5");
+    expect(shader.vertexShader).toContain("return nevaMeadowSample(xz, meadowShare, dry, damp, nevaMeadowClump(xz));");
+    expect(shader.fragmentShader).not.toContain("NevaMeadowSample terrainMeadow = nevaMeadowSample(");
+    expect(shader.fragmentShader).toContain("vTerrainMeadowCarpet,");
+    expect(shader.fragmentShader).toContain("vTerrainMeadowThatch,");
+    expect(shader.fragmentShader).toContain("float pathPolygonSignal = terrainPolygonSignal;");
+    expect(shader.fragmentShader).toContain("if (vegetationMask > 0.001)");
+    expect(shader.fragmentShader).toContain("if (shoreSemanticWeight > 0.001)");
+    expect(shader.fragmentShader).toContain("terrainSoilShare * terrainUnworkedLand");
+    expect(shader.uniforms.terrainDampSoilColor).toBeDefined();
+    expect(shader.uniforms.terrainWarmStoneColor).toBeDefined();
     expect(shader.fragmentShader).toContain("nevaMeadowLiveBlades(vTerrainWorldPosition.xz)");
     expect(shader.fragmentShader).toContain("vec3 nevaApplySeason(vec3 color)");
     expect(shader.uniforms.nevaMeadowField).toBeDefined();

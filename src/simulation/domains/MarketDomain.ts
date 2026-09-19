@@ -4,6 +4,7 @@ import { recordMarketPurchase, recordMarketSale, tickMarket } from "../economy/u
 import {
   RETAIL_MARKUP,
   WORKSHOP_SUPPLY_MARKUP,
+  cropQualityPriceMultiplier,
   demandFromSupply,
   demandLabelFromModifier,
   demandLabelFromPercent,
@@ -13,8 +14,18 @@ import {
   quoteCommoditySale,
   type CommodityMarketQuote
 } from "../economy/marketPricing";
-import type { FishCargoId, FishCargoState, ItemId, MarketId } from "../core/types";
+import type {
+  CropQuality,
+  FishCargoId,
+  FishCargoState,
+  InventoryState,
+  ItemId,
+  ItemStack,
+  MarketId,
+  MarketState
+} from "../core/types";
 import type { RodId } from "../core/types";
+import { cropQualityRank } from "../farming/calculateCropGrowth";
 import { InventoryManager } from "../inventory/InventoryManager";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
@@ -22,8 +33,10 @@ import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import type { EquipmentDomain } from "./EquipmentDomain";
 import type {
+  BulkSaleLineDto,
   BulkSaleQuote,
   BuySeedReasonCode,
+  CommodityQualityLineDto,
   CommodityQuote,
   InteractionResult,
   MarketBoardDto,
@@ -31,7 +44,7 @@ import type {
   MarketDemandTrendDto
 } from "../core/contracts";
 import { previousRodId, ROD_PROGRESSION, rodFishingXpRequirement } from "../../content/rods";
-import { FISH_TRADE_CENTER_MARKET_ID as TRADE_CENTER_MARKET_ID } from "../../content/markets";
+import { FISH_TRADE_CENTER_MARKET_ID as TRADE_CENTER_MARKET_ID, marketAcceptsFishTradePacks } from "../../content/markets";
 import { isPhysicalTradePackSpecies, qualityRank } from "./domainRules";
 import { dayOfSeason } from "../core/GameClock";
 import {
@@ -84,7 +97,8 @@ export class MarketDomain {
   public sellItem(
     marketId: MarketId,
     itemId: ItemId,
-    quantity: number
+    quantity: number,
+    quality?: CropQuality
   ): { success: boolean; revenue?: number; reason?: string } {
     const { state, events } = this.context;
     const market = state.markets[marketId];
@@ -92,27 +106,26 @@ export class MarketDomain {
     if (this.getNearbyMarketId() !== marketId) return { success: false, reason: "You must be at this market to trade" };
     const commodity = market.commodities[itemId];
     if (!commodity) return { success: false, reason: "Market does not trade this item" };
-    if (!InventoryManager.isValidItemStack({ itemId, quantity })) {
+    if (!InventoryManager.isValidItemStack({ itemId, quantity, quality })) {
       return { success: false, reason: "Sale quantity must be a positive whole number" };
     }
     if (!isQuotableQuantity(quantity)) {
       return { success: false, reason: "That quantity is more than the stall can quote" };
     }
     const inventory = state.inventories[state.player.inventoryId];
-    if (!InventoryManager.hasItems(inventory, [{ itemId, quantity }])) {
+
+    // A graded sale names its lot. An ungraded sale fills from the best grade
+    // downward, so the quote the board displayed is exactly the revenue the
+    // till pays and exactly the lots the satchel loses. A fish *item* stays an
+    // ungraded fungible stack: its per-instance quality lives in the cargo
+    // lane, priced by `sellFish` through `calculateFishPrice`.
+    const plan = this.buildSalePlan(inventory, itemId, quantity, quality);
+    if (!plan) {
       return { success: false, reason: "You do not have enough of this item" };
     }
-
-    // Every satchel stack settles at the quote the board displayed. A fish
-    // *item* is a fungible stack with no per-instance quality, so it must not
-    // be priced off the species' best-ever journal record: that paid a
-    // permanent trophy multiplier on every later common catch and made the
-    // sale disagree with `inspectCommodity`, which never had a quality term.
-    // Per-instance quality belongs to the cargo lane, which `sellFish` prices
-    // through `calculateFishPrice`.
-    const marketQuote = this.quoteSale(commodity, quantity);
+    const marketQuote = this.quoteSale(commodity, quantity, plan.multipliers);
     const revenue = marketQuote.total;
-    if (!InventoryManager.removeItemsAtomically(inventory, [{ itemId, quantity }])) {
+    if (!InventoryManager.removeItemsAtomically(inventory, plan.removals)) {
       return { success: false, reason: "Your satchel changed before the sale" };
     }
     state.player.money += revenue;
@@ -147,21 +160,40 @@ export class MarketDomain {
     if (!isQuotableQuantity(quantity)) {
       return { ...base, reason: "That quantity is more than the stall can quote" };
     }
-    const marketQuote = commodity
-      ? intent === "buy"
-        ? this.quotePurchase(marketId, commodity, quantity)
-        : this.quoteSale(commodity, quantity)
-      : null;
+    const inventory = state.inventories[state.player.inventoryId];
+    const owned = InventoryManager.getItemCount(inventory, itemId);
+    let marketQuote: CommodityMarketQuote | null = null;
+    let qualityBreakdown: CommodityQualityLineDto[] | undefined;
+    if (commodity) {
+      if (intent === "buy") {
+        marketQuote = this.quotePurchase(marketId, commodity, quantity);
+      } else {
+        // Display may ask for more than is held; the quote still walks the
+        // held lots first so the shown price matches a real partial sale.
+        const plan = this.buildSalePlan(inventory, itemId, quantity, undefined, true)!;
+        marketQuote = this.quoteSale(commodity, quantity, plan.multipliers);
+        if (plan.groups.some((group) => group.quality !== undefined)) {
+          let offset = 0;
+          qualityBreakdown = plan.groups.map((group) => {
+            const prices = marketQuote!.marginalUnitPrices.slice(offset, offset + group.quantity);
+            offset += group.quantity;
+            const subtotal = prices.reduce((sum, value) => sum + value, 0);
+            return {
+              quality: group.quality ?? null,
+              quantity: group.quantity,
+              unitPrice: group.quantity > 0 ? Math.round(subtotal / group.quantity) : 0,
+              subtotal
+            };
+          });
+        }
+      }
+    }
     const unitPrice = marketQuote?.unitPrice ?? Math.ceil(item.baseValue * MarketDomain.BUY_MARKUP);
     const totalPrice = marketQuote?.total ?? unitPrice * quantity;
     const demandPercent = marketQuote
       ? Math.round(marketQuote.averageDemandModifier * 100)
       : 100;
     const demandLabel = demandLabelFromPercent(demandPercent);
-    const owned = InventoryManager.getItemCount(
-      state.inventories[state.player.inventoryId],
-      itemId
-    );
     return {
       success: true,
       itemId,
@@ -173,7 +205,8 @@ export class MarketDomain {
       available: commodity ? Math.max(0, Math.floor(commodity.localSupply)) : undefined,
       owned,
       affordable: state.player.money >= totalPrice,
-      bulkProduce: MarketDomain.isBulkSellProduceItem(itemId)
+      bulkProduce: MarketDomain.isBulkSellProduceItem(itemId),
+      qualityBreakdown
     };
   }
 
@@ -182,24 +215,20 @@ export class MarketDomain {
     const market = state.markets[marketId];
     if (!market) return this.emptyBulkQuote("Market not found");
     if (this.getNearbyMarketId() !== marketId) return this.emptyBulkQuote("Move closer to the stall");
-    const inventory = state.inventories[state.player.inventoryId];
-    const lines = Object.keys(market.commodities)
-      .filter((itemId) => MarketDomain.isBulkSellProduceItem(itemId))
-      .map((itemId) => ({
-        itemId,
-        quantity: InventoryManager.getItemCount(inventory, itemId)
-      }))
-      .filter((line) => line.quantity > 0);
-    if (lines.length === 0) return this.emptyBulkQuote("No produce to sell here");
-    const revenue = lines.reduce((total, line) => {
-      const commodity = market.commodities[line.itemId];
-      return total + this.quoteSale(commodity, line.quantity).total;
-    }, 0);
+    const plan = this.buildBulkProducePlan(market, state.inventories[state.player.inventoryId]);
+    if (plan.lines.length === 0) return this.emptyBulkQuote("No produce to sell here");
     return {
       success: true,
-      quantity: lines.reduce((total, line) => total + line.quantity, 0),
-      lineCount: lines.length,
-      revenue
+      quantity: plan.quantity,
+      lineCount: plan.lines.length,
+      revenue: plan.revenue,
+      lines: plan.lines.map(({ itemId, name, quality, quantity, revenue: lineRevenue }) => ({
+        itemId,
+        name,
+        quality,
+        quantity,
+        revenue: lineRevenue
+      }))
     };
   }
 
@@ -209,9 +238,25 @@ export class MarketDomain {
 
   public inspectExpeditionBoard(): ExpeditionBoardDto {
     return buildExpeditionBoard(this.context.state, {
-      steady: this.inspectScopedDemandSignal(TRADE_CENTER_MARKET_ID, "produce"),
-      bold: this.inspectScopedDemandSignal(MarketDomain.FISH_TRADE_CENTER_MARKET_ID, "sport-fish")
+      steady: this.inspectVillageDemandSignal("produce"),
+      bold: this.inspectVillageDemandSignal("sport-fish")
     });
+  }
+
+  private inspectVillageDemandSignal(scope: "produce" | "sport-fish"): MarketDemandSignal {
+    const { state } = this.context;
+    const offers = Object.values(state.markets)
+      .filter((market) => marketAcceptsFishTradePacks(market.id))
+      .map((market) => {
+        const signal = this.inspectScopedDemandSignal(market.id, scope);
+        const commodity = signal.itemId ? market.commodities[signal.itemId] : undefined;
+        const score = commodity
+          ? this.quoteSale(commodity, 1).averageDemandModifier * commodity.seasonalModifier
+          : 0;
+        return { signal, score };
+      })
+      .sort((a, b) => b.score - a.score || a.signal.marketId.localeCompare(b.signal.marketId));
+    return offers[0]?.signal ?? this.inspectScopedDemandSignal(TRADE_CENTER_MARKET_ID, scope);
   }
 
   /**
@@ -230,7 +275,7 @@ export class MarketDomain {
     const commodity = market?.commodities[itemId];
     if (!market || !commodity) return null;
     const fish = ContentRegistry.fishSpecies.get(itemId);
-    if (marketId !== MarketDomain.FISH_TRADE_CENTER_MARKET_ID && fish && isPhysicalTradePackSpecies(fish)) return null;
+    if (!marketAcceptsFishTradePacks(marketId) && fish && isPhysicalTradePackSpecies(fish)) return null;
 
     const hourNow = state.clock.currentMinute / 60;
     const trend = sampleDemandTrend(commodity, commodity.localSupply, hourNow, state.worldSeed, days);
@@ -259,7 +304,7 @@ export class MarketDomain {
       .filter((commodity) => {
         const fish = ContentRegistry.fishSpecies.get(commodity.itemId);
         if (
-          marketId !== MarketDomain.FISH_TRADE_CENTER_MARKET_ID &&
+          !marketAcceptsFishTradePacks(marketId) &&
           fish &&
           isPhysicalTradePackSpecies(fish)
         ) return false;
@@ -344,6 +389,10 @@ export class MarketDomain {
         itemId,
         name: ContentRegistry.items.get(itemId)?.name ?? itemId,
         owned,
+        lots: this.saleLots(inventory, itemId).map((lot) => ({
+          quality: lot.quality ?? null,
+          quantity: lot.quantity
+        })),
         quote: this.inspectCommodity(marketId, itemId, "sell")
       }];
     });
@@ -351,7 +400,7 @@ export class MarketDomain {
     const accessibleFish = Object.values(state.fishCargo)
       .filter((cargo) => this.navigation.canAccessFishCargo(cargo, marketId))
       .sort((a, b) => a.id.localeCompare(b.id));
-    const fishRows = marketId === MarketDomain.FISH_TRADE_CENTER_MARKET_ID
+    const fishRows = marketAcceptsFishTradePacks(marketId)
       ? []
       : accessibleFish
         .filter((cargo) => !this.isTradePack(cargo))
@@ -370,7 +419,7 @@ export class MarketDomain {
             reason: quote.reason
           };
         });
-    const tradePackRows = marketId === MarketDomain.FISH_TRADE_CENTER_MARKET_ID
+    const tradePackRows = marketAcceptsFishTradePacks(marketId)
       ? accessibleFish
         .filter((cargo) => this.isTradePack(cargo) && cargo.location.type === "player")
         .map((cargo) => {
@@ -502,24 +551,21 @@ export class MarketDomain {
   }
 
   public sellBulkProduce(marketId: MarketId): InteractionResult {
-    const quote = this.inspectBulkProduce(marketId);
-    if (!quote.success) return { success: false, reason: quote.reason };
     const { state, events } = this.context;
     const market = state.markets[marketId];
+    if (!market) return { success: false, reason: "Market not found" };
+    if (this.getNearbyMarketId() !== marketId) {
+      return { success: false, reason: "Move closer to the stall" };
+    }
     const inventory = state.inventories[state.player.inventoryId];
-    const lines = Object.keys(market.commodities)
-      .filter((itemId) => MarketDomain.isBulkSellProduceItem(itemId))
-      .map((itemId) => ({ itemId, quantity: InventoryManager.getItemCount(inventory, itemId) }))
-      .filter((line) => line.quantity > 0)
-      .map((line) => ({
-        ...line,
-        revenue: this.quoteSale(market.commodities[line.itemId], line.quantity).total
-      }));
-    if (!InventoryManager.removeItemsAtomically(inventory, lines)) {
+    const plan = this.buildBulkProducePlan(market, inventory);
+    if (plan.lines.length === 0) return { success: false, reason: "No produce to sell here" };
+    const removals = plan.lines.flatMap((line) => line.removals);
+    if (!InventoryManager.removeItemsAtomically(inventory, removals)) {
       return { success: false, reason: "Your satchel changed before the sale" };
     }
-    state.player.money += quote.revenue;
-    for (const line of lines) {
+    state.player.money += plan.revenue;
+    for (const line of plan.lines) {
       recordMarketSale(market, line.itemId, line.quantity);
       this.awardTradingXp(line.revenue, 0.1);
       events.emit("ItemSold", {
@@ -530,7 +576,7 @@ export class MarketDomain {
         minute: state.clock.currentMinute
       });
     }
-    return { success: true, revenue: quote.revenue, quantity: quote.quantity };
+    return { success: true, revenue: plan.revenue, quantity: plan.quantity };
   }
 
   public buySeed(
@@ -718,9 +764,9 @@ export class MarketDomain {
     if (this.isTradePack(fishCargo)) {
       return {
         success: false,
-        reason: marketId === MarketDomain.FISH_TRADE_CENTER_MARKET_ID
+        reason: marketAcceptsFishTradePacks(marketId)
           ? "Use the Trade packs counter to sell this carried pack"
-          : "Fish trade packs are not sold at the Harbor Fish Market; carry them to the Village Produce Market"
+          : "Carry fish trade packs to a village trade counter: Neva Village, Pinewatch, Reedhaven or Highridge"
       };
     }
     if (!this.navigation.canAccessFishCargo(fishCargo, marketId)) {
@@ -737,14 +783,14 @@ export class MarketDomain {
     const market = state.markets[marketId];
     if (!market) return { success: false, reason: "Market not found" };
     if (this.getNearbyMarketId() !== marketId) return { success: false, reason: "You must be at this market to trade" };
-    if (marketId !== MarketDomain.FISH_TRADE_CENTER_MARKET_ID) {
-      return { success: false, reason: "Carry fish trade packs to the Village Produce Market" };
+    if (!marketAcceptsFishTradePacks(marketId)) {
+      return { success: false, reason: "Carry fish trade packs to a village trade counter: Neva Village, Pinewatch, Reedhaven or Highridge" };
     }
     const fishCargo = state.fishCargo[cargoId];
     if (!fishCargo) return { success: false, reason: "Fish cargo not found" };
     if (!this.isTradePack(fishCargo)) return { success: false, reason: "Only fish trade packs use this counter" };
     if (fishCargo.location.type !== "player" || state.player.carriedFishCargoId !== cargoId) {
-      return { success: false, reason: "Collect this trade pack from the boat and carry it here" };
+      return { success: false, reason: "Collect this trade pack from its boat or carriage and carry it to the counter" };
     }
     return this.priceFishCargo(marketId, fishCargo);
   }
@@ -785,7 +831,7 @@ export class MarketDomain {
     if (this.isTradePack(fishCargo)) {
       return {
         success: false,
-        reason: "Fish trade packs are not sold through the fish market; carry them to the Village Produce Market"
+        reason: "Carry fish trade packs to a village trade counter and sell them one at a time"
       };
     }
     if (!this.navigation.canAccessFishCargo(fishCargo, marketId)) {
@@ -955,10 +1001,126 @@ export class MarketDomain {
     return { success: false, quantity: 0, lineCount: 0, revenue: 0, reason };
   }
 
-  private quoteSale(commodity: Parameters<typeof quoteCommoditySale>[0], quantity: number): CommodityMarketQuote {
+  /**
+   * Held lots of one item in sale order: best grade first, slot order inside
+   * one grade. Only produce lots carry a grade; all other goods hold one
+   * ungraded lot.
+   */
+  private saleLots(
+    inventory: InventoryState,
+    itemId: ItemId,
+    quality?: CropQuality
+  ): Array<{ quality?: CropQuality; quantity: number }> {
+    const totals = new Map<CropQuality | undefined, number>();
+    for (const lot of InventoryManager.getItemLots(inventory, itemId)) {
+      if (quality !== undefined && lot.quality !== quality) continue;
+      totals.set(lot.quality, (totals.get(lot.quality) ?? 0) + lot.quantity);
+    }
+    return [...totals.entries()]
+      .map(([grade, quantity]) => ({ quality: grade, quantity }))
+      .sort((a, b) => cropQualityRank(b.quality) - cropQualityRank(a.quality));
+  }
+
+  /**
+   * What a sale of `quantity` will remove and how the stall prices each unit.
+   *
+   * With `allowShortfall`, units beyond what is held are priced as ungraded so
+   * an inspection quote for a larger quantity still displays something; a real
+   * sale never relies on that branch, because removal fails first.
+   */
+  private buildSalePlan(
+    inventory: InventoryState,
+    itemId: ItemId,
+    quantity: number,
+    quality?: CropQuality,
+    allowShortfall = false
+  ): {
+    removals: ItemStack[];
+    multipliers: number[];
+    groups: Array<{ quality?: CropQuality; quantity: number }>;
+  } | null {
+    const removals: ItemStack[] = [];
+    const multipliers: number[] = [];
+    const groups: Array<{ quality?: CropQuality; quantity: number }> = [];
+    let remaining = quantity;
+    for (const lot of this.saleLots(inventory, itemId, quality)) {
+      if (remaining <= 0) break;
+      const take = Math.min(lot.quantity, remaining);
+      if (take <= 0) continue;
+      removals.push(
+        lot.quality === undefined
+          ? { itemId, quantity: take }
+          : { itemId, quantity: take, quality: lot.quality }
+      );
+      const multiplier = cropQualityPriceMultiplier(lot.quality);
+      for (let index = 0; index < take; index += 1) multipliers.push(multiplier);
+      groups.push({ quality: lot.quality, quantity: take });
+      remaining -= take;
+    }
+    if (remaining > 0) {
+      if (!allowShortfall) return null;
+      for (let index = 0; index < remaining; index += 1) multipliers.push(1);
+      groups.push({ quality: undefined, quantity: remaining });
+    }
+    return { removals, multipliers, groups };
+  }
+
+  /**
+   * Prices every held produce lot in one pass, walking one supply cursor per
+   * commodity so the sum of lot quotes equals a single quote over the batch.
+   * One owner for the board preview and the committed sale.
+   */
+  private buildBulkProducePlan(
+    market: MarketState,
+    inventory: InventoryState
+  ): {
+    lines: Array<BulkSaleLineDto & { removals: ItemStack[] }>;
+    quantity: number;
+    revenue: number;
+  } {
+    const lines: Array<BulkSaleLineDto & { removals: ItemStack[] }> = [];
+    let quantity = 0;
+    let revenue = 0;
+    for (const itemId of Object.keys(market.commodities)) {
+      if (!MarketDomain.isBulkSellProduceItem(itemId)) continue;
+      const commodity = market.commodities[itemId];
+      let supply = Math.max(0, commodity.localSupply);
+      for (const lot of this.saleLots(inventory, itemId)) {
+        const multipliers = new Array<number>(lot.quantity).fill(
+          cropQualityPriceMultiplier(lot.quality)
+        );
+        const quote = this.quoteSale(commodity, lot.quantity, multipliers, supply);
+        supply = quote.supplyAfter;
+        revenue += quote.total;
+        quantity += lot.quantity;
+        lines.push({
+          itemId,
+          name: ContentRegistry.items.get(itemId)?.name ?? itemId,
+          quality: lot.quality ?? null,
+          quantity: lot.quantity,
+          revenue: quote.total,
+          removals: [
+            lot.quality === undefined
+              ? { itemId, quantity: lot.quantity }
+              : { itemId, quantity: lot.quantity, quality: lot.quality }
+          ]
+        });
+      }
+    }
+    return { lines, quantity, revenue };
+  }
+
+  private quoteSale(
+    commodity: Parameters<typeof quoteCommoditySale>[0],
+    quantity: number,
+    qualityMultipliers?: readonly number[],
+    supplyOverride?: number
+  ): CommodityMarketQuote {
     return quoteCommoditySale(commodity, quantity, {
       absoluteHour: this.context.state.clock.currentMinute / 60,
-      worldSeed: this.context.state.worldSeed
+      worldSeed: this.context.state.worldSeed,
+      ...(qualityMultipliers ? { qualityMultipliers } : {}),
+      ...(supplyOverride !== undefined ? { supplyOverride } : {})
     });
   }
 

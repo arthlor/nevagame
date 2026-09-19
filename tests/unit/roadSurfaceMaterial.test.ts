@@ -28,7 +28,7 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.vertexShader).toContain("vRoadOpacity");
     expect(shader.vertexShader).toContain("attribute vec2 roadProfile");
     expect(shader.fragmentShader).toContain("roadTrackWear * roadWearColorMix");
-    expect(shader.fragmentShader).toContain("roadTrackWear * roadWearRoughnessReduction");
+    expect(shader.fragmentShader).toContain("roadTrackWear * roadWearBreakup * roadWearRoughnessReduction");
     expect(shader.fragmentShader).toContain("fwidth(roadEdgeField)");
     expect(shader.fragmentShader).toContain("inverseTransformDirection(baseNormal, viewMatrix)");
     expect(shader.fragmentShader).toContain("viewMatrix * vec4(detailNormal, 0.0)");
@@ -78,7 +78,8 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.fragmentShader).not.toContain("keepDirt = step");
     expect(shader.uniforms.roadEdgeCellScale.value).toBe(1.2);
     expect(shader.uniforms.roadPolygonCellScale.value).toBe(0.75);
-    expect(shader.uniforms.roadSharedCellScale.value).toBe(1.2);
+    expect(shader.fragmentShader).toContain("float sharedRoadCellSignal = roadEdgeSignal;");
+    expect(shader.fragmentShader).toContain("roadShoulderTufts * roadShoulderColorMix");
     expect(shader.uniforms.roadWetness.value).toBe(0);
     expect(shader.uniforms.roadPolygonVariationStrength.value).toBe(0.08);
     expect(shader.uniforms.roadPolygonFacetLightingStrength.value).toBe(0.016);

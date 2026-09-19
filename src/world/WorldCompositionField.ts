@@ -2,12 +2,15 @@ import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import {
   WORLD_ARCHITECTURE_PADS,
   WORLD_LAYOUT_V5,
+  WORLD_BOUNDS,
   WorldLayout,
   type WorldDistrictSample
 } from "./WorldLayout";
 import { SUNREACH_ANCHORS, type WorldBiomeId, type WorldIslandId } from "./WorldIslands";
 import { sampleNevaLandforms } from "./NevaLandforms";
 import { NEVA_HEADWATERS, headwaterSpringInfluence } from "./NevaHeadwaters";
+import { MAINLAND_VILLAGES, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandBlendAt, mainlandWaterSample } from "./NevaMainland";
+import { mainlandSettlementClearanceAt } from "./MainlandSettlementLayout";
 
 export type WorldDistrictId =
   | "farm"
@@ -349,9 +352,79 @@ function sunreachCompositionSample(worldSeed: number, x: number, z: number): Wor
   };
 }
 
+function mainlandCompositionSample(worldSeed: number, x: number, z: number): WorldCompositionSample {
+  const biomeId = mainlandBiomeAt(x, z);
+  const biome = mainlandBiomeWeightsAt(x, z);
+  const water = mainlandWaterSample(x, z);
+  const signedShore = WorldLayout.waterSignedDistance(x, z);
+  const route = WorldLayout.nearestRouteDistance(x, z);
+  const roadEdge = route.halfWidth + route.shoulderWidthMeters;
+  const routeClearance = 1 - smoothstep(roadEdge + 0.5, roadEdge + 2.5, route.distance);
+  const workingDistance = mainlandSettlementClearanceAt(x, z);
+  const architectureClearance = 1 - smoothstep(0, 3.5, workingDistance);
+  let village = 0, villageOpening = 0, harbor = 0, orchard = 0;
+  for (const settlement of Object.values(MAINLAND_VILLAGES)) {
+    const distance = Math.hypot(x - settlement.market.x, z - settlement.market.z);
+    village = Math.max(village, 1 - smoothstep(28, 105, distance));
+    villageOpening = Math.max(villageOpening, 1 - smoothstep(7.5, 15, distance));
+    orchard = Math.max(orchard, smoothstep(22, 37, distance) * (1 - smoothstep(62, 95, distance)));
+    if ("landing" in settlement) harbor = Math.max(harbor,
+      radialWeight(x, z, settlement.landing.x, settlement.landing.z, 8, 9));
+  }
+  const coast = 1 - smoothstep(2, 35, Math.max(0, -signedShore));
+  // Separate scales form wooded masses, gaps between groves and small edge pockets.
+  const macro = valueNoise(worldSeed, x, z, 94, 0x4cf5ad43);
+  const meso = valueNoise(worldSeed, x, z, 27, 0x7f4a7c15);
+  const fine = valueNoise(worldSeed, x, z, 11, 0x1b873593);
+  const grove = smoothstep(0.2, 0.58, macro * 0.7 + meso * 0.3);
+  const glade = smoothstep(0.7, 0.88, valueNoise(worldSeed, x + 160, z - 95, 72, 0x41c64e6d));
+  const opening = clamp01(Math.max(villageOpening, routeClearance, harbor, glade * 0.95));
+  const roadside = smoothstep(roadEdge + 3, roadEdge + 9, route.distance)
+    * (1 - smoothstep(roadEdge + 18, roadEdge + 32, route.distance));
+  const height = WorldLayout.terrainHeight(x, z);
+  const treeline = 1 - smoothstep(58, 88, height);
+  const woodland = clamp01((biome.pineForest * 0.98 + biome.temperate * 0.32
+    + biome.reedMarsh * 0.4 + biome.highlands * 0.54) * (0.24 + grove * 0.76)
+    * (1 - glade * 0.92) * treeline);
+  const meadow = clamp01((biome.temperate * 0.95 + biome.pineForest * 0.36
+    + biome.reedMarsh * 0.48 + biome.highlands * 0.26) * (0.55 + meso * 0.45)
+    * (1 - woodland * 0.45));
+  const riparian = Math.max(water.wetness, biome.reedMarsh * (1 - smoothstep(2, 7, height)));
+  const habitat = {
+    woodland, meadow, orchard: orchard * (1 - biome.reedMarsh), "working-edge": village,
+    riparian, exposed: biome.highlands * (1 - treeline * 0.65), "dry-scrub": 0,
+    terrace: 0, "olive-grove": 0, "dry-wash": 0, "exposed-ridge": 0, "reef-edge": 0
+  };
+  const clear = 1 - Math.max(routeClearance, architectureClearance, villageOpening, harbor);
+  const dampMargin = signedShore < -0.25 ? 1 - smoothstep(5, 19, -signedShore) : 0;
+  return {
+    islandId: "island.neva", biomeId,
+    district: { farm: meadow, village, harbor, headland: biome.highlands, coast, riverCorridor: riparian,
+      dominant: village > 0.4 ? "village" : water.wetness > 0.4 ? "river" : biome.highlands > 0.5 ? "headland" : "farm" },
+    habitat: { ...habitat, dominant: dominantKey(habitat) },
+    route: { clearance: routeClearance, frame: roadside * (0.45 + meso * 0.55), gateway: villageOpening },
+    architectureClearance, coastlineClearance: coast, fishingAccessClearance: harbor,
+    opening, macro, meso,
+    density: {
+      tree: clamp01((woodland + orchard * 0.16 + roadside * biome.temperate * 0.15) * clear * (1 - glade * 0.7)),
+      bush: clamp01((woodland * 0.45 + meadow * 0.2 + riparian * 0.24 + roadside * 0.18) * clear * (0.55 + fine * 0.7)),
+      flower: clamp01(meadow * (0.12 + meso * 0.62) * clear * (1 - biome.reedMarsh * 0.82)),
+      "short-cover": clamp01((meadow + woodland * 0.35) * clear),
+      reed: clamp01((dampMargin * (0.25 + biome.reedMarsh * 0.75 + water.wetness * 0.5)
+        + biome.reedMarsh * riparian * 0.25) * clear * (0.35 + meso * 0.9)),
+      rock: clamp01((biome.highlands * 0.65 + biome.pineForest * 0.12 + biome.temperate * 0.04)
+        * (0.3 + grove * 0.7) * clear)
+    }
+  };
+}
+
 export function sampleWorldComposition(worldSeed: number, x: number, z: number): WorldCompositionSample {
   if (WorldLayout.terrainPatchAt(x, z)?.islandId === "island.sunreach") {
     return sunreachCompositionSample(worldSeed, x, z);
+  }
+  if ((x < WORLD_BOUNDS.minX || x > WORLD_BOUNDS.maxX || z < WORLD_BOUNDS.minZ || z > WORLD_BOUNDS.maxZ)
+    && mainlandBlendAt(x, z) > 0.1 && WorldLayout.terrainPatchAt(x, z)?.islandId === "island.neva") {
+    return mainlandCompositionSample(worldSeed, x, z);
   }
   const district = districtField(x, z);
   const river = WorldLayout.riverBankSample(x, z);

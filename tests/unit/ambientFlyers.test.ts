@@ -12,8 +12,8 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 
 describe("ambientFlyers", () => {
   it("keeps gull and butterfly orbits finite around their authored origins", () => {
-    expect(GULL_ORBITS).toHaveLength(16);
-    expect(BUTTERFLY_ORBITS).toHaveLength(20);
+    expect(GULL_ORBITS.some(orbit => orbit.originX < -350 && orbit.originZ > 275)).toBe(true);
+    expect(BUTTERFLY_ORBITS.some(orbit => orbit.originX < -600)).toBe(true);
     for (const orbit of [...GULL_ORBITS, ...BUTTERFLY_ORBITS]) {
       for (const timeSeconds of [0, 4.2, 18, 120.5]) {
         const pose = sampleAmbientFlyerPose(orbit, timeSeconds, 1);

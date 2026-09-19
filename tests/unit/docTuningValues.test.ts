@@ -7,6 +7,7 @@ import {
   FRESHNESS_STORAGE_MODIFIERS
 } from "../../src/simulation/fishing/calculateFreshness";
 import {
+  CROP_QUALITY_PRICE_MULTIPLIER,
   DAILY_TREND_AMPLITUDE,
   DEMAND_ELASTICITY,
   DEMAND_MAX,
@@ -88,6 +89,7 @@ describe("gameplay tuning tables agree with the simulation", () => {
       "light-rain": weather.wet,
       "heavy-rain": weather.wet,
       storm: weather.wet,
+      drought: weather.drought,
       other: weather.other
     });
     expect(table.totalClamp).toEqual({
@@ -142,6 +144,19 @@ describe("market and soil figures agree with the simulation", () => {
     const clamp = text.match(/Demand clamp:\s*\*\*(\d+\.\d+)x[–-](\d+\.\d+)x\*\*/);
     expect(clamp).not.toBeNull();
     expect([Number(clamp![1]), Number(clamp![2])]).toEqual([DEMAND_MIN, DEMAND_MAX]);
+  });
+
+  it("states the produce grade price ladder the market applies", () => {
+    const ladder = text.match(
+      /Crop grade:\*\* Common ×(\d+\.\d+), Fine ×(\d+\.\d+), Exceptional ×(\d+\.\d+), Prize ×(\d+\.\d+)/
+    );
+    expect(ladder).not.toBeNull();
+    expect(ladder!.slice(1).map(Number)).toEqual([
+      CROP_QUALITY_PRICE_MULTIPLIER.common,
+      CROP_QUALITY_PRICE_MULTIPLIER.fine,
+      CROP_QUALITY_PRICE_MULTIPLIER.exceptional,
+      CROP_QUALITY_PRICE_MULTIPLIER.prize
+    ]);
   });
 
   it("states the soil fertility floor, restore and ceiling", () => {

@@ -29,7 +29,9 @@ const WEATHER_PROFILES: Record<WeatherTag, WeatherProfile> = {
   "heavy-rain": { windSpeed: 9, precipitation: 0.9, cloudCover: 0.95, seaRoughness: 0.5, visibility: 0.52, temperatureDelta: -4 },
   windy: { windSpeed: 11, precipitation: 0, cloudCover: 0.45, seaRoughness: 0.48, visibility: 0.8, temperatureDelta: -1 },
   fog: { windSpeed: 2, precipitation: 0.05, cloudCover: 0.7, seaRoughness: 0.12, visibility: 0.35, temperatureDelta: -3 },
-  storm: { windSpeed: 17, precipitation: 1, cloudCover: 1, seaRoughness: 0.82, visibility: 0.28, temperatureDelta: -5 }
+  storm: { windSpeed: 17, precipitation: 1, cloudCover: 1, seaRoughness: 0.82, visibility: 0.28, temperatureDelta: -5 },
+  // A summer dry spell: hot, near-cloudless, calm water, no rain at all.
+  drought: { windSpeed: 3, precipitation: 0, cloudCover: 0.05, seaRoughness: 0.08, visibility: 0.9, temperatureDelta: 6 }
 };
 
 export const WEATHER_FRONT_MIN_MINUTES = 360;
@@ -46,13 +48,15 @@ export const SEASONAL_WEATHER_WEIGHTS: Record<SeasonId, ReadonlyArray<{ value: W
     { value: "storm", weight: 8 }
   ],
   summer: [
-    { value: "clear", weight: 40 },
+    { value: "clear", weight: 34 },
     { value: "cloudy", weight: 18 },
     { value: "light-rain", weight: 12 },
     { value: "windy", weight: 12 },
     { value: "fog", weight: 4 },
     { value: "heavy-rain", weight: 8 },
-    { value: "storm", weight: 6 }
+    { value: "storm", weight: 6 },
+    // Drought is a summer risk; the other seasons keep their identity.
+    { value: "drought", weight: 6 }
   ],
   autumn: [
     { value: "clear", weight: 18 },

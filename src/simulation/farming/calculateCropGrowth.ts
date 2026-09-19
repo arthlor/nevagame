@@ -5,6 +5,18 @@ import { CropDefinition } from "../../content/types";
 import { Rng } from "../core/Rng";
 import type { FarmEnvironmentSample } from "./FarmEnvironmentSample";
 
+/** Ascending harvest-grade order. `undefined` is ungraded and ranks below common. */
+export const CROP_QUALITY_RANK: Record<CropQuality, number> = {
+  common: 0,
+  fine: 1,
+  exceptional: 2,
+  prize: 3
+};
+
+export function cropQualityRank(quality: CropQuality | undefined): number {
+  return quality ? CROP_QUALITY_RANK[quality] : -1;
+}
+
 export interface GrowthStepResult {
   newEffectiveMinutes: number;
   newStage: CropStage;
@@ -44,8 +56,8 @@ export const CROP_GROWTH_MODIFIERS = {
   moisture: { healthy: 1.0, dry: 0.85, veryDry: 0.6, dryBelow: 40, veryDryBelow: 15 },
   /** Fertility is 0..100 with a normal baseline of 50. */
   fertility: { excellent: 1.1, normal: 1.0, poor: 0.8, excellentAtOrAbove: 80, poorBelow: 30 },
-  /** Rain and storm help a little; no drought weather type is live. */
-  weather: { wet: 1.05, other: 1.0 },
+  /** Rain and storm help a little; a drought slows growth and dries soil fast. */
+  weather: { wet: 1.05, other: 1.0, drought: 0.75 },
   totalClamp: { minimum: 0.5, maximum: 1.5 }
 } as const;
 
@@ -108,7 +120,11 @@ export function calculateEffectiveGrowthDelta(
     fertilityMod = fertility.poor;
   }
 
-  const weatherMod = WET_WEATHER_TYPES.has(weatherType) ? weather.wet : weather.other;
+  const weatherMod = WET_WEATHER_TYPES.has(weatherType)
+    ? weather.wet
+    : weatherType === "drought"
+      ? weather.drought
+      : weather.other;
 
   const totalMod = Math.min(
     totalClamp.maximum,
@@ -217,6 +233,11 @@ export function moistureChangePerHour(
   }
   if (environment.weatherType === "windy") {
     delta -= waterNeed * 0.2 * dryOutScale * environment.evaporationMultiplier;
+  }
+  // Drought is the strongest dry-out state: no rain term and an extra pull on
+  // stored moisture, so soil that was healthy at dawn can stress by evening.
+  if (environment.weatherType === "drought") {
+    delta -= waterNeed * 0.5 * dryOutScale * environment.evaporationMultiplier;
   }
   return delta;
 }

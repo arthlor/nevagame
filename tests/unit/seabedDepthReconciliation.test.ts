@@ -19,7 +19,7 @@ const RECONCILIATION_POINTS = [
   { name: "fall lip", x: -30, z: -136 },
   { name: "plunge pool", x: -30, z: -130 },
   { name: "pool outflow", x: -30, z: -124 },
-  { name: "western ocean shelf", x: -196, z: -40 },
+  { name: "former western shelf, now mainland interior", x: -196, z: -40 },
   { name: "Gull's Rest shelf", x: 420, z: 246 }
 ] as const;
 
@@ -54,9 +54,9 @@ describe("W08.5 seabed depth reconciliation", () => {
     const surface = WorldLayout.waterSurfaceElevation(x, z);
     const bed = WorldLayout.terrainBaseSurfaceHeight(x, z);
     const sample = sampleDepthMap(x, z);
-    expectHalfFloatClose(sample.depth, surface - bed);
-    expectHalfFloatClose(sample.bed, bed);
-    expectHalfFloatClose(sample.shoreDistance, WorldLayout.waterSignedDistance(x, z));
+    expectHalfFloatClose(sample.depth, THREE.MathUtils.clamp(surface - bed, -128, 128));
+    expectHalfFloatClose(sample.bed, THREE.MathUtils.clamp(bed, -128, 128));
+    expectHalfFloatClose(sample.shoreDistance, THREE.MathUtils.clamp(WorldLayout.waterSignedDistance(x, z), -128, 128));
     expectHalfFloatClose(sample.contact, WorldLayout.coastalContactWeightAt(x, z));
   });
 

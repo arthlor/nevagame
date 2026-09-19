@@ -424,10 +424,10 @@ export class GroundCoverRenderer {
     for (const record of this.records) {
       const activeCount = Math.max(
         0,
-        Math.floor(
+        Math.min(Math.floor(qualityValueAtLevel(this.qualityLevel, quality => quality.groundCoverInstanceCap)), Math.floor(
           groundCoverActiveCountAtLevel(record.highCount, this.qualityLevel)
             * CATEGORY_DENSITY_SCALE[record.category]
-        )
+        ))
       );
       if (activeCount === record.activeCount) continue;
       record.activeCount = activeCount;

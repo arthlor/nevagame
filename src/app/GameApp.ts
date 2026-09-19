@@ -71,7 +71,7 @@ import {
 } from "../render/config/GraphicsQualitySettings";
 import { applyOfflineProgression, type OfflineProgressionSummary } from "../persistence/offlineDelta";
 import { ContentRegistry } from "../content/ContentRegistry";
-import { FISH_TRADE_CENTER_MARKET_ID } from "../content/markets";
+import { marketAcceptsFishTradePacks } from "../content/markets";
 import { selectVillageNotices, villageNoticeContext } from "../content/villageBulletin";
 import { buildPeoplePageDto } from "../simulation/presentation/PeoplePresentation";
 import { getAssetCoverageSummary, type AssetCoverageSummary } from "../render/assets/AssetCoverage";
@@ -981,7 +981,9 @@ export class GameApp {
     if (!this.layoutEditor) return;
     // Toggling with F2 also reveals the chip for the rest of the session.
     if (active) this.layoutEditorChipVisible = true;
+    if (active) this.worldScene.setLayoutEditingEnabled(true);
     this.layoutEditor.setActive(active);
+    if (!active) this.worldScene.setLayoutEditingEnabled(false);
     this.inputRouter.setLayoutEditorActive(this.layoutEditor.isActive());
   }
 
@@ -1271,7 +1273,7 @@ export class GameApp {
       ? debugStartParameter as DebugStartScenario
       : null;
 
-    this.updateStartupState({ phase: "layout", message: "Preparing the island" });
+    this.updateStartupState({ phase: "layout", message: "Preparing the coast" });
     await attempt.stage(() => WorldLayout.prepareTraversal(attempt.signal), WORLD_STARTUP_TIMEOUT_MS,
       new StartupTimeoutError("world-startup-timeout", "Island preparation timed out"));
     this.sim = new Simulation(undefined, { actionTimingScale: this.actionTimingScale });
@@ -1339,7 +1341,7 @@ export class GameApp {
       const minute = minuteParameter === null ? Number.NaN : Number(minuteParameter);
       if (Number.isSafeInteger(minute) && minute >= 0) this.sim.setDebugMinute(minute);
       const weather = query.get("artWeather") ?? (benchmark.goldTestId ? "clear" : null);
-      if (["clear", "cloudy", "light-rain", "heavy-rain", "windy", "fog", "storm"].includes(weather ?? "")) {
+      if (["clear", "cloudy", "light-rain", "heavy-rain", "windy", "fog", "storm", "drought"].includes(weather ?? "")) {
         this.sim.setDebugWeather(weather as Parameters<Simulation["setDebugWeather"]>[0]);
       }
       const presentationTimeParameter = query.get("artTimeSeconds")
@@ -1387,7 +1389,7 @@ export class GameApp {
       this.syncOverlayState();
     }
 
-    this.updateStartupState({ phase: "layout", message: "Preparing the island" });
+    this.updateStartupState({ phase: "layout", message: "Preparing the coast" });
     const startupAssetIds = await attempt.stage(
       () => WorldScene.prepareStartupAssetIds(this.sim.state, attempt.signal),
       WORLD_STARTUP_TIMEOUT_MS,
@@ -1405,7 +1407,7 @@ export class GameApp {
       new StartupTimeoutError("asset-loading-stalled", "Scenery download stopped making progress"),
       () => this.updateStartupState({ slow: true })
     );
-    this.updateStartupState({ phase: "world", message: "Preparing the island" });
+    this.updateStartupState({ phase: "world", message: "Preparing the coast" });
     await attempt.stage(() => this.worldScene.ready(this.sim.state.worldSeed, attempt.signal),
       WORLD_STARTUP_TIMEOUT_MS, new StartupTimeoutError("world-startup-timeout", "World preparation timed out"));
     this.updateStartupState({ phase: "physics", message: "Preparing your arrival", degradedResources: [...degradedSurfaceResources] });
@@ -1451,7 +1453,7 @@ export class GameApp {
       while (!await this.saveRepo.saveGame(this.sim.state, attempt.signal)) {
         attempt.check();
         this.updateStartupState({ status: "error", recovery: "save", errorCode: "save-failed", errorPhase: "commit",
-          errorMessage: "Your island is ready, but your harbor log could not be saved." });
+          errorMessage: "Your world is ready, but your harbor log could not be saved." });
         const retry = await new Promise<boolean>((resolve, reject) => {
           const abort = () => { this.saveDecision = undefined; reject(attempt.signal.reason); };
           attempt.signal.addEventListener("abort", abort, { once: true });
@@ -5149,6 +5151,18 @@ export class GameApp {
           const result = this.sim.execute({ type: "fishing.set-drag", notch });
           if (!result.success) this.notify(result.reason ?? "Could not adjust drag", "warning");
         },
+        onKeepFishingCatch: () => {
+          if (this.mode !== "sport-fishing" || this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
+          const result = this.sim.execute({ type: "fishing.keep-catch" });
+          if (!result.success) this.notify(result.reason ?? "Could not keep the catch", "warning");
+          this.renderUI();
+        },
+        onReleaseFishingCatch: () => {
+          if (this.mode !== "sport-fishing" || this.modeController.pausesSimulation || this.modeController.blocksWorldInput) return;
+          const result = this.sim.execute({ type: "fishing.release-catch" });
+          if (!result.success) this.notify(result.reason ?? "Could not release the fish", "warning");
+          this.renderUI();
+        },
         onSetFishingInput: (input) => {
           this.hudFishingHold = {
             isReeling: input.isReeling,
@@ -5262,7 +5276,7 @@ export class GameApp {
           else this.setToast(`${ContentRegistry.rods.get(rodId)?.name ?? "Rod"} equipped`);
         },
         onSellFishCargo: (marketId: MarketId, cargoId: string) => {
-          const res = marketId === FISH_TRADE_CENTER_MARKET_ID
+          const res = marketAcceptsFishTradePacks(marketId)
             ? this.sim.execute({ type: "market.sell-trade-pack", marketId, cargoId })
             : this.sim.execute({ type: "market.sell-fish", marketId, cargoId });
           if (!res.success) this.notify(res.reason ?? "Could not sell fish", "danger");

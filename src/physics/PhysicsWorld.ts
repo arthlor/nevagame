@@ -34,6 +34,8 @@ interface BoatPhysicsBody {
   colliders: RAPIER.Collider[];
   collisionCenters: Array<{ x: number; y: number; z: number }>;
   collisionYawRadians: number[];
+  /** Yaw-independent X/Z enclosure of every catalog collision primitive. */
+  horizontalRadius: number;
   headingRadians: number;
   speed: number;
 }
@@ -44,6 +46,8 @@ interface ResolvedBoatStep {
 }
 
 const CHARACTER_CONTROLLER_OFFSET_METERS = 0.035;
+const CHARACTER_AUTOSTEP_HEIGHT_METERS = 0.42;
+const CHARACTER_AUTOSTEP_WIDTH_METERS = 0.24;
 const PLAYER_CAPSULE_HALF_HEIGHT_METERS = 0.62;
 const PLAYER_CAPSULE_RADIUS_METERS = 0.32;
 const PLAYER_POSE_GROUND_OFFSET_METERS = 0.5;
@@ -327,6 +331,7 @@ interface PlayerBodyRollback {
 export class PhysicsWorld implements PhysicsAdapter {
   private parkedCarriageBody: RAPIER.RigidBody | null = null;
   private parkedCarriagePose = "";
+  private readonly parkedCarriageColliderHandles = new Set<number>();
   private carriageCollision: readonly StaticCollisionProxy[] = [];
   private readonly rapier: typeof RAPIER;
   private readonly world: RAPIER.World;
@@ -357,9 +362,11 @@ export class PhysicsWorld implements PhysicsAdapter {
   /** Recomputed whenever the body set changes; see `shouldStepDynamics`. */
   private dynamicBodyCount = 0;
   private dynamicBodyCountStale = true;
+  private sceneQueriesDirty = false;
   private jumpBufferRemainingSeconds = 0;
   private coyoteTimeRemainingSeconds: number = PLAYER_TRAVERSAL_TUNING.coyoteTimeSeconds;
   private readonly staticPropBodies: RAPIER.RigidBody[] = [];
+  private readonly staticPropColliderHandles = new Set<number>();
   private readonly debugColliderIds = new Map<number, string>();
   private debugWalking = false;
   private debugBlocked = false;
@@ -386,7 +393,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.controller.setSlideEnabled(true);
     this.controller.setMaxSlopeClimbAngle((38 * Math.PI) / 180);
     this.controller.setMinSlopeSlideAngle((46 * Math.PI) / 180);
-    this.controller.enableAutostep(0.42, 0.24, true);
+    this.controller.enableAutostep(CHARACTER_AUTOSTEP_HEIGHT_METERS, CHARACTER_AUTOSTEP_WIDTH_METERS, true);
     this.controller.enableSnapToGround(PLAYER_GROUND_SNAP_METERS);
 
     this.terrainColliders = WorldLayout.terrainPatches().map((patch) => {
@@ -407,6 +414,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     );
     this.ingestStaticCollision(staticCollision);
     this.world.updateSceneQueries();
+    this.sceneQueriesDirty = false;
   }
 
   private ensurePlayerColliderProfile(mounted: boolean): void {
@@ -426,6 +434,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     if (mounted) this.controller.enableSnapToGround(MOUNT_GROUND_SNAP_METERS);
     else this.controller.enableSnapToGround(PLAYER_GROUND_SNAP_METERS);
     this.world.updateSceneQueries();
+    this.sceneQueriesDirty = false;
   }
 
   public static async create(staticCollision: readonly StaticCollisionProxy[] = []): Promise<PhysicsWorld> {
@@ -443,10 +452,12 @@ export class PhysicsWorld implements PhysicsAdapter {
       for (let i = 0; i < body.numColliders(); i++) this.debugColliderIds.delete(body.collider(i).handle);
       this.world.removeRigidBody(body);
     }
+    this.staticPropColliderHandles.clear();
     this.staticPropBodies.length = 0;
     this.ingestStaticCollision(proxies);
     this.dynamicBodyCountStale = true;
     this.world.updateSceneQueries();
+    this.sceneQueriesDirty = false;
   }
 
   private ingestStaticCollision(proxies: readonly StaticCollisionProxy[]): void {
@@ -468,6 +479,7 @@ export class PhysicsWorld implements PhysicsAdapter {
         body
       );
       if (import.meta.env.DEV) this.debugColliderIds.set(collider.handle, proxy.id);
+      this.staticPropColliderHandles.add(collider.handle);
       this.staticPropBodies.push(body);
     }
   }
@@ -597,11 +609,17 @@ export class PhysicsWorld implements PhysicsAdapter {
         z: primitive.center[2]
       })),
       collisionYawRadians: primitives.map((primitive) => ((primitive.yawDegrees ?? 0) * Math.PI) / 180),
+      horizontalRadius: primitives.reduce((radius, primitive) => Math.max(radius,
+        Math.hypot(primitive.center[0], primitive.center[2])
+          + Math.hypot(primitive.halfExtents[0], primitive.halfExtents[2])), 0),
       headingRadians: normHeading,
       speed: Number.isFinite(speed) ? speed : 0
     };
     this.boatBodies.set(id, created);
     this.dynamicBodyCountStale = true;
+    this.sceneQueriesDirty = true;
+    // Structural changes must reach every reader even when the new hull is remote.
+    this.ensureSceneQueries();
     return created;
   }
 
@@ -614,6 +632,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     deltaX: number,
     deltaZ: number
   ): number | null {
+    this.ensureSceneQueries();
     let earliest: number | null = null;
     const sinHeading = Math.sin(headingRadians);
     const cosHeading = Math.cos(headingRadians);
@@ -920,11 +939,17 @@ export class PhysicsWorld implements PhysicsAdapter {
         + MOUNT_TUNING.playerPoseGroundOffsetMeters
         + MOUNT_COLLIDER_CENTER_FROM_POSE_METERS
       : targetSurfaceY + PLAYER_POSE_GROUND_OFFSET_METERS + PLAYER_COLLIDER_CENTER_FROM_POSE_METERS;
+    const moveY = isMounted || leadRaisesSurface
+      ? targetCenterY - current.y : this.playerVerticalVelocity * safeDt;
+    const includeBoats = this.ensurePlayerSceneQueries(current, Math.hypot(moveX, moveY, moveZ), isMounted);
+    // The capsule is excluded by every external query. Its own controller still
+    // needs the current attached shape pose, without rebuilding the world BVH.
+    this.world.propagateModifiedBodyPositionsToColliders();
     this.controller.computeColliderMovement(this.playerCollider, {
       x: moveX,
-      y: isMounted || leadRaisesSurface ? targetCenterY - current.y : this.playerVerticalVelocity * safeDt,
+      y: moveY,
       z: moveZ
-    });
+    }, undefined, undefined, includeBoats ? undefined : (collider) => !this.isBoatCollider(collider));
     const computedMovement = this.controller.computedMovement();
     const movement = {
       x: computedMovement.x,
@@ -943,6 +968,31 @@ export class PhysicsWorld implements PhysicsAdapter {
     movement.x = resolvedWalkableMove.x;
     movement.z = resolvedWalkableMove.z;
     walkabilityLimited ||= resolvedWalkableMove.limited;
+    // A mount can be ground-snapped into a static prop's collision volume where
+    // Rapier's controller has no depenetration: every requested direction
+    // returns bare contact correction and the rider is held in place. On foot
+    // the walkability recovery can step a player off an invalid cell; the mount
+    // needs the physical equivalent.
+    if (
+      isMounted &&
+      inputLength > 0.001 &&
+      requestedMoveDistance > 0.0001 &&
+      Math.hypot(movement.x, movement.z) < requestedMoveDistance * 0.1
+    ) {
+      const escape = this.mountedDepenetrationEscape(current);
+      if (escape) {
+        // Crawl toward the clear pose at gait speed; the vertical part follows
+        // the same fraction so a taller candidate never pops in one frame.
+        const escapeLength = Math.hypot(escape.x, escape.z);
+        const stepScale = escapeLength > 0.000001
+          ? Math.min(1, (speed * safeDt) / escapeLength)
+          : 0;
+        movement.x = escape.x * stepScale;
+        movement.y = escape.y * stepScale;
+        movement.z = escape.z * stepScale;
+        walkabilityLimited = true;
+      }
+    }
     // One slope sample on the destination — not on every slide candidate —
     // keeps mounts off banks the commit validator would reject every frame.
     if (
@@ -1174,6 +1224,77 @@ export class PhysicsWorld implements PhysicsAdapter {
               : "walk"
       }
     };
+  }
+
+  /**
+   * Smallest nearby displacement that lifts a wedged mount clear of static prop
+   * collision. The search only runs when the capsule already overlaps a static
+   * prop, so steering into an ordinary wall keeps its normal slide and is never
+   * bypassed. Candidates push away from the overlapping box's shallowest face
+   * and must stay on mountable ground and clear of every static prop.
+   */
+  private mountedDepenetrationEscape(
+    current: { x: number; y: number; z: number }
+  ): { x: number; y: number; z: number } | null {
+    const shape = this.playerCollider.shape;
+    const identity = { x: 0, y: 0, z: 0, w: 1 };
+    const staticPropsOnly = (collider: RAPIER.Collider): boolean =>
+      this.staticPropColliderHandles.has(collider.handle) ||
+      this.parkedCarriageColliderHandles.has(collider.handle);
+    const blocking = this.world.intersectionWithShape(
+      current, identity, shape, undefined, undefined, this.playerCollider, undefined, staticPropsOnly
+    );
+    if (!blocking) return null;
+    // Push out of the box's shallowest face; static props and the parked
+    // carriage are yaw-only rotations, so the local frame is one yaw angle.
+    const translation = blocking.translation();
+    const rotation = blocking.rotation();
+    const yaw = 2 * Math.atan2(rotation.y, rotation.w);
+    const cos = Math.cos(yaw), sin = Math.sin(yaw);
+    const worldX = current.x - translation.x, worldZ = current.z - translation.z;
+    const localX = worldX * cos - worldZ * sin;
+    const localZ = worldX * sin + worldZ * cos;
+    const halfExtents = blocking.halfExtents();
+    const pushLocalX = halfExtents.x - Math.abs(localX) + MOUNT_CAPSULE_RADIUS_METERS;
+    const pushLocalZ = halfExtents.z - Math.abs(localZ) + MOUNT_CAPSULE_RADIUS_METERS;
+    let pushX = 0, pushZ = 0;
+    if (pushLocalX <= pushLocalZ) {
+      const sign = localX >= 0 ? 1 : -1;
+      pushX = sign * cos;
+      pushZ = -sign * sin;
+    } else {
+      const sign = localZ >= 0 ? 1 : -1;
+      pushX = sign * sin;
+      pushZ = sign * cos;
+    }
+    const currentSurface = WorldLayout.traversalSurfaceHeight(current.x, current.z);
+    const pushAngle = Math.atan2(pushX, pushZ);
+    for (const radius of [0.14, 0.28, 0.45, 0.7, 1.05, 1.5, 2.05]) {
+      for (let index = 0; index < 16; index++) {
+        const step = Math.ceil(index / 2);
+        const angle = pushAngle + (index % 2 === 0 ? step : -step) * (Math.PI / 8);
+        const candidateX = current.x + Math.sin(angle) * radius;
+        const candidateZ = current.z + Math.cos(angle) * radius;
+        if (!isMountableTraversalPoint(candidateX, candidateZ)) continue;
+        const candidateSurface = WorldLayout.traversalSurfaceHeight(candidateX, candidateZ);
+        if (Math.abs(candidateSurface - currentSurface) > 0.9) continue;
+        const candidateCenter = {
+          x: candidateX,
+          y: candidateSurface + MOUNT_TUNING.playerPoseGroundOffsetMeters + MOUNT_COLLIDER_CENTER_FROM_POSE_METERS,
+          z: candidateZ
+        };
+        const overlapped = this.world.intersectionWithShape(
+          candidateCenter, identity, shape, undefined, undefined, this.playerCollider, undefined, staticPropsOnly
+        );
+        if (overlapped) continue;
+        return {
+          x: candidateX - current.x,
+          y: candidateCenter.y - current.y,
+          z: candidateZ - current.z
+        };
+      }
+    }
+    return null;
   }
 
   private resolveBoat(
@@ -1415,6 +1536,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     const nextWater = WaterSurface.sample(nextX, nextZ, timeSeconds, waterConditions);
     physics.body.setTranslation({ x: nextX, y: nextWater.height, z: nextZ }, true);
     physics.body.setRotation(rotation, true);
+    this.sceneQueriesDirty = true;
     const resolvedDeltaX = nextX - boat.x;
     const resolvedDeltaZ = nextZ - boat.z;
     const resolvedTravelDistance = Math.hypot(resolvedDeltaX, resolvedDeltaZ);
@@ -1480,7 +1602,6 @@ export class PhysicsWorld implements PhysicsAdapter {
       this.cameraSweepBallCache.set(radius, sweepBall);
     }
 
-    this.world.updateSceneQueries();
     const hit = this.world.castShape(
       focus,
       { x: 0, y: 0, z: 0, w: 1 },
@@ -1570,8 +1691,6 @@ export class PhysicsWorld implements PhysicsAdapter {
     direction.x /= distance;
     direction.y /= distance;
     direction.z /= distance;
-    this.world.updateSceneQueries();
-
     let padding = endpointPadding;
     this.world.intersectionsWithPoint(
       to,
@@ -1583,7 +1702,9 @@ export class PhysicsWorld implements PhysicsAdapter {
       },
       undefined,
       undefined,
-      this.playerCollider
+      this.playerCollider,
+      undefined,
+      (collider) => !this.isBoatCollider(collider)
     );
     // Terrain is excluded at the query rather than after it. Projecting a point
     // onto a heightfield scans its cells and costs 6.5 ms against Neva's two
@@ -1597,7 +1718,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       undefined,
       this.playerCollider,
       undefined,
-      (collider) => !this.terrainColliderHandles.has(collider.handle)
+      (collider) => !this.terrainColliderHandles.has(collider.handle) && !this.isBoatCollider(collider)
     );
     if (
       nearest &&
@@ -1636,6 +1757,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.debugBlocked = false;
     this.debugWalkabilityLimited = false;
     // Clean up any stale boat bodies that were removed from state
+    let removedBoat = false;
     for (const [id, boat] of this.boatBodies) {
       if (!state.boats[id]) {
         for (const collider of boat.colliders) {
@@ -1644,8 +1766,11 @@ export class PhysicsWorld implements PhysicsAdapter {
         this.world.removeRigidBody(boat.body);
         this.boatBodies.delete(id);
         this.dynamicBodyCountStale = true;
+        this.sceneQueriesDirty = true;
+        removedBoat = true;
       }
     }
+    if (removedBoat) this.ensureSceneQueries();
 
     // Open the commit transaction. Everything below stages a candidate pose; the
     // host closes it through onCommitResult once the simulation has ruled.
@@ -1669,24 +1794,25 @@ export class PhysicsWorld implements PhysicsAdapter {
     if (cartKey !== this.parkedCarriagePose) {
       if (this.parkedCarriageBody) this.world.removeRigidBody(this.parkedCarriageBody);
       this.parkedCarriageBody = null;
+      this.parkedCarriageColliderHandles.clear();
       this.parkedCarriagePose = cartKey;
       if (cart && cartKey) {
         const body = this.world.createRigidBody(this.rapier.RigidBodyDesc.fixed().setTranslation(cart.x, cart.y, cart.z)
           .setRotation({ x: 0, y: Math.sin(cart.rotationY / 2), z: 0, w: Math.cos(cart.rotationY / 2) }));
-        this.world.createCollider(this.rapier.ColliderDesc.cuboid(1.02, 0.75, 1.38).setTranslation(0, 0.95, 0), body);
-        this.world.createCollider(this.rapier.ColliderDesc.cuboid(0.48, 0.95, 1.1).setTranslation(0, 1.0, CARRIAGE_TUNING.horseOffset), body);
+        const bed = this.world.createCollider(this.rapier.ColliderDesc.cuboid(1.02, 0.75, 1.38).setTranslation(0, 0.95, 0), body);
+        const horse = this.world.createCollider(this.rapier.ColliderDesc.cuboid(0.48, 0.95, 1.1).setTranslation(0, 1.0, CARRIAGE_TUNING.horseOffset), body);
+        this.parkedCarriageColliderHandles.add(bed.handle);
+        this.parkedCarriageColliderHandles.add(horse.handle);
         this.parkedCarriageBody = body;
       }
       this.dynamicBodyCountStale = true;
       this.world.updateSceneQueries();
+      this.sceneQueriesDirty = false;
     }
 
     let mountGaitStep: MountGaitStepResult | null = null;
     const boats: ResolvedPhysicsFrame["boats"] = {};
     const boatMotion: Record<string, BoatMotionSample> = {};
-    if (Object.keys(state.boats).length > 0) {
-      this.world.updateSceneQueries();
-    }
     for (const id of Object.keys(state.boats)) {
       const resolvedBoat = this.resolveBoat(state, id, input, mode, dt, timeSeconds);
       boats[id] = resolvedBoat.pose;
@@ -1816,7 +1942,10 @@ export class PhysicsWorld implements PhysicsAdapter {
       mountGaitStep = resolvedPlayer.mountGait;
     }
 
-    if (this.shouldStepDynamics()) this.world.step();
+    if (this.shouldStepDynamics()) {
+      this.world.step();
+      this.sceneQueriesDirty = false;
+    }
     this.lastResolvedPlayerPose = {
       ...player,
       traversal: { ...player.traversal }
@@ -1830,6 +1959,35 @@ export class PhysicsWorld implements PhysicsAdapter {
         }
       : undefined;
     return { frame: { player, boats, mountGait }, playerMotion, boatMotion };
+  }
+
+  /** Remote hull motion cannot affect the capsule's bounded controller search. */
+  private ensurePlayerSceneQueries(
+    center: { x: number; z: number },
+    movementLength: number,
+    mounted: boolean
+  ): boolean {
+    if (!this.sceneQueriesDirty) return true;
+    // Include sliding travel, the complete capsule, and auxiliary step/snap casts.
+    // Ignoring height is conservative at docks and for bobbing compound hulls.
+    const reach = movementLength + (mounted ? MOUNT_CAPSULE_RADIUS_METERS : PLAYER_CAPSULE_RADIUS_METERS)
+      + CHARACTER_CONTROLLER_OFFSET_METERS + CHARACTER_AUTOSTEP_HEIGHT_METERS
+      + CHARACTER_AUTOSTEP_WIDTH_METERS + (mounted ? MOUNT_GROUND_SNAP_METERS : PLAYER_GROUND_SNAP_METERS);
+    for (const boat of this.boatBodies.values()) {
+      const position = boat.body.translation();
+      if (Math.hypot(position.x - center.x, position.z - center.z) <= boat.horizontalRadius + reach) {
+        this.ensureSceneQueries();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Hull casts and nearby character movement consume accumulated hull motion. */
+  private ensureSceneQueries(): void {
+    if (!this.sceneQueriesDirty) return;
+    this.world.updateSceneQueries();
+    this.sceneQueriesDirty = false;
   }
 
   /**
@@ -1878,7 +2036,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.coyoteTimeRemainingSeconds = rollback.coyoteTimeRemainingSeconds;
     this.lastResolvedPlayerPose = rollback.committedPose;
     this.lastPlayerAttachmentKey = rollback.committedAttachmentKey;
-    this.world.updateSceneQueries();
+    this.world.propagateModifiedBodyPositionsToColliders();
   }
 }
 

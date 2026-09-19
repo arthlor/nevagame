@@ -3,6 +3,15 @@ import { preservationDifferences, placementDifferences } from "../../tools/world
 import baseline from "../../tools/world/neva-layout14-preservation.json";
 
 describe("revision-specific world preservation", () => {
+  it("requires the mainland sampling domain and rejects envelope or spacing drift", () => {
+    const mainland = { ...baseline, layoutRevision: 22,
+      terrainSampling: { bounds: { minX: -890, maxX: 210, minZ: -780, maxZ: 710 }, spacingMeters: 6 } };
+    expect(preservationDifferences(mainland, structuredClone(mainland))).toEqual([]);
+    expect(preservationDifferences({ ...mainland, terrainSampling: undefined }, mainland)).toHaveLength(1);
+    expect(preservationDifferences({ ...mainland, terrainSampling: { ...mainland.terrainSampling, spacingMeters: 12 } }, mainland)).toHaveLength(1);
+    expect(preservationDifferences({ ...mainland, terrainSampling: { ...mainland.terrainSampling,
+      bounds: { ...mainland.terrainSampling.bounds, minX: -220 } } }, mainland)).toHaveLength(1);
+  });
   it("accepts the current reference and rejects each changed or missing contract field", () => {
     expect(preservationDifferences(baseline, baseline)).toEqual([]);
     for (const key of ["layoutRevision", "terrainWaterHash", "routeHash", "landmarkHash", "sampleCount"]) {

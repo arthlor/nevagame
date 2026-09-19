@@ -3,6 +3,7 @@ import harborApproachCorrection from "./neva-harbor-approach-preservation.json";
 import { WORLD_FARM_DEFINITIONS, WORLD_MARKET_LOCATIONS, WORLD_STATION_DEFINITIONS } from "../../src/world/WorldGameplayLocations";
 import { WORLD_ISLAND_DEFINITIONS } from "../../src/world/WorldIslands";
 import { FARM_ROUTES, WORLD_ROUTES, WorldLayout, type WorldBounds } from "../../src/world/WorldLayout";
+import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
 
 const fixed = (value: number): number => Number(value.toFixed(6));
 const hash = (value: unknown): string => createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -50,7 +51,7 @@ export function captureTerrainPreservation(
       sunreach.push([x, z, fixed(WorldLayout.terrainHeight(x, z)), fixed(WorldLayout.waterSignedDistance(x, z)), WorldLayout.regionAt(x, z)]);
     }
   }
-  const routes = [...WORLD_ROUTES, ...FARM_ROUTES].filter((route) => !routeIds || routeIds.includes(route.id));
+  const routes = [...WORLD_ROUTES, ...FARM_ROUTES, ...MAINLAND_ROUTES].filter((route) => !routeIds || routeIds.includes(route.id));
   return { sunreachSampling, workingGround, anchors, lowerRiver, routes, routeIds: routes.map((route) => route.id), routeHash: hash(routes), sunreachHash: hash(sunreach), sunreachSampleCount: sunreach.length };
 }
 

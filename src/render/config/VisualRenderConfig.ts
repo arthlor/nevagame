@@ -145,7 +145,7 @@ export interface VisualRenderConfig {
     quality: Record<QualityTier, { resolutionScale: number; maximumWidth: number; primarySteps: number; lightSteps: number; layerSteps: number; shadowResolution: number }>;
   };
   shadows: {
-    type: THREE.ShadowMapType;
+    type: Record<QualityTier, THREE.ShadowMapType>;
     intensity: number;
     /** Shadow opacity and softness while the moon owns the shadow pass. */
     nightIntensity: number;
@@ -190,6 +190,10 @@ export interface VisualRenderConfig {
       postProcessPixelRatioCap: number;
       practicalLightBudget: number;
       lodDistanceScale: number;
+      /** Small landscape props and understory; trees/buildings retain the fog horizon. */
+      landscapeDetailDrawDistanceMeters: number;
+      /** Per catalog asset, independent of how much of the continent is populated. */
+      groundCoverInstanceCap: number;
       groundCoverDrawDistanceMeters: number;
       shortGrassDrawDistanceMeters: number;
       shortGrassFarInstanceCap: number;
@@ -338,6 +342,8 @@ export interface VisualRenderConfig {
     roughnessVariation: number;
   };
   waterSurface: {
+    /** Maximum side of a coarse-water culling tile; the wave lattice stays unchanged. */
+    cullingTileMeters: number;
     optics: {
       absorptionPerMeter: readonly [number, number, number];
       refractionPixels: number;
@@ -616,6 +622,14 @@ export interface VisualRenderConfig {
     contrast: number;
     warmth: number;
   };
+  /** Opaque main-view foliage coverage around the camera and toward the player. */
+  foliageObstruction: {
+    nearCameraInnerMeters: number;
+    nearCameraOuterMeters: number;
+    corridorRadiusCameraMeters: number;
+    corridorRadiusPlayerMeters: number;
+    focusHeightMeters: number;
+  };
   /**
    * Canopy sway. Ground cover, clouds and the windmill already move; the trees
    * that dominate every gameplay frame did not, which read as a photograph
@@ -872,7 +886,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     }
   },
   shadows: {
-    type: THREE.PCFSoftShadowMap,
+    type: {
+      low: THREE.BasicShadowMap,
+      medium: THREE.PCFSoftShadowMap,
+      high: THREE.PCFSoftShadowMap
+    },
     // Fully opaque shadows crushed dark palette families - coastal rock and dark
     // wood read as flat black silhouettes with no facet separation. Letting a
     // little ambient into the shadow recovers that range without raising the
@@ -913,17 +931,19 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     low: {
       shadowMapSize: 1024,
       shadowCameraSize: 46,
-      pixelRatioCap: 1,
+      pixelRatioCap: 0.85,
       dynamicContactShadows: false,
       ambientOcclusion: "off",
       postProcessPixelRatioCap: 1,
       practicalLightBudget: 1,
-      lodDistanceScale: 0.7,
+      lodDistanceScale: 0.55,
+      landscapeDetailDrawDistanceMeters: 72,
+      groundCoverInstanceCap: 800,
       groundCoverDrawDistanceMeters: 55,
       shortGrassDrawDistanceMeters: 28,
       shortGrassFarInstanceCap: 80,
       groundCoverFarDistanceMeters: 330,
-      groundCoverDensityScale: 0.24,
+      groundCoverDensityScale: 0.4,
       rainDropCount: 140,
       rainSplashCount: 20,
       fireflyCount: 28,
@@ -943,17 +963,19 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     medium: {
       shadowMapSize: 1536,
       shadowCameraSize: 64,
-      pixelRatioCap: 1.5,
+      pixelRatioCap: 1.15,
       dynamicContactShadows: true,
       ambientOcclusion: "contact",
       postProcessPixelRatioCap: 1.25,
       practicalLightBudget: 3,
-      lodDistanceScale: 0.85,
+      lodDistanceScale: 0.8,
+      landscapeDetailDrawDistanceMeters: 112,
+      groundCoverInstanceCap: 1600,
       groundCoverDrawDistanceMeters: 78,
       shortGrassDrawDistanceMeters: 36,
       shortGrassFarInstanceCap: 140,
       groundCoverFarDistanceMeters: 380,
-      groundCoverDensityScale: 0.48,
+      groundCoverDensityScale: 0.68,
       rainDropCount: 240,
       rainSplashCount: 32,
       fireflyCount: 48,
@@ -973,19 +995,21 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     high: {
       shadowMapSize: 2048,
       shadowCameraSize: 84,
-      // High keeps the full material/lighting path while avoiding the steep
-      // fill-rate jump from a native 2x drawing buffer on dense displays.
-      pixelRatioCap: 1.75,
+      // Keep the full material path within a bounded drawing-buffer budget;
+      // UI remains at native CSS resolution on every tier.
+      pixelRatioCap: 1.5,
       dynamicContactShadows: false,
       ambientOcclusion: "gtao",
-      postProcessPixelRatioCap: 1.35,
+      postProcessPixelRatioCap: 1.2,
       practicalLightBudget: 4,
-      lodDistanceScale: 0.95,
+      lodDistanceScale: 1.15,
+      landscapeDetailDrawDistanceMeters: 168,
+      groundCoverInstanceCap: 2800,
       groundCoverDrawDistanceMeters: 96,
       shortGrassDrawDistanceMeters: 44,
       shortGrassFarInstanceCap: 220,
       groundCoverFarDistanceMeters: 430,
-      groundCoverDensityScale: 0.6,
+      groundCoverDensityScale: 1,
       rainDropCount: 360,
       rainSplashCount: 48,
       fireflyCount: 72,
@@ -1128,6 +1152,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     roughnessVariation: 0.02
   },
   waterSurface: {
+    cullingTileMeters: 192,
     optics: {
       absorptionPerMeter: [0.32, 0.11, 0.075],
       refractionPixels: 2.4,
@@ -1164,7 +1189,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     headwaters: {
       maxRowSpacingMeters: 0.75,
       fallRowSpacingMeters: 0.06,
-      rapidsFoamStrength: 0.32,
+      rapidsFoamStrength: 0.4,
       rapidsGradeStart: 0.15,
       rapidsGradeFull: 0.65,
       rapidsCellScaleMeters: 1.3,
@@ -1172,17 +1197,17 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       riverFlowMetersPerSecond: 1.15,
       riverFlowDepthStart: 0.22,
       riverFlowDepthFullMeters: 1.5,
-      riverFlowNormalStrength: 0.018,
-      riverFlowLaneStrength: 0.05,
-      riverDepthShadeStrength: 0.45,
-      riverEdgeDepthFadeMeters: 1.1,
+      riverFlowNormalStrength: 0.023,
+      riverFlowLaneStrength: 0.075,
+      riverDepthShadeStrength: 0.34,
+      riverEdgeDepthFadeMeters: 1.45,
       riverEdgeOpacity: 0.18,
-      riverEdgeFoamStrength: 0.2,
+      riverEdgeFoamStrength: 0.11,
       riverEdgeFoamScaleMeters: 1.7,
       plungeRingSpeedMetersPerSecond: 1.7,
       plungeRingWavelengthMeters: 2,
-      plungeRingStrength: 0.4,
-      plungeRingSpanMeters: 3.6,
+      plungeRingStrength: 0.22,
+      plungeRingSpanMeters: 5.2,
       fall: {
         rows: { low: 12, medium: 20, high: 30 },
         acrossSegments: 14,
@@ -1193,13 +1218,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
          * corrugation when the fall was seen from above.
          */
         rippleMeters: 0.025,
-        nappeDetach: 0.5,
-        crossBulgeMeters: 0.3,
-        widthSpread: 0.12,
-        widthWaistMeters: 0.45,
+        nappeDetach: 0.68,
+        crossBulgeMeters: 0.38,
+        widthSpread: 0.18,
+        widthWaistMeters: 0.32,
         sinkRunMeters: 0.12,
         sinkRows: 2,
-        streakStrength: 0.62,
+        streakStrength: 0.72,
         streakSpeed: 1.35,
         /**
          * Cycles of the thread phase along the fall. This is a *band* count
@@ -1209,16 +1234,16 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
          * across-thread count carries the texture.
          */
         streakScale: 2.6,
-        streakThreadCount: 22,
+        streakThreadCount: 17,
         streakAcceleration: 0.9,
         threadConvergence: 0.18,
         breakupStrength: 0.85,
         crestSpan: 0.09,
-        crestStrength: 0.5,
-        aerationStart: 0.4,
+        crestStrength: 0.26,
+        aerationStart: 0.22,
         bodyOpacity: 1,
         impactFoamStrength: 0.72,
-        impactFoamSpan: 0.3,
+        impactFoamSpan: 0.2,
         impactPlumeStrength: 0.55,
         apronFoamStrength: 0.42,
         apronMeters: 1.6,
@@ -1360,6 +1385,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     saturation: 1,
     contrast: 1,
     warmth: 0.04
+  },
+  foliageObstruction: {
+    nearCameraInnerMeters: 0.6,
+    nearCameraOuterMeters: 2.6,
+    corridorRadiusCameraMeters: 1.6,
+    corridorRadiusPlayerMeters: 0.85,
+    focusHeightMeters: 1.25
   },
   vegetationWind: {
     amplitudeMeters: 0.14,

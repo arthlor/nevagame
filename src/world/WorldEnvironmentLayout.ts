@@ -1,10 +1,11 @@
 import { oceanIsletPlacements } from "./OceanIsletPlacements";
+import { mainlandGroundCoverSteps, mainlandSettlementPlacements, mainlandStructuralPlacementSteps,
+  STARTER_DRESSING_BOUNDS } from "./MainlandEnvironmentLayout";
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { runSync, runCooperatively } from "../utils/CooperativeTask";
 import { createHarborCoastPlacements, retainLegacyHarborDressing, retainHarborGroundCover } from "./HarborCoastLayout";
 import {
   WorldLayout,
-  WORLD_BOUNDS,
   WORLD_LAYOUT_V5,
   pointSegmentProjection,
   type WorldArchitecturePad
@@ -30,6 +31,9 @@ import {
   type WorldDistrictId
 } from "./WorldCompositionField";
 import { WORLD_ISLAND_DEFINITIONS, type WorldBiomeId, type WorldIslandId } from "./WorldIslands";
+
+// Candidate addresses in the original working district stay stable as the mainland grows.
+const WORLD_BOUNDS = STARTER_DRESSING_BOUNDS;
 
 export type EnvironmentQualityTier = "low" | "medium" | "high";
 export type EnvironmentPlacementOrigin = "authored" | "layout-derived" | "seeded-fill";
@@ -416,8 +420,8 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   // Spring rest stop, set back west of the fall axis so no hero view finds
   // furniture silhouetted above the crest. Still on the flat trail-side
   // terrace by the spring.
-  authoredPlacement("authored.arrival.spring.bench", { assetId: "prop_bench_wood_a", x: -46.5, z: -149.5, rotationY: 6.2832, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.spring.sign", { assetId: "prop_signpost_trail_a", x: -45, z: -149, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.spring.bench", { assetId: "prop_bench_wood_a", x: -38.9, z: -146.8, rotationY: 6.2832, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.spring.sign", { assetId: "prop_signpost_trail_a", x: -39.1, z: -158.7, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.overlook.bench", { assetId: "prop_bench_wood_a", x: -127.2, z: -91.8, rotationY: -1.309, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.overlook.cairn", { assetId: "rock_field_a", x: -125, z: -84, rotationY: 0.6, scale: [0.8, 0.8, 0.8], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.overlook.sign", { assetId: "prop_signpost_trail_a", x: -122, z: -88, rotationY: -1.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
@@ -498,7 +502,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.coast.rest-fire-pit", { assetId: "prop_fire_pit_a", x: -62, z: 60, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.woodland.habitat-snag", { assetId: "tree_dead_a", x: -151, z: -118, rotationY: 0.4, scale: [1, 1, 1] }),
   // The old toe became a steep face; the broad western summit supports the whole rock.
-  authoredPlacement("authored.woodland.boulder", { assetId: "rock_boulder_large_a", x: -126, z: -116, rotationY: -0.3, scale: [1, 1, 1], grounding: [1.1, 0.99], clearanceRadiusMeters: 2 }),
+  authoredPlacement("authored.woodland.boulder", { assetId: "rock_boulder_large_a", x: -130.33, z: -118.5, rotationY: -0.3, scale: [1, 1, 1], grounding: [1.1, 0.99], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.coast.headland-spire", { assetId: "rock_spire_a", x: -115, z: 72, rotationY: 0.3, scale: [1, 1, 1], grounding: [0.65, 0.73], clearanceRadiusMeters: 1.4 }),
 
   // Marine plants are rooted on the bed. Only the buoy and lily leaves use waterline height.
@@ -531,36 +535,21 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.rock.uplands-boulder", { assetId: "rock_boulder_a", x: 93, z: -31, rotationY: 0.38, scale: [1.2, 1, 1.1], grounding: [1.7, 1.15] }),
   authoredPlacement("authored.rock.village-field", { assetId: "rock_field_a", x: 80, z: -34, rotationY: 0.62, scale: [0.8, 0.65, 0.75], grounding: [0.85, 0.58] }),
   authoredPlacement("authored.rock.harbor-boulder", { assetId: "rock_boulder_a", x: 97.1, z: 54.6, rotationY: -0.18, scale: [1.1, 0.9, 1], grounding: [1.55, 1.05] }),
-  // W06 headwater lip: catalog-backed rock frames the crest where the upper
-  // reach breaks into the fall face. The crest rim is only a few metres wide,
-  // so the lip is read from a broken row of river boulders rather than two
-  // oversized blocks; every one is placed on cells that pass the published
-  // footprint-stability contract, so collision matches the rendered rock.
-  authoredPlacement("authored.headwater.lip-rock-west-outer", { assetId: "rock_field_a", x: -37.2, z: -137.2, rotationY: 0.4, scale: [1, 0.85, 1], grounding: [0.85, 0.75] }),
-  authoredPlacement("authored.headwater.lip-rock-west-inner", { assetId: "rock_field_a", x: -37.4, z: -137.4, rotationY: 1.35, scale: [0.92, 0.8, 0.95], grounding: [0.85, 0.75] }),
-  authoredPlacement("authored.headwater.lip-rock-west-crest", { assetId: "rock_boulder_large_a", x: -36.6, z: -137.2, rotationY: 0.6, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
-  authoredPlacement("authored.headwater.lip-rock-east-inner", { assetId: "rock_field_a", x: -34.8, z: -137.6, rotationY: 2.1, scale: [0.95, 0.8, 1], grounding: [0.85, 0.75] }),
-  authoredPlacement("authored.headwater.lip-rock-east-crest", { assetId: "rock_boulder_large_a", x: -22.8, z: -137.6, rotationY: -0.8, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
-  authoredPlacement("authored.headwater.lip-rock-east-outer", { assetId: "rock_field_a", x: -23.2, z: -137.4, rotationY: -0.25, scale: [0.88, 0.75, 0.9], grounding: [0.85, 0.75] }),
-  // East-shoulder boulders were tried here (spire, hero boulder, needle) and
-  // reverted: the lip-corner bank cannot offer any 2 m cell row that is both
-  // 0.85 m dry of the water edge and flat within the stability spread, so no
-  // contract-passing rock can cover the narrow feed-window sightline through
-  // the slot. The slot sliver is accepted (see headwaterConcealment); the
-  // source and upper channel stay fully concealed by terrain.
-  // Springhead crag: the bluff-trail bench leaves a flat notch running north
-  // from the spring, and low eastern stances can sight up that notch past the
-  // source into open sky. A spire with a backing boulder closes the notch
-  // directly behind the springhead, so the source reads as emerging from
-  // rock. Both stand clear of the trail corridor and the spring furniture.
-  // The spire runs squat (wide base, 0.85 height): its sedimentary bedding
-  // reads as rock strata on a crag knob, never as a painted tower.
-  
+  // Existing river rocks follow stable watershed shoulders around the fall.
+  // Keep their collision footprints grounded and the water curtain readable.
+  authoredPlacement("authored.headwater.lip-rock-west-outer", { assetId: "rock_field_a", x: -35.90, z: -138.60, rotationY: 0.4, scale: [1, 0.85, 1], grounding: [0.85, 0.75] }),
+  authoredPlacement("authored.headwater.lip-rock-west-inner", { assetId: "rock_field_a", x: -34.1, z: -138.6, rotationY: 1.35, scale: [0.92, 0.8, 0.95], grounding: [0.85, 0.75] }),
+  authoredPlacement("authored.headwater.lip-rock-west-crest", { assetId: "rock_boulder_large_a", x: -35.10, z: -138.40, rotationY: 0.6, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
+  authoredPlacement("authored.headwater.lip-rock-east-inner", { assetId: "rock_field_a", x: -24.6, z: -139.4, rotationY: 2.1, scale: [0.95, 0.8, 1], grounding: [0.85, 0.75] }),
+  authoredPlacement("authored.headwater.lip-rock-east-crest", { assetId: "rock_boulder_large_a", x: -24.00, z: -138.00, rotationY: -0.8, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
+  authoredPlacement("authored.headwater.lip-rock-east-outer", { assetId: "rock_field_a", x: -22.2, z: -138.6, rotationY: -0.25, scale: [0.88, 0.75, 0.9], grounding: [0.85, 0.75] }),
+  // The spring emerges below the connected headwall; this embedded boulder
+  // marks its source while the nearby trail and rest stop stay clear.
   authoredPlacement("authored.headwater.springhead-boulder", { assetId: "rock_boulder_large_a", x: -30.2, z: -156.0, rotationY: -0.4, scale: [1, 0.95, 1], grounding: [1.1, 0.99] }),
   // W08 basin rim: two embedded outcrops break the carved pool edge so it
   // reads as rock the water worked into, not a smooth trench. Stances of the
   // review cameras stay clear of both footprints.
-  authoredPlacement("authored.headwater.pool-rim-west", { assetId: "rock_field_a", x: -37.6, z: -130.2, rotationY: 0.3, scale: [1, 0.85, 0.95], grounding: [0.85, 0.75] }),
+  authoredPlacement("authored.headwater.pool-rim-west", { assetId: "rock_field_a", x: -41.00, z: -138.53, rotationY: 0.3, scale: [1, 0.85, 0.95], grounding: [0.85, 0.75] }),
   // Kept clear of the walked pool-bank approach (which runs z = -129.5 → -132).
   // Sits clear of the graded approach trail; the bench reshapes this corner,
   // so the cell is chosen against the graded terrain, not the raw bank.
@@ -569,21 +558,21 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   // reed/cattail stand on the calm west margin, broadleaf support on both
   // banks, and two logs washed up at the outflow. The gorge faces and the
   // walked pool-bank corridor stay deliberately open.
-  authoredPlacement("authored.headwater.reeds-west-1", { assetId: "foliage_cattail_a", x: -35.6, z: -129.2, rotationY: 0.5, scale: [1.15, 1.15, 1.15] }),
-  authoredPlacement("authored.headwater.reeds-west-2", { assetId: "foliage_reeds_a", x: -35.0, z: -128.4, rotationY: 1.9, scale: [1.05, 1.05, 1.05] }),
-  authoredPlacement("authored.headwater.reeds-west-3", { assetId: "foliage_cattail_a", x: -34.5, z: -127.6, rotationY: 2.6, scale: [1.2, 1.2, 1.2] }),
-  authoredPlacement("authored.headwater.reeds-west-4", { assetId: "foliage_reeds_a", x: -34.9, z: -126.8, rotationY: 0.9, scale: [1.1, 1.1, 1.1] }),
-  authoredPlacement("authored.headwater.reeds-west-5", { assetId: "foliage_cattail_a", x: -35.4, z: -126.0, rotationY: 3.4, scale: [0.95, 0.95, 0.95] }),
-  authoredPlacement("authored.headwater.reeds-west-6", { assetId: "foliage_reeds_a", x: -34.8, z: -125.2, rotationY: 4.2, scale: [1.15, 1.15, 1.15] }),
-  authoredPlacement("authored.headwater.reeds-west-7", { assetId: "foliage_cattail_a", x: -35.2, z: -124.4, rotationY: 5.4, scale: [1.05, 1.05, 1.05] }),
-  authoredPlacement("authored.headwater.reeds-west-8", { assetId: "foliage_reeds_a", x: -34.6, z: -123.6, rotationY: 2.2, scale: [1.0, 1.0, 1.0] }),
-  authoredPlacement("authored.headwater.bush-west-a", { assetId: "foliage_bush_round_a", x: -36.8, z: -125.6, rotationY: 0.8, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.bush-west-b", { assetId: "foliage_bush_a", x: -36.4, z: -122.8, rotationY: 2.4, scale: [0.95, 0.95, 0.95], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.bush-east-a", { assetId: "foliage_bush_a", x: -21.7, z: -126.4, rotationY: 1.3, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.bush-east-b", { assetId: "foliage_bush_round_a", x: -17.5, z: -123.4, rotationY: 3.1, scale: [1.05, 1.05, 1.05], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.tree-maple-east", { assetId: "tree_maple_a", x: -21.7, z: -130.1, rotationY: 0.7, scale: [1, 1, 1], grounding: [0.6, 0.6] }),
-  authoredPlacement("authored.headwater.tree-oak-east", { assetId: "tree_oak_broadleaf_a", x: -22.3, z: -131.5, rotationY: 2.2, scale: [0.95, 0.95, 0.95], grounding: [0.6, 0.6] }),
-  authoredPlacement("authored.headwater.tree-maple-west", { assetId: "tree_maple_a", x: -39.2, z: -123.4, rotationY: 4.0, scale: [1.02, 1.02, 1.02], grounding: [0.6, 0.6] }),
+  authoredPlacement("authored.headwater.reeds-west-1", { assetId: "foliage_cattail_a", x: WorldLayout.riverCenterX(-129.2) - WorldLayout.riverSectionAt(-129.2).leftWaterWidth - 0.39, z: -129.2, rotationY: 0.5, scale: [1.15, 1.15, 1.15] }),
+  authoredPlacement("authored.headwater.reeds-west-2", { assetId: "foliage_reeds_a", x: WorldLayout.riverCenterX(-128.4) - WorldLayout.riverSectionAt(-128.4).leftWaterWidth - 0.53, z: -128.4, rotationY: 1.9, scale: [1.05, 1.05, 1.05] }),
+  authoredPlacement("authored.headwater.reeds-west-3", { assetId: "foliage_cattail_a", x: WorldLayout.riverCenterX(-127.6) - WorldLayout.riverSectionAt(-127.6).leftWaterWidth - 0.25, z: -127.6, rotationY: 2.6, scale: [1.2, 1.2, 1.2] }),
+  authoredPlacement("authored.headwater.reeds-west-4", { assetId: "foliage_reeds_a", x: WorldLayout.riverCenterX(-126.8) - WorldLayout.riverSectionAt(-126.8).leftWaterWidth - 0.39, z: -126.8, rotationY: 0.9, scale: [1.1, 1.1, 1.1] }),
+  authoredPlacement("authored.headwater.reeds-west-5", { assetId: "foliage_cattail_a", x: WorldLayout.riverCenterX(-126.0) - WorldLayout.riverSectionAt(-126.0).leftWaterWidth - 0.53, z: -126.0, rotationY: 3.4, scale: [0.95, 0.95, 0.95] }),
+  authoredPlacement("authored.headwater.reeds-west-6", { assetId: "foliage_reeds_a", x: WorldLayout.riverCenterX(-125.2) - WorldLayout.riverSectionAt(-125.2).leftWaterWidth - 0.25, z: -125.2, rotationY: 4.2, scale: [1.15, 1.15, 1.15] }),
+  authoredPlacement("authored.headwater.reeds-west-7", { assetId: "foliage_cattail_a", x: WorldLayout.riverCenterX(-124.4) - WorldLayout.riverSectionAt(-124.4).leftWaterWidth - 0.39, z: -124.4, rotationY: 5.4, scale: [1.05, 1.05, 1.05] }),
+  authoredPlacement("authored.headwater.reeds-west-8", { assetId: "foliage_reeds_a", x: WorldLayout.riverCenterX(-123.6) - WorldLayout.riverSectionAt(-123.6).leftWaterWidth - 0.53, z: -123.6, rotationY: 2.2, scale: [1.0, 1.0, 1.0] }),
+  authoredPlacement("authored.headwater.bush-west-a", { assetId: "foliage_bush_round_a", x: -40.66, z: -124.56, rotationY: 0.8, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
+  authoredPlacement("authored.headwater.bush-west-b", { assetId: "foliage_bush_a", x: -41.29, z: -117.17, rotationY: 2.4, scale: [0.95, 0.95, 0.95], grounding: [0.5, 0.5] }),
+  authoredPlacement("authored.headwater.bush-east-a", { assetId: "foliage_bush_a", x: -21.1, z: -126.6, rotationY: 1.3, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
+  authoredPlacement("authored.headwater.bush-east-b", { assetId: "foliage_bush_round_a", x: -18.50, z: -124.40, rotationY: 3.1, scale: [1.05, 1.05, 1.05], grounding: [0.5, 0.5] }),
+  authoredPlacement("authored.headwater.tree-maple-east", { assetId: "tree_maple_a", x: -19.97, z: -129.1, rotationY: 0.7, scale: [1, 1, 1], grounding: [0.6, 0.6] }),
+  authoredPlacement("authored.headwater.tree-oak-east", { assetId: "tree_oak_broadleaf_a", x: -18.3, z: -131.5, rotationY: 2.2, scale: [0.95, 0.95, 0.95], grounding: [0.6, 0.6] }),
+  authoredPlacement("authored.headwater.tree-maple-west", { assetId: "tree_maple_a", x: -41.55, z: -117.0, rotationY: 4.0, scale: [1.02, 1.02, 1.02], grounding: [0.6, 0.6] }),
   authoredPlacement("authored.headwater.log-outflow-west", { assetId: "prop_driftwood_log_a", x: -23.7, z: -132.1, rotationY: 0.5236, scale: [0.9, 0.9, 0.9] }),
   authoredPlacement("authored.headwater.log-outflow-east", { assetId: "prop_driftwood_log_a", x: -32.9, z: -132.7, rotationY: 2.6, scale: [0.82, 0.82, 0.82] }),
   authoredPlacement("authored.prop.lamp.village-west", { assetId: "prop_lamp_post_a", x: 30.0, z: -64.5, rotationY: -1.0472, scale: [1, 1, 1], practicalLight: true }),
@@ -1847,7 +1836,8 @@ function* staticPlacementSteps(worldSeed: number): Generator<void, readonly Envi
     ...SUNREACH_AUTHORED_PLACEMENTS,
     ...generateSunreachCausalCompositionPlacements(worldSeed)
   ];
-  const composed = [...existing, ...causalPlacements, ...sunreachPlacements, ...oceanIsletPlacements()];
+  const mainlandPlacements = [...mainlandSettlementPlacements(), ...yield* mainlandStructuralPlacementSteps(worldSeed)];
+  const composed = [...existing, ...causalPlacements, ...sunreachPlacements, ...oceanIsletPlacements(), ...mainlandPlacements];
   const staticPlacements = [...composed, ...generateLandscapeDressing(composed)].filter(retainLegacyHarborDressing);
   staticPlacements.push(...createHarborCoastPlacements());
   for (const placement of staticPlacements) {
@@ -1879,7 +1869,8 @@ export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmen
       if (!cachedGroundCover) {
         cachedGroundCover = [
           ...generateGroundCoverPlacements(worldSeed).filter(retainHarborGroundCover),
-          ...generateSunreachGroundCoverPlacements(worldSeed)
+          ...generateSunreachGroundCoverPlacements(worldSeed),
+          ...runSync(mainlandGroundCoverSteps(worldSeed))
         ];
       }
       return cachedGroundCover;
@@ -1898,7 +1889,8 @@ export async function prepareWorldEnvironmentLayout(worldSeed: number, signal?: 
   const staticPlacements = await runCooperatively(staticPlacementSteps(worldSeed), signal);
   const groundCoverPlacements = [
     ...(await runCooperatively(generateGroundCoverPlacementsSteps(worldSeed), signal)).filter(retainHarborGroundCover),
-    ...await runCooperatively(generateSunreachGroundCoverPlacementsSteps(worldSeed), signal)
+    ...await runCooperatively(generateSunreachGroundCoverPlacementsSteps(worldSeed), signal),
+    ...await runCooperatively(mainlandGroundCoverSteps(worldSeed), signal)
   ];
   signal?.throwIfAborted();
   const layout = { worldSeed, staticPlacements, groundCoverPlacements };

@@ -179,7 +179,7 @@ renderer.outputColorSpace = CANONICAL_RENDER_CONFIG.outputColorSpace;
 renderer.toneMapping = CANONICAL_RENDER_CONFIG.toneMapping;
 renderer.toneMappingExposure = CANONICAL_RENDER_CONFIG.exposure;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = CANONICAL_RENDER_CONFIG.shadows.type;
+renderer.shadowMap.type = CANONICAL_RENDER_CONFIG.shadows.type.high;
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(

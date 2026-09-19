@@ -28,9 +28,9 @@ describe("terrain migration composition boundary", () => {
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(before).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);
-    // One cached placement request for each consuming migration (13–16),
+    // One cached placement request for each consuming migration (13–16, 22–24),
     // with no extra request per actor or from the no-op repeat load.
-    expect(createWorldStaticPlacements).toHaveBeenCalledTimes(4);
+    expect(createWorldStaticPlacements).toHaveBeenCalledTimes(8);
   });
 
   it("shares cached static placements with the renderer without reading its deferred cover", async () => {

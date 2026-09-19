@@ -887,9 +887,9 @@ async function main() {
     if (audit.repeatedSeed42Hash[0] !== audit.repeatedSeed42Hash[1]) {
       throw new Error("[world:acceptance] Cannot freeze nondeterministic placements");
     }
-    const { layoutRevision, terrainWaterHash, routeHash, landmarkHash, sampleCount } = nevaPreservation.current;
+    const { layoutRevision, terrainWaterHash, routeHash, landmarkHash, terrainSampling, sampleCount } = nevaPreservation.current;
     writeJson(nevaPreservation.referencePath, {
-      sourceInputDigest: digest, layoutRevision, terrainWaterHash, routeHash, landmarkHash, sampleCount,
+      sourceInputDigest: digest, layoutRevision, terrainWaterHash, routeHash, landmarkHash, terrainSampling, sampleCount,
       compositionPlacementHashes: Object.fromEntries(audit.seeds.map((seed) => [seed.seed, seed.placementHash]))
     });
     console.info(`[world:acceptance] Captured layout ${layoutRevision} preservation reference. Run normal acceptance to validate composition and captures.`);

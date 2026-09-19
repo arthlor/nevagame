@@ -5,7 +5,9 @@ import {
   WATER_WAVE_CONFIG,
   WaterSurface,
   waterNormal,
+  waterSpatialProfile,
 } from "../../src/render/water/WaterSurface";
+import { MAINLAND_RIVER, mainlandWaterSample } from "../../src/world/NevaMainland";
 import {
   WATER_WAVE_FUNCTION_GLSL,
   WATER_WAVE_UNIFORMS_GLSL,
@@ -90,6 +92,17 @@ function testFrame(): LightingFrame {
 }
 
 describe("analytic water normal", () => {
+  it("carries mainland water along its own river bends", () => {
+    for (let index = 1; index < MAINLAND_RIVER.length; index++) {
+      const from = MAINLAND_RIVER[index - 1];
+      const to = MAINLAND_RIVER[index];
+      const x = (from.x + to.x) * 0.5, z = (from.z + to.z) * 0.5;
+      const channel = mainlandWaterSample(x, z);
+      const profile = waterSpatialProfile(x, z);
+      expect(profile.weights.river).toBeGreaterThan(0.99);
+      expect(profile.localDirection.dot(new THREE.Vector2(channel.direction.x, channel.direction.z))).toBeGreaterThan(0.999);
+    }
+  });
   it("matches the finite-difference normal within tolerance", () => {
     for (const conditions of CONDITIONS) {
       for (const [x, z] of POINTS) {
@@ -238,7 +251,7 @@ describe("analytic water normal", () => {
   });
 
   it("snaps the near-detail patch to grid and respects reduced motion", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4, centerX: 0, centerZ: 0 });
     try {
       water.setQuality("high");
       expect(water.nearPatch.mesh.visible).toBe(true);

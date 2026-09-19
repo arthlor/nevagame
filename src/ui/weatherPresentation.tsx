@@ -12,7 +12,8 @@ const WEATHER_LABELS: Record<WeatherTag, string> = {
   "heavy-rain": "Heavy rain",
   windy: "Windy",
   fog: "Fog",
-  storm: "Storm"
+  storm: "Storm",
+  drought: "Drought"
 };
 
 function normalizeWeatherType(type: WeatherType): string {

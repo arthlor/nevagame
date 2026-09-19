@@ -1,6 +1,7 @@
 import { runSync } from "../../utils/CooperativeTask";
 import * as THREE from "three";
 import { WorldLayout } from "../../world/WorldLayout";
+import type { ShoreProjection } from "../../world/WorldGeographyTypes";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import { cloudShadowUniforms } from "../atmosphere/CloudShadows";
 import { aerialPerspectiveUniforms } from "../atmosphere/AerialPerspective";
@@ -16,13 +17,25 @@ export function* waterDepthMapSteps(bounds: THREE.Vector4, width: number, height
     if (column % 32 === 0) yield;
     const x = bounds.x + column / (width - 1) * bounds.z;
     const z = bounds.y + row / (height - 1) * bounds.w;
-    const bed = WorldLayout.terrainBaseSurfaceHeight(x, z);
     const offset = (row * width + column) * 4;
-    data[offset] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(WorldLayout.waterSurfaceElevation(x, z) - bed, -128, 128));
-    data[offset + 1] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(bed, -128, 128));
-    data[offset + 2] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(WorldLayout.waterSignedDistance(x, z), -128, 128));
-    data[offset + 3] = THREE.DataUtils.toHalfFloat(WorldLayout.coastalContactWeightAt(x, z));
+    writeWaterDepthTexel(data, offset, x, z, WorldLayout.waterSignedDistance(x, z));
   }
+  return createWaterDepthTexture(data, width, height);
+}
+
+/** Both standalone depth builds and the paired startup bake use this encoding. */
+export function writeWaterDepthTexel(
+  data: Uint16Array, offset: number, x: number, z: number,
+  signedDistance: number, projection?: ShoreProjection
+): void {
+  const bed = WorldLayout.terrainBaseSurfaceHeight(x, z);
+  data[offset] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(WorldLayout.waterSurfaceElevation(x, z) - bed, -128, 128));
+  data[offset + 1] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(bed, -128, 128));
+  data[offset + 2] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(signedDistance, -128, 128));
+  data[offset + 3] = THREE.DataUtils.toHalfFloat(WorldLayout.coastalContactWeightAt(x, z, projection));
+}
+
+export function createWaterDepthTexture(data: Uint16Array, width: number, height: number): THREE.DataTexture {
   const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
   texture.name = "canonical_water_depth_shore";
   texture.minFilter = texture.magFilter = THREE.LinearFilter;

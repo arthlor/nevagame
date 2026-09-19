@@ -22,7 +22,7 @@ import { LANDSCAPE_WIND_GLSL } from "../motion/LandscapeWind";
  * (`batchingMatrix`). Instances therefore stay in a single batch and still
  * shade differently.
  */
-export const VEGETATION_TINT_PROGRAM_CACHE_KEY = "neva-vegetation-instance-tint-v4-landscape-wind";
+export const VEGETATION_TINT_PROGRAM_CACHE_KEY = "neva-vegetation-instance-tint-v5-landscape-wind-obstruction";
 
 /** Value spread and warm/olive drift, both held inside the authored palette family. */
 export const VEGETATION_TINT_STRENGTH = Object.freeze({
@@ -32,6 +32,61 @@ export const VEGETATION_TINT_STRENGTH = Object.freeze({
 
 const variantCache = new Map<string, THREE.Material>();
 const depthCache = new Map<string, THREE.MeshDepthMaterial>();
+const obstruction = CANONICAL_RENDER_CONFIG.foliageObstruction;
+const foliageObstructionUniforms = {
+  nevaFoliageFocusView: { value: new THREE.Vector3() },
+  nevaFoliageCameraWorld: { value: new THREE.Vector3() },
+  nevaFoliageCameraForward: { value: new THREE.Vector3() },
+  nevaFoliageObstructionEnabled: { value: 0 },
+  nevaFoliageObstructionRanges: { value: new THREE.Vector4(
+    obstruction.nearCameraInnerMeters, obstruction.nearCameraOuterMeters,
+    obstruction.corridorRadiusCameraMeters, obstruction.corridorRadiusPlayerMeters
+  ) }
+};
+
+/** Shared main-view uniforms; no per-tree mutation and no change to shadow depth materials. */
+export function updateVegetationObstruction(camera: THREE.Camera, playerFeet: THREE.Vector3 | null): void {
+  foliageObstructionUniforms.nevaFoliageObstructionEnabled.value = playerFeet ? 1 : 0;
+  if (!playerFeet) return;
+  camera.updateMatrixWorld();
+  foliageObstructionUniforms.nevaFoliageCameraWorld.value.setFromMatrixPosition(camera.matrixWorld);
+  camera.getWorldDirection(foliageObstructionUniforms.nevaFoliageCameraForward.value);
+  const focus = foliageObstructionUniforms.nevaFoliageFocusView.value.copy(playerFeet);
+  focus.y += obstruction.focusHeightMeters;
+  focus.applyMatrix4(camera.matrixWorldInverse);
+}
+
+function patchFoliageObstruction(source: string): string {
+  const anchor = "#include <alphatest_fragment>";
+  if (source.split(anchor).length !== 2) throw new Error("[VegetationTintMaterial] Foliage alpha-test contract changed");
+  return `uniform vec3 nevaFoliageFocusView;
+uniform vec3 nevaFoliageCameraWorld;
+uniform vec3 nevaFoliageCameraForward;
+uniform float nevaFoliageObstructionEnabled;
+uniform vec4 nevaFoliageObstructionRanges;
+${source}`.replace(anchor, `${anchor}
+  vec3 nevaRenderedViewForward = -vec3(viewMatrix[0].z, viewMatrix[1].z, viewMatrix[2].z);
+  if (nevaFoliageObstructionEnabled > 0.5
+    && distance(cameraPosition, nevaFoliageCameraWorld) < 0.001
+    && dot(nevaRenderedViewForward, nevaFoliageCameraForward) > 0.9999) {
+    // vViewPosition already includes model, batch/instance and canopy-wind transforms.
+    vec3 nevaFoliagePoint = -vViewPosition;
+    float nevaSightlineT = dot(nevaFoliagePoint, nevaFoliageFocusView)
+      / max(0.001, dot(nevaFoliageFocusView, nevaFoliageFocusView));
+    vec3 nevaSightlinePoint = nevaFoliageFocusView * clamp(nevaSightlineT, 0.0, 1.0);
+    float nevaSightlineRadius = mix(nevaFoliageObstructionRanges.z, nevaFoliageObstructionRanges.w,
+      clamp(nevaSightlineT, 0.0, 1.0));
+    float nevaSightlineVisibility = smoothstep(nevaSightlineRadius * 0.55, nevaSightlineRadius,
+      length(nevaFoliagePoint - nevaSightlinePoint));
+    float nevaSightlineActive = step(0.0, nevaSightlineT) * (1.0 - smoothstep(0.92, 1.0, nevaSightlineT));
+    float nevaNearVisibility = smoothstep(nevaFoliageObstructionRanges.x, nevaFoliageObstructionRanges.y,
+      length(nevaFoliagePoint));
+    float nevaFoliageVisibility = min(nevaNearVisibility, mix(1.0, nevaSightlineVisibility, nevaSightlineActive));
+    // Fixed screen-space coverage keeps the opaque depth/GTAO path and avoids sorted transparency.
+    float nevaFoliageDither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    if (nevaFoliageDither >= nevaFoliageVisibility) discard;
+  }`);
+}
 
 function patchVegetationWindVertex(source: string, weighted: boolean): string {
   source = source.replace(
@@ -157,7 +212,11 @@ export function vegetationInstanceTintMaterial(source: THREE.Material, weighted 
   variant.onBeforeCompile = (shader) => {
     const wind = CANONICAL_RENDER_CONFIG.vegetationWind;
     patchVegetationTintShader(shader, weighted);
-    if (tintFoliage) patchSeasonalTint(shader);
+    if (tintFoliage) {
+      patchSeasonalTint(shader);
+      shader.fragmentShader = patchFoliageObstruction(shader.fragmentShader);
+      Object.assign(shader.uniforms, foliageObstructionUniforms);
+    }
     // Wind remains shared across the whole tree, while chromatic variation is
     // restricted to catalog-declared foliage. Bark and other structural
     // materials therefore retain their source/palette color exactly.
@@ -178,7 +237,7 @@ export function vegetationInstanceTintMaterial(source: THREE.Material, weighted 
   // Three keys programs on the resolved parameter set, not on the material
   // instance, so without a distinct key this variant would silently reuse the
   // untinted program compiled for `source`.
-  variant.customProgramCacheKey = () => weighted ? `${VEGETATION_TINT_PROGRAM_CACHE_KEY}:coastal` : VEGETATION_TINT_PROGRAM_CACHE_KEY;
+  variant.customProgramCacheKey = () => `${VEGETATION_TINT_PROGRAM_CACHE_KEY}:${tintFoliage ? "foliage" : "structure"}${weighted ? ":coastal" : ""}`;
   variant.needsUpdate = true;
   applyWorldAtmosphere(variant);
   variantCache.set(key, variant);
@@ -229,6 +288,7 @@ export function updateVegetationWind(
 
 /** Test/teardown hook: drops the shared variants and their GPU programs. */
 export function disposeVegetationTintMaterials(): void {
+  foliageObstructionUniforms.nevaFoliageObstructionEnabled.value = 0;
   for (const material of variantCache.values()) material.dispose();
   variantCache.clear();
   for (const material of depthCache.values()) material.dispose();

@@ -322,7 +322,7 @@ describe("Gameplay simulation fixes", () => {
 
     expect(sim.sellFishCargoAtMarket("market.harbor", cargoId)).toEqual({
       success: false,
-      reason: "Fish trade packs are not sold through the fish market; carry them to the Village Produce Market"
+      reason: "Carry fish trade packs to a village trade counter and sell them one at a time"
     });
     expect(sim.state.fishCargo[cargoId]).toBeDefined();
     expect(sim.state.player.money).toBe(money);

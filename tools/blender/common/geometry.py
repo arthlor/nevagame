@@ -80,6 +80,41 @@ _SURFACE_NORMAL_MODES = {"planar": 0, "rounded": 1, "foliage": 2}
 # blades otherwise face sideways or down and take only the ground bounce.
 FOLIAGE_NORMAL_UP = 0.6
 
+# Broad authored value zones for the rest-face bake. These are shared,
+# deliberately narrow multipliers on top of the base facet value; a selected
+# catalog `surfaceAuthoring.valueZones` object may override them per asset.
+# Zones carry construction meaning (sun-bleached tops, weather sides, ground
+# dirt/moss, roof patches, wear), never grain, noise or per-triangle variation.
+VALUE_ZONE_MULTIPLIERS = {
+    "sunTop": 1.05,
+    "weatherSide": 0.94,
+    "groundContact": 0.90,
+    "patch": 1.03,
+    "wear": 0.92,
+}
+VALUE_ZONE_BOUNDS = (0.80, 1.10)
+_VALUE_ZONE_IDS = {zone: index + 1 for index, zone in enumerate(VALUE_ZONE_MULTIPLIERS)}
+_VALUE_ZONES_BY_ID = {index: zone for zone, index in _VALUE_ZONE_IDS.items()}
+
+
+def set_face_value_zone(obj, zone, *, faces=None):
+    """Tag broad authored value zones on faces for the rest-face finalizer.
+
+    Zone tagging is construction data, like `.neva_surface`: it survives object
+    joins (faces without a zone keep the shared base value) and is consumed and
+    removed by `finish_authored_surface`, so no private attribute reaches
+    export. Keep zones broad - one per construction region, not per polygon.
+    """
+    if zone not in _VALUE_ZONE_IDS:
+        raise ValueError(f"Unknown value zone: {zone!r}")
+    attribute = obj.data.attributes.get(".neva_value_zone")
+    if attribute is None:
+        attribute = obj.data.attributes.new(".neva_value_zone", "INT", "FACE")
+    value = _VALUE_ZONE_IDS[zone]
+    for index in range(len(obj.data.polygons)) if faces is None else faces:
+        attribute.data[index].value = value
+    return obj
+
 
 def set_surface_normals(obj, mode="rounded", *, faces=None):
     """Record authored smoothing groups on faces, including across material slots.
@@ -127,13 +162,22 @@ def authored_rest_transforms(objects):
     return matrices
 
 
-def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angle=math.radians(70)):
+def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angle=math.radians(70), value_zones=None):
     """Bake rest-space face color and normals within connected smoothing groups.
 
     Geometry supplies the light response; COLOR_0 supplies only broad facet
     values. No world light, component height, material seam or animated pose is
     part of the bake. Planar faces and authored creases retain their own normal.
+    Faces tagged with `set_face_value_zone` multiply their base value by that
+    zone's shared multiplier; `value_zones` may override the shared defaults.
     """
+    zone_multipliers = dict(VALUE_ZONE_MULTIPLIERS)
+    for zone, multiplier in (value_zones or {}).items():
+        if zone not in VALUE_ZONE_MULTIPLIERS:
+            raise ValueError(f"Unknown value zone override: {zone!r}")
+        if not VALUE_ZONE_BOUNDS[0] <= multiplier <= VALUE_ZONE_BOUNDS[1]:
+            raise ValueError(f"Value zone {zone!r} multiplier {multiplier} is outside {VALUE_ZONE_BOUNDS}")
+        zone_multipliers[zone] = multiplier
     mesh = obj.data
     mesh.update()
     palette_nodes = {"OUTPUT_MATERIAL", "BSDF_PRINCIPLED", "VERTEX_COLOR"}
@@ -163,6 +207,14 @@ def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angl
         editable.free()
         mesh.update()
         face_values = mesh.attributes[".neva_facet_value"]
+    zone_attribute = mesh.attributes.get(".neva_value_zone")
+    face_zone_values = [1.0] * len(mesh.polygons)
+    for polygon in mesh.polygons:
+        if zone_attribute is None:
+            break
+        zone = _VALUE_ZONES_BY_ID.get(int(zone_attribute.data[polygon.index].value))
+        if zone is not None:
+            face_zone_values[polygon.index] = zone_multipliers[zone]
     groups = mesh.attributes.get(".neva_surface")
     rounded = [bool(groups and groups.data[p.index].value) for p in mesh.polygons]
     foliage = [bool(groups and groups.data[p.index].value == _SURFACE_NORMAL_MODES["foliage"]) for p in mesh.polygons]
@@ -236,15 +288,23 @@ def finish_authored_surface(obj, asset_root, *, object_to_asset=None, sharp_angl
     color = mesh.color_attributes.new(name="Color", type="FLOAT_COLOR", domain="CORNER")
     mesh.color_attributes.active_color = color
     for polygon in mesh.polygons:
-        value = face_values.data[polygon.index].value
+        value = face_values.data[polygon.index].value * face_zone_values[polygon.index]
         base = mesh.materials[polygon.material_index].diffuse_color
         rgba = (base[0] * value, base[1] * value, base[2] * value, 1.0)
         for loop_index in polygon.loop_indices:
             color.data[loop_index].color = rgba
     if groups is not None:
         mesh.attributes.remove(groups)
+    pending_zones = mesh.attributes.get(".neva_value_zone")
+    if pending_zones is not None:
+        mesh.attributes.remove(pending_zones)
     mesh.attributes.remove(face_values)
-    return {"roundedFaces": sum(rounded), "planarFaces": len(rounded) - sum(rounded), "foliageFaces": sum(foliage)}
+    return {
+        "roundedFaces": sum(rounded),
+        "planarFaces": len(rounded) - sum(rounded),
+        "foliageFaces": sum(foliage),
+        "zonedFaces": sum(1 for multiplier in face_zone_values if multiplier != 1.0),
+    }
 
 
 def apply_vertex_values(obj: bpy.types.Object) -> None:
@@ -360,6 +420,127 @@ def add_tapered_beam(
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = direction.to_track_quat("Z", "Y")
     return _finish_mesh(obj, name, token, parent, flat=flat)
+
+
+def chamfer_authored(obj, width, *, segments=1, angle_deg=30.0):
+    """Apply one deterministic angle-limited chamfer to an authored mesh.
+
+    `_finish_mesh` bevels primitives as they are created; hand-built meshes
+    (profile sweeps, lofts, authored solids) have no chamfer until this runs.
+    Use it on structural hard-surface parts after construction and before the
+    surface finalizer. The angle limit leaves already-authored facets and
+    organic forms alone, so only real construction edges are chamfered.
+    """
+    if obj.type != "MESH":
+        raise ValueError(f"{obj.name}: chamfer requires a mesh object")
+    if width <= 0 or segments < 1:
+        raise ValueError(f"{obj.name}: chamfer needs a positive width and one or more segments")
+    if not obj.data.polygons:
+        raise ValueError(f"{obj.name}: chamfer requires at least one face")
+    modifier = obj.modifiers.new(name="NEVA_Chamfer", type="BEVEL")
+    modifier.width = width
+    modifier.segments = segments
+    modifier.limit_method = "ANGLE"
+    modifier.angle_limit = math.radians(angle_deg)
+    bpy.context.view_layer.objects.active = obj
+    with _object_operator_context(obj):
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
+    return obj
+
+
+def add_swept_profile(
+    name,
+    path,
+    profile,
+    token,
+    parent,
+    *,
+    scales=None,
+    twist=None,
+    cap_start=True,
+    cap_end=True,
+    flat=True,
+    normal_mode="planar",
+    bevel=0.0,
+):
+    """Sweep an authored closed cross-section along a centre line.
+
+    `add_limb_tube` sweeps circles only; mouldings, rails, strakes, cornices
+    and blades need a real profile. `profile` is a counter-clockwise list of
+    local (side, up) offsets; `path` is the centre line. `scales` optionally
+    scales each station (one float, or one (side, up) pair, per path point) and
+    `twist` rotates the profile around the path direction in radians. Frames
+    transport through bends, so a sweep crossing a pole keeps its authored
+    orientation instead of quarter-turning.
+    """
+    if len(path) < 2:
+        raise ValueError(f"{name}: a sweep needs at least two path points")
+    if len(profile) < 3:
+        raise ValueError(f"{name}: a sweep profile needs at least three points")
+    if scales is not None and len(scales) != len(path):
+        raise ValueError(f"{name}: a sweep needs one scale per path point")
+    if twist is not None and len(twist) != len(path):
+        raise ValueError(f"{name}: a sweep needs one twist per path point")
+
+    nodes = [Vector(point) for point in path]
+    directions = []
+    for index in range(len(nodes)):
+        if index == 0:
+            direction = nodes[1] - nodes[0]
+        elif index == len(nodes) - 1:
+            direction = nodes[-1] - nodes[-2]
+        else:
+            incoming = (nodes[index] - nodes[index - 1]).normalized()
+            outgoing = (nodes[index + 1] - nodes[index]).normalized()
+            direction = incoming + outgoing
+        if direction.length <= 1e-6:
+            raise ValueError(f"{name}: degenerate sweep segment at {index}")
+        directions.append(direction.normalized())
+
+    profile_points = [(float(side_offset), float(up_offset)) for side_offset, up_offset in profile]
+    sides = len(profile_points)
+    vertices = []
+    faces = []
+    side = None
+    previous_direction = None
+    for index, (node, direction) in enumerate(zip(nodes, directions)):
+        # Same transported frame as `add_limb_tube`: a fresh reference axis at
+        # each station quarter-turns where the path crosses the pole.
+        if side is None:
+            reference = Vector((0.0, 0.0, 1.0))
+            if abs(direction.dot(reference)) > 0.94:
+                reference = Vector((1.0, 0.0, 0.0))
+            side = direction.cross(reference).normalized()
+        else:
+            side = previous_direction.rotation_difference(direction) @ side
+        previous_direction = direction
+        up = direction.cross(side).normalized()
+        station_scale = (1.0, 1.0) if scales is None else scales[index]
+        width, depth = (station_scale, station_scale) if isinstance(station_scale, (int, float)) else station_scale
+        angle = 0.0 if twist is None else twist[index]
+        cosine, sine = math.cos(angle), math.sin(angle)
+        for side_offset, up_offset in profile_points:
+            rotated_side = side_offset * cosine - up_offset * sine
+            rotated_up = side_offset * sine + up_offset * cosine
+            vertices.append(node + side * rotated_side * width + up * rotated_up * depth)
+        if index > 0:
+            base = (index - 1) * sides
+            for step in range(sides):
+                nxt = (step + 1) % sides
+                faces.append((base + step, base + nxt, base + sides + nxt, base + sides + step))
+
+    if cap_start:
+        faces.append(tuple(range(sides - 1, -1, -1)))
+    if cap_end:
+        base = (len(nodes) - 1) * sides
+        faces.append(tuple(base + step for step in range(sides)))
+
+    obj = _build_mesh(name, (0.0, 0.0, 0.0), vertices, faces, token, parent, flat=flat, bevel=bevel, normal_mode=normal_mode)
+    if cap_start:
+        set_surface_normals(obj, "planar", faces=[len(faces) - int(cap_end) - 1])
+    if cap_end:
+        set_surface_normals(obj, "planar", faces=[len(faces) - 1])
+    return obj
 
 
 def add_limb_tube(

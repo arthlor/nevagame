@@ -98,6 +98,15 @@ export interface InteractionResult {
   availableWork?: number;
 }
 
+/** One graded group inside a sell quote, in the order the sale consumes it. */
+export interface CommodityQualityLineDto {
+  /** `null` is an ungraded commodity lot. */
+  quality: CropQuality | null;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
+
 export interface CommodityQuote {
   success: boolean;
   itemId: ItemId;
@@ -110,7 +119,17 @@ export interface CommodityQuote {
   owned?: number;
   affordable?: boolean;
   bulkProduce?: boolean;
+  /** Sell quotes only: the grade groups `totalPrice` is composed of. */
+  qualityBreakdown?: CommodityQualityLineDto[];
   reason?: string;
+}
+
+export interface BulkSaleLineDto {
+  itemId: ItemId;
+  name: string;
+  quality: CropQuality | null;
+  quantity: number;
+  revenue: number;
 }
 
 export interface BulkSaleQuote {
@@ -118,6 +137,8 @@ export interface BulkSaleQuote {
   quantity: number;
   lineCount: number;
   revenue: number;
+  /** One entry per graded lot, so the confirmation can explain the total. */
+  lines?: BulkSaleLineDto[];
   reason?: string;
 }
 
@@ -146,6 +167,8 @@ export interface MarketSellRowDto {
   itemId: ItemId;
   name: string;
   owned: number;
+  /** Held grades, best first; the quote prices them in this order. */
+  lots: ReadonlyArray<{ quality: CropQuality | null; quantity: number }>;
   quote: CommodityQuote;
 }
 
@@ -503,6 +526,8 @@ export interface SatchelDto {
     categoryLabel: string | null;
     inventoryCategory: "farming" | "fishing" | "supplies" | null;
     quantity: number;
+    /** Harvest grade of this lot; `null` for ungraded goods and empty slots. */
+    quality: CropQuality | null;
     cropId: CropId | null;
     cropName: string | null;
     isFish: boolean;
@@ -742,6 +767,13 @@ export interface SportFishingHudDto {
   lineIntegrityPercent: number;
   showLineWarning: boolean;
   landingProgress: number | null;
+  /**
+   * True once the fight is won and the angler must choose keep or release.
+   * While true the fight controls are done and the HUD shows the choice card.
+   */
+  awaitingLandingChoice: boolean;
+  /** Whether a Keep choice would fit; false means release or clear a slot. */
+  keepAvailable: boolean;
   /**
    * Live fight telemetry, read straight off the encounter's physics state.
    * The angler can already feel all of this through the fight; the readout
@@ -1078,6 +1110,8 @@ export type GameCommand =
   | { type: "fishing.hook-school"; schoolId: FishSchoolId }
   | { type: "fishing.toggle-lure" }
   | { type: "fishing.set-drag"; notch: number }
+  | { type: "fishing.keep-catch" }
+  | { type: "fishing.release-catch" }
   | {
       type: "fishing.control";
       input: { isReeling: boolean; isSlacking: boolean; isBracing: boolean; rodDirectionAngle: number };

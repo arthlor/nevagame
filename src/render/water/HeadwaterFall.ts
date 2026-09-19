@@ -77,7 +77,10 @@ export function headwaterFallSheetPoint(
   const y = t <= 1
     ? THREE.MathUtils.lerp(headwaterElevationAt(stationZ), nappeY, config.nappeDetach)
     : nappeY;
-  const section = WorldLayout.riverSectionAt(Math.min(stationZ, fall.landingZ));
+  // The jet carries the lip discharge into a wider basin; using the pool
+  // width here turned the falling water into a triangular dam spillway.
+  const section = WorldLayout.riverSectionAt(fall.lipZ);
+  const centerX = WorldLayout.riverCenterX(Math.min(stationZ, fall.landingZ));
   const meanHalfWidth = (section.leftWaterWidth + section.rightWaterWidth) * 0.5;
   const waist = meanHalfWidth > 0.001 ? config.widthWaistMeters / meanHalfWidth : 0;
   const shape = Math.min(1, t);
@@ -88,12 +91,15 @@ export function headwaterFallSheetPoint(
   const across = Math.max(1, acrossSegments);
   const lateralUnit = (column / across) * 2 - 1;
   // Bulge vanishes at both pinned ends, so lip and landing stay exact.
-  const bulge = config.crossBulgeMeters * (1 - lateralUnit * lateralUnit) * Math.sin(Math.PI * shape);
+  const lipLobes = 0.7 + 0.3 * Math.cos(lateralUnit * 7.4 + 0.8);
+  const bulge = config.crossBulgeMeters * (1 - lateralUnit * lateralUnit)
+    * Math.sin(Math.PI * shape) * lipLobes;
   const grade = headwaterGradientAt(Math.min(stationZ, fall.landingZ));
   const normalLength = Math.hypot(1, grade);
   const halfWidth = lateralUnit < 0 ? section.leftWaterWidth : section.rightWaterWidth;
   return {
-    x: section.centerX + lateralUnit * halfWidth * widthScale,
+    x: centerX + lateralUnit * halfWidth * widthScale
+      + config.crossBulgeMeters * Math.sin(Math.PI * shape) * (0.35 + lateralUnit * 0.2),
     y: y + bulge / normalLength,
     z: stationZ + bulge * (-grade / normalLength),
     arc: t / (1 + sinkFraction)
@@ -137,7 +143,7 @@ export function createHeadwaterFallGeometry(tier: QualityTier): THREE.BufferGeom
   // Shader displacement and the cross-section bulge must participate in
   // bounds; the sphere also drives frustum culling for the whole sheet.
   if (geometry.boundingSphere) {
-    geometry.boundingSphere.radius += config.rippleMeters + config.crossBulgeMeters;
+    geometry.boundingSphere.radius += config.rippleMeters * 4 + config.crossBulgeMeters;
   }
   return geometry;
 }
@@ -154,9 +160,7 @@ function sheetNormals(grid: HeadwaterFallSheetPoint[][]): number[] {
       const down = grid[Math.min(grid.length - 1, row + 1)][column];
       const acrossVector = new THREE.Vector3(right.x - left.x, right.y - left.y, right.z - left.z);
       const downVector = new THREE.Vector3(down.x - up.x, down.y - up.y, down.z - up.z);
-      const normal = new THREE.Vector3().crossVectors(acrossVector, downVector).normalize();
-      // Wound so the waterward face points back upstream/up-slope.
-      if (normal.z > 0) normal.multiplyScalar(-1);
+      const normal = new THREE.Vector3().crossVectors(downVector, acrossVector).normalize();
       normals.push(normal.x, normal.y, normal.z);
     }
   }
@@ -184,7 +188,10 @@ export const HEADWATER_FALL_VERTEX_GLSL = /* glsl */ `
     // stretched down the arc instead of phase-coherent across it.
     float ripple = (nevaGradientNoise(vec2(uv.x * 24.0, uv.y * 5.0 - time * 1.9)) - 0.5) * 1.4
       + (nevaGradientNoise(vec2(uv.x * 52.0 + 3.7, uv.y * 11.0 - time * 2.6)) - 0.5) * 0.6;
+    float arcEnvelope = sin(clamp(uv.y, 0.0, 1.0) * 3.14159265);
+    float edgeFlutter = (nevaGradientNoise(vec2(uv.x * 3.0 + 2.1, uv.y * 9.0 - time * 2.4)) - 0.5);
     vec3 displaced = position + normal * ripple * uFallRippleMeters;
+    displaced.x += edgeFlutter * uFallRippleMeters * 5.0 * arcEnvelope;
     vec4 worldPosition = modelMatrix * vec4(displaced, 1.0);
     vWorldPosition = worldPosition.xyz;
     vSheetNormal = normalize(mat3(modelMatrix) * normal);
@@ -249,8 +256,8 @@ export const HEADWATER_FALL_FRAGMENT_GLSL = /* glsl */ `
       clamp(smoothstep(0.1, 0.75, dryArc) * 0.8 + grain * 0.1, 0.0, 1.0));
     body = mix(body, uDeepColor, smoothstep(0.45, 1.0, dryArc) * 0.3 * (1.0 - aeration * 0.55));
     body *= light * mix(1.0, cloudSunlight, 0.55 * uDaylight);
-    body *= 0.9 + 0.2 * turbulence;
-    body = mix(body, uFoamColor * mix(0.22, 0.95, uDaylight), aeration * 0.8);
+    body *= 0.7 + 0.45 * turbulence;
+    body = mix(body, uFoamColor * mix(0.22, 0.95, uDaylight), aeration * 0.48);
     float sssBack = max(0.0, dot(viewDirection, normalize(-uSunDirection)));
     body += uShallowColor * (sssBack * sssBack * 0.35 * uSssStrength * uDaylight);
 
@@ -260,21 +267,27 @@ export const HEADWATER_FALL_FRAGMENT_GLSL = /* glsl */ `
     // reading as corduroy sliding over a fixed plane. Fine threads dominate.
     float acrossConverged = (vAcross - 0.5)
       * (1.0 - uFallThreadConvergence * sin(3.14159265 * dryArc)) + 0.5;
-    float threadSeed = nevaGradientNoise(vec2(acrossConverged * 3.0, 4.7));
+    // Elongated, advected packets break into uneven ropes. A periodic sine
+    // linking across and along coordinates produces diagonal zebra stripes.
     float stretch = 1.0 - uFallStreakAcceleration * smoothstep(0.0, 1.0, dryArc);
-    float streakPhase = dryArc * uFallStreakScale * stretch - time * uFallStreakSpeed
-      + acrossConverged * uFallThreadCount + (threadSeed - 0.5) * 9.0;
-    float streak = 0.5 + 0.5 * sin(streakPhase * 6.28318);
-    streak *= 0.65 + 0.35 * nevaGradientNoise(vec2(acrossConverged * 9.0 + 2.3, dryArc * 5.0));
-    float streakFine = 0.5 + 0.5 * sin(streakPhase * 14.7 + acrossConverged * 5.0);
-    float threadAmp = 0.35 + 0.65 * nevaGradientNoise(vec2(acrossConverged * 3.0, 9.1));
+    float packetTravel = dryArc * uFallStreakScale * stretch - time * uFallStreakSpeed;
+    float ropeWarp = nevaGradientNoise(vec2(acrossConverged * 4.1, dryArc * 1.7 - time * 0.18));
+    float threadCoordinate = acrossConverged * uFallThreadCount + ropeWarp * 1.5;
+    float filament = nevaGradientNoise(vec2(threadCoordinate, packetTravel * 0.48));
+    float streak = smoothstep(0.42, 0.67, filament);
+    float fineFilter = 1.0 - smoothstep(0.3, 1.2, fwidth(threadCoordinate));
+    float streakFine = smoothstep(0.35, 0.76,
+      nevaGradientNoise(vec2(threadCoordinate * 2.1 + 6.7, packetTravel * 0.8))) * fineFilter;
+    float threadAmp = 0.35 + 0.65 * nevaGradientNoise(vec2(acrossConverged * 5.0, 9.1));
     // The sheet grows out of the channel water over its first rows: full
     // streaks at row zero would draw a seam exactly where the water turns
     // over the lip.
     float lipBlend = smoothstep(0.0, 0.05, arc);
-    float threadWhite = mix(0.4, 1.0, aeration);
-    body += uFoamColor * (streak * 0.5 + streakFine * 0.5) * threadAmp
-      * uFallStreakStrength * threadWhite * mix(0.4, 1.0, uDaylight) * lipBlend;
+    float threadWhite = mix(0.65, 1.0, aeration);
+    body *= mix(0.7, 1.05, smoothstep(0.2, 0.72, filament));
+    body = mix(body, uFoamColor * mix(0.3, 0.98, uDaylight),
+      (streak * 0.72 + streakFine * 0.28) * threadAmp
+      * uFallStreakStrength * threadWhite * lipBlend);
 
     // 3) Crest: a short bright band where the surface rolls over the lip and
     // catches the sky, so the nappe has a rounded readable edge rather than a
@@ -325,6 +338,7 @@ export const HEADWATER_FALL_FRAGMENT_GLSL = /* glsl */ `
     // thin ragged rim fades, so the falling water always occludes the gorge.
     float alpha = clamp(uFallBodyOpacity + foam * 0.4, 0.0, 1.0) * edgeFade;
     alpha *= mix(1.0, 0.9, crest);
+    if (alpha < 0.035) discard;
     float fogFactor = smoothstep(uFogNear, uFogFar, cameraDistance);
     vec4 aerial = nevaAerialSegment(vWorldPosition);
     color = color * aerial.a + aerial.rgb;

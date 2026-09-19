@@ -1,8 +1,15 @@
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "./OceanIslets";
 import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "./WorldAnchors";
 import { SUNREACH_ANCHORS, type BoatMooringDefinition } from "./WorldIslands";
+import { MAINLAND_VILLAGES } from "./NevaMainland";
 
 export const BOAT_MOORINGS: readonly Readonly<BoatMooringDefinition>[] = Object.freeze([
+  ...[MAINLAND_VILLAGES.pinewatch, MAINLAND_VILLAGES.reedhaven].map((village): BoatMooringDefinition => ({
+    id: `mooring.${village.id}`, islandId: "island.neva", marketId: village.marketId,
+    boatPosition: { ...village.boat, y: 0 }, playerPosition: village.landing,
+    boardRadius: 6, hullBoardRadius: 16, dockRadius: 10,
+    boatTypeIds: ["boat.rowboat", "boat.skiff"]
+  })),
   ...OCEAN_ISLETS.map((islet): BoatMooringDefinition => ({
     id: `mooring.${islet.id.slice(7)}`, islandId: islet.id, marketId: null,
     boatPosition: { x: islet.x, y: 0, z: islet.z + islet.radiusZ + 9 },
@@ -45,10 +52,12 @@ export const BOAT_MOORINGS: readonly Readonly<BoatMooringDefinition>[] = Object.
 ]);
 
 export interface SailingRouteDefinition {
-  id: "sailing.neva-sunreach";
-  fromMooringId: "mooring.neva_harbor_skiff";
-  toMooringId: "mooring.sunreach_cove";
-  requiredBoatTypeId: "boat.skiff";
+  id: string;
+  fromMooringId: string;
+  toMooringId: string;
+  requiredBoatTypeId: "boat.skiff" | "boat.rowboat";
+  /** A sailing alternative does not gate a market also connected by road. */
+  landAccessible?: boolean;
   points: readonly Readonly<{ x: number; z: number }>[];
 }
 
@@ -58,6 +67,10 @@ export interface SailingRouteDefinition {
  * sailing gate instead of relying on relocation helpers.
  */
 export const WORLD_SAILING_ROUTES: readonly Readonly<SailingRouteDefinition>[] = Object.freeze([
+  { id: "sailing.harbor-pinewatch", fromMooringId: "mooring.neva_harbor_rowboat", toMooringId: "mooring.pinewatch", requiredBoatTypeId: "boat.rowboat", landAccessible: true,
+    points: [HARBOR_DOCK.boatPosition, { x: 90, z: 105 }, { x: 20, z: 125 }, { x: -180, z: 130 }, { x: -340, z: 125 }, MAINLAND_VILLAGES.pinewatch.boat] },
+  { id: "sailing.pinewatch-reedhaven", fromMooringId: "mooring.pinewatch", toMooringId: "mooring.reedhaven", requiredBoatTypeId: "boat.rowboat", landAccessible: true,
+    points: [MAINLAND_VILLAGES.pinewatch.boat, { x: -400, z: 142 }, { x: -448, z: 205 }, { x: -456, z: 275 }, MAINLAND_VILLAGES.reedhaven.boat] },
   Object.freeze({
     id: "sailing.neva-sunreach",
     fromMooringId: "mooring.neva_harbor_skiff",
@@ -86,13 +99,13 @@ export function mooringById(id: string): Readonly<BoatMooringDefinition> | null 
  * end of a sailing route; null when it is reachable without one.
  */
 export function requiredBoatTypeForMarket(marketId: string): string | null {
-  const route = WORLD_SAILING_ROUTES.find((candidate) => mooringById(candidate.toMooringId)?.marketId === marketId);
+  const route = WORLD_SAILING_ROUTES.find((candidate) => !candidate.landAccessible && mooringById(candidate.toMooringId)?.marketId === marketId);
   return route?.requiredBoatTypeId ?? null;
 }
 
 export function defaultMooringForBoatType(boatTypeId: string): Readonly<BoatMooringDefinition> {
   return BOAT_MOORINGS.find((mooring) =>
-    mooring.islandId === "island.neva" && mooring.boatTypeIds?.includes(boatTypeId)
+    mooring.marketId === "market.harbor" && mooring.boatTypeIds?.includes(boatTypeId)
   ) ?? BOAT_MOORINGS[0];
 }
 

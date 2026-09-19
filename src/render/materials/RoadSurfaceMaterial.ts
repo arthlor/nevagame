@@ -16,7 +16,7 @@ import {
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v25-worked-profile";
+export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v26-shared-edge-wear";
 
 type RoadSurfaceConfig = VisualRenderConfig["roadSurface"];
 
@@ -116,7 +116,6 @@ uniform float roadShoulderColorMix;
 uniform float roadPolygonVariationStrength;
 uniform float roadPolygonJaggedStrength;
 uniform float roadPolygonFacetLightingStrength;
-uniform float roadSharedCellScale;
 uniform float roadEdgeFadeStart;
 uniform float roadEdgeFadeFull;
 uniform float roadRoughness;
@@ -230,10 +229,9 @@ diffuseColor.rgb = mix(
 );
 float sharedRoadWetness = nevaSurfaceWeatherWetness(roadWetness);
 float sharedRoadBoundary = nevaSurfaceTransitionWeight(1.0, 0.72);
-float sharedRoadCellSignal = nevaGroundPolygonCellSignal(
-  vRoadWorldPosition.xz,
-  roadSharedCellScale
-);
+// Boundary variation uses its existing edge cell, rather than running the same
+// nine-candidate search a third time for a second copy of the shoulder field.
+float sharedRoadCellSignal = roadEdgeSignal;
 vec3 sharedRoadIdentity = mix(
   roadLightColor,
   roadPackedColor,
@@ -276,9 +274,15 @@ vec4 coastalRoadField = nevaOpticsField(vRoadWorldPosition.xz);
 // The same compacted strips drive color and roughness after source-map blending.
 float roadTrackWear = clamp(vRoadProfile.x, 0.0, 1.0) * roadCoreMix;
 float roadLooseShoulder = clamp(vRoadProfile.y, 0.0, 1.0);
-float roadWearBreakup = mix(0.68, 1.0, roadSourceLuma);
+float roadWearBreakup = mix(0.46, 1.0, smoothstep(0.36, 0.66, roadSourceLuma));
 diffuseColor.rgb = mix(diffuseColor.rgb, roadDryColor, roadTrackWear * roadWearColorMix * roadWearBreakup);
 diffuseColor.rgb = mix(diffuseColor.rgb, roadLightColor, roadLooseShoulder * roadShoulderColorMix);
+// Plants gather in less-used shoulder pockets; compacted wheel strips keep
+// their readable continuity. The existing supporting map owns the breakup.
+float roadShoulderTufts = roadLooseShoulder * (1.0 - roadTrackWear)
+  * smoothstep(0.32, 0.64, roadMesoLuma) * (0.35 + roadGreenHint * 0.65);
+diffuseColor.rgb = mix(diffuseColor.rgb, roadShoulderGrassColor,
+  roadShoulderTufts * roadShoulderColorMix);
 float coastalRoadWeight = coastalRoadField.a * (1.0 - smoothstep(13.0, 24.0, -coastalRoadField.b));
 diffuseColor.rgb = mix(diffuseColor.rgb, roadCoastalSand * mix(0.97, 1.0, roadSourceLuma), coastalRoadWeight);
 diffuseColor.a *= 1.0 - smoothstep(0.25, 0.65, coastalRoadWeight);`,
@@ -308,7 +312,7 @@ roughnessFactor = mix(
   max(0.84, roughnessFactor - sharedRoadWetness * 0.08),
   roadCoverage * roadWetnessRoughnessMix * roadSharedTransitionMix
 );
-roughnessFactor = max(0.84, roughnessFactor - roadTrackWear * roadWearRoughnessReduction * (1.0 - coastalRoadWeight));`,
+roughnessFactor = max(0.84, roughnessFactor - roadTrackWear * roadWearBreakup * roadWearRoughnessReduction * (1.0 - coastalRoadWeight));`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
@@ -363,7 +367,6 @@ export class RoadSurfaceMaterial {
       roadPolygonVariationStrength: { value: config.polygonVariationStrength },
       roadPolygonJaggedStrength: { value: config.polygonJaggedStrength },
       roadPolygonFacetLightingStrength: { value: config.polygonFacetLightingStrength },
-      roadSharedCellScale: { value: CANONICAL_RENDER_CONFIG.groundSurface.polygonCellScaleMeters },
       roadEdgeFadeStart: { value: config.edgeFadeStart },
       roadEdgeFadeFull: { value: config.edgeFadeFull },
       roadRoughness: { value: config.roughness },

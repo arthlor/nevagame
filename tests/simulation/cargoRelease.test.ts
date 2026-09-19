@@ -25,6 +25,8 @@ function instantLand(sim: Simulation, schoolId: string): string {
   sim.state.sportFishing!.lineTension = 35;
   sim.state.sportFishing!.dynamics!.landReadySeconds = 1;
   sim.tick(0.1);
+  expect(sim.state.sportFishing?.awaitingLandingChoice).toBe(true);
+  expect(sim.execute({ type: "fishing.keep-catch" }).success).toBe(true);
   expect(sim.state.sportFishing).toBeNull();
   const carried = sim.state.player.carriedFishCargoId;
   expect(carried).not.toBeNull();

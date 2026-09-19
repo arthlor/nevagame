@@ -1,3 +1,4 @@
+import { MAINLAND_VILLAGES } from "../world/NevaMainland";
 import { SUNREACH_OFFSET_X } from "../world/WorldIslands";
 // src/content/quests.ts
 
@@ -57,7 +58,7 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.elspeth",
     introDialogue: [
       "Welcome to Neva Cove, dear! Your family farmhouse and starter field are waiting for you — they are yours by inheritance, not something you have to buy back from the village.",
-      "They once tended these quiet coastal fields and sailed the deep waters beyond the headland. Let's start with the foundation of all life on the island: the soil.",
+      "They once tended these quiet coastal fields and sailed the deep waters beyond the headland. Let's start with the foundation of all life round the cove: the soil.",
       "Take these wheat seeds. Head into the prepared garden field just behind me to begin."
     ],
     completionDialogue: [
@@ -1140,7 +1141,7 @@ export const QUESTS: QuestDefinition[] = [
       "Grind some of that commons wheat there. The same stone serves every family in the cove. That is the useful part of an inheritance: a tool kept ready for the next pair of hands."
     ],
     completionDialogue: [
-      "Every tool on this island is a record of the hands that used it. Yours are on that handle now too."
+      "Every tool round this cove is a record of the hands that used it. Yours are on that handle now too."
     ],
     objectives: [
       {
@@ -1375,7 +1376,70 @@ export const QUESTS: QuestDefinition[] = [
       money: 350,
       skillXp: [{ skill: "trading", xp: 1400 }],
       unlocksKnowledgeIds: ["knowledge.freight_and_favour"]
-    }
+    },
+    nextQuestId: "quest.tradelanes_pinewatch"
+  },
+  {
+    id: "quest.tradelanes_pinewatch", trackId: TRADELANES_QUEST_TRACK_ID,
+    actId: "track_tradelanes", actTitle: "Freight and Favour", questTitle: "The Woodland Round",
+    speakerId: "npc.rowan",
+    herald: { npcId: "npc.maeve", lines: [
+      "There are more kitchens round this cove than ours. Rowan in Pinewatch has timber to send back and grain to buy.",
+      "Take the woodland road, or find the landing across the cove. The useful route is the one you can return along with a load."
+    ] },
+    introDialogue: [
+      "Eight measures of wheat will see the bakehouse through its next batch. Bring them to our counter and see what the road has earned you.",
+      "We trade timber and linen here. Look at your next job before you fill the return load."
+    ],
+    completionDialogue: ["Grain in, timber out. Now you have a reason to know both ends of that road."],
+    objectives: [
+      { id: "step.tradelanes_meet_rowan", type: "talk-npc", targetId: "npc.rowan", targetQuantity: 1,
+        description: "Meet Rowan at Pinewatch", locationAnchor: { ...MAINLAND_VILLAGES.pinewatch.npc, name: "Pinewatch Trade Yard" } },
+      { id: "step.tradelanes_pinewatch_wheat", type: "sell-item", targetId: "produce.wheat", targetQuantity: 8,
+        description: "Sell 8 Wheat at Pinewatch", location: { kind: "market", id: "market.pinewatch" },
+        locationAnchor: { ...MAINLAND_VILLAGES.pinewatch.market, name: "Pinewatch Timber & Trade" } }
+    ],
+    rewards: { money: 140, skillXp: [{ skill: "trading", xp: 500 }] },
+    nextQuestId: "quest.tradelanes_reedhaven"
+  },
+  {
+    id: "quest.tradelanes_reedhaven", trackId: TRADELANES_QUEST_TRACK_ID,
+    actId: "track_tradelanes", actTitle: "Freight and Favour", questTitle: "Where the Reeds Meet the Cove",
+    speakerId: "npc.mara",
+    herald: { npcId: "npc.rowan", lines: ["Follow the coast road south to Reedhaven. Mara keeps bait and ice at the exchange, and she buys a catch carried to her counter."] },
+    introDialogue: [
+      "A boat brings you to the landing; a cart takes the raised road. Either way, the last few steps are yours.",
+      "Bring one fresh fish pack to the exchange. Unload it first, then carry it to the scales. Keep the price and the time in mind for your next trip."
+    ],
+    completionDialogue: ["That catch held its freshness. Take bait for the way back, and leave the marsh as quietly as you found it."],
+    objectives: [
+      { id: "step.tradelanes_meet_mara", type: "talk-npc", targetId: "npc.mara", targetQuantity: 1,
+        description: "Meet Mara in Reedhaven", locationAnchor: { ...MAINLAND_VILLAGES.reedhaven.npc, name: "Reedhaven Exchange" } },
+      { id: "step.tradelanes_reedhaven_pack", type: "sell-fish", targetQuantity: 1,
+        description: "Carry a fresh fish pack to Reedhaven and sell it", location: { kind: "market", id: "market.reedhaven" },
+        locationAnchor: { ...MAINLAND_VILLAGES.reedhaven.market, name: "Reedhaven Marsh Exchange" } }
+    ],
+    rewards: { money: 180, skillXp: [{ skill: "trading", xp: 650 }] },
+    nextQuestId: "quest.tradelanes_highridge"
+  },
+  {
+    id: "quest.tradelanes_highridge", trackId: TRADELANES_QUEST_TRACK_ID,
+    actId: "track_tradelanes", actTitle: "Freight and Favour", questTitle: "Supper Above the Cove",
+    speakerId: "npc.ada",
+    herald: { npcId: "npc.mara", lines: ["Ada at Highridge buys for the mountain kitchens. There is no landing up there; keep to the pass road with your load."] },
+    introDialogue: [
+      "The sea is easy to see from here and harder to put on a plate. Bring two fish packs up the road and carry them to the counter one at a time.",
+      "The carriage carries two; the donkey carries the one on your back. Pack for the return as well. We keep workshop supplies up here."
+    ],
+    completionDialogue: ["Two fresh suppers at the end of a mountain road. That is a route worth keeping, and there will be more orders on the board."],
+    objectives: [
+      { id: "step.tradelanes_meet_ada", type: "talk-npc", targetId: "npc.ada", targetQuantity: 1,
+        description: "Meet Ada at Highridge", locationAnchor: { ...MAINLAND_VILLAGES.highridge.npc, name: "Highridge Provisions" } },
+      { id: "step.tradelanes_highridge_packs", type: "sell-fish", targetQuantity: 2,
+        description: "Sell 2 hand-carried fish packs at Highridge", location: { kind: "market", id: "market.highridge" },
+        locationAnchor: { ...MAINLAND_VILLAGES.highridge.market, name: "Highridge Provisions" } }
+    ],
+    rewards: { money: 240, skillXp: [{ skill: "trading", xp: 900 }] }
   },
 
   // ===========================================================================
@@ -1577,7 +1641,7 @@ export const QUESTS: QuestDefinition[] = [
       ]
     },
     introDialogue: [
-      "You have worked every water this island has, and you are still fishing them with tackle meant for the ones near shore.",
+      "You know our home waters now, and you are still carrying tackle meant for the ones near shore.",
       "There is an offshore rod on Maeve's rack. It is not a reward and nobody is giving it to you. Go and buy it, and then we will talk about where it can take you."
     ],
     completionDialogue: [
@@ -1608,7 +1672,7 @@ export const QUESTS: QuestDefinition[] = [
       "Swordfish hold there. They come up to feed in the dark and in dirty weather, and they run thickest in autumn and winter. Take the skiff out past where you can see the lighthouse and bring one back. Go on a night you have the fuel to be patient."
     ],
     completionDialogue: [
-      "Off the trench and home again. There are maybe four people on this island who have done that, and two of them are standing here."
+      "Off the trench and home again. There are maybe four people round this cove who have done that, and two of them are standing here."
     ],
     objectives: [
       {

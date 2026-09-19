@@ -31,3 +31,21 @@ export function sportFishLandingXp(
       species.baseMarketValue * SPORT_LANDING_VALUE_XP_RATE * weightModifier * qualityModifier
   );
 }
+
+/**
+ * Letting a landed fish go still taught the fight, so it pays a bounded share
+ * of the landing XP. Release must never pay more than keeping, or cargo and
+ * market value stop mattering; it pays less than the lost-fight Work refund.
+ */
+export const SPORT_RELEASE_XP_RATIO = 0.35;
+
+export function sportFishReleaseXp(
+  species: FishSpeciesDefinition,
+  weightKg: number,
+  quality: FishQuality
+): number {
+  return Math.max(
+    1,
+    Math.round(sportFishLandingXp(species, weightKg, quality) * SPORT_RELEASE_XP_RATIO)
+  );
+}

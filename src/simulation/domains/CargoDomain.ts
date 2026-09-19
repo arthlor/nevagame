@@ -20,6 +20,11 @@ export class CargoDomain {
     private readonly progression: ProgressionDomain
   ) {}
 
+  /** Whether a fish of this cargo class could be stowed right now. Pure query. */
+  public canStowClass(cargoClass: CargoClass): boolean {
+    return this.findLandingLocation(cargoClass) !== null;
+  }
+
   public landCaughtFish(
     fish: FishInstance,
     awardSportXp = true,

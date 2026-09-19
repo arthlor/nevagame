@@ -23,7 +23,7 @@ export interface GrayboxEnvelope {
 }
 
 export const HEADWATER_GRAYBOX_ENVELOPE: GrayboxEnvelope = Object.freeze({
-  minX: -55,
+  minX: -78,
   maxX: 20,
   minZ: -186,
   maxZ: -110,
@@ -99,11 +99,9 @@ export const HEADWATER_GRAYBOX_VIEWPOINTS: readonly GrayboxViewpoint[] = Object.
   Object.freeze({
     id: "viewpoint.headwaters.fall_face",
     name: "Fall Face (East Bank)",
-    // East bank downstream of the landing (ground 4.05 m, normal 0.99),
-    // looking back upstream at the sheet and the lip that feeds it. The first
-    // stance sat 11 m from the sheet and the fall filled the whole frame.
-    cameraPosition: Object.freeze({ x: -19.0, y: 7.3, z: -124.5 }),
-    targetPosition: Object.freeze({ x: -29.0, y: 8.5, z: -134.5 }),
+    // Survey the taller fall together with its receiving pool and rock ledge.
+    cameraPosition: Object.freeze({ x: -13.0, y: 14.5, z: -111.0 }),
+    targetPosition: Object.freeze({ x: -29.0, y: 11.0, z: -136.0 }),
     description: "Reverse view from the pool's east bank, framing the falling sheet against the lip and gorge.",
     primarySubject: "oblique-reveal",
     artViewId: "headwater-graybox-fall-face"

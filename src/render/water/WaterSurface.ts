@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import { WorldLayout } from "../../world/WorldLayout";
+import type { MarineSample } from "../../world/WorldIslands";
+import type { ShoreProjection } from "../../world/WorldGeographyTypes";
 import { NEVA_HEADWATERS, headwaterGradientAt } from "../../world/NevaHeadwaters";
+import { mainlandWaterSample } from "../../world/NevaMainland";
 import { WAVE_BAND_PHASES, WAVE_DETAIL_AXIS } from "./waveGlsl";
 
 export type WaterRegion = "river" | "sea" | "ocean";
@@ -23,6 +26,12 @@ export interface WaterSpatialProfile {
   signedWaterDistance: number;
   coastDistance: number;
   localDirection: THREE.Vector2;
+}
+
+/** One texel's canonical queries, shared only while its two water maps are baked. */
+export interface WaterSpatialQueries {
+  marine: MarineSample;
+  shore?: ShoreProjection;
 }
 
 export interface WaterSample {
@@ -87,8 +96,8 @@ function normalizedDirection(x: number, z: number): THREE.Vector2 {
 }
 
 /** Render-only regional classification with soft estuary and offshore transitions. */
-export function waterSpatialProfile(x: number, z: number): WaterSpatialProfile {
-  const marine = WorldLayout.marineSampleAt(x, z);
+export function waterSpatialProfile(x: number, z: number, queries?: WaterSpatialQueries): WaterSpatialProfile {
+  const marine = queries?.marine ?? WorldLayout.marineSampleAt(x, z);
   const southCoastZ = WorldLayout.coastlineZ(x);
   const riverSignedDistance = WorldLayout.riverWaterSignedDistance(x, z);
 
@@ -105,7 +114,8 @@ export function waterSpatialProfile(x: number, z: number): WaterSpatialProfile {
     * (1 - smoothstep(2, 27, Math.max(0, coastDistance)))
     * 0.82;
 
-  const river = Math.min(1, Math.max(channelInfluence, estuaryFlow));
+  const mainlandWater = mainlandWaterSample(x, z);
+  const river = Math.min(1, Math.max(channelInfluence, estuaryFlow, smoothstep(0, 0.8, mainlandWater.signedDistance)));
 
   const oceanBlend = smoothstep(
     WATER_WAVE_CONFIG.oceanBlend[0],
@@ -121,14 +131,17 @@ export function waterSpatialProfile(x: number, z: number): WaterSpatialProfile {
   const weights = { river, sea, ocean };
 
   const sampleDistance = 1.25;
-  const riverTangent = normalizedDirection(
-    WorldLayout.riverCenterX(z + sampleDistance) - WorldLayout.riverCenterX(z - sampleDistance),
-    sampleDistance * 2
-  );
+  const riverTangent = mainlandWater.signedDistance > -4
+    ? normalizedDirection(mainlandWater.direction.x, mainlandWater.direction.z)
+    : normalizedDirection(
+      WorldLayout.riverCenterX(z + sampleDistance) - WorldLayout.riverCenterX(z - sampleDistance),
+      sampleDistance * 2
+    );
   const marineDir = normalizedDirection(marine.waveDirection.x, marine.waveDirection.z);
   let coastalDirection = marineDir;
   if (sea > 0.0001 && Math.abs(marine.signedShoreDistance) < 90) {
-    const shore = WorldLayout.shoreProjectionAt(x, z);
+    const shore = queries?.shore ?? WorldLayout.shoreProjectionAt(x, z);
+    if (queries) queries.shore = shore;
     const shoreward = normalizedDirection(
       -shore.waterwardNormalXZ.x,
       -shore.waterwardNormalXZ.z

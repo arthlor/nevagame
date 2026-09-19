@@ -17,7 +17,8 @@ async function captureHarness() {
   const renderer = {
     info: { autoReset: true, reset: vi.fn(), memory: { geometries: 0, textures: 0 } },
     getContext: () => ({}), getPixelRatio: () => 1, compileAsync: async () => {},
-    shadowMap: { needsUpdate: false }, getRenderTarget: () => active,
+    shadowMap: { enabled: true, needsUpdate: false }, getRenderTarget: () => active,
+    autoClear: true, xr: { enabled: false }, getActiveCubeFace: () => 0, getActiveMipmapLevel: () => 0,
     setRenderTarget: (target: THREE.WebGLRenderTarget | null) => { active = target; },
     initRenderTarget: vi.fn(), copyTextureToTexture: vi.fn(), render: vi.fn()
   };
@@ -46,6 +47,7 @@ async function captureHarness() {
       sceneDraw.mockClear();
       output.mockClear();
       renderer.copyTextureToTexture.mockClear();
+      renderer.render.mockClear();
       pipeline.render(camera);
       return aoDraw.mock.calls.map(call => call[1]);
     },
@@ -89,11 +91,11 @@ describe("capture-mode AO and water continuity", () => {
         harness.frame();
         expect(harness.sceneDraw).toHaveBeenCalledTimes(1);
         expect(harness.output).toHaveBeenCalledTimes(1);
-        expect(harness.renderer.render).not.toHaveBeenCalled();
-        expect(harness.renderer.copyTextureToTexture).toHaveBeenCalledTimes(2);
+        expect(harness.renderer.render).toHaveBeenCalledTimes(1);
+        expect(harness.renderer.render.mock.calls[0][0].name).toBe("opaque_water_snapshot_pass");
+        expect(harness.renderer.copyTextureToTexture).not.toHaveBeenCalled();
         expect(harness.uniforms.uSceneCaptureEnabled.value).toBe(1);
         expect(harness.pipeline.diagnostics()).toMatchObject({ renderMode: mode, qualityTier: "high", gtaoActive: mode === "final" });
-        for (const [source, destination] of harness.renderer.copyTextureToTexture.mock.calls) expect(source).not.toBe(destination);
         color ??= harness.uniforms.uOpaqueColor.value;
         depth ??= harness.uniforms.uOpaqueDepth.value;
         expect(harness.uniforms.uOpaqueColor.value).toBe(color);

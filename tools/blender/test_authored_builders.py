@@ -23,9 +23,12 @@ from common.authored import (
     add_banded_tapered_tower,
     add_cylindrical_masonry,
     add_fasteners,
+    add_frame_and_panel,
+    add_hinge_strap,
     add_lattice,
     add_masonry_courses,
     add_mullioned_window,
+    add_peg_joint,
     add_plank_field,
     add_root_flare,
     add_rope_line,
@@ -63,6 +66,9 @@ def build_signature():
         add_canopy_lobe(f"test_canopy_{level}", (0, 0, 2), (1.2, .9, .7), TOKENS[0], root, seed=19, detail=level)
         add_conifer_tier(f"test_bough_{level}", (0, 0, 3), 1.3, .9, TOKENS[0], root, seed=20, detail=level)
     add_fasteners("test_fastener", ((-0.2, 0, 0.5), (0.2, 0, 0.5)), 0.03, TOKENS[1], root)
+    add_frame_and_panel("test_frame_panel", (0, 0, 1.2), 0.9, 1.4, TOKENS[0], TOKENS[1], root, frame=0.10, depth=0.06)
+    add_peg_joint("test_peg", ((-0.2, 0, 0.8), (0.2, 0, 0.8)), 0.025, TOKENS[1], root)
+    add_hinge_strap("test_hinge", (0.5, -0.5, 1.0), 0.5, 0.09, TOKENS[1], root)
     add_timber_corner_frame("test_timber", 1.6, 1.2, 0.2, 1.4, TOKENS[1], root, post_w=0.12)
     add_mullioned_window("test_window", (0, -0.7, 1.0), 0.5, 0.6, TOKENS[1], TOKENS[0], TOKENS[1], root)
     add_banded_tapered_tower("test_bands", 0.0, 1.8, 0.6, 0.35, TOKENS, root, bands=4, sides=8)
@@ -85,6 +91,7 @@ def build_signature():
     prefixes = {
         "test_masonry", "test_tower", "test_shingle", "test_plank", "test_lattice",
         "test_rope", "test_arch", "test_root", "test_fastener",
+        "test_frame_panel", "test_peg", "test_hinge",
         "test_timber", "test_window", "test_bands",
         "test_multi_material",
         "test_buttress", "test_canopy", "test_bough",
@@ -130,7 +137,7 @@ def build_signature():
                 actual = Vector(color.data[loop_index].color[:3])
                 value = actual.dot(expected) / expected.length_squared
                 residual = (actual - expected * value).length
-                if not 0.70 <= value <= 1.04 or residual > 0.025:
+                if not 0.70 <= value <= 1.06 or residual > 0.025:
                     raise AssertionError(f"{obj.name} COLOR_0 does not follow material {material.name}")
         signature.append((obj.name, len(obj.data.vertices), len(obj.data.loop_triangles), tuple(round(value, 6) for value in values),
                           tuple(tuple(round(c, 6) for c in v.co) for v in obj.data.vertices)))

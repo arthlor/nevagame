@@ -1,3 +1,4 @@
+import { MAINLAND_VILLAGES } from "./NevaMainland";
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "./OceanIslets";
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { WORLD_DISCOVERIES } from "../content/discoveries";
@@ -206,6 +207,9 @@ export const WORLD_STATION_DEFINITIONS: Readonly<Record<string, Readonly<WorldSt
 });
 
 export const WORLD_MARKET_LOCATIONS: Readonly<Record<string, Readonly<WorldMarketLocation>>> = Object.freeze({
+  ...Object.fromEntries(Object.values(MAINLAND_VILLAGES).map((village) => [village.marketId, {
+    id: village.marketId, islandId: "island.neva", regionId: village.regionId, position: village.market, radiusMeters: 7
+  } satisfies WorldMarketLocation])),
   [VILLAGE_MARKET.marketId]: Object.freeze({
     id: VILLAGE_MARKET.marketId,
     islandId: "island.neva",
@@ -230,9 +234,16 @@ export const WORLD_MARKET_LOCATIONS: Readonly<Record<string, Readonly<WorldMarke
 });
 
 export const WORLD_CHART_NODES: readonly Readonly<WorldChartNode>[] = Object.freeze([
+  ...Object.values(MAINLAND_VILLAGES).map((village): WorldChartNode => ({
+    id: `chart.${village.id}`, islandId: "island.neva", regionId: village.regionId, position: village.market,
+    label: village.label, kind: "market", marketId: village.marketId
+  })),
   ...OCEAN_ISLETS.map((islet): WorldChartNode => ({ id: `chart.${islet.id}`, islandId: islet.id, regionId: "region.open_channel",
     position: OCEAN_ISLAND_DEFINITIONS[islet.id].anchors.landing, label: islet.title, kind: "landmark" })), 
   ...WORLD_DISCOVERIES.slice(0, 4).map((entry): WorldChartNode => ({ id: `chart.${entry.id}`, islandId: "island.neva", regionId: "region.coast", position: entry.position, label: entry.title, kind: "landmark" })),
+  { id: "chart.mainland_lake", islandId: "island.neva", regionId: "region.pinewatch", position: { x: -590, z: -180 }, label: "Pinewatch Lake", kind: "water", fishingHabitat: "lake", fishingEcologyId: "ecology.neva" },
+  { id: "chart.mainland_river", islandId: "island.neva", regionId: "region.pinewatch", position: { x: -550, z: 70 }, label: "Reedwater River", kind: "water", fishingHabitat: "river", fishingEcologyId: "ecology.neva" },
+  { id: "chart.reedhaven_coast", islandId: "island.neva", regionId: "region.reedhaven", position: { x: -460, z: 333 }, label: "Reedhaven Cove Grounds", kind: "water", fishingHabitat: "coast", fishingEcologyId: "ecology.neva" },
   { id: "chart.neva_farm", islandId: "island.neva", regionId: "region.farm", position: STARTER_FARM_LAYOUT.origin, label: "Family Farm", kind: "farm", farmId: "farm.starter_garden" },
   { id: "chart.neva_homestead", islandId: "island.neva", regionId: "region.farm", position: PLAYER_HOMESTEAD_LAYOUT.origin, label: "Village Commons", kind: "farm", farmId: "farm.player_homestead" },
   { id: "chart.neva_village", islandId: "island.neva", regionId: "region.village", position: VILLAGE_MARKET.position, label: "Village Market", kind: "market", marketId: "market.village" },
@@ -250,6 +261,9 @@ export const WORLD_CHART_NODES: readonly Readonly<WorldChartNode>[] = Object.fre
 ]);
 
 export const WORLD_AMBIENCE_PROFILES: readonly Readonly<WorldAmbienceProfile>[] = Object.freeze([
+  { id: "ambience.pinewatch", islandId: "island.neva", regionId: "region.pinewatch", windGain: 0.3, surfGain: 0.22, insectsGain: 0.65, harborGain: 0.15 },
+  { id: "ambience.reedhaven", islandId: "island.neva", regionId: "region.reedhaven", windGain: 0.3, surfGain: 0.28, insectsGain: 0.8, harborGain: 0.2 },
+  { id: "ambience.highridge", islandId: "island.neva", regionId: "region.highridge", windGain: 0.8, surfGain: 0, insectsGain: 0.15, harborGain: 0 },
   { id: "ambience.neva_village", islandId: "island.neva", regionId: "region.village", windGain: 0.35, surfGain: 0.08, insectsGain: 0.38, harborGain: 0 },
   { id: "ambience.neva_farm", islandId: "island.neva", regionId: "region.farm", windGain: 0.3, surfGain: 0.06, insectsGain: 0.5, harborGain: 0 },
   { id: "ambience.neva_coast", islandId: "island.neva", regionId: "region.coast", windGain: 0.58, surfGain: 0.7, insectsGain: 0.12, harborGain: 0 },
@@ -266,6 +280,9 @@ export const WORLD_AMBIENCE_PROFILES: readonly Readonly<WorldAmbienceProfile>[] 
 // nodes share a region and silently kept the last one (e.g. region.village
 // became "Village Mill"). The region name is what the HUD and pause screen show.
 export const WORLD_REGION_LABELS: Readonly<Record<WorldRegionId, string>> = Object.freeze({
+  "region.pinewatch": "Pinewatch Forest",
+  "region.reedhaven": "Reedhaven Marsh",
+  "region.highridge": "Highridge Uplands",
   "region.village": "Village Market",
   "region.farm": "Family Farm & Commons",
   "region.coast": "Neva Coast",

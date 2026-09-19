@@ -2,6 +2,7 @@
 import { test, expect } from "@playwright/test";
 import path from "path";
 import fs from "fs";
+import { MAINLAND_VILLAGES } from "../../src/world/NevaMainland";
 
 /**
  * Draw-call and triangle budget, measured against a PRODUCTION build.
@@ -38,6 +39,7 @@ test("production build stays within the representative render budget", async ({ 
   test.setTimeout(480_000);
 
   const runtimeErrors: string[] = [];
+  const expectedAborts: string[] = [];
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") runtimeErrors.push(message.text());
@@ -46,6 +48,13 @@ test("production build stays within the representative render budget", async ({ 
     // Analytics beacons are aborted on scroll/unload by design. They say
     // nothing about the game's render or runtime health.
     if (new URL(request.url()).hostname.endsWith("google-analytics.com")) return;
+    // Auto-start skips the cinematic after its loading screen has prebuffered it.
+    // Preserve the expected cancellation as evidence; other media errors fail.
+    if (new URL(request.url()).pathname === "/assets/video/intro.mp4"
+      && request.failure()?.errorText === "net::ERR_ABORTED") {
+      expectedAborts.push(request.url());
+      return;
+    }
     runtimeErrors.push(`${request.url()}: ${request.failure()?.errorText}`);
   });
   page.on("response", (response) => {
@@ -122,6 +131,7 @@ test("production build stays within the representative render budget", async ({ 
   });
   console.info(`[E2E] Render scenario: ${JSON.stringify(snapshot)}`);
   console.info(`[E2E] Runtime errors: ${JSON.stringify(runtimeErrors)}`);
+  console.info(`[E2E] Expected auto-start media cancellations: ${JSON.stringify(expectedAborts)}`);
 
   console.info(
     `[E2E] Production render budget: ${drawCalls} draw calls, ${triangles} triangles` +
@@ -176,7 +186,14 @@ const performanceScenarios = [
   { id: "boat-driving", query: "debugStart=boat-driving", settleMs: 5_000, rotate: false },
   { id: "sport-fishing", query: "debugStart=sport-fishing", settleMs: 6_000, rotate: true },
   { id: "storm-river-source", query: "goldTest=river_source&artWeather=storm", settleMs: 5_000, rotate: false },
-  { id: "dawn-farm", query: "goldTest=starter_farm&artMinute=420", settleMs: 5_000, rotate: false }
+  { id: "dawn-farm", query: "goldTest=starter_farm&artMinute=420", settleMs: 5_000, rotate: false },
+  ...Object.values(MAINLAND_VILLAGES).map((village) => ({
+    id: `mainland-${village.id.replace("mainland.", "")}`,
+    query: "artMinute=720",
+    settleMs: 8_000,
+    rotate: true,
+    teleport: village.market
+  }))
 ] as const;
 
 test.describe("gameplay performance routes", () => {
@@ -186,12 +203,18 @@ test.describe("gameplay performance routes", () => {
       test.setTimeout(300_000);
 
       const runtimeErrors: string[] = [];
+      const expectedAborts: string[] = [];
       page.on("pageerror", (error) => runtimeErrors.push(error.message));
       page.on("console", (message) => {
         if (message.type() === "error") runtimeErrors.push(message.text());
       });
       page.on("requestfailed", (request) => {
         if (new URL(request.url()).hostname.endsWith("google-analytics.com")) return;
+        if (new URL(request.url()).pathname === "/assets/video/intro.mp4"
+          && request.failure()?.errorText === "net::ERR_ABORTED") {
+          expectedAborts.push(request.url());
+          return;
+        }
         runtimeErrors.push(`${request.url()}: ${request.failure()?.errorText}`);
       });
 
@@ -199,6 +222,9 @@ test.describe("gameplay performance routes", () => {
       await page.goto(`/?debug=1&worldAcceptance=1&${scenario.query}`);
       const diagnostics = page.getByTestId("diagnostics");
       await expect(diagnostics).toHaveAttribute("data-boot-ready", "true", { timeout: 300_000 });
+      if ("teleport" in scenario) {
+        await page.evaluate(({ x, z }) => window.__NEVA_DEBUG!.teleport(x, z), scenario.teleport);
+      }
       await page.waitForTimeout(scenario.settleMs);
 
       if (scenario.rotate) {
@@ -221,6 +247,7 @@ test.describe("gameplay performance routes", () => {
         const rendered = debug?.renderDiagnostics();
         if (!rendered) return null;
         return {
+          viewport: { width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio },
           renderMode: rendered.renderMode,
           qualityTier: rendered.world.qualityTier,
           draws: rendered.world.render.calls,
@@ -229,7 +256,9 @@ test.describe("gameplay performance routes", () => {
           phase: rendered.presentation.phaseTiming ?? null,
           gpu: rendered.world.pipeline.gpuTiming,
           atlas: rendered.world.shadowAtlas,
-          work: rendered.world.presentationWork
+          work: rendered.world.presentationWork,
+          trianglesByGroup: rendered.world.trianglesByGroup,
+          assetCache: rendered.world.assetCache
         };
       });
 
@@ -237,9 +266,12 @@ test.describe("gameplay performance routes", () => {
       const runDirectory = process.env.NEVA_BUDGET_RUN_DIR;
       if (runDirectory) {
         fs.mkdirSync(runDirectory, { recursive: true });
+        if ("teleport" in scenario) {
+          await page.screenshot({ path: path.join(runDirectory, `scenario-${scenario.id}.png`) });
+        }
         fs.writeFileSync(
           path.join(runDirectory, `scenario-${scenario.id}.json`),
-          JSON.stringify({ scenario: scenario.id, query: scenario.query, metrics }, null, 1)
+          JSON.stringify({ scenario: scenario.id, query: scenario.query, metrics, runtimeErrors, expectedAborts }, null, 1)
         );
       }
       expect(runtimeErrors).toEqual([]);

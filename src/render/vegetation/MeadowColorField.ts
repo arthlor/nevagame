@@ -99,10 +99,9 @@ struct NevaMeadowSample {
   float clump;
 };
 
-NevaMeadowSample nevaMeadowSample(vec2 xz, float meadowShare, float dry, float damp) {
+NevaMeadowSample nevaMeadowSample(vec2 xz, float meadowShare, float dry, float damp, float clump) {
   float warm = nevaMeadowMacro(xz);
   float cool = nevaMeadowMacro(xz * 0.63 + vec2(41.0, -17.0));
-  float clump = nevaMeadowClump(xz);
   vec3 root = mix(nevaMeadowRoot, nevaMeadowRootCool, smoothstep(0.3, 0.7, cool));
   // Fresh cool greens carry most of the meadow; olive and leaf warm its drier rises.
   vec3 body = mix(nevaMeadowBody, nevaMeadowBodyCool, smoothstep(0.2, 0.65, cool));
@@ -121,6 +120,10 @@ NevaMeadowSample nevaMeadowSample(vec2 xz, float meadowShare, float dry, float d
   s.tip = nevaApplySeason(tip * value);
   s.clump = clump;
   return s;
+}
+
+NevaMeadowSample nevaMeadowSample(vec2 xz, float meadowShare, float dry, float damp) {
+  return nevaMeadowSample(xz, meadowShare, dry, damp, nevaMeadowClump(xz));
 }
 
 vec3 nevaMeadowCarpetColor(NevaMeadowSample s) {

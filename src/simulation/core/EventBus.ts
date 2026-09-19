@@ -47,6 +47,8 @@ export interface DomainEvents {
   FishHooked: { speciesId: FishSpeciesId; ecologyId: FishingEcologyId; habitatId: string; weightKg: number; minute: GameMinute };
   FishLanded: { cargoId: FishCargoId; speciesId: FishSpeciesId; ecologyId: FishingEcologyId; boatId?: BoatId; weightKg: number; quality: FishQuality; record?: "first" | "weight" | "quality"; minute: GameMinute };
   FishReleased: { cargoId: FishCargoId; speciesId: FishSpeciesId; weightKg: number; quality: FishQuality; minute: GameMinute };
+  /** A landed sport fish was let go at the landing choice, before any cargo existed. */
+  SportFishReleased: { speciesId: FishSpeciesId; weightKg: number; quality: FishQuality; minute: GameMinute };
   FishEscaped: { speciesId: FishSpeciesId; reason: "escaped" | "snapped" | "no-cargo-space"; minute: GameMinute };
   BasicFishingStarted: { ecologyId: FishingEcologyId; habitatId: string; castPower: number; minute: GameMinute };
   BasicFishingBiteAlert: { ecologyId: FishingEcologyId; habitatId: string; speciesId: FishSpeciesId; minute: GameMinute };

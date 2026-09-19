@@ -132,6 +132,8 @@ const sportHud: SportFishingHudDto = {
   lineIntegrityPercent: 100,
   showLineWarning: false,
   landingProgress: null,
+  awaitingLandingChoice: false,
+  keepAvailable: false,
   signatureMoment: null,
   dragNotch: 1,
   telemetry: {
@@ -229,6 +231,30 @@ describe("Milestone M5 tactile overlays", () => {
     expect(damagedRun).toContain("Running left");
     expect(damagedRun).toContain("Pull right");
     expect(damagedRun).toContain(">D<");
+  });
+
+  it("shows the keep/release decision instead of fight controls once the fish is beaten", () => {
+    const decision = renderToString(
+      React.createElement(FishingHUD, {
+        hud: { ...sportHud, awaitingLandingChoice: true, keepAvailable: true },
+        onSetInput: () => {},
+        onKeepCatch: () => {},
+        onReleaseCatch: () => {}
+      })
+    );
+    expect(decision).toContain('data-testid="fishing-landing-choice"');
+    expect(decision).toContain("Keep");
+    expect(decision).toContain("Release");
+    expect(decision).not.toContain('data-testid="fishing-telemetry"');
+    expect(decision).not.toContain('data-testid="fishing-decision"');
+
+    const noRoom = renderToString(
+      React.createElement(FishingHUD, {
+        hud: { ...sportHud, awaitingLandingChoice: true, keepAvailable: false },
+        onSetInput: () => {}
+      })
+    );
+    expect(noRoom).toContain("No room in the hold");
   });
 
   it("renders the seed dock with wheat and a quantity badge", () => {

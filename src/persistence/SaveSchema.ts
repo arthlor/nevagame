@@ -31,7 +31,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 48;
+export const CURRENT_SCHEMA_VERSION = 53;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -57,7 +57,7 @@ function isFiniteInRange(value: unknown, minimum: number, maximum: number): valu
 }
 
 const SKILL_IDS = ["farming", "fishing", "processing", "trading"] as const;
-const WEATHER_TYPES = ["clear", "cloudy", "light-rain", "heavy-rain", "windy", "fog", "storm"] as const;
+const WEATHER_TYPES = ["clear", "cloudy", "light-rain", "heavy-rain", "windy", "fog", "storm", "drought"] as const;
 const FISHING_HABITATS = ["river", "lake", "coast", "offshore"] as const;
 const FISHING_ECOLOGIES = ["ecology.neva", "ecology.sunreach"] as const;
 const FISH_QUALITIES = ["common", "fine", "exceptional", "trophy"] as const;
@@ -146,8 +146,18 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 42
+    (schemaVersion >= 53
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 52
+      ? state.world.layoutRevision !== 24
+      : schemaVersion >= 51
+      ? state.world.layoutRevision !== 23
+      : schemaVersion >= 50
+      ? state.world.layoutRevision !== 22
+      : schemaVersion >= 47
+      ? state.world.layoutRevision !== 21
+      : schemaVersion >= 42
+      ? state.world.layoutRevision !== 20
       : schemaVersion >= 41
       ? state.world.layoutRevision !== 19
       : schemaVersion >= 40
@@ -356,7 +366,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         state.sportFishing.dragNotch !== 2)
     )) return false;
     if (
-      state.sportFishing.result !== "active" ||
+      (state.sportFishing.result !== "active" &&
+        !(state.sportFishing.result === "landed" && state.sportFishing.awaitingLandingChoice === true)) ||
+      (state.sportFishing.awaitingLandingChoice !== undefined &&
+        typeof state.sportFishing.awaitingLandingChoice !== "boolean") ||
       typeof state.sportFishing.rodId !== "string" ||
       !ContentRegistry.rods.has(state.sportFishing.rodId) ||
       !isRecord(state.sportFishing.fish) ||

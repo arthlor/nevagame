@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MarketId, RodId } from "../simulation/core/types";
-import { FISH_TRADE_CENTER_MARKET_ID } from "../content/markets";
+import { marketAcceptsFishTradePacks } from "../content/markets";
 import { IconCoin, IconFish, IconJournal, IconRod, IconSprout } from "./components/HudIcons";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { AtlasImage } from "./chrome/AtlasImage";
@@ -381,7 +381,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               Fish hold
             </button>
           ) : null}
-          {activeMarketId === FISH_TRADE_CENTER_MARKET_ID ? (
+          {marketAcceptsFishTradePacks(activeMarketId) ? (
             <button
               type="button"
               id="market-section-trade-packs"
@@ -570,6 +570,18 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                             <div>
                               <strong className="comm-name">{name}</strong>
                               <span className="comm-owned">In satchel: {row.owned}</span>
+                              {row.lots.some((lot) => lot.quality) && (
+                                <span className="comm-lots">
+                                  {row.lots.map((lot) => (
+                                    <span
+                                      key={lot.quality ?? "ungraded"}
+                                      className={`comm-lot-tag${lot.quality ? ` is-${lot.quality}` : ""}`}
+                                    >
+                                      {lot.quantity} {lot.quality ?? "ungraded"}
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="comm-right">
@@ -753,11 +765,11 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   </h3>
                 </div>
                 <p className="market-section-note">
-                  Collect a pack from a docked boat, carry it here, and sell it one pack at a time.
+                  Unload a pack from your boat or carriage, carry it to the counter, and sell it one at a time.
                 </p>
                 {tradePackList.length === 0 ? (
                   <div className="no-cargo-card">
-                    <span>No trade pack in hand. Collect one from a docked boat, then carry it here.</span>
+                    <span>No trade pack in hand. Collect one from your boat or carriage, then carry it here.</span>
                   </div>
                 ) : (
                   <div className="fish-cargo-trade-list">
@@ -880,9 +892,25 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     </div>
                   </div>
                   <div className="market-ticket-price">
-                    <span>Unit price</span>
+                    <span>
+                      {ticketPrice.qualityBreakdown && ticketPrice.qualityBreakdown.length > 1
+                        ? "Average unit price"
+                        : "Unit price"}
+                    </span>
                     <strong>{ticketPrice.unitPrice} G</strong>
                   </div>
+                  {ticketPrice.qualityBreakdown?.some((line) => line.quality) && (
+                    <ul className="market-quality-breakdown" data-testid="market-quality-breakdown">
+                      {ticketPrice.qualityBreakdown.map((line) => (
+                        <li key={line.quality ?? "ungraded"}>
+                          <span>
+                            {line.quantity} × {line.quality ?? "ungraded"}
+                          </span>
+                          <strong>{line.subtotal.toLocaleString()} G</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {demandTrend && <details className="market-details-disclosure"><summary>Demand outlook</summary><MarketDemandTrend trend={demandTrend} /></details>}
                   <div className="market-qty-stepper" data-testid="market-sell-qty">
                     <ChromeButton

@@ -32,6 +32,8 @@ const baseSportHud: SportFishingHudDto = {
   lineIntegrityPercent: 100,
   showLineWarning: false,
   landingProgress: null,
+  awaitingLandingChoice: false,
+  keepAvailable: false,
   signatureMoment: null,
   dragNotch: 1,
   telemetry: {

@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import baseline from "./neva-layout10-working-preservation.json";
 import { captureTerrainPreservation, compareTerrainPreservation } from "./terrain-preservation";
+import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
+import { WORLD_ISLAND_DEFINITIONS } from "../../src/world/WorldIslands";
 import {
   FARM_ROUTES,
-  WORLD_BOUNDS,
   WORLD_LAYOUT_V5,
   WORLD_ROUTES,
   WorldLayout
@@ -18,8 +19,10 @@ function fixed(value: number): number {
 }
 
 const terrainWaterSamples = [];
-for (let x = WORLD_BOUNDS.minX; x <= WORLD_BOUNDS.maxX; x += 6) {
-  for (let z = WORLD_BOUNDS.minZ; z <= WORLD_BOUNDS.maxZ; z += 6) {
+const nevaBounds = WORLD_ISLAND_DEFINITIONS["island.neva"].authoredBounds;
+const terrainSampling = { bounds: nevaBounds, spacingMeters: 6 };
+for (let x = nevaBounds.minX; x <= nevaBounds.maxX; x += terrainSampling.spacingMeters) {
+  for (let z = nevaBounds.minZ; z <= nevaBounds.maxZ; z += terrainSampling.spacingMeters) {
     const surface = WorldLayout.terrainSurfaceSample(x, z);
     terrainWaterSamples.push({
       x,
@@ -36,7 +39,7 @@ for (let x = WORLD_BOUNDS.minX; x <= WORLD_BOUNDS.maxX; x += 6) {
   }
 }
 
-const routes = [...WORLD_ROUTES, ...FARM_ROUTES].map((route) => ({
+const routes = [...WORLD_ROUTES, ...FARM_ROUTES, ...MAINLAND_ROUTES].map((route) => ({
   ...route,
   points: route.points.map((point) => ({ x: fixed(point.x), z: fixed(point.z) }))
 }));
@@ -53,6 +56,7 @@ process.stdout.write(`${JSON.stringify({
   terrainWaterHash: hash(terrainWaterSamples),
   routeHash: hash(routes),
   landmarkHash: hash(landmarks),
+  terrainSampling,
   sampleCount: terrainWaterSamples.length,
   historicalChecks,
   workingChecks

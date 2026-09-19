@@ -186,7 +186,7 @@ const WatersGuide: React.FC = () => (
         <div className="guide-step-num"><span>4</span></div>
         <div className="guide-step-content">
           <h4>Land &amp; Pack the Catch</h4>
-          <p>Sport fish and physical basic catches become trade packs. Land one into an open boat slot, then collect it from the docked boat and carry it by hand to the Village Trade Center.</p>
+          <p>Sport fish and physical basic catches become trade packs. Keep a catch in an open boat slot, then collect it from the docked boat. Carry it to a counter in Neva Village, Pinewatch, Reedhaven or Highridge.</p>
           <span className="guide-step-tip">Freshness degrades over time — use ice to preserve value</span>
         </div>
       </div>
@@ -195,7 +195,7 @@ const WatersGuide: React.FC = () => (
       <div className="guide-callout-icon"><IconBoat size={18} aria-hidden="true" /></div>
       <div className="guide-callout-text">
         <strong>Freshness on the Run</strong>
-        <p>Keep an eye on freshness and use ice in the boat hold. The Harbor Fish Market sells tackle and supplies; your carried trade pack is sold at the village counter.</p>
+        <p>Keep an eye on freshness and use ice in the boat hold. The Harbor Fish Market sells tackle and supplies; village counters buy your carried trade packs. Longer trips can find better prices, but the catch keeps ageing.</p>
       </div>
     </div>
   </div>
@@ -224,8 +224,8 @@ const TradeGuide: React.FC = () => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>2</span></div>
         <div className="guide-step-content">
-          <h4>Boat to Counter</h4>
-          <p>At a docked boat, use the collect prompt to take one fish trade pack in your hands. Walk it to the Village Produce Market and sell it from the Trade packs ledger.</p>
+          <h4>Boat to Village</h4>
+          <p>Collect a pack from your docked boat. Carry one on the donkey, or load two small or medium packs into the carriage. At Neva Village, Pinewatch, Reedhaven or Highridge, unload and carry each pack to the Trade packs counter.</p>
           <span className="guide-step-tip">The Harbor Fish Market never sells a pack straight from the hold</span>
         </div>
       </div>
@@ -233,7 +233,7 @@ const TradeGuide: React.FC = () => (
         <div className="guide-step-num"><span>3</span></div>
         <div className="guide-step-content">
           <h4>Market Demand Shifts</h4>
-          <p>The arrows beside a market quote show how demand is changing. Goods in short supply usually sell for more.</p>
+          <p>The arrows beside a market quote show how demand is changing. Pinewatch needs grain and fish, Reedhaven trades bait and ice, and Highridge pays for fresh deliveries up the pass. The expedition board names the destination and its routes.</p>
           <span className="guide-step-tip">Check quotes before packing an expedition</span>
         </div>
       </div>

@@ -7,13 +7,14 @@ import { createCoastalUniforms } from "../../src/render/water/CoastalOptics";
 afterEach(()=>vi.unstubAllGlobals());
 
 describe("opaque water snapshot ownership",()=>{
-  it("copies color/depth once per frame without re-rendering the world, and releases each resized/tier target",async()=>{
+  it("snapshots color/depth in one GPU draw per frame and releases each resized/tier target",async()=>{
     vi.stubGlobal("window",{devicePixelRatio:1});
     const snapshots:THREE.WebGLRenderTarget[]=[];
     let active:THREE.WebGLRenderTarget|null=null;
     const renderer={
       info:{autoReset:true,reset:vi.fn(),memory:{geometries:0,textures:0}},
-      getContext:()=>({}),getPixelRatio:()=>1,compileAsync:async()=>{},shadowMap:{needsUpdate:false},
+      getContext:()=>({}),getPixelRatio:()=>1,compileAsync:async()=>{},shadowMap:{enabled:true,needsUpdate:false},
+      autoClear:true,xr:{enabled:false},getActiveCubeFace:()=>0,getActiveMipmapLevel:()=>0,
       getRenderTarget:()=>active,setRenderTarget:(target:THREE.WebGLRenderTarget)=>{active=target;},
       initRenderTarget:(target:THREE.WebGLRenderTarget)=>snapshots.push(target),
       copyTextureToTexture:vi.fn(),render:vi.fn()
@@ -33,10 +34,11 @@ describe("opaque water snapshot ownership",()=>{
         active=composer.renderTarget1;
         const draw=()=>mesh.onBeforeRender(renderer as unknown as THREE.WebGLRenderer,scene,camera,mesh.geometry,mesh.material,null!);
         composer.render=()=>{draw();draw();draw();};
-        const copies=renderer.copyTextureToTexture.mock.calls.length;
+        renderer.render.mockClear();
         pipeline.render(camera);
-        expect(renderer.copyTextureToTexture.mock.calls.length-copies).toBe(2);
-        expect(renderer.render).not.toHaveBeenCalled();
+        expect(renderer.copyTextureToTexture).not.toHaveBeenCalled();
+        expect(renderer.render).toHaveBeenCalledTimes(1);
+        expect(renderer.render.mock.calls[0][0]).not.toBe(scene);
         expect(uniforms.uSceneCaptureEnabled.value).toBe(1);
         expect(uniforms.uOpaqueColor.value).not.toBe(active.texture);
         expect(uniforms.uOpaqueDepth.value).not.toBe(active.depthTexture);

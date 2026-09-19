@@ -19,7 +19,9 @@ import { expectFarmsPreserved } from "../helpers/migrationPreservation";
 import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 import fixture from "../fixtures/save_v31_layout11.json";
 
-const unsupportedEdge = { x: -210, z: -210 };
+// The former northwestern ocean probe is mainland after layout22. Keep this
+// historical-recovery scenario on the retained eastern sea edge instead.
+const unsupportedEdge = { x: 190, z: 100 };
 
 function legacy(): SaveEnvelope {
   return structuredClone(fixture) as unknown as SaveEnvelope;

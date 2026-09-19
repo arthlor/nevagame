@@ -1,17 +1,19 @@
 import { runSync, runCooperatively } from "../../utils/CooperativeTask";
 import * as THREE from "three";
-import { createWaterDepthMap, waterDepthMapSteps, createCoastalUniforms, WATER_OUTPUT_GLSL, type CoastalUniforms } from "./CoastalOptics";
+import { createWaterDepthTexture, writeWaterDepthTexel, createCoastalUniforms, WATER_OUTPUT_GLSL, type CoastalUniforms } from "./CoastalOptics";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { GROUND_POLYGON_CELL_GLSL } from "../materials/GroundPolygonCells";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
-import { WATER_SURFACE } from "../../world/WorldLayout";
+import { WATER_SURFACE, WorldLayout } from "../../world/WorldLayout";
 import { NEVA_HEADWATERS } from "../../world/NevaHeadwaters";
 import {
   WATER_WAVE_CONFIG,
   WaterSurface,
   waterSpatialProfile,
-  type WaterConditions
+  type WaterConditions,
+  type WaterSpatialProfile,
+  type WaterSpatialQueries
 } from "./WaterSurface";
 import {
   createHeadwaterUniforms,
@@ -26,6 +28,7 @@ import {
 import { WATER_SHADING_UNIFORMS_GLSL, WATER_SURFACE_SHADING_GLSL } from "./waterShadingGlsl";
 import { NearWaterPatch } from "./NearWaterPatch";
 import { HeadwaterFall } from "./HeadwaterFall";
+import { tileWaterGeometry } from "./waterSurfaceTiles";
 
 export interface WaterOptions {
   width?: number;
@@ -59,15 +62,23 @@ export function* waterProfileMapSteps(
       const z = bounds.y + (row / (height - 1)) * bounds.w;
       const profile = waterSpatialProfile(x, z);
       const offset = (row * width + column) * 4;
-      data[offset] = Math.round(
-        THREE.MathUtils.clamp((profile.signedWaterDistance + 16) / 32, 0, 1) * 255
-      );
-      data[offset + 1] = Math.round(profile.weights.river * 255);
-      data[offset + 2] = Math.round(profile.weights.ocean * 255);
-      const angle = Math.atan2(profile.localDirection.y, profile.localDirection.x);
-      data[offset + 3] = Math.round(((angle + Math.PI) / (Math.PI * 2)) * 255);
+      writeWaterProfileTexel(data, offset, profile);
     }
   }
+  return createWaterProfileTexture(data, width, height);
+}
+
+function writeWaterProfileTexel(data: Uint8Array, offset: number, profile: WaterSpatialProfile): void {
+  data[offset] = Math.round(
+    THREE.MathUtils.clamp((profile.signedWaterDistance + 16) / 32, 0, 1) * 255
+  );
+  data[offset + 1] = Math.round(profile.weights.river * 255);
+  data[offset + 2] = Math.round(profile.weights.ocean * 255);
+  const angle = Math.atan2(profile.localDirection.y, profile.localDirection.x);
+  data[offset + 3] = Math.round(((angle + Math.PI) / (Math.PI * 2)) * 255);
+}
+
+function createWaterProfileTexture(data: Uint8Array, width: number, height: number): THREE.DataTexture {
   const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
@@ -76,6 +87,31 @@ export function* waterProfileMapSteps(
   texture.generateMipmaps = false;
   texture.needsUpdate = true;
   return texture;
+}
+
+/** Keep the same lattice/encodings while sharing expensive geography queries per texel. */
+export function* waterFieldMapsSteps(
+  bounds: THREE.Vector4, width: number, height: number
+): Generator<void, { profile: THREE.DataTexture; depth: THREE.DataTexture }, void> {
+  const profileData = new Uint8Array(width * height * 4);
+  const depthData = new Uint16Array(width * height * 4);
+  for (let row = 0; row < height; row += 1) {
+    const z = bounds.y + (row / (height - 1)) * bounds.w;
+    for (let column = 0; column < width; column += 1) {
+      if (column % 32 === 0) yield;
+      const x = bounds.x + (column / (width - 1)) * bounds.z;
+      const queries: WaterSpatialQueries = { marine: WorldLayout.marineSampleAt(x, z) };
+      const profile = waterSpatialProfile(x, z, queries);
+      const offset = (row * width + column) * 4;
+      writeWaterProfileTexel(profileData, offset, profile);
+      writeWaterDepthTexel(depthData, offset, x, z, queries.marine.signedShoreDistance, queries.shore);
+    }
+  }
+  // Textures are allocated only after the abortable sampling work is complete.
+  return {
+    profile: createWaterProfileTexture(profileData, width, height),
+    depth: createWaterDepthTexture(depthData, width, height)
+  };
 }
 
 const vertexShader = /* glsl */ `
@@ -266,12 +302,19 @@ export class FacetedWater {
     );
     const columns = Math.max(2, Math.round(width / SHORE_MASK_METERS_PER_TEXEL) + 1);
     const rows = Math.max(2, Math.round(depth / SHORE_MASK_METERS_PER_TEXEL) + 1);
-    const profile = await runCooperatively(waterProfileMapSteps(bounds, columns, rows), signal);
+    performance.mark("neva.startup.water-fields.begin");
+    const fields = await runCooperatively(waterFieldMapsSteps(bounds, columns, rows), signal);
+    performance.mark("neva.startup.water-fields.ready");
     try {
-      const depthMap = await runCooperatively(waterDepthMapSteps(bounds, columns, rows), signal);
-      try { signal?.throwIfAborted(); return new FacetedWater(options, { profile, depth: depthMap }); }
-      catch (error) { depthMap.dispose(); throw error; }
-    } catch (error) { profile.dispose(); throw error; }
+      signal?.throwIfAborted();
+      const water = new FacetedWater(options, fields);
+      performance.mark("neva.startup.water-geometry.ready");
+      return water;
+    } catch (error) {
+      fields.profile.dispose();
+      fields.depth.dispose();
+      throw error;
+    }
   }
 
   constructor(options: WaterOptions = {}, prepared?: { profile: THREE.DataTexture; depth: THREE.DataTexture }) {
@@ -291,8 +334,9 @@ export class FacetedWater {
 
     const profileWidth = Math.max(2, Math.round(width / SHORE_MASK_METERS_PER_TEXEL) + 1);
     const profileHeight = Math.max(2, Math.round(depth / SHORE_MASK_METERS_PER_TEXEL) + 1);
-    this.waterProfileMap = prepared?.profile ?? createWaterProfileMap(profileBounds, profileWidth, profileHeight);
-    this.depthMap = prepared?.depth ?? createWaterDepthMap(profileBounds, profileWidth, profileHeight);
+    const fields = prepared ?? runSync(waterFieldMapsSteps(profileBounds, profileWidth, profileHeight));
+    this.waterProfileMap = fields.profile;
+    this.depthMap = fields.depth;
     this.coastalUniforms = createCoastalUniforms(this.depthMap, profileBounds);
     const material = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
@@ -398,18 +442,24 @@ export class FacetedWater {
       const chunkCenterX = centerX - width * 0.5 + width * (consumedSegments + chunkSegmentsX * 0.5) / segmentsX;
       consumedSegments += chunkSegmentsX;
       const geometry = createWaterGeometry(chunkWidth, depth, chunkSegmentsX, segmentsZ, chunkCenterX, centerZ);
-      const chunk = new THREE.Mesh(geometry, material);
-      chunk.position.set(
-        chunkCenterX,
-        0,
-        centerZ
-      );
-      chunk.receiveShadow = false;
-      chunk.castShadow = false;
-      chunk.frustumCulled = true;
-      chunk.name = `faceted_water_${chunkIndex}`;
-      chunkMeshes.push(chunk);
-      this.group.add(chunk);
+      // Partition the existing index grid: cell seams retain the same wave
+      // chords and refined headwater rows as the unpartitioned surface.
+      const tiles = tileWaterGeometry(geometry, CANONICAL_RENDER_CONFIG.waterSurface.cullingTileMeters);
+      geometry.dispose();
+      for (const [tileIndex, tile] of tiles.entries()) {
+        const chunk = new THREE.Mesh(tile, material);
+        chunk.position.set(
+          chunkCenterX,
+          0,
+          centerZ
+        );
+        chunk.receiveShadow = false;
+        chunk.castShadow = false;
+        chunk.frustumCulled = true;
+        chunk.name = `faceted_water_${chunkIndex}_${tileIndex}`;
+        chunkMeshes.push(chunk);
+        this.group.add(chunk);
+      }
     }
     this.meshes = chunkMeshes;
     this.mesh = chunkMeshes[0];

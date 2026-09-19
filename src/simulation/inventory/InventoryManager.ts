@@ -1,24 +1,59 @@
 // src/simulation/inventory/InventoryManager.ts
 
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { InventoryId, InventorySlot, InventoryState, ItemId, ItemStack } from "../core/types";
+import { CropQuality, InventoryId, InventorySlot, InventoryState, ItemId, ItemStack } from "../core/types";
+import { CROP_QUALITY_RANK, cropQualityRank } from "../farming/calculateCropGrowth";
+
+/**
+ * Stack identity is item plus harvest grade. Two Wheat lots of different
+ * grades never merge, so a sale can price the Prize bushel above the Common
+ * one. A missing grade is a valid, ungraded commodity: processed output and
+ * legacy stacks.
+ */
+function lotKey(itemId: ItemId, quality: CropQuality | undefined): string {
+  return `${itemId}|${quality ?? ""}`;
+}
 
 export class InventoryManager {
+  /**
+   * Only a raw crop harvest carries a grade, and that is exactly "some crop
+   * lists this item as its harvest". The item categories alone cannot decide
+   * it: wheat and barley are `grain`, flax is `crafting-material`, and a
+   * basic-catch fish is a `produce` item that must stay fungible because its
+   * per-instance quality belongs to the cargo lane.
+   */
+  public static isGradableProduceItem(itemId: ItemId): boolean {
+    if (!ContentRegistry.items.has(itemId) || ContentRegistry.fishSpecies.has(itemId)) return false;
+    for (const crop of ContentRegistry.crops.values()) {
+      if (crop.harvestItemId === itemId) return true;
+    }
+    return false;
+  }
+
+  private static isValidProduceQuality(itemId: ItemId, quality: CropQuality): boolean {
+    return (
+      Object.prototype.hasOwnProperty.call(CROP_QUALITY_RANK, quality) &&
+      this.isGradableProduceItem(itemId)
+    );
+  }
+
   public static isValidItemStack(item: ItemStack): boolean {
     return (
       typeof item.itemId === "string" &&
       ContentRegistry.items.has(item.itemId) &&
       Number.isSafeInteger(item.quantity) &&
-      item.quantity > 0
+      item.quantity > 0 &&
+      (item.quality === undefined || this.isValidProduceQuality(item.itemId, item.quality))
     );
   }
 
   public static isValidItemBatch(items: ItemStack[]): boolean {
     if (!Array.isArray(items) || items.length === 0) return false;
-    const ids = new Set<string>();
+    const keys = new Set<string>();
     for (const item of items) {
-      if (!this.isValidItemStack(item) || ids.has(item.itemId)) return false;
-      ids.add(item.itemId);
+      const key = lotKey(item.itemId, item.quality);
+      if (!this.isValidItemStack(item) || keys.has(key)) return false;
+      keys.add(key);
     }
     return true;
   }
@@ -44,7 +79,8 @@ export class InventoryManager {
         typeof quantity === "number" &&
         Number.isSafeInteger(quantity) &&
         quantity > 0 &&
-        quantity <= ContentRegistry.items.get(slot.itemId)!.stackLimit;
+        quantity <= ContentRegistry.items.get(slot.itemId)!.stackLimit &&
+        (slot.quality === undefined || this.isValidProduceQuality(slot.itemId, slot.quality));
       return empty || populated;
     });
   }
@@ -81,7 +117,7 @@ export class InventoryManager {
     if (!this.isValidInventory(inventory) || !this.isValidItemBatch(items)) return false;
     const clone = this.cloneInventory(inventory);
     for (const item of items) {
-      const added = this.tryAddDirect(clone, item.itemId, item.quantity);
+      const added = this.tryAddDirect(clone, item.itemId, item.quantity, item.quality);
       if (added < item.quantity) {
         return false;
       }
@@ -97,25 +133,24 @@ export class InventoryManager {
       return false;
     }
     for (const item of items) {
-      this.tryAddDirect(inventory, item.itemId, item.quantity);
+      this.tryAddDirect(inventory, item.itemId, item.quantity, item.quality);
     }
     return true;
   }
 
   /**
    * Checks if inventory contains required items.
+   *
+   * A request without a grade accepts any lot. A graded request counts only
+   * that lot, which is what let a graded sale or contract ask for one grade.
    */
   public static hasItems(inventory: InventoryState, items: ItemStack[]): boolean {
     if (!this.isValidInventory(inventory) || !this.isValidItemBatch(items)) return false;
-    const availableCounts: Record<ItemId, number> = {};
-    for (const slot of inventory.slots) {
-      if (slot.itemId && slot.quantity && slot.quantity > 0) {
-        availableCounts[slot.itemId] = (availableCounts[slot.itemId] || 0) + slot.quantity;
-      }
-    }
     for (const req of items) {
-      const count = availableCounts[req.itemId] || 0;
-      if (count < req.quantity) {
+      const available = req.quality === undefined
+        ? this.getItemCount(inventory, req.itemId)
+        : this.getItemLotCount(inventory, req.itemId, req.quality);
+      if (available < req.quantity) {
         return false;
       }
     }
@@ -124,6 +159,11 @@ export class InventoryManager {
 
   /**
    * Atomically removes items from the inventory.
+   *
+   * An ungraded request consumes lowest grade first, so processing, contracts
+   * and other generic consumption never spend the Prize bushel that could be
+   * priced as one. Ties stay in slot order. A graded request consumes only
+   * that lot.
    */
   public static removeItemsAtomically(inventory: InventoryState, items: ItemStack[]): boolean {
     if (!this.hasItems(inventory, items)) {
@@ -131,16 +171,16 @@ export class InventoryManager {
     }
     for (const item of items) {
       let needed = item.quantity;
-      for (const slot of inventory.slots) {
-        if (slot.itemId === item.itemId && slot.quantity && slot.quantity > 0) {
-          const toRemove = Math.min(needed, slot.quantity);
-          slot.quantity -= toRemove;
-          needed -= toRemove;
-          if (slot.quantity <= 0) {
-            slot.itemId = undefined;
-            slot.quantity = undefined;
-          }
-          if (needed <= 0) break;
+      for (const slot of this.removalOrder(inventory, item.itemId, item.quality)) {
+        if (needed <= 0) break;
+        const available = this.getSlotQuantity(slot);
+        const toRemove = Math.min(needed, available);
+        slot.quantity = available - toRemove;
+        needed -= toRemove;
+        if ((slot.quantity ?? 0) <= 0) {
+          slot.itemId = undefined;
+          slot.quantity = undefined;
+          slot.quality = undefined;
         }
       }
     }
@@ -164,21 +204,87 @@ export class InventoryManager {
     if (!this.isValidInventory(inventory) || !ContentRegistry.items.has(itemId)) return 0;
     let total = 0;
     for (const slot of inventory.slots) {
-      if (slot.itemId === itemId && slot.quantity) {
-        total += slot.quantity;
+      if (slot.itemId === itemId) {
+        total += this.getSlotQuantity(slot);
       }
     }
     return total;
   }
 
-  private static tryAddDirect(inventory: InventoryState, itemId: ItemId, quantity: number): number {
+  /** Quantity of one item in one grade; `undefined` matches the ungraded lot. */
+  public static getItemLotCount(
+    inventory: InventoryState,
+    itemId: ItemId,
+    quality: CropQuality | undefined
+  ): number {
+    if (!this.isValidInventory(inventory)) return 0;
+    let total = 0;
+    for (const slot of inventory.slots) {
+      if (slot.itemId === itemId && slot.quality === quality) {
+        total += this.getSlotQuantity(slot);
+      }
+    }
+    return total;
+  }
+
+  /** Every held lot of one item, in slot order. */
+  public static getItemLots(
+    inventory: InventoryState,
+    itemId: ItemId
+  ): Array<{ quality?: CropQuality; quantity: number }> {
+    if (!this.isValidInventory(inventory)) return [];
+    const lots: Array<{ quality?: CropQuality; quantity: number }> = [];
+    for (const slot of inventory.slots) {
+      const quantity = this.getSlotQuantity(slot);
+      if (slot.itemId === itemId && quantity > 0) {
+        lots.push(slot.quality === undefined ? { quantity } : { quality: slot.quality, quantity });
+      }
+    }
+    return lots;
+  }
+
+  /**
+   * The slots a removal may draw from, in the order it should draw.
+   *
+   * Ungraded requests walk lowest grade first; graded requests stay inside
+   * their lot. Both are stable across saves because slot order is.
+   */
+  private static removalOrder(
+    inventory: InventoryState,
+    itemId: ItemId,
+    quality: CropQuality | undefined
+  ): InventorySlot[] {
+    const matching = inventory.slots.filter(
+      (slot) => slot.itemId === itemId && (quality === undefined || slot.quality === quality)
+    );
+    if (quality !== undefined) return matching;
+    return matching
+      .map((slot, index) => ({ slot, index }))
+      .sort((a, b) => {
+        const rankDelta = cropQualityRank(a.slot.quality) - cropQualityRank(b.slot.quality);
+        return rankDelta !== 0 ? rankDelta : a.index - b.index;
+      })
+      .map((entry) => entry.slot);
+  }
+
+  private static tryAddDirect(
+    inventory: InventoryState,
+    itemId: ItemId,
+    quantity: number,
+    quality?: CropQuality
+  ): number {
     const def = ContentRegistry.items.get(itemId);
     const stackLimit = def ? def.stackLimit : 99;
     let remaining = quantity;
 
-    // 1. Try filling existing partial stacks
+    // 1. Try filling existing partial stacks of the same lot
     for (const slot of inventory.slots) {
-      if (slot.itemId === itemId && slot.quantity && slot.quantity < stackLimit) {
+      if (
+        slot.itemId === itemId &&
+        slot.quality === quality &&
+        slot.quantity &&
+        slot.quantity < stackLimit
+      ) {
         const space = stackLimit - slot.quantity;
         const add = Math.min(remaining, space);
         slot.quantity += add;
@@ -193,6 +299,7 @@ export class InventoryManager {
         const add = Math.min(remaining, stackLimit);
         slot.itemId = itemId;
         slot.quantity = add;
+        if (quality !== undefined) slot.quality = quality;
         remaining -= add;
         if (remaining <= 0) return quantity;
       }

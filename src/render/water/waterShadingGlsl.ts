@@ -117,7 +117,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     if (nevaInsideHeadwaterFallBand(worldPosition.xz)) {
       float bandEdge = min(worldPosition.z - uHeadwaterFallBand.x, uHeadwaterFallBand.y - worldPosition.z);
       float bandHash = fract(sin(dot(floor(worldPosition.xz * 9.0), vec2(12.9898, 78.233))) * 43758.5453);
-      if (bandHash > smoothstep(0.0, 0.15, bandEdge)) discard;
+      if (bandHash < smoothstep(0.0, 0.15, bandEdge)) discard;
     }
     vec4 field = nevaOpticsField(worldPosition.xz);
     float waterDepth = max(0.0, field.r + waveHeight);
@@ -323,9 +323,11 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     // above, so they stay on the pool and the apron keeps a flat-water gate.
     {
       vec2 landingDelta = worldPosition.xz - uHeadwaterLandingXZ;
-      landingDelta.y *= 0.5;
+      // Impact foam rides away from the narrow jet and curls into the basin.
+      landingDelta.x += sin(landingDelta.y * 0.55) * smoothstep(0.0, 5.0, landingDelta.y) * 0.8;
+      landingDelta.y *= 0.62;
       float landingDistance = length(landingDelta);
-      float landingReach = 1.0 - smoothstep(0.0, 3.5, landingDistance);
+      float landingReach = 1.0 - smoothstep(0.7, 4.8, landingDistance);
       float apronFlat = 1.0 - smoothstep(0.1, 0.3, downhillGrade);
       float apronPattern = nevaGradientNoise(worldPosition.xz * 1.4
         + vec2(uTime * 0.22, -uTime * 0.5));
@@ -333,7 +335,8 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       // Narrow crests with wide troughs: expanding ripple pulses, not a
       // continuous target pattern of bands across the pool.
       float ringWave = 0.5 + 0.5 * sin(ringPhase * 6.2831853 / max(0.2, uPlungeRingWavelength));
-      float rings = pow(ringWave, 3.0);
+      float ringBreakup = smoothstep(0.28, 0.72, apronPattern);
+      float rings = pow(ringWave, 3.0) * ringBreakup;
       float ringFade = (1.0 - smoothstep(0.0, uPlungeRingSpan, landingDistance))
         * smoothstep(0.15, 0.9, landingDistance);
       foam = max(foam, landingReach * (0.5 + 0.5 * apronPattern) * uRapidsFoamStrength * 1.1

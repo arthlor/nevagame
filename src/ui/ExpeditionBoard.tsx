@@ -125,6 +125,7 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
                 <p>{selected.summary}</p>
                 <dl className="expedition-selected-meta">
                   <div><dt>Destination</dt><dd>{selected.destination}</dd></div>
+                  {selected.journeyLabel && <div><dt>Journey</dt><dd>{selected.journeyLabel}</dd></div>}
                   <div><dt>Return</dt><dd>{selected.valueLabel}</dd></div>
                   {selected.deadlineLabel && <div><dt>Deadline</dt><dd>{selected.deadlineLabel}</dd></div>}
                 </dl>

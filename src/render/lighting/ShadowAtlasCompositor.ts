@@ -2,11 +2,11 @@ import * as THREE from "three";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 
 /**
- * The combine step unpacks and repacks RGBA depth, which matches PCF/PCFSoft
+ * The combine step unpacks and repacks RGBA depth, which matches Basic/PCF/PCFSoft
  * shadow maps only. VSM stores linear depth and must keep the legacy path.
  */
 function pcfCompatible(): boolean {
-  return CANONICAL_RENDER_CONFIG.shadows.type !== THREE.VSMShadowMap;
+  return Object.values(CANONICAL_RENDER_CONFIG.shadows.type).every((type) => type !== THREE.VSMShadowMap);
 }
 
 function percentiles(ring: Float32Array, count: number): { p50: number; p95: number } {

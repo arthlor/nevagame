@@ -330,6 +330,57 @@ def add_fasteners(prefix, positions, radius, token, parent, *, depth=0.04):
         add_beam(f"{prefix}_{index:03d}", start, end, radius, token, parent, vertices=6)
 
 
+def add_frame_and_panel(prefix, center, width, height, frame_token, panel_token, parent, *, frame=0.09, depth=0.06, panel_inset=0.03, bevel=0.012, rotation=(0.0, 0.0, 0.0)):
+    """Frame-and-panel construction: four rails around a recessed panel.
+
+    The panel sits in a shallow rabbet behind the rails instead of floating on
+    their face, which is what reads as a real door, shutter or cupboard front.
+    Authored in the XZ plane facing -Y; pass `rotation` to place it on any
+    other wall.
+    """
+    inner_width = width - 2 * frame
+    inner_height = height - 2 * frame
+    if inner_width <= 0 or inner_height <= 0 or depth <= 0 or not 0 <= panel_inset < depth:
+        raise ValueError(f"{prefix}: frame or panel does not fit its opening")
+    matrix = Euler(rotation).to_matrix()
+    for label, local, dimensions, token, edge_bevel in (
+        ("rail_top", (0, 0, (height - frame) * 0.5), (width, depth, frame), frame_token, bevel),
+        ("rail_bottom", (0, 0, -(height - frame) * 0.5), (width, depth, frame), frame_token, bevel),
+        ("rail_left", (-(width - frame) * 0.5, 0, 0), (frame, depth, inner_height), frame_token, bevel),
+        ("rail_right", ((width - frame) * 0.5, 0, 0), (frame, depth, inner_height), frame_token, bevel),
+        ("panel", (0, panel_inset * 0.5, 0), (inner_width, depth - panel_inset, inner_height), panel_token, bevel * 0.6),
+    ):
+        location = Vector(center) + matrix @ Vector(local)
+        add_box(f"{prefix}_{label}", tuple(location), dimensions, token, parent, rotation=rotation, bevel=edge_bevel)
+
+
+def add_peg_joint(prefix, positions, radius, token, parent, *, length=0.14, axis="y", vertices=6):
+    """Short driven dowels through a joint: the visible read of timber pegging."""
+    rotations = {"x": (0.0, math.pi * 0.5, 0.0), "y": (math.pi * 0.5, 0.0, 0.0), "z": (0.0, 0.0, 0.0)}
+    if axis not in rotations or radius <= 0 or length <= 0:
+        raise ValueError(f"{prefix}: peg joint needs a positive peg and a valid axis")
+    for index, position in enumerate(positions):
+        add_cylinder(f"{prefix}_{index:03d}", tuple(position), radius, length, token, parent, vertices=vertices, rotation=rotations[axis], bevel=radius * 0.3)
+
+
+def add_hinge_strap(prefix, pivot, length, width, token, parent, *, thickness=0.022, rotation=(0.0, 0.0, 0.0)):
+    """Strap-hinge arm with a rolled knuckle at `pivot`.
+
+    Authored in a local frame: the arm runs along +X, the strap width and hinge
+    pin run along Z, and the thickness is along Y. Pair it with
+    `add_fasteners` for the bolt heads. Keep the strap short enough that it
+    reads as hardware, not structure.
+    """
+    matrix = Euler(rotation).to_matrix()
+    knuckle_radius = max(thickness * 1.8, width * 0.22)
+    arm_length = length - knuckle_radius
+    if arm_length <= 0:
+        raise ValueError(f"{prefix}: hinge strap is shorter than its knuckle")
+    arm_center = Vector(pivot) + matrix @ Vector((knuckle_radius + arm_length * 0.5, 0.0, 0.0))
+    add_box(f"{prefix}_arm", tuple(arm_center), (arm_length, thickness, width), token, parent, rotation=rotation, bevel=thickness * 0.45)
+    add_cylinder(f"{prefix}_knuckle", tuple(pivot), knuckle_radius, width * 1.12, token, parent, vertices=8, rotation=rotation, bevel=thickness * 0.5)
+
+
 def add_catenary_rope(prefix, start, end, sag, radius, token, parent, *, segments=6, vertices=6):
     """Build a natural hanging catenary/parabolic rope curve under gravity."""
     points = []

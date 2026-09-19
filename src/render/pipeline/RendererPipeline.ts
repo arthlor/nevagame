@@ -4,6 +4,7 @@ import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectCom
 import type { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import { GpuFrameTimer, type GpuFrameTimingSnapshot } from "./GpuFrameTimer";
+import { OpaqueWaterSnapshotPass } from "./OpaqueWaterSnapshotPass";
 import type { AtmosphereSky, AtmosphereSkyDiagnostics } from "../atmosphere/AtmosphereSky";
 
 export type CaptureRenderMode = "final" | "no-post";
@@ -95,6 +96,7 @@ export class RendererPipeline {
   private sky: AtmosphereSky | null = null;
   private composer: EffectComposer | null = null;
   private opaqueSnapshot: THREE.WebGLRenderTarget | null = null;
+  private opaqueSnapshotPass: OpaqueWaterSnapshotPass | null = null;
   private coastalUniforms: CoastalUniforms | null = null;
   private capturedWaterThisFrame = false;
   private gtaoPass: GTAOPass | null = null;
@@ -149,25 +151,17 @@ export class RendererPipeline {
     const source = this.renderer.getRenderTarget();
     const composer = this.composer as unknown as ComposerRuntimeInternals;
     if (!source?.depthTexture || (source !== composer.renderTarget1 && source !== composer.renderTarget2)) return;
-    if (!this.opaqueSnapshot || this.opaqueSnapshot.width !== source.width || this.opaqueSnapshot.height !== source.height) {
-      this.opaqueSnapshot?.dispose();
-      this.opaqueSnapshot = new THREE.WebGLRenderTarget(source.width, source.height, {
-        type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(source.width, source.height, THREE.UnsignedIntType),
-        minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false
-      });
-      this.opaqueSnapshot.texture.name = "opaque_water_color";
-      this.renderer.initRenderTarget(this.opaqueSnapshot);
-    }
-    const snapshot = this.opaqueSnapshot;
+    const snapshot = this.ensureOpaqueSnapshot(source);
+    const snapshotPass = this.opaqueSnapshotPass ??= new OpaqueWaterSnapshotPass();
     // The capture happens mid-scene, so measure it as an interrupt segment and
     // resume the scene pass afterwards; same-named segments are summed per frame.
     const interruptedPass = this.gpuTimer?.currentPassName ?? null;
     this.gpuTimer?.beginPass("water-capture");
-    this.renderer.copyTextureToTexture(source.texture, snapshot.texture);
-    this.renderer.copyTextureToTexture(source.depthTexture, snapshot.depthTexture!);
-    // r174 depth blits bind read/draw framebuffers; restore the active scene target.
-    this.renderer.setRenderTarget(source);
-    if (interruptedPass) this.gpuTimer?.beginPass(interruptedPass);
+    try {
+      snapshotPass.copy(this.renderer, source, snapshot);
+    } finally {
+      if (interruptedPass) this.gpuTimer?.beginPass(interruptedPass);
+    }
     const uniforms = this.coastalUniforms;
     uniforms.uOpaqueColor.value = snapshot.texture;
     uniforms.uOpaqueDepth.value = snapshot.depthTexture;
@@ -178,6 +172,19 @@ export class RendererPipeline {
     if ("far" in camera) uniforms.uCameraFar.value = (camera as THREE.PerspectiveCamera).far;
     uniforms.uSceneCaptureEnabled.value = 1;
     this.capturedWaterThisFrame = true;
+  }
+
+  private ensureOpaqueSnapshot(source: THREE.WebGLRenderTarget): THREE.WebGLRenderTarget {
+    if (!this.opaqueSnapshot || this.opaqueSnapshot.width !== source.width || this.opaqueSnapshot.height !== source.height) {
+      this.opaqueSnapshot?.dispose();
+      this.opaqueSnapshot = new THREE.WebGLRenderTarget(source.width, source.height, {
+        type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(source.width, source.height, THREE.UnsignedIntType),
+        minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false
+      });
+      this.opaqueSnapshot.texture.name = "opaque_water_color";
+      this.renderer.initRenderTarget(this.opaqueSnapshot);
+    }
+    return this.opaqueSnapshot;
   }
 
   public setQuality(tier: QualityTier): void {
@@ -269,6 +276,12 @@ export class RendererPipeline {
       await this.initialization;
     }
     await this.renderer.compileAsync(this.scene, camera);
+    if (this.composer) {
+      const source = (this.composer as unknown as ComposerRuntimeInternals).renderTarget1;
+      const snapshot = this.ensureOpaqueSnapshot(source);
+      const snapshotPass = this.opaqueSnapshotPass ??= new OpaqueWaterSnapshotPass();
+      await snapshotPass.prepare(this.renderer, snapshot);
+    }
     this.renderer.shadowMap.needsUpdate = true;
   }
 
@@ -430,6 +443,8 @@ export class RendererPipeline {
   }
 
   private disposeComposer(): void {
+    this.opaqueSnapshotPass?.dispose();
+    this.opaqueSnapshotPass = null;
     this.opaqueSnapshot?.dispose();
     this.opaqueSnapshot = null;
     if (this.coastalUniforms) {

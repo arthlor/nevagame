@@ -1,5 +1,5 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { FISH_TRADE_CENTER_MARKET_ID } from "../../content/markets";
+import { marketAcceptsFishTradePacks } from "../../content/markets";
 import { demandLabelFromPercent, sampleDemandTrend } from "../economy/marketPricing";
 import type { GameState, MarketId } from "../core/types";
 import { isPhysicalTradePackSpecies } from "../domains/domainRules";
@@ -36,7 +36,7 @@ export function buildMarketLifeBoards(state: Readonly<GameState>): MarketLifeBoa
     const highlights = Object.values(market.commodities)
       .filter((commodity) => {
         const fish = ContentRegistry.fishSpecies.get(commodity.itemId);
-        return market.id === FISH_TRADE_CENTER_MARKET_ID || !fish || !isPhysicalTradePackSpecies(fish);
+        return marketAcceptsFishTradePacks(market.id) || !fish || !isPhysicalTradePackSpecies(fish);
       })
       .map((commodity) => {
         const trend = sampleDemandTrend(commodity, commodity.localSupply, hourNow, state.worldSeed);

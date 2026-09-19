@@ -172,6 +172,8 @@ export interface GameUIProps {
     rodDirectionAngle: number;
   }) => void;
   onSetFishingDrag?: (notch: 0 | 1 | 2) => void;
+  onKeepFishingCatch?: () => void;
+  onReleaseFishingCatch?: () => void;
   onSetBasicFishingHold?: (holding: boolean) => void;
   onHookBasicFishingBite?: () => void;
   onDismissBasicFishingModal?: () => { success: boolean; reason?: string; reasonCode?: string };
@@ -312,6 +314,8 @@ export const GameUI: React.FC<GameUIProps> = ({
   onLaborCancel,
   onSetFishingInput,
   onSetFishingDrag,
+  onKeepFishingCatch,
+  onReleaseFishingCatch,
   onSetBasicFishingHold,
   onHookBasicFishingBite,
   onDismissBasicFishingModal,
@@ -616,6 +620,8 @@ export const GameUI: React.FC<GameUIProps> = ({
           hud={sportFishingHud}
           onSetInput={onSetFishingInput}
           onSetDrag={onSetFishingDrag}
+          onKeepCatch={onKeepFishingCatch}
+          onReleaseCatch={onReleaseFishingCatch}
         />
       )}
 

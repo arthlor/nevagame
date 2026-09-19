@@ -5,6 +5,7 @@ import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { migrateHeadwaterFall47 } from "../../src/persistence/migrateHeadwaterFall47";
 import legacy from "../fixtures/save_v46_layout20_headwater_predecessor.json";
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { NEVA_HEADWATERS } from "../../src/world/NevaHeadwaters";
 import { MOUNT_TUNING } from "../../src/simulation/mounts/Mounts";
 
@@ -101,7 +102,7 @@ describe("v46 → v47 headwater fall migration", () => {
   it("walks the retained fixture through the shipping chain and validates", () => {
     const envelope = migrateSaveData(structuredClone(legacy) as never);
     expect(envelope.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-    expect(envelope.state.world.layoutRevision).toBe(21);
+    expect(envelope.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(envelope.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(validateSaveEnvelope(envelope)).toBe(true);
   });

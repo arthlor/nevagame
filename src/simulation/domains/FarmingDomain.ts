@@ -481,7 +481,7 @@ export class FarmingDomain {
       draftRng
     );
     const quantity = calculateHarvestYield(cropDef, crop.health, farmingProficiency, draftRng);
-    const produceStack = [{ itemId: cropDef.harvestItemId, quantity }];
+    const produceStack = [{ itemId: cropDef.harvestItemId, quantity, quality }];
     const grantPlantMatter = !cropDef.regrows;
     const bonusPlantMatter = grantPlantMatter ? annualPlantMatterBonus(state) : 0;
     if (!InventoryManager.canAddItems(playerInventory, produceStack)) {

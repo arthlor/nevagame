@@ -194,6 +194,10 @@ export interface MarketDefinition {
   name: string;
   regionId: RegionId;
   description: string;
+  /** Hand-carried physical fish may be presented at this village counter. */
+  acceptsFishTradePacks?: boolean;
+  /** Authored access choices shown beside an expedition destination. */
+  routeHint?: string;
   interactionPosition: { x: number; z: number; radiusMeters: number };
   commodities: MarketCommodityDefinition[];
   retail: {

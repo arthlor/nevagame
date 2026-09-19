@@ -12,6 +12,11 @@ import { migrateKnowledgeJournal44 } from "./migrateKnowledgeJournal44";
 import { migrateKitchen45 } from "./migrateKitchen45";
 import { migrateHeadwaterFall47 } from "./migrateHeadwaterFall47";
 import { migrateKitchenAnchor48 } from "./migrateKitchenAnchor48";
+import { migrateProduceQuality49 } from "./migrateProduceQuality49";
+import { migrateMainland50 } from "./migrateMainland50";
+import { migrateRiver53 } from "./migrateRiver53";
+import { migrateNevaValley52 } from "./migrateNevaValley52";
+import { migrateOrganicMainland51 } from "./migrateOrganicMainland51";
 // src/persistence/SaveMigrations.ts
 
 import { CURRENT_SCHEMA_VERSION, SaveEnvelope } from "./SaveSchema";
@@ -1448,7 +1453,12 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
       [STARTER_CARRIAGE_ID]: previous.mounts[STARTER_CARRIAGE_ID] ?? createStarterCarriageState() } };
   },
   47: (state: unknown) => migrateHeadwaterFall47(state as GameState),
-  48: (state: unknown) => migrateKitchenAnchor48(state as GameState)
+  48: (state: unknown) => migrateKitchenAnchor48(state as GameState),
+  49: (state: unknown) => migrateProduceQuality49(state as GameState),
+  50: (state: unknown) => migrateMainland50(state as GameState),
+  51: (state: unknown) => migrateOrganicMainland51(state as GameState),
+  52: (state: unknown) => migrateNevaValley52(state as GameState),
+  53: (state: unknown) => migrateRiver53(state as GameState)
 };
 
 
@@ -1491,9 +1501,13 @@ export function migrateSaveData(envelope: SaveEnvelope): SaveEnvelope {
       translateLegacyOceanPositions(state as GameState);
       state = migrateOceanLayout20(state as GameState);
     }
-    if (layoutRevision(state) < WORLD_LAYOUT_REVISION) {
+    if (layoutRevision(state) < 21) {
       state = migrateHeadwaterFall47(state as GameState);
     }
+    if (layoutRevision(state) < 22) state = migrateMainland50(state as GameState);
+    if (layoutRevision(state) < 23) state = migrateOrganicMainland51(state as GameState);
+    if (layoutRevision(state) < 24) state = migrateNevaValley52(state as GameState);
+    if (layoutRevision(state) < 25) state = migrateRiver53(state as GameState);
   }
 
   const migrated = state as GameState;

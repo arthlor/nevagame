@@ -435,7 +435,9 @@ describe("the freight side track", () => {
       expect(quest.trackId).toBe("track.tradelanes");
       quest = quest.nextQuestId ? ContentRegistry.quests.get(quest.nextQuestId) : undefined;
     }
-    expect(chain).toHaveLength(5);
+    expect(chain.slice(-3)).toEqual([
+      "quest.tradelanes_pinewatch", "quest.tradelanes_reedhaven", "quest.tradelanes_highridge"
+    ]);
 
     const contractTargets = [...ContentRegistry.quests.values()]
       .filter((candidate) => candidate.trackId === "track.tradelanes")

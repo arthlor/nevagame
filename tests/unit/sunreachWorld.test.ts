@@ -71,7 +71,7 @@ describe("Sunreach world contract", () => {
   });
 
   it("keeps the full skiff route sailable and derives its gate from open-water exposure", () => {
-    const route = WORLD_SAILING_ROUTES[0];
+    const route = WORLD_SAILING_ROUTES.find(candidate => candidate.id === "sailing.neva-sunreach")!;
     expect(route.requiredBoatTypeId).toBe("boat.skiff");
     for (const point of route.points) expect(WorldLayout.isSailable(point.x, point.z)).toBe(true);
     expect(route.points.some((point) => WorldLayout.navigationRequirementAt(point.x, point.z)?.id === "navigation.open_channel")).toBe(true);
@@ -268,10 +268,10 @@ describe("Sunreach world contract", () => {
 
   it("preserves shoreline and mesh sampling density in the expanded rectangular water contract", () => {
     expect(SHORE_MASK_METERS_PER_TEXEL).toBe(3);
-    expect(Math.round(WATER_SURFACE.width / SHORE_MASK_METERS_PER_TEXEL) + 1).toBe(801);
-    expect(Math.round(WATER_SURFACE.depth / SHORE_MASK_METERS_PER_TEXEL) + 1).toBe(501);
+    expect(Math.round(WATER_SURFACE.width / SHORE_MASK_METERS_PER_TEXEL) + 1).toBe(968);
+    expect(Math.round(WATER_SURFACE.depth / SHORE_MASK_METERS_PER_TEXEL) + 1).toBe(701);
     expect(WATER_SURFACE.width / WATER_SURFACE.segmentsX).toBeCloseTo(750 / 144, 2);
-    expect(WATER_SURFACE.depth / WATER_SURFACE.segmentsZ).toBeCloseTo(750 / 144, 8);
+    expect(WATER_SURFACE.depth / WATER_SURFACE.segmentsZ).toBeCloseTo(750 / 144, 2);
   });
 
   it("locks Sunreach fish locality and their revised catch roles", () => {

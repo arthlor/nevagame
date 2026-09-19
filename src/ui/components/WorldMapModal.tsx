@@ -6,7 +6,7 @@ import {
   type WorldPoint
 } from "../../world/WorldLayout";
 import { WORLD_CHART_NODES } from "../../world/WorldGameplayLocations";
-import { worldPointToMapSvg, mapSvgToWorldPoint } from "../../world/WorldMapProjection";
+import { worldPointToMapSvg, worldPointToMapSvgUnclamped, mapSvgToWorldPoint } from "../../world/WorldMapProjection";
 import { IconCoin, IconCompass, IconFish, IconSprout } from "./HudIcons";
 import { useModalAccessibility } from "../useModalAccessibility";
 import { handleTabListKeyDown } from "../useTabListKeyboard";
@@ -32,6 +32,16 @@ export interface WorldMapModalProps {
 }
 
 type MapLens = "geography" | "markets" | "fishing" | "farmland";
+
+function chartAreaViewBox(area: "sea" | "neva" | "sunreach") {
+  if (area === "sea") return { x: 0, y: 0, width: 1000, height: 700 };
+  const bounds = WorldLayout.islands().find((island) => island.id === `island.${area}`)!.authoredBounds;
+  const min = worldPointToMapSvgUnclamped({ x: bounds.minX, z: bounds.minZ });
+  const max = worldPointToMapSvgUnclamped({ x: bounds.maxX, z: bounds.maxZ });
+  const width = Math.max(250, max.x - min.x + 64, (max.y - min.y + 64) * 10 / 7);
+  const height = width * 0.7;
+  return { x: (min.x + max.x - width) * 0.5, y: (min.y + max.y - height) * 0.5, width, height };
+}
 
 const CARDINALS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
@@ -151,11 +161,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
     onSetCustomWaypoint?.(wp);
   };
 
-  const [viewBox, setViewBox] = useState<{ x: number; y: number; width: number; height: number }>(() => {
-    if (chartArea === "neva") return { x: 125, y: 220, width: 290, height: 203 };
-    if (chartArea === "sunreach") return { x: 655, y: 275, width: 290, height: 203 };
-    return { x: 0, y: 0, width: 1000, height: 700 };
-  });
+  const [viewBox, setViewBox] = useState(() => chartAreaViewBox(chartArea));
 
   const modalRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -272,9 +278,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   const switchArea = (area: "sea" | "neva" | "sunreach") => {
     setChartArea(area);
     setSelectedNodeId(area === "sunreach" ? "chart.sunreach_cove" : "chart.neva_harbor");
-    if (area === "sea") setViewBox({ x: 0, y: 0, width: 1000, height: 700 });
-    else if (area === "neva") setViewBox({ x: 125, y: 220, width: 290, height: 203 });
-    else if (area === "sunreach") setViewBox({ x: 655, y: 275, width: 290, height: 203 });
+    setViewBox(chartAreaViewBox(area));
   };
 
   // Continuous Drag Panning Handlers with HTML5 Pointer Capture
@@ -899,7 +903,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
             <div className="map-sidebar-directory">
               <div className="map-directory-header">
                 <span className="map-directory-title">
-                  {chartArea === "sea" ? "Archipelago Locations" : chartArea === "neva" ? "Neva Island Places" : "Sunreach Isle Places"}
+                  {chartArea === "sea" ? "Coastal Places" : chartArea === "neva" ? "Neva Mainland Places" : "Sunreach Isle Places"}
                 </span>
                 <span className="map-directory-count">
                   {directoryNodes.length} charted
@@ -933,4 +937,3 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
     </div>
   );
 };
-

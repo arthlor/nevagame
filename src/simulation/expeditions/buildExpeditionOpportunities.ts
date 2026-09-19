@@ -1,5 +1,4 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { FISH_TRADE_CENTER_MARKET_ID } from "../../content/markets";
 import type { MarketDemandSignal } from "../core/contracts";
 import type { ContractState, GameState } from "../core/types";
 import { InventoryManager } from "../inventory/InventoryManager";
@@ -19,6 +18,7 @@ export interface ExpeditionOpportunityDto {
   title: string;
   summary: string;
   destination: string;
+  journeyLabel?: string;
   valueLabel: string;
   deadlineLabel?: string;
   ready: boolean;
@@ -51,6 +51,16 @@ function itemName(id: string): string {
 
 function marketName(state: GameState, marketId: string): string {
   return ContentRegistry.markets.get(marketId)?.name ?? state.markets[marketId]?.name ?? marketId;
+}
+
+function marketJourneyLabel(state: GameState, marketId: string): string | undefined {
+  const market = ContentRegistry.markets.get(marketId);
+  if (!market?.routeHint) return undefined;
+  const distance = Math.round(Math.hypot(
+    market.interactionPosition.x - state.player.x,
+    market.interactionPosition.z - state.player.z
+  ));
+  return `${distance.toLocaleString()} m away · ${market.routeHint}`;
 }
 
 function timeLabel(minutes: number): string {
@@ -146,6 +156,7 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
     title: isProduce ? `Steady: ${targetName} delivery` : `Bold: ${targetName} order`,
     summary: `${remaining} remaining for ${ContentRegistry.contractTemplates.get(contract.templateId)?.requesterName ?? "the requester"}`,
     destination: marketName(state, contract.deliveryMarketId),
+    journeyLabel: marketJourneyLabel(state, contract.deliveryMarketId),
     valueLabel: `${contract.rewardMoney} G contract`,
     deadlineLabel: timeLabel(minutesLeft),
     ready: blockers.length === 0,
@@ -159,10 +170,7 @@ function marketOpportunity(
   signal: MarketDemandSignal,
   vesselId: string | null
 ): ExpeditionOpportunityDto | null {
-  // Physical sport/basic catches are trade packs sold at the inland counter;
-  // keep the opportunity destination aligned with the sale lane instead of
-  // advertising a fish-market run that can never settle.
-  const marketId = tone === "steady" ? FISH_TRADE_CENTER_MARKET_ID : signal.marketId;
+  const marketId = signal.marketId;
   const market = state.markets[marketId];
   if (!market || !signal.success || !signal.itemId || !signal.itemName || !signal.demandLabel) return null;
   const itemId = signal.itemId;
@@ -185,6 +193,7 @@ function marketOpportunity(
     title: `${tone === "steady" ? "Steady" : "Bold"}: ${signal.itemName} market run`,
     summary: `${signal.itemName} is ${demandLabel} at ${market.name}`,
     destination: market.name,
+    journeyLabel: marketJourneyLabel(state, marketId),
     valueLabel: "Quote at the stall",
     ready: blockers.length === 0,
     blockers

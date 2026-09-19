@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorldScene } from "../../src/render/scene/WorldScene";
+import { EditableStaticSources } from "../../src/render/scene/EditableStaticSources";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
@@ -22,20 +23,30 @@ function harness() {
   const world = Object.assign(Object.create(WorldScene.prototype), {
     staticPrefabGroup: root,
     staticLodBatchInstances: [],
+    staticLodPlacements: new Map(),
     staticBatchChunks: [],
+    staticPrefabBatches: new Set(),
+    editableStaticSources: new EditableStaticSources(),
+    layoutEditingEnabled: false,
+    lightingRig: { shadowAtlas: { markCastersDirty: vi.fn() } },
     visibilityAnchor: new THREE.Vector3(),
     qualityLevel: 2,
     scene
   }) as {
     batchCompatibleMeshes: (root: THREE.Group, skip: (mesh: THREE.Mesh) => boolean) => void;
     updateStaticLodBatches: () => void;
+    setLayoutEditingEnabled: (active: boolean) => void;
+    editableStaticSources: EditableStaticSources;
+    rebuildStaticCollisionProxies: () => readonly unknown[];
     updateStaticBatchChunkVisibility: () => void;
     staticLodBatchInstances: BatchInstance[];
+    staticLodPlacements: Map<string, { instances: BatchInstance[] }>;
     visibilityAnchor: THREE.Vector3;
+    qualityLevel: number;
   };
   vi.spyOn(WorldLayout, "islandAt").mockImplementation((worldX) => worldX >= 400 ? "island.sunreach" : "island.neva");
   return {
-    world, root,
+    world, root, scene,
     batch: (skip = (_mesh: THREE.Mesh) => false) => {
       world.batchCompatibleMeshes(root, skip);
       return root.children.filter((object): object is THREE.BatchedMesh => object instanceof THREE.BatchedMesh);
@@ -151,6 +162,7 @@ describe("static prefab batching", () => {
     const batches = batch();
     expect(batches).toHaveLength(1);
     expect(world.staticLodBatchInstances).toHaveLength(4);
+    expect(world.staticLodPlacements.size).toBe(2);
     function expectVisible(worldX: number): void {
       for (const instance of world.staticLodBatchInstances) {
         const expected = instance.position.x === worldX && instance.levelIndex === 0;
@@ -175,6 +187,49 @@ describe("static prefab batching", () => {
     expectVisible(0);
   });
 
+  it("restores exact editable source meshes and their moved transforms across DEV play/edit/play", () => {
+    const { root, world, batch } = harness();
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshStandardMaterial();
+    const sources = [0, 3].map(x => {
+      const source = new THREE.Group();
+      source.userData.assetId = ASSET_IDS.TREE_PINE_A;
+      source.position.set(x, 0, -5);
+      source.add(new THREE.Mesh(geometry, material));
+      root.add(source);
+      return source;
+    });
+    const [initialBatch] = batch();
+    const disposed = vi.spyOn(initialBatch, "dispose");
+    world.editableStaticSources.detachDormantRoots(sources);
+    expect(sources.every(source => source.parent === null)).toBe(true);
+    // An in-flight paste may finish after F2 exits; collision must still include dormant sources.
+    expect(world.rebuildStaticCollisionProxies()).toHaveLength(2);
+    const latePaste = new THREE.Group();
+    latePaste.userData.assetId = ASSET_IDS.TREE_PINE_A;
+    latePaste.position.set(8, 0, -5);
+    root.add(latePaste);
+    expect(world.rebuildStaticCollisionProxies()).toHaveLength(3);
+    latePaste.removeFromParent();
+    world.setLayoutEditingEnabled(true);
+    expect(disposed).toHaveBeenCalledOnce();
+    expect(sources.every(source => source.parent === root)).toBe(true);
+    expect(sources.every(source => source.children[0].layers.mask === 1)).toBe(true);
+    expect((sources[0].children[0] as THREE.Mesh).geometry).toBe(geometry);
+    const picker = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, 0, -1));
+    root.updateMatrixWorld(true);
+    expect(picker.intersectObjects(sources, true).some(hit => hit.object === sources[0].children[0])).toBe(true);
+    sources[0].position.x = 1.5;
+    world.setLayoutEditingEnabled(false);
+    const current = root.children.find(object => object instanceof THREE.BatchedMesh) as THREE.BatchedMesh;
+    expect(current).toBeDefined();
+    expect(current.getMatrixAt(0, new THREE.Matrix4()).elements[12]).toBe(1.5);
+    expect(sources.every(source => source.parent === null)).toBe(true);
+    world.setLayoutEditingEnabled(true);
+    expect(sources[0].position.x).toBe(1.5);
+    expect(sources.every(source => source.parent === root && source.children[0].layers.mask === 1)).toBe(true);
+  });
+
   it("retains textured UVs and excludes dynamic and skinned meshes", () => {
     const { root, batch } = harness();
     const geometry = new THREE.BoxGeometry();
@@ -189,5 +244,30 @@ describe("static prefab batching", () => {
     expect(batches[0].instanceCount).toBe(2);
     expect(dynamic.parent).toBe(root);
     expect(skinned.parent).toBe(root);
+  });
+
+  it("reduces understory range by tier without erasing the forest canopy", () => {
+    const { root, world, batch, scene } = harness();
+    scene.fog = new THREE.Fog(0xffffff, 100, 430);
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshStandardMaterial();
+    for (const [index, assetId] of [ASSET_IDS.FOLIAGE_BUSH_A, ASSET_IDS.FOLIAGE_BUSH_A, ASSET_IDS.TREE_PINE_A].entries()) {
+      const plant = new THREE.Group();
+      plant.userData.assetId = assetId;
+      plant.position.x = 170 + index * 2;
+      plant.add(new THREE.Mesh(geometry, material));
+      root.add(plant);
+    }
+    const [mesh] = batch();
+    world.qualityLevel = 0;
+    world.updateStaticBatchChunkVisibility();
+    expect([0, 1, 2].map(index => mesh.getVisibleAt(index))).toEqual([false, false, true]);
+    world.qualityLevel = 2;
+    world.updateStaticBatchChunkVisibility();
+    expect([0, 1, 2].map(index => mesh.getVisibleAt(index))).toEqual([true, true, true]);
+    world.qualityLevel = 0;
+    world.visibilityAnchor.x = 170;
+    world.updateStaticBatchChunkVisibility();
+    expect([0, 1, 2].map(index => mesh.getVisibleAt(index))).toEqual([true, true, true]);
   });
 });

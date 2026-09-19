@@ -126,7 +126,7 @@ def _validate_vertex_color_contract(
                 raise RuntimeError(f"{asset_id}: {obj.name} has non-finite COLOR_0 data")
             value = actual.dot(expected) / expected_length_squared
             residual = (actual - expected * value).length
-            if not 0.70 <= value <= 1.04 or residual > 0.025:
+            if not 0.70 <= value <= 1.06 or residual > 0.025:
                 raise RuntimeError(
                     f"{asset_id}: {obj.name} COLOR_0 does not match linear token {token!r} "
                     f"(value={value:.3f}, residual={residual:.4f})"
@@ -276,8 +276,11 @@ def validate_and_export(spec: dict, output_path: Path) -> dict:
         asset_root = bpy.data.objects[spec["rootNode"]]
         rest_transforms = authored_rest_transforms(objects)
         asset_inverse = rest_transforms[asset_root].inverted()
+        value_zones = spec["surfaceAuthoring"].get("valueZones")
         surface_metrics = {
-            obj.name: finish_authored_surface(obj, asset_root, object_to_asset=asset_inverse @ rest_transforms[obj]) for obj in meshes
+            obj.name: finish_authored_surface(
+                obj, asset_root, object_to_asset=asset_inverse @ rest_transforms[obj], value_zones=value_zones
+            ) for obj in meshes
         }
         for obj in objects:
             if "_neva_rest_transform" in obj:

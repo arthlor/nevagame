@@ -86,7 +86,7 @@ describe("W07 headwater fall sheet", () => {
       // The sheet never sinks into the carved face; it leaves it for the
       // ballistic arc by a bounded, physically readable margin.
       expect(detach).toBeGreaterThanOrEqual(-1e-9);
-      expect(detach).toBeLessThan(2.5);
+      expect(detach).toBeLessThan((FALL.lipElevation - FALL.landingElevation) * 0.4);
       maximumDetach = Math.max(maximumDetach, detach);
     }
     // A real nappe: the middle of the drop is off the rock, not a decal.
@@ -170,7 +170,7 @@ describe("W07 headwater fall sheet", () => {
   it("excludes horizontal water inside the fall band behind a feathered edge", () => {
     expect(WATER_SURFACE_SHADING_GLSL).toContain("nevaInsideHeadwaterFallBand(worldPosition.xz)");
     expect(WATER_SURFACE_SHADING_GLSL).toContain("uHeadwaterFallBand");
-    expect(WATER_SURFACE_SHADING_GLSL).toContain("discard");
+    expect(WATER_SURFACE_SHADING_GLSL).toContain("if (bandHash < smoothstep(0.0, 0.15, bandEdge)) discard;");
   });
 
   it("foams the horizontal water past the landing so the plunge reads through", () => {

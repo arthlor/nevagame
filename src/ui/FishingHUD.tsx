@@ -16,6 +16,10 @@ interface FishingHUDProps {
     rodDirectionAngle: number;
   }) => void;
   onSetDrag?: (notch: 0 | 1 | 2) => void;
+  /** Stows a landed fish; disabled while `hud.keepAvailable` is false. */
+  onKeepCatch?: () => void;
+  /** Lets a landed fish go for release XP instead of cargo. */
+  onReleaseCatch?: () => void;
 }
 
 interface FishingHoldState {
@@ -36,7 +40,13 @@ const DRAG_LABEL: Record<0 | 1 | 2, string> = {
   2: "Heavy"
 };
 
-export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDrag }) => {
+export const FishingHUD: React.FC<FishingHUDProps> = ({
+  hud,
+  onSetInput,
+  onSetDrag,
+  onKeepCatch,
+  onReleaseCatch
+}) => {
   const holdRef = useRef<FishingHoldState>(EMPTY_HOLD);
   const onSetInputRef = useRef(onSetInput);
   const hudRef = useRef(hud);
@@ -158,7 +168,31 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
       aria-label="Sport fishing fight"
       data-testid="sport-fishing-hud"
     >
-      {hud.showFirstTip && <p className="fishing-first-tip">Match the highlighted key to the fish.</p>}
+      {hud.awaitingLandingChoice ? (
+        <section className="fishing-landing-choice" aria-label="Landing choice" data-testid="fishing-landing-choice">
+          <strong>The fish is beaten</strong>
+          <p>
+            {hud.keepAvailable
+              ? "Stow the catch, or let it go."
+              : "No room in the hold — release it, or clear a slot and keep it."}
+          </p>
+          <div className="fishing-landing-choice-actions">
+            <ChromeButton
+              variant="gold"
+              soundCue="confirm"
+              disabled={!hud.keepAvailable}
+              onClick={() => onKeepCatch?.()}
+            >
+              Keep
+            </ChromeButton>
+            <ChromeButton soundCue="cancel" onClick={() => onReleaseCatch?.()}>
+              Release
+            </ChromeButton>
+          </div>
+        </section>
+      ) : (
+        <>
+          {hud.showFirstTip && <p className="fishing-first-tip">Match the highlighted key to the fish.</p>}
       {hud.signatureMoment && (
         <p className="fishing-signature-moment" aria-live="polite" key={hud.signatureMoment.id}>
           {hud.signatureMoment.copy}
@@ -309,8 +343,10 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({ hud, onSetInput, onSetDr
           </ChromeButton>
         </div>
       )}
+        </>
+      )}
     </GameSheet>
-    {onSetDrag && <div className="guild-drag-control interactive" role="group" aria-label="Fishing drag">
+    {onSetDrag && !hud.awaitingLandingChoice && <div className="guild-drag-control interactive" role="group" aria-label="Fishing drag">
       <span>Drag</span><div className="guild-drag-notches">
         {([0, 1, 2] as const).map((notch) => <ChromeButton key={notch} size="sm" aria-pressed={hud.dragNotch === notch}
           className={`guild-drag-notch ${hud.dragNotch === notch ? "is-selected" : ""}`}

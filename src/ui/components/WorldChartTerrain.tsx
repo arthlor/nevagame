@@ -3,6 +3,9 @@ import { worldIslandDefinitions } from "../../world/WorldIslands";
 import { WorldLayout, type WorldPoint } from "../../world/WorldLayout";
 import { worldPointToMapSvg, worldRouteToMapSvgPath } from "../../world/WorldMapProjection";
 import { NEVA_HEADWATERS } from "../../world/NevaHeadwaters";
+import { MAINLAND_LAKE, MAINLAND_RIVER, MAINLAND_SUMMITS } from "../../world/NevaMainland";
+import { WORLD_SAILING_ROUTES } from "../../world/WorldMoorings";
+import { WORLD_MAP_PROJECTION } from "../../world/WorldMapProjection";
 import { STARTER_FARM_LAYOUT, PLAYER_HOMESTEAD_LAYOUT, SUNREACH_FARM_LAYOUT } from "../../world/FarmLayout";
 
 // These paths are derived once from the authored world. They are shared by
@@ -17,6 +20,11 @@ for (let z = NEVA_HEADWATERS.source.z; z <= 90; z += 2) {
   banks[1].push({ x: section.centerX + section.rightWaterWidth, z });
 }
 const river = `${worldRouteToMapSvgPath([...banks[0], ...banks[1].reverse()])} Z`;
+const mainlandRiver = worldRouteToMapSvgPath(MAINLAND_RIVER);
+const mainlandLake = worldPointToMapSvg(MAINLAND_LAKE.center);
+const summits = MAINLAND_SUMMITS.map(summit => worldPointToMapSvg(summit));
+const soundings = [MAINLAND_RIVER[0], MAINLAND_RIVER[3], { x: -250, z: 300 }, { x: 500, z: 325 }]
+  .map(point => ({ ...worldPointToMapSvg(point), depth: Math.max(0, -WorldLayout.terrainHeight(point.x, point.z)).toFixed(1) }));
 const routes = WorldLayout.routeDefinitions().filter((route) => route.scope === "regional")
   .map((route) => ({ id: route.id, kind: route.kind, path: worldRouteToMapSvgPath(route.points) }));
 const farms = [STARTER_FARM_LAYOUT, PLAYER_HOMESTEAD_LAYOUT, SUNREACH_FARM_LAYOUT];
@@ -192,6 +200,9 @@ export const WorldChartTerrain = React.memo(function WorldChartTerrain({ activeL
 
       {/* Inked river waterways */}
       <path d={river} fill="#2a3d35" stroke="#4a371c" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d={mainlandRiver} fill="none" stroke="#2a3d35" strokeWidth={14 * WORLD_MAP_PROJECTION.scaleX} strokeLinecap="round" strokeLinejoin="round" />
+      <ellipse cx={mainlandLake.x} cy={mainlandLake.y} rx={MAINLAND_LAKE.radiusX * WORLD_MAP_PROJECTION.scaleX} ry={MAINLAND_LAKE.radiusZ * WORLD_MAP_PROJECTION.scaleZ} fill="#2a3d35" />
+      {summits.map((point, index) => <path key={`summit-${index}`} d={`M${point.x - 6},${point.y + 4} l6,-10 l6,10 l-6,-4 Z`} fill="#a59370" stroke="#695d49" strokeWidth="0.8" />)}
 
       {/* Farm plantable fields with medieval crop hatchings */}
       <g fill="#9e915e" stroke="#685532" strokeWidth="0.8">
@@ -247,22 +258,20 @@ export const WorldChartTerrain = React.memo(function WorldChartTerrain({ activeL
       {/* LENS OVERLAY: Trade Shipping Lanes (Markets Lens) */}
       {activeLens === "markets" && (
         <g className="chart-lens-markets">
-          {/* Main Archipelago Shipping Lane between Neva Harbor and Sunreach Cove */}
-          <path
-            d="M 220 310 C 380 340, 520 420, 740 390"
+          {WORLD_SAILING_ROUTES.map(route => <path
+            key={route.id}
+            d={worldRouteToMapSvgPath(route.points)}
             fill="none"
             stroke="#d4af37"
             strokeWidth="2.4"
             strokeDasharray="6 5"
             opacity="0.85"
-          />
-          {/* Directional trade flow chevron */}
-          <polygon points="495,385 510,392 495,399" fill="#d4af37" opacity="0.9" />
+          />)}
           {/* Shipping Lane Banner */}
           <g transform="translate(480, 415)">
             <rect x="-85" y="-10" width="170" height="20" rx="3" fill="rgba(30, 22, 14, 0.9)" stroke="#c4a46a" strokeWidth="1" />
             <text x="0" y="4" fill="#f5da96" fontSize="9.5" fontWeight="bold" fontFamily="serif" textAnchor="middle">
-              Channel Trade Lane · Arbitrage
+              Cove Routes &amp; Sunreach Crossing
             </text>
           </g>
         </g>
@@ -271,12 +280,8 @@ export const WorldChartTerrain = React.memo(function WorldChartTerrain({ activeL
       {/* LENS OVERLAY: Depth Soundings & Habitat Zones (Fishing Lens) */}
       {activeLens === "fishing" && (
         <g className="chart-lens-fishing" opacity="0.75">
-          {/* Estuary soundings */}
-          <text x="210" y="275" fill="#a4cfbd" fontSize="9" fontFamily="serif" fontStyle="italic">6 fm</text>
-          {/* Channel deep trench soundings */}
-          <text x="480" y="320" fill="#75b2b8" fontSize="9" fontFamily="serif" fontStyle="italic">34 fm</text>
-          <text x="560" y="480" fill="#75b2b8" fontSize="9" fontFamily="serif" fontStyle="italic">52 fm</text>
-          <text x="820" y="450" fill="#a4cfbd" fontSize="9" fontFamily="serif" fontStyle="italic">14 fm</text>
+          {soundings.map(point => <text key={`${point.x},${point.y}`} x={point.x + 4} y={point.y}
+            fill="#a4cfbd" fontSize="9" fontFamily="serif" fontStyle="italic">{point.depth} m</text>)}
         </g>
       )}
 
@@ -328,7 +333,7 @@ export const WorldChartTerrain = React.memo(function WorldChartTerrain({ activeL
 
         {/* Classical title typography */}
         <text y="-1" fill="#2c1d10" fontSize="11" fontWeight="bold" fontFamily="serif" textAnchor="middle" letterSpacing="0.14em">
-          ARCHIPELAGUS NEVENSIS
+          NEVA COVE &amp; THE MAINLAND
         </text>
         <text y="9.5" fill="#6e502c" fontSize="6.8" fontStyle="italic" fontFamily="serif" textAnchor="middle" letterSpacing="0.08em">
           TABULA HYDROGRAPHICA ET NAUTICA

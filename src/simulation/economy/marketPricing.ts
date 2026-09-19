@@ -1,4 +1,4 @@
-import type { MarketCommodityState } from "../core/types";
+import type { CropQuality, MarketCommodityState } from "../core/types";
 import { SeededRng } from "../core/Rng";
 
 export const DEMAND_MIN = 0.65;
@@ -10,6 +10,23 @@ export const WORKSHOP_SUPPLY_MARKUP = 1;
 export const DAILY_TREND_AMPLITUDE = 0.15;
 export const HOURLY_NOISE_AMPLITUDE = 0.025;
 
+/**
+ * Harvest grade scales a produce lot's quote. Crops sit below the fish/trophy
+ * ladder (`getQualityMultiplier` in `calculateFishValue`) because a grade
+ * rides a whole bushel stack and crop volume is far higher. A missing grade
+ * is an ungraded commodity at common value.
+ */
+export const CROP_QUALITY_PRICE_MULTIPLIER: Record<CropQuality, number> = {
+  common: 1,
+  fine: 1.2,
+  exceptional: 1.45,
+  prize: 1.75
+};
+
+export function cropQualityPriceMultiplier(quality: CropQuality | undefined): number {
+  return quality ? CROP_QUALITY_PRICE_MULTIPLIER[quality] : 1;
+}
+
 export type DemandCommodity = Pick<MarketCommodityState, "itemId" | "targetSupply">;
 
 export interface MarketQuoteContext {
@@ -19,6 +36,18 @@ export interface MarketQuoteContext {
   minimumEffectiveModifier?: number;
   /** Overrides the standard retail spread for explicitly authored workshop inputs. */
   retailMarkup?: number;
+  /**
+   * One multiplier per marginal unit, in sale order. Graded produce builds
+   * this from its lots so a bulk quote prices exactly the units the sale will
+   * remove, in the order it removes them. Purchases never set it.
+   */
+  qualityMultipliers?: readonly number[];
+  /**
+   * Prices against this supply instead of the commodity's live supply. A
+   * multi-lot produce quote walks one supply cursor across lots so the sum of
+   * lot quotes equals one quote over the whole batch.
+   */
+  supplyOverride?: number;
 }
 
 export interface CommodityMarketQuote {
@@ -34,6 +63,8 @@ export interface CommodityMarketQuote {
   supplyBefore: number;
   supplyAfter: number;
   marginalDemandModifiers: number[];
+  /** Per-unit settled price, in the same order as `marginalDemandModifiers`. */
+  marginalUnitPrices: number[];
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -179,11 +210,12 @@ function quoteCommodity(
     throw new Error(`Market quote quantity must be a whole number from 1 to ${MAX_MARKET_QUOTE_QUANTITY}`);
   }
 
-  const supplyBefore = Math.max(0, commodity.localSupply);
+  const supplyBefore = Math.max(0, context.supplyOverride ?? commodity.localSupply);
   const direction = side === "wholesale" ? 1 : -1;
   let supply = supplyBefore;
   let total = 0;
   const marginalDemandModifiers: number[] = [];
+  const marginalUnitPrices: number[] = [];
   const demandBefore = demandFromSupply(commodity, supply, context.absoluteHour, context.worldSeed);
 
   for (let index = 0; index < quantity; index += 1) {
@@ -192,19 +224,25 @@ function quoteCommodity(
     const after = demandFromSupply(commodity, nextSupply, context.absoluteHour, context.worldSeed);
     const marginalDemand = (before + after) / 2;
     marginalDemandModifiers.push(marginalDemand);
+    const qualityMultiplier = context.qualityMultipliers?.[index] ?? 1;
+    // The cross-market anti-arbitrage floor applies to the demand/season
+    // modifier; a harvest grade is a property of the goods, so its premium
+    // rides on top of the floor rather than being flattened by it.
     const effectiveModifier = Math.max(
       context.minimumEffectiveModifier ?? 0,
       marginalDemand * Math.max(0, commodity.seasonalModifier)
-    );
+    ) * Math.max(0, qualityMultiplier);
     const rawUnitPrice = commodity.basePrice * effectiveModifier * (
       side === "retail" ? context.retailMarkup ?? RETAIL_MARKUP : 1
     );
     const wholesaleUnit = Math.max(1, Math.round(commodity.basePrice * effectiveModifier));
-    total += side === "retail"
+    const unitPrice = side === "retail"
       // Low-value inputs can otherwise round the retail and wholesale price
       // to the same integer. Keep a visible one-gold spread per marginal unit.
       ? Math.max(wholesaleUnit + 1, Math.ceil(rawUnitPrice))
       : wholesaleUnit;
+    marginalUnitPrices.push(unitPrice);
+    total += unitPrice;
     supply = nextSupply;
   }
 
@@ -222,7 +260,8 @@ function quoteCommodity(
     averageDemandModifier,
     supplyBefore,
     supplyAfter: supply,
-    marginalDemandModifiers
+    marginalDemandModifiers,
+    marginalUnitPrices
   };
 }
 
