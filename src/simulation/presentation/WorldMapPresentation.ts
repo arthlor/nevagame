@@ -33,8 +33,10 @@ export function buildWorldMapDto(state: GameState): WorldMapDto {
         : null
     }] as const;
   }));
+  // Keys are ecology-qualified (`ecology.neva:coast`), which is what the chart
+  // reads. A bare-habitat alias was also written here and always resolved to
+  // Neva, so it could only ever misstate a Sunreach record; nothing consumed it.
   const fishingNotes: WorldMapDto["fishingNotes"] = Object.fromEntries(fishingEntries);
-  for (const habitat of HABITATS) fishingNotes[habitat] = fishingNotes[`ecology.neva:${habitat}`];
   const farms = Object.fromEntries(Object.entries(state.farms).map(([farmId, farm]) => [farmId, {
     fertilityPercent: Math.round(farm.soil.fertility),
     climateLabel: titleCase(farm.climateId),

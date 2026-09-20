@@ -186,11 +186,11 @@ export const HEADWATER_FALL_VERTEX_GLSL = /* glsl */ `
     // across-sheet sine here corrugated the whole curtain into regular
     // transverse bands when seen from above, so the displacement is noise
     // stretched down the arc instead of phase-coherent across it.
-    float ripple = (nevaGradientNoise(vec2(uv.x * 24.0, uv.y * 5.0 - time * 1.9)) - 0.5) * 1.4
-      + (nevaGradientNoise(vec2(uv.x * 52.0 + 3.7, uv.y * 11.0 - time * 2.6)) - 0.5) * 0.6;
+    float ripple = nevaGradientNoise(vec2(uv.x * 24.0, uv.y * 5.0 - time * 1.9)) * 1.4
+      + nevaGradientNoise(vec2(uv.x * 52.0 + 3.7, uv.y * 11.0 - time * 2.6)) * 0.6;
     float arcEnvelope = sin(clamp(uv.y, 0.0, 1.0) * 3.14159265);
-    float edgeFlutter = (nevaGradientNoise(vec2(uv.x * 3.0 + 2.1, uv.y * 9.0 - time * 2.4)) - 0.5);
-    vec3 displaced = position + normal * ripple * uFallRippleMeters;
+    float edgeFlutter = nevaGradientNoise(vec2(uv.x * 3.0 + 2.1, uv.y * 9.0 - time * 2.4));
+    vec3 displaced = position + normal * ripple * uFallRippleMeters * arcEnvelope;
     displaced.x += edgeFlutter * uFallRippleMeters * 5.0 * arcEnvelope;
     vec4 worldPosition = modelMatrix * vec4(displaced, 1.0);
     vWorldPosition = worldPosition.xyz;
@@ -250,13 +250,13 @@ export const HEADWATER_FALL_FRAGMENT_GLSL = /* glsl */ `
     // Body grain is stretched down the arc, not across it: a sheet of falling
     // water is vertical filaments. Roughly square noise mottled the curtain and
     // read as transverse corrugation from above.
-    float grain = nevaGradientNoise(vec2(vAcross * 7.0, dryArc * 3.2 - time * 0.22));
-    float turbulence = nevaGradientNoise(vec2(vAcross * 16.0 + time * 0.15, dryArc * 5.5 - time * 0.7));
+    float grain = nevaNoise01(vec2(vAcross * 7.0, dryArc * 3.2 - time * 0.22));
+    float turbulence = nevaNoise01(vec2(vAcross * 16.0 + time * 0.15, dryArc * 5.5 - time * 0.7));
     vec3 body = mix(uShallowColor, uMidColor,
       clamp(smoothstep(0.1, 0.75, dryArc) * 0.8 + grain * 0.1, 0.0, 1.0));
     body = mix(body, uDeepColor, smoothstep(0.45, 1.0, dryArc) * 0.3 * (1.0 - aeration * 0.55));
     body *= light * mix(1.0, cloudSunlight, 0.55 * uDaylight);
-    body *= 0.7 + 0.45 * turbulence;
+    body *= 0.82 + 0.22 * turbulence;
     body = mix(body, uFoamColor * mix(0.22, 0.95, uDaylight), aeration * 0.48);
     float sssBack = max(0.0, dot(viewDirection, normalize(-uSunDirection)));
     body += uShallowColor * (sssBack * sssBack * 0.35 * uSssStrength * uDaylight);
@@ -269,16 +269,18 @@ export const HEADWATER_FALL_FRAGMENT_GLSL = /* glsl */ `
       * (1.0 - uFallThreadConvergence * sin(3.14159265 * dryArc)) + 0.5;
     // Elongated, advected packets break into uneven ropes. A periodic sine
     // linking across and along coordinates produces diagonal zebra stripes.
-    float stretch = 1.0 - uFallStreakAcceleration * smoothstep(0.0, 1.0, dryArc);
-    float packetTravel = dryArc * uFallStreakScale * stretch - time * uFallStreakSpeed;
+    // Travel time increases monotonically down the fall; the old arc *
+    // shrinking-scale curve reversed the packets near the landing.
+    float travelArc = 2.0 * dryArc / (sqrt(1.0 + 8.0 * uFallStreakAcceleration * dryArc) + 1.0);
+    float packetTravel = travelArc * uFallStreakScale - time * uFallStreakSpeed;
     float ropeWarp = nevaGradientNoise(vec2(acrossConverged * 4.1, dryArc * 1.7 - time * 0.18));
     float threadCoordinate = acrossConverged * uFallThreadCount + ropeWarp * 1.5;
-    float filament = nevaGradientNoise(vec2(threadCoordinate, packetTravel * 0.48));
+    float filament = nevaNoise01(vec2(threadCoordinate, packetTravel * 0.48));
     float streak = smoothstep(0.42, 0.67, filament);
     float fineFilter = 1.0 - smoothstep(0.3, 1.2, fwidth(threadCoordinate));
     float streakFine = smoothstep(0.35, 0.76,
-      nevaGradientNoise(vec2(threadCoordinate * 2.1 + 6.7, packetTravel * 0.8))) * fineFilter;
-    float threadAmp = 0.35 + 0.65 * nevaGradientNoise(vec2(acrossConverged * 5.0, 9.1));
+      nevaNoise01(vec2(threadCoordinate * 2.1 + 6.7, packetTravel * 0.8))) * fineFilter;
+    float threadAmp = 0.35 + 0.65 * nevaNoise01(vec2(acrossConverged * 5.0, 9.1));
     // The sheet grows out of the channel water over its first rows: full
     // streaks at row zero would draw a seam exactly where the water turns
     // over the lip.
@@ -293,14 +295,14 @@ export const HEADWATER_FALL_FRAGMENT_GLSL = /* glsl */ `
     // catches the sky, so the nappe has a rounded readable edge rather than a
     // transparent gap that lets dark rock show through.
     body += uFoamColor * crest * uFallCrestStrength * mix(0.35, 1.0, uDaylight)
-      * (0.55 + 0.45 * nevaGradientNoise(vec2(vAcross * 8.0, dryArc * 9.0 - time * 0.6)));
+      * (0.55 + 0.45 * nevaNoise01(vec2(vAcross * 8.0, dryArc * 9.0 - time * 0.6)));
 
     // 4) Ragged silhouette. Two noise scales keep the rim uneven at thread and
     // patch size; alpha follows the same field, so straight triangle edges
     // cannot survive. Only the thin rim dissolves: the body stays opaque so no
     // backdrop can show through the falling water.
-    float breakup = nevaGradientNoise(vec2(vAcross * 5.0 + 7.1, dryArc * 3.0 - time * 0.55));
-    float breakupFine = nevaGradientNoise(vec2(vAcross * 13.0 + 1.9, dryArc * 8.0 - time * 0.8));
+    float breakup = nevaNoise01(vec2(vAcross * 5.0 + 7.1, dryArc * 3.0 - time * 0.55));
+    float breakupFine = nevaNoise01(vec2(vAcross * 13.0 + 1.9, dryArc * 8.0 - time * 0.8));
     float raggedField = breakup * 0.6 + breakupFine * 0.4;
     float raggedHalf = uFallBreakupStrength * (0.04 + 0.2 * (0.5 + 0.5 * raggedField));
     float edgeFade = smoothstep(0.0, raggedHalf, vAcross)
@@ -320,8 +322,8 @@ export const HEADWATER_FALL_FRAGMENT_GLSL = /* glsl */ `
     // vertical plumes that rise against the sheet; the foam stays opaque so
     // the plunge terminates the fall instead of fading into the gorge behind.
     float impact = smoothstep(1.0 - uFallImpactFoamSpan, 1.0, arc);
-    float impactPattern = nevaGradientNoise(vec2(vAcross * 7.0 + time * 0.4, arc * 18.0 - time * 1.3));
-    float plume = nevaGradientNoise(vec2(vAcross * 16.0 + 5.3, arc * 9.0 - time * 2.1));
+    float impactPattern = nevaNoise01(vec2(vAcross * 7.0 + time * 0.4, arc * 18.0 - time * 1.3));
+    float plume = nevaNoise01(vec2(vAcross * 16.0 + 5.3, arc * 9.0 - time * 2.1));
     float impactFoam = impact * uFallImpactFoamStrength
       * mix(0.5, 1.0, impactPattern)
       * (1.0 + uFallImpactPlumeStrength * max(0.0, plume));
@@ -329,7 +331,7 @@ export const HEADWATER_FALL_FRAGMENT_GLSL = /* glsl */ `
     // 6) Pool foam that settles downstream across the apron and over the
     // submerged foot, so the buried tip stays white water.
     float apron = smoothstep(uFallApronStart, 1.0, arc);
-    float apronPattern = nevaGradientNoise(vec2(vAcross * 4.0 + time * 0.22, arc * 7.0 - time * 0.5));
+    float apronPattern = nevaNoise01(vec2(vAcross * 4.0 + time * 0.22, arc * 7.0 - time * 0.5));
     float apronFoam = apron * uFallApronFoamStrength * mix(0.3, 1.0, apronPattern);
     float foam = clamp(max(impactFoam, apronFoam), 0.0, 0.95);
     color = mix(color, uFoamColor * mix(0.18, 0.9, uDaylight), foam);

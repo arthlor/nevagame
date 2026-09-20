@@ -4,7 +4,7 @@ import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRende
 import type { LightingFrame } from "../lighting/LightingRig";
 import { GROUND_POLYGON_CELL_GLSL } from "../materials/GroundPolygonCells";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
-import { WATER_WAVE_CONFIG, type WaterConditions } from "./WaterSurface";
+import { createWaveUniforms, type WaterConditions } from "./WaterSurface";
 import {
   createHeadwaterUniforms,
   WATER_HEADWATER_FUNCTION_GLSL,
@@ -26,10 +26,6 @@ export interface NearWaterPatchOptions {
   baseGridSpacing?: THREE.Vector2;
 }
 
-function vector(values: readonly [number, number, number]): THREE.Vector3 {
-  return new THREE.Vector3(values[0], values[1], values[2]);
-}
-
 const nearVertexShader = /* glsl */ `
   ${WATER_WAVE_UNIFORMS_GLSL}
   ${WATER_HEADWATER_UNIFORMS_GLSL}
@@ -47,6 +43,7 @@ const nearVertexShader = /* glsl */ `
   out float vSignedWaterDistance;
   out vec3 vRegionWeights;
   out float vRimFade;
+  out float vWaveFold;
 
   ${WATER_WAVE_FUNCTION_GLSL}
   ${WATER_HEADWATER_FUNCTION_GLSL}
@@ -55,8 +52,11 @@ const nearVertexShader = /* glsl */ `
     vec4 baseWorldPosition = modelMatrix * vec4(position, 1.0);
     vec4 profile = profileAt(baseWorldPosition.xz);
     float height;
+    vec2 offset;
     vec3 waveNormal;
-    waveHeightAndNormal(baseWorldPosition.xz, profile, height, waveNormal);
+    float fold;
+    waveGerstner(baseWorldPosition.xz, profile, nevaBedWaterDepth(baseWorldPosition.xz),
+      height, offset, waveNormal, fold);
     vec2 headwater = nevaHeadwaterElevationAndGrade(baseWorldPosition.xz);
 
     // Fade out near-field additions toward the patch perimeter
@@ -82,9 +82,14 @@ const nearVertexShader = /* glsl */ `
     height += detail4Wave * rimFade * headwaterDetailWeight;
 
     vec3 displaced = position;
+    // Identical trochoidal offset to the coarse surface: the two lattices
+    // share spacing, so they must also share displacement or the
+    // complementary coverage boundary would tear.
+    displaced.xz += offset * headwaterDetailWeight;
     displaced.y += headwater.x + height;
     vec4 worldPosition = modelMatrix * vec4(displaced, 1.0);
 
+    vWaveFold = fold;
     vRegionWeights = vec3(riverWeight, seaWeight, oceanWeight);
     vSignedWaterDistance = profile.r * 32.0 - 16.0;
     vWorldPosition = worldPosition.xyz;
@@ -111,6 +116,7 @@ const nearFragmentShader = /* glsl */ `
   in float vSignedWaterDistance;
   in vec3 vRegionWeights;
   in float vRimFade;
+  in float vWaveFold;
   out vec4 outColor;
 
   ${GROUND_POLYGON_CELL_GLSL}
@@ -145,7 +151,8 @@ const nearFragmentShader = /* glsl */ `
       vWaveHeight,
       vSignedWaterDistance,
       vRegionWeights,
-      vec2(cos(profileAngle), sin(profileAngle))
+      vec2(cos(profileAngle), sin(profileAngle)),
+      vWaveFold
     );
 
     // The coarse surface covers only the fragments discarded above.
@@ -181,11 +188,10 @@ export class NearWaterPatch {
       fragmentShader: nearFragmentShader,
       uniforms: {
         ...createHeadwaterUniforms(),
+        // Wave field first, so the shared coastal uniforms keep ownership of
+        // the bed map the render pipeline updates.
+        ...createWaveUniforms(),
         ...options.coastalUniforms,
-        uTime: { value: 0 },
-        uRoughness: { value: 0.2 },
-        uWindSpeed: { value: 0 },
-        uWindDirection: { value: new THREE.Vector2(0, 1) },
         uWaterProfileMap: { value: options.waterProfileMap },
         uWaterProfileBounds: { value: options.waterProfileBounds },
         uPatchCenter: { value: this.patchCenter },
@@ -202,17 +208,6 @@ export class NearWaterPatch {
         uGlitterFocusNearMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.glitterFocusNearMeters },
         uGlitterFocusFarMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.glitterFocusFarMeters },
         uGlitterFarBroadening: { value: CANONICAL_RENDER_CONFIG.waterSurface.glitterFarBroadening },
-        uPrimaryAmplitude: { value: vector(WATER_WAVE_CONFIG.primary.amplitude) },
-        uPrimaryFrequency: { value: vector(WATER_WAVE_CONFIG.primary.frequency) },
-        uPrimarySpeed: { value: vector(WATER_WAVE_CONFIG.primary.speed) },
-        uCrossAmplitude: { value: vector(WATER_WAVE_CONFIG.cross.amplitude) },
-        uCrossFrequency: { value: vector(WATER_WAVE_CONFIG.cross.frequency) },
-        uCrossSpeed: { value: vector(WATER_WAVE_CONFIG.cross.speed) },
-        uDetailAmplitude: { value: vector(WATER_WAVE_CONFIG.detail.amplitude) },
-        uDetailFrequency: { value: vector(WATER_WAVE_CONFIG.detail.frequency) },
-        uDetailSpeed: { value: vector(WATER_WAVE_CONFIG.detail.speed) },
-        uRoughnessGain: { value: vector(WATER_WAVE_CONFIG.roughnessGain) },
-        uOceanWindGain: { value: WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond },
         uShallowColor: { value: new THREE.Color(PALETTE_HEX.water_shallow_01) },
         uMidColor: { value: new THREE.Color(PALETTE_HEX.water_mid_01) },
         uDeepColor: { value: new THREE.Color(PALETTE_HEX.water_deep_01) },
@@ -232,6 +227,12 @@ export class NearWaterPatch {
         uPolygonNormalStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonNormalStrength },
         uFresnelStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.fresnelStrength },
         uSunGlintStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.sunGlintStrength },
+        uWhitecapFold: { value: new THREE.Vector2(...CANONICAL_RENDER_CONFIG.waterSurface.whitecap.foldRange) },
+        uWhitecapStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.whitecap.strength },
+        uCrestShading: { value: new THREE.Vector3(
+          CANONICAL_RENDER_CONFIG.waterSurface.crestShading.strength,
+          ...CANONICAL_RENDER_CONFIG.waterSurface.crestShading.fadeFootprintMeters
+        ) },
         uShallowStartMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowStartMeters },
         uShallowEndMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowEndMeters },
         uShallowColorStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowColorStrength },

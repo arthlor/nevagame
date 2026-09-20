@@ -27,6 +27,16 @@ interface InventoryModalProps {
   onSortSatchel?: () => { success: boolean; reason?: string };
   /** Eats an edible provision; the simulation owns the Work grant and limits. */
   onConsumeItem?: (itemId: string) => InteractionResult;
+  /**
+   * Destroys one held lot at the player's explicit request. Absent in
+   * contexts that do not offer a discard path, so no slot becomes draggable
+   * and no Discard control renders without a real simulation command behind it.
+   */
+  onDiscardItem?: (
+    itemId: string,
+    quantity: number,
+    quality: SatchelDto["slots"][number]["quality"]
+  ) => InteractionResult;
 }
 
 type InventoryCategory = "all" | "farming" | "fishing" | "supplies";
@@ -68,10 +78,20 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   onInspectPlanting,
   onInspectItem,
   onSortSatchel,
-  onConsumeItem
+  onConsumeItem,
+  onDiscardItem
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortNotice, setSortNotice] = useState<string | null>(null);
+  const [discardNotice, setDiscardNotice] = useState<string | null>(null);
+  /**
+   * The exact lot the player armed for destruction, if any. Keyed by slot
+   * identity rather than a boolean so the GameApp's per-frame satchel DTO (and
+   * any selection, filter or quantity change) cannot leave a stale arm behind,
+   * while an unchanged lot keeps its armed state across those re-renders.
+   */
+  const [discardArmedKey, setDiscardArmedKey] = useState<string | null>(null);
+  const [draggingSlotIndex, setDraggingSlotIndex] = useState<number | null>(null);
   const [organizeOpen, setOrganizeOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory>("all");
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(() => {
@@ -98,6 +118,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
   const allSlots = satchel.slots;
   const selectedSlot = selectedSlotIndex !== null ? allSlots[selectedSlotIndex] ?? null : null;
+  const selectedLotKey = selectedSlot?.itemId
+    ? `${selectedSlot.index}:${selectedSlot.itemId}:${selectedSlot.quality ?? ""}`
+    : null;
+  const discardArmed = selectedLotKey !== null && discardArmedKey === selectedLotKey;
   const planting = selectedSlot?.cropId ? onInspectPlanting(selectedSlot.cropId) : null;
 
   // #18: fixed sockets keep the grid stable while a filter is active, so
@@ -155,6 +179,27 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
   const handleConsumeSelected = (): void => {
     if (selectedSlot?.itemId) onConsumeItem?.(selectedSlot.itemId);
+  };
+
+  /**
+   * Destroys one slot's whole lot through the simulation. Both the drag-out
+   * gesture and the inspector's armed Discard land here, so the two paths can
+   * never disagree about what was destroyed.
+   */
+  const discardSlot = (index: number | null): void => {
+    setDraggingSlotIndex(null);
+    setDiscardArmedKey(null);
+    const slotToDiscard = index === null ? null : allSlots[index] ?? null;
+    if (!slotToDiscard?.itemId || slotToDiscard.quantity <= 0) return;
+    const result = onDiscardItem?.(slotToDiscard.itemId, slotToDiscard.quantity, slotToDiscard.quality);
+    if (!result) return;
+    playUiSound(result.success ? "confirm" : "click");
+    setDiscardNotice(
+      result.success
+        ? `Discarded ${slotToDiscard.quantity} ${slotToDiscard.name}`
+        : result.reason ?? "Could not discard that"
+    );
+    if (result.success) setSelectedSlotIndex(null);
   };
 
   /**
@@ -394,6 +439,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
                 const isMatch = !isFilterActive || isSlotMatch(slot);
                 const isSelectable = isMatch;
+                const canDragToDiscard = isSelectable && Boolean(onDiscardItem);
 
                 return (
                   <ItemSlot
@@ -405,8 +451,17 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     quantity={slot.quantity > 1 ? slot.quantity : undefined}
                     badge={slot.quality ? <ChromeQuality quality={slot.quality} showLabel={false} /> : undefined}
                     onSelect={isSelectable ? () => setSelectedSlotIndex(index) : undefined}
+                    draggable={canDragToDiscard}
+                    onDragStart={canDragToDiscard
+                      ? (event) => {
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", slot.itemId ?? "");
+                          setDraggingSlotIndex(index);
+                        }
+                      : undefined}
+                    onDragEnd={canDragToDiscard ? () => setDraggingSlotIndex(null) : undefined}
                     label={isSelectable
-                      ? `${slot.name}, ${slot.quality ? `${slot.quality} quality, ` : ""}count ${slot.quantity}`
+                      ? `${slot.name}, ${slot.quality ? `${slot.quality} quality, ` : ""}count ${slot.quantity}${canDragToDiscard ? ", drag out to destroy" : ""}`
                       : `${slot.name}, hidden by the active filter`}
                     role="option"
                     aria-selected={isSelectable && isSelected}
@@ -489,6 +544,37 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                   </div>
                 )}
 
+                {onDiscardItem && (
+                  <div className="inventory-action-block inventory-discard-block">
+                    {discardArmed ? (
+                      <ChromeButton
+                        variant="danger"
+                        soundCue="click"
+                        className="inventory-discard-confirm"
+                        data-testid="inventory-discard-confirm"
+                        onClick={() => discardSlot(selectedSlot.index)}
+                      >
+                        Destroy {selectedSlot.quantity} {selectedSlot.name}?
+                      </ChromeButton>
+                    ) : (
+                      <ChromeButton
+                        variant="ghost"
+                        soundCue="click"
+                        className="inventory-discard-action"
+                        data-testid="inventory-discard-action"
+                        onClick={() => setDiscardArmedKey(selectedLotKey)}
+                      >
+                        Discard {selectedSlot.quantity > 1 ? `stack of ${selectedSlot.quantity}` : "item"}
+                      </ChromeButton>
+                    )}
+                    <p className="inventory-discard-hint">
+                      {discardArmed
+                        ? "This destroys the stack for good."
+                        : "Or drag a slot out of the satchel to destroy it in one gesture."}
+                    </p>
+                  </div>
+                )}
+
                 {selectedSlot.description && <p className="details-description">{selectedSlot.description}</p>}
 
                 {/* Agronomy and other numbers are for players who go looking;
@@ -552,6 +638,29 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
           </div>
         </div>
 
+        {discardNotice && (
+          <p className="inventory-sort-notice" role="status" data-testid="inventory-discard-notice">
+            {discardNotice}
+          </p>
+        )}
+
+        {draggingSlotIndex !== null && onDiscardItem && (
+          <div
+            className="inventory-discard-zone"
+            data-testid="inventory-discard-zone"
+            aria-hidden="true"
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              discardSlot(draggingSlotIndex);
+            }}
+          >
+            <span className="inventory-discard-zone-label">Release to destroy</span>
+          </div>
+        )}
 
         <footer className="modal-footer">
           {showFooterTip && (

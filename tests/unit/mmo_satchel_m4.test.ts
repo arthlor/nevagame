@@ -118,6 +118,15 @@ describe("Milestone M4 — Satchel search, tidy & item inspect cards", () => {
       const html = render({ onSortSatchel: () => ({ success: true }) });
       expect(html).toMatch(/aria-label="Tidy the satchel[^"]*merge stacks/);
     });
+
+    it("offers discard only when the host can perform it, and only then makes slots draggable", () => {
+      expect(render()).not.toContain('data-testid="inventory-discard-action"');
+      expect(render()).not.toContain('draggable="true"');
+
+      const html = render({ onDiscardItem: () => ({ success: true }) });
+      expect(html).toContain('data-testid="inventory-discard-action"');
+      expect(html).toContain('draggable="true"');
+    });
   });
 
   // ==========================================================================
@@ -202,6 +211,9 @@ describe("Milestone M4 — Satchel search, tidy & item inspect cards", () => {
       expect(formatGrowthDuration(180)).toBe("3h");
       expect(formatGrowthDuration(45)).toBe("45m");
       expect(formatGrowthDuration(0)).toBe("—");
+      // The rounding must carry into the day, never print a twenty-fifth hour.
+      expect(formatGrowthDuration(1410)).toBe("1d");
+      expect(formatGrowthDuration(2879)).toBe("2d");
     });
 
     it("renders in flow when no cursor anchor is given", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NEVA_HEADWATERS, headwaterGradientAt } from "../../src/world/NevaHeadwaters";
-import { WorldLayout } from "../../src/world/WorldLayout";
+import { WorldLayout, RIVER_FISHING_ACCESS_RESERVES } from "../../src/world/WorldLayout";
 import { createHeadwaterFallGeometry } from "../../src/render/water/HeadwaterFall";
 
 describe("Neva river landscape", () => {
@@ -34,6 +34,17 @@ describe("Neva river landscape", () => {
         expect(WorldLayout.terrainBaseSurfaceHeight(x+offset,z), `impact bed ${offset},${z}`)
           .toBeLessThan(landingElevation-0.5);
       }
+    }
+  });
+
+  it("gives every reserved fishing approach dry footing beside the visible waterline", () => {
+    for (const reserve of RIVER_FISHING_ACCESS_RESERVES) {
+      const s = WorldLayout.riverSectionAt(reserve.z);
+      const sign = reserve.side === "left" ? -1 : 1;
+      const edge = s.centerX + sign * (sign < 0 ? s.leftWaterWidth : s.rightWaterWidth);
+      expect(WorldLayout.terrainHeight(edge, reserve.z)).toBeCloseTo(s.surfaceElevation, 5);
+      expect(WorldLayout.terrainHeight(edge+sign*2, reserve.z)).toBeGreaterThan(s.surfaceElevation);
+      expect(WorldLayout.fishingAccessAt(edge+sign*2,reserve.z).accessible).toBe(true);
     }
   });
 

@@ -1359,8 +1359,9 @@ describe("Gameplay simulation fixes", () => {
     const encounter = sim.activeFishingEncounter;
     expect(encounter).not.toBeNull();
     for (let step = 0; step < 400; step++) {
-      if (!sim.activeFishingEncounter) break;
-      const state = sim.activeFishingEncounter.getState();
+      if (sim.state.sportFishing?.awaitingLandingChoice) break;
+      const state = sim.activeFishingEncounter?.getState();
+      if (!state) break;
       const isReeling = state.lineTension < 70;
       const isBracing = state.behavior === "dive" || state.behavior === "burst";
       const isSlacking = state.lineTension > 80;
@@ -1372,6 +1373,8 @@ describe("Gameplay simulation fixes", () => {
       });
       sim.tick(0.5);
     }
+    expect(sim.state.sportFishing?.awaitingLandingChoice).toBe(true);
+    expect(sim.execute({ type: "fishing.keep-catch" }).success).toBe(true);
     expect(sim.activeFishingEncounter).toBeNull();
     const troutCargo = Object.values(sim.state.fishCargo).filter((cargo) => cargo.speciesId === "fish.trout");
     expect(troutCargo.length).toBeGreaterThan(0);

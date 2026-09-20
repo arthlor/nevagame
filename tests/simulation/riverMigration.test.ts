@@ -1,3 +1,4 @@
+import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { describe, expect, it, vi } from "vitest";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { migrateRiver53 } from "../../src/persistence/migrateRiver53";
@@ -24,7 +25,7 @@ describe("Neva river layout25 recovery", () => {
     const untouched = structuredClone(saved);
     const after = migrateSaveData(saved);
     expect(validateSaveEnvelope(after)).toBe(true);
-    expect(after.state.world.layoutRevision).toBe(25);
+    expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     const p = after.state.player;
     expect(WorldLayout.isWalkable(p.x, p.z)).toBe(true);
     expect(WorldLayout.isWater(p.x, p.z)).toBe(false);

@@ -159,8 +159,9 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
       work: { current: 300, baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
       waterWork: { baseCost: 5, cost: 5, availableWork: 300, affordable: true, shortage: 0 },
       harvestWork: { baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
+      unrootWork: { baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
       immediateAction: { kind: "harvest", label: "Harvest Crop", cost: 10, available: true },
-      actions: { canWater: false, canHarvest: true }
+      actions: { canWater: false, canHarvest: true, canUnroot: false }
     };
 
     it("clamps extreme negative screen projections to safe margin 16px", () => {
@@ -327,6 +328,7 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
         speedKnots: 0,
         seaState: "Calm",
         seaWarning: null,
+        wrecked: false,
         showNightWarning: false,
         hull: { current: 100, maximum: 100, percent: 100, danger: false },
         fuel: null,
@@ -352,6 +354,7 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
         speedKnots: 0,
         seaState: "Rough",
         seaWarning: "Hull Flooding Critical",
+        wrecked: true,
         showNightWarning: true,
         hull: { current: 0, maximum: 100, percent: 0, danger: true },
         fuel: { current: 0, maximum: 100, percent: 0, danger: true },
@@ -378,9 +381,11 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
       // Hull and fuel danger
       expect(html).toContain("hull-critical");
       expect(html).toContain("0%");
+      expect(html).toContain("Wrecked");
       expect(html).toContain("boat-sea-warning");
-      expect(html).toContain("Hull Flooding Critical");
-      expect(html).toContain("Night waters");
+      expect(html).toContain("Hull lost — tow to Neva Harbor for repairs");
+      // A wrecked hull is the dominant state; the night advisory yields to it.
+      expect(html).not.toContain("Night waters");
 
       // 500kg spoiled catch in cargo hold
       expect(html).toContain("500.0kg");
@@ -471,8 +476,9 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
         work: { current: 100, baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
         waterWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
         harvestWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
+        unrootWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
         immediateAction: { kind: "harvest", label: "Harvest", cost: 5, available: true },
-        actions: { canWater: false, canHarvest: true }
+        actions: { canWater: false, canHarvest: true, canUnroot: false }
       };
 
       const cropJsonBefore = JSON.stringify(originalCrop);

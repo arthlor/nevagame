@@ -1,3 +1,4 @@
+import { nevaBaseGroundHeight, sampleNevaLandforms } from "./NevaLandforms";
 import type { WorldPoint, WorldRoute } from "./WorldLayout";
 
 /** Authored mainland causes, shared by traversal, climate and composition. */
@@ -262,7 +263,15 @@ interface GradedRoute extends WorldRoute { elevations: readonly number[] }
 function route(id: string, knots: readonly RoadKnot[], kind: WorldRoute["kind"] = "arterial"): GradedRoute {
   const controls = knots.map(([x, z]) => ({ x, z }));
   const points = smoothCenterline(controls, 4);
-  const terrain = points.map(point => mainlandLandformAt(point.x, point.z).height);
+  const terrain = points.map(point => {
+    const mainland = mainlandLandformAt(point.x, point.z).height;
+    if (id !== "mainland-village-highridge") return mainland;
+    // This connector crosses two landform owners. Grading only against the
+    // mainland datum manufactured a raised causeway through the starter valley.
+    const starter = Math.max(nevaBaseGroundHeight(point.x, point.z),
+      sampleNevaLandforms(point.x, point.z).minimumElevation);
+    return starter + (mainland - starter) * mainlandBlendAt(point.x, point.z);
+  });
   // Only retained working-ground connectors and physical landing lips need explicit datums.
   for (let i = 0; i < points.length; i++) {
     let nearest = Infinity;
@@ -307,9 +316,9 @@ function route(id: string, knots: readonly RoadKnot[], kind: WorldRoute["kind"] 
 export const MAINLAND_ROUTES: readonly GradedRoute[] = [
   route("mainland-farm-pinewatch", [[-87, -60, 1.2], [-145, -48, 3], [-190, -45, 4],
     [-230, -28, 5.4], [-275, -18], [-315, -2], [-342, 24], [-365, 43], [-395, 55, 6]]),
-  route("mainland-village-highridge", [[70, -68, 6.3], [62, -88, 6.3], [72, -104, 7.5], [100, -115, 9],
-    [112, -153, 10], [111, -193, 11], [98, -225, 12], [62, -258, 14], [22, -278, 16],
-    [-27, -283, 18], [-72, -302, 20], [-118, -324], [-165, -326], [-206, -340],
+  route("mainland-village-highridge", [[70, -68, 6.3], [62, -88, 6.3], [72, -104, 7.5], [100, -115],
+    [103, -143], [91, -175], [84, -212], [63, -246], [22, -278],
+    [-27, -283], [-72, -302], [-118, -324], [-165, -326], [-206, -340],
     [-251, -355], [-298, -363], [-340, -365, 26]]),
   route("mainland-pinewatch-highridge", [[-395, 55, 6], [-397, 12], [-414, -28], [-435, -62],
     [-440, -110], [-425, -150], [-425, -180], [-435, -214], [-424, -251], [-399, -280],

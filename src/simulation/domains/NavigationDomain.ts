@@ -5,7 +5,8 @@ import { InventoryManager } from "../inventory/InventoryManager";
 import type { BoatId, BoatState, FishCargoState, GameState, MarketId, MountId } from "../core/types";
 import {
   HARBOR_SKIFF_MOORING,
-  WORLD_SPAWN
+  WORLD_SPAWN,
+  harborMooringForBoatType
 } from "../../world/WorldAnchors";
 import { SAILABLE_BOUNDS, WorldLayout } from "../../world/WorldLayout";
 import type { DomainContext } from "./DomainContext";
@@ -29,6 +30,9 @@ import {
   nearestMooring
 } from "../../world/WorldMoorings";
 import { SUNREACH_ANCHORS } from "../../world/WorldIslands";
+import { isBoatWrecked, repairBoatHull } from "../boats/BoatHull";
+import { npcAnchorAt, NPC_TALK_RADIUS } from "../presentation/NpcPresentation";
+import type { RepairQuoteDto } from "../core/contracts";
 
 /** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
 export const MOTOR_FUEL_PER_GAME_MINUTE = 0.4;
@@ -448,6 +452,11 @@ export class NavigationDomain {
    * fish, so the tow is the cargo-safe counterpart: it docks the crewed boat
    * at the nearest compatible mooring with cargo and fuel untouched, for a
    * flat fee. No clock advance — the lost trip is the time cost.
+   *
+   * A wrecked hull has no other way home (the boat cannot make way and there
+   * is no swimming), so it is always towed to Neva Harbor, where Silas can
+   * repair it. If the captain cannot pay the fee the harbor covers it rather
+   * than stranding a person at sea; the notice says so.
    */
   public emergencyTow(): { success: boolean; reason?: string; cost?: number } {
     const { state, events } = this.context;
@@ -458,15 +467,27 @@ export class NavigationDomain {
     const boat = state.boats[boatId];
     if (!boat) return { success: false, reason: "Boat not found" };
     const definition = ContentRegistry.boats.get(boat.boatTypeId);
-    if (!definition || definition.fuelCapacity <= 0) {
-      return { success: false, reason: "This boat needs no tow — row it home" };
+    if (!definition) return { success: false, reason: "Boat not found" };
+    const wrecked = isBoatWrecked(boat);
+    if (!wrecked) {
+      if (definition.fuelCapacity <= 0) {
+        return { success: false, reason: "This boat needs no tow — row it home" };
+      }
+      if (boat.fuel > 0) return { success: false, reason: "The tank still has fuel — sail on" };
     }
-    if (boat.fuel > 0) return { success: false, reason: "The tank still has fuel — sail on" };
-    if (state.player.money < NavigationDomain.EMERGENCY_TOW_COST) {
+    if (boat.isDocked) return { success: false, reason: "The vessel is already docked" };
+    const charged = wrecked && state.player.money < NavigationDomain.EMERGENCY_TOW_COST
+      ? 0
+      : NavigationDomain.EMERGENCY_TOW_COST;
+    if (!wrecked && state.player.money < NavigationDomain.EMERGENCY_TOW_COST) {
       return { success: false, reason: `Emergency tow needs ${NavigationDomain.EMERGENCY_TOW_COST} G` };
     }
-    const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId, true);
-    state.player.money -= NavigationDomain.EMERGENCY_TOW_COST;
+    // A wreck belongs at the one harbor that can put it right, not the nearest
+    // island landing. A no-fuel tow keeps its existing nearest-service rule.
+    const mooring = wrecked
+      ? harborMooringForBoatType(boat.boatTypeId)
+      : nearestMooring(boat.x, boat.z, boat.boatTypeId, true);
+    state.player.money -= charged;
     Object.assign(boat, {
       x: mooring.boatPosition.x,
       y: mooring.boatPosition.y,
@@ -488,12 +509,78 @@ export class NavigationDomain {
     this.refreshPlayerRegion();
     events.emit("BoatDocked", { boatId, marketId: mooring.marketId, minute: state.clock.currentMinute });
     events.emit("BoatDisembarked", { boatId, minute: state.clock.currentMinute });
+    events.emit("BoatTowed", {
+      boatId,
+      reason: wrecked ? "wrecked" : "no-fuel",
+      cost: charged,
+      marketId: mooring.marketId,
+      minute: state.clock.currentMinute
+    });
     events.emit("Notification", {
-      title: "Emergency tow",
-      message: "Towed to the nearest mooring · catch kept · refuel before sailing",
+      title: wrecked ? "Wreck towed home" : "Emergency tow",
+      message: wrecked
+        ? charged > 0
+          ? `Towed to Neva Harbor · ${charged} G · speak with Silas at the pier to repair`
+          : "Towed to Neva Harbor · the harbor covered the fee · speak with Silas at the pier"
+        : "Towed to the nearest mooring · catch kept · refuel before sailing",
       type: "warning"
     });
-    return { success: true, cost: NavigationDomain.EMERGENCY_TOW_COST };
+    return { success: true, cost: charged };
+  }
+
+  /**
+   * Silas repairs a hull at the harbor for the catalog's flat fee. The quote is
+   * the single authority for the prompt and the command: both go through it, so
+   * a prompt can never advertise a repair the command refuses.
+   */
+  public inspectRepairQuote(boatId: BoatId): RepairQuoteDto {
+    const { state } = this.context;
+    const boat = state.boats[boatId];
+    const definition = boat ? ContentRegistry.boats.get(boat.boatTypeId) : undefined;
+    if (!boat || !definition) {
+      return { ok: false, cost: 0, reason: "Boat not found", canAfford: false, inReach: false };
+    }
+    const cost = definition.repairCostMoney;
+    const canAfford = state.player.money >= cost;
+    const inReach = this.isAtSilasRepairPoint(boat);
+    if (boat.durability >= definition.durabilityMax) {
+      return { ok: false, cost, reason: "The hull is already sound", canAfford, inReach };
+    }
+    if (!inReach) {
+      return { ok: false, cost, reason: "Dock the vessel at Neva Harbor and find Silas at the pier", canAfford, inReach };
+    }
+    if (!canAfford) {
+      return { ok: false, cost, reason: `Silas needs ${cost} G for the repair`, canAfford, inReach };
+    }
+    return { ok: true, cost, canAfford, inReach };
+  }
+
+  public repairHull(boatId: BoatId): { success: boolean; reason?: string; cost?: number } {
+    const quote = this.inspectRepairQuote(boatId);
+    if (!quote.ok) return { success: false, reason: quote.reason };
+    const { state, events } = this.context;
+    const boat = state.boats[boatId];
+    if (!boat) return { success: false, reason: "Boat not found" };
+    // All checks passed before any mutation.
+    state.player.money -= quote.cost;
+    repairBoatHull(boat);
+    boat.speed = 0;
+    events.emit("BoatRepaired", { boatId, cost: quote.cost, minute: state.clock.currentMinute });
+    events.emit("Notification", {
+      title: "Hull repaired",
+      message: `Silas set the planking right · ${quote.cost} G`,
+      type: "success"
+    });
+    return { success: true, cost: quote.cost };
+  }
+
+  private isAtSilasRepairPoint(boat: BoatState): boolean {
+    const { state } = this.context;
+    if (!boat.isDocked) return false;
+    const mooring = dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z);
+    if (!mooring || mooring.marketId !== "market.harbor") return false;
+    const silas = npcAnchorAt("npc.silas", state.clock, state.quests);
+    return distance2d(state.player, silas) <= NPC_TALK_RADIUS;
   }
 
   public refuel(boatId?: BoatId): { success: boolean; reason?: string } {

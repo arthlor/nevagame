@@ -140,8 +140,9 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
         work: { current: 300, baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
         waterWork: { baseCost: 5, cost: 5, availableWork: 300, affordable: true, shortage: 0 },
         harvestWork: { baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
+        unrootWork: { baseCost: 10, cost: 10, availableWork: 300, affordable: true, shortage: 0 },
         immediateAction: { kind: "harvest", label: "Harvest", cost: 5, available: true },
-        actions: { canWater: false, canHarvest: true }
+        actions: { canWater: false, canHarvest: true, canUnroot: false }
       };
 
       // Case 1: Extreme offscreen left & top (-5000, -5000)
@@ -198,8 +199,9 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
         work: { current: 100, baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
         waterWork: { baseCost: 3, cost: 3, availableWork: 100, affordable: true, shortage: 0 },
         harvestWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
+        unrootWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
         immediateAction: { kind: "water", label: "Water", cost: 3, available: true, blockerReason: "Needs watering can" },
-        actions: { canWater: true, canHarvest: false }
+        actions: { canWater: true, canHarvest: false, canUnroot: false }
       });
 
       const initialSnapshot = JSON.stringify(inspection);
@@ -258,6 +260,7 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
         speedKnots: 8.5,
         seaState: "Swell",
         seaWarning: null,
+        wrecked: false,
         hull: { current: 180, maximum: 200, percent: 90, danger: false },
         fuel: { current: 45, maximum: 50, percent: 90, danger: false },
         occupiedCargoSlots: 1,
@@ -426,8 +429,9 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
             work: { current: 100, baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
             waterWork: { baseCost: 3, cost: 3, availableWork: 100, affordable: true, shortage: 0 },
             harvestWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
+            unrootWork: { baseCost: 5, cost: 5, availableWork: 100, affordable: true, shortage: 0 },
             immediateAction: { kind: "water", label: "Wait", cost: null, available: false },
-            actions: { canWater: true, canHarvest: false }
+            actions: { canWater: true, canHarvest: false, canUnroot: false }
           },
           onClose: () => {}
         })
@@ -519,6 +523,7 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
             speedKnots: 3.2,
             seaState: "Calm",
             seaWarning: null,
+            wrecked: false,
             showNightWarning: false,
             hull: { current: 100, maximum: 100, percent: 100, danger: false },
             fuel: null,

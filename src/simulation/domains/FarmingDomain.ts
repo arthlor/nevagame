@@ -59,6 +59,7 @@ export const FARMING_ACTION_COST = {
   plant: 12,
   water: 5,
   harvest: 30,
+  unroot: 10,
   fertilize: 8,
   irrigate: 8
 } as const;
@@ -571,6 +572,33 @@ export class FarmingDomain {
     };
   }
 
+  /**
+   * Deliberately removes a living planting, including a mature orchard tree.
+   * Grants no Farming XP and refunds no seed or sapling: the docs call out
+   * repeat plant/uproot loops as an XP exploit, so the seed stays spent.
+   */
+  public unroot(placedCropId: PlacedCropId): InteractionResult {
+    const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
+    if (state.player.activeBoatId) return { success: false, reason: "Step ashore before unrooting" };
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker, reasonCode: "hands-occupied" };
+    const crop = state.crops[placedCropId];
+    if (!crop) return { success: false, reason: "Crop not found" };
+    if (!this.isNearCrop(crop, "unroot")) return { success: false, reason: "Move closer to the crop" };
+    if (crop.stage === "withered") return { success: false, reason: "Clear this withered plot instead" };
+    const work = this.progression.trySpendWork(FARMING_ACTION_COST.unroot, "farming", "Unrooting", "farming.unroot");
+    if (!work.success) return work;
+    this.removePlacedCrop(placedCropId);
+    events.emit("CropUnrooted", {
+      placedCropId,
+      cropId: crop.cropId,
+      farmId: crop.farmId,
+      minute: state.clock.currentMinute
+    });
+    return { success: true };
+  }
+
   public applyFertilizer(farmId: FarmId): InteractionResult {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
@@ -744,6 +772,23 @@ export class FarmingDomain {
         : !harvestQuote.affordable && harvestable
           ? workShortage(harvestQuote)
           : "Not ready");
+    const unrootNear = this.isNearCrop(crop, "unroot");
+    const unrootQuote = this.progression.quoteWorkCost(FARMING_ACTION_COST.unroot, "farming", "farming.unroot");
+    const unrootBlocker = state.player.activeMountId
+      ? "Dismount before tending crops"
+      : state.player.activeBoatId
+        ? "Step ashore before unrooting"
+        : handsBlocker;
+    const canUnroot = !unrootBlocker && unrootNear && crop.stage !== "withered" && unrootQuote.affordable;
+    const unrootReason = canUnroot
+      ? undefined
+      : crop.stage === "withered"
+        ? "Clear this withered plot instead"
+        : unrootBlocker ?? (!unrootNear
+          ? "Move closer"
+          : !unrootQuote.affordable
+            ? workShortage(unrootQuote)
+            : undefined);
     const harvestStage = harvestable || crop.stage === "withered";
     const immediateAction: CropInspectionDto["immediateAction"] = harvestStage
       ? {
@@ -802,12 +847,15 @@ export class FarmingDomain {
       },
       waterWork: waterQuote,
       harvestWork: harvestQuote,
+      unrootWork: unrootQuote,
       immediateAction,
       actions: {
         canWater,
         canHarvest,
+        canUnroot,
         waterReason,
-        harvestReason
+        harvestReason,
+        unrootReason
       }
     };
   }

@@ -136,7 +136,7 @@ export interface RecipeDefinition {
 export type EquipmentEffectDefinition =
   | { kind: "work-multiplier"; actions: WorkActionId[]; multiplier: number }
   | { kind: "crop-quality-chance"; multiplier: number }
-  | { kind: "crop-reach"; actions: Array<"water" | "harvest" | "inspect">; bonusMeters: number }
+  | { kind: "crop-reach"; actions: Array<"water" | "harvest" | "unroot" | "inspect">; bonusMeters: number }
   | { kind: "annual-plant-matter-bonus"; quantity: number }
   | { kind: "sport-line-damage-multiplier"; multiplier: number }
   | { kind: "sport-brace-extra-multiplier"; multiplier: number };
@@ -178,6 +178,8 @@ export interface BoatDefinition {
   supplySlotCount: number;
   safeSeaRoughness: number; // max roughness before handling penalty
   costMoney: number;
+  /** Flat Silas harbor-repair fee that restores a damaged or wrecked hull. */
+  repairCostMoney: number;
   requiredSkillXp?: { skill: SkillId; xp: number };
 }
 

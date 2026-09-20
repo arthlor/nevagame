@@ -1,7 +1,11 @@
 import * as THREE from "three";
 
 /** Partition the existing plane grid without changing any vertex or triangle. */
-export function tileWaterGeometry(source: THREE.PlaneGeometry, tileMeters: number): THREE.PlaneGeometry[] {
+export function tileWaterGeometry(
+  source: THREE.PlaneGeometry,
+  tileMeters: number,
+  horizontalMargin = 0
+): THREE.PlaneGeometry[] {
   const columns = source.parameters.widthSegments;
   const rows = source.parameters.heightSegments;
   const positions = source.getAttribute("position");
@@ -44,6 +48,8 @@ export function tileWaterGeometry(source: THREE.PlaneGeometry, tileMeters: numbe
       tile.computeBoundingBox();
       tile.boundingBox!.min.y = minimumY;
       tile.boundingBox!.max.y = maximumY;
+      // Trochoidal displacement carries vertices past the authored tile edge.
+      tile.boundingBox!.expandByVector(new THREE.Vector3(horizontalMargin, 0, horizontalMargin));
       tile.boundingSphere = tile.boundingBox!.getBoundingSphere(new THREE.Sphere());
       result.push(tile);
     }

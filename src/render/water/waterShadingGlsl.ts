@@ -23,6 +23,10 @@ export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
   uniform float uSssStrength;
   uniform float uBoatFoamStrength;
   uniform vec3 uWaterAbsorption;
+  uniform vec3 uFreshwaterAbsorptionScale;
+  uniform vec4 uLakeBounds;
+  uniform float uLakeRippleScale;
+  uniform float uLakeCurrentScale;
   uniform float uRefractionPixels;
   uniform float uRippleNormalStrength;
   uniform float uCausticStrength;
@@ -30,6 +34,7 @@ export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
   uniform vec3 uCausticSunDirection;
   uniform float uCausticSunStrength;
   uniform vec3 uDistantSlope;
+  uniform float uGrazingSlopeFloor;
   uniform int uSceneCaptureEnabled;
   uniform sampler2D uOpaqueColor;
   uniform sampler2D uOpaqueDepth;
@@ -90,6 +95,11 @@ export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
   uniform float uGlitterFocusNearMeters;
   uniform float uGlitterFocusFarMeters;
   uniform float uGlitterFarBroadening;
+  /** Fold values that begin and complete a breaking crest. */
+  uniform vec2 uWhitecapFold;
+  uniform float uWhitecapStrength;
+  /** Strength, then the pixel-footprint range over which it fades out. */
+  uniform vec3 uCrestShading;
   uniform int uReflectionMode; // 0 = flat, 1 = skyGradient, 2 = skyGradient+sun
 `;
 
@@ -103,7 +113,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     return point.xyz / point.w;
   }
   vec4 nevaShadeWaterSurface(vec3 worldPosition, vec3 shadingNormal, float waveHeight,
-    float signedWaterDistance, vec3 regionWeights, vec2 localFlow) {
+    float signedWaterDistance, vec3 regionWeights, vec2 localFlow, float waveFold) {
     float baselineElevation = worldPosition.y - waveHeight;
     if (nevaHeadwaterContains(worldPosition.xz) || baselineElevation > 0.001) {
       signedWaterDistance = profileAt(worldPosition.xz).r * 32.0 - 16.0;
@@ -133,7 +143,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     float slopeFilter = mix(1.0, uDistantSlope.z, smoothstep(uDistantSlope.x, uDistantSlope.y, cameraDistance));
     // At a grazing view, tiny slopes sweep the reflection between sky and
     // horizon. Average their response instead of drawing parallel bright bands.
-    slopeFilter *= mix(0.22, 1.0, smoothstep(0.04, 0.34, viewDirection.y));
+    slopeFilter *= mix(uGrazingSlopeFloor, 1.0, smoothstep(0.04, 0.34, viewDirection.y));
     vec3 normal = normalize(mix(baseNormal, shadingNormal, slopeFilter));
     float pixelFootprint = max(length(dFdx(worldPosition.xz)), length(dFdy(worldPosition.xz)));
     float rippleFilter = (1.0 - smoothstep(0.25, 1.4, pixelFootprint))
@@ -142,9 +152,15 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     // space moves the detail field with the water, fastest in the deep
     // thalweg and slower in the bank shallows (a no-slip edge at the bank).
     float riverWeight = regionWeights.x;
+    // The lake keeps freshwater waves but has sheltered ripples and only a
+    // residual drift. Its boundary comes from the canonical basin, not a mask texture.
+    float lakeRadius = length((worldPosition.xz - uLakeBounds.xy) / uLakeBounds.zw);
+    float lakeWeight = (1.0 - smoothstep(0.72, 1.06, lakeRadius)) * riverWeight;
+    float currentWeight = riverWeight * mix(1.0, uLakeCurrentScale, lakeWeight);
+    rippleFilter *= mix(1.0, uLakeRippleScale, lakeWeight);
     vec2 riverFlow = length(localFlow) > 0.001 ? normalize(localFlow) : vec2(0.0, 1.0);
     float flowDepth = clamp(waterDepth / max(0.15, uRiverFlowDepthFull), uRiverFlowDepthStart, 1.0);
-    vec2 flowOffset = riverFlow * (uTime * uRiverFlowSpeed * flowDepth * riverWeight
+    vec2 flowOffset = riverFlow * (uTime * uRiverFlowSpeed * flowDepth * currentWeight
       * (1.0 - uReducedMotion * 0.65));
     if (uRippleNormalStrength > 0.0) {
       vec3 ripple = nevaScrollingDetailNormal((worldPosition.xz - flowOffset) * 5.0, uTime,
@@ -154,11 +170,13 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       // water even when the wind is calm and the shared bands are restrained.
       // A slow mask gates it into riffle patches, because a coherent field
       // over the whole channel combs the surface like brushed metal.
-      float riffleMask = smoothstep(0.3, 0.72,
-        nevaGradientNoise(worldPosition.xz * 0.085 + flowOffset * 0.14));
-      vec3 currentRipple = nevaScrollingDetailNormal((worldPosition.xz - flowOffset * 1.35) * 11.0, uTime,
-        0.0, uRiverFlowNormalStrength * riverWeight * rippleFilter * riffleMask);
-      normal = normalize(normal + (currentRipple - vec3(0.0, 1.0, 0.0)) * smoothstep(0.05, 0.6, waterDepth));
+      if (currentWeight > 0.02) {
+        float riffleMask = smoothstep(0.38, 0.76,
+          nevaNoise01(worldPosition.xz * 0.085 + flowOffset * 0.14));
+        vec3 currentRipple = nevaScrollingDetailNormal((worldPosition.xz - flowOffset * 1.35) * 11.0, uTime,
+          0.0, uRiverFlowNormalStrength * currentWeight * rippleFilter * riffleMask);
+        normal = normalize(normal + (currentRipple - vec3(0.0, 1.0, 0.0)) * smoothstep(0.05, 0.6, waterDepth));
+      }
     }
     float ndv = clamp(dot(viewDirection, normal), 0.0, 1.0);
     float fresnel = clamp((0.02 + 0.98 * pow(1.0 - ndv, 5.0)) * uFresnelStrength, 0.02, 0.98);
@@ -172,6 +190,26 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     vec3 body = mix(uShallowColor, uMidColor, smoothstep(0.15, uShallowEndMeters, waterDepth));
     body = mix(body, uDeepColor, smoothstep(uDepthRampStartMeters, uDepthRampEndMeters, waterDepth) * uDepthColorStrength);
     body *= light * mix(1.0, cloudSunlight, 0.55 * uDaylight);
+    // Crest shading.
+    //
+    // The reflection path above deliberately averages the wave normal away
+    // with distance and at grazing angles, because Fresnel driven by
+    // unresolved slopes turns a sea into parallel bright bands. The cost is
+    // that the swell then contributes nothing to the image past about a
+    // hundred metres, which is most of the visible water — raising wave
+    // height changed the geometry and left the picture identical.
+    //
+    // So the form is carried on the body colour instead: a face tilted toward
+    // the sun is lit more than the back of the trough behind it. That keeps
+    // crest and trough legible in the water's own turquoise rather than by
+    // pushing more sky into it, which is both what a stylised sea wants and
+    // why this can stay on where the reflection filter cannot. It follows the
+    // unfiltered wave normal and fades only on pixel footprint, so it stops
+    // exactly when the waves stop being resolvable.
+    float crestFacing = dot(shadingNormal, normalize(uSunDirection));
+    float crestResolved = 1.0 - smoothstep(uCrestShading.y, uCrestShading.z, pixelFootprint);
+    body *= 1.0 + crestFacing * uCrestShading.x * crestResolved
+      * mix(0.35, 1.0, uDaylight) * cloudSunlight;
     // Restrained backlit-crest translucency (WaterThreeJS SSS): a faint warm
     // glow through thin crests toward the sun, scaled by the configured
     // strength so it never washes the sea cyan.
@@ -181,11 +219,16 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     // darkest, the depositional shelf on a bend's inside stays pale. This is
     // the actual bed depth, not a painted stripe.
     float riverDepth = smoothstep(0.35, 1.9, waterDepth) * riverWeight;
-    body = mix(body, uDeepColor, riverDepth * uRiverDepthShadeStrength * (1.0 - fresnel * 0.5));
+    body = mix(body, uDeepColor * light * mix(1.0, cloudSunlight, 0.55 * uDaylight), riverDepth * uRiverDepthShadeStrength * (1.0 - fresnel * 0.5));
     // Slow advected lanes survive the distance filter, so a wide channel still
     // reads as moving water from the bank and from above.
-    float laneField = nevaGradientNoise((worldPosition.xz - flowOffset * 0.6) * vec2(0.09, 0.3));
-    body *= 1.0 + (laneField * 0.5 + 0.25) * uRiverFlowLaneStrength * riverWeight;
+    if (currentWeight > 0.02) {
+      vec2 flowAcross = vec2(-riverFlow.y, riverFlow.x);
+      vec2 flowPoint = worldPosition.xz - flowOffset * 0.6;
+      vec2 currentUv = vec2(dot(flowPoint, flowAcross), dot(flowPoint, riverFlow));
+      float laneField = nevaGradientNoise(currentUv * vec2(0.3, 0.09));
+      body *= 1.0 + laneField * uRiverFlowLaneStrength * currentWeight;
+    }
     float refractedCos = sqrt(max(0.08, 1.0 - (1.0 - ndv * ndv) / (1.333 * 1.333)));
     float thickness = waterDepth / refractedCos;
     vec3 behind = vec3(0.0);
@@ -227,37 +270,32 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     // snapshot and blend onto the analytic sky by the configured strength.
     // Misses keep the sky, so the worst case is the current look.
     vec3 reflectionColor = sky;
-    if (captured && uSsrEnabled == 1 && uSsrStrength > 0.001) {
+    if (captured && uSsrEnabled == 1 && uSsrStrength > 0.001 && fresnel > 0.035 && uRoughness < 0.85) {
       float ssrHit = 0.0;
       vec3 ssrColor = oceanRaymarchSSR(
         worldPosition, reflectView, viewMatrix, uOpticsProjection,
         uOpaqueColor, uOpaqueDepth, uCameraNear, uCameraFar, ssrHit);
       reflectionColor = mix(sky, ssrColor, clamp(ssrHit, 0.0, 1.0) * uSsrStrength);
     }
-    vec3 transmission = exp(-uWaterAbsorption * min(thickness, 100.0));
+    vec3 transmission = exp(-uWaterAbsorption * mix(vec3(1.0), uFreshwaterAbsorptionScale, riverWeight) * min(thickness, 100.0));
     float averageTransmission = dot(transmission, vec3(0.2126, 0.7152, 0.0722));
     float alpha = clamp(1.0 - averageTransmission * (1.0 - fresnel), 0.045, 1.0);
-    // The river thins into the bank over its first centimetres of depth
-    // instead of cutting at the depth threshold, so the waterline reads as a
-    // wet shallowing edge. Open sea keeps its existing surf transition.
-    alpha *= mix(1.0, mix(uRiverEdgeOpacity, 1.0,
-      smoothstep(0.0, max(0.05, uRiverEdgeDepthFade), waterDepth)), riverWeight);
+    // Coverage and absorption are separate. Fading alpha before unpremultiplying
+    // brightened Low/Medium banks, while captured High ignored the edge fade.
+    float shorelineCoverage = smoothstep(-0.02, 0.08, waterDepth) * mix(1.0,
+      mix(uRiverEdgeOpacity, 1.0, smoothstep(0.0, max(0.05, uRiverEdgeDepthFade), waterDepth)), riverWeight);
     vec3 color = body * (1.0 - transmission) * (1.0 - fresnel) + reflectionColor * light * fresnel;
     color = captured ? color + behind * transmission * (1.0 - fresnel) : color / max(0.045, alpha);
     if (uReflectionMode >= 2) {
       vec3 halfVector = normalize(viewDirection + normalize(uSunDirection));
       float exponent = mix(170.0, 48.0, clamp(uRoughness + pixelFootprint * 0.13, 0.0, 1.0));
       float glint = pow(max(dot(normal, halfVector), 0.0), exponent) * uSunGlintStrength * uKeyLightStrength;
-      // Distance-faded micro-sparkle (WaterThreeJS glitter): jittered lobe
-      // that dissolves with range and footprint instead of aliasing.
-      float glitterFade = exp(-cameraDistance * 0.012) * rippleFilter;
-      float sparkleJitter = oceanHash12(worldPosition.xz * 12.0 + floor(uTime * 4.0));
-      float sparkle = pow(max(dot(normal, halfVector), 0.0), 64.0)
-        * step(0.70, sparkleJitter) * 0.40 * uSunGlintStrength * glitterFade;
-      color += uSunColor * (glint + sparkle) * (0.25 + 0.75 * fresnel) * cloudSunlight;
+      // A filtered lobe glints with the actual wave normal. A time-stepped
+      // random sparkle used to flash independently of the moving surface.
+      color += uSunColor * glint * (0.25 + 0.75 * fresnel) * cloudSunlight;
     }
     vec3 wash = nevaCoastalWash(worldPosition.xz, field.b);
-    float coastalFoam = wash.x * field.a;
+    float coastalFoam = wash.x * field.a * (1.0 - smoothstep(0.8, 3.5, waterDepth));
     // Scene thickness supplies rock contact, gated by this arriving wave packet.
     float rockFoam = captured ? (1.0 - smoothstep(0.035, 0.23, thickness))
       * smoothstep(0.25, 0.48, wash.z) * (1.0 - smoothstep(0.55, 0.72, wash.z))
@@ -293,7 +331,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       // riffle boundary line across the whole channel at every pool edge.
       float rapidPatch = nevaGradientNoise(worldPosition.xz * 0.24 + vec2(0.0, uTime * 0.24));
       float rapidPacket = smoothstep(0.05, 0.5,
-        nevaGradientNoise(rapidUv * vec2(0.8, 1.1) + vec2(11.3, 7.1)));
+        nevaNoise01(rapidUv * vec2(0.8, 1.1) + vec2(11.3, 7.1)));
       float rapidGate = smoothstep(uRapidsGradeStart, uRapidsGradeFull,
         downhillGrade + (rapidPatch - 0.5) * 0.22);
       float rapidFilter = 1.0 - smoothstep(0.12, 0.6, pixelFootprint / uRapidsCellScale);
@@ -303,8 +341,8 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     }
     // Broken current lace at the river's edge, where the shallowing water
     // drags along the bank. It travels with the same flow field as the rapids.
-    if (riverWeight > 0.02) {
-      float edgeShallow = (1.0 - smoothstep(0.12, 0.55, waterDepth)) * riverWeight;
+    if (currentWeight > 0.02) {
+      float edgeShallow = (1.0 - smoothstep(0.12, 0.55, waterDepth)) * currentWeight;
       if (edgeShallow > 0.01) {
         vec2 laceAcross = vec2(-riverFlow.y, riverFlow.x);
         float laceLateral = dot(worldPosition.xz - flowOffset, laceAcross) / uRiverEdgeFoamScale;
@@ -321,7 +359,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     // Steep chute water only carries the impact haze: concentric standing
     // rings on the plunging face compressed into transverse corrugation from
     // above, so they stay on the pool and the apron keeps a flat-water gate.
-    {
+    if (nevaHeadwaterContains(worldPosition.xz) && worldPosition.z >= uHeadwaterFallBand.y) {
       vec2 landingDelta = worldPosition.xz - uHeadwaterLandingXZ;
       // Impact foam rides away from the narrow jet and curls into the basin.
       landingDelta.x += sin(landingDelta.y * 0.55) * smoothstep(0.0, 5.0, landingDelta.y) * 0.8;
@@ -329,7 +367,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       float landingDistance = length(landingDelta);
       float landingReach = 1.0 - smoothstep(0.7, 4.8, landingDistance);
       float apronFlat = 1.0 - smoothstep(0.1, 0.3, downhillGrade);
-      float apronPattern = nevaGradientNoise(worldPosition.xz * 1.4
+      float apronPattern = nevaNoise01(worldPosition.xz * 1.4
         + vec2(uTime * 0.22, -uTime * 0.5));
       float ringPhase = landingDistance - uTime * uPlungeRingSpeed * (1.0 - uReducedMotion * 0.7);
       // Narrow crests with wide troughs: expanding ripple pulses, not a
@@ -343,9 +381,25 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
         * mix(0.35, 1.0, apronFlat));
       foam = max(foam, rings * ringFade * uPlungeRingStrength * (0.6 + 0.4 * apronPattern) * apronFlat);
     }
-    float whitecap = smoothstep(0.7, 1.0, uRoughness) * regionWeights.z
-      * smoothstep(0.13, 0.3, waveHeight) * smoothstep(0.012, 0.04, 1.0 - normal.y);
-    foam = clamp(max(foam, whitecap * 0.42), 0.0, 0.92);
+    // Whitecaps follow the trochoid's own fold: where the horizontal Jacobian
+    // compresses, the crest is actually steepening toward a break, so foam
+    // appears on the crests that have earned it and travels with them. The
+    // previous form gated on the roughness dial and so could only switch the
+    // whole sea on at once, well after it already looked rough. Shoaling
+    // raises the same signal, which is why surf builds over the shelf.
+    float breakDrive = smoothstep(uWhitecapFold.x, uWhitecapFold.y, waveFold)
+      * (regionWeights.y * 0.55 + regionWeights.z)
+      * smoothstep(0.02, 0.12, waterDepth);
+    // Most of the sea is not breaking at any moment, so the three-octave
+    // dissolve below is gated the same way the hull-contact foam is rather
+    // than paid for on every water pixel.
+    if (breakDrive > 0.001) {
+      // Aerated water is patchy, not a painted band along every crest.
+      float breakTexture = smoothstep(0.34, 0.86,
+        oceanFbm(worldPosition.xz * 0.42 - vec2(uTime * 0.09, uTime * 0.05)));
+      foam = clamp(max(foam, breakDrive * mix(0.45, 1.0, breakTexture) * uWhitecapStrength), 0.0, 0.92);
+    }
+    foam = clamp(foam, 0.0, 0.92);
     color = mix(color, uFoamColor * mix(0.17, 1.0, uDaylight), foam);
     alpha = mix(alpha, 1.0, foam);
     float fogFactor = smoothstep(uFogNear, uFogFar, cameraDistance);
@@ -357,6 +411,7 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
       vec3 capturedWeight = transmission * (1.0 - fresnel) * (1.0 - foam);
       color += capturedWeight * (behind * (1.0 - aerial.a) - aerial.rgb);
     }
-    return vec4(color, captured ? 1.0 : mix(alpha, 1.0, fogFactor));
+    color = captured ? mix(behind, color, shorelineCoverage) : color;
+    return vec4(color, captured ? 1.0 : mix(alpha * shorelineCoverage, 1.0, fogFactor));
   }
 `;

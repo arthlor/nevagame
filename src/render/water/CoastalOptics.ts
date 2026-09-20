@@ -1,3 +1,4 @@
+import { MAINLAND_LAKE } from "../../world/NevaMainland";
 import { runSync } from "../../utils/CooperativeTask";
 import * as THREE from "three";
 import { WorldLayout } from "../../world/WorldLayout";
@@ -29,7 +30,7 @@ export function writeWaterDepthTexel(
   signedDistance: number, projection?: ShoreProjection
 ): void {
   const bed = WorldLayout.terrainBaseSurfaceHeight(x, z);
-  data[offset] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(WorldLayout.waterSurfaceElevation(x, z) - bed, -128, 128));
+  data[offset] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(WorldLayout.waterColumnDepth(x, z), -128, 128));
   data[offset + 1] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(bed, -128, 128));
   data[offset + 2] = THREE.DataUtils.toHalfFloat(THREE.MathUtils.clamp(signedDistance, -128, 128));
   data[offset + 3] = THREE.DataUtils.toHalfFloat(WorldLayout.coastalContactWeightAt(x, z, projection));
@@ -56,6 +57,11 @@ export function createCoastalUniforms(depthMap: THREE.Texture | null, bounds: TH
     uSwashReach: { value: config.swashReachMeters },
     uCoastalFoamStrength: { value: config.foamStrength },
     uWaterAbsorption: { value: new THREE.Vector3(...config.absorptionPerMeter) },
+    uFreshwaterAbsorptionScale: { value: new THREE.Vector3(...config.freshwaterAbsorptionScale) },
+    uLakeBounds: { value: new THREE.Vector4(MAINLAND_LAKE.center.x, MAINLAND_LAKE.center.z,
+      MAINLAND_LAKE.radiusX, MAINLAND_LAKE.radiusZ) },
+    uLakeRippleScale: { value: config.lakeRippleScale },
+    uLakeCurrentScale: { value: config.lakeCurrentScale },
     uRefractionPixels: { value: config.refractionPixels },
     uRippleNormalStrength: { value: config.rippleNormalStrength },
     uCausticStrength: { value: config.causticStrength },
@@ -63,6 +69,7 @@ export function createCoastalUniforms(depthMap: THREE.Texture | null, bounds: TH
     uCausticSunDirection: { value: new THREE.Vector3(0, 1, 0) },
     uCausticSunStrength: { value: 0 },
     uDistantSlope: { value: new THREE.Vector3(...config.distantSlope) },
+    uGrazingSlopeFloor: { value: config.grazingSlopeFloor },
     uSceneCaptureEnabled: { value: 0 }, uOpaqueColor: { value: null as THREE.Texture | null },
     uOpaqueDepth: { value: null as THREE.DepthTexture | null },
     uOpticsViewport: { value: new THREE.Vector2(1, 1) },

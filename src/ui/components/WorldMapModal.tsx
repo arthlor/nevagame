@@ -569,6 +569,15 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                     <circle
                       cx={px}
                       cy={py}
+                      r={22}
+                      fill="transparent"
+                      className="map-node-halo"
+                      aria-hidden="true"
+                    />
+
+                    <circle
+                      cx={px}
+                      cy={py}
                       r={isSelected ? 11 : 7}
                       fill={isSelected ? "#fbf7ee" : "#f0e6d0"}
                       stroke={isSelected ? "#4a371c" : "#8a7a65"}

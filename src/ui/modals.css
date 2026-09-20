@@ -1770,6 +1770,48 @@
   font-size: 11px;
 }
 
+/* A destroy is deliberate: the inspector arms it once, and a drag-out can
+   land on this transient release target. */
+.inventory-discard-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inventory-discard-action,
+.inventory-discard-confirm {
+  width: 100%;
+}
+
+.inventory-discard-hint {
+  margin: 0;
+  color: var(--mm-text-muted, #9aa5b1);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.inventory-discard-zone {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 10, 14, 0.72);
+  border: 2px dashed rgba(200, 80, 60, 0.85);
+}
+
+.inventory-discard-zone-label {
+  padding: 14px 26px;
+  color: #f3d9d2;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  background: rgba(58, 18, 14, 0.9);
+  border: 1px solid rgba(200, 80, 60, 0.9);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
 /* ==========================================================================
    ITEM INSPECT CARD (R6.4)
    Floats beside the cursor; the rarity band colours the frame.

@@ -42,6 +42,7 @@ export interface AtlasManifestData {
   extrude: number;
   pages: AtlasPage[];
   frames: Record<string, AtlasSprite>;
+  preloadPages: number[];
 }
 
 export const UI_ATLAS_MANIFEST: AtlasManifestData = {
@@ -53,35 +54,35 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "width": 2048,
       "height": 2048,
       "imagePng": "ui-atlas_0.png",
-      "imageWebp": "ui-atlas_0.webp"
+      "imageWebp": "ui-atlas_0.e5dded8c.webp"
     },
     {
       "index": 1,
       "width": 2048,
       "height": 2048,
       "imagePng": "ui-atlas_1.png",
-      "imageWebp": "ui-atlas_1.webp"
+      "imageWebp": "ui-atlas_1.6e3f5cc7.webp"
     },
     {
       "index": 2,
       "width": 2048,
       "height": 2048,
       "imagePng": "ui-atlas_2.png",
-      "imageWebp": "ui-atlas_2.webp"
+      "imageWebp": "ui-atlas_2.7a3b4a46.webp"
     },
     {
       "index": 3,
       "width": 2048,
       "height": 2048,
       "imagePng": "ui-atlas_3.png",
-      "imageWebp": "ui-atlas_3.webp"
+      "imageWebp": "ui-atlas_3.e8928f7b.webp"
     },
     {
       "index": 4,
       "width": 2048,
       "height": 2048,
       "imagePng": "ui-atlas_4.png",
-      "imageWebp": "ui-atlas_4.webp"
+      "imageWebp": "ui-atlas_4.c76a7a56.webp"
     }
   ],
   "frames": {
@@ -682,35 +683,35 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "sun": {
       "name": "sun",
       "frame": {
-        "x": 788,
+        "x": 526,
         "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 788,
+      "innerX": 526,
       "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 786,
+        "x": 524,
         "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.384765625,
+        "u0": 0.2568359375,
         "v0": 0.7685546875,
-        "u1": 0.509765625,
+        "u1": 0.3818359375,
         "v1": 0.8935546875
       },
       "uvBounds": [
-        0.384765625,
+        0.2568359375,
         0.7685546875,
-        0.509765625,
+        0.3818359375,
         0.8935546875
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 1,
+      "page": 1
     },
     "guildcraft-sun.png": {
       "name": "sun",
@@ -1441,35 +1442,35 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "hoe": {
       "name": "hoe",
       "frame": {
-        "x": 1050,
-        "y": 1050,
+        "x": 788,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 1050,
+      "innerX": 788,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 1048,
+        "x": 786,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.5126953125,
-        "u1": 0.6376953125,
-        "v1": 0.6376953125
+        "u0": 0.384765625,
+        "v0": 0.7685546875,
+        "u1": 0.509765625,
+        "v1": 0.8935546875
       },
       "uvBounds": [
-        0.5126953125,
-        0.5126953125,
-        0.6376953125,
-        0.6376953125
+        0.384765625,
+        0.7685546875,
+        0.509765625,
+        0.8935546875
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 1,
+      "page": 1
     },
     "tidebook-hoe.png": {
       "name": "hoe",
@@ -1573,35 +1574,35 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "water": {
       "name": "water",
       "frame": {
-        "x": 526,
-        "y": 1050,
+        "x": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
-      "innerX": 526,
-      "innerY": 1050,
+      "innerX": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 524,
-        "y": 1048,
+        "x": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.5126953125,
-        "u1": 0.3818359375,
-        "v1": 0.6376953125
+        "u0": 0.12890625,
+        "v0": 0.2568359375,
+        "u1": 0.25390625,
+        "v1": 0.3818359375
       },
       "uvBounds": [
+        0.12890625,
         0.2568359375,
-        0.5126953125,
-        0.3818359375,
-        0.6376953125
+        0.25390625,
+        0.3818359375
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 2,
+      "page": 2
     },
     "tidebook-water.png": {
       "name": "water",
@@ -1639,35 +1640,35 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "rod": {
       "name": "rod",
       "frame": {
-        "x": 1312,
-        "y": 1050,
+        "x": 1574,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
-      "innerY": 1050,
+      "innerX": 1574,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
-        "y": 1048,
+        "x": 1572,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
-        "v0": 0.5126953125,
-        "u1": 0.765625,
-        "v1": 0.6376953125
+        "u0": 0.7685546875,
+        "v0": 0.384765625,
+        "u1": 0.8935546875,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.640625,
-        0.5126953125,
-        0.765625,
-        0.6376953125
+        0.7685546875,
+        0.384765625,
+        0.8935546875,
+        0.509765625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 1,
+      "page": 1
     },
     "tidebook-rod.png": {
       "name": "rod",
@@ -1706,34 +1707,34 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "harvest",
       "frame": {
         "x": 526,
-        "y": 1312,
+        "y": 264,
         "w": 256,
         "h": 256
       },
       "innerX": 526,
-      "innerY": 1312,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 524,
-        "y": 1310,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.2568359375,
-        "v0": 0.640625,
+        "v0": 0.12890625,
         "u1": 0.3818359375,
-        "v1": 0.765625
+        "v1": 0.25390625
       },
       "uvBounds": [
         0.2568359375,
-        0.640625,
+        0.12890625,
         0.3818359375,
-        0.765625
+        0.25390625
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 2,
+      "page": 2
     },
     "tidebook-harvest.png": {
       "name": "harvest",
@@ -1837,35 +1838,35 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "journal": {
       "name": "journal",
       "frame": {
-        "x": 1574,
-        "y": 264,
+        "x": 1312,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 264,
+      "innerX": 1312,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 262,
+        "x": 1310,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.12890625,
-        "u1": 0.8935546875,
-        "v1": 0.25390625
+        "u0": 0.640625,
+        "v0": 0.5126953125,
+        "u1": 0.765625,
+        "v1": 0.6376953125
       },
       "uvBounds": [
-        0.7685546875,
-        0.12890625,
-        0.8935546875,
-        0.25390625
+        0.640625,
+        0.5126953125,
+        0.765625,
+        0.6376953125
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 1,
+      "page": 1
     },
     "tidebook-journal.png": {
       "name": "journal",
@@ -1966,2675 +1967,35 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 1,
       "page": 1
     },
-    "fish.carp": {
-      "name": "fish.carp",
-      "frame": {
-        "x": 264,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.2568359375,
-        "u1": 0.25390625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.12890625,
-        0.2568359375,
-        0.25390625,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-carp.png": {
-      "name": "fish.carp",
-      "frame": {
-        "x": 264,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.2568359375,
-        "u1": 0.25390625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.12890625,
-        0.2568359375,
-        0.25390625,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.trout": {
-      "name": "fish.trout",
-      "frame": {
-        "x": 526,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.12890625,
-        "u1": 0.3818359375,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.12890625,
-        0.3818359375,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-trout.png": {
-      "name": "fish.trout",
-      "frame": {
-        "x": 526,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.12890625,
-        "u1": 0.3818359375,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.12890625,
-        0.3818359375,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.perch": {
-      "name": "fish.perch",
-      "frame": {
-        "x": 526,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.2568359375,
-        "u1": 0.3818359375,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.2568359375,
-        0.3818359375,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-perch.png": {
-      "name": "fish.perch",
-      "frame": {
-        "x": 526,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.2568359375,
-        "u1": 0.3818359375,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.2568359375,
-        0.3818359375,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.catfish": {
-      "name": "fish.catfish",
-      "frame": {
-        "x": 788,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.0009765625,
-        "u1": 0.509765625,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.0009765625,
-        0.509765625,
-        0.1259765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-catfish.png": {
-      "name": "fish.catfish",
-      "frame": {
-        "x": 788,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.0009765625,
-        "u1": 0.509765625,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.0009765625,
-        0.509765625,
-        0.1259765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.pike": {
-      "name": "fish.pike",
-      "frame": {
-        "x": 788,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.12890625,
-        "u1": 0.509765625,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.12890625,
-        0.509765625,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-pike.png": {
-      "name": "fish.pike",
-      "frame": {
-        "x": 788,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.12890625,
-        "u1": 0.509765625,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.12890625,
-        0.509765625,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.arowana": {
-      "name": "fish.arowana",
-      "frame": {
-        "x": 788,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.2568359375,
-        "u1": 0.509765625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.384765625,
-        0.2568359375,
-        0.509765625,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-arowana.png": {
-      "name": "fish.arowana",
-      "frame": {
-        "x": 788,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.2568359375,
-        "u1": 0.509765625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.384765625,
-        0.2568359375,
-        0.509765625,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.mackerel": {
-      "name": "fish.mackerel",
-      "frame": {
-        "x": 1050,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.0009765625,
-        "u1": 0.6376953125,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.0009765625,
-        0.6376953125,
-        0.1259765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-mackerel.png": {
-      "name": "fish.mackerel",
-      "frame": {
-        "x": 1050,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.0009765625,
-        "u1": 0.6376953125,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.0009765625,
-        0.6376953125,
-        0.1259765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.tuna": {
-      "name": "fish.tuna",
-      "frame": {
-        "x": 1312,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.0009765625,
-        "u1": 0.765625,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.0009765625,
-        0.765625,
-        0.1259765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-tuna.png": {
-      "name": "fish.tuna",
-      "frame": {
-        "x": 1312,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.0009765625,
-        "u1": 0.765625,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.0009765625,
-        0.765625,
-        0.1259765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.sturgeon": {
-      "name": "fish.sturgeon",
-      "frame": {
-        "x": 1574,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.0009765625,
-        "u1": 0.8935546875,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.0009765625,
-        0.8935546875,
-        0.1259765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-sturgeon.png": {
-      "name": "fish.sturgeon",
-      "frame": {
-        "x": 1574,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.0009765625,
-        "u1": 0.8935546875,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.0009765625,
-        0.8935546875,
-        0.1259765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.sailfish": {
-      "name": "fish.sailfish",
-      "frame": {
-        "x": 1050,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.12890625,
-        "u1": 0.6376953125,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.12890625,
-        0.6376953125,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-sailfish.png": {
-      "name": "fish.sailfish",
-      "frame": {
-        "x": 1050,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.12890625,
-        "u1": 0.6376953125,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.12890625,
-        0.6376953125,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.swordfish": {
-      "name": "fish.swordfish",
-      "frame": {
-        "x": 1050,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.2568359375,
-        "u1": 0.6376953125,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.2568359375,
-        0.6376953125,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-swordfish.png": {
-      "name": "fish.swordfish",
-      "frame": {
-        "x": 1050,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.2568359375,
-        "u1": 0.6376953125,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.2568359375,
-        0.6376953125,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish.blue_marlin": {
-      "name": "fish.blue_marlin",
-      "frame": {
-        "x": 1312,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.12890625,
-        "u1": 0.765625,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.640625,
-        0.12890625,
-        0.765625,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "fish-blue_marlin.png": {
-      "name": "fish.blue_marlin",
-      "frame": {
-        "x": 1312,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.12890625,
-        "u1": 0.765625,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.640625,
-        0.12890625,
-        0.765625,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed.wheat": {
-      "name": "seed.wheat",
-      "frame": {
-        "x": 1574,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.12890625,
-        "u1": 0.8935546875,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.12890625,
-        0.8935546875,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed-wheat.png": {
-      "name": "seed.wheat",
-      "frame": {
-        "x": 1574,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.12890625,
-        "u1": 0.8935546875,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.12890625,
-        0.8935546875,
-        0.25390625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed.barley": {
-      "name": "seed.barley",
-      "frame": {
-        "x": 1312,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.2568359375,
-        "u1": 0.765625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.640625,
-        0.2568359375,
-        0.765625,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed-barley.png": {
-      "name": "seed.barley",
-      "frame": {
-        "x": 1312,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.2568359375,
-        "u1": 0.765625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.640625,
-        0.2568359375,
-        0.765625,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed.corn": {
-      "name": "seed.corn",
-      "frame": {
-        "x": 1574,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.2568359375,
-        "u1": 0.8935546875,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.2568359375,
-        0.8935546875,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed-corn.png": {
-      "name": "seed.corn",
-      "frame": {
-        "x": 1574,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.2568359375,
-        "u1": 0.8935546875,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.2568359375,
-        0.8935546875,
-        0.3818359375
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed.tomato": {
-      "name": "seed.tomato",
-      "frame": {
-        "x": 2,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.384765625,
-        "u1": 0.1259765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.384765625,
-        0.1259765625,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed-tomato.png": {
-      "name": "seed.tomato",
-      "frame": {
-        "x": 2,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.384765625,
-        "u1": 0.1259765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.384765625,
-        0.1259765625,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed.potato": {
-      "name": "seed.potato",
-      "frame": {
-        "x": 2,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.5126953125,
-        "u1": 0.1259765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.5126953125,
-        0.1259765625,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed-potato.png": {
-      "name": "seed.potato",
-      "frame": {
-        "x": 2,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.5126953125,
-        "u1": 0.1259765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.5126953125,
-        0.1259765625,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed.carrot": {
-      "name": "seed.carrot",
-      "frame": {
-        "x": 2,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.640625,
-        "u1": 0.1259765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.640625,
-        0.1259765625,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed-carrot.png": {
-      "name": "seed.carrot",
-      "frame": {
-        "x": 2,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.640625,
-        "u1": 0.1259765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.640625,
-        0.1259765625,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed.flax": {
-      "name": "seed.flax",
-      "frame": {
-        "x": 2,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.7685546875,
-        "u1": 0.1259765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.7685546875,
-        0.1259765625,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed-flax.png": {
-      "name": "seed.flax",
-      "frame": {
-        "x": 2,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.7685546875,
-        "u1": 0.1259765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.7685546875,
-        0.1259765625,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed.apple_sapling": {
-      "name": "seed.apple_sapling",
-      "frame": {
-        "x": 264,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.384765625,
-        "u1": 0.25390625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.384765625,
-        0.25390625,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seed-apple_sapling.png": {
-      "name": "seed.apple_sapling",
-      "frame": {
-        "x": 264,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.384765625,
-        "u1": 0.25390625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.384765625,
-        0.25390625,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce.wheat": {
-      "name": "produce.wheat",
-      "frame": {
-        "x": 264,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.5126953125,
-        "u1": 0.25390625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.12890625,
-        0.5126953125,
-        0.25390625,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce-wheat.png": {
-      "name": "produce.wheat",
-      "frame": {
-        "x": 264,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.5126953125,
-        "u1": 0.25390625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.12890625,
-        0.5126953125,
-        0.25390625,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce.barley": {
-      "name": "produce.barley",
-      "frame": {
-        "x": 264,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.640625,
-        "u1": 0.25390625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.640625,
-        0.25390625,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce-barley.png": {
-      "name": "produce.barley",
-      "frame": {
-        "x": 264,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.640625,
-        "u1": 0.25390625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.640625,
-        0.25390625,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce.corn": {
-      "name": "produce.corn",
-      "frame": {
-        "x": 264,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.7685546875,
-        "u1": 0.25390625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.12890625,
-        0.7685546875,
-        0.25390625,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce-corn.png": {
-      "name": "produce.corn",
-      "frame": {
-        "x": 264,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.7685546875,
-        "u1": 0.25390625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.12890625,
-        0.7685546875,
-        0.25390625,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce.tomato": {
-      "name": "produce.tomato",
-      "frame": {
-        "x": 526,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.384765625,
-        "u1": 0.3818359375,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.384765625,
-        0.3818359375,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce-tomato.png": {
-      "name": "produce.tomato",
-      "frame": {
-        "x": 526,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.384765625,
-        "u1": 0.3818359375,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.384765625,
-        0.3818359375,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce.potato": {
-      "name": "produce.potato",
-      "frame": {
-        "x": 526,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.5126953125,
-        "u1": 0.3818359375,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.5126953125,
-        0.3818359375,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce-potato.png": {
-      "name": "produce.potato",
-      "frame": {
-        "x": 526,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.5126953125,
-        "u1": 0.3818359375,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.5126953125,
-        0.3818359375,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce.carrot": {
-      "name": "produce.carrot",
-      "frame": {
-        "x": 526,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.640625,
-        "u1": 0.3818359375,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.640625,
-        0.3818359375,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce-carrot.png": {
-      "name": "produce.carrot",
-      "frame": {
-        "x": 526,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.640625,
-        "u1": 0.3818359375,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.640625,
-        0.3818359375,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce.flax": {
-      "name": "produce.flax",
-      "frame": {
-        "x": 526,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.7685546875,
-        "u1": 0.3818359375,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.7685546875,
-        0.3818359375,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce-flax.png": {
-      "name": "produce.flax",
-      "frame": {
-        "x": 526,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.7685546875,
-        "u1": 0.3818359375,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.7685546875,
-        0.3818359375,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce.apple": {
-      "name": "produce.apple",
-      "frame": {
-        "x": 788,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.384765625,
-        "u1": 0.509765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.384765625,
-        0.509765625,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "produce-apple.png": {
-      "name": "produce.apple",
-      "frame": {
-        "x": 788,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.384765625,
-        "u1": 0.509765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.384765625,
-        0.509765625,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "crop.wheat": {
-      "name": "crop.wheat",
-      "frame": {
-        "x": 788,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.5126953125,
-        "u1": 0.509765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.384765625,
-        0.5126953125,
-        0.509765625,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "plant-wheat.png": {
-      "name": "crop.wheat",
-      "frame": {
-        "x": 788,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.5126953125,
-        "u1": 0.509765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.384765625,
-        0.5126953125,
-        0.509765625,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "crop.barley": {
-      "name": "crop.barley",
-      "frame": {
-        "x": 788,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.640625,
-        "u1": 0.509765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.640625,
-        0.509765625,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "plant-barley.png": {
-      "name": "crop.barley",
-      "frame": {
-        "x": 788,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.640625,
-        "u1": 0.509765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.640625,
-        0.509765625,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "crop.corn": {
-      "name": "crop.corn",
-      "frame": {
-        "x": 788,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.7685546875,
-        "u1": 0.509765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.384765625,
-        0.7685546875,
-        0.509765625,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "plant-corn.png": {
-      "name": "crop.corn",
-      "frame": {
-        "x": 788,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.7685546875,
-        "u1": 0.509765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.384765625,
-        0.7685546875,
-        0.509765625,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "crop.tomato": {
-      "name": "crop.tomato",
-      "frame": {
-        "x": 1050,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.384765625,
-        "u1": 0.6376953125,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.384765625,
-        0.6376953125,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "plant-tomato.png": {
-      "name": "crop.tomato",
-      "frame": {
-        "x": 1050,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.384765625,
-        "u1": 0.6376953125,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.384765625,
-        0.6376953125,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "crop.potato": {
-      "name": "crop.potato",
-      "frame": {
-        "x": 1312,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.384765625,
-        "u1": 0.765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.384765625,
-        0.765625,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "plant-potato.png": {
-      "name": "crop.potato",
-      "frame": {
-        "x": 1312,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.384765625,
-        "u1": 0.765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.384765625,
-        0.765625,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "crop.carrot": {
-      "name": "crop.carrot",
-      "frame": {
-        "x": 1574,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.384765625,
-        "u1": 0.8935546875,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.384765625,
-        0.8935546875,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "plant-carrot.png": {
-      "name": "crop.carrot",
-      "frame": {
-        "x": 1574,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.384765625,
-        "u1": 0.8935546875,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.384765625,
-        0.8935546875,
-        0.509765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "crop.flax": {
-      "name": "crop.flax",
-      "frame": {
-        "x": 1050,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.5126953125,
-        "u1": 0.6376953125,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.5126953125,
-        0.6376953125,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "plant-flax.png": {
-      "name": "crop.flax",
-      "frame": {
-        "x": 1050,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.5126953125,
-        "u1": 0.6376953125,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.5126953125,
-        0.6376953125,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "crop.apple_tree": {
-      "name": "crop.apple_tree",
-      "frame": {
-        "x": 1050,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.640625,
-        "u1": 0.6376953125,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.640625,
-        0.6376953125,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "plant-apple_tree.png": {
-      "name": "crop.apple_tree",
-      "frame": {
-        "x": 1050,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.640625,
-        "u1": 0.6376953125,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.640625,
-        0.6376953125,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "seeded": {
-      "name": "seeded",
-      "frame": {
-        "x": 1050,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.7685546875,
-        "u1": 0.6376953125,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.7685546875,
-        0.6376953125,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "growth-seeded.png": {
-      "name": "seeded",
-      "frame": {
-        "x": 1050,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.7685546875,
-        "u1": 0.6376953125,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.7685546875,
-        0.6376953125,
-        0.8935546875
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "growing": {
-      "name": "growing",
-      "frame": {
-        "x": 2,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.384765625,
-        "u1": 0.1259765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.384765625,
-        0.1259765625,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "growth-growing.png": {
-      "name": "growing",
-      "frame": {
-        "x": 1312,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.5126953125,
-        "u1": 0.765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.640625,
-        0.5126953125,
-        0.765625,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "mature": {
-      "name": "mature",
-      "frame": {
-        "x": 1574,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.5126953125,
-        "u1": 0.8935546875,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.5126953125,
-        0.8935546875,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "growth-mature.png": {
-      "name": "mature",
-      "frame": {
-        "x": 1574,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.5126953125,
-        "u1": 0.8935546875,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.5126953125,
-        0.8935546875,
-        0.6376953125
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "withered": {
-      "name": "withered",
-      "frame": {
-        "x": 1312,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.640625,
-        "u1": 0.765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.640625,
-        0.765625,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
-    "growth-withered.png": {
-      "name": "withered",
-      "frame": {
-        "x": 1312,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.640625,
-        "u1": 0.765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.640625,
-        0.765625,
-        0.765625
-      ],
-      "binIndex": 1,
-      "page": 1
-    },
     "item.ground_grain": {
       "name": "item.ground_grain",
       "frame": {
-        "x": 1312,
-        "y": 1574,
+        "x": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
-      "innerY": 1574,
+      "innerX": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
-        "y": 1572,
+        "x": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
-        "v0": 0.7685546875,
-        "u1": 0.765625,
-        "v1": 0.8935546875
+        "u0": 0.12890625,
+        "v0": 0.2568359375,
+        "u1": 0.25390625,
+        "v1": 0.3818359375
       },
       "uvBounds": [
-        0.640625,
-        0.7685546875,
-        0.765625,
-        0.8935546875
+        0.12890625,
+        0.2568359375,
+        0.25390625,
+        0.3818359375
       ],
       "binIndex": 1,
       "page": 1
@@ -4642,32 +2003,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "item-ground_grain.png": {
       "name": "item.ground_grain",
       "frame": {
-        "x": 1312,
-        "y": 1574,
+        "x": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
-      "innerY": 1574,
+      "innerX": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
-        "y": 1572,
+        "x": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
-        "v0": 0.7685546875,
-        "u1": 0.765625,
-        "v1": 0.8935546875
+        "u0": 0.12890625,
+        "v0": 0.2568359375,
+        "u1": 0.25390625,
+        "v1": 0.3818359375
       },
       "uvBounds": [
-        0.640625,
-        0.7685546875,
-        0.765625,
-        0.8935546875
+        0.12890625,
+        0.2568359375,
+        0.25390625,
+        0.3818359375
       ],
       "binIndex": 1,
       "page": 1
@@ -4675,32 +2036,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "item.bait_worms": {
       "name": "item.bait_worms",
       "frame": {
-        "x": 1574,
-        "y": 1312,
+        "x": 526,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 1312,
+      "innerX": 526,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 1310,
+        "x": 524,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.640625,
-        "u1": 0.8935546875,
-        "v1": 0.765625
+        "u0": 0.2568359375,
+        "v0": 0.12890625,
+        "u1": 0.3818359375,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.7685546875,
-        0.640625,
-        0.8935546875,
-        0.765625
+        0.2568359375,
+        0.12890625,
+        0.3818359375,
+        0.25390625
       ],
       "binIndex": 1,
       "page": 1
@@ -4708,32 +2069,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "item-bait_worms.png": {
       "name": "item.bait_worms",
       "frame": {
-        "x": 1574,
-        "y": 1312,
+        "x": 526,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 1312,
+      "innerX": 526,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 1310,
+        "x": 524,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.640625,
-        "u1": 0.8935546875,
-        "v1": 0.765625
+        "u0": 0.2568359375,
+        "v0": 0.12890625,
+        "u1": 0.3818359375,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.7685546875,
-        0.640625,
-        0.8935546875,
-        0.765625
+        0.2568359375,
+        0.12890625,
+        0.3818359375,
+        0.25390625
       ],
       "binIndex": 1,
       "page": 1
@@ -4741,32 +2102,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "item.chum_bucket": {
       "name": "item.chum_bucket",
       "frame": {
-        "x": 1574,
-        "y": 1574,
+        "x": 526,
+        "y": 526,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 1574,
+      "innerX": 526,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 1572,
+        "x": 524,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.7685546875,
-        "u1": 0.8935546875,
-        "v1": 0.8935546875
+        "u0": 0.2568359375,
+        "v0": 0.2568359375,
+        "u1": 0.3818359375,
+        "v1": 0.3818359375
       },
       "uvBounds": [
-        0.7685546875,
-        0.7685546875,
-        0.8935546875,
-        0.8935546875
+        0.2568359375,
+        0.2568359375,
+        0.3818359375,
+        0.3818359375
       ],
       "binIndex": 1,
       "page": 1
@@ -4774,6 +2135,2481 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "item-chum_bucket.png": {
       "name": "item.chum_bucket",
       "frame": {
+        "x": 526,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.2568359375,
+        "u1": 0.3818359375,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.2568359375,
+        0.3818359375,
+        0.3818359375
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.basic_lure": {
+      "name": "item.basic_lure",
+      "frame": {
+        "x": 788,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.0009765625,
+        "u1": 0.509765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.0009765625,
+        0.509765625,
+        0.1259765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-basic_lure.png": {
+      "name": "item.basic_lure",
+      "frame": {
+        "x": 788,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.0009765625,
+        "u1": 0.509765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.0009765625,
+        0.509765625,
+        0.1259765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.fish_scraps": {
+      "name": "item.fish_scraps",
+      "frame": {
+        "x": 788,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.12890625,
+        "u1": 0.509765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.12890625,
+        0.509765625,
+        0.25390625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-fish_scraps.png": {
+      "name": "item.fish_scraps",
+      "frame": {
+        "x": 788,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.12890625,
+        "u1": 0.509765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.12890625,
+        0.509765625,
+        0.25390625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.basic_fertilizer": {
+      "name": "item.basic_fertilizer",
+      "frame": {
+        "x": 788,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.2568359375,
+        "u1": 0.509765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.384765625,
+        0.2568359375,
+        0.509765625,
+        0.3818359375
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-basic_fertilizer.png": {
+      "name": "item.basic_fertilizer",
+      "frame": {
+        "x": 788,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.2568359375,
+        "u1": 0.509765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.384765625,
+        0.2568359375,
+        0.509765625,
+        0.3818359375
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.compost_starter": {
+      "name": "item.compost_starter",
+      "frame": {
+        "x": 1050,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.0009765625,
+        "u1": 0.6376953125,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.0009765625,
+        0.6376953125,
+        0.1259765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-compost_starter.png": {
+      "name": "item.compost_starter",
+      "frame": {
+        "x": 1050,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.0009765625,
+        "u1": 0.6376953125,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.0009765625,
+        0.6376953125,
+        0.1259765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.plant_matter": {
+      "name": "item.plant_matter",
+      "frame": {
+        "x": 1312,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.0009765625,
+        "u1": 0.765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.0009765625,
+        0.765625,
+        0.1259765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-plant_matter.png": {
+      "name": "item.plant_matter",
+      "frame": {
+        "x": 1312,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.0009765625,
+        "u1": 0.765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.0009765625,
+        0.765625,
+        0.1259765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.boat_fuel": {
+      "name": "item.boat_fuel",
+      "frame": {
+        "x": 1574,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.0009765625,
+        "u1": 0.8935546875,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.0009765625,
+        0.8935546875,
+        0.1259765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-boat_fuel.png": {
+      "name": "item.boat_fuel",
+      "frame": {
+        "x": 1574,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.0009765625,
+        "u1": 0.8935546875,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.0009765625,
+        0.8935546875,
+        0.1259765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.crushed_ice": {
+      "name": "item.crushed_ice",
+      "frame": {
+        "x": 1050,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.12890625,
+        "u1": 0.6376953125,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.12890625,
+        0.6376953125,
+        0.25390625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-crushed_ice.png": {
+      "name": "item.crushed_ice",
+      "frame": {
+        "x": 1050,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.12890625,
+        "u1": 0.6376953125,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.12890625,
+        0.6376953125,
+        0.25390625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.hardwood_blank": {
+      "name": "item.hardwood_blank",
+      "frame": {
+        "x": 1050,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.2568359375,
+        "u1": 0.6376953125,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.2568359375,
+        0.6376953125,
+        0.3818359375
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-hardwood_blank.png": {
+      "name": "item.hardwood_blank",
+      "frame": {
+        "x": 1050,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.2568359375,
+        "u1": 0.6376953125,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.2568359375,
+        0.6376953125,
+        0.3818359375
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.tanned_leather": {
+      "name": "item.tanned_leather",
+      "frame": {
+        "x": 1312,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.12890625,
+        "u1": 0.765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.640625,
+        0.12890625,
+        0.765625,
+        0.25390625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-tanned_leather.png": {
+      "name": "item.tanned_leather",
+      "frame": {
+        "x": 1312,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.12890625,
+        "u1": 0.765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.640625,
+        0.12890625,
+        0.765625,
+        0.25390625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.tool_steel": {
+      "name": "item.tool_steel",
+      "frame": {
+        "x": 1574,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.12890625,
+        "u1": 0.8935546875,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.12890625,
+        0.8935546875,
+        0.25390625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-tool_steel.png": {
+      "name": "item.tool_steel",
+      "frame": {
+        "x": 1574,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.12890625,
+        "u1": 0.8935546875,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.12890625,
+        0.8935546875,
+        0.25390625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.linen_roll": {
+      "name": "item.linen_roll",
+      "frame": {
+        "x": 1312,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.2568359375,
+        "u1": 0.765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.640625,
+        0.2568359375,
+        0.765625,
+        0.3818359375
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-linen_roll.png": {
+      "name": "item.linen_roll",
+      "frame": {
+        "x": 1312,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.2568359375,
+        "u1": 0.765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.640625,
+        0.2568359375,
+        0.765625,
+        0.3818359375
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.copper_sheet": {
+      "name": "item.copper_sheet",
+      "frame": {
+        "x": 1574,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.2568359375,
+        "u1": 0.8935546875,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.2568359375,
+        0.8935546875,
+        0.3818359375
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-copper_sheet.png": {
+      "name": "item.copper_sheet",
+      "frame": {
+        "x": 1574,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.2568359375,
+        "u1": 0.8935546875,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.2568359375,
+        0.8935546875,
+        0.3818359375
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.brass_fittings": {
+      "name": "item.brass_fittings",
+      "frame": {
+        "x": 2,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.384765625,
+        "u1": 0.1259765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.384765625,
+        0.1259765625,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-brass_fittings.png": {
+      "name": "item.brass_fittings",
+      "frame": {
+        "x": 2,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.384765625,
+        "u1": 0.1259765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.384765625,
+        0.1259765625,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item.oiled_canvas": {
+      "name": "item.oiled_canvas",
+      "frame": {
+        "x": 2,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.5126953125,
+        "u1": 0.1259765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.5126953125,
+        0.1259765625,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "item-oiled_canvas.png": {
+      "name": "item.oiled_canvas",
+      "frame": {
+        "x": 2,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.5126953125,
+        "u1": 0.1259765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.5126953125,
+        0.1259765625,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "clear": {
+      "name": "clear",
+      "frame": {
+        "x": 2,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.640625,
+        "u1": 0.1259765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.640625,
+        0.1259765625,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "weather-clear.png": {
+      "name": "clear",
+      "frame": {
+        "x": 2,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.640625,
+        "u1": 0.1259765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.640625,
+        0.1259765625,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "overcast": {
+      "name": "overcast",
+      "frame": {
+        "x": 2,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.7685546875,
+        "u1": 0.1259765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.7685546875,
+        0.1259765625,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "weather-overcast.png": {
+      "name": "overcast",
+      "frame": {
+        "x": 2,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.7685546875,
+        "u1": 0.1259765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.7685546875,
+        0.1259765625,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "light-rain": {
+      "name": "light-rain",
+      "frame": {
+        "x": 264,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.384765625,
+        "u1": 0.25390625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.384765625,
+        0.25390625,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "weather-light-rain.png": {
+      "name": "light-rain",
+      "frame": {
+        "x": 264,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.384765625,
+        "u1": 0.25390625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.384765625,
+        0.25390625,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "rain": {
+      "name": "rain",
+      "frame": {
+        "x": 264,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.5126953125,
+        "u1": 0.25390625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.12890625,
+        0.5126953125,
+        0.25390625,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "weather-rain.png": {
+      "name": "rain",
+      "frame": {
+        "x": 264,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.5126953125,
+        "u1": 0.25390625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.12890625,
+        0.5126953125,
+        0.25390625,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "storm": {
+      "name": "storm",
+      "frame": {
+        "x": 264,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.640625,
+        "u1": 0.25390625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.640625,
+        0.25390625,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "weather-storm.png": {
+      "name": "storm",
+      "frame": {
+        "x": 264,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.640625,
+        "u1": 0.25390625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.640625,
+        0.25390625,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "fog": {
+      "name": "fog",
+      "frame": {
+        "x": 264,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.7685546875,
+        "u1": 0.25390625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.12890625,
+        0.7685546875,
+        0.25390625,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "weather-fog.png": {
+      "name": "fog",
+      "frame": {
+        "x": 264,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.7685546875,
+        "u1": 0.25390625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.12890625,
+        0.7685546875,
+        0.25390625,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "wind": {
+      "name": "wind",
+      "frame": {
+        "x": 526,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.384765625,
+        "u1": 0.3818359375,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.384765625,
+        0.3818359375,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "weather-wind.png": {
+      "name": "wind",
+      "frame": {
+        "x": 526,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.384765625,
+        "u1": 0.3818359375,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.384765625,
+        0.3818359375,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "thermometer": {
+      "name": "thermometer",
+      "frame": {
+        "x": 526,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.5126953125,
+        "u1": 0.3818359375,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.5126953125,
+        0.3818359375,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "weather-thermometer.png": {
+      "name": "thermometer",
+      "frame": {
+        "x": 526,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.5126953125,
+        "u1": 0.3818359375,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.5126953125,
+        0.3818359375,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "wave": {
+      "name": "wave",
+      "frame": {
+        "x": 526,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.640625,
+        "u1": 0.3818359375,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.640625,
+        0.3818359375,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "weather-wave.png": {
+      "name": "wave",
+      "frame": {
+        "x": 526,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.640625,
+        "u1": 0.3818359375,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.640625,
+        0.3818359375,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "time-sun.png": {
+      "name": "sun",
+      "frame": {
+        "x": 526,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.7685546875,
+        "u1": 0.3818359375,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.7685546875,
+        0.3818359375,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "moon": {
+      "name": "moon",
+      "frame": {
+        "x": 788,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.384765625,
+        "u1": 0.509765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.384765625,
+        0.509765625,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "time-moon.png": {
+      "name": "moon",
+      "frame": {
+        "x": 788,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.384765625,
+        "u1": 0.509765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.384765625,
+        0.509765625,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "dawn": {
+      "name": "dawn",
+      "frame": {
+        "x": 788,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.5126953125,
+        "u1": 0.509765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.384765625,
+        0.5126953125,
+        0.509765625,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "time-dawn.png": {
+      "name": "dawn",
+      "frame": {
+        "x": 788,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.5126953125,
+        "u1": 0.509765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.384765625,
+        0.5126953125,
+        0.509765625,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "dusk": {
+      "name": "dusk",
+      "frame": {
+        "x": 788,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.640625,
+        "u1": 0.509765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.640625,
+        0.509765625,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "time-dusk.png": {
+      "name": "dusk",
+      "frame": {
+        "x": 788,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.640625,
+        "u1": 0.509765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.640625,
+        0.509765625,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "tool-hoe.png": {
+      "name": "hoe",
+      "frame": {
+        "x": 788,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.7685546875,
+        "u1": 0.509765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.384765625,
+        0.7685546875,
+        0.509765625,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "watering_can": {
+      "name": "watering_can",
+      "frame": {
+        "x": 1050,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.384765625,
+        "u1": 0.6376953125,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.384765625,
+        0.6376953125,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "tool-watering_can.png": {
+      "name": "watering_can",
+      "frame": {
+        "x": 1050,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.384765625,
+        "u1": 0.6376953125,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.384765625,
+        0.6376953125,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "bait": {
+      "name": "bait",
+      "frame": {
+        "x": 1312,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.384765625,
+        "u1": 0.765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.384765625,
+        0.765625,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "tool-bait.png": {
+      "name": "bait",
+      "frame": {
+        "x": 1312,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.384765625,
+        "u1": 0.765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.384765625,
+        0.765625,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "tool-rod.png": {
+      "name": "rod",
+      "frame": {
+        "x": 1574,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.384765625,
+        "u1": 0.8935546875,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.384765625,
+        0.8935546875,
+        0.509765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "pickaxe": {
+      "name": "pickaxe",
+      "frame": {
+        "x": 1050,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.5126953125,
+        "u1": 0.6376953125,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.5126953125,
+        0.6376953125,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "tool-pickaxe.png": {
+      "name": "pickaxe",
+      "frame": {
+        "x": 1050,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.5126953125,
+        "u1": 0.6376953125,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.5126953125,
+        0.6376953125,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "basket": {
+      "name": "basket",
+      "frame": {
+        "x": 1050,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.640625,
+        "u1": 0.6376953125,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.640625,
+        0.6376953125,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "tool-basket.png": {
+      "name": "basket",
+      "frame": {
+        "x": 1050,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.640625,
+        "u1": 0.6376953125,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.640625,
+        0.6376953125,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "backpack": {
+      "name": "backpack",
+      "frame": {
+        "x": 1050,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.7685546875,
+        "u1": 0.6376953125,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.7685546875,
+        0.6376953125,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "menu-backpack.png": {
+      "name": "backpack",
+      "frame": {
+        "x": 1050,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.7685546875,
+        "u1": 0.6376953125,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.7685546875,
+        0.6376953125,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "menu-journal.png": {
+      "name": "journal",
+      "frame": {
+        "x": 1312,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.5126953125,
+        "u1": 0.765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.640625,
+        0.5126953125,
+        0.765625,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "ledger": {
+      "name": "ledger",
+      "frame": {
+        "x": 1574,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.5126953125,
+        "u1": 0.8935546875,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.5126953125,
+        0.8935546875,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "menu-ledger.png": {
+      "name": "ledger",
+      "frame": {
+        "x": 1574,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.5126953125,
+        "u1": 0.8935546875,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.5126953125,
+        0.8935546875,
+        0.6376953125
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "compass": {
+      "name": "compass",
+      "frame": {
+        "x": 1312,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.640625,
+        "u1": 0.765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.640625,
+        0.765625,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "menu-compass.png": {
+      "name": "compass",
+      "frame": {
+        "x": 1312,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.640625,
+        "u1": 0.765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.640625,
+        0.765625,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "expedition": {
+      "name": "expedition",
+      "frame": {
+        "x": 1312,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.7685546875,
+        "u1": 0.765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.640625,
+        0.7685546875,
+        0.765625,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "menu-expedition.png": {
+      "name": "expedition",
+      "frame": {
+        "x": 1312,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.7685546875,
+        "u1": 0.765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.640625,
+        0.7685546875,
+        0.765625,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "menu": {
+      "name": "menu",
+      "frame": {
+        "x": 1574,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.640625,
+        "u1": 0.8935546875,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.640625,
+        0.8935546875,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "menu-menu.png": {
+      "name": "menu",
+      "frame": {
+        "x": 1574,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.640625,
+        "u1": 0.8935546875,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.640625,
+        0.8935546875,
+        0.765625
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "coin": {
+      "name": "coin",
+      "frame": {
         "x": 1574,
         "y": 1574,
         "w": 256,
@@ -4804,8 +4640,41 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 1,
       "page": 1
     },
-    "item.basic_lure": {
-      "name": "item.basic_lure",
+    "status-coin.png": {
+      "name": "coin",
+      "frame": {
+        "x": 1574,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.7685546875,
+        "u1": 0.8935546875,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.7685546875,
+        0.8935546875,
+        0.8935546875
+      ],
+      "binIndex": 1,
+      "page": 1
+    },
+    "labor": {
+      "name": "labor",
       "frame": {
         "x": 2,
         "y": 2,
@@ -4837,8 +4706,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-basic_lure.png": {
-      "name": "item.basic_lure",
+    "status-labor.png": {
+      "name": "labor",
       "frame": {
         "x": 2,
         "y": 2,
@@ -4870,8 +4739,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.fish_scraps": {
-      "name": "item.fish_scraps",
+    "warning": {
+      "name": "warning",
       "frame": {
         "x": 264,
         "y": 2,
@@ -4903,8 +4772,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-fish_scraps.png": {
-      "name": "item.fish_scraps",
+    "status-warning.png": {
+      "name": "warning",
       "frame": {
         "x": 264,
         "y": 2,
@@ -4936,8 +4805,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.basic_fertilizer": {
-      "name": "item.basic_fertilizer",
+    "sprout": {
+      "name": "sprout",
       "frame": {
         "x": 526,
         "y": 2,
@@ -4969,8 +4838,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-basic_fertilizer.png": {
-      "name": "item.basic_fertilizer",
+    "world-sprout.png": {
+      "name": "sprout",
       "frame": {
         "x": 526,
         "y": 2,
@@ -5002,8 +4871,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.compost_starter": {
-      "name": "item.compost_starter",
+    "fish": {
+      "name": "fish",
       "frame": {
         "x": 2,
         "y": 264,
@@ -5035,8 +4904,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-compost_starter.png": {
-      "name": "item.compost_starter",
+    "world-fish.png": {
+      "name": "fish",
       "frame": {
         "x": 2,
         "y": 264,
@@ -5068,8 +4937,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.plant_matter": {
-      "name": "item.plant_matter",
+    "boat": {
+      "name": "boat",
       "frame": {
         "x": 2,
         "y": 526,
@@ -5101,8 +4970,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-plant_matter.png": {
-      "name": "item.plant_matter",
+    "world-boat.png": {
+      "name": "boat",
       "frame": {
         "x": 2,
         "y": 526,
@@ -5134,8 +5003,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.boat_fuel": {
-      "name": "item.boat_fuel",
+    "plant": {
+      "name": "plant",
       "frame": {
         "x": 264,
         "y": 264,
@@ -5167,8 +5036,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-boat_fuel.png": {
-      "name": "item.boat_fuel",
+    "action-plant.png": {
+      "name": "plant",
       "frame": {
         "x": 264,
         "y": 264,
@@ -5200,8 +5069,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.crushed_ice": {
-      "name": "item.crushed_ice",
+    "action-water.png": {
+      "name": "water",
       "frame": {
         "x": 264,
         "y": 526,
@@ -5233,41 +5102,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-crushed_ice.png": {
-      "name": "item.crushed_ice",
-      "frame": {
-        "x": 264,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.2568359375,
-        "u1": 0.25390625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.12890625,
-        0.2568359375,
-        0.25390625,
-        0.3818359375
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "item.hardwood_blank": {
-      "name": "item.hardwood_blank",
+    "action-harvest.png": {
+      "name": "harvest",
       "frame": {
         "x": 526,
         "y": 264,
@@ -5299,41 +5135,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-hardwood_blank.png": {
-      "name": "item.hardwood_blank",
-      "frame": {
-        "x": 526,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.12890625,
-        "u1": 0.3818359375,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.12890625,
-        0.3818359375,
-        0.25390625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "item.tanned_leather": {
-      "name": "item.tanned_leather",
+    "processing": {
+      "name": "processing",
       "frame": {
         "x": 526,
         "y": 526,
@@ -5365,8 +5168,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-tanned_leather.png": {
-      "name": "item.tanned_leather",
+    "action-processing.png": {
+      "name": "processing",
       "frame": {
         "x": 526,
         "y": 526,
@@ -5398,8 +5201,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.tool_steel": {
-      "name": "item.tool_steel",
+    "pickup": {
+      "name": "pickup",
       "frame": {
         "x": 788,
         "y": 2,
@@ -5431,8 +5234,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-tool_steel.png": {
-      "name": "item.tool_steel",
+    "action-pickup.png": {
+      "name": "pickup",
       "frame": {
         "x": 788,
         "y": 2,
@@ -5464,8 +5267,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.linen_roll": {
-      "name": "item.linen_roll",
+    "place": {
+      "name": "place",
       "frame": {
         "x": 788,
         "y": 264,
@@ -5497,8 +5300,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-linen_roll.png": {
-      "name": "item.linen_roll",
+    "action-place.png": {
+      "name": "place",
       "frame": {
         "x": 788,
         "y": 264,
@@ -5530,8 +5333,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.copper_sheet": {
-      "name": "item.copper_sheet",
+    "workstation": {
+      "name": "workstation",
       "frame": {
         "x": 788,
         "y": 526,
@@ -5563,8 +5366,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-copper_sheet.png": {
-      "name": "item.copper_sheet",
+    "action-workstation.png": {
+      "name": "workstation",
       "frame": {
         "x": 788,
         "y": 526,
@@ -5596,8 +5399,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.brass_fittings": {
-      "name": "item.brass_fittings",
+    "cast": {
+      "name": "cast",
       "frame": {
         "x": 1050,
         "y": 2,
@@ -5629,8 +5432,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-brass_fittings.png": {
-      "name": "item.brass_fittings",
+    "action-cast.png": {
+      "name": "cast",
       "frame": {
         "x": 1050,
         "y": 2,
@@ -5662,8 +5465,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item.oiled_canvas": {
-      "name": "item.oiled_canvas",
+    "board": {
+      "name": "board",
       "frame": {
         "x": 1312,
         "y": 2,
@@ -5695,8 +5498,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 2,
       "page": 2
     },
-    "item-oiled_canvas.png": {
-      "name": "item.oiled_canvas",
+    "action-board.png": {
+      "name": "board",
       "frame": {
         "x": 1312,
         "y": 2,
@@ -5727,836 +5530,4103 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       ],
       "binIndex": 2,
       "page": 2
+    },
+    "dock": {
+      "name": "dock",
+      "frame": {
+        "x": 1574,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.0009765625,
+        "u1": 0.8935546875,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.0009765625,
+        0.8935546875,
+        0.1259765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "action-dock.png": {
+      "name": "dock",
+      "frame": {
+        "x": 1574,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.0009765625,
+        "u1": 0.8935546875,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.0009765625,
+        0.8935546875,
+        0.1259765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "homestead": {
+      "name": "homestead",
+      "frame": {
+        "x": 1050,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.12890625,
+        "u1": 0.6376953125,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.12890625,
+        0.6376953125,
+        0.25390625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "mapnode-homestead.png": {
+      "name": "homestead",
+      "frame": {
+        "x": 1050,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.12890625,
+        "u1": 0.6376953125,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.12890625,
+        0.6376953125,
+        0.25390625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "garden": {
+      "name": "garden",
+      "frame": {
+        "x": 1050,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.2568359375,
+        "u1": 0.6376953125,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.2568359375,
+        0.6376953125,
+        0.3818359375
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "mapnode-garden.png": {
+      "name": "garden",
+      "frame": {
+        "x": 1050,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.2568359375,
+        "u1": 0.6376953125,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.2568359375,
+        0.6376953125,
+        0.3818359375
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "village": {
+      "name": "village",
+      "frame": {
+        "x": 1312,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.12890625,
+        "u1": 0.765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.640625,
+        0.12890625,
+        0.765625,
+        0.25390625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "mapnode-village.png": {
+      "name": "village",
+      "frame": {
+        "x": 1312,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.12890625,
+        "u1": 0.765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.640625,
+        0.12890625,
+        0.765625,
+        0.25390625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "river_crossing": {
+      "name": "river_crossing",
+      "frame": {
+        "x": 1574,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.12890625,
+        "u1": 0.8935546875,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.12890625,
+        0.8935546875,
+        0.25390625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "mapnode-river_crossing.png": {
+      "name": "river_crossing",
+      "frame": {
+        "x": 1574,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.12890625,
+        "u1": 0.8935546875,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.12890625,
+        0.8935546875,
+        0.25390625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "river": {
+      "name": "river",
+      "frame": {
+        "x": 1312,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.2568359375,
+        "u1": 0.765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.640625,
+        0.2568359375,
+        0.765625,
+        0.3818359375
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "mapnode-river.png": {
+      "name": "river",
+      "frame": {
+        "x": 1312,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.2568359375,
+        "u1": 0.765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.640625,
+        0.2568359375,
+        0.765625,
+        0.3818359375
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "harbor": {
+      "name": "harbor",
+      "frame": {
+        "x": 1574,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.2568359375,
+        "u1": 0.8935546875,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.2568359375,
+        0.8935546875,
+        0.3818359375
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "mapnode-harbor.png": {
+      "name": "harbor",
+      "frame": {
+        "x": 1574,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.2568359375,
+        "u1": 0.8935546875,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.2568359375,
+        0.8935546875,
+        0.3818359375
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "lighthouse": {
+      "name": "lighthouse",
+      "frame": {
+        "x": 2,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.384765625,
+        "u1": 0.1259765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.384765625,
+        0.1259765625,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "mapnode-lighthouse.png": {
+      "name": "lighthouse",
+      "frame": {
+        "x": 2,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.384765625,
+        "u1": 0.1259765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.384765625,
+        0.1259765625,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "offshore": {
+      "name": "offshore",
+      "frame": {
+        "x": 2,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.5126953125,
+        "u1": 0.1259765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.5126953125,
+        0.1259765625,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "mapnode-offshore.png": {
+      "name": "offshore",
+      "frame": {
+        "x": 2,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.5126953125,
+        "u1": 0.1259765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.5126953125,
+        0.1259765625,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "sunreach": {
+      "name": "sunreach",
+      "frame": {
+        "x": 2,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.640625,
+        "u1": 0.1259765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.640625,
+        0.1259765625,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "mapnode-sunreach.png": {
+      "name": "sunreach",
+      "frame": {
+        "x": 2,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.640625,
+        "u1": 0.1259765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.640625,
+        0.1259765625,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.carp": {
+      "name": "fish.carp",
+      "frame": {
+        "x": 2,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.7685546875,
+        "u1": 0.1259765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.7685546875,
+        0.1259765625,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-carp.png": {
+      "name": "fish.carp",
+      "frame": {
+        "x": 2,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.7685546875,
+        "u1": 0.1259765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.7685546875,
+        0.1259765625,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.trout": {
+      "name": "fish.trout",
+      "frame": {
+        "x": 264,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.384765625,
+        "u1": 0.25390625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.384765625,
+        0.25390625,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-trout.png": {
+      "name": "fish.trout",
+      "frame": {
+        "x": 264,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.384765625,
+        "u1": 0.25390625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.384765625,
+        0.25390625,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.perch": {
+      "name": "fish.perch",
+      "frame": {
+        "x": 264,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.5126953125,
+        "u1": 0.25390625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.12890625,
+        0.5126953125,
+        0.25390625,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-perch.png": {
+      "name": "fish.perch",
+      "frame": {
+        "x": 264,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.5126953125,
+        "u1": 0.25390625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.12890625,
+        0.5126953125,
+        0.25390625,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.catfish": {
+      "name": "fish.catfish",
+      "frame": {
+        "x": 264,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.640625,
+        "u1": 0.25390625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.640625,
+        0.25390625,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-catfish.png": {
+      "name": "fish.catfish",
+      "frame": {
+        "x": 264,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.640625,
+        "u1": 0.25390625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.640625,
+        0.25390625,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.pike": {
+      "name": "fish.pike",
+      "frame": {
+        "x": 264,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.7685546875,
+        "u1": 0.25390625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.12890625,
+        0.7685546875,
+        0.25390625,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-pike.png": {
+      "name": "fish.pike",
+      "frame": {
+        "x": 264,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.7685546875,
+        "u1": 0.25390625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.12890625,
+        0.7685546875,
+        0.25390625,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.arowana": {
+      "name": "fish.arowana",
+      "frame": {
+        "x": 526,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.384765625,
+        "u1": 0.3818359375,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.384765625,
+        0.3818359375,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-arowana.png": {
+      "name": "fish.arowana",
+      "frame": {
+        "x": 526,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.384765625,
+        "u1": 0.3818359375,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.384765625,
+        0.3818359375,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.mackerel": {
+      "name": "fish.mackerel",
+      "frame": {
+        "x": 526,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.5126953125,
+        "u1": 0.3818359375,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.5126953125,
+        0.3818359375,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-mackerel.png": {
+      "name": "fish.mackerel",
+      "frame": {
+        "x": 526,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.5126953125,
+        "u1": 0.3818359375,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.5126953125,
+        0.3818359375,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.tuna": {
+      "name": "fish.tuna",
+      "frame": {
+        "x": 526,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.640625,
+        "u1": 0.3818359375,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.640625,
+        0.3818359375,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-tuna.png": {
+      "name": "fish.tuna",
+      "frame": {
+        "x": 526,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.640625,
+        "u1": 0.3818359375,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.640625,
+        0.3818359375,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.sturgeon": {
+      "name": "fish.sturgeon",
+      "frame": {
+        "x": 526,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.7685546875,
+        "u1": 0.3818359375,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.7685546875,
+        0.3818359375,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-sturgeon.png": {
+      "name": "fish.sturgeon",
+      "frame": {
+        "x": 526,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.7685546875,
+        "u1": 0.3818359375,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.7685546875,
+        0.3818359375,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.sailfish": {
+      "name": "fish.sailfish",
+      "frame": {
+        "x": 788,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.384765625,
+        "u1": 0.509765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.384765625,
+        0.509765625,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-sailfish.png": {
+      "name": "fish.sailfish",
+      "frame": {
+        "x": 788,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.384765625,
+        "u1": 0.509765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.384765625,
+        0.509765625,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.swordfish": {
+      "name": "fish.swordfish",
+      "frame": {
+        "x": 788,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.5126953125,
+        "u1": 0.509765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.384765625,
+        0.5126953125,
+        0.509765625,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-swordfish.png": {
+      "name": "fish.swordfish",
+      "frame": {
+        "x": 788,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.5126953125,
+        "u1": 0.509765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.384765625,
+        0.5126953125,
+        0.509765625,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish.blue_marlin": {
+      "name": "fish.blue_marlin",
+      "frame": {
+        "x": 788,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.640625,
+        "u1": 0.509765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.640625,
+        0.509765625,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "fish-blue_marlin.png": {
+      "name": "fish.blue_marlin",
+      "frame": {
+        "x": 788,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.640625,
+        "u1": 0.509765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.640625,
+        0.509765625,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed.wheat": {
+      "name": "seed.wheat",
+      "frame": {
+        "x": 788,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.7685546875,
+        "u1": 0.509765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.384765625,
+        0.7685546875,
+        0.509765625,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed-wheat.png": {
+      "name": "seed.wheat",
+      "frame": {
+        "x": 788,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.7685546875,
+        "u1": 0.509765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.384765625,
+        0.7685546875,
+        0.509765625,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed.barley": {
+      "name": "seed.barley",
+      "frame": {
+        "x": 1050,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.384765625,
+        "u1": 0.6376953125,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.384765625,
+        0.6376953125,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed-barley.png": {
+      "name": "seed.barley",
+      "frame": {
+        "x": 1050,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.384765625,
+        "u1": 0.6376953125,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.384765625,
+        0.6376953125,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed.corn": {
+      "name": "seed.corn",
+      "frame": {
+        "x": 1312,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.384765625,
+        "u1": 0.765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.384765625,
+        0.765625,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed-corn.png": {
+      "name": "seed.corn",
+      "frame": {
+        "x": 1312,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.384765625,
+        "u1": 0.765625,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.384765625,
+        0.765625,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed.tomato": {
+      "name": "seed.tomato",
+      "frame": {
+        "x": 1574,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.384765625,
+        "u1": 0.8935546875,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.384765625,
+        0.8935546875,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed-tomato.png": {
+      "name": "seed.tomato",
+      "frame": {
+        "x": 1574,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.384765625,
+        "u1": 0.8935546875,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.384765625,
+        0.8935546875,
+        0.509765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed.potato": {
+      "name": "seed.potato",
+      "frame": {
+        "x": 1050,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.5126953125,
+        "u1": 0.6376953125,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.5126953125,
+        0.6376953125,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed-potato.png": {
+      "name": "seed.potato",
+      "frame": {
+        "x": 1050,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.5126953125,
+        "u1": 0.6376953125,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.5126953125,
+        0.6376953125,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed.carrot": {
+      "name": "seed.carrot",
+      "frame": {
+        "x": 1050,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.640625,
+        "u1": 0.6376953125,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.640625,
+        0.6376953125,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed-carrot.png": {
+      "name": "seed.carrot",
+      "frame": {
+        "x": 1050,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.640625,
+        "u1": 0.6376953125,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.640625,
+        0.6376953125,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed.flax": {
+      "name": "seed.flax",
+      "frame": {
+        "x": 1050,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.7685546875,
+        "u1": 0.6376953125,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.7685546875,
+        0.6376953125,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed-flax.png": {
+      "name": "seed.flax",
+      "frame": {
+        "x": 1050,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.7685546875,
+        "u1": 0.6376953125,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.7685546875,
+        0.6376953125,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed.apple_sapling": {
+      "name": "seed.apple_sapling",
+      "frame": {
+        "x": 1312,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.5126953125,
+        "u1": 0.765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.640625,
+        0.5126953125,
+        0.765625,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "seed-apple_sapling.png": {
+      "name": "seed.apple_sapling",
+      "frame": {
+        "x": 1312,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.5126953125,
+        "u1": 0.765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.640625,
+        0.5126953125,
+        0.765625,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce.wheat": {
+      "name": "produce.wheat",
+      "frame": {
+        "x": 1574,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.5126953125,
+        "u1": 0.8935546875,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.5126953125,
+        0.8935546875,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce-wheat.png": {
+      "name": "produce.wheat",
+      "frame": {
+        "x": 1574,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.5126953125,
+        "u1": 0.8935546875,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.5126953125,
+        0.8935546875,
+        0.6376953125
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce.barley": {
+      "name": "produce.barley",
+      "frame": {
+        "x": 1312,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.640625,
+        "u1": 0.765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.640625,
+        0.765625,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce-barley.png": {
+      "name": "produce.barley",
+      "frame": {
+        "x": 1312,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.640625,
+        "u1": 0.765625,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.640625,
+        0.765625,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce.corn": {
+      "name": "produce.corn",
+      "frame": {
+        "x": 1312,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.7685546875,
+        "u1": 0.765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.640625,
+        0.7685546875,
+        0.765625,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce-corn.png": {
+      "name": "produce.corn",
+      "frame": {
+        "x": 1312,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.7685546875,
+        "u1": 0.765625,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.640625,
+        0.7685546875,
+        0.765625,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce.tomato": {
+      "name": "produce.tomato",
+      "frame": {
+        "x": 1574,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.640625,
+        "u1": 0.8935546875,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.640625,
+        0.8935546875,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce-tomato.png": {
+      "name": "produce.tomato",
+      "frame": {
+        "x": 1574,
+        "y": 1312,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1312,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1310,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.640625,
+        "u1": 0.8935546875,
+        "v1": 0.765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.640625,
+        0.8935546875,
+        0.765625
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce.potato": {
+      "name": "produce.potato",
+      "frame": {
+        "x": 1574,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.7685546875,
+        "u1": 0.8935546875,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.7685546875,
+        0.8935546875,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce-potato.png": {
+      "name": "produce.potato",
+      "frame": {
+        "x": 1574,
+        "y": 1574,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 1574,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 1572,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.7685546875,
+        "u1": 0.8935546875,
+        "v1": 0.8935546875
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.7685546875,
+        0.8935546875,
+        0.8935546875
+      ],
+      "binIndex": 2,
+      "page": 2
+    },
+    "produce.carrot": {
+      "name": "produce.carrot",
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.0009765625,
+        "u1": 0.1259765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.0009765625,
+        0.1259765625,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "produce-carrot.png": {
+      "name": "produce.carrot",
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.0009765625,
+        "u1": 0.1259765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.0009765625,
+        0.1259765625,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "produce.flax": {
+      "name": "produce.flax",
+      "frame": {
+        "x": 264,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.0009765625,
+        "u1": 0.25390625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.0009765625,
+        0.25390625,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "produce-flax.png": {
+      "name": "produce.flax",
+      "frame": {
+        "x": 264,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.0009765625,
+        "u1": 0.25390625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.0009765625,
+        0.25390625,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "produce.apple": {
+      "name": "produce.apple",
+      "frame": {
+        "x": 526,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.0009765625,
+        "u1": 0.3818359375,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.0009765625,
+        0.3818359375,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "produce-apple.png": {
+      "name": "produce.apple",
+      "frame": {
+        "x": 526,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.0009765625,
+        "u1": 0.3818359375,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.0009765625,
+        0.3818359375,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "crop.wheat": {
+      "name": "crop.wheat",
+      "frame": {
+        "x": 2,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.12890625,
+        "u1": 0.1259765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.12890625,
+        0.1259765625,
+        0.25390625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "plant-wheat.png": {
+      "name": "crop.wheat",
+      "frame": {
+        "x": 2,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.12890625,
+        "u1": 0.1259765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.12890625,
+        0.1259765625,
+        0.25390625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "crop.barley": {
+      "name": "crop.barley",
+      "frame": {
+        "x": 2,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.2568359375,
+        "u1": 0.1259765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.2568359375,
+        0.1259765625,
+        0.3818359375
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "plant-barley.png": {
+      "name": "crop.barley",
+      "frame": {
+        "x": 2,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.2568359375,
+        "u1": 0.1259765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.2568359375,
+        0.1259765625,
+        0.3818359375
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "crop.corn": {
+      "name": "crop.corn",
+      "frame": {
+        "x": 264,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.12890625,
+        "u1": 0.25390625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.12890625,
+        0.25390625,
+        0.25390625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "plant-corn.png": {
+      "name": "crop.corn",
+      "frame": {
+        "x": 264,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.12890625,
+        "u1": 0.25390625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.12890625,
+        0.12890625,
+        0.25390625,
+        0.25390625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "crop.tomato": {
+      "name": "crop.tomato",
+      "frame": {
+        "x": 264,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.2568359375,
+        "u1": 0.25390625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.12890625,
+        0.2568359375,
+        0.25390625,
+        0.3818359375
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "plant-tomato.png": {
+      "name": "crop.tomato",
+      "frame": {
+        "x": 264,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 264,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 262,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.12890625,
+        "v0": 0.2568359375,
+        "u1": 0.25390625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.12890625,
+        0.2568359375,
+        0.25390625,
+        0.3818359375
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "crop.potato": {
+      "name": "crop.potato",
+      "frame": {
+        "x": 526,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.12890625,
+        "u1": 0.3818359375,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.12890625,
+        0.3818359375,
+        0.25390625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "plant-potato.png": {
+      "name": "crop.potato",
+      "frame": {
+        "x": 526,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.12890625,
+        "u1": 0.3818359375,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.12890625,
+        0.3818359375,
+        0.25390625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "crop.carrot": {
+      "name": "crop.carrot",
+      "frame": {
+        "x": 526,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.2568359375,
+        "u1": 0.3818359375,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.2568359375,
+        0.3818359375,
+        0.3818359375
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "plant-carrot.png": {
+      "name": "crop.carrot",
+      "frame": {
+        "x": 526,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.2568359375,
+        "u1": 0.3818359375,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.2568359375,
+        0.3818359375,
+        0.3818359375
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "crop.flax": {
+      "name": "crop.flax",
+      "frame": {
+        "x": 788,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.0009765625,
+        "u1": 0.509765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.0009765625,
+        0.509765625,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "plant-flax.png": {
+      "name": "crop.flax",
+      "frame": {
+        "x": 788,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.0009765625,
+        "u1": 0.509765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.0009765625,
+        0.509765625,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "crop.apple_tree": {
+      "name": "crop.apple_tree",
+      "frame": {
+        "x": 788,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.12890625,
+        "u1": 0.509765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.12890625,
+        0.509765625,
+        0.25390625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "plant-apple_tree.png": {
+      "name": "crop.apple_tree",
+      "frame": {
+        "x": 788,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.12890625,
+        "u1": 0.509765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.384765625,
+        0.12890625,
+        0.509765625,
+        0.25390625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "seeded": {
+      "name": "seeded",
+      "frame": {
+        "x": 788,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.2568359375,
+        "u1": 0.509765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.384765625,
+        0.2568359375,
+        0.509765625,
+        0.3818359375
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "growth-seeded.png": {
+      "name": "seeded",
+      "frame": {
+        "x": 788,
+        "y": 526,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 788,
+      "innerY": 526,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 786,
+        "y": 524,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.384765625,
+        "v0": 0.2568359375,
+        "u1": 0.509765625,
+        "v1": 0.3818359375
+      },
+      "uvBounds": [
+        0.384765625,
+        0.2568359375,
+        0.509765625,
+        0.3818359375
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "growing": {
+      "name": "growing",
+      "frame": {
+        "x": 2,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 2,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 0,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.0009765625,
+        "v0": 0.5126953125,
+        "u1": 0.1259765625,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.0009765625,
+        0.5126953125,
+        0.1259765625,
+        0.6376953125
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "growth-growing.png": {
+      "name": "growing",
+      "frame": {
+        "x": 1050,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.0009765625,
+        "u1": 0.6376953125,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.0009765625,
+        0.6376953125,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "mature": {
+      "name": "mature",
+      "frame": {
+        "x": 1312,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.0009765625,
+        "u1": 0.765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.0009765625,
+        0.765625,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "growth-mature.png": {
+      "name": "mature",
+      "frame": {
+        "x": 1312,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.0009765625,
+        "u1": 0.765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.0009765625,
+        0.765625,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "withered": {
+      "name": "withered",
+      "frame": {
+        "x": 1574,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.0009765625,
+        "u1": 0.8935546875,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.0009765625,
+        0.8935546875,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "growth-withered.png": {
+      "name": "withered",
+      "frame": {
+        "x": 1574,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.0009765625,
+        "u1": 0.8935546875,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.0009765625,
+        0.8935546875,
+        0.1259765625
+      ],
+      "binIndex": 3,
+      "page": 3
     },
     "normal": {
       "name": "normal",
       "frame": {
-        "x": 1574,
-        "y": 2,
+        "x": 1050,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 2,
+      "innerX": 1050,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 0,
+        "x": 1048,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.0009765625,
-        "u1": 0.8935546875,
-        "v1": 0.1259765625
+        "u0": 0.5126953125,
+        "v0": 0.12890625,
+        "u1": 0.6376953125,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.7685546875,
-        0.0009765625,
-        0.8935546875,
-        0.1259765625
+        0.5126953125,
+        0.12890625,
+        0.6376953125,
+        0.25390625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "quality-normal.png": {
       "name": "normal",
       "frame": {
-        "x": 1574,
-        "y": 2,
+        "x": 1050,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 2,
+      "innerX": 1050,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 0,
+        "x": 1048,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.0009765625,
-        "u1": 0.8935546875,
-        "v1": 0.1259765625
+        "u0": 0.5126953125,
+        "v0": 0.12890625,
+        "u1": 0.6376953125,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.7685546875,
-        0.0009765625,
-        0.8935546875,
-        0.1259765625
+        0.5126953125,
+        0.12890625,
+        0.6376953125,
+        0.25390625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "silver": {
       "name": "silver",
       "frame": {
         "x": 1050,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 1050,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 1048,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.5126953125,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.6376953125,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.5126953125,
-        0.12890625,
+        0.2568359375,
         0.6376953125,
-        0.25390625
+        0.3818359375
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "quality-silver.png": {
       "name": "silver",
       "frame": {
         "x": 1050,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 1050,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 1048,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.5126953125,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.6376953125,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.5126953125,
-        0.12890625,
+        0.2568359375,
         0.6376953125,
-        0.25390625
+        0.3818359375
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "gold": {
       "name": "gold",
       "frame": {
-        "x": 1050,
-        "y": 526,
+        "x": 1312,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 526,
+      "innerX": 1312,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 524,
+        "x": 1310,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.2568359375,
-        "u1": 0.6376953125,
-        "v1": 0.3818359375
+        "u0": 0.640625,
+        "v0": 0.12890625,
+        "u1": 0.765625,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.5126953125,
-        0.2568359375,
-        0.6376953125,
-        0.3818359375
+        0.640625,
+        0.12890625,
+        0.765625,
+        0.25390625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "quality-gold.png": {
       "name": "gold",
       "frame": {
-        "x": 1050,
-        "y": 526,
+        "x": 1312,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 526,
+      "innerX": 1312,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 524,
+        "x": 1310,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.2568359375,
-        "u1": 0.6376953125,
-        "v1": 0.3818359375
+        "u0": 0.640625,
+        "v0": 0.12890625,
+        "u1": 0.765625,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.5126953125,
-        0.2568359375,
-        0.6376953125,
-        0.3818359375
+        0.640625,
+        0.12890625,
+        0.765625,
+        0.25390625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "iridium": {
       "name": "iridium",
       "frame": {
-        "x": 1312,
+        "x": 1574,
         "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
+      "innerX": 1574,
       "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
+        "x": 1572,
         "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
+        "u0": 0.7685546875,
         "v0": 0.12890625,
-        "u1": 0.765625,
+        "u1": 0.8935546875,
         "v1": 0.25390625
       },
       "uvBounds": [
-        0.640625,
+        0.7685546875,
         0.12890625,
-        0.765625,
+        0.8935546875,
         0.25390625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "quality-iridium.png": {
       "name": "iridium",
       "frame": {
-        "x": 1312,
+        "x": 1574,
         "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
+      "innerX": 1574,
       "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
+        "x": 1572,
         "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
+        "u0": 0.7685546875,
         "v0": 0.12890625,
-        "u1": 0.765625,
+        "u1": 0.8935546875,
         "v1": 0.25390625
       },
       "uvBounds": [
-        0.640625,
+        0.7685546875,
         0.12890625,
-        0.765625,
+        0.8935546875,
         0.25390625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "moist": {
       "name": "moist",
       "frame": {
-        "x": 1574,
-        "y": 264,
+        "x": 1312,
+        "y": 526,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 264,
+      "innerX": 1312,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 262,
+        "x": 1310,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.12890625,
-        "u1": 0.8935546875,
-        "v1": 0.25390625
+        "u0": 0.640625,
+        "v0": 0.2568359375,
+        "u1": 0.765625,
+        "v1": 0.3818359375
       },
       "uvBounds": [
-        0.7685546875,
-        0.12890625,
-        0.8935546875,
-        0.25390625
+        0.640625,
+        0.2568359375,
+        0.765625,
+        0.3818359375
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "gis-moist.png": {
       "name": "moist",
       "frame": {
-        "x": 1574,
-        "y": 264,
+        "x": 1312,
+        "y": 526,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 264,
+      "innerX": 1312,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 262,
+        "x": 1310,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.12890625,
-        "u1": 0.8935546875,
-        "v1": 0.25390625
+        "u0": 0.640625,
+        "v0": 0.2568359375,
+        "u1": 0.765625,
+        "v1": 0.3818359375
       },
       "uvBounds": [
-        0.7685546875,
-        0.12890625,
-        0.8935546875,
-        0.25390625
+        0.640625,
+        0.2568359375,
+        0.765625,
+        0.3818359375
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "dry": {
       "name": "dry",
       "frame": {
-        "x": 1312,
+        "x": 1574,
         "y": 526,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
+      "innerX": 1574,
       "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
+        "x": 1572,
         "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
+        "u0": 0.7685546875,
         "v0": 0.2568359375,
-        "u1": 0.765625,
+        "u1": 0.8935546875,
         "v1": 0.3818359375
       },
       "uvBounds": [
-        0.640625,
+        0.7685546875,
         0.2568359375,
-        0.765625,
+        0.8935546875,
         0.3818359375
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "gis-dry.png": {
       "name": "dry",
       "frame": {
-        "x": 1312,
+        "x": 1574,
         "y": 526,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
+      "innerX": 1574,
       "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
+        "x": 1572,
         "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
+        "u0": 0.7685546875,
         "v0": 0.2568359375,
-        "u1": 0.765625,
+        "u1": 0.8935546875,
         "v1": 0.3818359375
       },
       "uvBounds": [
-        0.640625,
+        0.7685546875,
         0.2568359375,
-        0.765625,
+        0.8935546875,
         0.3818359375
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "harvestReady": {
       "name": "harvestReady",
       "frame": {
-        "x": 1574,
-        "y": 526,
+        "x": 2,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 526,
+      "innerX": 2,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 524,
+        "x": 0,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.2568359375,
-        "u1": 0.8935546875,
-        "v1": 0.3818359375
+        "u0": 0.0009765625,
+        "v0": 0.384765625,
+        "u1": 0.1259765625,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.7685546875,
-        0.2568359375,
-        0.8935546875,
-        0.3818359375
+        0.0009765625,
+        0.384765625,
+        0.1259765625,
+        0.509765625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "gis-harvest-ready.png": {
       "name": "harvestReady",
       "frame": {
-        "x": 1574,
-        "y": 526,
+        "x": 2,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 526,
+      "innerX": 2,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 524,
+        "x": 0,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.2568359375,
-        "u1": 0.8935546875,
-        "v1": 0.3818359375
+        "u0": 0.0009765625,
+        "v0": 0.384765625,
+        "u1": 0.1259765625,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.7685546875,
-        0.2568359375,
-        0.8935546875,
-        0.3818359375
+        0.0009765625,
+        0.384765625,
+        0.1259765625,
+        0.509765625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "gis-growing.png": {
       "name": "growing",
       "frame": {
         "x": 2,
-        "y": 788,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
       "innerX": 2,
-      "innerY": 788,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 0,
-        "y": 786,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.0009765625,
-        "v0": 0.384765625,
+        "v0": 0.5126953125,
         "u1": 0.1259765625,
-        "v1": 0.509765625
+        "v1": 0.6376953125
       },
       "uvBounds": [
         0.0009765625,
-        0.384765625,
+        0.5126953125,
         0.1259765625,
-        0.509765625
+        0.6376953125
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "prepared": {
       "name": "prepared",
       "frame": {
         "x": 2,
-        "y": 1050,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
       "innerX": 2,
-      "innerY": 1050,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 0,
-        "y": 1048,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.0009765625,
-        "v0": 0.5126953125,
+        "v0": 0.640625,
         "u1": 0.1259765625,
-        "v1": 0.6376953125
+        "v1": 0.765625
       },
       "uvBounds": [
         0.0009765625,
-        0.5126953125,
+        0.640625,
         0.1259765625,
-        0.6376953125
+        0.765625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "gis-prepared.png": {
       "name": "prepared",
       "frame": {
         "x": 2,
-        "y": 1050,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
       "innerX": 2,
-      "innerY": 1050,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 0,
-        "y": 1048,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.0009765625,
-        "v0": 0.5126953125,
+        "v0": 0.640625,
         "u1": 0.1259765625,
-        "v1": 0.6376953125
+        "v1": 0.765625
       },
       "uvBounds": [
         0.0009765625,
-        0.5126953125,
+        0.640625,
         0.1259765625,
-        0.6376953125
+        0.765625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "npc.elspeth": {
       "name": "npc.elspeth",
       "frame": {
         "x": 2,
-        "y": 1312,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
       "innerX": 2,
-      "innerY": 1312,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 0,
-        "y": 1310,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.0009765625,
-        "v0": 0.640625,
+        "v0": 0.7685546875,
         "u1": 0.1259765625,
-        "v1": 0.765625
+        "v1": 0.8935546875
       },
       "uvBounds": [
         0.0009765625,
-        0.640625,
+        0.7685546875,
         0.1259765625,
-        0.765625
+        0.8935546875
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "portrait-elspeth.png": {
       "name": "npc.elspeth",
       "frame": {
         "x": 2,
-        "y": 1312,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
       "innerX": 2,
-      "innerY": 1312,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 0,
-        "y": 1310,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.0009765625,
-        "v0": 0.640625,
+        "v0": 0.7685546875,
         "u1": 0.1259765625,
-        "v1": 0.765625
+        "v1": 0.8935546875
       },
       "uvBounds": [
         0.0009765625,
-        0.640625,
+        0.7685546875,
         0.1259765625,
-        0.765625
+        0.8935546875
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "npc.barnaby": {
       "name": "npc.barnaby",
       "frame": {
-        "x": 2,
-        "y": 1574,
+        "x": 264,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 2,
-      "innerY": 1574,
+      "innerX": 264,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 0,
-        "y": 1572,
+        "x": 262,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.7685546875,
-        "u1": 0.1259765625,
-        "v1": 0.8935546875
+        "u0": 0.12890625,
+        "v0": 0.384765625,
+        "u1": 0.25390625,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.0009765625,
-        0.7685546875,
-        0.1259765625,
-        0.8935546875
+        0.12890625,
+        0.384765625,
+        0.25390625,
+        0.509765625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "portrait-barnaby.png": {
       "name": "npc.barnaby",
       "frame": {
-        "x": 2,
-        "y": 1574,
+        "x": 264,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 2,
-      "innerY": 1574,
+      "innerX": 264,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 0,
-        "y": 1572,
+        "x": 262,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.7685546875,
-        "u1": 0.1259765625,
-        "v1": 0.8935546875
+        "u0": 0.12890625,
+        "v0": 0.384765625,
+        "u1": 0.25390625,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.0009765625,
-        0.7685546875,
-        0.1259765625,
-        0.8935546875
+        0.12890625,
+        0.384765625,
+        0.25390625,
+        0.509765625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "npc.silas": {
       "name": "npc.silas",
       "frame": {
         "x": 264,
-        "y": 788,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
       "innerX": 264,
-      "innerY": 788,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 262,
-        "y": 786,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.12890625,
-        "v0": 0.384765625,
+        "v0": 0.5126953125,
         "u1": 0.25390625,
-        "v1": 0.509765625
+        "v1": 0.6376953125
       },
       "uvBounds": [
         0.12890625,
-        0.384765625,
+        0.5126953125,
         0.25390625,
-        0.509765625
+        0.6376953125
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "portrait-silas.png": {
       "name": "npc.silas",
       "frame": {
         "x": 264,
-        "y": 788,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
       "innerX": 264,
-      "innerY": 788,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 262,
-        "y": 786,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.12890625,
-        "v0": 0.384765625,
+        "v0": 0.5126953125,
         "u1": 0.25390625,
-        "v1": 0.509765625
+        "v1": 0.6376953125
       },
       "uvBounds": [
         0.12890625,
-        0.384765625,
+        0.5126953125,
         0.25390625,
-        0.509765625
+        0.6376953125
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "npc.maeve": {
       "name": "npc.maeve",
       "frame": {
         "x": 264,
-        "y": 1050,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
       "innerX": 264,
-      "innerY": 1050,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 262,
-        "y": 1048,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.12890625,
-        "v0": 0.5126953125,
+        "v0": 0.640625,
         "u1": 0.25390625,
-        "v1": 0.6376953125
+        "v1": 0.765625
       },
       "uvBounds": [
         0.12890625,
-        0.5126953125,
+        0.640625,
         0.25390625,
-        0.6376953125
+        0.765625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "portrait-maeve.png": {
       "name": "npc.maeve",
       "frame": {
         "x": 264,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.5126953125,
-        "u1": 0.25390625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.12890625,
-        0.5126953125,
-        0.25390625,
-        0.6376953125
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "clear": {
-      "name": "clear",
-      "frame": {
-        "x": 264,
         "y": 1312,
         "w": 256,
         "h": 256
@@ -6583,1358 +9653,236 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
         0.25390625,
         0.765625
       ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "weather-clear.png": {
-      "name": "clear",
-      "frame": {
-        "x": 264,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.640625,
-        "u1": 0.25390625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.640625,
-        0.25390625,
-        0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "overcast": {
-      "name": "overcast",
-      "frame": {
-        "x": 264,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.7685546875,
-        "u1": 0.25390625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.12890625,
-        0.7685546875,
-        0.25390625,
-        0.8935546875
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "weather-overcast.png": {
-      "name": "overcast",
-      "frame": {
-        "x": 264,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.7685546875,
-        "u1": 0.25390625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.12890625,
-        0.7685546875,
-        0.25390625,
-        0.8935546875
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "light-rain": {
-      "name": "light-rain",
-      "frame": {
-        "x": 526,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.384765625,
-        "u1": 0.3818359375,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.384765625,
-        0.3818359375,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "weather-light-rain.png": {
-      "name": "light-rain",
-      "frame": {
-        "x": 526,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.384765625,
-        "u1": 0.3818359375,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.384765625,
-        0.3818359375,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "rain": {
-      "name": "rain",
-      "frame": {
-        "x": 526,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.5126953125,
-        "u1": 0.3818359375,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.5126953125,
-        0.3818359375,
-        0.6376953125
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "weather-rain.png": {
-      "name": "rain",
-      "frame": {
-        "x": 526,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.5126953125,
-        "u1": 0.3818359375,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.5126953125,
-        0.3818359375,
-        0.6376953125
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "storm": {
-      "name": "storm",
-      "frame": {
-        "x": 526,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.640625,
-        "u1": 0.3818359375,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.640625,
-        0.3818359375,
-        0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "weather-storm.png": {
-      "name": "storm",
-      "frame": {
-        "x": 526,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.640625,
-        "u1": 0.3818359375,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.640625,
-        0.3818359375,
-        0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "fog": {
-      "name": "fog",
-      "frame": {
-        "x": 526,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.7685546875,
-        "u1": 0.3818359375,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.7685546875,
-        0.3818359375,
-        0.8935546875
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "weather-fog.png": {
-      "name": "fog",
-      "frame": {
-        "x": 526,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.7685546875,
-        "u1": 0.3818359375,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.7685546875,
-        0.3818359375,
-        0.8935546875
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "wind": {
-      "name": "wind",
-      "frame": {
-        "x": 788,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.384765625,
-        "u1": 0.509765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.384765625,
-        0.509765625,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "weather-wind.png": {
-      "name": "wind",
-      "frame": {
-        "x": 788,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.384765625,
-        "u1": 0.509765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.384765625,
-        0.509765625,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "thermometer": {
-      "name": "thermometer",
-      "frame": {
-        "x": 788,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.5126953125,
-        "u1": 0.509765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.384765625,
-        0.5126953125,
-        0.509765625,
-        0.6376953125
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "weather-thermometer.png": {
-      "name": "thermometer",
-      "frame": {
-        "x": 788,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.5126953125,
-        "u1": 0.509765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.384765625,
-        0.5126953125,
-        0.509765625,
-        0.6376953125
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "wave": {
-      "name": "wave",
-      "frame": {
-        "x": 788,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.640625,
-        "u1": 0.509765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.640625,
-        0.509765625,
-        0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "weather-wave.png": {
-      "name": "wave",
-      "frame": {
-        "x": 788,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.640625,
-        "u1": 0.509765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.640625,
-        0.509765625,
-        0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "time-sun.png": {
-      "name": "sun",
-      "frame": {
-        "x": 788,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.7685546875,
-        "u1": 0.509765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.384765625,
-        0.7685546875,
-        0.509765625,
-        0.8935546875
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "moon": {
-      "name": "moon",
-      "frame": {
-        "x": 1050,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.384765625,
-        "u1": 0.6376953125,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.384765625,
-        0.6376953125,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "time-moon.png": {
-      "name": "moon",
-      "frame": {
-        "x": 1050,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.384765625,
-        "u1": 0.6376953125,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.384765625,
-        0.6376953125,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "dawn": {
-      "name": "dawn",
-      "frame": {
-        "x": 1312,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.384765625,
-        "u1": 0.765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.384765625,
-        0.765625,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "time-dawn.png": {
-      "name": "dawn",
-      "frame": {
-        "x": 1312,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.384765625,
-        "u1": 0.765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.384765625,
-        0.765625,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "dusk": {
-      "name": "dusk",
-      "frame": {
-        "x": 1574,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.384765625,
-        "u1": 0.8935546875,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.384765625,
-        0.8935546875,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "time-dusk.png": {
-      "name": "dusk",
-      "frame": {
-        "x": 1574,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.384765625,
-        "u1": 0.8935546875,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.384765625,
-        0.8935546875,
-        0.509765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "tool-hoe.png": {
-      "name": "hoe",
-      "frame": {
-        "x": 1050,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.5126953125,
-        "u1": 0.6376953125,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.5126953125,
-        0.6376953125,
-        0.6376953125
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "watering_can": {
-      "name": "watering_can",
-      "frame": {
-        "x": 1050,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.640625,
-        "u1": 0.6376953125,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.640625,
-        0.6376953125,
-        0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "tool-watering_can.png": {
-      "name": "watering_can",
-      "frame": {
-        "x": 1050,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.640625,
-        "u1": 0.6376953125,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.640625,
-        0.6376953125,
-        0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "bait": {
-      "name": "bait",
-      "frame": {
-        "x": 1050,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.7685546875,
-        "u1": 0.6376953125,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.7685546875,
-        0.6376953125,
-        0.8935546875
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "tool-bait.png": {
-      "name": "bait",
-      "frame": {
-        "x": 1050,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.7685546875,
-        "u1": 0.6376953125,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.7685546875,
-        0.6376953125,
-        0.8935546875
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "tool-rod.png": {
-      "name": "rod",
-      "frame": {
-        "x": 1312,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.5126953125,
-        "u1": 0.765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.640625,
-        0.5126953125,
-        0.765625,
-        0.6376953125
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "pickaxe": {
-      "name": "pickaxe",
-      "frame": {
-        "x": 1574,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.5126953125,
-        "u1": 0.8935546875,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.5126953125,
-        0.8935546875,
-        0.6376953125
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "tool-pickaxe.png": {
-      "name": "pickaxe",
-      "frame": {
-        "x": 1574,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.5126953125,
-        "u1": 0.8935546875,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.5126953125,
-        0.8935546875,
-        0.6376953125
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "basket": {
-      "name": "basket",
-      "frame": {
-        "x": 1312,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.640625,
-        "u1": 0.765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.640625,
-        0.765625,
-        0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "tool-basket.png": {
-      "name": "basket",
-      "frame": {
-        "x": 1312,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.640625,
-        "u1": 0.765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.640625,
-        0.765625,
-        0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "rod.willow": {
       "name": "rod.willow",
       "frame": {
-        "x": 1312,
+        "x": 264,
         "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
+      "innerX": 264,
       "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
+        "x": 262,
         "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
+        "u0": 0.12890625,
         "v0": 0.7685546875,
-        "u1": 0.765625,
+        "u1": 0.25390625,
         "v1": 0.8935546875
       },
       "uvBounds": [
-        0.640625,
+        0.12890625,
         0.7685546875,
-        0.765625,
+        0.25390625,
         0.8935546875
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "rod-willow.png": {
       "name": "rod.willow",
       "frame": {
-        "x": 1312,
+        "x": 264,
         "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
+      "innerX": 264,
       "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
+        "x": 262,
         "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
+        "u0": 0.12890625,
         "v0": 0.7685546875,
-        "u1": 0.765625,
+        "u1": 0.25390625,
         "v1": 0.8935546875
       },
       "uvBounds": [
-        0.640625,
+        0.12890625,
         0.7685546875,
-        0.765625,
+        0.25390625,
         0.8935546875
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "rod.river": {
       "name": "rod.river",
       "frame": {
-        "x": 1574,
-        "y": 1312,
+        "x": 526,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 1312,
+      "innerX": 526,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 1310,
+        "x": 524,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.640625,
-        "u1": 0.8935546875,
-        "v1": 0.765625
+        "u0": 0.2568359375,
+        "v0": 0.384765625,
+        "u1": 0.3818359375,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.7685546875,
-        0.640625,
-        0.8935546875,
-        0.765625
+        0.2568359375,
+        0.384765625,
+        0.3818359375,
+        0.509765625
       ],
-      "binIndex": 2,
-      "page": 2
+      "binIndex": 3,
+      "page": 3
     },
     "rod-river.png": {
       "name": "rod.river",
       "frame": {
-        "x": 1574,
+        "x": 526,
+        "y": 788,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 788,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 786,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.384765625,
+        "u1": 0.3818359375,
+        "v1": 0.509765625
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.384765625,
+        0.3818359375,
+        0.509765625
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "rod.heavy_sport": {
+      "name": "rod.heavy_sport",
+      "frame": {
+        "x": 526,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.5126953125,
+        "u1": 0.3818359375,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.5126953125,
+        0.3818359375,
+        0.6376953125
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "rod-heavy_sport.png": {
+      "name": "rod.heavy_sport",
+      "frame": {
+        "x": 526,
+        "y": 1050,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 526,
+      "innerY": 1050,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 524,
+        "y": 1048,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.2568359375,
+        "v0": 0.5126953125,
+        "u1": 0.3818359375,
+        "v1": 0.6376953125
+      },
+      "uvBounds": [
+        0.2568359375,
+        0.5126953125,
+        0.3818359375,
+        0.6376953125
+      ],
+      "binIndex": 3,
+      "page": 3
+    },
+    "rod.offshore": {
+      "name": "rod.offshore",
+      "frame": {
+        "x": 526,
         "y": 1312,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
+      "innerX": 526,
       "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
+        "x": 524,
         "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
+        "u0": 0.2568359375,
         "v0": 0.640625,
-        "u1": 0.8935546875,
+        "u1": 0.3818359375,
         "v1": 0.765625
       },
       "uvBounds": [
-        0.7685546875,
+        0.2568359375,
         0.640625,
-        0.8935546875,
+        0.3818359375,
         0.765625
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "rod.heavy_sport": {
-      "name": "rod.heavy_sport",
-      "frame": {
-        "x": 1574,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.7685546875,
-        "u1": 0.8935546875,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.7685546875,
-        0.8935546875,
-        0.8935546875
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "rod-heavy_sport.png": {
-      "name": "rod.heavy_sport",
-      "frame": {
-        "x": 1574,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.7685546875,
-        "u1": 0.8935546875,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.7685546875,
-        0.8935546875,
-        0.8935546875
-      ],
-      "binIndex": 2,
-      "page": 2
-    },
-    "rod.offshore": {
-      "name": "rod.offshore",
-      "frame": {
-        "x": 2,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.0009765625,
-        "u1": 0.1259765625,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.0009765625,
-        0.1259765625,
-        0.1259765625
       ],
       "binIndex": 3,
       "page": 3
@@ -7942,32 +9890,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "rod-offshore.png": {
       "name": "rod.offshore",
       "frame": {
-        "x": 2,
-        "y": 2,
+        "x": 526,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
-      "innerX": 2,
-      "innerY": 2,
+      "innerX": 526,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 0,
-        "y": 0,
+        "x": 524,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.0009765625,
-        "u1": 0.1259765625,
-        "v1": 0.1259765625
+        "u0": 0.2568359375,
+        "v0": 0.640625,
+        "u1": 0.3818359375,
+        "v1": 0.765625
       },
       "uvBounds": [
-        0.0009765625,
-        0.0009765625,
-        0.1259765625,
-        0.1259765625
+        0.2568359375,
+        0.640625,
+        0.3818359375,
+        0.765625
       ],
       "binIndex": 3,
       "page": 3
@@ -7975,32 +9923,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "rod.master": {
       "name": "rod.master",
       "frame": {
-        "x": 264,
-        "y": 2,
+        "x": 526,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 264,
-      "innerY": 2,
+      "innerX": 526,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 262,
-        "y": 0,
+        "x": 524,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.12890625,
-        "v0": 0.0009765625,
-        "u1": 0.25390625,
-        "v1": 0.1259765625
+        "u0": 0.2568359375,
+        "v0": 0.7685546875,
+        "u1": 0.3818359375,
+        "v1": 0.8935546875
       },
       "uvBounds": [
-        0.12890625,
-        0.0009765625,
-        0.25390625,
-        0.1259765625
+        0.2568359375,
+        0.7685546875,
+        0.3818359375,
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -8008,32 +9956,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "rod-master.png": {
       "name": "rod.master",
       "frame": {
-        "x": 264,
-        "y": 2,
+        "x": 526,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 264,
-      "innerY": 2,
+      "innerX": 526,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 262,
-        "y": 0,
+        "x": 524,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.12890625,
-        "v0": 0.0009765625,
-        "u1": 0.25390625,
-        "v1": 0.1259765625
+        "u0": 0.2568359375,
+        "v0": 0.7685546875,
+        "u1": 0.3818359375,
+        "v1": 0.8935546875
       },
       "uvBounds": [
-        0.12890625,
-        0.0009765625,
-        0.25390625,
-        0.1259765625
+        0.2568359375,
+        0.7685546875,
+        0.3818359375,
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -8041,32 +9989,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.weathered_straw_hat": {
       "name": "equipment.weathered_straw_hat",
       "frame": {
-        "x": 526,
-        "y": 2,
+        "x": 788,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 526,
-      "innerY": 2,
+      "innerX": 788,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 524,
-        "y": 0,
+        "x": 786,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.0009765625,
-        "u1": 0.3818359375,
-        "v1": 0.1259765625
+        "u0": 0.384765625,
+        "v0": 0.384765625,
+        "u1": 0.509765625,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.2568359375,
-        0.0009765625,
-        0.3818359375,
-        0.1259765625
+        0.384765625,
+        0.384765625,
+        0.509765625,
+        0.509765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8074,32 +10022,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-weathered_straw_hat.png": {
       "name": "equipment.weathered_straw_hat",
       "frame": {
-        "x": 526,
-        "y": 2,
+        "x": 788,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 526,
-      "innerY": 2,
+      "innerX": 788,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 524,
-        "y": 0,
+        "x": 786,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.0009765625,
-        "u1": 0.3818359375,
-        "v1": 0.1259765625
+        "u0": 0.384765625,
+        "v0": 0.384765625,
+        "u1": 0.509765625,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.2568359375,
-        0.0009765625,
-        0.3818359375,
-        0.1259765625
+        0.384765625,
+        0.384765625,
+        0.509765625,
+        0.509765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8107,32 +10055,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.work_vest": {
       "name": "equipment.work_vest",
       "frame": {
-        "x": 2,
-        "y": 264,
+        "x": 788,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
-      "innerX": 2,
-      "innerY": 264,
+      "innerX": 788,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 0,
-        "y": 262,
+        "x": 786,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.12890625,
-        "u1": 0.1259765625,
-        "v1": 0.25390625
+        "u0": 0.384765625,
+        "v0": 0.5126953125,
+        "u1": 0.509765625,
+        "v1": 0.6376953125
       },
       "uvBounds": [
-        0.0009765625,
-        0.12890625,
-        0.1259765625,
-        0.25390625
+        0.384765625,
+        0.5126953125,
+        0.509765625,
+        0.6376953125
       ],
       "binIndex": 3,
       "page": 3
@@ -8140,32 +10088,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-work_vest.png": {
       "name": "equipment.work_vest",
       "frame": {
-        "x": 2,
-        "y": 264,
+        "x": 788,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
-      "innerX": 2,
-      "innerY": 264,
+      "innerX": 788,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 0,
-        "y": 262,
+        "x": 786,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.12890625,
-        "u1": 0.1259765625,
-        "v1": 0.25390625
+        "u0": 0.384765625,
+        "v0": 0.5126953125,
+        "u1": 0.509765625,
+        "v1": 0.6376953125
       },
       "uvBounds": [
-        0.0009765625,
-        0.12890625,
-        0.1259765625,
-        0.25390625
+        0.384765625,
+        0.5126953125,
+        0.509765625,
+        0.6376953125
       ],
       "binIndex": 3,
       "page": 3
@@ -8173,32 +10121,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.mud_boots": {
       "name": "equipment.mud_boots",
       "frame": {
-        "x": 2,
-        "y": 526,
+        "x": 788,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
-      "innerX": 2,
-      "innerY": 526,
+      "innerX": 788,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 0,
-        "y": 524,
+        "x": 786,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.2568359375,
-        "u1": 0.1259765625,
-        "v1": 0.3818359375
+        "u0": 0.384765625,
+        "v0": 0.640625,
+        "u1": 0.509765625,
+        "v1": 0.765625
       },
       "uvBounds": [
-        0.0009765625,
-        0.2568359375,
-        0.1259765625,
-        0.3818359375
+        0.384765625,
+        0.640625,
+        0.509765625,
+        0.765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8206,32 +10154,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-mud_boots.png": {
       "name": "equipment.mud_boots",
       "frame": {
-        "x": 2,
-        "y": 526,
+        "x": 788,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
-      "innerX": 2,
-      "innerY": 526,
+      "innerX": 788,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 0,
-        "y": 524,
+        "x": 786,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.2568359375,
-        "u1": 0.1259765625,
-        "v1": 0.3818359375
+        "u0": 0.384765625,
+        "v0": 0.640625,
+        "u1": 0.509765625,
+        "v1": 0.765625
       },
       "uvBounds": [
-        0.0009765625,
-        0.2568359375,
-        0.1259765625,
-        0.3818359375
+        0.384765625,
+        0.640625,
+        0.509765625,
+        0.765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8239,32 +10187,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.tin_watering_can": {
       "name": "equipment.tin_watering_can",
       "frame": {
-        "x": 264,
-        "y": 264,
+        "x": 788,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 264,
-      "innerY": 264,
+      "innerX": 788,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 262,
-        "y": 262,
+        "x": 786,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.12890625,
-        "v0": 0.12890625,
-        "u1": 0.25390625,
-        "v1": 0.25390625
+        "u0": 0.384765625,
+        "v0": 0.7685546875,
+        "u1": 0.509765625,
+        "v1": 0.8935546875
       },
       "uvBounds": [
-        0.12890625,
-        0.12890625,
-        0.25390625,
-        0.25390625
+        0.384765625,
+        0.7685546875,
+        0.509765625,
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -8272,32 +10220,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-tin_watering_can.png": {
       "name": "equipment.tin_watering_can",
       "frame": {
-        "x": 264,
-        "y": 264,
+        "x": 788,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 264,
-      "innerY": 264,
+      "innerX": 788,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 262,
-        "y": 262,
+        "x": 786,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.12890625,
-        "v0": 0.12890625,
-        "u1": 0.25390625,
-        "v1": 0.25390625
+        "u0": 0.384765625,
+        "v0": 0.7685546875,
+        "u1": 0.509765625,
+        "v1": 0.8935546875
       },
       "uvBounds": [
-        0.12890625,
-        0.12890625,
-        0.25390625,
-        0.25390625
+        0.384765625,
+        0.7685546875,
+        0.509765625,
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -8305,32 +10253,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.field_hat": {
       "name": "equipment.field_hat",
       "frame": {
-        "x": 264,
-        "y": 526,
+        "x": 1050,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 264,
-      "innerY": 526,
+      "innerX": 1050,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 262,
-        "y": 524,
+        "x": 1048,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.12890625,
-        "v0": 0.2568359375,
-        "u1": 0.25390625,
-        "v1": 0.3818359375
+        "u0": 0.5126953125,
+        "v0": 0.384765625,
+        "u1": 0.6376953125,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.12890625,
-        0.2568359375,
-        0.25390625,
-        0.3818359375
+        0.5126953125,
+        0.384765625,
+        0.6376953125,
+        0.509765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8338,32 +10286,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-field_hat.png": {
       "name": "equipment.field_hat",
       "frame": {
-        "x": 264,
-        "y": 526,
+        "x": 1050,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 264,
-      "innerY": 526,
+      "innerX": 1050,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 262,
-        "y": 524,
+        "x": 1048,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.12890625,
-        "v0": 0.2568359375,
-        "u1": 0.25390625,
-        "v1": 0.3818359375
+        "u0": 0.5126953125,
+        "v0": 0.384765625,
+        "u1": 0.6376953125,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.12890625,
-        0.2568359375,
-        0.25390625,
-        0.3818359375
+        0.5126953125,
+        0.384765625,
+        0.6376953125,
+        0.509765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8371,32 +10319,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.tidewatch_cap": {
       "name": "equipment.tidewatch_cap",
       "frame": {
-        "x": 526,
-        "y": 264,
+        "x": 1312,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 526,
-      "innerY": 264,
+      "innerX": 1312,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 524,
-        "y": 262,
+        "x": 1310,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.12890625,
-        "u1": 0.3818359375,
-        "v1": 0.25390625
+        "u0": 0.640625,
+        "v0": 0.384765625,
+        "u1": 0.765625,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.2568359375,
-        0.12890625,
-        0.3818359375,
-        0.25390625
+        0.640625,
+        0.384765625,
+        0.765625,
+        0.509765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8404,32 +10352,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-tidewatch_cap.png": {
       "name": "equipment.tidewatch_cap",
       "frame": {
-        "x": 526,
-        "y": 264,
+        "x": 1312,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 526,
-      "innerY": 264,
+      "innerX": 1312,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 524,
-        "y": 262,
+        "x": 1310,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.12890625,
-        "u1": 0.3818359375,
-        "v1": 0.25390625
+        "u0": 0.640625,
+        "v0": 0.384765625,
+        "u1": 0.765625,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.2568359375,
-        0.12890625,
-        0.3818359375,
-        0.25390625
+        0.640625,
+        0.384765625,
+        0.765625,
+        0.509765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8437,32 +10385,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.harvest_apron": {
       "name": "equipment.harvest_apron",
       "frame": {
-        "x": 526,
-        "y": 526,
+        "x": 1574,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 526,
-      "innerY": 526,
+      "innerX": 1574,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 524,
-        "y": 524,
+        "x": 1572,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.2568359375,
-        "u1": 0.3818359375,
-        "v1": 0.3818359375
+        "u0": 0.7685546875,
+        "v0": 0.384765625,
+        "u1": 0.8935546875,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.2568359375,
-        0.2568359375,
-        0.3818359375,
-        0.3818359375
+        0.7685546875,
+        0.384765625,
+        0.8935546875,
+        0.509765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8470,32 +10418,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-harvest_apron.png": {
       "name": "equipment.harvest_apron",
       "frame": {
-        "x": 526,
-        "y": 526,
+        "x": 1574,
+        "y": 788,
         "w": 256,
         "h": 256
       },
-      "innerX": 526,
-      "innerY": 526,
+      "innerX": 1574,
+      "innerY": 788,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 524,
-        "y": 524,
+        "x": 1572,
+        "y": 786,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.2568359375,
-        "u1": 0.3818359375,
-        "v1": 0.3818359375
+        "u0": 0.7685546875,
+        "v0": 0.384765625,
+        "u1": 0.8935546875,
+        "v1": 0.509765625
       },
       "uvBounds": [
-        0.2568359375,
-        0.2568359375,
-        0.3818359375,
-        0.3818359375
+        0.7685546875,
+        0.384765625,
+        0.8935546875,
+        0.509765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8503,32 +10451,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.oilskin_coat": {
       "name": "equipment.oilskin_coat",
       "frame": {
-        "x": 788,
-        "y": 2,
+        "x": 1050,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
-      "innerX": 788,
-      "innerY": 2,
+      "innerX": 1050,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 786,
-        "y": 0,
+        "x": 1048,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.384765625,
-        "v0": 0.0009765625,
-        "u1": 0.509765625,
-        "v1": 0.1259765625
+        "u0": 0.5126953125,
+        "v0": 0.5126953125,
+        "u1": 0.6376953125,
+        "v1": 0.6376953125
       },
       "uvBounds": [
-        0.384765625,
-        0.0009765625,
-        0.509765625,
-        0.1259765625
+        0.5126953125,
+        0.5126953125,
+        0.6376953125,
+        0.6376953125
       ],
       "binIndex": 3,
       "page": 3
@@ -8536,32 +10484,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-oilskin_coat.png": {
       "name": "equipment.oilskin_coat",
       "frame": {
-        "x": 788,
-        "y": 2,
+        "x": 1050,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
-      "innerX": 788,
-      "innerY": 2,
+      "innerX": 1050,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 786,
-        "y": 0,
+        "x": 1048,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.384765625,
-        "v0": 0.0009765625,
-        "u1": 0.509765625,
-        "v1": 0.1259765625
+        "u0": 0.5126953125,
+        "v0": 0.5126953125,
+        "u1": 0.6376953125,
+        "v1": 0.6376953125
       },
       "uvBounds": [
-        0.384765625,
-        0.0009765625,
-        0.509765625,
-        0.1259765625
+        0.5126953125,
+        0.5126953125,
+        0.6376953125,
+        0.6376953125
       ],
       "binIndex": 3,
       "page": 3
@@ -8569,32 +10517,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.furrow_boots": {
       "name": "equipment.furrow_boots",
       "frame": {
-        "x": 788,
-        "y": 264,
+        "x": 1050,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
-      "innerX": 788,
-      "innerY": 264,
+      "innerX": 1050,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 786,
-        "y": 262,
+        "x": 1048,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.384765625,
-        "v0": 0.12890625,
-        "u1": 0.509765625,
-        "v1": 0.25390625
+        "u0": 0.5126953125,
+        "v0": 0.640625,
+        "u1": 0.6376953125,
+        "v1": 0.765625
       },
       "uvBounds": [
-        0.384765625,
-        0.12890625,
-        0.509765625,
-        0.25390625
+        0.5126953125,
+        0.640625,
+        0.6376953125,
+        0.765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8602,32 +10550,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-furrow_boots.png": {
       "name": "equipment.furrow_boots",
       "frame": {
-        "x": 788,
-        "y": 264,
+        "x": 1050,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
-      "innerX": 788,
-      "innerY": 264,
+      "innerX": 1050,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 786,
-        "y": 262,
+        "x": 1048,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.384765625,
-        "v0": 0.12890625,
-        "u1": 0.509765625,
-        "v1": 0.25390625
+        "u0": 0.5126953125,
+        "v0": 0.640625,
+        "u1": 0.6376953125,
+        "v1": 0.765625
       },
       "uvBounds": [
-        0.384765625,
-        0.12890625,
-        0.509765625,
-        0.25390625
+        0.5126953125,
+        0.640625,
+        0.6376953125,
+        0.765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8635,32 +10583,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.deck_boots": {
       "name": "equipment.deck_boots",
       "frame": {
-        "x": 788,
-        "y": 526,
+        "x": 1050,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 788,
-      "innerY": 526,
+      "innerX": 1050,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 786,
-        "y": 524,
+        "x": 1048,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.384765625,
-        "v0": 0.2568359375,
-        "u1": 0.509765625,
-        "v1": 0.3818359375
+        "u0": 0.5126953125,
+        "v0": 0.7685546875,
+        "u1": 0.6376953125,
+        "v1": 0.8935546875
       },
       "uvBounds": [
-        0.384765625,
-        0.2568359375,
-        0.509765625,
-        0.3818359375
+        0.5126953125,
+        0.7685546875,
+        0.6376953125,
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -8668,32 +10616,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-deck_boots.png": {
       "name": "equipment.deck_boots",
       "frame": {
-        "x": 788,
-        "y": 526,
+        "x": 1050,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 788,
-      "innerY": 526,
+      "innerX": 1050,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 786,
-        "y": 524,
+        "x": 1048,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.384765625,
-        "v0": 0.2568359375,
-        "u1": 0.509765625,
-        "v1": 0.3818359375
+        "u0": 0.5126953125,
+        "v0": 0.7685546875,
+        "u1": 0.6376953125,
+        "v1": 0.8935546875
       },
       "uvBounds": [
-        0.384765625,
-        0.2568359375,
-        0.509765625,
-        0.3818359375
+        0.5126953125,
+        0.7685546875,
+        0.6376953125,
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -8701,32 +10649,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.copper_rose_watering_can": {
       "name": "equipment.copper_rose_watering_can",
       "frame": {
-        "x": 1050,
-        "y": 2,
+        "x": 1312,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 2,
+      "innerX": 1312,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 0,
+        "x": 1310,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.0009765625,
-        "u1": 0.6376953125,
-        "v1": 0.1259765625
+        "u0": 0.640625,
+        "v0": 0.5126953125,
+        "u1": 0.765625,
+        "v1": 0.6376953125
       },
       "uvBounds": [
+        0.640625,
         0.5126953125,
-        0.0009765625,
-        0.6376953125,
-        0.1259765625
+        0.765625,
+        0.6376953125
       ],
       "binIndex": 3,
       "page": 3
@@ -8734,32 +10682,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-copper_rose_watering_can.png": {
       "name": "equipment.copper_rose_watering_can",
       "frame": {
-        "x": 1050,
-        "y": 2,
+        "x": 1312,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 2,
+      "innerX": 1312,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 0,
+        "x": 1310,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.0009765625,
-        "u1": 0.6376953125,
-        "v1": 0.1259765625
+        "u0": 0.640625,
+        "v0": 0.5126953125,
+        "u1": 0.765625,
+        "v1": 0.6376953125
       },
       "uvBounds": [
+        0.640625,
         0.5126953125,
-        0.0009765625,
-        0.6376953125,
-        0.1259765625
+        0.765625,
+        0.6376953125
       ],
       "binIndex": 3,
       "page": 3
@@ -8767,32 +10715,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.long_spout_watering_can": {
       "name": "equipment.long_spout_watering_can",
       "frame": {
-        "x": 1312,
-        "y": 2,
+        "x": 1574,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
-      "innerY": 2,
+      "innerX": 1574,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
-        "y": 0,
+        "x": 1572,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
-        "v0": 0.0009765625,
-        "u1": 0.765625,
-        "v1": 0.1259765625
+        "u0": 0.7685546875,
+        "v0": 0.5126953125,
+        "u1": 0.8935546875,
+        "v1": 0.6376953125
       },
       "uvBounds": [
-        0.640625,
-        0.0009765625,
-        0.765625,
-        0.1259765625
+        0.7685546875,
+        0.5126953125,
+        0.8935546875,
+        0.6376953125
       ],
       "binIndex": 3,
       "page": 3
@@ -8800,32 +10748,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-long_spout_watering_can.png": {
       "name": "equipment.long_spout_watering_can",
       "frame": {
-        "x": 1312,
-        "y": 2,
+        "x": 1574,
+        "y": 1050,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
-      "innerY": 2,
+      "innerX": 1574,
+      "innerY": 1050,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
-        "y": 0,
+        "x": 1572,
+        "y": 1048,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
-        "v0": 0.0009765625,
-        "u1": 0.765625,
-        "v1": 0.1259765625
+        "u0": 0.7685546875,
+        "v0": 0.5126953125,
+        "u1": 0.8935546875,
+        "v1": 0.6376953125
       },
       "uvBounds": [
-        0.640625,
-        0.0009765625,
-        0.765625,
-        0.1259765625
+        0.7685546875,
+        0.5126953125,
+        0.8935546875,
+        0.6376953125
       ],
       "binIndex": 3,
       "page": 3
@@ -8833,32 +10781,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.broad_sickle": {
       "name": "equipment.broad_sickle",
       "frame": {
-        "x": 1574,
-        "y": 2,
+        "x": 1312,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 2,
+      "innerX": 1312,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 0,
+        "x": 1310,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.0009765625,
-        "u1": 0.8935546875,
-        "v1": 0.1259765625
+        "u0": 0.640625,
+        "v0": 0.640625,
+        "u1": 0.765625,
+        "v1": 0.765625
       },
       "uvBounds": [
-        0.7685546875,
-        0.0009765625,
-        0.8935546875,
-        0.1259765625
+        0.640625,
+        0.640625,
+        0.765625,
+        0.765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8866,32 +10814,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-broad_sickle.png": {
       "name": "equipment.broad_sickle",
       "frame": {
-        "x": 1574,
-        "y": 2,
+        "x": 1312,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 2,
+      "innerX": 1312,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 0,
+        "x": 1310,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.0009765625,
-        "u1": 0.8935546875,
-        "v1": 0.1259765625
+        "u0": 0.640625,
+        "v0": 0.640625,
+        "u1": 0.765625,
+        "v1": 0.765625
       },
       "uvBounds": [
-        0.7685546875,
-        0.0009765625,
-        0.8935546875,
-        0.1259765625
+        0.640625,
+        0.640625,
+        0.765625,
+        0.765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8899,32 +10847,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.balanced_sickle": {
       "name": "equipment.balanced_sickle",
       "frame": {
-        "x": 1050,
-        "y": 264,
+        "x": 1312,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 264,
+      "innerX": 1312,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 262,
+        "x": 1310,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.12890625,
-        "u1": 0.6376953125,
-        "v1": 0.25390625
+        "u0": 0.640625,
+        "v0": 0.7685546875,
+        "u1": 0.765625,
+        "v1": 0.8935546875
       },
       "uvBounds": [
-        0.5126953125,
-        0.12890625,
-        0.6376953125,
-        0.25390625
+        0.640625,
+        0.7685546875,
+        0.765625,
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -8932,32 +10880,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-balanced_sickle.png": {
       "name": "equipment.balanced_sickle",
       "frame": {
-        "x": 1050,
-        "y": 264,
+        "x": 1312,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 264,
+      "innerX": 1312,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 262,
+        "x": 1310,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.12890625,
-        "u1": 0.6376953125,
-        "v1": 0.25390625
+        "u0": 0.640625,
+        "v0": 0.7685546875,
+        "u1": 0.765625,
+        "v1": 0.8935546875
       },
       "uvBounds": [
-        0.5126953125,
-        0.12890625,
-        0.6376953125,
-        0.25390625
+        0.640625,
+        0.7685546875,
+        0.765625,
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -8965,32 +10913,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment.farm_sickle": {
       "name": "equipment.farm_sickle",
       "frame": {
-        "x": 1050,
-        "y": 526,
+        "x": 1574,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 526,
+      "innerX": 1574,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 524,
+        "x": 1572,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.2568359375,
-        "u1": 0.6376953125,
-        "v1": 0.3818359375
+        "u0": 0.7685546875,
+        "v0": 0.640625,
+        "u1": 0.8935546875,
+        "v1": 0.765625
       },
       "uvBounds": [
-        0.5126953125,
-        0.2568359375,
-        0.6376953125,
-        0.3818359375
+        0.7685546875,
+        0.640625,
+        0.8935546875,
+        0.765625
       ],
       "binIndex": 3,
       "page": 3
@@ -8998,1385 +10946,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "equipment-farm_sickle.png": {
       "name": "equipment.farm_sickle",
       "frame": {
-        "x": 1050,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.2568359375,
-        "u1": 0.6376953125,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.2568359375,
-        0.6376953125,
-        0.3818359375
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "backpack": {
-      "name": "backpack",
-      "frame": {
-        "x": 1312,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.12890625,
-        "u1": 0.765625,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.640625,
-        0.12890625,
-        0.765625,
-        0.25390625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "menu-backpack.png": {
-      "name": "backpack",
-      "frame": {
-        "x": 1312,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.12890625,
-        "u1": 0.765625,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.640625,
-        0.12890625,
-        0.765625,
-        0.25390625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "menu-journal.png": {
-      "name": "journal",
-      "frame": {
         "x": 1574,
-        "y": 264,
+        "y": 1312,
         "w": 256,
         "h": 256
       },
       "innerX": 1574,
-      "innerY": 264,
+      "innerY": 1312,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 1572,
-        "y": 262,
+        "y": 1310,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.7685546875,
-        "v0": 0.12890625,
+        "v0": 0.640625,
         "u1": 0.8935546875,
-        "v1": 0.25390625
+        "v1": 0.765625
       },
       "uvBounds": [
         0.7685546875,
-        0.12890625,
+        0.640625,
         0.8935546875,
-        0.25390625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "ledger": {
-      "name": "ledger",
-      "frame": {
-        "x": 1312,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.2568359375,
-        "u1": 0.765625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.640625,
-        0.2568359375,
-        0.765625,
-        0.3818359375
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "menu-ledger.png": {
-      "name": "ledger",
-      "frame": {
-        "x": 1312,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.2568359375,
-        "u1": 0.765625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.640625,
-        0.2568359375,
-        0.765625,
-        0.3818359375
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "compass": {
-      "name": "compass",
-      "frame": {
-        "x": 1574,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.2568359375,
-        "u1": 0.8935546875,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.2568359375,
-        0.8935546875,
-        0.3818359375
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "menu-compass.png": {
-      "name": "compass",
-      "frame": {
-        "x": 1574,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.2568359375,
-        "u1": 0.8935546875,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.2568359375,
-        0.8935546875,
-        0.3818359375
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "expedition": {
-      "name": "expedition",
-      "frame": {
-        "x": 2,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.384765625,
-        "u1": 0.1259765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.384765625,
-        0.1259765625,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "menu-expedition.png": {
-      "name": "expedition",
-      "frame": {
-        "x": 2,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.384765625,
-        "u1": 0.1259765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.384765625,
-        0.1259765625,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "menu": {
-      "name": "menu",
-      "frame": {
-        "x": 2,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.5126953125,
-        "u1": 0.1259765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.5126953125,
-        0.1259765625,
-        0.6376953125
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "menu-menu.png": {
-      "name": "menu",
-      "frame": {
-        "x": 2,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.5126953125,
-        "u1": 0.1259765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.5126953125,
-        0.1259765625,
-        0.6376953125
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "coin": {
-      "name": "coin",
-      "frame": {
-        "x": 2,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.640625,
-        "u1": 0.1259765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.640625,
-        0.1259765625,
         0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "status-coin.png": {
-      "name": "coin",
-      "frame": {
-        "x": 2,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.640625,
-        "u1": 0.1259765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.640625,
-        0.1259765625,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "labor": {
-      "name": "labor",
-      "frame": {
-        "x": 2,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.7685546875,
-        "u1": 0.1259765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.7685546875,
-        0.1259765625,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "status-labor.png": {
-      "name": "labor",
-      "frame": {
-        "x": 2,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.7685546875,
-        "u1": 0.1259765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.7685546875,
-        0.1259765625,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "warning": {
-      "name": "warning",
-      "frame": {
-        "x": 264,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.384765625,
-        "u1": 0.25390625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.384765625,
-        0.25390625,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "status-warning.png": {
-      "name": "warning",
-      "frame": {
-        "x": 264,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.384765625,
-        "u1": 0.25390625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.384765625,
-        0.25390625,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "sprout": {
-      "name": "sprout",
-      "frame": {
-        "x": 264,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.5126953125,
-        "u1": 0.25390625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.12890625,
-        0.5126953125,
-        0.25390625,
-        0.6376953125
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "world-sprout.png": {
-      "name": "sprout",
-      "frame": {
-        "x": 264,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.5126953125,
-        "u1": 0.25390625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.12890625,
-        0.5126953125,
-        0.25390625,
-        0.6376953125
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "fish": {
-      "name": "fish",
-      "frame": {
-        "x": 264,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.640625,
-        "u1": 0.25390625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.640625,
-        0.25390625,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "world-fish.png": {
-      "name": "fish",
-      "frame": {
-        "x": 264,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.640625,
-        "u1": 0.25390625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.640625,
-        0.25390625,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "boat": {
-      "name": "boat",
-      "frame": {
-        "x": 264,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.7685546875,
-        "u1": 0.25390625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.12890625,
-        0.7685546875,
-        0.25390625,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "world-boat.png": {
-      "name": "boat",
-      "frame": {
-        "x": 264,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.7685546875,
-        "u1": 0.25390625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.12890625,
-        0.7685546875,
-        0.25390625,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "plant": {
-      "name": "plant",
-      "frame": {
-        "x": 526,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.384765625,
-        "u1": 0.3818359375,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.384765625,
-        0.3818359375,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-plant.png": {
-      "name": "plant",
-      "frame": {
-        "x": 526,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.384765625,
-        "u1": 0.3818359375,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.384765625,
-        0.3818359375,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-water.png": {
-      "name": "water",
-      "frame": {
-        "x": 526,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.5126953125,
-        "u1": 0.3818359375,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.5126953125,
-        0.3818359375,
-        0.6376953125
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-harvest.png": {
-      "name": "harvest",
-      "frame": {
-        "x": 526,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.640625,
-        "u1": 0.3818359375,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.640625,
-        0.3818359375,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "processing": {
-      "name": "processing",
-      "frame": {
-        "x": 526,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.7685546875,
-        "u1": 0.3818359375,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.7685546875,
-        0.3818359375,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-processing.png": {
-      "name": "processing",
-      "frame": {
-        "x": 526,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.7685546875,
-        "u1": 0.3818359375,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.7685546875,
-        0.3818359375,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "pickup": {
-      "name": "pickup",
-      "frame": {
-        "x": 788,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.384765625,
-        "u1": 0.509765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.384765625,
-        0.509765625,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-pickup.png": {
-      "name": "pickup",
-      "frame": {
-        "x": 788,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.384765625,
-        "u1": 0.509765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.384765625,
-        0.509765625,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "place": {
-      "name": "place",
-      "frame": {
-        "x": 788,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.5126953125,
-        "u1": 0.509765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.384765625,
-        0.5126953125,
-        0.509765625,
-        0.6376953125
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-place.png": {
-      "name": "place",
-      "frame": {
-        "x": 788,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.5126953125,
-        "u1": 0.509765625,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.384765625,
-        0.5126953125,
-        0.509765625,
-        0.6376953125
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "workstation": {
-      "name": "workstation",
-      "frame": {
-        "x": 788,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.640625,
-        "u1": 0.509765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.640625,
-        0.509765625,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-workstation.png": {
-      "name": "workstation",
-      "frame": {
-        "x": 788,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.640625,
-        "u1": 0.509765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.384765625,
-        0.640625,
-        0.509765625,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "cast": {
-      "name": "cast",
-      "frame": {
-        "x": 788,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.7685546875,
-        "u1": 0.509765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.384765625,
-        0.7685546875,
-        0.509765625,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-cast.png": {
-      "name": "cast",
-      "frame": {
-        "x": 788,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.7685546875,
-        "u1": 0.509765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.384765625,
-        0.7685546875,
-        0.509765625,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "board": {
-      "name": "board",
-      "frame": {
-        "x": 1050,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.384765625,
-        "u1": 0.6376953125,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.384765625,
-        0.6376953125,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-board.png": {
-      "name": "board",
-      "frame": {
-        "x": 1050,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.384765625,
-        "u1": 0.6376953125,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.384765625,
-        0.6376953125,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "dock": {
-      "name": "dock",
-      "frame": {
-        "x": 1312,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.384765625,
-        "u1": 0.765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.384765625,
-        0.765625,
-        0.509765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "action-dock.png": {
-      "name": "dock",
-      "frame": {
-        "x": 1312,
-        "y": 788,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 788,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 786,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.384765625,
-        "u1": 0.765625,
-        "v1": 0.509765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.384765625,
-        0.765625,
-        0.509765625
       ],
       "binIndex": 3,
       "page": 3
@@ -10385,31 +10980,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "run",
       "frame": {
         "x": 1574,
-        "y": 788,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
       "innerX": 1574,
-      "innerY": 788,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 1572,
-        "y": 786,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.7685546875,
-        "v0": 0.384765625,
+        "v0": 0.7685546875,
         "u1": 0.8935546875,
-        "v1": 0.509765625
+        "v1": 0.8935546875
       },
       "uvBounds": [
         0.7685546875,
-        0.384765625,
+        0.7685546875,
         0.8935546875,
-        0.509765625
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -10418,31 +11013,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "run",
       "frame": {
         "x": 1574,
-        "y": 788,
+        "y": 1574,
         "w": 256,
         "h": 256
       },
       "innerX": 1574,
-      "innerY": 788,
+      "innerY": 1574,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 1572,
-        "y": 786,
+        "y": 1572,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.7685546875,
-        "v0": 0.384765625,
+        "v0": 0.7685546875,
         "u1": 0.8935546875,
-        "v1": 0.509765625
+        "v1": 0.8935546875
       },
       "uvBounds": [
         0.7685546875,
-        0.384765625,
+        0.7685546875,
         0.8935546875,
-        0.509765625
+        0.8935546875
       ],
       "binIndex": 3,
       "page": 3
@@ -10450,857 +11045,329 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "dive": {
       "name": "dive",
       "frame": {
-        "x": 1050,
-        "y": 1050,
+        "x": 2,
+        "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 1050,
+      "innerX": 2,
+      "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 1048,
+        "x": 0,
+        "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.5126953125,
-        "u1": 0.6376953125,
-        "v1": 0.6376953125
+        "u0": 0.0009765625,
+        "v0": 0.0009765625,
+        "u1": 0.1259765625,
+        "v1": 0.1259765625
       },
       "uvBounds": [
-        0.5126953125,
-        0.5126953125,
-        0.6376953125,
-        0.6376953125
+        0.0009765625,
+        0.0009765625,
+        0.1259765625,
+        0.1259765625
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 4,
+      "page": 4
     },
     "behavior-dive.png": {
       "name": "dive",
       "frame": {
-        "x": 1050,
-        "y": 1050,
+        "x": 2,
+        "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 1050,
+      "innerX": 2,
+      "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 1048,
+        "x": 0,
+        "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.5126953125,
-        "u1": 0.6376953125,
-        "v1": 0.6376953125
+        "u0": 0.0009765625,
+        "v0": 0.0009765625,
+        "u1": 0.1259765625,
+        "v1": 0.1259765625
       },
       "uvBounds": [
-        0.5126953125,
-        0.5126953125,
-        0.6376953125,
-        0.6376953125
+        0.0009765625,
+        0.0009765625,
+        0.1259765625,
+        0.1259765625
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 4,
+      "page": 4
     },
     "surface": {
       "name": "surface",
       "frame": {
-        "x": 1050,
-        "y": 1312,
+        "x": 264,
+        "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 1312,
+      "innerX": 264,
+      "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 1310,
+        "x": 262,
+        "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.640625,
-        "u1": 0.6376953125,
-        "v1": 0.765625
+        "u0": 0.12890625,
+        "v0": 0.0009765625,
+        "u1": 0.25390625,
+        "v1": 0.1259765625
       },
       "uvBounds": [
-        0.5126953125,
-        0.640625,
-        0.6376953125,
-        0.765625
+        0.12890625,
+        0.0009765625,
+        0.25390625,
+        0.1259765625
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 4,
+      "page": 4
     },
     "behavior-surface.png": {
       "name": "surface",
       "frame": {
-        "x": 1050,
-        "y": 1312,
+        "x": 264,
+        "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 1312,
+      "innerX": 264,
+      "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 1310,
+        "x": 262,
+        "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.640625,
-        "u1": 0.6376953125,
-        "v1": 0.765625
+        "u0": 0.12890625,
+        "v0": 0.0009765625,
+        "u1": 0.25390625,
+        "v1": 0.1259765625
       },
       "uvBounds": [
-        0.5126953125,
-        0.640625,
-        0.6376953125,
-        0.765625
+        0.12890625,
+        0.0009765625,
+        0.25390625,
+        0.1259765625
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 4,
+      "page": 4
     },
     "burst": {
       "name": "burst",
       "frame": {
-        "x": 1050,
-        "y": 1574,
+        "x": 526,
+        "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 1574,
+      "innerX": 526,
+      "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 1572,
+        "x": 524,
+        "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.7685546875,
-        "u1": 0.6376953125,
-        "v1": 0.8935546875
+        "u0": 0.2568359375,
+        "v0": 0.0009765625,
+        "u1": 0.3818359375,
+        "v1": 0.1259765625
       },
       "uvBounds": [
-        0.5126953125,
-        0.7685546875,
-        0.6376953125,
-        0.8935546875
+        0.2568359375,
+        0.0009765625,
+        0.3818359375,
+        0.1259765625
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 4,
+      "page": 4
     },
     "behavior-burst.png": {
       "name": "burst",
       "frame": {
-        "x": 1050,
-        "y": 1574,
+        "x": 526,
+        "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
-      "innerY": 1574,
+      "innerX": 526,
+      "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
-        "y": 1572,
+        "x": 524,
+        "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.7685546875,
-        "u1": 0.6376953125,
-        "v1": 0.8935546875
+        "u0": 0.2568359375,
+        "v0": 0.0009765625,
+        "u1": 0.3818359375,
+        "v1": 0.1259765625
       },
       "uvBounds": [
-        0.5126953125,
-        0.7685546875,
-        0.6376953125,
-        0.8935546875
+        0.2568359375,
+        0.0009765625,
+        0.3818359375,
+        0.1259765625
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 4,
+      "page": 4
     },
     "shake": {
       "name": "shake",
       "frame": {
-        "x": 1312,
-        "y": 1050,
+        "x": 2,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
-      "innerY": 1050,
+      "innerX": 2,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
-        "y": 1048,
+        "x": 0,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
-        "v0": 0.5126953125,
-        "u1": 0.765625,
-        "v1": 0.6376953125
+        "u0": 0.0009765625,
+        "v0": 0.12890625,
+        "u1": 0.1259765625,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.640625,
-        0.5126953125,
-        0.765625,
-        0.6376953125
+        0.0009765625,
+        0.12890625,
+        0.1259765625,
+        0.25390625
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 4,
+      "page": 4
     },
     "behavior-shake.png": {
       "name": "shake",
       "frame": {
-        "x": 1312,
-        "y": 1050,
+        "x": 2,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
-      "innerY": 1050,
+      "innerX": 2,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
-        "y": 1048,
+        "x": 0,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
-        "v0": 0.5126953125,
-        "u1": 0.765625,
-        "v1": 0.6376953125
+        "u0": 0.0009765625,
+        "v0": 0.12890625,
+        "u1": 0.1259765625,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.640625,
-        0.5126953125,
-        0.765625,
-        0.6376953125
+        0.0009765625,
+        0.12890625,
+        0.1259765625,
+        0.25390625
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 4,
+      "page": 4
     },
     "tiring": {
       "name": "tiring",
       "frame": {
-        "x": 1574,
-        "y": 1050,
+        "x": 2,
+        "y": 526,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 1050,
+      "innerX": 2,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 1048,
+        "x": 0,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.5126953125,
-        "u1": 0.8935546875,
-        "v1": 0.6376953125
+        "u0": 0.0009765625,
+        "v0": 0.2568359375,
+        "u1": 0.1259765625,
+        "v1": 0.3818359375
       },
       "uvBounds": [
-        0.7685546875,
-        0.5126953125,
-        0.8935546875,
-        0.6376953125
+        0.0009765625,
+        0.2568359375,
+        0.1259765625,
+        0.3818359375
       ],
-      "binIndex": 3,
-      "page": 3
+      "binIndex": 4,
+      "page": 4
     },
     "behavior-tiring.png": {
       "name": "tiring",
       "frame": {
-        "x": 1574,
-        "y": 1050,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1050,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1048,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.5126953125,
-        "u1": 0.8935546875,
-        "v1": 0.6376953125
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.5126953125,
-        0.8935546875,
-        0.6376953125
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "homestead": {
-      "name": "homestead",
-      "frame": {
-        "x": 1312,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.640625,
-        "u1": 0.765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.640625,
-        0.765625,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "mapnode-homestead.png": {
-      "name": "homestead",
-      "frame": {
-        "x": 1312,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.640625,
-        "u1": 0.765625,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.640625,
-        0.640625,
-        0.765625,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "garden": {
-      "name": "garden",
-      "frame": {
-        "x": 1312,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.7685546875,
-        "u1": 0.765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.640625,
-        0.7685546875,
-        0.765625,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "mapnode-garden.png": {
-      "name": "garden",
-      "frame": {
-        "x": 1312,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1312,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1310,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.640625,
-        "v0": 0.7685546875,
-        "u1": 0.765625,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.640625,
-        0.7685546875,
-        0.765625,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "village": {
-      "name": "village",
-      "frame": {
-        "x": 1574,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.640625,
-        "u1": 0.8935546875,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.640625,
-        0.8935546875,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "mapnode-village.png": {
-      "name": "village",
-      "frame": {
-        "x": 1574,
-        "y": 1312,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1312,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1310,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.640625,
-        "u1": 0.8935546875,
-        "v1": 0.765625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.640625,
-        0.8935546875,
-        0.765625
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "river_crossing": {
-      "name": "river_crossing",
-      "frame": {
-        "x": 1574,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.7685546875,
-        "u1": 0.8935546875,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.7685546875,
-        0.8935546875,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "mapnode-river_crossing.png": {
-      "name": "river_crossing",
-      "frame": {
-        "x": 1574,
-        "y": 1574,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 1574,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 1572,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.7685546875,
-        "u1": 0.8935546875,
-        "v1": 0.8935546875
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.7685546875,
-        0.8935546875,
-        0.8935546875
-      ],
-      "binIndex": 3,
-      "page": 3
-    },
-    "river": {
-      "name": "river",
-      "frame": {
         "x": 2,
-        "y": 2,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 2,
-      "innerY": 2,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 0,
-        "y": 0,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.0009765625,
-        "v0": 0.0009765625,
+        "v0": 0.2568359375,
         "u1": 0.1259765625,
-        "v1": 0.1259765625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.0009765625,
-        0.0009765625,
-        0.1259765625,
-        0.1259765625
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "mapnode-river.png": {
-      "name": "river",
-      "frame": {
-        "x": 2,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.0009765625,
-        "u1": 0.1259765625,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.0009765625,
-        0.1259765625,
-        0.1259765625
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "harbor": {
-      "name": "harbor",
-      "frame": {
-        "x": 264,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.0009765625,
-        "u1": 0.25390625,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.0009765625,
-        0.25390625,
-        0.1259765625
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "mapnode-harbor.png": {
-      "name": "harbor",
-      "frame": {
-        "x": 264,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 264,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 262,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.12890625,
-        "v0": 0.0009765625,
-        "u1": 0.25390625,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.12890625,
-        0.0009765625,
-        0.25390625,
-        0.1259765625
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "lighthouse": {
-      "name": "lighthouse",
-      "frame": {
-        "x": 526,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.0009765625,
-        "u1": 0.3818359375,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
         0.2568359375,
-        0.0009765625,
-        0.3818359375,
-        0.1259765625
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "mapnode-lighthouse.png": {
-      "name": "lighthouse",
-      "frame": {
-        "x": 526,
-        "y": 2,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 526,
-      "innerY": 2,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 524,
-        "y": 0,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.0009765625,
-        "u1": 0.3818359375,
-        "v1": 0.1259765625
-      },
-      "uvBounds": [
-        0.2568359375,
-        0.0009765625,
-        0.3818359375,
-        0.1259765625
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "offshore": {
-      "name": "offshore",
-      "frame": {
-        "x": 2,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.12890625,
-        "u1": 0.1259765625,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.12890625,
         0.1259765625,
-        0.25390625
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "mapnode-offshore.png": {
-      "name": "offshore",
-      "frame": {
-        "x": 2,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 2,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 0,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.12890625,
-        "u1": 0.1259765625,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.0009765625,
-        0.12890625,
-        0.1259765625,
-        0.25390625
+        0.3818359375
       ],
       "binIndex": 4,
       "page": 4
@@ -11308,32 +11375,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "demand_up": {
       "name": "demand_up",
       "frame": {
-        "x": 2,
-        "y": 526,
+        "x": 264,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 2,
-      "innerY": 526,
+      "innerX": 264,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 0,
-        "y": 524,
+        "x": 262,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.2568359375,
-        "u1": 0.1259765625,
-        "v1": 0.3818359375
+        "u0": 0.12890625,
+        "v0": 0.12890625,
+        "u1": 0.25390625,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.0009765625,
-        0.2568359375,
-        0.1259765625,
-        0.3818359375
+        0.12890625,
+        0.12890625,
+        0.25390625,
+        0.25390625
       ],
       "binIndex": 4,
       "page": 4
@@ -11341,32 +11408,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "chrome-demand_up.png": {
       "name": "demand_up",
       "frame": {
-        "x": 2,
-        "y": 526,
+        "x": 264,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 2,
-      "innerY": 526,
+      "innerX": 264,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 0,
-        "y": 524,
+        "x": 262,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.0009765625,
-        "v0": 0.2568359375,
-        "u1": 0.1259765625,
-        "v1": 0.3818359375
+        "u0": 0.12890625,
+        "v0": 0.12890625,
+        "u1": 0.25390625,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.0009765625,
-        0.2568359375,
-        0.1259765625,
-        0.3818359375
+        0.12890625,
+        0.12890625,
+        0.25390625,
+        0.25390625
       ],
       "binIndex": 4,
       "page": 4
@@ -11375,31 +11442,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "demand_down",
       "frame": {
         "x": 264,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 264,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 262,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.12890625,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.25390625,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.12890625,
-        0.12890625,
+        0.2568359375,
         0.25390625,
-        0.25390625
+        0.3818359375
       ],
       "binIndex": 4,
       "page": 4
@@ -11408,31 +11475,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "demand_down",
       "frame": {
         "x": 264,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 264,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 262,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.12890625,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.25390625,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.12890625,
-        0.12890625,
+        0.2568359375,
         0.25390625,
-        0.25390625
+        0.3818359375
       ],
       "binIndex": 4,
       "page": 4
@@ -11440,32 +11507,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "corner_leaf": {
       "name": "corner_leaf",
       "frame": {
-        "x": 264,
-        "y": 526,
+        "x": 526,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 264,
-      "innerY": 526,
+      "innerX": 526,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 262,
-        "y": 524,
+        "x": 524,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.12890625,
-        "v0": 0.2568359375,
-        "u1": 0.25390625,
-        "v1": 0.3818359375
+        "u0": 0.2568359375,
+        "v0": 0.12890625,
+        "u1": 0.3818359375,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.12890625,
         0.2568359375,
-        0.25390625,
-        0.3818359375
+        0.12890625,
+        0.3818359375,
+        0.25390625
       ],
       "binIndex": 4,
       "page": 4
@@ -11473,32 +11540,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "chrome-corner_leaf.png": {
       "name": "corner_leaf",
       "frame": {
-        "x": 264,
-        "y": 526,
+        "x": 526,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 264,
-      "innerY": 526,
+      "innerX": 526,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 262,
-        "y": 524,
+        "x": 524,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.12890625,
-        "v0": 0.2568359375,
-        "u1": 0.25390625,
-        "v1": 0.3818359375
+        "u0": 0.2568359375,
+        "v0": 0.12890625,
+        "u1": 0.3818359375,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.12890625,
         0.2568359375,
-        0.25390625,
-        0.3818359375
+        0.12890625,
+        0.3818359375,
+        0.25390625
       ],
       "binIndex": 4,
       "page": 4
@@ -11507,31 +11574,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "corner_rope",
       "frame": {
         "x": 526,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 526,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 524,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.2568359375,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.3818359375,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.2568359375,
-        0.12890625,
+        0.2568359375,
         0.3818359375,
-        0.25390625
+        0.3818359375
       ],
       "binIndex": 4,
       "page": 4
@@ -11540,31 +11607,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "corner_rope",
       "frame": {
         "x": 526,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 526,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 524,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.2568359375,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.3818359375,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.2568359375,
-        0.12890625,
+        0.2568359375,
         0.3818359375,
-        0.25390625
+        0.3818359375
       ],
       "binIndex": 4,
       "page": 4
@@ -11572,32 +11639,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "fish.sardine": {
       "name": "fish.sardine",
       "frame": {
-        "x": 526,
-        "y": 526,
+        "x": 788,
+        "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 526,
-      "innerY": 526,
+      "innerX": 788,
+      "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 524,
-        "y": 524,
+        "x": 786,
+        "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.2568359375,
-        "u1": 0.3818359375,
-        "v1": 0.3818359375
+        "u0": 0.384765625,
+        "v0": 0.0009765625,
+        "u1": 0.509765625,
+        "v1": 0.1259765625
       },
       "uvBounds": [
-        0.2568359375,
-        0.2568359375,
-        0.3818359375,
-        0.3818359375
+        0.384765625,
+        0.0009765625,
+        0.509765625,
+        0.1259765625
       ],
       "binIndex": 4,
       "page": 4
@@ -11605,32 +11672,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "fish-sardine.png": {
       "name": "fish.sardine",
       "frame": {
-        "x": 526,
-        "y": 526,
+        "x": 788,
+        "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 526,
-      "innerY": 526,
+      "innerX": 788,
+      "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 524,
-        "y": 524,
+        "x": 786,
+        "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.2568359375,
-        "v0": 0.2568359375,
-        "u1": 0.3818359375,
-        "v1": 0.3818359375
+        "u0": 0.384765625,
+        "v0": 0.0009765625,
+        "u1": 0.509765625,
+        "v1": 0.1259765625
       },
       "uvBounds": [
-        0.2568359375,
-        0.2568359375,
-        0.3818359375,
-        0.3818359375
+        0.384765625,
+        0.0009765625,
+        0.509765625,
+        0.1259765625
       ],
       "binIndex": 4,
       "page": 4
@@ -11639,31 +11706,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "fish.sea_bream",
       "frame": {
         "x": 788,
-        "y": 2,
+        "y": 264,
         "w": 256,
         "h": 256
       },
       "innerX": 788,
-      "innerY": 2,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 786,
-        "y": 0,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.384765625,
-        "v0": 0.0009765625,
+        "v0": 0.12890625,
         "u1": 0.509765625,
-        "v1": 0.1259765625
+        "v1": 0.25390625
       },
       "uvBounds": [
         0.384765625,
-        0.0009765625,
+        0.12890625,
         0.509765625,
-        0.1259765625
+        0.25390625
       ],
       "binIndex": 4,
       "page": 4
@@ -11672,31 +11739,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "fish.sea_bream",
       "frame": {
         "x": 788,
-        "y": 2,
+        "y": 264,
         "w": 256,
         "h": 256
       },
       "innerX": 788,
-      "innerY": 2,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 786,
-        "y": 0,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.384765625,
-        "v0": 0.0009765625,
+        "v0": 0.12890625,
         "u1": 0.509765625,
-        "v1": 0.1259765625
+        "v1": 0.25390625
       },
       "uvBounds": [
         0.384765625,
-        0.0009765625,
+        0.12890625,
         0.509765625,
-        0.1259765625
+        0.25390625
       ],
       "binIndex": 4,
       "page": 4
@@ -11705,31 +11772,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "fish.amberjack",
       "frame": {
         "x": 788,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 788,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 786,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.384765625,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.509765625,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.384765625,
-        0.12890625,
+        0.2568359375,
         0.509765625,
-        0.25390625
+        0.3818359375
       ],
       "binIndex": 4,
       "page": 4
@@ -11738,103 +11805,37 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "fish.amberjack",
       "frame": {
         "x": 788,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 788,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 786,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.384765625,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.509765625,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.384765625,
-        0.12890625,
+        0.2568359375,
         0.509765625,
-        0.25390625
+        0.3818359375
       ],
       "binIndex": 4,
       "page": 4
     },
     "seed.sunflower": {
       "name": "seed.sunflower",
-      "frame": {
-        "x": 788,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.2568359375,
-        "u1": 0.509765625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.384765625,
-        0.2568359375,
-        0.509765625,
-        0.3818359375
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "seed-sunflower.png": {
-      "name": "seed.sunflower",
-      "frame": {
-        "x": 788,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 788,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 786,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.384765625,
-        "v0": 0.2568359375,
-        "u1": 0.509765625,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.384765625,
-        0.2568359375,
-        0.509765625,
-        0.3818359375
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "seed.olive_pit": {
-      "name": "seed.olive_pit",
       "frame": {
         "x": 1050,
         "y": 2,
@@ -11861,6 +11862,72 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
         0.5126953125,
         0.0009765625,
         0.6376953125,
+        0.1259765625
+      ],
+      "binIndex": 4,
+      "page": 4
+    },
+    "seed-sunflower.png": {
+      "name": "seed.sunflower",
+      "frame": {
+        "x": 1050,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1050,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1048,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.5126953125,
+        "v0": 0.0009765625,
+        "u1": 0.6376953125,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.5126953125,
+        0.0009765625,
+        0.6376953125,
+        0.1259765625
+      ],
+      "binIndex": 4,
+      "page": 4
+    },
+    "seed.olive_pit": {
+      "name": "seed.olive_pit",
+      "frame": {
+        "x": 1312,
+        "y": 2,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 2,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 0,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.0009765625,
+        "u1": 0.765625,
+        "v1": 0.1259765625
+      },
+      "uvBounds": [
+        0.640625,
+        0.0009765625,
+        0.765625,
         0.1259765625
       ],
       "binIndex": 4,
@@ -11869,31 +11936,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "seed-olive_pit.png": {
       "name": "seed.olive_pit",
       "frame": {
-        "x": 1050,
+        "x": 1312,
         "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 1050,
+      "innerX": 1312,
       "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1048,
+        "x": 1310,
         "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.5126953125,
+        "u0": 0.640625,
         "v0": 0.0009765625,
-        "u1": 0.6376953125,
+        "u1": 0.765625,
         "v1": 0.1259765625
       },
       "uvBounds": [
-        0.5126953125,
+        0.640625,
         0.0009765625,
-        0.6376953125,
+        0.765625,
         0.1259765625
       ],
       "binIndex": 4,
@@ -11902,31 +11969,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "produce.sunflower_seed": {
       "name": "produce.sunflower_seed",
       "frame": {
-        "x": 1312,
+        "x": 1574,
         "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
+      "innerX": 1574,
       "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
+        "x": 1572,
         "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
+        "u0": 0.7685546875,
         "v0": 0.0009765625,
-        "u1": 0.765625,
+        "u1": 0.8935546875,
         "v1": 0.1259765625
       },
       "uvBounds": [
-        0.640625,
+        0.7685546875,
         0.0009765625,
-        0.765625,
+        0.8935546875,
         0.1259765625
       ],
       "binIndex": 4,
@@ -11935,31 +12002,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "produce-sunflower_seed.png": {
       "name": "produce.sunflower_seed",
       "frame": {
-        "x": 1312,
+        "x": 1574,
         "y": 2,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
+      "innerX": 1574,
       "innerY": 2,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
+        "x": 1572,
         "y": 0,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
+        "u0": 0.7685546875,
         "v0": 0.0009765625,
-        "u1": 0.765625,
+        "u1": 0.8935546875,
         "v1": 0.1259765625
       },
       "uvBounds": [
-        0.640625,
+        0.7685546875,
         0.0009765625,
-        0.765625,
+        0.8935546875,
         0.1259765625
       ],
       "binIndex": 4,
@@ -11968,32 +12035,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "produce.olive": {
       "name": "produce.olive",
       "frame": {
-        "x": 1574,
-        "y": 2,
+        "x": 1050,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 2,
+      "innerX": 1050,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 0,
+        "x": 1048,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.0009765625,
-        "u1": 0.8935546875,
-        "v1": 0.1259765625
+        "u0": 0.5126953125,
+        "v0": 0.12890625,
+        "u1": 0.6376953125,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.7685546875,
-        0.0009765625,
-        0.8935546875,
-        0.1259765625
+        0.5126953125,
+        0.12890625,
+        0.6376953125,
+        0.25390625
       ],
       "binIndex": 4,
       "page": 4
@@ -12001,32 +12068,32 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "produce-olive.png": {
       "name": "produce.olive",
       "frame": {
-        "x": 1574,
-        "y": 2,
+        "x": 1050,
+        "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1574,
-      "innerY": 2,
+      "innerX": 1050,
+      "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1572,
-        "y": 0,
+        "x": 1048,
+        "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.0009765625,
-        "u1": 0.8935546875,
-        "v1": 0.1259765625
+        "u0": 0.5126953125,
+        "v0": 0.12890625,
+        "u1": 0.6376953125,
+        "v1": 0.25390625
       },
       "uvBounds": [
-        0.7685546875,
-        0.0009765625,
-        0.8935546875,
-        0.1259765625
+        0.5126953125,
+        0.12890625,
+        0.6376953125,
+        0.25390625
       ],
       "binIndex": 4,
       "page": 4
@@ -12035,31 +12102,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "crop.sunflower",
       "frame": {
         "x": 1050,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 1050,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 1048,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.5126953125,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.6376953125,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.5126953125,
-        0.12890625,
+        0.2568359375,
         0.6376953125,
-        0.25390625
+        0.3818359375
       ],
       "binIndex": 4,
       "page": 4
@@ -12068,103 +12135,37 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "name": "crop.sunflower",
       "frame": {
         "x": 1050,
-        "y": 264,
+        "y": 526,
         "w": 256,
         "h": 256
       },
       "innerX": 1050,
-      "innerY": 264,
+      "innerY": 526,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
         "x": 1048,
-        "y": 262,
+        "y": 524,
         "w": 260,
         "h": 260
       },
       "uv": {
         "u0": 0.5126953125,
-        "v0": 0.12890625,
+        "v0": 0.2568359375,
         "u1": 0.6376953125,
-        "v1": 0.25390625
+        "v1": 0.3818359375
       },
       "uvBounds": [
         0.5126953125,
-        0.12890625,
+        0.2568359375,
         0.6376953125,
-        0.25390625
+        0.3818359375
       ],
       "binIndex": 4,
       "page": 4
     },
     "crop.olive_tree": {
       "name": "crop.olive_tree",
-      "frame": {
-        "x": 1050,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.2568359375,
-        "u1": 0.6376953125,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.2568359375,
-        0.6376953125,
-        0.3818359375
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "plant-olive_tree.png": {
-      "name": "crop.olive_tree",
-      "frame": {
-        "x": 1050,
-        "y": 526,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1050,
-      "innerY": 526,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1048,
-        "y": 524,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.5126953125,
-        "v0": 0.2568359375,
-        "u1": 0.6376953125,
-        "v1": 0.3818359375
-      },
-      "uvBounds": [
-        0.5126953125,
-        0.2568359375,
-        0.6376953125,
-        0.3818359375
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "npc.tomas": {
-      "name": "npc.tomas",
       "frame": {
         "x": 1312,
         "y": 264,
@@ -12191,6 +12192,72 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
         0.640625,
         0.12890625,
         0.765625,
+        0.25390625
+      ],
+      "binIndex": 4,
+      "page": 4
+    },
+    "plant-olive_tree.png": {
+      "name": "crop.olive_tree",
+      "frame": {
+        "x": 1312,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1312,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1310,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.640625,
+        "v0": 0.12890625,
+        "u1": 0.765625,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.640625,
+        0.12890625,
+        0.765625,
+        0.25390625
+      ],
+      "binIndex": 4,
+      "page": 4
+    },
+    "npc.tomas": {
+      "name": "npc.tomas",
+      "frame": {
+        "x": 1574,
+        "y": 264,
+        "w": 256,
+        "h": 256
+      },
+      "innerX": 1574,
+      "innerY": 264,
+      "innerWidth": 256,
+      "innerHeight": 256,
+      "outerFrame": {
+        "x": 1572,
+        "y": 262,
+        "w": 260,
+        "h": 260
+      },
+      "uv": {
+        "u0": 0.7685546875,
+        "v0": 0.12890625,
+        "u1": 0.8935546875,
+        "v1": 0.25390625
+      },
+      "uvBounds": [
+        0.7685546875,
+        0.12890625,
+        0.8935546875,
         0.25390625
       ],
       "binIndex": 4,
@@ -12199,31 +12266,31 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     "portrait-tomas.png": {
       "name": "npc.tomas",
       "frame": {
-        "x": 1312,
+        "x": 1574,
         "y": 264,
         "w": 256,
         "h": 256
       },
-      "innerX": 1312,
+      "innerX": 1574,
       "innerY": 264,
       "innerWidth": 256,
       "innerHeight": 256,
       "outerFrame": {
-        "x": 1310,
+        "x": 1572,
         "y": 262,
         "w": 260,
         "h": 260
       },
       "uv": {
-        "u0": 0.640625,
+        "u0": 0.7685546875,
         "v0": 0.12890625,
-        "u1": 0.765625,
+        "u1": 0.8935546875,
         "v1": 0.25390625
       },
       "uvBounds": [
-        0.640625,
+        0.7685546875,
         0.12890625,
-        0.765625,
+        0.8935546875,
         0.25390625
       ],
       "binIndex": 4,
@@ -12231,72 +12298,6 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
     },
     "npc.ines": {
       "name": "npc.ines",
-      "frame": {
-        "x": 1574,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.12890625,
-        "u1": 0.8935546875,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.12890625,
-        0.8935546875,
-        0.25390625
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "portrait-ines.png": {
-      "name": "npc.ines",
-      "frame": {
-        "x": 1574,
-        "y": 264,
-        "w": 256,
-        "h": 256
-      },
-      "innerX": 1574,
-      "innerY": 264,
-      "innerWidth": 256,
-      "innerHeight": 256,
-      "outerFrame": {
-        "x": 1572,
-        "y": 262,
-        "w": 260,
-        "h": 260
-      },
-      "uv": {
-        "u0": 0.7685546875,
-        "v0": 0.12890625,
-        "u1": 0.8935546875,
-        "v1": 0.25390625
-      },
-      "uvBounds": [
-        0.7685546875,
-        0.12890625,
-        0.8935546875,
-        0.25390625
-      ],
-      "binIndex": 4,
-      "page": 4
-    },
-    "sunreach": {
-      "name": "sunreach",
       "frame": {
         "x": 1312,
         "y": 526,
@@ -12328,8 +12329,8 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 4,
       "page": 4
     },
-    "mapnode-sunreach.png": {
-      "name": "sunreach",
+    "portrait-ines.png": {
+      "name": "npc.ines",
       "frame": {
         "x": 1312,
         "y": 526,
@@ -12427,11 +12428,18 @@ export const UI_ATLAS_MANIFEST: AtlasManifestData = {
       "binIndex": 4,
       "page": 4
     }
-  }
+  },
+  "preloadPages": [
+    0,
+    1,
+    2
+  ]
 } as const;
 
 export const UI_ATLAS_PAGES = UI_ATLAS_MANIFEST.pages;
 export const UI_ATLAS_FRAMES = UI_ATLAS_MANIFEST.frames;
+/** Page indices whose sprites the normal HUD presents during entry. */
+export const UI_ATLAS_PRELOAD_PAGES = UI_ATLAS_MANIFEST.preloadPages;
 export type AtlasSpriteName = keyof typeof UI_ATLAS_FRAMES;
 
 /**

@@ -155,6 +155,7 @@ export function atlasForTool(toolId: string | null | undefined): SpriteUrl | und
 export function atlasForAction(actionId: string | null | undefined): SpriteUrl | undefined {
   if (!actionId) return undefined;
   if (actionId === "processing-start" || actionId === "processing-collect") return UI_ACTION.processing;
+  if (actionId === "unroot") return UI_ACTION.harvest;
   return lookup(UI_ACTION, actionId);
 }
 

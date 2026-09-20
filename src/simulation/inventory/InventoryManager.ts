@@ -187,6 +187,41 @@ export class InventoryManager {
     return true;
   }
 
+  /**
+   * Atomically removes from one exact lot.
+   *
+   * `quality === undefined` means the ungraded lot only — unlike
+   * `removeItemsAtomically`, which treats an ungraded request as "lowest grade
+   * first" and will spill into graded stock. Used by explicit moves and
+   * destroys that name the lot they are touching, so a wipe can never consume
+   * a different grade than the one the player selected.
+   */
+  public static removeItemLotAtomically(
+    inventory: InventoryState,
+    itemId: ItemId,
+    quality: CropQuality | undefined,
+    quantity: number
+  ): boolean {
+    if (!this.isValidInventory(inventory) || !ContentRegistry.items.has(itemId)) return false;
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) return false;
+    if (this.getItemLotCount(inventory, itemId, quality) < quantity) return false;
+    let needed = quantity;
+    for (const slot of inventory.slots) {
+      if (needed <= 0) break;
+      if (slot.itemId !== itemId || slot.quality !== quality) continue;
+      const available = this.getSlotQuantity(slot);
+      const toRemove = Math.min(needed, available);
+      slot.quantity = available - toRemove;
+      needed -= toRemove;
+      if ((slot.quantity ?? 0) <= 0) {
+        slot.itemId = undefined;
+        slot.quantity = undefined;
+        slot.quality = undefined;
+      }
+    }
+    return true;
+  }
+
   public static canAddItemsAfterRemoving(
     inventory: InventoryState,
     toRemove: ItemStack[],
@@ -293,13 +328,16 @@ export class InventoryManager {
       }
     }
 
-    // 2. Try empty slots
+    // 2. Try empty slots. The grade is assigned unconditionally: a slot that
+    // validates as empty may still carry a stale `quality` (that field is not
+    // part of the emptiness test), and leaving it behind would silently grade
+    // an ungraded stack.
     for (const slot of inventory.slots) {
       if (!slot.itemId || !slot.quantity || slot.quantity <= 0) {
         const add = Math.min(remaining, stackLimit);
         slot.itemId = itemId;
         slot.quantity = add;
-        if (quality !== undefined) slot.quality = quality;
+        slot.quality = quality;
         remaining -= add;
         if (remaining <= 0) return quantity;
       }

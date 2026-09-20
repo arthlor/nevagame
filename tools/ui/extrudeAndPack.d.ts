@@ -21,6 +21,8 @@ export interface PackOptions {
   pot?: boolean;
   allowRotation?: boolean;
   writeFiles?: boolean;
+  webpQuality?: number;
+  webpEffort?: number;
   tsManifestPath?: string;
   jsonManifestPath?: string;
 }
@@ -32,6 +34,7 @@ export interface SpriteInput {
   buffer?: Buffer;
   path?: string;
   trim?: boolean;
+  tier?: "core" | "content";
 }
 
 export interface PackResult {
@@ -57,7 +60,7 @@ export function dilateSpriteEdges(
   options?: DilateOptions
 ): Promise<DilateSpriteResult>;
 
-export function packLosslessUiAtlas(
+export function packUiAtlas(
   sprites: SpriteInput[],
   outputBase: string,
   atlasName?: string,

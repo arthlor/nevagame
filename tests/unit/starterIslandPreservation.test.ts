@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import baseline from "../../tools/world/neva-layout25-working-preservation.json";
+import baseline from "../../tools/world/neva-layout26-working-preservation.json";
+import beforeRoad from "../../tools/world/neva-layout25-working-preservation.json";
+import previousRoad from "../fixtures/neva_layout25_coastal_road.json";
 import beforeRiver from "../../tools/world/neva-layout24-working-preservation.json";
 import beforeValley from "../../tools/world/neva-layout23-working-preservation.json";
 import type { WorldRoute } from "../../src/world/WorldLayout";
@@ -12,6 +14,10 @@ import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
 
 describe("starter island terrain preservation", () => {
   let current: ReturnType<typeof captureTerrainPreservation>;
+  const restoreCoastalRoad = (snapshot: ReturnType<typeof captureTerrainPreservation>) => {
+    const routes = snapshot.routes.map(route => route.id === previousRoad.id ? previousRoad as WorldRoute : route);
+    return { ...snapshot, routes, routeHash: createHash("sha256").update(JSON.stringify(routes)).digest("hex") };
+  };
   beforeAll(() => {
     current = captureTerrainPreservation(baseline.routeIds, baseline.sunreachSampling);
   });
@@ -79,7 +85,7 @@ describe("starter island terrain preservation", () => {
     }
     // Replay only the explicitly redesigned trails; all other route geometry
     // must still match the independently retained layout23 hash.
-    const historicalTrails = { ...current, routes: current.routes.map(route =>
+    const historicalTrails = { ...current, routes: restoreCoastalRoad(current).routes.map(route =>
       (previousTrails as WorldRoute[]).find(previous => previous.id === route.id) ?? route) };
     historicalTrails.routeHash = createHash("sha256").update(JSON.stringify(historicalTrails.routes)).digest("hex");
     expect(compareTerrainPreservation(historicalTrails, beforeValley).workingChecks.routeHash).toBe(true);
@@ -91,13 +97,20 @@ describe("starter island terrain preservation", () => {
     }
   });
 
+  it("changes only the coastal road while preserving river, work sites and other routes", () => {
+    const restored = restoreCoastalRoad(current);
+    for (const [field, matches] of Object.entries(compareTerrainPreservation(restored, beforeRoad).workingChecks)) {
+      expect(matches, field).toBe(true);
+    }
+  });
+
   it("retains bridge and estuary support across the intentional river redesign", () => {
     const protectedStations = (rows: typeof current.lowerRiver) => rows.filter(row =>
       Number(row.z) >= -20 && Number(row.z) <= 14 || Number(row.z) >= 80);
     expect(protectedStations(current.lowerRiver)).toEqual(protectedStations(beforeRiver.lowerRiver));
     expect(current.workingGround).toEqual(beforeRiver.workingGround);
     expect(current.anchors).toEqual(beforeRiver.anchors);
-    expect(compareTerrainPreservation(current, beforeRiver).workingChecks.routeHash).toBe(true);
+    expect(compareTerrainPreservation(restoreCoastalRoad(current), beforeRiver).workingChecks.routeHash).toBe(true);
   });
 
   it("retains layout22 working fields and anchor coordinates across the contour-road rework", () => {

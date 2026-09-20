@@ -5,7 +5,7 @@ import { harborCoastInfluence } from "../../world/HarborCoast";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
-import { WATER_WAVE_CONFIG, type WaterConditions } from "./WaterSurface";
+import { createWaterBedUniforms, createWaveUniforms, type WaterConditions } from "./WaterSurface";
 import { WATER_WAVE_FUNCTION_GLSL, WATER_WAVE_UNIFORMS_GLSL, WATER_NOISE_GLSL } from "./waveGlsl";
 import { createWaterProfileMap, SHORE_MASK_METERS_PER_TEXEL } from "./FacetedWater";
 
@@ -147,10 +147,12 @@ function appendPatch(
 export interface ShoreFoamOptions {
   waterProfileMap?: THREE.DataTexture;
   waterProfileBounds?: THREE.Vector4;
-}
-
-function vector(values: readonly [number, number, number]): THREE.Vector3 {
-  return new THREE.Vector3(values[0], values[1], values[2]);
+  /**
+   * Canonical bed depth. These quads ride the shared wave height, which now
+   * shoals, so without the same bed the foam would float above the water it
+   * belongs to exactly where the surface is damped most.
+   */
+  waterDepthMap?: THREE.DataTexture;
 }
 
 export class ShoreFoam {
@@ -201,23 +203,10 @@ export class ShoreFoam {
       depthWrite: false,
       side: THREE.DoubleSide,
       uniforms: {
-        uTime: { value: 0 },
-        uRoughness: { value: 0.2 },
-        uWindSpeed: { value: 0 },
-        uWindDirection: { value: new THREE.Vector2(0, 1) },
+        ...createWaveUniforms(),
+        ...createWaterBedUniforms(options.waterDepthMap ?? null, profileBounds),
         uWaterProfileMap: { value: this.waterProfileMap },
         uWaterProfileBounds: { value: profileBounds },
-        uPrimaryAmplitude: { value: vector(WATER_WAVE_CONFIG.primary.amplitude) },
-        uPrimaryFrequency: { value: vector(WATER_WAVE_CONFIG.primary.frequency) },
-        uPrimarySpeed: { value: vector(WATER_WAVE_CONFIG.primary.speed) },
-        uCrossAmplitude: { value: vector(WATER_WAVE_CONFIG.cross.amplitude) },
-        uCrossFrequency: { value: vector(WATER_WAVE_CONFIG.cross.frequency) },
-        uCrossSpeed: { value: vector(WATER_WAVE_CONFIG.cross.speed) },
-        uDetailAmplitude: { value: vector(WATER_WAVE_CONFIG.detail.amplitude) },
-        uDetailFrequency: { value: vector(WATER_WAVE_CONFIG.detail.frequency) },
-        uDetailSpeed: { value: vector(WATER_WAVE_CONFIG.detail.speed) },
-        uRoughnessGain: { value: vector(WATER_WAVE_CONFIG.roughnessGain) },
-        uOceanWindGain: { value: WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond },
         uFoamHeightOffset: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.foamHeightOffsetMeters },
         uSwashSpeed: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.swashSpeed },
         uSwashAmplitude: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.swashAmplitudeMeters },

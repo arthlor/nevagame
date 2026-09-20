@@ -506,17 +506,27 @@ export class GroundCoverRenderer {
       );
       // Sparse, stable grass silhouettes bridge the near tier to the fog plane.
       // They share the existing instance budget and material batches.
-      const farDistance = qualityValueAtLevel(this.qualityLevel, (quality) => quality.groundCoverFarDistanceMeters);
-      const farStride = record.category === "grass" ? 32 : 8;
-      const farCap = record.category === "grass"
-        ? qualityValueAtLevel(this.qualityLevel, (quality) => quality.shortGrassFarInstanceCap)
-        : record.activeCount * 0.15;
-      const farIndices = record.category === "grass" || record.category === "meadowTall"
-        ? queryGroundCoverSpatialIndex(record.spatialIndex, anchorX, anchorZ, farDistance)
-          .filter((index) => index % farStride === 0 && Math.hypot(record.instances[index].x - anchorX, record.instances[index].z - anchorZ) > keepDistance
-            && Math.hypot(record.instances[index].x - anchorX, record.instances[index].z - anchorZ) <= farDistance)
-          .sort((left, right) => left - right)
-          .slice(0, Math.floor(Math.min(record.activeCount * 0.15, farCap))) : [];
+      // Single pass with one distance evaluation per candidate: Math.hypot is
+      // pure, so one call feeds both comparisons bit-identically. Predicate
+      // order, numeric sort and slice cap are unchanged, so the submitted
+      // indices are exactly the previous ones.
+      const farIndices: number[] = [];
+      if (record.category === "grass" || record.category === "meadowTall") {
+        const farDistance = qualityValueAtLevel(this.qualityLevel, (quality) => quality.groundCoverFarDistanceMeters);
+        const farStride = record.category === "grass" ? 32 : 8;
+        const farCap = record.category === "grass"
+          ? qualityValueAtLevel(this.qualityLevel, (quality) => quality.shortGrassFarInstanceCap)
+          : record.activeCount * 0.15;
+        const farCandidates = queryGroundCoverSpatialIndex(record.spatialIndex, anchorX, anchorZ, farDistance);
+        for (const index of farCandidates) {
+          if (index % farStride !== 0) continue;
+          const distance = Math.hypot(record.instances[index].x - anchorX, record.instances[index].z - anchorZ);
+          if (distance <= keepDistance || distance > farDistance) continue;
+          farIndices.push(index);
+        }
+        farIndices.sort((left, right) => left - right);
+        farIndices.length = Math.min(farIndices.length, Math.floor(Math.min(record.activeCount * 0.15, farCap)));
+      }
       const visibleIndices = selectStableGroundCoverIndices(
         record.instances,
         anchorX,
@@ -574,7 +584,12 @@ export class GroundCoverRenderer {
       record.candidateIndices = record.renderedIndices;
       record.renderedIndices = candidates;
       for (const source of record.meshes) {
-        const indices = candidates.filter((index) => record.instances[index].lodIndex === source.lodIndex);
+        // Manual loop instead of Array.filter: same order, same members, no
+        // per-source closure/allocation on every frame.
+        const indices: number[] = [];
+        for (const index of candidates) {
+          if (record.instances[index].lodIndex === source.lodIndex) indices.push(index);
+        }
         if (groundCoverIndexListsEqual(source.renderedIndices, indices)) continue;
         source.renderedIndices = indices;
         for (let visibleCount = 0; visibleCount < indices.length; visibleCount += 1) {

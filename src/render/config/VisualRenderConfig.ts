@@ -331,6 +331,8 @@ export interface VisualRenderConfig {
     polygonCellScaleMeters: number;
     polygonEdgeCellScaleMeters: number;
     wearColorMix: number;
+    crownGrassMix: number;
+    reliefNormalStrength: number;
     wearRoughnessReduction: number;
     shoulderColorMix: number;
     polygonVariationStrength: number;
@@ -346,13 +348,30 @@ export interface VisualRenderConfig {
     cullingTileMeters: number;
     optics: {
       absorptionPerMeter: readonly [number, number, number];
+      /** Inland water filters the same palette through its suspended minerals. */
+      freshwaterAbsorptionScale: readonly [number, number, number];
+      /** Sheltered lake detail and residual outlet drift; geometry remains shared. */
+      lakeRippleScale: number;
+      lakeCurrentScale: number;
       refractionPixels: number;
       rippleNormalStrength: number;
       causticStrength: number;
       /** Full shallow response begins fading at the first depth, gone at the second. */
       causticDepthFadeMeters: readonly [number, number];
-      /** Camera-distance start/end and remaining broad slope at the far end. */
+      /**
+       * Camera-distance start/end and remaining broad slope at the far end.
+       * Retaining more of it was tried alongside the larger wave field and
+       * made the sea worse, not better: at a grazing view the extra slope
+       * sweeps Fresnel toward the sky over most of the surface and washes the
+       * turquoise body out to pale grey. The swell reads through this filter
+       * already, because the waves are now large enough to survive it.
+       */
       distantSlope: readonly [number, number, number];
+      /**
+       * Slope retained when the view grazes the surface, for the same reason.
+       * Named rather than inlined so the pair can be reviewed together.
+       */
+      grazingSlopeFloor: number;
       swashPeriodSeconds: number;
       swashReachMeters: number;
       foamStrength: number;
@@ -369,6 +388,29 @@ export interface VisualRenderConfig {
     normalQuantizationSteps: number;
     fresnelStrength: number;
     sunGlintStrength: number;
+    /**
+     * Breaking-crest foam, driven by the wave field's own fold (the
+     * trochoid's horizontal Jacobian) rather than by the sea-roughness dial.
+     * `foldRange` is where a crest starts and finishes breaking; shoaling
+     * pushes the same signal up, so surf builds over the shallow shelf.
+     */
+    whitecap: {
+      foldRange: readonly [number, number];
+      strength: number;
+    };
+    /**
+     * Crest shading: how much the swell's own faces brighten and darken the
+     * water body toward the sun. This is what makes wave form readable at
+     * distance, where `distantSlope` has deliberately averaged the normal out
+     * of the reflection. Expressed on the body colour rather than the
+     * reflection so the sea keeps its turquoise instead of bleaching toward
+     * sky. It fades across the pixel-footprint range once waves stop being
+     * resolvable, so distant water cannot shimmer.
+     */
+    crestShading: {
+      strength: number;
+      fadeFootprintMeters: readonly [number, number];
+    };
     /**
      * Sun-glitter lobe width vs. camera distance. Beyond the far distance the
      * 3.2 m polygon cells fall below a pixel, so a tight lobe aliases into
@@ -764,6 +806,29 @@ export interface VisualRenderConfig {
     secondarySpringStiffness: number;
     secondarySpringDamping: number;
   };
+  boats: {
+    /**
+     * Hull vertical response to the sampled wave field. The four-point average
+     * under-reads a short cross/detail crest that passes between hull samples,
+     * which buries the hull in a storm; blending toward the highest hull sample
+     * makes the hull ride the crest it is actually in. 0 = flat average,
+     * 1 = full crest ride.
+     */
+    crestRideBlend: number;
+    /** Bounded presentation lift, scaled by rough-water excess and speed. */
+    roughWaterLiftMeters: number;
+    /** Hull heave/pitch/roll smoothing toward the sampled field, per second. */
+    buoyancyResponsePerSecond: number;
+    /** Contact-foam strength at rest, plus speed and sea-state gains. */
+    contactFoamBase: number;
+    contactFoamSpeedGain: number;
+    contactFoamRoughnessGain: number;
+    contactFoamRadiusScale: number;
+    /** Full normalized storm-helm heel (|1|) in radians, presentation only. */
+    stormHeelMaxRadians: number;
+    /** Permanent list a wrecked hull takes in the water. */
+    wreckListRadians: number;
+  };
 }
 
 /**
@@ -982,7 +1047,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       waterSurface: {
         reflection: "skyGradient",
         nearPatch: false,
-        detailNormal: false
+        detailNormal: true
       },
       meadowField: {
         nearRadiusMeters: 11,
@@ -1140,9 +1205,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     },
     polygonCellScaleMeters: 0.75,
     polygonEdgeCellScaleMeters: 1.2,
-    wearColorMix: 0.32,
-    wearRoughnessReduction: 0.055,
-    shoulderColorMix: 0.22,
+    wearColorMix: 0.62,
+    crownGrassMix: 0.28,
+    reliefNormalStrength: 0.065,
+    wearRoughnessReduction: 0.075,
+    shoulderColorMix: 0.4,
     polygonVariationStrength: 0.08,
     polygonJaggedStrength: 0.22,
     polygonFacetLightingStrength: 0.016,
@@ -1155,11 +1222,15 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     cullingTileMeters: 192,
     optics: {
       absorptionPerMeter: [0.32, 0.11, 0.075],
+      freshwaterAbsorptionScale: [0.78, 1.14, 1.3],
+      lakeRippleScale: 0.48,
+      lakeCurrentScale: 0.06,
       refractionPixels: 2.4,
-      rippleNormalStrength: 0.075,
+      rippleNormalStrength: 0.105,
       causticStrength: 0.8,
       causticDepthFadeMeters: [2, 5],
       distantSlope: [18, 95, 0.035],
+      grazingSlopeFloor: 0.22,
       swashPeriodSeconds: 10.8,
       swashReachMeters: 1.3,
       foamStrength: 0.78,
@@ -1180,6 +1251,14 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     // small mirror highlight; spread across a facet-broken path the same value
     // reads as nothing at all.
     sunGlintStrength: 0.3,
+    whitecap: {
+      foldRange: [0.26, 0.72],
+      strength: 0.5
+    },
+    crestShading: {
+      strength: 0.38,
+      fadeFootprintMeters: [1.6, 5.5]
+    },
     glitterFocusNearMeters: 34,
     glitterFocusFarMeters: 170,
     glitterFarBroadening: 0.24,
@@ -1268,7 +1347,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       medium: {
         reflection: "skyGradient",
         nearPatch: false,
-        detailNormal: false
+        detailNormal: true
       },
       high: {
         reflection: "skyGradient+sun",
@@ -1485,6 +1564,17 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     footIkMaxBendRadians: 0.45,
     secondarySpringStiffness: 18,
     secondarySpringDamping: 9
+  },
+  boats: {
+    crestRideBlend: 0.65,
+    roughWaterLiftMeters: 0.22,
+    buoyancyResponsePerSecond: 9,
+    contactFoamBase: 0.12,
+    contactFoamSpeedGain: 0.5,
+    contactFoamRoughnessGain: 0.38,
+    contactFoamRadiusScale: 1.3,
+    stormHeelMaxRadians: 0.22,
+    wreckListRadians: 0.12
   }
 };
 

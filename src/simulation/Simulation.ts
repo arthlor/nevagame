@@ -16,8 +16,11 @@ import {
   FishSpeciesId,
   FishingEncounterState,
   GameState,
+  InventoryState,
   ItemId,
+  ItemStack,
   MarketId,
+  StorageKind,
   CropStage,
   PlacedCropId,
   ProcessingJobId,
@@ -33,8 +36,11 @@ import { forEachWeatherBoundedSegment } from "./farming/weatherBoundedSegments";
 import type { ResolvedPhysicsFrame } from "./core/PhysicsAdapter";
 import type { DomainContext } from "./domains/DomainContext";
 import { deterministicCropRotation, FarmingDomain } from "./domains/FarmingDomain";
+import { cropQualityRank } from "./farming/calculateCropGrowth";
 import { ProcessingDomain } from "./domains/ProcessingDomain";
+import { STORAGE_FACILITY_BY_KIND, storageInventoryId } from "./storage/storageFacilities";
 import { LaborDomain } from "./domains/LaborDomain";
+import { StormHelmDomain } from "./domains/StormHelmDomain";
 import { ProgressionDomain } from "./domains/ProgressionDomain";
 import { EquipmentDomain } from "./domains/EquipmentDomain";
 import { NavigationDomain } from "./domains/NavigationDomain";
@@ -81,10 +87,13 @@ import type {
   WorkCostQuote
 } from "./core/contracts";
 import { SimulationActionTimeline } from "./actions/ActionTimeline";
+import { damageBoatHull, repairBoatHull } from "./boats/BoatHull";
 
 export interface SimulationRuntimeOptions {
   /** Developer-only presentation slowdown. It never changes save data. */
   actionTimingScale?: number;
+  /** DEV-only commands (hull damage/repair) stay unreachable in production. */
+  allowDebugCommands?: boolean;
 }
 
 export class Simulation {
@@ -107,6 +116,8 @@ export class Simulation {
   private readonly contractDomain: ContractDomain;
   public readonly questDomain: QuestDomain;
   private readonly laborDomain: LaborDomain;
+  private readonly stormHelmDomain: StormHelmDomain;
+  private readonly allowDebugCommands: boolean;
 
   constructor(initialState?: GameState, options: SimulationRuntimeOptions = {}) {
     ContentRegistry.initializeAndValidate();
@@ -154,6 +165,8 @@ export class Simulation {
     );
     this.questDomain = new QuestDomain(this.domainContext, this.progressionDomain);
     this.laborDomain = new LaborDomain(this.domainContext, this.progressionDomain);
+    this.stormHelmDomain = new StormHelmDomain(this.domainContext);
+    this.allowDebugCommands = options.allowDebugCommands === true;
     // A loaded save may already satisfy a side track's unlock predicate (for
     // example a veteran save from before the track shipped). Open it on load
     // instead of waiting for the next quest completion or level-up.
@@ -196,6 +209,8 @@ export class Simulation {
           command.boatId,
           command.direction
         );
+      case "inventory.discard":
+        return this.discardSatchelItem(command.itemId, command.quantity, command.quality);
       case "boat.board":
         return this.boardBoat(command.boatId);
       case "boat.dock":
@@ -204,6 +219,23 @@ export class Simulation {
         return this.navigationDomain.refuel(command.boatId);
       case "boat.emergency-tow":
         return this.navigationDomain.emergencyTow();
+      case "boat.repair":
+        return this.navigationDomain.repairHull(command.boatId);
+      case "debug.damage-boat": {
+        if (!this.allowDebugCommands) return { success: false, reason: "Debug commands are disabled" };
+        const debugBoat = this.state.boats[command.boatId];
+        if (!debugBoat) return { success: false, reason: "Boat not found" };
+        const applied = damageBoatHull(debugBoat, command.steps ?? 1);
+        if (debugBoat.durability <= 0) debugBoat.speed = 0;
+        return { success: true, yield: applied };
+      }
+      case "debug.repair-boat": {
+        if (!this.allowDebugCommands) return { success: false, reason: "Debug commands are disabled" };
+        const debugBoat = this.state.boats[command.boatId];
+        if (!debugBoat) return { success: false, reason: "Boat not found" };
+        const restored = repairBoatHull(debugBoat);
+        return { success: true, yield: restored };
+      }
       case "mount.board":
         return this.boardMount(command.mountId);
       case "mount.dismount":
@@ -218,6 +250,8 @@ export class Simulation {
         return this.waterCrop(command.placedCropId);
       case "crop.harvest":
         return this.harvestCrop(command.placedCropId);
+      case "crop.unroot":
+        return this.unrootCrop(command.placedCropId);
       case "farm.apply-fertilizer":
         return this.applyFertilizer(command.farmId);
       case "farm.irrigate":
@@ -290,6 +324,16 @@ export class Simulation {
         return this.cargoDomain.loadCarriage(command.mountId);
       case "cargo.pickup":
         return this.pickupFishCargo(command.cargoId);
+      case "cargo.stow-aboard":
+        return this.cargoDomain.stowAboard(command.boatId, command.placement);
+      case "storage.deposit-item":
+        return this.depositToStorage(command.kind, command.itemId, command.quantity);
+      case "storage.withdraw-item":
+        return this.withdrawFromStorage(command.kind, command.itemId, command.quantity);
+      case "storage.store-fish":
+        return this.cargoDomain.storeFishInStorage(command.cargoId, command.kind);
+      case "storage.take-fish":
+        return this.cargoDomain.takeFishFromStorage(command.cargoId, command.kind);
       case "market.sell-item":
         return this.sellItemAtMarket(command.marketId, command.itemId, command.quantity);
       case "market.sell-produce-bulk":
@@ -352,6 +396,10 @@ export class Simulation {
         return this.inspectFarmForecast();
       case "fishing.get-sport-hud":
         return this.inspectSportFishingHud();
+      case "boat.get-storm-helm":
+        return this.stormHelmDomain.inspectHud();
+      case "boat.get-repair-quote":
+        return this.navigationDomain.inspectRepairQuote(query.boatId);
       case "labor.get-hud":
         return this.laborDomain.inspectHud();
       case "labor.get-stations":
@@ -426,6 +474,7 @@ export class Simulation {
     this.state.metadata.totalPlayMinutes += Math.max(0, realDeltaSeconds) / 60;
     this.fishingDomain.tick(realDeltaSeconds);
     this.laborDomain.tick(realDeltaSeconds);
+    this.stormHelmDomain.tick(realDeltaSeconds);
     // Slow idle trickle, measured in real time while the game runs unpaused.
     this.progressionDomain.tickPassiveWorkRegen(realDeltaSeconds);
     // School spawning/expiry is checked every frame so a freed habitat repopulates
@@ -947,6 +996,10 @@ export class Simulation {
     return this.farmingDomain.harvest(placedCropId);
   }
 
+  public unrootCrop(placedCropId: PlacedCropId): InteractionResult {
+    return this.farmingDomain.unroot(placedCropId);
+  }
+
   public applyFertilizer(farmId: FarmId): InteractionResult {
     return this.farmingDomain.applyFertilizer(farmId);
   }
@@ -979,7 +1032,7 @@ export class Simulation {
     return this.equipmentDomain.inspectCharacter();
   }
 
-  public cropInteractionReachMeters(action: "water" | "harvest" | "inspect"): number {
+  public cropInteractionReachMeters(action: "water" | "harvest" | "unroot" | "inspect"): number {
     return this.farmingDomain.interactionReachMeters(action);
   }
 
@@ -1163,22 +1216,100 @@ export class Simulation {
       };
     }
 
-    // Move what is actually there rather than refusing an over-large request.
+    return this.moveInventoryLots(
+      source,
+      destination,
+      itemId,
+      requested,
+      direction === "to-hold" ? "The hold is full" : "The satchel is full"
+    );
+  }
+
+  /**
+   * Moves what is actually there rather than refusing an over-large request.
+   * The move is per lot: a harvest grade is part of a lot's identity, so a
+   * generic ungraded batch would silently sever it (and lowest-grade-first
+   * removal would spend the wrong bushel). Merge slots that share a lot, spend
+   * lowest grade first, and carry each lot's grade across intact. A full
+   * destination puts the goods straight back, so a failed move costs nothing.
+   */
+  private moveInventoryLots(
+    source: InventoryState,
+    destination: InventoryState,
+    itemId: ItemId,
+    requested: number,
+    destinationFullReason: string
+  ): InteractionResult {
+    const held = InventoryManager.getItemCount(source, itemId);
+    if (held <= 0) return { success: false, reasonCode: "not-held", reason: "Those goods are not held" };
     const moving = Math.min(requested, held);
-    const batch = [{ itemId, quantity: moving }];
-    if (!InventoryManager.removeItemsAtomically(source, batch)) {
+    const lotTotals = new Map<CropQuality | undefined, number>();
+    for (const lot of InventoryManager.getItemLots(source, itemId)) {
+      lotTotals.set(lot.quality, (lotTotals.get(lot.quality) ?? 0) + lot.quantity);
+    }
+    const removals: ItemStack[] = [];
+    let remaining = moving;
+    for (const [quality, quantity] of [...lotTotals.entries()]
+      .sort((a, b) => cropQualityRank(a[0]) - cropQualityRank(b[0]))) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, quantity);
+      removals.push(quality === undefined ? { itemId, quantity: take } : { itemId, quantity: take, quality });
+      remaining -= take;
+    }
+    if (!InventoryManager.removeItemsAtomically(source, removals)) {
       return { success: false, reason: "Those goods could not be taken out" };
     }
-    if (!InventoryManager.addItemsAtomically(destination, batch)) {
-      // Put it back exactly as it was: a full destination must cost nothing.
-      InventoryManager.addItemsAtomically(source, batch);
-      return {
-        success: false,
-        reasonCode: "no-room",
-        reason: direction === "to-hold" ? "The hold is full" : "The satchel is full"
-      };
+    if (!InventoryManager.addItemsAtomically(destination, removals)) {
+      InventoryManager.addItemsAtomically(source, removals);
+      return { success: false, reasonCode: "no-room", reason: destinationFullReason };
     }
     return { success: true, quantity: moving };
+  }
+
+  /** Creates a facility's goods inventory on first use, sized by its definition. */
+  private ensureStorageInventory(kind: StorageKind): InventoryState | null {
+    const facility = STORAGE_FACILITY_BY_KIND[kind];
+    if (!facility) return null;
+    const id = storageInventoryId(kind);
+    const existing = this.state.inventories[id];
+    if (existing) return existing;
+    return (this.state.inventories[id] = InventoryManager.createInventory(id, facility.goodsSlots));
+  }
+
+  public depositToStorage(kind: StorageKind, itemId: ItemId, quantity: number): InteractionResult {
+    const facility = STORAGE_FACILITY_BY_KIND[kind];
+    if (!facility) return { success: false, reason: "That storage is not available" };
+    const blocker = this.cargoDomain.storageBlocker(kind);
+    if (blocker) return { success: false, reason: blocker };
+    const requested = Math.floor(quantity);
+    if (!Number.isFinite(requested) || requested <= 0) {
+      return { success: false, reason: "Choose how many to move" };
+    }
+    if (!this.cargoDomain.storageInReach(kind)) {
+      return { success: false, reason: `Move closer to the ${facility.name}` };
+    }
+    const destination = this.ensureStorageInventory(kind);
+    const source = this.state.inventories[this.state.player.inventoryId];
+    if (!destination || !source) return { success: false, reason: "That storage is unavailable" };
+    return this.moveInventoryLots(source, destination, itemId, requested, `${facility.name} is full`);
+  }
+
+  public withdrawFromStorage(kind: StorageKind, itemId: ItemId, quantity: number): InteractionResult {
+    const facility = STORAGE_FACILITY_BY_KIND[kind];
+    if (!facility) return { success: false, reason: "That storage is not available" };
+    const blocker = this.cargoDomain.storageBlocker(kind);
+    if (blocker) return { success: false, reason: blocker };
+    const requested = Math.floor(quantity);
+    if (!Number.isFinite(requested) || requested <= 0) {
+      return { success: false, reason: "Choose how many to move" };
+    }
+    if (!this.cargoDomain.storageInReach(kind)) {
+      return { success: false, reason: `Move closer to the ${facility.name}` };
+    }
+    const source = this.state.inventories[storageInventoryId(kind)];
+    const destination = this.state.inventories[this.state.player.inventoryId];
+    if (!source || !destination) return { success: false, reason: "Those stores are unavailable" };
+    return this.moveInventoryLots(source, destination, itemId, requested, "The satchel is full");
   }
 
   public inspectHoldStores(): HoldStoresDto {
@@ -1209,48 +1340,53 @@ export class Simulation {
   }
 
   /**
-   * Tidies the satchel: merges part-stacks of the same item up to their stack
-   * limit, then orders what remains by category, name and quantity, leaving the
-   * empty slots at the end. Item totals are preserved exactly — this only moves
-   * goods between slots, so it can never create or destroy anything.
+   * Tidies the satchel: merges part-stacks of the same item *and grade* up to
+   * their stack limit, then orders what remains by category, name, grade and
+   * quantity, leaving the empty slots at the end. Lot totals are preserved
+   * exactly — this only moves goods between slots, so it can never create,
+   * destroy or regrade anything.
    */
   public sortSatchel(): InteractionResult {
     const inventory = this.state.inventories[this.state.player.inventoryId];
     if (!inventory) return { success: false, reason: "No satchel to sort" };
 
-    const before = new Map<string, number>();
+    const before = new Map<string, { itemId: ItemId; quality?: CropQuality; quantity: number }>();
     for (const slot of inventory.slots) {
       const quantity = InventoryManager.getSlotQuantity(slot);
       if (!slot.itemId || quantity <= 0) continue;
-      before.set(slot.itemId, (before.get(slot.itemId) ?? 0) + quantity);
+      const key = `${slot.itemId}|${slot.quality ?? ""}`;
+      const lot = before.get(key);
+      if (lot) lot.quantity += quantity;
+      else before.set(key, { itemId: slot.itemId, quality: slot.quality, quantity });
     }
     if (before.size === 0) return { success: false, reason: "The satchel is already empty" };
 
-    const entries = [...before.entries()].map(([itemId, quantity]) => {
-      const definition = ContentRegistry.items.get(itemId);
-      const species = ContentRegistry.fishSpecies.get(itemId);
+    const entries = [...before.values()].map((lot) => {
+      const definition = ContentRegistry.items.get(lot.itemId);
+      const species = ContentRegistry.fishSpecies.get(lot.itemId);
       return {
-        itemId,
-        quantity,
+        ...lot,
         category: definition?.category ?? (species ? "fish" : "item"),
-        name: definition?.name ?? species?.name ?? itemId,
+        name: definition?.name ?? species?.name ?? lot.itemId,
         stackLimit: Math.max(1, definition?.stackLimit ?? 1)
       };
     });
     entries.sort((a, b) =>
       a.category.localeCompare(b.category)
       || a.name.localeCompare(b.name)
+      || cropQualityRank(b.quality) - cropQualityRank(a.quality)
       || b.quantity - a.quantity
     );
 
-    // Lay the merged stacks back out from the first slot. A satchel that cannot
-    // hold its own contents once merged is left untouched rather than truncated.
-    const rebuilt: Array<{ itemId: string; quantity: number } | null> = [];
+    // Lay the merged lots back out from the first slot, keeping each stack's
+    // grade. A satchel that cannot hold its own contents once merged is left
+    // untouched rather than truncated.
+    const rebuilt: Array<{ itemId: ItemId; quality?: CropQuality; quantity: number } | null> = [];
     for (const entry of entries) {
       let remaining = entry.quantity;
       while (remaining > 0) {
         const take = Math.min(remaining, entry.stackLimit);
-        rebuilt.push({ itemId: entry.itemId, quantity: take });
+        rebuilt.push({ itemId: entry.itemId, quality: entry.quality, quantity: take });
         remaining -= take;
       }
     }
@@ -1261,10 +1397,29 @@ export class Simulation {
     for (let index = 0; index < inventory.slots.length; index += 1) {
       const next = rebuilt[index] ?? null;
       inventory.slots[index] = next
-        ? { itemId: next.itemId as ItemId, quantity: next.quantity }
+        ? { itemId: next.itemId, quantity: next.quantity, quality: next.quality }
         : {};
     }
     return { success: true, quantity: rebuilt.length };
+  }
+
+  /**
+   * Destroys held goods at the player's explicit request (a satchel slot
+   * dragged out, or the inspector's Discard action). This is a deliberate
+   * sink, never an automatic effect: it names one exact lot so a destroy can
+   * never silently spend a different grade, costs no Work, and reports the
+   * quantity destroyed.
+   */
+  public discardSatchelItem(itemId: ItemId, quantity: number, quality?: CropQuality): InteractionResult {
+    const inventory = this.state.inventories[this.state.player.inventoryId];
+    if (!inventory) return { success: false, reason: "No satchel to discard from" };
+    if (!InventoryManager.isValidItemStack({ itemId, quantity, quality })) {
+      return { success: false, reason: "Choose a whole quantity of one held item" };
+    }
+    if (!InventoryManager.removeItemLotAtomically(inventory, itemId, quality, quantity)) {
+      return { success: false, reason: "You are not carrying that much" };
+    }
+    return { success: true, quantity };
   }
 
   public inspectWorldMap(): WorldMapDto {

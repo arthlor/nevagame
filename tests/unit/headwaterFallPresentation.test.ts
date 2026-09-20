@@ -190,7 +190,7 @@ describe("W07 headwater fall sheet", () => {
     // Linkage evidence: the fragment phase is driven by the ballistic arc
     // parameter, stretched as the water accelerates, and the vertex stage
     // derives vArc from the sheet uv.
-    expect(HEADWATER_FALL_FRAGMENT_GLSL).toContain("dryArc * uFallStreakScale * stretch - time * uFallStreakSpeed");
+    expect(HEADWATER_FALL_FRAGMENT_GLSL).toContain("travelArc * uFallStreakScale - time * uFallStreakSpeed");
     expect(HEADWATER_FALL_VERTEX_GLSL).toContain("vArc = uv.y;");
     expect(HEADWATER_FALL_FRAGMENT_GLSL).not.toContain("rapidUv");
     expect(HEADWATER_FALL_FRAGMENT_GLSL).not.toContain("worldPosition.z - time");

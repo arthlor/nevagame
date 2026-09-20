@@ -4,10 +4,17 @@ import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { CarryLocationType, FishCargoState, GameState } from "../core/types";
 import { WorldLayout } from "../../world/WorldLayout";
+import { storageFacilityForStructure, storageInventoryId } from "../storage/storageFacilities";
 
 function cargoSupplyInventory(state: GameState, cargo: Pick<FishCargoState, "location">) {
   if (cargo.location.type === "player") {
     return state.inventories[state.player.inventoryId];
+  }
+  // A crate resolves ice from its own goods inventory, so loose packs cool
+  // exactly what shares that crate. The refrigerated cold room never needs it.
+  if (cargo.location.type === "crate") {
+    const facility = storageFacilityForStructure(cargo.location.containerId);
+    return facility ? state.inventories[storageInventoryId(facility.kind)] : undefined;
   }
   if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return undefined;
   const boat = state.boats[cargo.location.containerId];

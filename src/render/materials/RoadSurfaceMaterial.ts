@@ -16,7 +16,7 @@ import {
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v26-shared-edge-wear";
+export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v27-worked-cart-ground";
 
 type RoadSurfaceConfig = VisualRenderConfig["roadSurface"];
 
@@ -63,8 +63,8 @@ function patchRoadSurfaceShader(
     vertexCommon,
     `${vertexCommon}
 ${SURFACE_FIELD_VERTEX_DECLARATIONS}
-attribute vec2 roadProfile;
-varying vec2 vRoadProfile;
+attribute vec3 roadProfile;
+varying vec3 vRoadProfile;
 varying vec3 vRoadWorldPosition;
 varying float vRoadOpacity;`,
     "vertex"
@@ -111,6 +111,8 @@ uniform float roadSourceLodBias;
 uniform float roadExternalColorStrength;
 uniform float roadExternalRoughnessStrength;
 uniform float roadWearColorMix;
+uniform float roadCrownGrassMix;
+uniform float roadReliefNormalStrength;
 uniform float roadWearRoughnessReduction;
 uniform float roadShoulderColorMix;
 uniform float roadPolygonVariationStrength;
@@ -130,7 +132,7 @@ uniform vec3 roadLightColor;
 uniform vec3 roadShoulderGrassColor;
 varying vec3 vRoadWorldPosition;
 varying float vRoadOpacity;
-varying vec2 vRoadProfile;
+varying vec3 vRoadProfile;
 ${SURFACE_FIELD_FRAGMENT_GLSL}
 ${COASTAL_FIELD_GLSL}
 uniform vec3 roadCoastalSand;
@@ -166,7 +168,9 @@ float roadCoverage = smoothstep(roadEdgeFadeStart - roadEdgeAntialias, roadEdgeF
 float roadDither = nevaGroundCellJitter(floor(vRoadWorldPosition.xz * 16.0 + 3.1)).x;
 roadCoverage = clamp(roadCoverage + (roadDither - 0.5) * 0.3, 0.0, 1.0);
 diffuseColor.a = roadCoverage;
-vec4 roadPolygonCell = nevaGroundPolygonCell(vRoadWorldPosition.xz, roadPolygonCellScale);
+// Reuse the shoulder's cell identity: another nine-neighbour search added
+// fine mosaic noise without explaining wear or material identity.
+vec4 roadPolygonCell = roadEdgeCell;
 float roadPolygonSignal = roadPolygonCell.x;
 vec3 roadPolygonColor = mix(
   roadPackedColor,
@@ -274,7 +278,12 @@ vec4 coastalRoadField = nevaOpticsField(vRoadWorldPosition.xz);
 // The same compacted strips drive color and roughness after source-map blending.
 float roadTrackWear = clamp(vRoadProfile.x, 0.0, 1.0) * roadCoreMix;
 float roadLooseShoulder = clamp(vRoadProfile.y, 0.0, 1.0);
-float roadWearBreakup = mix(0.46, 1.0, smoothstep(0.36, 0.66, roadSourceLuma));
+float roadWearBreakup = mix(0.32, 1.0, smoothstep(0.38, 0.64, roadSourceLuma));
+float roadDetailFilter = 1.0 - smoothstep(0.18, 0.85,
+  max(length(dFdx(vRoadWorldPosition.xz)), length(dFdy(vRoadWorldPosition.xz))));
+float roadCrown = clamp(vRoadProfile.z, 0.0, 1.0) * roadCoreMix;
+float roadCrownGrowth = roadCrown * smoothstep(0.42, 0.62, roadMesoLuma)
+  * (1.0 - roadTrackWear);
 diffuseColor.rgb = mix(diffuseColor.rgb, roadDryColor, roadTrackWear * roadWearColorMix * roadWearBreakup);
 diffuseColor.rgb = mix(diffuseColor.rgb, roadLightColor, roadLooseShoulder * roadShoulderColorMix);
 // Plants gather in less-used shoulder pockets; compacted wheel strips keep
@@ -283,6 +292,13 @@ float roadShoulderTufts = roadLooseShoulder * (1.0 - roadTrackWear)
   * smoothstep(0.32, 0.64, roadMesoLuma) * (0.35 + roadGreenHint * 0.65);
 diffuseColor.rgb = mix(diffuseColor.rgb, roadShoulderGrassColor,
   roadShoulderTufts * roadShoulderColorMix);
+// The crown is dusty on busy stretches and greener only in broken pockets.
+diffuseColor.rgb = mix(diffuseColor.rgb, roadLightColor, roadCrown * 0.14);
+diffuseColor.rgb = mix(diffuseColor.rgb, roadShoulderGrassColor,
+  roadCrownGrowth * roadCrownGrassMix);
+float roadPackedWetness = sharedRoadWetness * roadTrackWear * roadWearBreakup;
+diffuseColor.rgb = mix(diffuseColor.rgb, roadDryColor,
+  roadPackedWetness * roadWetnessColorMix * 0.35);
 float coastalRoadWeight = coastalRoadField.a * (1.0 - smoothstep(13.0, 24.0, -coastalRoadField.b));
 diffuseColor.rgb = mix(diffuseColor.rgb, roadCoastalSand * mix(0.97, 1.0, roadSourceLuma), coastalRoadWeight);
 diffuseColor.a *= 1.0 - smoothstep(0.25, 0.65, coastalRoadWeight);`,
@@ -312,7 +328,7 @@ roughnessFactor = mix(
   max(0.84, roughnessFactor - sharedRoadWetness * 0.08),
   roadCoverage * roadWetnessRoughnessMix * roadSharedTransitionMix
 );
-roughnessFactor = max(0.84, roughnessFactor - roadTrackWear * roadWearBreakup * roadWearRoughnessReduction * (1.0 - coastalRoadWeight));`,
+roughnessFactor = max(0.84, roughnessFactor - roadTrackWear * roadWearBreakup * roadWearRoughnessReduction * (1.0 + sharedRoadWetness * 0.35) * (1.0 - coastalRoadWeight));`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
@@ -324,7 +340,17 @@ normal = nevaSurfaceFacetNormal(
   roadPolygonCell,
   roadPolygonFacetLightingStrength,
   roadCoverage
-);`,
+);
+// Shallow relief follows compaction and the existing aggregate signal. It
+// changes only the lighting normal, never the physical road or its silhouette.
+float roadRelief = (roadFineDelta * (1.0 - roadTrackWear * 0.65)
+  - roadTrackWear * roadWearBreakup + roadLooseShoulder * 0.12)
+  * roadReliefNormalStrength * roadDetailFilter * (1.0 - coastalRoadWeight);
+vec3 roadDx = dFdx(-vViewPosition), roadDy = dFdy(-vViewPosition);
+vec3 roadR1 = cross(roadDy, normal), roadR2 = cross(normal, roadDx);
+float roadDet = dot(roadDx, roadR1);
+vec3 roadGradient = sign(roadDet) * (dFdx(roadRelief) * roadR1 + dFdy(roadRelief) * roadR2);
+normal = normalize(abs(roadDet) * normal - roadGradient);`,
     "fragment"
   );
 
@@ -362,6 +388,8 @@ export class RoadSurfaceMaterial {
       roadExternalColorStrength: { value: config.externalTexture.colorStrength },
       roadExternalRoughnessStrength: { value: config.externalTexture.roughnessStrength },
       roadWearColorMix: { value: config.wearColorMix },
+      roadCrownGrassMix: { value: config.crownGrassMix },
+      roadReliefNormalStrength: { value: config.reliefNormalStrength },
       roadWearRoughnessReduction: { value: config.wearRoughnessReduction },
       roadShoulderColorMix: { value: config.shoulderColorMix },
       roadPolygonVariationStrength: { value: config.polygonVariationStrength },

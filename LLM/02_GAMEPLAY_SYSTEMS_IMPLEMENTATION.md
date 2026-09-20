@@ -460,6 +460,8 @@ mature + >24h calendar             withered (annuals only)
 ```
 `regrows` orchard trees skip wither-from-growth. A withered plot (annual, or a legacy withered tree) can be cleared with no harvest XP or produce. Wheat planted in the morning on starter soil remains harvestable after several hours of fishing and after `restUntilDawn`.
 
+A living planting can also be removed deliberately with `crop.unroot`, offered as the Unroot action on a crop inspection. It charges `FARMING_ACTION_COST.unroot` Work, frees the farm slot (including a perennial tree's), and grants **no produce, no Farming XP, and no seed or sapling refund** — removing an orchard tree costs the sapling that was planted, so plant/unroot loops cannot mint XP or seed. A withered plot is refused by `crop.unroot`; clearing it stays the free `crop.harvest` path above.
+
 Quality tiers: `Common`, `Fine`, `Exceptional`, `Prize`. One centralized quality function uses underlying score:
 ```text
 climate match       30%
@@ -513,7 +515,7 @@ Harvest reduces fertility (floor **10**). `farm.apply-fertilizer` restores **+20
 
 Compost is a finite processing job that turns Plant Matter plus Compost Starter into bait worms. `recipe.compost_worms` in `src/content/recipes.ts` owns duration, quantities and station requirements. Village sells `item.compost_starter` as a finite paid refill. Never provide infinite starter bait from a permanent object.
 
-Apple Tree / orchards: on a **successful harvest**, a `regrows` crop persists, **resets health to 100**, and sets `effectiveGrowthMinutes` from `cropDef.regrowMinutes` (not `baseGrowthMinutes * 0.5`), returning stage `"growing"` so seeded/sprout are skipped. Orchards never wither from growth. A withered plot can be cleared (`crop.harvest`) with no XP or produce.
+Apple Tree / orchards: on a **successful harvest**, a `regrows` crop persists, **resets health to 100**, and sets `effectiveGrowthMinutes` from `cropDef.regrowMinutes` (not `baseGrowthMinutes * 0.5`), returning stage `"growing"` so seeded/sprout are skipped. Orchards never wither from growth. A withered plot can be cleared (`crop.harvest`) with no XP or produce. Removing a living tree is the Work-charged, no-refund `crop.unroot` in §2.
 
 # 4. Farming Progression
 
@@ -539,7 +541,7 @@ interface PlayerEquipmentState {
   wardrobeCapacity: number;
 }
 ```
-Rules: finite slots, defined stack limits, atomic transactions, and no silent item loss. Capacity is checked by the transaction that actually grants an item. Starting a timed item job does not require an output slot that may be freed or filled before collection; collecting it checks current satchel capacity and leaves the completed result at the station on failure. A permanent-equipment result instead reserves wardrobe capacity when the job starts. Failure leaves inputs, Work, RNG, XP and existing jobs unchanged.
+Rules: finite slots, defined stack limits, atomic transactions, and no silent item loss. Capacity is checked by the transaction that actually grants an item. Starting a timed item job does not require an output slot that may be freed or filled before collection; collecting it checks current satchel capacity and leaves the completed result at the station on failure. A permanent-equipment result instead reserves wardrobe capacity when the job starts. Failure leaves inputs, Work, RNG, XP and existing jobs unchanged. Goods leave the satchel only through an explicit transaction: selling, delivering, processing, planting, eating, satchel-to-hold transfers, or the deliberate `inventory.discard` destroy (dragging a slot out of the satchel, or the inspector's armed Discard). A destroy is player-initiated, names one exact lot so it can never spend a different grade, spends no Work, and is never automatic. Sorting and transfers preserve each lot's harvest grade; they merge only within one grade and never regrade or destroy goods.
 
 MVP stations: `Hand Mill`, `Workbench`, harbor **Fish Cleaning Table** at `HARBOR_FISH_TABLE` (`struct.harbor_fish_table`, `stationType: "fish-table"`). New-game station `y` is terrain height. The reference-led harbor coast connects the existing apron to the eastern beach and rocky fishing access through the shared `harbor-beach-path` and `harbor-rocky-landing` routes. Shore support and marine bathymetry share `WorldLayout` and its pure `HarborCoast` profile; visual sand/foam fields do not create another gameplay shoreline. Coastal shelters are environment assets, not new stations, rewards or progression gates. Saved terrain/collision recovery follows `01` §6.1. Harbor arterial and coastal routes terminate at `HARBOR_MARKET_APRON` (`x: 64.5, z: 54.5`) in front of the fish market stall counter, keeping the route corridor, fish-cleaning table, and shore-stairs approaches unobstructed by building collision.
 ```ts
@@ -851,7 +853,7 @@ must carry the pack to a village counter that accepts it—Neva Village, Pinewat
 Reedhaven or Highridge—on foot or riding the donkey, and sell it from the Trade
 packs ledger. `MarketDefinition.acceptsFishTradePacks` owns that capability;
 market commands, app routing, world demand boards and the ledger consume it.
-The harbor remains the supply and ordinary fish-goods stall. The inherited horse carriage carries two compatible small/medium packs in independent slots. At its rear, `cargo.load-carriage` moves the carried pack into the first free slot; `cargo.pickup` collects a stored pack. Both require an on-foot player within reach, refuse fishing/boarding conflicts and preserve cargo on rejection. A full bed never consumes or drops the carried pack. Each pack remains in exactly one boat slot, carriage slot or player carry location throughout the handoff. Cart cargo uses open-air freshness and the cart's local climate, including offline progression; no remote satchel ice cools it. Unload and carry each pack to the counter to sell it.
+The harbor remains the supply and ordinary fish-goods stall. A carried pack can be stowed back aboard the vessel the player is standing on with `cargo.stow-aboard`: the verb takes an explicit `placement` of `"hold"` or `"hook"`, so the outer transom hook is a deliberate choice rather than a silent overflow. The hook accepts the gargantuan class the internal hold cannot, but it is exposed storage: its freshness modifier matches open carry and it never receives a slot's built-in ice, while the hold's protected slots decay slower and can carry built-in ice. A placement with no fitting free slot is refused with that reason and the catch stays in hand. The inherited horse carriage carries two compatible small/medium packs in independent slots. At its rear, `cargo.load-carriage` moves the carried pack into the first free slot; `cargo.pickup` collects a stored pack. Both require an on-foot player within reach, refuse fishing/boarding conflicts and preserve cargo on rejection. A full bed never consumes or drops the carried pack. Each pack remains in exactly one boat slot, carriage slot or player carry location throughout the handoff. Cart cargo uses open-air freshness and the cart's local climate, including offline progression; no remote satchel ice cools it. Unload and carry each pack to the counter to sell it.
 
 ```ts
 interface FishCargoState {
@@ -873,10 +875,19 @@ freshnessLoss = elapsedMinutes × speciesBaseDecay × ambientTemperatureModifier
 climate sample, not a global island name or the player's position when the
 cargo is stored elsewhere. Realtime and offline decay use the same segmented
 temperature inputs.
-LIVE ice: a slot `hasIce` flag **or** `item.crushed_ice` in the satchel / boat supply inventory forces storage modifier **0.4** anywhere that ice resolves. The authored location table below is the design target, not the live ice path (see Deferred):
+LIVE ice: a slot `hasIce` flag **or** `item.crushed_ice` forces storage modifier **0.4** wherever that ice resolves. Resolution is per container: satchel ice and an active boat's supply or loose stocks cool their own holds, a crate cools from loose ice in its own goods inventory, and the refrigerated cold room never needs ice. The location table below is the live rule:
 ```text
-carried openly 1.00 | boat hold 0.80 | ice box 0.40 | cold storage 0.15
+carried openly 1.00 | transom hook 1.00 | boat hold 0.80 | ice box 0.40 | cold storage 0.15
 ```
+
+**Storage facilities.** `src/simulation/storage/storageFacilities.ts` owns the authored facilities, each anchored to a structure that already exists in `state.world.structures`, so no save needs a new layout to reach one. Two are live:
+
+| Facility | Anchor | Goods | Fish | Location | Gate |
+|---|---|---:|---:|---|---|
+| Farm Crate | starter kitchen | 8 | 2 | `crate` (0.9×, accepts loose ice) | inherited |
+| Harbor Cold Room | harbor fish table | 8 | 6 gargantuan | `cold-storage` (0.15×, refrigerated) | `feature.maritime_guild_charter` |
+
+`storage.store-fish` / `storage.take-fish` move the carried pack in and out; `storage.deposit-item` / `storage.withdraw-item` move graded goods through the same lot-preserving transfer the vessel stores use. Storage is finite: fish capacity counts the cargo actually at that facility, goods capacity is the facility inventory's slot count, and every refused move leaves hands, satchel and cargo unchanged. A gated facility refuses every move with its `lockedReason` until the feature is earned. Barn and warehouse stages remain design targets (§16).
 Freshness price:
 ```text
 90–100 1.00
@@ -940,7 +951,11 @@ economy constraints.
 
 Boat entry and exit remain presentation over simulation-owned transactions. The rowboat uses a pelvis-contact marker on its physical bench, while the chairless skiff uses a root-aligned standing driver station with planted deck support. Rowboat/skiff boarding and docking variants may preserve the player's initial world pose, follow the moving craft, and converge to those anchors, but they do not change boat state, controls, or persistence.
 
-Crude Emergency Tow is live: a crewed motor boat with an empty tank can be towed to the nearest compatible serviced mooring for a 25 G flat fee (`boat.emergency-tow`), cargo and fuel untouched. Unserviced islet landings never become a tow destination. External-hook class as a distinct verb remains deferred — see below.
+Crude Emergency Tow is live: a crewed motor boat with an empty tank can be towed to the nearest compatible serviced mooring for a 25 G flat fee (`boat.emergency-tow`), cargo and fuel untouched. Unserviced islet landings never become a tow destination. The external hook is live as a distinct verb: `cargo.stow-aboard` an explicitly chosen `"hook"` or `"hold"` placement stows the carried catch on the active vessel (§10), and a hook-hung gargantuan catch can be collected again through the ordinary `cargo.pickup` transaction.
+
+Hull life is five equal steps (`HULL_LIFE_STEPS` in `src/simulation/boats/BoatHull.ts`; `durabilityMax` remains the catalog owner of a full hull). A sea whose effective roughness (`effectiveSeaRoughness` in `src/simulation/weather/seaState.ts`, which also owns the night sea extra) is past the hull's `safeSeaRoughness` starts a **storm-helm gust** while the vessel is under way in exposed open water. `src/simulation/boats/StormHelm.ts` owns the gust schedule, the heel dynamics and the pass/fail rule as a fixed-step model that draws no RNG; `StormHelmDomain` applies its outcomes. The player keeps her head to the wind with the ordinary helm controls, or eases the throttle to heave to and let the gust pass. A failed gust — a broach or sustained heel outside the safe band — costs one hull life and emits `BoatGustFailed`; a survived gust restores one hull life (capped at `durabilityMax`) and emits `BoatGustSurvived`, so five consecutive failures at a full hull wreck her. The challenge charges no Work and grants no XP. Its runtime state is deliberately unsaved: a reload abandons the current gust, while the hull damage it caused remains in `BoatState.durability`.
+
+A wrecked hull (`durability <= 0`) cannot make way or steer and never strands a captain: `boat.emergency-tow` tows a wreck to the Neva Harbor mooring for the flat `NavigationDomain.EMERGENCY_TOW_COST` fee, waived rather than refused when the purse is short, with cargo and fuel untouched. Repair is Silas's harbor service: with the vessel docked at Neva Harbor and the player inside Silas's talk radius, `boat.get-repair-quote` quotes `BoatDefinition.repairCostMoney` and `boat.repair` debits the fee and restores the full hull in one atomic transaction. The interaction prompt reads that quote instead of restating the gate. `PhysicsWorld` refuses throttle and steering for a wrecked hull, so it holds the water until towed and repaired.
 
 ## 11A. On-Foot Traversal
 
@@ -1105,7 +1120,7 @@ Sea risk:
 ```text
 riskScore = weatherSeaRoughness × boatVulnerability × offshoreDistanceFactor
 ```
-Effects: slower control, greater repair probability, harder fishing, warnings. Sport fishing snapshots weather type and `seaRoughness` at hook time, then applies a bounded deterministic pressure modifier without shortening minimum tells or changing the condition mid-fight. The Act 5 teaching fight is the one exception: a trout-only starter school hooked while `quest.act5_maiden_voyage` is active snapshots roughness capped at calm (0.25) with the weather type left truthful, so the first sport fish teaches the matching rule instead of the weather. Avoid arbitrary instant destruction.
+Effects: slower control, the storm-helm gust challenge and its persistent hull damage, paid Silas harbor repair, harder fishing, warnings. Sport fishing snapshots weather type and `seaRoughness` at hook time, then applies a bounded deterministic pressure modifier without shortening minimum tells or changing the condition mid-fight. The Act 5 teaching fight is the one exception: a trout-only starter school hooked while `quest.act5_maiden_voyage` is active snapshots roughness capped at calm (0.25) with the weather type left truthful, so the first sport fish teaches the matching rule instead of the weather. Avoid arbitrary instant destruction.
 
 # 13. Markets & Pricing
 
@@ -1223,8 +1238,9 @@ affordable and the action was then refused.
 **Invariants** — the part code cannot state for itself:
 
 - Work gates manual physical production only: planting, watering, harvesting,
-  fertilizing, irrigation, processing start, basic-fishing cast, sport-fishing
-  hook. Traversal, boats, cargo handling, trading, quests and dialogue are free.
+  unrooting, fertilizing, irrigation, processing start, basic-fishing cast,
+  sport-fishing hook. Traversal, boats, cargo handling, trading, quests and
+  dialogue are free.
   Work Capacity is an economy resource and must never be reused as movement
   stamina; `player.traversal.sprintStamina` is a separate pool.
 - A credit from rest, a meal, a labor shift or a skill rebate is clamped by the
@@ -1336,7 +1352,7 @@ Legendary fish are later content requiring combinations of season/weather/time/s
 
 # 16. Storage & Economy
 
-**Design target:** `Satchel → Farm Crate → Barn Storage → Warehouse → Cold Storage`. This is the intended progression, not a claim that every purchase/upgrade path ships. Live containers and transfers come from simulation definitions and domain callers; location-specific cold storage remains deferred (§22). Each promoted stage must change a capacity, preservation or timing decision.
+**Progression:** `Satchel → Farm Crate → Barn Storage → Warehouse → Cold Storage`. The **Farm Crate** and the **Harbor Cold Room** are live authored facilities (§10): the crate is inherited at the starter kitchen, the refrigerated cold room is earned by the harbor charter and holds gargantuan packs at 0.15× decay. **Barn Storage** and **Warehouse** remain design targets, not a claim that every purchase/upgrade path ships. Live containers and transfers come from simulation definitions and domain callers. Each promoted stage must change a capacity, preservation or timing decision.
 
 Coherent sinks: seeds, processing equipment, boat purchase/repair, fuel, ice, lures, storage upgrades, farm upgrades. The rowboat commission supplies the first small lure batch; finite harbor tackle stock is the buy-back recovery path when a player returns without one, while the workbench recipes own renewable self-supply. The family farmhouse and starter field are inherited at new-game start; the Village Commons is public. `leaseCost` / `accessType` remain compatibility fields in saved farm state, but no private house or farming ground is sold or leased through a market and there is **no live land-lease charge**. Avoid arbitrary repeated taxes.
 
@@ -1510,8 +1526,6 @@ release gates explicitly.
 This section owns deferred gameplay scope and points to the live boundary where needed. Earlier **design target** examples are also proposals, not shipped features. Promote a deferred requirement only within an explicit task, updating its owning section, implementation and relevant evidence together.
 
 - **Unrestricted shop purchase for quest capabilities.** Seed stock/reachability is live and content-owned (§17). The pump and rowboat retain their quest-gated acquisition, while the skiff uses its harbor purchase (§11). A generic shop listing must not bypass those capability contracts.
-- **Authored ice location table.** §10 owns the implemented ice-resolution rule. The carried/hold/ice-box/cold-storage table is a design target, not a live per-location ice lookup.
-- **External hook verb.** The skiff purchase and persisted second vessel are live, as is the crude zero-fuel Emergency Tow above. External-hook class as a distinct live verb remains deferred.
 - **Branching dialogue, persistent transcripts, and separate lore codex.** The authored spine and parallel linear tracks, contextual intro/completion/idle/milestone dialogue, quest titles/objectives, completed quest history, and feature/knowledge unlocks are live. Branches, relationship variables, dialogue page saves, a transcript, and a separate `loreDiscoveries` state are not live; do not add them opportunistically.
   **Parallel quest tracks are not branching and are live.** A track is its own linear `nextQuestId` chain with its own cursor, activated by an explicit state predicate (`QuestTrackDefinition.unlock`). No quest has two possible outcomes and no dialogue offers a choice; the player simply carries more than one thread. The validator enforces this by walking one chain per track and rejecting a `nextQuestId` that crosses tracks. `src/content/questTracks.ts` owns the current track registry and unlock predicates; the Live story spine section owns the main narrative scope.
 - **NPC relationships and romance.** Named NPC roles and clock-derived station schedules are live as described in §0.1. Relationship progression, romance, and large companion/story systems remain deferred.

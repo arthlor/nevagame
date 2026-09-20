@@ -22,6 +22,16 @@
 /assets/ui/icons/*
   Cache-Control: public, max-age=604800, stale-while-revalidate=86400
 
+# Packed UI atlas pages carry a content hash in the filename, so they are safe
+# to cache immutably for a year. Rebuilding with new art writes a new name.
+/assets/ui/atlas/ui-atlas_*.webp
+  Cache-Control: public, max-age=31536000, immutable
+
+# Stable-name published UI sprites (frames, panel textures, icons). These
+# revalidate in the background instead of blocking a repeat visit.
+/assets/ui/atlas/*.png
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
 # Entry cinematic and poster (stable filenames, so they stay revalidating)
 /assets/video/*
   Cache-Control: public, max-age=604800, stale-while-revalidate=86400

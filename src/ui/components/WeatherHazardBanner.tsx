@@ -55,7 +55,7 @@ export function resolveMaritimeHazard(
     title: "Severe Coastal Storm",
     severity: hazard.tone === "danger" ? "danger" : "caution",
     conditionLabel: "Heavy Gale & Waves",
-    navigationalAdvisory: "Hazardous sea state. Small vessels risk severe hull damage. Head for shelter.",
+    navigationalAdvisory: "Hazardous sea state. Small vessels take hull damage — keep her head to the wind, or heave to and wait.",
     speedPenaltyPercent: 30
   };
 }

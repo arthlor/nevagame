@@ -750,7 +750,8 @@ body,
   #ui-container[data-mobile-device="true"] .hud-weather-temp,
   #ui-container[data-mobile-device="true"] .quest-tracker-content,
   #ui-container[data-mobile-device="true"] .boat-hull-label-row,
-  #ui-container[data-mobile-device="true"] .boat-cargo-label-row {
+  #ui-container[data-mobile-device="true"] .boat-cargo-label-row,
+  #ui-container[data-mobile-device="true"] .coastal-chronicle {
     display: none;
   }
 
@@ -781,4 +782,104 @@ body,
   #ui-container[data-mobile-device="true"] .hud-weather-chip--danger {
     animation: none;
   }
+}
+
+/* Mobile HUD deep-dive: every user-facing surface keeps compact readable
+   clusters with true 44px+ touch targets (04 §17). Thumb verbs live in the
+   action clusters — the pattern other touch games use (left move/steer,
+   right primary + secondary) — so in-card duplicates stay hidden. */
+
+/* Sport fight: steering on the left thumb, the one highlighted response on
+   the right, drag above it. The card remains a compact readout. Sizing
+   follows the shared 44px touch contract (04 §17); hierarchy reads through
+   position and the primary treatment instead of bigger boxes. */
+.mobile-controls--sport .mobile-steer-cluster {
+  position: absolute;
+  left: var(--mobile-control-left);
+  bottom: var(--mobile-control-bottom);
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.mobile-controls--sport .mobile-action-button--response {
+  font-size: 14px;
+}
+
+.mobile-controls--sport .mobile-drag-row .mobile-action-button {
+  padding: 8px;
+  font-size: 10px;
+}
+
+#ui-container[data-mobile-device="true"] .fishing-touch-controls,
+#ui-container[data-mobile-device="true"] .guild-drag-control {
+  display: none !important;
+}
+
+/* World cluster: the primary verb reads larger than its secondaries, the
+   same hierarchy other mobile games give their attack/interact buttons. */
+#ui-container[data-mobile-device="true"] .mobile-controls--world .mobile-action-row .mobile-action-button.is-primary {
+  font-size: 12px;
+}
+
+/* Touch seed belt uses the existing touch Place/Cancel actions, so the
+   desktop mouse hint, hotkey badges and duplicate cancel stay hidden. */
+#ui-container[data-mobile-device="true"] .planting-hint-chip,
+#ui-container[data-mobile-device="true"] .seed-hotkey-badge,
+#ui-container[data-mobile-device="true"] .planting-dock-actions > button {
+  display: none !important;
+}
+
+#ui-container[data-mobile-device="true"] .planting-seeds-row {
+  max-width: calc(100vw - 32px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+#ui-container[data-mobile-device="true"] .planting-seeds-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Transactional steppers keep full 44px targets; filter chips stay compact
+   but keep 36px height with thumb spacing. */
+#ui-container[data-mobile-device="true"] .market-trading-modal .market-qty-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+#ui-container[data-mobile-device="true"] .market-sort-btn {
+  min-height: 36px;
+  padding: 6px 12px;
+}
+
+/* Text entry at 16px keeps iOS from zooming the modal on focus. */
+#ui-container[data-mobile-device="true"] .inventory-search-input,
+#ui-container[data-mobile-device="true"] .market-qty-input,
+#ui-container[data-mobile-device="true"] select,
+#ui-container[data-mobile-device="true"] input[type="text"] {
+  font-size: 16px;
+}
+
+/* Dialogue page dots keep their small visual with a larger hit area that
+   still cannot reach a neighbour's centre, so centre taps never mis-fire;
+   the footer stacks its actions within thumb reach. */
+#ui-container[data-mobile-device="true"] .dialogue-card .dialogue-dot {
+  position: relative;
+}
+
+#ui-container[data-mobile-device="true"] .dialogue-card .dialogue-dot::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
+#ui-container[data-mobile-device="true"] .dialogue-card .dialogue-footer {
+  flex-wrap: wrap;
+}
+
+#ui-container[data-mobile-device="true"] .dialogue-card .dialogue-action-btn {
+  min-height: 48px;
+  flex: 1 1 140px;
+  justify-content: center;
 }

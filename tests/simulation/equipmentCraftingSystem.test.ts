@@ -215,6 +215,7 @@ describe("character equipment", () => {
     const sim = new Simulation();
     expect(sim.cropInteractionReachMeters("water")).toBe(2.5);
     expect(sim.cropInteractionReachMeters("harvest")).toBe(2.5);
+    expect(sim.cropInteractionReachMeters("unroot")).toBe(2.5);
     expect(sim.cropInteractionReachMeters("inspect")).toBe(2.5);
 
     own(sim, "equipment.furrow_boots", "equipment.long_spout_watering_can");
@@ -223,6 +224,7 @@ describe("character equipment", () => {
 
     expect(sim.cropInteractionReachMeters("water")).toBe(3.25);
     expect(sim.cropInteractionReachMeters("harvest")).toBe(2.75);
+    expect(sim.cropInteractionReachMeters("unroot")).toBe(2.75);
     expect(sim.cropInteractionReachMeters("inspect")).toBe(2.75);
   });
 

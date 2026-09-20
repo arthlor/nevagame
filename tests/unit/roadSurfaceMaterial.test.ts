@@ -26,7 +26,7 @@ describe("RoadSurfaceMaterial", () => {
 
     expect(shader.vertexShader).toContain("vRoadWorldPosition");
     expect(shader.vertexShader).toContain("vRoadOpacity");
-    expect(shader.vertexShader).toContain("attribute vec2 roadProfile");
+    expect(shader.vertexShader).toContain("attribute vec3 roadProfile");
     expect(shader.fragmentShader).toContain("roadTrackWear * roadWearColorMix");
     expect(shader.fragmentShader).toContain("roadTrackWear * roadWearBreakup * roadWearRoughnessReduction");
     expect(shader.fragmentShader).toContain("fwidth(roadEdgeField)");

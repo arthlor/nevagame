@@ -331,6 +331,11 @@ Boats are physical working vessels, and fish are heavy physical cargo that deman
 - **`sfx.boat.dock_bump`**: Heavy, hollow wood-on-wood collision when bumping against harbor pier pilings.
 - **`sfx.boat.cleat_tie`**: Thick hemp rope wrapping around a brass dock cleat with tight hemp friction squeak.
 
+### Storm Helm & Hull Damage (existing cues wired; dedicated assets remain specified)
+- A survived gust emits `BoatGustSurvived`, wired to the existing `rope-creak` boat-bus cue with a cooldown so repeated gusts do not chatter.
+- A failed gust emits `BoatGustFailed`, wired to the existing `splash` bank plus `rope-creak`; `BoatWrecked` follows with the `thunder` bank and `rope-creak`; `BoatRepaired` and `BoatTowed` use `ui-confirm`.
+- Dedicated assets — a rising gust over the deck, a hull-trunk slam, and a yard-arm crack on a wreck — remain **specified targets** until separately authored, admitted to the manifest with provenance, and wired to those same committed events.
+
 ### Physical Cargo & Logistics
 - **`sfx.cargo.heavy_lift`**: Subtle player breath and exertion grunt when picking up a medium/large physical fish cargo.
 - **`sfx.cargo.burdened_step`**: Heavier, slower footstep cadence while physically carrying bulky cargo on foot.

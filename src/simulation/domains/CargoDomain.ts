@@ -2,7 +2,7 @@ import { canReachCarriageRear, CARRIAGE_TUNING } from "../mounts/Carriage";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { advanceCargoFreshness } from "../fishing/calculateFreshness";
 import { InventoryManager } from "../inventory/InventoryManager";
-import type { BoatId, CargoClass, CargoLocation, FishCargoId, FishCargoState, FishInstance, ItemId, MarketId } from "../core/types";
+import type { BoatId, BoatState, CargoClass, CargoLocation, FishCargoId, FishCargoState, FishInstance, ItemId, MarketId, StorageKind } from "../core/types";
 import type { HoldStoresDto } from "../core/contracts";
 import { buildCargoPresentation } from "../presentation/WorldHudPresentation";
 import type { DomainContext } from "./DomainContext";
@@ -10,6 +10,12 @@ import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { cargoClassFits, qualityRank, scrapsForCargoClass } from "./domainRules";
 import { sportFishLandingXp } from "../economy/calculateFishXp";
+import {
+  STORAGE_FACILITIES,
+  STORAGE_FACILITY_BY_KIND,
+  storageInventoryId,
+  type StorageFacilityDefinition
+} from "../storage/storageFacilities";
 import { WorldLayout } from "../../world/WorldLayout";
 import { accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
 
@@ -277,6 +283,183 @@ export class CargoDomain {
     return this.findLandingLocation(cargoClass) !== null;
   }
 
+  /** A gated facility is inert until its feature is earned. */
+  private facilityUnlocked(facility: StorageFacilityDefinition): boolean {
+    return !facility.requiredFeatureId
+      || this.context.state.quests.unlockedFeatureIds.includes(facility.requiredFeatureId);
+  }
+
+  public storageBlocker(kind: StorageKind): string | null {
+    const facility = STORAGE_FACILITY_BY_KIND[kind];
+    if (!facility) return "That storage is not available";
+    if (!this.facilityUnlocked(facility)) return facility.lockedReason ?? "That storage is not unlocked";
+    return null;
+  }
+
+  /** Whether the player is standing within the facility's interaction reach. */
+  public storageInReach(kind: StorageKind): boolean {
+    const { state } = this.context;
+    const facility = STORAGE_FACILITY_BY_KIND[kind];
+    const structure = facility ? state.world.structures[facility.structureId] : undefined;
+    if (!facility || !structure) return false;
+    return Math.hypot(state.player.x - structure.x, state.player.z - structure.z)
+      <= facility.interactionRadiusMeters;
+  }
+
+  /** Cargo currently sitting in one facility, oldest first for stable DTO order. */
+  private facilityCargo(facility: StorageFacilityDefinition): FishCargoState[] {
+    const { state } = this.context;
+    if (!facility.fishLocation) return [];
+    return Object.values(state.fishCargo)
+      .filter(
+        (cargo) =>
+          cargo.location.type === facility.fishLocation &&
+          cargo.location.containerId === facility.structureId
+      )
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  public canStoreFishInStorage(kind: StorageKind): boolean {
+    const { state } = this.context;
+    const facility = STORAGE_FACILITY_BY_KIND[kind];
+    if (!facility?.fishLocation || !this.facilityUnlocked(facility) || state.player.activeMountId) return false;
+    const cargo = state.player.carriedFishCargoId
+      ? state.fishCargo[state.player.carriedFishCargoId]
+      : undefined;
+    if (!cargo) return false;
+    if (!this.storageInReach(kind)) return false;
+    if (!cargoClassFits(cargo.cargoClass, facility.maximumCargoClass)) return false;
+    return this.facilityCargo(facility).length < facility.fishSlots;
+  }
+
+  /**
+   * Stores the carried catch in an authored facility. The pack leaves the
+   * hands and takes the facility's own freshness location (`crate` packs at
+   * the open-air rate, `cold-storage` is refrigerated), so capacity and decay
+   * both come from the facility definition rather than a second table.
+   */
+  public storeFishInStorage(cargoId: FishCargoId, kind: StorageKind): { success: boolean; reason?: string } {
+    const { state, events } = this.context;
+    const facility = STORAGE_FACILITY_BY_KIND[kind];
+    if (!facility?.fishLocation) return { success: false, reason: "That storage is not available" };
+    const blocker = this.storageBlocker(kind);
+    if (blocker) return { success: false, reason: blocker };
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
+    const cargo = state.fishCargo[cargoId];
+    if (!cargo) return { success: false, reason: "Fish cargo not found" };
+    if (state.player.carriedFishCargoId !== cargoId || cargo.location.type !== "player") {
+      return { success: false, reason: "Carry this catch to the storage first" };
+    }
+    if (!this.storageInReach(kind)) return { success: false, reason: `Move closer to the ${facility.name}` };
+    if (!cargoClassFits(cargo.cargoClass, facility.maximumCargoClass)) {
+      return { success: false, reason: `The ${facility.name} cannot hold a pack this large` };
+    }
+    if (this.facilityCargo(facility).length >= facility.fishSlots) {
+      return { success: false, reason: `The ${facility.name} is full` };
+    }
+    state.player.carriedFishCargoId = null;
+    cargo.location = { type: facility.fishLocation, containerId: facility.structureId };
+    events.emit("CargoStored", { cargoId: cargo.id, facility: kind, minute: state.clock.currentMinute });
+    return { success: true };
+  }
+
+  /** Collects a stored catch back into both hands. */
+  public takeFishFromStorage(cargoId: FishCargoId, kind: StorageKind): { success: boolean; reason?: string } {
+    const { state, events } = this.context;
+    const facility = STORAGE_FACILITY_BY_KIND[kind];
+    if (!facility?.fishLocation) return { success: false, reason: "That storage is not available" };
+    const blocker = this.storageBlocker(kind);
+    if (blocker) return { success: false, reason: blocker };
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
+    if (state.player.carriedFishCargoId) return { success: false, reason: "Your hands are already full" };
+    const cargo = state.fishCargo[cargoId];
+    if (!cargo) return { success: false, reason: "Fish cargo not found" };
+    if (
+      cargo.location.type !== facility.fishLocation ||
+      cargo.location.containerId !== facility.structureId
+    ) {
+      return { success: false, reason: "That catch is not in this storage" };
+    }
+    if (!this.storageInReach(kind)) return { success: false, reason: `Move closer to the ${facility.name}` };
+    cargo.location = { type: "player", containerId: "player" };
+    state.player.carriedFishCargoId = cargo.id;
+    events.emit("CargoUnloaded", { cargoId: cargo.id, minute: state.clock.currentMinute });
+    return { success: true };
+  }
+
+  /**
+   * First free slot of the requested kind on this vessel that fits the class.
+   * `"hold"` is the protected internal slot; `"hook"` is the exposed transom
+   * hook that can carry a catch the hold cannot.
+   */
+  private findStowSlot(boat: BoatState, cargoClass: CargoClass, placement: "hold" | "hook"): number | null {
+    const definition = ContentRegistry.boats.get(boat.boatTypeId);
+    if (!definition) return null;
+    for (let index = 0; index < boat.fishCargoSlotIds.length; index++) {
+      if (boat.fishCargoSlotIds[index] !== null) continue;
+      const slot = definition.fishCargoSlots.find((candidate) => candidate.slotIndex === index)
+        ?? definition.fishCargoSlots[index];
+      if (!slot) continue;
+      const slotKind = slot.type === "external-hook" ? "hook" : "hold";
+      if (slotKind !== placement) continue;
+      if (!cargoClassFits(cargoClass, slot.maxCargoClass)) continue;
+      return index;
+    }
+    return null;
+  }
+
+  /** Whether the carried pack could be stowed on the active vessel right now. */
+  public canStowAboard(boatId: BoatId, placement: "hold" | "hook"): boolean {
+    const { state } = this.context;
+    if (state.player.activeMountId || !state.player.carriedFishCargoId) return false;
+    const cargo = state.fishCargo[state.player.carriedFishCargoId];
+    const boat = state.boats[boatId];
+    if (!cargo || !boat || state.player.activeBoatId !== boat.id) return false;
+    return this.findStowSlot(boat, cargo.cargoClass, placement) !== null;
+  }
+
+  /**
+   * The external-hook verb: stow the pack in the hand onto the active vessel,
+   * either in the protected hold or on the exposed transom hook. Explicit
+   * placement keeps the trade-off visible: the hook takes a class the hold
+   * cannot, but it decays at the open-air rate and cannot use built-in ice.
+   */
+  public stowAboard(boatId: BoatId, placement: "hold" | "hook"): { success: boolean; reason?: string } {
+    const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
+    const cargoId = state.player.carriedFishCargoId;
+    const cargo = cargoId ? state.fishCargo[cargoId] : undefined;
+    if (!cargo) return { success: false, reason: "Your hands are empty" };
+    const boat = state.boats[boatId];
+    if (!boat) return { success: false, reason: "Vessel not found" };
+    if (state.player.activeBoatId !== boat.id) {
+      return { success: false, reason: "Board the vessel to stow this catch" };
+    }
+    const slotIndex = this.findStowSlot(boat, cargo.cargoClass, placement);
+    if (slotIndex === null) {
+      return {
+        success: false,
+        reason: placement === "hook"
+          ? "No free transom hook fits this catch"
+          : "The hold has no room for this catch"
+      };
+    }
+    boat.fishCargoSlotIds[slotIndex] = cargo.id;
+    state.player.carriedFishCargoId = null;
+    cargo.location = {
+      type: placement === "hook" ? "boat-hook" : "boat-hold",
+      containerId: boat.id,
+      slotIndex
+    };
+    events.emit("CargoLoaded", {
+      cargoId: cargo.id,
+      boatId: boat.id,
+      slotIndex,
+      minute: state.clock.currentMinute
+    });
+    return { success: true };
+  }
+
   public inspectHoldStores(): HoldStoresDto {
     const { state } = this.context;
     const playerInventory = state.inventories[state.player.inventoryId];
@@ -293,14 +476,20 @@ export class CargoDomain {
     const vessels = boats.map((boat) => {
       const definition = ContentRegistry.boats.get(boat.boatTypeId);
       const maximum = definition?.durabilityMax ?? 100;
-      const cargoSlots = boat.fishCargoSlotIds.map((cargoId, index) => ({
-        slotNumber: index + 1,
-        cargo: cargoId && state.fishCargo[cargoId] ? buildCargoPresentation(state.fishCargo[cargoId]) : null
-      }));
+      const cargoSlots = boat.fishCargoSlotIds.map((cargoId, index) => {
+        const slotDefinition = definition?.fishCargoSlots.find((candidate) => candidate.slotIndex === index)
+          ?? definition?.fishCargoSlots[index];
+        return {
+          slotNumber: index + 1,
+          kind: (slotDefinition?.type === "external-hook" ? "hook" : "hold") as "hold" | "hook",
+          cargo: cargoId && state.fishCargo[cargoId] ? buildCargoPresentation(state.fishCargo[cargoId]) : null
+        };
+      });
       return {
         boatId: boat.id,
         name: definition?.name ?? "Vessel",
         statusLabel: boat.isDocked ? "Docked" as const : "At sea" as const,
+        isActive: state.player.activeBoatId === boat.id,
         hull: {
           current: boat.durability,
           maximum,
@@ -308,6 +497,10 @@ export class CargoDomain {
         },
         occupiedSlots: cargoSlots.filter((slot) => slot.cargo !== null).length,
         cargoSlots,
+        stowCarried: {
+          hold: this.canStowAboard(boat.id, "hold"),
+          hook: this.canStowAboard(boat.id, "hook")
+        },
         stock: this.stockRows(boat.supplyInventoryId)
       };
     });
@@ -333,7 +526,35 @@ export class CargoDomain {
         name: ContentRegistry.items.get(itemId)?.name ?? itemId,
         count: accessibleFishingSupplyCount(state, itemId)
       })),
-      vessels
+      vessels,
+      storage: STORAGE_FACILITIES.map((facility) => {
+        const inventoryId = storageInventoryId(facility.kind);
+        const inventory = state.inventories[inventoryId];
+        const fish = this.facilityCargo(facility);
+        const blocker = this.storageBlocker(facility.kind);
+        return {
+          kind: facility.kind,
+          structureId: facility.structureId,
+          name: facility.name,
+          near: this.storageInReach(facility.kind),
+          locked: blocker !== null,
+          blockerReason: blocker ?? undefined,
+          goods: {
+            usedSlots: inventory
+              ? inventory.slots.filter(
+                  (slot) => slot.itemId !== undefined && InventoryManager.getSlotQuantity(slot) > 0
+                ).length
+              : 0,
+            totalSlots: facility.goodsSlots,
+            stock: inventory ? this.stockRows(inventoryId) : []
+          },
+          fish: {
+            usedSlots: fish.length,
+            totalSlots: facility.fishSlots,
+            cargo: fish.map((entry) => buildCargoPresentation(entry))
+          }
+        };
+      })
     };
   }
 

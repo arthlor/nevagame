@@ -87,13 +87,20 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
         affordable: true,
         shortage: 0,
       },
+      unrootWork: {
+        baseCost: 10,
+        cost: 10,
+        availableWork: 500,
+        affordable: true,
+        shortage: 0,
+      },
       immediateAction: {
         kind: "water",
         label: "Water Crop",
         cost: 5,
         available: true
       },
-      actions: { canWater: true, canHarvest: false }
+      actions: { canWater: true, canHarvest: false, canUnroot: true }
     };
 
     it("renders crop name, stage chip, countdown label, moisture band, and next action Work cost", () => {
@@ -698,6 +705,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
       speedKnots: 3.8,
       seaState: "Calm",
       seaWarning: null,
+      wrecked: false,
       showNightWarning: false,
       hull: { current: 90, maximum: 100, percent: 90, danger: false },
       fuel: null,

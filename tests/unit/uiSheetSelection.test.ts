@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { cleanSpriteEdges, resolveSpriteBoxes } from "../../tools/ui/slice-sheet.mjs";
-import { packLosslessUiAtlas } from "../../tools/ui/extrudeAndPack.mjs";
+import { packUiAtlas } from "../../tools/ui/extrudeAndPack.mjs";
 
 describe("authored UI sheet extraction", () => {
   it("selects declared islands and rejects changed detection or duplicate assignments", () => {
@@ -32,7 +32,7 @@ describe("authored UI sheet extraction", () => {
       for (let x = 2; x < 14; x += 1) pixels.set([41, 72, 98, 255], (y * 16 + x) * 4);
     }
     const buffer = await sharp(pixels, {raw: {width: 16, height: 16, channels: 4}}).png().toBuffer();
-    const result = await packLosslessUiAtlas([
+    const result = await packUiAtlas([
       {name: "rail", buffer, trim: true}, {name: "icon", buffer}
     ], "/private/tmp/neva-ui-test", "test", {writeFiles: false, maxWidth: 128, maxHeight: 128});
     const rail = result.manifest.frames.rail;

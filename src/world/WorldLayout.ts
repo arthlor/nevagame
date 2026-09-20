@@ -1,3 +1,4 @@
+import { nevaBaseGroundHeight } from "./NevaLandforms";
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS, oceanIsletAt, isletShoreDistance, isletTerrainHeight } from "./OceanIslets";
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { MAINLAND_ROUTES, mainlandBlendAt, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandNaturalHeight, mainlandRegionAt, mainlandWaterSample, mainlandRoadBenchAt } from "./NevaMainland";
@@ -2049,6 +2050,17 @@ export class WorldLayout {
     return isInHeadwaterBounds(x, z) ? headwaterElevationAt(z) : 0;
   }
 
+  /**
+   * Still-water column over the canonical bed, in metres, negative on dry
+   * ground. This is the quantity the water depth map bakes into its R channel
+   * and the one the CPU wave mirror shoals against; giving it a single owner
+   * keeps the baked texture and the runtime sampler from encoding it
+   * differently. Optical depth and wet/dry truth stay with their own owners.
+   */
+  public static waterColumnDepth(x: number, z: number): number {
+    return this.waterSurfaceElevation(x, z) - this.terrainBaseSurfaceHeight(x, z);
+  }
+
   private static projectPointToCoastLoop(
     x: number,
     z: number,
@@ -2797,17 +2809,7 @@ export class WorldLayout {
     const mainlandHeight = mainlandBlend > 0
       ? mainlandNaturalHeight(x, z, signedDistanceToNevaCoast(x, z)) : 0;
     if (mainlandBlend >= 1) return mainlandHeight;
-    const westernRidge = radialWeight(x, z, -128, -18, 34, 62) * 4.6;
-    const northernRidge = radialWeight(x, z, -12, -132, 48, 68) * 3.3;
-    const easternUplands = radialWeight(x, z, 68, -58, 28, 48) * 5.1;
-    const lighthouseHeadland = radialWeight(x, z, -92, 73, 12, 28) * 8.6;
-    const harborShoulder = radialWeight(x, z, 68, 54, 12, 24) * 0.9;
-    const farmBasin = radialWeight(x, z, -65, -55, 18, 26) * -1.15;
-    const authoredPlanes =
-      Math.sin((x + z * 0.72) * 0.018) * 0.54 +
-      Math.sin((x * 0.36 - z) * 0.031) * 0.32 +
-      Math.cos((x + z) * 0.009) * 0.42;
-    let height = 1.8 + westernRidge + northernRidge + easternUplands + lighthouseHeadland + harborShoulder + farmBasin + authoredPlanes;
+    let height = nevaBaseGroundHeight(x, z);
 
     const landform = sampleNevaLandforms(x, z);
     const trailBench = nevaTrailBenchAt(x, z);
@@ -2861,7 +2863,16 @@ export class WorldLayout {
     );
     if (riverDistance <= riverWidth + riverBankRun + riverFloodplain) {
       const bankRise = smoothstep(riverWidth - 0.35, riverWidth + riverBankRun, riverDistance);
-      const lowerToUpper = THREE.MathUtils.lerp(riverBed, riverBankTop, bankRise);
+      const legacyBank = THREE.MathUtils.lerp(riverBed, riverBankTop, bankRise);
+      // The declared shoreline is the bed/surface intersection, not an
+      // invisible clip through a still-submerged bank. Keep the engineered
+      // crossing and estuary tie-in while reconciling the natural reaches.
+      const naturalBank = riverDistance < riverWidth
+        ? THREE.MathUtils.lerp(riverBed, riverSection.surfaceElevation, smoothstep(0, riverWidth, riverDistance))
+        : THREE.MathUtils.lerp(riverSection.surfaceElevation, riverBankTop,
+          smoothstep(riverWidth, riverWidth + riverBankRun, riverDistance));
+      const naturalBankWeight = smoothstep(12, 24, Math.abs(z + 6)) * (1 - smoothstep(68, 80, z));
+      const lowerToUpper = THREE.MathUtils.lerp(legacyBank, naturalBank, naturalBankWeight);
       const floodplainBlend = smoothstep(
         riverWidth + riverBankRun,
         riverWidth + riverBankRun + riverFloodplain,
@@ -3966,7 +3977,7 @@ export class WorldLayout {
     const positions = geometry.getAttribute("position");
     const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
     // Preserve canonical wear/shoulder identity through the supporting maps.
-    const roadProfile = new Uint8Array(positions.count * 2);
+    const roadProfile = new Uint8Array(positions.count * 3);
     // Evaluate the joined footprint after conformity has inserted terrain-grid
     // vertices. Junction arms otherwise carry alpha=1 out to their square ends.
     // Only this render clone changes; collision positions and indices stay exact.
@@ -3985,7 +3996,12 @@ export class WorldLayout {
         distanceAlongRouteMeters: route.distanceAlongRoute
       });
       let coverage = 1 - smoothstep(0.08, 0.92, section.edgeGrassAmount);
+      let junctionTraffic = 0;
       for (const junction of WORLD_ROUTE_JUNCTIONS) {
+        junctionTraffic = Math.max(junctionTraffic, 1 - smoothstep(
+          junction.radiusMeters, junction.radiusMeters + junction.blendLengthMeters,
+          Math.hypot(x - junction.center.x, z - junction.center.z)
+        ));
         const radius = Math.max(0.72, junction.radiusMeters * 0.74);
         coverage = Math.max(coverage, 1 - smoothstep(
           radius * 0.68, radius,
@@ -3996,10 +4012,15 @@ export class WorldLayout {
       const wear = route.route.kind === "trail"
         ? 1 - smoothstep(0.1, 0.8, section.normalizedCoreDistance)
         : clamp01(section.wheelBand / 0.2);
-      roadProfile[index * 2] = Math.round(wear * 255);
-      roadProfile[index * 2 + 1] = Math.round(section.shoulderAmount * 255);
+      roadProfile[index * 3] = Math.round(wear * 255);
+      roadProfile[index * 3 + 1] = Math.round(section.shoulderAmount * 255);
+      // A less-used crown survives between cart tracks, but shared junctions
+      // and walking trails are compacted across the middle.
+      const crown = route.route.kind === "trail" ? 0
+        : (1 - smoothstep(0.08, 0.3, section.normalizedCoreDistance)) * (1 - junctionTraffic);
+      roadProfile[index * 3 + 2] = Math.round(crown * 255);
     }
-    geometry.setAttribute("roadProfile", new THREE.Uint8BufferAttribute(roadProfile, 2, true));
+    geometry.setAttribute("roadProfile", new THREE.Uint8BufferAttribute(roadProfile, 3, true));
     yield* surfaceFieldAttributeSteps(
       geometry,
       (x, z, sampledNormalY) => this.terrainSurfaceSample(x, z, sampledNormalY)

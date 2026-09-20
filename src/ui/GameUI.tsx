@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   BasicFishingState,
+  CropQuality,
   EquipmentId,
   EquipmentPresetId,
   FishCargoState,
@@ -20,6 +21,7 @@ import { FishingHUD } from "./FishingHUD";
 import { BasicFishingMinigameWidget } from "./fishing/BasicFishingMinigameWidget";
 import { LaborMinigameWidget } from "./labor/LaborMinigameWidget";
 import { LaborShiftResult, type LaborShiftFeedbackDto } from "./labor/LaborShiftResult";
+import { StormHelmWidget } from "./boats/StormHelmWidget";
 import { ExpeditionBoard } from "./ExpeditionBoard";
 import { JournalFolio, JournalModal } from "./JournalModal";
 import { EscapeMenuModal } from "./EscapeMenuModal";
@@ -67,6 +69,7 @@ import type {
   SkillProgressDto,
   SportFishingHudDto,
   LaborHudDto,
+  StormHelmHudDto,
   TrophyCatchDto,
   WorldHudDto,
   WorldMapDto,
@@ -124,6 +127,8 @@ export interface GameUIProps {
   inspectedCrop: CropInspectionDto | null;
   inspectedCropPosition?: { x: number; y: number; visible: boolean } | null;
   onDismissCropInspection?: () => void;
+  /** Dispatches the canonical crop.unroot command for the inspected planting. */
+  onUnrootCrop?: (placedCropId: string) => void;
   farmingAction: FarmingActionSnapshot | null;
   activeModal: ActiveModal;
   onSetActiveModal: (modal: ActiveModal) => void;
@@ -140,6 +145,7 @@ export interface GameUIProps {
   onInspectItem?: (itemId: string) => ItemInspectionDto | null;
   onConsumeItem?: (itemId: string) => InteractionResult;
   onSortSatchel?: () => { success: boolean; reason?: string };
+  onDiscardItem?: (itemId: string, quantity: number, quality: CropQuality | null) => InteractionResult;
   onTransferStores?: (
     itemId: string,
     quantity: number,
@@ -161,6 +167,8 @@ export interface GameUIProps {
   sportFishingHud: SportFishingHudDto | null;
   /** Active Work-shift timing readout; null when no shift is in progress. */
   laborHud: LaborHudDto | null;
+  /** Active storm-helm stability readout; null when the sea is within range. */
+  stormHelmHud: StormHelmHudDto | null;
   /** Last completed strike, held for its short result animation. */
   laborShiftFeedback?: LaborShiftFeedbackDto | null;
   onLaborStrike: () => void;
@@ -192,6 +200,21 @@ export interface GameUIProps {
   onInspectFarmForecast: () => FarmForecastDto;
   onInspectExpeditionBoard: () => ExpeditionBoardDto;
   onInspectHoldStores: () => HoldStoresDto;
+  /** Stows the carried catch aboard; `placement` picks hold or transom hook. */
+  onStowCatch?: (boatId: string, placement: "hold" | "hook") => { success: boolean; reason?: string };
+  /** Moves goods between the satchel and an authored storage facility. */
+  onMoveStorageGoods?: (
+    kind: string,
+    itemId: string,
+    quantity: number,
+    direction: "deposit" | "withdraw"
+  ) => { success: boolean; reason?: string };
+  /** Moves the carried catch into or out of a storage facility. */
+  onMoveStorageFish?: (
+    kind: string,
+    cargoId: string,
+    direction: "store" | "take"
+  ) => { success: boolean; reason?: string };
   onInspectJournalPages: () => JournalPagesDto;
   onInspectPauseSummary: () => PauseSummaryDto;
   onInspectSkillProgress: () => SkillProgressDto[];
@@ -278,6 +301,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   inspectedCrop,
   inspectedCropPosition = null,
   onDismissCropInspection,
+  onUnrootCrop,
   farmingAction,
   activeModal,
   onSetActiveModal,
@@ -294,7 +318,11 @@ export const GameUI: React.FC<GameUIProps> = ({
   onInspectItem,
   onConsumeItem,
   onSortSatchel,
+  onDiscardItem,
   onTransferStores,
+  onStowCatch,
+  onMoveStorageGoods,
+  onMoveStorageFish,
   onInspectDemandTrend,
   onInspectSatchel,
   onInspectSeedBelt,
@@ -309,6 +337,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onDismissCatchSummary,
   sportFishingHud,
   laborHud,
+  stormHelmHud,
   laborShiftFeedback = null,
   onLaborStrike,
   onLaborCancel,
@@ -555,6 +584,10 @@ export const GameUI: React.FC<GameUIProps> = ({
         onSetFishingInput={onSetVirtualFishingInput}
         onReleaseBasicCast={onReleaseBasicFishingCast}
         onClearVirtualInput={onClearVirtualInput}
+        sportResponse={sportFishingHud && !sportFishingHud.awaitingLandingChoice ? { action: sportFishingHud.decision.action } : null}
+        sportSteeringMagnitude={sportFishingHud?.steeringMagnitude}
+        dragNotch={sportFishingHud && !sportFishingHud.awaitingLandingChoice ? sportFishingHud.dragNotch : null}
+        onSetFishingDrag={onSetFishingDrag}
       />
 
       {mode !== "sport-fishing" && mode !== "farm-placement" && mode !== "basic-fishing" && !activeModal && !showTrophyModal && inspectedCrop && (
@@ -562,6 +595,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           inspection={inspectedCrop}
           projectedPosition={inspectedCropPosition}
           onClose={onDismissCropInspection}
+          onUnroot={onUnrootCrop}
         />
       )}
       {mode !== "sport-fishing" && farmingAction && farmingAction.action !== "cast" && (
@@ -608,6 +642,10 @@ export const GameUI: React.FC<GameUIProps> = ({
 
       {!laborHud && laborShiftFeedback && !activeModal && mode !== "sport-fishing" && mode !== "basic-fishing" && (
         <LaborShiftResult key={laborShiftFeedback.token} feedback={laborShiftFeedback} />
+      )}
+
+      {stormHelmHud && !activeModal && mode === "boat-driving" && (
+        <StormHelmWidget hud={stormHelmHud} />
       )}
 
       {mode === "sport-fishing" && !activeModal && <div className="guild-fishing-map interactive">
@@ -668,6 +706,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           onInspectItem={onInspectItem}
           onSortSatchel={onSortSatchel}
           onConsumeItem={onConsumeItem}
+          onDiscardItem={onDiscardItem}
         />
       )}
 
@@ -735,6 +774,9 @@ export const GameUI: React.FC<GameUIProps> = ({
           stores={onInspectHoldStores()}
           onClose={() => onSetActiveModal(null)}
           onTransfer={onTransferStores}
+          onStowCatch={onStowCatch}
+          onMoveStorageGoods={onMoveStorageGoods}
+          onMoveStorageFish={onMoveStorageFish}
         />
       )}
 

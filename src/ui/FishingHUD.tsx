@@ -192,7 +192,7 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
         </section>
       ) : (
         <>
-          {hud.showFirstTip && <p className="fishing-first-tip">Match the highlighted key to the fish.</p>}
+          {hud.showFirstTip && <p className="fishing-first-tip">{isCoarsePointer ? "Match the highlighted button to the fish." : "Match the highlighted key to the fish."}</p>}
       {hud.signatureMoment && (
         <p className="fishing-signature-moment" aria-live="polite" key={hud.signatureMoment.id}>
           {hud.signatureMoment.copy}

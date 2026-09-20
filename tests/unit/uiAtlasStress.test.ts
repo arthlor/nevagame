@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import {
   dilateAlphaRgb,
   dilateSpriteEdges,
-  packLosslessUiAtlas
+  packUiAtlas
 } from "../../tools/ui/extrudeAndPack.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -64,7 +64,7 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
       }
 
       const startTime = performance.now();
-      const result = await packLosslessUiAtlas(sprites, path.join(process.cwd(), "generated/.stress-atlas"), "stress-atlas", {
+      const result = await packUiAtlas(sprites, path.join(process.cwd(), "generated/.stress-atlas"), "stress-atlas", {
         maxWidth: 2048,
         maxHeight: 2048,
         padding: 2,
@@ -155,7 +155,7 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
       }
 
       const startTime = performance.now();
-      const result = await packLosslessUiAtlas(sprites, path.join(process.cwd(), "generated/.scale-500"), "scale-500", {
+      const result = await packUiAtlas(sprites, path.join(process.cwd(), "generated/.scale-500"), "scale-500", {
         maxWidth: 2048,
         maxHeight: 2048,
         padding: 2,
@@ -172,33 +172,28 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
     });
   });
 
-  describe("2. Lossless Format Output & Decoding Verification", () => {
+  describe("2. Packed Format Output & Decoding Verification", () => {
     it("verifies production PNG and WebP atlas files decode cleanly with sharp", async () => {
       const atlasDir = path.join(process.cwd(), "public/assets/ui/atlas");
-      const pngPath = path.join(atlasDir, "ui-atlas.png");
-      const webpPath = path.join(atlasDir, "ui-atlas.webp");
+      const jsonManifest = JSON.parse(fs.readFileSync(path.join(atlasDir, "ui-atlas.json"), "utf8"));
+      const firstPage = jsonManifest.pages[0];
 
-      expect(fs.existsSync(pngPath)).toBe(true);
-      expect(fs.existsSync(webpPath)).toBe(true);
+      expect(firstPage).toBeDefined();
 
-      const pngImg = sharp(pngPath);
-      const webpImg = sharp(webpPath);
-
-      const pngMeta = await pngImg.metadata();
-      const webpMeta = await webpImg.metadata();
+      const pngMeta = await sharp(path.join(atlasDir, firstPage.imagePng)).metadata();
+      const webpMeta = await sharp(path.join(atlasDir, firstPage.imageWebp)).metadata();
 
       expect(pngMeta.format).toBe("png");
       expect(pngMeta.channels).toBe(4);
-      expect(pngMeta.width).toBe(2048);
-      expect(pngMeta.height).toBe(2048);
+      expect(pngMeta.width).toBe(firstPage.width);
+      expect(pngMeta.height).toBe(firstPage.height);
 
       expect(webpMeta.format).toBe("webp");
       expect(webpMeta.channels).toBe(4);
-      expect(webpMeta.width).toBe(2048);
-      expect(webpMeta.height).toBe(2048);
+      expect(webpMeta.width).toBe(firstPage.width);
+      expect(webpMeta.height).toBe(firstPage.height);
 
       // Verify all numbered pages decode
-      const jsonManifest = JSON.parse(fs.readFileSync(path.join(atlasDir, "ui-atlas.json"), "utf8"));
       for (const page of jsonManifest.pages) {
         const pPng = path.join(atlasDir, page.imagePng);
         const pWebp = path.join(atlasDir, page.imageWebp);
@@ -216,36 +211,38 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
       }
     });
 
-    it("verifies lossless pixel parity between PNG and WebP atlas sheets", async () => {
+    it("keeps the lossy WebP runtime pages within tolerance of the lossless PNG diagnostic", async () => {
       const atlasDir = path.join(process.cwd(), "public/assets/ui/atlas");
-      const pngRaw = await sharp(path.join(atlasDir, "ui-atlas_0.png")).raw().toBuffer();
-      const webpRaw = await sharp(path.join(atlasDir, "ui-atlas_0.webp")).raw().toBuffer();
+      const jsonManifest = JSON.parse(fs.readFileSync(path.join(atlasDir, "ui-atlas.json"), "utf8"));
 
-      expect(pngRaw.length).toBe(webpRaw.length);
-      expect(pngRaw.length).toBe(2048 * 2048 * 4);
+      // The runtime pages are quality-gated lossy WebP (quality 90). This guards
+      // that they stay close to the lossless diagnostic the art review uses:
+      // alpha must not drift at all, and mean channel error stays small. A
+      // replaced or badly encoded page fails well outside these bounds.
+      for (const page of jsonManifest.pages) {
+        const pngRaw = await sharp(path.join(atlasDir, page.imagePng)).ensureAlpha().raw().toBuffer();
+        const webpRaw = await sharp(path.join(atlasDir, page.imageWebp)).ensureAlpha().raw().toBuffer();
 
-      // Lossless WebP may canonicalize invisible RGB under alpha=0. Alpha and
-      // every visible channel must still be pixel-identical.
-      let maxDiff = 0;
-      let diffCount = 0;
-      let alphaDiffCount = 0;
-      for (let i = 0; i < pngRaw.length; i += 4) {
-        if (webpRaw[i + 3] !== pngRaw[i + 3]) alphaDiffCount++;
-        if (pngRaw[i + 3] > 0) {
-          for (let channel = 0; channel < 3; channel++) {
-            const d = Math.abs(pngRaw[i + channel] - webpRaw[i + channel]);
-            if (d > 0) {
-              diffCount++;
-              if (d > maxDiff) maxDiff = d;
-            }
-          }
+        expect(pngRaw.length).toBe(webpRaw.length);
+
+        let sum = 0;
+        let samples = 0;
+        let maxAlphaDiff = 0;
+        for (let i = 0; i < pngRaw.length; i += 4) {
+          const alphaDiff = Math.abs(webpRaw[i + 3] - pngRaw[i + 3]);
+          if (alphaDiff > maxAlphaDiff) maxAlphaDiff = alphaDiff;
+          if (pngRaw[i + 3] === 0 && webpRaw[i + 3] === 0) continue;
+          sum += Math.abs(pngRaw[i] - webpRaw[i])
+            + Math.abs(pngRaw[i + 1] - webpRaw[i + 1])
+            + Math.abs(pngRaw[i + 2] - webpRaw[i + 2]);
+          samples += 3;
         }
-      }
 
-      console.log(`[LOSSLESS PARITY] PNG vs WebP diff count: ${diffCount} / ${pngRaw.length}, max diff: ${maxDiff}`);
-      expect(maxDiff).toBe(0);
-      expect(diffCount).toBe(0);
-      expect(alphaDiffCount).toBe(0);
+        const meanAbsoluteError = sum / samples;
+        console.info(`[PACKED PARITY] page ${page.index} MAE: ${meanAbsoluteError.toFixed(2)}, max alpha diff: ${maxAlphaDiff}`);
+        expect(maxAlphaDiff).toBeLessThanOrEqual(1);
+        expect(meanAbsoluteError).toBeLessThanOrEqual(8);
+      }
     });
 
     it("verifies pixel-perfect fidelity: atlas inner pixels exactly match original source sprites", async () => {
@@ -386,7 +383,7 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
     });
 
     it("passes cleanly when production manifests are up-to-date", async () => {
-      expect(await runCheck()).toContain("[NEVA UI ATLAS] Atlas manifests and pages are up to date.");
+      expect(await runCheck()).toContain("[NEVA UI ATLAS] Atlas manifests and pages are up to date");
     }, 120_000);
 
     it("detects when JSON manifest is stale or modified and exits with non-zero error", async () => {

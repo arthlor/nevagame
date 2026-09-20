@@ -31,6 +31,7 @@ export interface DomainEvents {
   CropWatered: { placedCropId: PlacedCropId; farmId: FarmId; newMoisture: number; minute: GameMinute };
   CropStageChanged: { placedCropId: PlacedCropId; cropId: CropId; stage: CropStage; minute: GameMinute };
   CropHarvested: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; quantity: number; quality: CropQuality; xpGained: number; minute: GameMinute };
+  CropUnrooted: { placedCropId: PlacedCropId; cropId: CropId; farmId: FarmId; minute: GameMinute };
   FarmFertilized: { farmId: FarmId; newFertility: number; minute: GameMinute };
   IrrigationInstalled: { farmId: FarmId; featureId: string; cost: number; minute: GameMinute };
   FarmIrrigated: { farmId: FarmId; cropCount: number; minute: GameMinute };
@@ -69,12 +70,18 @@ export interface DomainEvents {
   };
   CargoLoaded: { cargoId: FishCargoId; boatId: BoatId; slotIndex: number; minute: GameMinute };
   CargoUnloaded: { cargoId: FishCargoId; minute: GameMinute };
+  CargoStored: { cargoId: FishCargoId; facility: string; minute: GameMinute };
   BoatBoarded: { boatId: BoatId; minute: GameMinute };
   BoatDisembarked: { boatId: BoatId; minute: GameMinute };
   BoatDocked: { boatId: BoatId; marketId: MarketId | null; minute: GameMinute };
   MountBoarded: { mountId: string; minute: GameMinute };
   MountDisembarked: { mountId: string; minute: GameMinute };
   BoatPurchased: { boatId: BoatId; boatTypeId: string; cost: number; minute: GameMinute };
+  BoatTowed: { boatId: BoatId; reason: "no-fuel" | "wrecked"; cost: number; marketId: MarketId | null; minute: GameMinute };
+  BoatGustSurvived: { boatId: BoatId; restored: number; minute: GameMinute };
+  BoatGustFailed: { boatId: BoatId; reason: "broach" | "sustained"; durability: number; consecutiveFails: number; minute: GameMinute };
+  BoatWrecked: { boatId: BoatId; minute: GameMinute };
+  BoatRepaired: { boatId: BoatId; cost: number; minute: GameMinute };
   ItemSold: { marketId: MarketId; itemId: ItemId; quantity: number; revenue: number; minute: GameMinute };
   ItemPurchased: { marketId: MarketId; itemId: ItemId; quantity: number; cost: number; minute: GameMinute };
   RodPurchased: { marketId: MarketId; rodId: RodId; cost: number; minute: GameMinute };

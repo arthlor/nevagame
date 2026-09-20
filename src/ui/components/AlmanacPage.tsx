@@ -5,6 +5,7 @@ import { IconFish, IconSprout, IconStar } from "./HudIcons";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish } from "../chrome/uiAtlas";
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { formatCompactDuration } from "./formatCompactDuration";
 
 interface AlmanacPageProps {
   almanac: AlmanacDto;
@@ -13,14 +14,7 @@ interface AlmanacPageProps {
 type AlmanacStrand = "fish" | "crops";
 
 /** Growth time reads better as the days and hours a player actually waits. */
-export function formatAlmanacDuration(minutes: number): string {
-  if (!Number.isFinite(minutes) || minutes <= 0) return "—";
-  const days = Math.floor(minutes / 1440);
-  const hours = Math.round((minutes % 1440) / 60);
-  if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
-  if (minutes >= 60) return `${Math.round(minutes / 60)}h`;
-  return `${Math.round(minutes)}m`;
-}
+export const formatAlmanacDuration = formatCompactDuration;
 
 /**
  * Water need is a rate, so it is banded rather than shown as a bare number.

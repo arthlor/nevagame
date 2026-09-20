@@ -1,15 +1,22 @@
 /**
- * UI Texture Atlas Extruder & Lossless Bin Packer
+ * UI Texture Atlas Extruder & Tiered Bin Packer
  *
  * Implements 2D edge dilation (2px bleed/extrusion) and MaxRects bin packing
  * for UI sprites to eliminate bilinear and mipmap texture bleeding across
  * neighboring sprites and transparent borders.
  *
+ * Runtime pages are quality-gated lossy WebP whose filenames carry a content
+ * hash, so hosts may cache them immutably. The PNG pages stay lossless and are
+ * the pixel reference for review and `--check`; production strips them.
+ * Sprites declared `tier: "core"` on their family pack first, and the pages
+ * they occupy are published as `preloadPages` so boot can warm the HUD set
+ * before the world finishes loading.
+ *
  * Emits:
- *   - public/assets/ui/atlas/ui-atlas_<bin>.webp (Lossless WebP)
- *   - public/assets/ui/atlas/ui-atlas_<bin>.png  (Lossless PNG)
- *   - public/assets/ui/atlas/ui-atlas.json       (Complete JSON manifest)
- *   - src/ui/atlas/AtlasManifest.ts              (Typed TS manifest & helper resolvers)
+ *   - public/assets/ui/atlas/ui-atlas_<bin>.<hash>.webp (quality-gated WebP)
+ *   - public/assets/ui/atlas/ui-atlas_<bin>.png          (lossless diagnostic)
+ *   - public/assets/ui/atlas/ui-atlas.json               (Complete JSON manifest)
+ *   - src/ui/atlas/AtlasManifest.ts                      (Typed TS manifest & helper resolvers)
  *
  * Usage:
  *   node tools/ui/extrudeAndPack.mjs
@@ -18,7 +25,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
+
+import { isPackedPageName } from "./packedPageNames.mjs";
 
 import sharp from "sharp";
 import { MaxRectsPacker } from "maxrects-packer";
@@ -205,14 +215,20 @@ export async function dilateSpriteEdges(input, extrude = 2, options = {}) {
 }
 
 /**
- * Packs dilated sprites into optimal lossless atlas sheets and emits JSON & TS manifests.
+ * Packs dilated sprites into tiered atlas sheets and emits JSON & TS manifests.
  *
- * @param {Array<{ id?: string, name: string, file?: string, buffer?: Buffer, path?: string }>} sprites
+ * Sprites tagged `tier: "core"` are added first so their pages sort to the
+ * front of the atlas; `manifest.preloadPages` then names exactly the pages the
+ * boot preload must warm. Everything else stays on later pages for idle or
+ * on-demand loading. Within a tier, packer determinism comes from the input
+ * order, which `loadAtlasSprites` keeps stable.
+ *
+ * @param {Array<{ id?: string, name: string, file?: string, buffer?: Buffer, path?: string, tier?: string }>} sprites
  * @param {string} outputBase - Target directory (e.g. public/assets/ui/atlas)
  * @param {string} atlasName - Name prefix (default "ui-atlas")
  * @param {object} options - Packing options
  */
-export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-atlas", options = {}) {
+export async function packUiAtlas(sprites, outputBase, atlasName = "ui-atlas", options = {}) {
   const {
     maxWidth = 2048,
     maxHeight = 2048,
@@ -222,6 +238,8 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
     pot = true,
     allowRotation = false,
     writeFiles = true,
+    webpQuality = 90,
+    webpEffort = 5,
     tsManifestPath = path.join(ROOT, "src/ui/atlas/AtlasManifest.ts"),
     jsonManifestPath = path.join(outputBase, `${atlasName}.json`)
   } = options;
@@ -234,7 +252,11 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
 
   const preparedSprites = [];
 
-  for (const sprite of sprites) {
+  // Core sprites first. `Array.prototype.sort` is stable, so authoring order is
+  // preserved inside each tier and a re-run reproduces the same pages.
+  const orderedSprites = [...sprites].sort((a, b) => tierRank(a) - tierRank(b));
+
+  for (const sprite of orderedSprites) {
     let inputBuf;
     if (sprite.buffer) {
       inputBuf = sprite.buffer;
@@ -268,6 +290,7 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
       name: spriteName,
       id: sprite.id || spriteName,
       file: sprite.file || `${spriteName}.png`,
+      tier: sprite.tier ?? "content",
       dilated
     });
 
@@ -279,6 +302,7 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
         ...sprite,
         name: spriteName,
         id: sprite.id || spriteName,
+        tier: sprite.tier ?? "content",
         dilated
       }
     });
@@ -288,28 +312,24 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
     atlas: atlasName,
     extrude,
     pages: [],
-    frames: {}
+    frames: {},
+    preloadPages: []
   };
 
   const generatedImages = [];
+  const preloadPageSet = new Set();
+  const coreFiles = new Set(
+    preparedSprites.filter((sprite) => sprite.tier === "core").map((sprite) => sprite.file)
+  );
 
   for (const [binIndex, bin] of packer.bins.entries()) {
     const pagePngName = `${atlasName}_${binIndex}.png`;
-    const pageWebpName = `${atlasName}_${binIndex}.webp`;
-
-    manifest.pages.push({
-      index: binIndex,
-      width: bin.width,
-      height: bin.height,
-      imagePng: pagePngName,
-      imageWebp: pageWebpName
-    });
 
     // Blit each dilated sprite into a zeroed RGBA sheet by raw byte copy. Going
     // through sharp's compositor instead would premultiply then un-premultiply
     // every rect, rounding RGB on translucent pixels (e.g. 30 -> 29) and
-    // breaking lossless fidelity. Packed rects never overlap, so a plain copy is
-    // both exact and sufficient.
+    // breaking the lossless PNG diagnostic. Packed rects never overlap, so a
+    // plain copy is both exact and sufficient.
     const sheetW = bin.width;
     const sheetH = bin.height;
     const sheet = Buffer.alloc(sheetW * sheetH * 4);
@@ -325,7 +345,23 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
     const pngBuffer = await sharp(sheet, { raw: { width: sheetW, height: sheetH, channels: 4 } })
       .png({ compressionLevel: 9 })
       .toBuffer();
-    const webpBuffer = await sharp(pngBuffer).webp({ lossless: true }).toBuffer();
+    const webpBuffer = await sharp(pngBuffer)
+      .webp({ quality: webpQuality, alphaQuality: 100, effort: webpEffort })
+      .toBuffer();
+    // The runtime URL carries its own content hash so `_headers` can cache the
+    // page immutably without ever stranding a deploy on stale art.
+    const pageHash = createHash("sha256").update(webpBuffer).digest("hex").slice(0, 8);
+    const pageWebpName = `${atlasName}_${binIndex}.${pageHash}.webp`;
+
+    manifest.pages.push({
+      index: binIndex,
+      width: bin.width,
+      height: bin.height,
+      imagePng: pagePngName,
+      imageWebp: pageWebpName
+    });
+
+    if (bin.rects.some((rect) => coreFiles.has(rect.data.file ?? rect.name))) preloadPageSet.add(binIndex);
 
     generatedImages.push({
       binIndex,
@@ -345,12 +381,6 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
 
       fs.writeFileSync(pngPath, pngBuffer);
       fs.writeFileSync(webpPath, webpBuffer);
-
-      // If single bin or first bin, also emit un-indexed default name
-      if (binIndex === 0) {
-        fs.writeFileSync(path.join(outputBase, `${atlasName}.png`), pngBuffer);
-        fs.writeFileSync(path.join(outputBase, `${atlasName}.webp`), webpBuffer);
-      }
     }
 
     for (const rect of bin.rects) {
@@ -406,10 +436,21 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
     }
   }
 
+  manifest.preloadPages = [...preloadPageSet].sort((a, b) => a - b);
+
   const tsCode = generateTypeScriptAtlasManifest(manifest);
 
   if (writeFiles) {
     fs.mkdirSync(outputBase, { recursive: true });
+
+    // A renamed content hash leaves the previous file behind; clear every
+    // packed page this run did not just write.
+    const written = new Set(generatedImages.flatMap((image) => [image.pagePngName, image.pageWebpName]));
+    for (const file of fs.readdirSync(outputBase)) {
+      if (written.has(file)) continue;
+      if (isPackedPageName(file)) fs.unlinkSync(path.join(outputBase, file));
+    }
+
     fs.writeFileSync(jsonManifestPath, JSON.stringify(manifest, null, 2), "utf8");
 
     if (tsManifestPath) {
@@ -425,6 +466,12 @@ export async function packLosslessUiAtlas(sprites, outputBase, atlasName = "ui-a
     bins: packer.bins
   };
 }
+
+/** First-use tier ordering: core pages are packed first and preloaded at boot. */
+function tierRank(sprite) {
+  return (sprite.tier ?? "content") === "core" ? 0 : 1;
+}
+
 
 /**
  * Generates typed TypeScript definitions and helper resolvers from atlas manifest.
@@ -478,12 +525,15 @@ export function generateTypeScriptAtlasManifest(manifest) {
     "  extrude: number;",
     "  pages: AtlasPage[];",
     "  frames: Record<string, AtlasSprite>;",
+    "  preloadPages: number[];",
     "}",
     "",
     `export const UI_ATLAS_MANIFEST: AtlasManifestData = ${JSON.stringify(manifest, null, 2)} as const;`,
     "",
     "export const UI_ATLAS_PAGES = UI_ATLAS_MANIFEST.pages;",
     "export const UI_ATLAS_FRAMES = UI_ATLAS_MANIFEST.frames;",
+    "/** Page indices whose sprites the normal HUD presents during entry. */",
+    "export const UI_ATLAS_PRELOAD_PAGES = UI_ATLAS_MANIFEST.preloadPages;",
     "export type AtlasSpriteName = keyof typeof UI_ATLAS_FRAMES;",
     "",
     "/**",
@@ -537,6 +587,7 @@ export function loadAtlasSprites() {
     const raw = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     const sprites = [];
     const seenFiles = new Set();
+    const tierForFamily = (family) => raw.families?.[family]?.tier ?? "content";
 
     for (const sheet of raw.sheets ?? []) {
       for (const sprite of sheet.sprites ?? []) {
@@ -546,7 +597,8 @@ export function loadAtlasSprites() {
           name: sprite.id,
           file: sprite.file,
           path: path.join(ROOT, raw.atlasDir || "assets/ui/atlas", sprite.file),
-          trim: sheet.output?.trim ?? false
+          trim: sheet.output?.trim ?? false,
+          tier: tierForFamily(sheet.family)
         });
       }
     }
@@ -557,7 +609,8 @@ export function loadAtlasSprites() {
         id: texture.id,
         name: texture.id,
         file: texture.file,
-        path: path.join(ROOT, raw.atlasDir || "assets/ui/atlas", texture.file)
+        path: path.join(ROOT, raw.atlasDir || "assets/ui/atlas", texture.file),
+        tier: "content"
       });
     }
 
@@ -570,7 +623,8 @@ export function loadAtlasSprites() {
             id: name,
             name,
             file,
-            path: path.join(atlasDir, file)
+            path: path.join(atlasDir, file),
+            tier: "content"
           });
         }
       }
@@ -587,7 +641,8 @@ export function loadAtlasSprites() {
       id: name,
       name,
       file,
-      path: path.join(atlasDir, file)
+      path: path.join(atlasDir, file),
+      tier: "content"
     };
   });
 }
@@ -606,13 +661,15 @@ async function main() {
   const sprites = loadAtlasSprites();
   console.log(`[NEVA UI ATLAS] Found ${sprites.length} sprites to pack`);
 
-  const result = await packLosslessUiAtlas(sprites, outputDir, "ui-atlas", {
+  const result = await packUiAtlas(sprites, outputDir, "ui-atlas", {
     maxWidth: 2048,
     maxHeight: 2048,
     padding: 2,
     extrude: 2,
     smart: true,
     pot: true,
+    webpQuality: 90,
+    webpEffort: 5,
     writeFiles: !checkOnly,
     tsManifestPath,
     jsonManifestPath
@@ -633,8 +690,8 @@ async function main() {
     // The manifests alone said nothing about the pages the game loads. Compare
     // decoded pixels, not encoder bytes, so a sharp upgrade cannot false-fail.
     const pixels = (input) => sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    // Lossless WebP may rewrite the colour of fully transparent pixels, which is
-    // invisible; alpha must match everywhere and colour wherever it shows.
+    // The PNG diagnostic page is the lossless pixel authority; it may rewrite
+    // the colour of fully transparent pixels, which is invisible.
     const samePixels = (a, b) => {
       if (a.info.width !== b.info.width || a.info.height !== b.info.height || a.data.length !== b.data.length) return false;
       for (let i = 0; i < a.data.length; i += 4) {
@@ -645,21 +702,47 @@ async function main() {
       }
       return true;
     };
+    // WebP is quality-gated lossy: the same encoder is deterministic, but a
+    // libwebp upgrade can shift a few levels. Small mean error and alpha drift
+    // pass; a replaced or stale page does not.
+    const samePixelsWithinTolerance = (a, b, maxMae, maxAlpha) => {
+      if (a.info.width !== b.info.width || a.info.height !== b.info.height || a.data.length !== b.data.length) return false;
+      let sum = 0;
+      let samples = 0;
+      for (let i = 0; i < a.data.length; i += 4) {
+        if (Math.abs(a.data[i + 3] - b.data[i + 3]) > maxAlpha) return false;
+        if (a.data[i + 3] === 0 && b.data[i + 3] === 0) continue;
+        sum += Math.abs(a.data[i] - b.data[i])
+          + Math.abs(a.data[i + 1] - b.data[i + 1])
+          + Math.abs(a.data[i + 2] - b.data[i + 2]);
+        samples += 3;
+      }
+      return samples === 0 || sum / samples <= maxMae;
+    };
+    const currentPages = new Set(result.images.flatMap((image) => [image.pagePngName, image.pageWebpName]));
     const stalePages = [];
     for (const image of result.images) {
-      const names = [image.pagePngName, image.pageWebpName];
-      if (image.binIndex === 0) names.push("ui-atlas.png", "ui-atlas.webp");
-      const expected = await pixels(image.pngBuffer);
-      for (const name of names) {
-        const file = path.join(outputDir, name);
-        if (!fs.existsSync(file)) { stalePages.push(`${name} (missing)`); continue; }
-        if (!samePixels(await pixels(file), expected)) stalePages.push(name);
+      const pngPath = path.join(outputDir, image.pagePngName);
+      if (!fs.existsSync(pngPath)) {
+        stalePages.push(`${image.pagePngName} (missing)`);
+      } else if (!samePixels(await pixels(pngPath), await pixels(image.pngBuffer))) {
+        stalePages.push(image.pagePngName);
+      }
+
+      const webpPath = path.join(outputDir, image.pageWebpName);
+      if (!fs.existsSync(webpPath)) {
+        stalePages.push(`${image.pageWebpName} (missing)`);
+      } else if (!samePixelsWithinTolerance(
+        await pixels(webpPath),
+        await pixels(image.webpBuffer),
+        3,
+        1
+      )) {
+        stalePages.push(image.pageWebpName);
       }
     }
-    const extraPages = fs.readdirSync(outputDir).filter((file) => {
-      const match = /^ui-atlas_(\d+)\.(?:png|webp)$/.exec(file);
-      return match !== null && Number(match[1]) >= result.images.length;
-    });
+    const extraPages = fs.readdirSync(outputDir)
+      .filter((file) => isPackedPageName(file) && !currentPages.has(file));
     if (stalePages.length > 0 || extraPages.length > 0) {
       throw new Error(
         "UI Atlas pages are stale. Run `npm run ui:atlas`." +
@@ -667,13 +750,14 @@ async function main() {
           (extraPages.length ? `\n  Left over: ${extraPages.join(", ")}` : "")
       );
     }
-    console.log("[NEVA UI ATLAS] Atlas manifests and pages are up to date.");
+    console.log(`[NEVA UI ATLAS] Atlas manifests and pages are up to date (${result.manifest.preloadPages.length} preload page(s)).`);
     return;
   }
 
   console.log(`[NEVA UI ATLAS] Successfully packed ${sprites.length} sprites into ${result.bins.length} page(s):`);
   for (const [i, bin] of result.bins.entries()) {
-    console.log(`  Page ${i}: ${bin.width}x${bin.height} (${bin.rects.length} sprites)`);
+    const preload = result.manifest.preloadPages.includes(i) ? " [preload]" : "";
+    console.log(`  Page ${i}: ${bin.width}x${bin.height} (${bin.rects.length} sprites)${preload}`);
   }
   console.log(`[NEVA UI ATLAS] Wrote manifests:`);
   console.log(`  - ${path.relative(ROOT, jsonManifestPath)}`);

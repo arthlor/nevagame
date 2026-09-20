@@ -70,6 +70,27 @@ describe("satchel auto-sort", () => {
     expect(totals(sim).get("seed.wheat")).toBe(limit * 2 + 2);
   });
 
+  it("preserves each harvest grade while merging part-stacks", () => {
+    const sim = new Simulation();
+    const satchel = satchelOf(sim);
+    for (let i = 0; i < satchel.slots.length; i += 1) satchel.slots[i] = {};
+    satchel.slots[0] = { itemId: "produce.wheat" as ItemId, quantity: 3, quality: "prize" };
+    satchel.slots[1] = { itemId: "produce.wheat" as ItemId, quantity: 4, quality: "common" };
+    satchel.slots[2] = { itemId: "produce.wheat" as ItemId, quantity: 2, quality: "prize" };
+    satchel.slots[3] = { itemId: "item.bait_worms" as ItemId, quantity: 2 };
+
+    expect(sim.execute({ type: "inventory.sort-satchel" }).success).toBe(true);
+
+    const lots = new Map(
+      InventoryManager.getItemLots(satchelOf(sim), "produce.wheat" as ItemId)
+        .map((lot) => [lot.quality, lot.quantity])
+    );
+    expect(lots.get("prize")).toBe(5);
+    expect(lots.get("common")).toBe(4);
+    // Tidying must never create an ungraded stack out of graded goods.
+    expect(lots.has(undefined)).toBe(false);
+  });
+
   it("packs goods to the front and leaves the empty slots trailing", () => {
     const sim = new Simulation();
     layout(sim, [null, null, ["seed.carrot", 1], null, ["item.bait_worms", 1]]);

@@ -1,7 +1,7 @@
 import { handleRadioGroupKeyDown } from "./useTabListKeyboard";
 import React, { useEffect, useRef, useState } from "react";
 import type { PauseSummaryDto } from "../simulation/core/contracts";
-import { audioSettings, AudioSettings } from "../audio/AudioSettings";
+import { audioSettings, AudioSettings, DEFAULT_AUDIO_SETTINGS } from "../audio/AudioSettings";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import {
@@ -447,22 +447,6 @@ const AUDIO_ROWS: Array<{ label: string; level: AudioLevelKey; muted: AudioMuteK
   { label: "Effects", level: "sfx", muted: "sfxMuted" },
   { label: "Ambience", level: "ambience", muted: "ambienceMuted" }
 ];
-
-/**
- * Factory sound levels. Mirrors DEFAULT_AUDIO_SETTINGS in
- * src/audio/AudioSettings.ts (which owns the values); kept local because this
- * slice may not touch files outside the Escape/Journal/Dialogue modals.
- */
-const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
-  master: 0.8,
-  music: 0.52,
-  sfx: 0.8,
-  ambience: 0.62,
-  masterMuted: false,
-  musicMuted: false,
-  sfxMuted: false,
-  ambienceMuted: false
-};
 
 export const AudioControls: React.FC = () => {
   const [settings, setSettings] = useState<AudioSettings>({ ...audioSettings.get() });

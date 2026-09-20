@@ -112,6 +112,14 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
   if (!canReachDeliveryMarket(state, contract.deliveryMarketId)) {
     const vessel = ContentRegistry.boats.get(requiredBoatTypeForMarket(contract.deliveryMarketId) ?? "");
     blockers.push(`${vessel?.name ?? "A seagoing vessel"} is required to reach ${marketName(state, contract.deliveryMarketId)}`);
+  } else {
+    const requiredType = requiredBoatTypeForMarket(contract.deliveryMarketId);
+    if (requiredType) {
+      const requiredBoats = Object.values(state.boats).filter((boat) => boat.boatTypeId === requiredType);
+      if (requiredBoats.length > 0 && requiredBoats.every((boat) => boat.durability <= 0)) {
+        blockers.push(`${ContentRegistry.boats.get(requiredType)?.name ?? "Your vessel"} has lost her hull — tow and repair before sailing`);
+      }
+    }
   }
 
   if (isProduce) {
@@ -182,6 +190,8 @@ function marketOpportunity(
   }
   if (tone === "bold") {
     if (!state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) blockers.push("Rowboat access is required");
+    const vessel = vesselId ? state.boats[vesselId] : undefined;
+    if (vessel && vessel.durability <= 0) blockers.push("Your vessel has lost her hull — tow and repair before sailing");
     if (accessibleChumSupplyCount(state, vesselId) === 0) blockers.push("Pack a chum bucket");
     if (accessibleLureSupplyCount(state, vesselId) === 0) blockers.push("Pack a Woven Lure");
     if (!matchingCargoSlotAvailable(state, itemId, vesselId)) blockers.push("No suitable cargo space is open");

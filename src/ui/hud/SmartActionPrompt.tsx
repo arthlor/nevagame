@@ -51,7 +51,9 @@ const KNOWN_VERBS = new Set([
   "steer",
   "moor",
   "unmoor",
-  "rest"
+  "rest",
+  "repair",
+  "tow"
 ]);
 
 function parseStructuredPrompt(

@@ -1,9 +1,6 @@
 import React from "react";
-import {
-  UI_ATLAS_PAGES,
-  getAtlasPageUrl,
-  getAtlasSprite
-} from "../atlas/AtlasManifest";
+import { UI_ATLAS_PAGES, getAtlasSprite } from "../atlas/AtlasManifest";
+import { uiAtlasPageHref } from "../atlas/preloadUiAtlas";
 
 interface AtlasImageProps {
   src?: string | null;
@@ -66,7 +63,7 @@ export const AtlasImage: React.FC<AtlasImageProps> = ({
             <rect x={sprite.frame.x} y={sprite.frame.y} width={sprite.frame.w} height={sprite.frame.h} />
           </clipPath>
         </defs>
-        <image href={getAtlasPageUrl(sprite.page, "webp")} width={page.width} height={page.height} clipPath={`url(#${clipId})`} />
+        <image href={uiAtlasPageHref(sprite.page)} width={page.width} height={page.height} clipPath={`url(#${clipId})`} />
       </svg>
     );
   }

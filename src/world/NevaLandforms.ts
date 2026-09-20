@@ -115,6 +115,25 @@ function mound(x: number, z: number, centerX: number, centerZ: number, radiusX: 
   return shoulder * shoulder;
 }
 
+function radialPlateau(x: number, z: number, cx: number, cz: number, radius: number, feather: number): number {
+  return 1 - smoothstep(radius, radius + feather, Math.hypot(x - cx, z - cz));
+}
+
+/** Retained district ground before working pads, rivers and road earthworks. */
+export function nevaBaseGroundHeight(x: number, z: number): number {
+  const westernRidge = radialPlateau(x, z, -128, -18, 34, 62) * 4.6;
+  const northernRidge = radialPlateau(x, z, -12, -132, 48, 68) * 3.3;
+  const easternUplands = radialPlateau(x, z, 68, -58, 28, 48) * 5.1;
+  const lighthouseHeadland = radialPlateau(x, z, -92, 73, 12, 28) * 8.6;
+  const harborShoulder = radialPlateau(x, z, 68, 54, 12, 24) * 0.9;
+  const farmBasin = radialPlateau(x, z, -65, -55, 18, 26) * -1.15;
+  const authoredPlanes =
+    Math.sin((x + z * 0.72) * 0.018) * 0.54 +
+    Math.sin((x * 0.36 - z) * 0.031) * 0.32 +
+    Math.cos((x + z) * 0.009) * 0.42;
+  return 1.8 + westernRidge + northernRidge + easternUplands + lighthouseHeadland + harborShoulder + farmBasin + authoredPlanes;
+}
+
 export function sampleNevaLandforms(x: number, z: number): NevaLandformSample {
   let minimumElevation = 0;
   let mountain = 0;

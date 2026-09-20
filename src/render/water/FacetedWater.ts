@@ -8,7 +8,8 @@ import { PALETTE_HEX } from "../materials/PaletteTokens";
 import { WATER_SURFACE, WorldLayout } from "../../world/WorldLayout";
 import { NEVA_HEADWATERS } from "../../world/NevaHeadwaters";
 import {
-  WATER_WAVE_CONFIG,
+  createWaveUniforms,
+  maxWaveDisplacement,
   WaterSurface,
   waterSpatialProfile,
   type WaterConditions,
@@ -123,6 +124,7 @@ const vertexShader = /* glsl */ `
   out float vWaveHeight;
   out float vSignedWaterDistance;
   out vec3 vRegionWeights;
+  out float vWaveFold;
 
   ${WATER_WAVE_FUNCTION_GLSL}
   ${WATER_HEADWATER_FUNCTION_GLSL}
@@ -131,10 +133,19 @@ const vertexShader = /* glsl */ `
     vec4 baseWorldPosition = modelMatrix * vec4(position, 1.0);
     vec4 profile = profileAt(baseWorldPosition.xz);
     float height;
+    vec2 offset;
     vec3 waveNormal;
-    waveHeightAndNormal(baseWorldPosition.xz, profile, height, waveNormal);
+    float fold;
+    waveGerstner(baseWorldPosition.xz, profile, nevaBedWaterDepth(baseWorldPosition.xz),
+      height, offset, waveNormal, fold);
     vec2 headwater = nevaHeadwaterElevationAndGrade(baseWorldPosition.xz);
+    // The authored fall and its graded approach own their own surface shape,
+    // so the trochoid may lift them but must not slide them off the channel.
+    offset *= nevaHeadwaterDetailWeight(baseWorldPosition.xz);
+    // The mesh carries translation only, so a world-space horizontal offset
+    // applies unchanged in object space.
     vec3 displaced = position;
+    displaced.xz += offset;
     displaced.y += headwater.x + height;
     vec4 worldPosition = modelMatrix * vec4(displaced, 1.0);
     float riverWeight = profile.g;
@@ -144,6 +155,7 @@ const vertexShader = /* glsl */ `
     vWorldPosition = worldPosition.xyz;
     vWaveNormal = nevaWaterSurfaceNormal(waveNormal, headwater.y);
     vWaveHeight = height;
+    vWaveFold = fold;
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
   }
 `;
@@ -161,6 +173,7 @@ const fragmentShader = /* glsl */ `
   in float vWaveHeight;
   in float vSignedWaterDistance;
   in vec3 vRegionWeights;
+  in float vWaveFold;
   out vec4 outColor;
 
   ${GROUND_POLYGON_CELL_GLSL}
@@ -189,15 +202,12 @@ const fragmentShader = /* glsl */ `
       vWaveHeight,
       vSignedWaterDistance,
       vRegionWeights,
-      localFlow
+      localFlow,
+      vWaveFold
     );
     ${WATER_OUTPUT_GLSL}
   }
 `;
-
-function vector(values: readonly [number, number, number]): THREE.Vector3 {
-  return new THREE.Vector3(values[0], values[1], values[2]);
-}
 
 /** Keep the ocean grid unchanged and spend extra rows only on the steep run. */
 export function createWaterGeometry(
@@ -269,9 +279,16 @@ export function createWaterGeometry(
   }
   geometry.computeBoundingBox();
   // GPU displacement must participate in frustum bounds even though the
-  // underlying attribute stays at zero. One metre also encloses wave motion.
-  geometry.boundingBox!.min.y = -1;
-  geometry.boundingBox!.max.y = (touchesHeadwaters ? elevationKnots[0].elevation : 0) + 1;
+  // underlying attribute stays at zero. The trochoid also moves water
+  // sideways, so the box grows in X/Z as well; a vertical-only margin would
+  // cull a tile whose crests are still on screen.
+  const margin = maxWaveDisplacement();
+  geometry.boundingBox!.min.y = -margin.vertical;
+  geometry.boundingBox!.max.y = (touchesHeadwaters ? elevationKnots[0].elevation : 0) + margin.vertical;
+  geometry.boundingBox!.min.x -= margin.horizontal;
+  geometry.boundingBox!.max.x += margin.horizontal;
+  geometry.boundingBox!.min.z -= margin.horizontal;
+  geometry.boundingBox!.max.z += margin.horizontal;
   geometry.boundingSphere = geometry.boundingBox!.getBoundingSphere(new THREE.Sphere());
   return geometry;
 }
@@ -344,12 +361,11 @@ export class FacetedWater {
       fragmentShader,
       uniforms: {
         ...createHeadwaterUniforms(),
+        // The wave field first, so the shared coastal uniforms keep ownership
+        // of the bed map the render pipeline updates.
+        ...createWaveUniforms(),
         ...this.coastalUniforms,
-        uTime: { value: 0 },
         uReducedMotion: { value: 0 },
-        uRoughness: { value: 0.2 },
-        uWindSpeed: { value: 0 },
-        uWindDirection: { value: new THREE.Vector2(0, 1) },
         uWaterProfileMap: { value: this.waterProfileMap },
         uWaterProfileBounds: { value: profileBounds },
         uReflectionMode: { value: 2 },
@@ -359,17 +375,6 @@ export class FacetedWater {
         uGlitterFocusNearMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.glitterFocusNearMeters },
         uGlitterFocusFarMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.glitterFocusFarMeters },
         uGlitterFarBroadening: { value: CANONICAL_RENDER_CONFIG.waterSurface.glitterFarBroadening },
-        uPrimaryAmplitude: { value: vector(WATER_WAVE_CONFIG.primary.amplitude) },
-        uPrimaryFrequency: { value: vector(WATER_WAVE_CONFIG.primary.frequency) },
-        uPrimarySpeed: { value: vector(WATER_WAVE_CONFIG.primary.speed) },
-        uCrossAmplitude: { value: vector(WATER_WAVE_CONFIG.cross.amplitude) },
-        uCrossFrequency: { value: vector(WATER_WAVE_CONFIG.cross.frequency) },
-        uCrossSpeed: { value: vector(WATER_WAVE_CONFIG.cross.speed) },
-        uDetailAmplitude: { value: vector(WATER_WAVE_CONFIG.detail.amplitude) },
-        uDetailFrequency: { value: vector(WATER_WAVE_CONFIG.detail.frequency) },
-        uDetailSpeed: { value: vector(WATER_WAVE_CONFIG.detail.speed) },
-        uRoughnessGain: { value: vector(WATER_WAVE_CONFIG.roughnessGain) },
-        uOceanWindGain: { value: WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond },
         uShallowColor: { value: new THREE.Color(PALETTE_HEX.water_shallow_01) },
         uMidColor: { value: new THREE.Color(PALETTE_HEX.water_mid_01) },
         uDeepColor: { value: new THREE.Color(PALETTE_HEX.water_deep_01) },
@@ -389,6 +394,12 @@ export class FacetedWater {
         uPolygonNormalStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.polygonNormalStrength },
         uFresnelStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.fresnelStrength },
         uSunGlintStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.sunGlintStrength },
+        uWhitecapFold: { value: new THREE.Vector2(...CANONICAL_RENDER_CONFIG.waterSurface.whitecap.foldRange) },
+        uWhitecapStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.whitecap.strength },
+        uCrestShading: { value: new THREE.Vector3(
+          CANONICAL_RENDER_CONFIG.waterSurface.crestShading.strength,
+          ...CANONICAL_RENDER_CONFIG.waterSurface.crestShading.fadeFootprintMeters
+        ) },
         uShallowStartMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowStartMeters },
         uShallowEndMeters: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowEndMeters },
         uShallowColorStrength: { value: CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowColorStrength },
@@ -444,7 +455,8 @@ export class FacetedWater {
       const geometry = createWaterGeometry(chunkWidth, depth, chunkSegmentsX, segmentsZ, chunkCenterX, centerZ);
       // Partition the existing index grid: cell seams retain the same wave
       // chords and refined headwater rows as the unpartitioned surface.
-      const tiles = tileWaterGeometry(geometry, CANONICAL_RENDER_CONFIG.waterSurface.cullingTileMeters);
+      const tiles = tileWaterGeometry(geometry, CANONICAL_RENDER_CONFIG.waterSurface.cullingTileMeters,
+        maxWaveDisplacement().horizontal);
       geometry.dispose();
       for (const [tileIndex, tile] of tiles.entries()) {
         const chunk = new THREE.Mesh(tile, material);

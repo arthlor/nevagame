@@ -20,7 +20,7 @@ export const syncWorldAudio = (input: {
   windmill?: { position: AudioPosition; gain: number };
   paused?: boolean;
   sprintExhausted?: boolean;
-  boat?: { throttle: number; x: number; y: number; z: number; isSkiff?: boolean };
+  boat?: { throttle: number; x: number; y: number; z: number; isSkiff?: boolean; wrecked?: boolean };
   fishing?: {
     reeling: boolean;
     lineTension: number;
@@ -36,14 +36,15 @@ export const syncWorldAudio = (input: {
     if (!input.paused && lastIcedCargoIds && input.icedCargoIds.some((id) => !lastIcedCargoIds!.has(id))) gameAudio.playOneShot("ice-shovel");
     lastIcedCargoIds = new Set(input.icedCargoIds);
   }
-  const boatMoving = Boolean(input.boat && Math.abs(input.boat.throttle) > 0.12);
+  const boatMoving = Boolean(input.boat && !input.boat.wrecked && Math.abs(input.boat.throttle) > 0.12);
   const isSkiff = Boolean(input.boat?.isSkiff);
+  const boatOperational = Boolean(input.boat && !input.boat.wrecked);
   gameAudio.setActionLoop(
     "boat-wake",
-    !input.paused && input.mode === "boat-driving" && Boolean(input.boat),
+    !input.paused && input.mode === "boat-driving" && boatOperational,
     input.boat
   );
-  gameAudio.setActionLoop("skiff-engine", !input.paused && isSkiff && input.mode === "boat-driving", input.boat);
+  gameAudio.setActionLoop("skiff-engine", !input.paused && isSkiff && input.mode === "boat-driving" && boatOperational, input.boat);
   gameAudio.setActionLoop("boat-row", !input.paused && !isSkiff && boatMoving, input.boat);
   const sprintExhausted = input.sprintExhausted === true;
   if (!input.paused && sprintExhausted && lastSprintExhausted === false) {
@@ -155,6 +156,17 @@ export const bindDomainAudio = (events: EventBus, getPosition: () => AudioPositi
     events.on("CargoUnloaded", () => play("pickup")),
     events.on("BoatBoarded", () => play("rope-creak")),
     events.on("BoatDocked", () => play("ui-confirm")),
+    events.on("BoatTowed", () => play("rope-creak")),
+    events.on("BoatGustSurvived", () => playCooled("rope-creak", 1800, getPosition())),
+    events.on("BoatGustFailed", () => {
+      gameAudio.playBank("splash", getPosition());
+      play("rope-creak");
+    }),
+    events.on("BoatWrecked", () => {
+      gameAudio.playBank("thunder", getPosition());
+      play("rope-creak");
+    }),
+    events.on("BoatRepaired", () => play("ui-confirm")),
     events.on("MountBoarded", () => gameAudio.playBank("donkey-snort", getPosition())),
     events.on("MountDisembarked", () => play("pickup")),
     events.on("ItemSold", () => play("coins")),

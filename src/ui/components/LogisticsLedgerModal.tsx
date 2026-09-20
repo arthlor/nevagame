@@ -20,12 +20,33 @@ interface LogisticsLedgerModalProps {
     boatId: string,
     direction: LedgerTransferDirection
   ) => { success: boolean; reason?: string };
+  /** Stows the carried catch aboard the active vessel. */
+  onStowCatch?: (
+    boatId: string,
+    placement: "hold" | "hook"
+  ) => { success: boolean; reason?: string };
+  /** Moves goods between the satchel and an authored storage facility. */
+  onMoveStorageGoods?: (
+    kind: string,
+    itemId: string,
+    quantity: number,
+    direction: "deposit" | "withdraw"
+  ) => { success: boolean; reason?: string };
+  /** Moves the carried catch into or out of a storage facility. */
+  onMoveStorageFish?: (
+    kind: string,
+    cargoId: string,
+    direction: "store" | "take"
+  ) => { success: boolean; reason?: string };
 }
 
 export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
   stores,
   onClose,
-  onTransfer
+  onTransfer,
+  onStowCatch,
+  onMoveStorageGoods,
+  onMoveStorageFish
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [transferNotice, setTransferNotice] = useState<string | null>(null);
@@ -50,6 +71,48 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
     setTransferNotice(
       result.success
         ? `Moved ${quantity} ${direction === "to-hold" ? "to the hold" : "to the satchel"}`
+        : result.reason ?? "That move was refused"
+    );
+  };
+
+  const runStowCatch = (boatId: string, placement: "hold" | "hook"): void => {
+    const result = onStowCatch?.(boatId, placement);
+    if (!result) return;
+    playUiSound(result.success ? "confirm" : "click");
+    setTransferNotice(
+      result.success
+        ? placement === "hook"
+          ? "Hooked the catch on the transom"
+          : "Stowed the catch in the hold"
+        : result.reason ?? "That stow was refused"
+    );
+  };
+
+  const runStorageGoods = (
+    kind: string,
+    itemId: string,
+    quantity: number,
+    direction: "deposit" | "withdraw"
+  ): void => {
+    const result = onMoveStorageGoods?.(kind, itemId, quantity, direction);
+    if (!result) return;
+    playUiSound(result.success ? "confirm" : "click");
+    setTransferNotice(
+      result.success
+        ? `Moved ${quantity} ${direction === "deposit" ? "into storage" : "to the satchel"}`
+        : result.reason ?? "That move was refused"
+    );
+  };
+
+  const runStorageFish = (kind: string, cargoId: string, direction: "store" | "take"): void => {
+    const result = onMoveStorageFish?.(kind, cargoId, direction);
+    if (!result) return;
+    playUiSound(result.success ? "confirm" : "click");
+    setTransferNotice(
+      result.success
+        ? direction === "store"
+          ? "Stored the catch"
+          : "Collected the catch"
         : result.reason ?? "That move was refused"
     );
   };
@@ -105,12 +168,37 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
             </div>
           </section>
 
-          {stores.carriedCatch && (
-            <section className="ledger-section stores-carried" aria-labelledby="stores-carried-title">
-              <h3 id="stores-carried-title">Carried catch</h3>
-              <CargoSlot cargo={stores.carriedCatch} slotNumber={1} />
-            </section>
-          )}
+          {stores.carriedCatch && (() => {
+            const activeVessel = stores.vessels.find((vessel) => vessel.isActive);
+            return (
+              <section className="ledger-section stores-carried" aria-labelledby="stores-carried-title">
+                <h3 id="stores-carried-title">Carried catch</h3>
+                <CargoSlot cargo={stores.carriedCatch} slotNumber={1} />
+                {activeVessel ? (
+                  <div className="stores-stow-actions" role="group" aria-label="Stow the carried catch">
+                    <ChromeButton
+                      size="sm"
+                      soundCue="click"
+                      disabled={!activeVessel.stowCarried.hold}
+                      onClick={() => runStowCatch(activeVessel.boatId, "hold")}
+                    >
+                      Stow in hold
+                    </ChromeButton>
+                    <ChromeButton
+                      size="sm"
+                      soundCue="click"
+                      disabled={!activeVessel.stowCarried.hook}
+                      onClick={() => runStowCatch(activeVessel.boatId, "hook")}
+                    >
+                      Hang on transom hook
+                    </ChromeButton>
+                  </div>
+                ) : (
+                  <p className="stores-stow-note">Board your vessel to stow this catch.</p>
+                )}
+              </section>
+            );
+          })()}
 
           <div className="stores-vessels">
             {stores.vessels.length === 0 && <p className="expedition-empty">No vessel is registered.</p>}
@@ -206,6 +294,99 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
               </section>
             ))}
           </div>
+
+          {stores.storage.length > 0 && (
+            <div className="stores-storage" data-testid="ledger-storage">
+              {stores.storage.map((facility) => (
+                <section
+                  key={facility.kind}
+                  className="ledger-section stores-storage-section"
+                  aria-labelledby={`stores-storage-${facility.kind}`}
+                >
+                  <div className="stores-vessel-heading">
+                    <div>
+                      <h3 id={`stores-storage-${facility.kind}`}>{facility.name}</h3>
+                      <span>
+                        {facility.locked
+                          ? facility.blockerReason ?? "Locked"
+                          : facility.near
+                            ? "Within reach"
+                            : "Walk to it to move goods"}{" "}
+                        · Fish {facility.fish.usedSlots}/{facility.fish.totalSlots} · Goods{" "}
+                        {facility.goods.usedSlots}/{facility.goods.totalSlots}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="vessel-slots-grid" aria-label={`${facility.name} fish storage`}>
+                    {facility.fish.cargo.map((cargo, index) => (
+                      <div key={cargo.cargoId} className="storage-fish-slot">
+                        <CargoSlot cargo={cargo} slotNumber={index + 1} />
+                        {onMoveStorageFish && (
+                          <ChromeButton
+                            size="sm"
+                            soundCue="click"
+                            data-testid={`storage-take-${facility.kind}-${cargo.cargoId}`}
+                            disabled={facility.locked || !facility.near || Boolean(stores.carriedCatch)}
+                            onClick={() => runStorageFish(facility.kind, cargo.cargoId, "take")}
+                          >
+                            Take
+                          </ChromeButton>
+                        )}
+                      </div>
+                    ))}
+                    {facility.fish.totalSlots > facility.fish.usedSlots && (
+                      <ItemSlot
+                        className="vessel-hold-slot"
+                        slotNumber={facility.fish.usedSlots + 1}
+                        label={`Empty ${facility.name} fish slot`}
+                      />
+                    )}
+                  </div>
+
+                  {onMoveStorageFish && stores.carriedCatch && (
+                    <div className="stores-stow-actions">
+                      <ChromeButton
+                        size="sm"
+                        variant="gold"
+                        soundCue="confirm"
+                        data-testid={`storage-store-${facility.kind}`}
+                        disabled={!facility.near}
+                        onClick={() => runStorageFish(facility.kind, stores.carriedCatch!.cargoId, "store")}
+                      >
+                        Store carried catch
+                      </ChromeButton>
+                    </div>
+                  )}
+
+                  {onMoveStorageGoods && facility.near && !facility.locked && (
+                    <div
+                      className="ledger-transfer"
+                      data-testid={`ledger-storage-transfer-${facility.kind}`}
+                      aria-label={`Move goods between the satchel and ${facility.name}`}
+                    >
+                      <TransferColumn
+                        title="Satchel"
+                        emptyLabel="Nothing stackable in the satchel."
+                        rows={stores.satchelStock}
+                        actionLabel="Store"
+                        testIdPrefix={`storage-deposit-${facility.kind}`}
+                        onMove={(itemId, count) => runStorageGoods(facility.kind, itemId, count, "deposit")}
+                      />
+                      <TransferColumn
+                        title={`${facility.name} goods`}
+                        emptyLabel="This storage holds no goods."
+                        rows={facility.goods.stock}
+                        actionLabel="Take"
+                        testIdPrefix={`storage-withdraw-${facility.kind}`}
+                        onMove={(itemId, count) => runStorageGoods(facility.kind, itemId, count, "withdraw")}
+                      />
+                    </div>
+                  )}
+                </section>
+              ))}
+            </div>
+          )}
         </div>
 
         {transferNotice && (

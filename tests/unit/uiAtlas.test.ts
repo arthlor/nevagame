@@ -19,7 +19,7 @@ import {
   dilateSpriteEdges,
   generateTypeScriptAtlasManifest,
   loadAtlasSprites,
-  packLosslessUiAtlas
+  packUiAtlas
 } from "../../tools/ui/extrudeAndPack.mjs";
 
 import {
@@ -204,7 +204,7 @@ describe("UI Texture Atlas - MaxRects Bin Packing & Manifest", () => {
 
     const outputBase = path.join(process.cwd(), "generated/.test-atlas");
 
-    const result = await packLosslessUiAtlas(sprites, outputBase, "test-atlas", {
+    const result = await packUiAtlas(sprites, outputBase, "test-atlas", {
       maxWidth: 256,
       maxHeight: 256,
       padding: 2,
@@ -273,7 +273,7 @@ describe("UI Texture Atlas - MaxRects Bin Packing & Manifest", () => {
 
     const outputBase = path.join(process.cwd(), "generated/.test-multi-bin");
 
-    const result = await packLosslessUiAtlas(sprites, outputBase, "test-multi", {
+    const result = await packUiAtlas(sprites, outputBase, "test-multi", {
       maxWidth: 128,
       maxHeight: 128,
       padding: 2,
@@ -346,7 +346,7 @@ describe("UI Texture Atlas - Production Assets & Manifest Integration", () => {
     expect(pngUrl).toContain(".png");
   });
 
-  it("validates lossless WebP and PNG production atlas files exist on disk", () => {
+  it("validates quality-gated WebP and lossless PNG production atlas files exist on disk", () => {
     const atlasDir = path.join(process.cwd(), "public/assets/ui/atlas");
     const jsonPath = path.join(atlasDir, "ui-atlas.json");
     expect(fs.existsSync(jsonPath)).toBe(true);
@@ -354,8 +354,16 @@ describe("UI Texture Atlas - Production Assets & Manifest Integration", () => {
     const json = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
     expect(json.atlas).toBe("ui-atlas");
     expect(json.pages.length).toBeGreaterThanOrEqual(1);
+    expect(json.preloadPages.length).toBeGreaterThanOrEqual(1);
+    expect(json.preloadPages.length).toBeLessThan(json.pages.length);
+    for (const pageIndex of json.preloadPages) {
+      expect(Number.isInteger(pageIndex)).toBe(true);
+      expect(pageIndex).toBeLessThan(json.pages.length);
+    }
 
     for (const page of json.pages) {
+      // The runtime page carries a content hash so hosts can cache it immutably.
+      expect(page.imageWebp).toMatch(/^ui-atlas_\d+\.[0-9a-f]{8}\.webp$/);
       const pngPath = path.join(atlasDir, page.imagePng);
       const webpPath = path.join(atlasDir, page.imageWebp);
       expect(fs.existsSync(pngPath)).toBe(true);
@@ -365,6 +373,8 @@ describe("UI Texture Atlas - Production Assets & Manifest Integration", () => {
       const webpStat = fs.statSync(webpPath);
       expect(pngStat.size).toBeGreaterThan(1000);
       expect(webpStat.size).toBeGreaterThan(1000);
+      // Lossy runtime pages must actually pay off against the PNG diagnostic.
+      expect(webpStat.size).toBeLessThan(pngStat.size);
     }
   });
 
@@ -372,13 +382,14 @@ describe("UI Texture Atlas - Production Assets & Manifest Integration", () => {
     const mockManifest = {
       atlas: "ui-atlas",
       extrude: 2,
+      preloadPages: [0],
       pages: [
         {
           index: 0,
           width: 2048,
           height: 2048,
           imagePng: "ui-atlas_0.png",
-          imageWebp: "ui-atlas_0.webp"
+          imageWebp: "ui-atlas_0.01234567.webp"
         }
       ],
       frames: {
@@ -403,6 +414,7 @@ describe("UI Texture Atlas - Production Assets & Manifest Integration", () => {
     expect(tsCode).toContain("export interface AtlasUv");
     expect(tsCode).toContain("export interface AtlasSprite");
     expect(tsCode).toContain("export const UI_ATLAS_MANIFEST");
+    expect(tsCode).toContain("export const UI_ATLAS_PRELOAD_PAGES");
     expect(tsCode).toContain("export function getAtlasSprite");
     expect(tsCode).toContain("export function getAtlasUv");
     expect(tsCode).toContain("export function getAtlasFrame");

@@ -149,6 +149,40 @@ describe("satchel <-> hold transfer", () => {
     expect(sim.rng.getState()).toBe(before.rng);
   });
 
+  it("moves harvest grades intact in both directions", () => {
+    const sim = new Simulation();
+    const boatId = firstBoat(sim);
+    const produce = "produce.wheat" as ItemId;
+    const satchel = satchelOf(sim);
+    for (let i = 0; i < satchel.slots.length; i += 1) satchel.slots[i] = {};
+    satchel.slots[0] = { itemId: produce, quantity: 3, quality: "prize" };
+    satchel.slots[1] = { itemId: produce, quantity: 2, quality: "common" };
+
+    // Lowest grade first: the two common units and two of the prize leave.
+    const toHold = sim.execute({
+      type: "inventory.transfer", itemId: produce, quantity: 4, boatId, direction: "to-hold"
+    });
+    expect(toHold.success).toBe(true);
+    const holdLots = new Map(
+      InventoryManager.getItemLots(holdOf(sim, boatId), produce).map((lot) => [lot.quality, lot.quantity])
+    );
+    expect(holdLots.get("common")).toBe(2);
+    expect(holdLots.get("prize")).toBe(2);
+    expect(holdLots.has(undefined)).toBe(false);
+
+    // A round trip keeps every grade, rather than regrading both lots.
+    const back = sim.execute({
+      type: "inventory.transfer", itemId: produce, quantity: 4, boatId, direction: "to-satchel"
+    });
+    expect(back.success).toBe(true);
+    const satchelLots = new Map(
+      InventoryManager.getItemLots(satchelOf(sim), produce).map((lot) => [lot.quality, lot.quantity])
+    );
+    expect(satchelLots.get("common")).toBe(2);
+    expect(satchelLots.get("prize")).toBe(3);
+    expect(satchelLots.has(undefined)).toBe(false);
+  });
+
   it("reports both stores as transfer rows on the ledger", () => {
     const sim = new Simulation();
     const boatId = firstBoat(sim);

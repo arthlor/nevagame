@@ -106,8 +106,9 @@ export const OCEAN_SSR_GLSL = /* glsl */ `
 
     const int STEPS = 32;
     float stepLen = 2.2;
-    float prevDiff = -1.0;
+    float prevDiff = 0.0;
     vec2 prevUV = vec2(0.0);
+    bool hasPrevious = false;
     for (int i = 1; i <= STEPS; i++) {
       vec3 p = viewPos + viewReflect * (stepLen * float(i));
       vec4 clip = projMat * vec4(p, 1.0);
@@ -117,13 +118,14 @@ export const OCEAN_SSR_GLSL = /* glsl */ `
       float sceneEye = oceanSceneEyeDepth(uv, depthTex, nearPlane, farPlane);
       float rayEye = -p.z;
       float diff = rayEye - sceneEye;
-      if (diff > 0.0 && diff < 6.0 && sceneEye < farPlane * 0.97) {
-        float t = prevDiff < 0.0 ? 1.0 : (-prevDiff / (diff - prevDiff));
+      if (hasPrevious && prevDiff < 0.0 && diff >= 0.0 && diff < 1.5 && sceneEye < farPlane * 0.97) {
+        float t = -prevDiff / max(0.0001, diff - prevDiff);
         vec2 hitUV = mix(prevUV, uv, clamp(t, 0.0, 1.0));
         vec2 edge = smoothstep(0.0, 0.14, hitUV) * smoothstep(0.0, 0.14, 1.0 - hitUV);
         hitMask = edge.x * edge.y * (1.0 - float(i) / float(STEPS) * 0.4);
         return texture2D(colorTex, hitUV).rgb;
       }
+      hasPrevious = true;
       prevDiff = diff;
       prevUV = uv;
       stepLen *= 1.06;

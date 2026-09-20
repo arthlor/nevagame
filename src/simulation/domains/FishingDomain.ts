@@ -1791,6 +1791,8 @@ export class FishingDomain {
       if (
         !species ||
         !rod ||
+        !species.ecologyIds.includes(school.ecologyId) ||
+        !rod.allowedHabitats.includes(school.habitatId) ||
         !rodMeetsMinimum(rod.rodClass, species.minimumRodClass) ||
         !cargoClassFits(species.cargoClass, rod.maximumCargoClass) ||
         !this.cargo.canLandCargoClass(species.cargoClass)

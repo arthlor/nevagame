@@ -7,7 +7,7 @@ import type {
   WorkActionId
 } from "../core/types";
 
-export type CropInteractionAction = "water" | "harvest" | "inspect";
+export type CropInteractionAction = "water" | "harvest" | "unroot" | "inspect";
 
 export const BASE_CROP_INTERACTION_REACH_METERS = 2.5;
 

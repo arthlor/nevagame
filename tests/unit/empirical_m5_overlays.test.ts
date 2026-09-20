@@ -101,13 +101,20 @@ const cropInspection: CropInspectionDto = {
     affordable: true,
     shortage: 0,
   },
+  unrootWork: {
+    baseCost: 10,
+    cost: 10,
+    availableWork: 800,
+    affordable: true,
+    shortage: 0,
+  },
   immediateAction: {
     kind: "water",
     label: "Water crop",
     cost: 5,
     available: true
   },
-  actions: { canWater: true, canHarvest: false }
+  actions: { canWater: true, canHarvest: false, canUnroot: true }
 };
 
 const sportHud: SportFishingHudDto = {

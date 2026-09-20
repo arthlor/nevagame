@@ -363,7 +363,7 @@ describe("Organic road geometry", () => {
     const original = collision.getAttribute("color");
     const profile = render.getAttribute("roadProfile");
     expect(profile.count).toBe(positions.count);
-    expect(profile.itemSize).toBe(2);
+    expect(profile.itemSize).toBe(3);
     expect(profile.normalized).toBe(true);
     expect(profile.array).toBeInstanceOf(Uint8Array);
     expect(collision.getAttribute("roadProfile")).toBeUndefined();
@@ -373,6 +373,8 @@ describe("Organic road geometry", () => {
     let coreSamples = 0;
     for (let index = 0; index < positions.count; index++) {
       const alpha = colors.getW(index);
+      expect(profile.getZ(index)).toBeGreaterThanOrEqual(0);
+      expect(profile.getZ(index)).toBeLessThanOrEqual(1);
       if (profile.getX(index) > 0.5 && profile.getY(index) < 0.2) wornCore++;
       if (profile.getY(index) > 0.8 && profile.getX(index) < 0.1) looseShoulder++;
       expect(alpha).toBeGreaterThanOrEqual(0);

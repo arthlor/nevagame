@@ -126,7 +126,7 @@ export const EQUIPMENT: Record<EquipmentId, EquipmentDefinition> = {
     description: "Firm soles let you tend and inspect a crop from a quarter metre farther away.",
     slot: "feet",
     starter: false,
-    effects: [{ kind: "crop-reach", actions: ["water", "harvest", "inspect"], bonusMeters: 0.25 }],
+    effects: [{ kind: "crop-reach", actions: ["water", "harvest", "unroot", "inspect"], bonusMeters: 0.25 }],
     presentation: { assetId: "wearable_furrow_boots_a", socket: "feet" },
     icon: "equipment.furrow_boots"
   },

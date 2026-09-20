@@ -6,6 +6,7 @@ export type AuthoredPresentationAction =
   | "water"
   | "fertilize"
   | "harvest"
+  | "unroot"
   | "processing-start"
   | "processing-collect"
   | "pickup"
@@ -63,6 +64,7 @@ export const SIMULATION_ACTION_TIMINGS: Readonly<Record<AuthoredPresentationActi
   water: { durationMs: 833.333, commitMs: 400 },
   fertilize: { durationMs: 733.333, commitMs: 533.333 },
   harvest: { durationMs: 800, commitMs: 366.667 },
+  unroot: { durationMs: 800, commitMs: 366.667 },
   "processing-start": { durationMs: 933.333, commitMs: 533.333 },
   "processing-collect": { durationMs: 633.333, commitMs: 333.333 },
   pickup: { durationMs: 633.333, commitMs: 333.333 },

@@ -512,6 +512,7 @@ export function buildWorldHudDto(
             percent: Math.round((activeBoat.durability / Math.max(1, boatDefinition.durabilityMax)) * 100),
             danger: activeBoat.durability <= boatDefinition.durabilityMax * 0.3
           },
+          wrecked: activeBoat.durability <= 0,
           fuel:
             boatDefinition.fuelCapacity > 0
               ? {

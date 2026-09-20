@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Plugin } from "vite";
 
+import { isPackedPageName } from "../ui/packedPageNames.mjs";
+
+const RUNTIME_PAGE_PATTERN = /^ui-atlas_\d+\.[0-9a-f]{8}\.webp$/;
+
 export function stripDevelopmentArtifacts(outputDirectory: string): string[] {
   const atlasDirectory = path.join(outputDirectory, "assets/ui/atlas");
   const manifest = JSON.parse(fs.readFileSync(path.join(atlasDirectory, "ui-atlas.json"), "utf8")) as {
@@ -12,12 +16,12 @@ export function stripDevelopmentArtifacts(outputDirectory: string): string[] {
   }
   const runtimePages = new Set(manifest.pages.map((page) => page.imageWebp));
   for (const filename of runtimePages) {
-    if (!/^ui-atlas_\d+\.webp$/.test(filename) || !fs.existsSync(path.join(atlasDirectory, filename))) {
+    if (!RUNTIME_PAGE_PATTERN.test(filename) || !fs.existsSync(path.join(atlasDirectory, filename))) {
       throw new Error(`Production UI atlas page is missing or invalid: ${filename}`);
     }
   }
   const excluded = fs.readdirSync(atlasDirectory)
-    .filter((filename) => /^ui-atlas(?:_\d+)?\.(?:png|webp)$/.test(filename) && !runtimePages.has(filename))
+    .filter((filename) => isPackedPageName(filename) && !runtimePages.has(filename))
     .map((filename) => path.join("assets/ui/atlas", filename));
   for (const filename of ["__hud_preview.html", "__probe.html"]) {
     if (fs.existsSync(path.join(outputDirectory, filename))) excluded.push(filename);

@@ -7,6 +7,15 @@ import { buildShoreFoamPatches } from "../../src/render/water/ShoreFoam";
 import { createWorldDiagnosticOverlay } from "../../src/render/scene/WorldDiagnosticOverlay";
 import { SUNREACH_OFFSET_X } from "../../src/world/WorldIslands";
 
+// Resolve current continental coast instead of the former starter-island boundary.
+function oceanSideOfShore(x: number, z: number) {
+  const shore = WorldLayout.shoreProjectionAt(x, z);
+  return {
+    x: shore.boundaryPointXZ.x + shore.waterwardNormalXZ.x,
+    z: shore.boundaryPointXZ.z + shore.waterwardNormalXZ.z
+  };
+}
+
 describe("W04 All-Coast Coastal Swash and Contact Treatment", () => {
   describe("SHORE_TREATMENT_TABLE", () => {
     it("defines treatments for all canonical shore kinds", () => {
@@ -60,13 +69,14 @@ describe("W04 All-Coast Coastal Swash and Contact Treatment", () => {
       const southBeach = WorldLayout.coastalContactWeightAt(-130, 96);
       expect(southBeach).toBeGreaterThan(0.3);
 
-      // Neva lighthouse headland (cliff)
-      // Neva western beach
-      const westBeach = WorldLayout.coastalContactWeightAt(-188, -60);
+      // Continental western beach
+      const west = oceanSideOfShore(-880, -80);
+      const westBeach = WorldLayout.coastalContactWeightAt(west.x, west.z);
       expect(westBeach).toBeGreaterThan(0.3);
 
       // Neva northern sea cliff
-      const northCliff = WorldLayout.coastalContactWeightAt(0, -234);
+      const north = oceanSideOfShore(0, -700);
+      const northCliff = WorldLayout.coastalContactWeightAt(north.x, north.z);
       expect(northCliff).toBeGreaterThan(0.05);
       // Cliffs have reduced swash compared to beaches
       expect(northCliff).toBeLessThan(westBeach);
@@ -90,15 +100,15 @@ describe("W04 All-Coast Coastal Swash and Contact Treatment", () => {
 
   describe("waterDepthMapSteps and CoastalOptics channel A", () => {
     it("bakes coastalContactWeightAt into channel A of uWaterDepthMap", () => {
-      // Sample a small bounds around western beach (-190, -60)
-      const bounds = new THREE.Vector4(-200, -70, 20, 20);
+      const west = oceanSideOfShore(-880, -80);
+      const bounds = new THREE.Vector4(west.x - 10, west.z - 10, 20, 20);
       const texture = createWaterDepthMap(bounds, 5, 5);
       const data = texture.image.data as Uint16Array;
 
-      // Sample center texel (-190, -60)
+      // The center texel lies one metre on the ocean side of the current coast.
       const centerIndex = (2 * 5 + 2) * 4;
       const channelA = THREE.DataUtils.fromHalfFloat(data[centerIndex + 3]);
-      const expectedWeight = WorldLayout.coastalContactWeightAt(-190, -60);
+      const expectedWeight = WorldLayout.coastalContactWeightAt(west.x, west.z);
 
       expect(channelA).toBeCloseTo(expectedWeight, 2);
       expect(channelA).toBeGreaterThan(0.2);

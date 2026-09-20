@@ -10,7 +10,8 @@ export interface AudioSettings {
 }
 
 const STORAGE_KEY = "neva.audio.v1";
-const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
+/** Factory levels. The settings UI reads these for Reset and its default check. */
+export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
   master: 0.8,
   music: 0.52,
   sfx: 0.8,

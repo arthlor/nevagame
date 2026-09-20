@@ -23,6 +23,7 @@ import type {
   RecipeId,
   RodId,
   SkillId,
+  StorageKind,
   TimeWindowId,
   WeatherTag,
   WorkActionId,
@@ -398,6 +399,8 @@ export interface WorldHudBoatDto {
   showNightWarning: boolean;
   hull: { current: number; maximum: number; percent: number; danger: boolean };
   fuel: { current: number; maximum: number; percent: number; danger: boolean } | null;
+  /** Hull life is gone: the vessel cannot make way until repaired. */
+  wrecked: boolean;
   occupiedCargoSlots: number;
   cargoSlots: ReadonlyArray<{
     slotNumber: number;
@@ -405,6 +408,39 @@ export interface WorldHudBoatDto {
     hasIce: boolean;
     cargo: WorldHudCargoDto | null;
   }>;
+}
+
+/**
+ * The storm-helm stability readout. `heel` is normalized; `heelSafeHalfWidth`
+ * is the band the needle must stay inside. Values are simulation-owned and the
+ * widget only draws them.
+ */
+export interface StormHelmHudDto {
+  active: boolean;
+  boatId: BoatId | null;
+  phase: "idle" | "gust" | "result";
+  heel: number;
+  heelSafeHalfWidth: number;
+  gustStrength: number;
+  remainingSeconds: number;
+  hullLives: number;
+  maxLives: number;
+  consecutiveFails: number;
+  lastResult: "survived" | "failed" | null;
+  failReason: "broach" | "sustained" | null;
+  wrecked: boolean;
+}
+
+/** Whether the hull can be repaired right now, and the catalog price. */
+export interface RepairQuoteDto {
+  ok: boolean;
+  cost: number;
+  /** Present only when `ok` is false. */
+  reason?: string;
+  /** True when a full repair would consume money the player does not have. */
+  canAfford: boolean;
+  /** True when the player and vessel are at the harbor repair point. */
+  inReach: boolean;
 }
 
 export interface WorldHudDto {
@@ -474,6 +510,31 @@ export interface WorldHudDto {
   contextualHotbar: ReadonlyArray<ContextualHotbarSlotDto>;
 }
 
+/**
+ * One authored storage facility. `near` is the interaction gate: goods and
+ * fish can only move while the player stands in its reach, and the storefront
+ * DTO reports that directly rather than letting the UI guess from coordinates.
+ */
+export interface StorageFacilityDto {
+  kind: StorageKind;
+  structureId: string;
+  name: string;
+  near: boolean;
+  /** A gated facility refuses every move until its feature is earned. */
+  locked: boolean;
+  blockerReason?: string;
+  goods: {
+    usedSlots: number;
+    totalSlots: number;
+    stock: ReadonlyArray<{ itemId: ItemId; name: string; count: number }>;
+  };
+  fish: {
+    usedSlots: number;
+    totalSlots: number;
+    cargo: ReadonlyArray<WorldHudCargoDto>;
+  };
+}
+
 export interface HoldStoresDto {
   satchel: { occupiedSlots: number; totalSlots: number };
   vesselHolds: { occupiedSlots: number; totalSlots: number };
@@ -488,12 +549,22 @@ export interface HoldStoresDto {
     boatId: BoatId;
     name: string;
     statusLabel: "Docked" | "At sea";
+    /** True for the vessel the player is currently aboard. */
+    isActive: boolean;
     hull: { current: number; maximum: number; percent: number };
     occupiedSlots: number;
-    cargoSlots: ReadonlyArray<{ slotNumber: number; cargo: WorldHudCargoDto | null }>;
+    /**
+     * Slot kind is presentation-relevant: a fish on a transom hook is exposed
+     * and decays at the open-air rate, while a hold slot carries ice.
+     */
+    cargoSlots: ReadonlyArray<{ slotNumber: number; kind: "hold" | "hook"; cargo: WorldHudCargoDto | null }>;
+    /** Whether the carried pack could be stowed here, per placement. */
+    stowCarried: { hold: boolean; hook: boolean };
     /** Stackable goods in this vessel's stores, as transfer rows. */
     stock: ReadonlyArray<{ itemId: ItemId; name: string; count: number }>;
   }>;
+  /** Authored storage facilities (crate, cold room, and later stages). */
+  storage: ReadonlyArray<StorageFacilityDto>;
 }
 
 /**
@@ -892,7 +963,8 @@ export type InteractionAction =
   | "irrigate"
   | "refuel"
   | "labor"
-  | "tow";
+  | "tow"
+  | "repair";
 
 export interface InteractionTarget {
   id: string;
@@ -970,6 +1042,7 @@ export interface CropInspectionDto {
   work: WorkCostQuote & { current: number };
   waterWork: WorkCostQuote;
   harvestWork: WorkCostQuote;
+  unrootWork: WorkCostQuote;
   immediateAction: {
     kind: "water" | "harvest" | "none";
     label: string;
@@ -980,8 +1053,10 @@ export interface CropInspectionDto {
   actions: {
     canWater: boolean;
     canHarvest: boolean;
+    canUnroot: boolean;
     waterReason?: string;
     harvestReason?: string;
+    unrootReason?: string;
   };
 }
 
@@ -1077,6 +1152,9 @@ export type GameCommand =
   | { type: "boat.dock" }
   | { type: "boat.refuel"; boatId?: BoatId }
   | { type: "boat.emergency-tow" }
+  | { type: "boat.repair"; boatId: BoatId }
+  | { type: "debug.damage-boat"; boatId: BoatId; steps?: number }
+  | { type: "debug.repair-boat"; boatId: BoatId }
   | { type: "mount.board"; mountId: MountId }
   | { type: "mount.dismount" }
   | { type: "boat.purchase-skiff" }
@@ -1084,6 +1162,7 @@ export type GameCommand =
   | { type: "crop.plant-near"; farmId: FarmId; cropId: string }
   | { type: "crop.water"; placedCropId: PlacedCropId }
   | { type: "crop.harvest"; placedCropId: PlacedCropId }
+  | { type: "crop.unroot"; placedCropId: PlacedCropId }
   | { type: "farm.apply-fertilizer"; farmId: FarmId }
   | { type: "farm.irrigate"; farmId: FarmId }
   | { type: "farm.buy-irrigation" }
@@ -1120,6 +1199,11 @@ export type GameCommand =
   | { type: "cargo.release"; cargoId: FishCargoId; marketId?: MarketId }
   | { type: "cargo.load-carriage"; mountId: MountId }
   | { type: "cargo.pickup"; cargoId: FishCargoId }
+  | { type: "cargo.stow-aboard"; boatId: BoatId; placement: "hold" | "hook" }
+  | { type: "storage.deposit-item"; kind: StorageKind; itemId: ItemId; quantity: number }
+  | { type: "storage.withdraw-item"; kind: StorageKind; itemId: ItemId; quantity: number }
+  | { type: "storage.store-fish"; kind: StorageKind; cargoId: FishCargoId }
+  | { type: "storage.take-fish"; kind: StorageKind; cargoId: FishCargoId }
   | { type: "inventory.sort-satchel" }
   | {
       type: "inventory.transfer";
@@ -1128,6 +1212,7 @@ export type GameCommand =
       boatId: BoatId;
       direction: "to-hold" | "to-satchel";
     }
+  | { type: "inventory.discard"; itemId: ItemId; quantity: number; quality?: CropQuality }
   | { type: "market.sell-item"; marketId: MarketId; itemId: ItemId; quantity: number }
   | { type: "market.sell-produce-bulk"; marketId: MarketId }
   | { type: "market.buy-seed"; marketId: MarketId; itemId: ItemId; quantity: number }
@@ -1158,6 +1243,8 @@ export type GameQuery =
   | { type: "world.get-pause" }
   | { type: "weather.get-farm-forecast" }
   | { type: "fishing.get-sport-hud" }
+  | { type: "boat.get-storm-helm" }
+  | { type: "boat.get-repair-quote"; boatId: BoatId }
   | { type: "labor.get-hud" }
   | { type: "labor.get-stations" }
   | { type: "progression.get-skills" }
@@ -1190,6 +1277,8 @@ export type GameQueryResult =
   | PauseSummaryDto
   | FarmForecastDto
   | SportFishingHudDto
+  | StormHelmHudDto
+  | RepairQuoteDto
   | LaborHudDto
   | LaborStationDto[]
   | SkillProgressDto[]

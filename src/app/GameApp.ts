@@ -34,6 +34,7 @@ import {
 } from "../simulation/fishing/FishingSupplies";
 import { IndexedDbSaveRepository, type LoadGameResult } from "../persistence/IndexedDbSaveRepository";
 import {
+  CropQuality,
   EquipmentId,
   EquipmentPresetId,
   FishCargoState,
@@ -42,12 +43,14 @@ import {
   ProcessingJobState,
   RecipeId,
   RodId,
+  StorageKind,
   WeatherTag
 } from "../simulation/core/types";
 import type { BoatMotionSample } from "../simulation/core/PhysicsAdapter";
 
 import { StartScreen } from "../ui/StartScreen";
 import { GameUI } from "../ui/GameUI";
+import { startUiAtlasPrefetch } from "../ui/atlas/preloadUiAtlas";
 import type { LaborShiftFeedbackDto } from "../ui/labor/LaborShiftResult";
 import { MobileOrientationGate } from "../ui/MobileControls";
 import type { JournalFolio } from "../ui/JournalModal";
@@ -150,7 +153,9 @@ import type {
   InteractionTarget,
   LaborHudDto,
   LaborStationDto,
-  MarketDemandTrendDto
+  MarketDemandTrendDto,
+  RepairQuoteDto,
+  StormHelmHudDto
 } from "../simulation/core/contracts";
 import {
   FARMING_ACTION_COST,
@@ -177,6 +182,7 @@ import {
   stationaryPlayerMotion,
   type PresentedPlayerFrame
 } from "../render/presentation/PlayerPresentationBuffer";
+import { BoatPresentationBuffer } from "../render/presentation/BoatPresentationBuffer";
 import {
   IDLE_PLAYER_PRESENCE,
   samplePlayerPresence,
@@ -356,6 +362,7 @@ type DebugStartScenario =
   | "harbor"
   | "harbor-skiff"
   | "boat-driving"
+  | "storm-skiff"
   | "sport-fishing";
 
 type StartupIntent = "continue" | "new-game" | "without-saving";
@@ -369,6 +376,7 @@ const DEBUG_START_SCENARIOS = new Set<DebugStartScenario>([
   "harbor",
   "harbor-skiff",
   "boat-driving",
+  "storm-skiff",
   "sport-fishing"
 ]);
 
@@ -786,6 +794,7 @@ export class GameApp {
   private durableWritesEnabled: boolean = false;
   private readonly movementIntent = { x: 0, z: 0 };
   private readonly playerPresentation = new PlayerPresentationBuffer();
+  private readonly boatPresentation = new BoatPresentationBuffer();
   private assetCoverage: AssetCoverageSummary = EMPTY_ASSET_COVERAGE_SUMMARY;
   private lastPresentedPlayer: PresentedPlayerFrame | null = null;
   private readonly playerPresence: PlayerPresence = { ...IDLE_PLAYER_PRESENCE };
@@ -820,6 +829,7 @@ export class GameApp {
   private activeDialogueNpcId: string | null = null;
   private activeHint: { hintId: string; title: string; message: string; icon?: string } | null = null;
   private laborHud: LaborHudDto | null = null;
+  private stormHelmHud: StormHelmHudDto | null = null;
   private laborShiftFeedback: LaborShiftFeedbackDto | null = null;
   private laborShiftFeedbackUntilMs = 0;
   private laborShiftFeedbackToken = 0;
@@ -1198,6 +1208,12 @@ export class GameApp {
     }
     this.onResize();
     this.syncOverlayState();
+    // The title screen and the normal HUD both draw from the packed UI atlas.
+    // Warm the declared HUD pages before the first title paint; the content
+    // pages follow on idle. Benchmark, acceptance and debug starts skip the
+    // warm-up so their load and frame measurements stay comparable to earlier
+    // runs, and this never blocks entry or the world preload in normal play.
+    if (!shouldAutoStart && !this.worldAcceptance) startUiAtlasPrefetch();
     this.renderUI();
     requestAnimationFrame(this.loop);
 
@@ -1276,7 +1292,10 @@ export class GameApp {
     this.updateStartupState({ phase: "layout", message: "Preparing the coast" });
     await attempt.stage(() => WorldLayout.prepareTraversal(attempt.signal), WORLD_STARTUP_TIMEOUT_MS,
       new StartupTimeoutError("world-startup-timeout", "Island preparation timed out"));
-    this.sim = new Simulation(undefined, { actionTimingScale: this.actionTimingScale });
+    this.sim = new Simulation(undefined, {
+      actionTimingScale: this.actionTimingScale,
+      allowDebugCommands: import.meta.env.DEV
+    });
     this.attachSimulationFeedback();
     this.updateStartupState({ phase: "save", message: "Reading your save" });
     const saveResult = this.persistenceDisabled
@@ -1290,7 +1309,8 @@ export class GameApp {
 
     if (benchmark.goldTestId) {
       this.sim = new Simulation(createInitialGameState(benchmark.worldSeed), {
-        actionTimingScale: this.actionTimingScale
+        actionTimingScale: this.actionTimingScale,
+        allowDebugCommands: import.meta.env.DEV
       });
       this.attachSimulationFeedback();
       this.modeController.restoreFromState(this.sim.state);
@@ -1305,7 +1325,10 @@ export class GameApp {
     if (resumedExistingSave) {
       const candidate = structuredClone(saveResult.envelope.state);
       const awaySummary = applyOfflineProgression(candidate, Date.now());
-      this.sim = new Simulation(candidate, { actionTimingScale: this.actionTimingScale });
+      this.sim = new Simulation(candidate, {
+        actionTimingScale: this.actionTimingScale,
+        allowDebugCommands: import.meta.env.DEV
+      });
       this.attachSimulationFeedback();
 
 
@@ -1417,6 +1440,7 @@ export class GameApp {
       undefined, physics => physics.dispose());
     attempt.check();
     this.playerPresentation.reset(this.sim.state.player, undefined, "load");
+    this.boatPresentation.reset(this.sim.state.boats);
     if (import.meta.env.DEV) {
       const { CollisionDebugView } = await import("../diagnostics/CollisionDebugView");
       this.collisionDebugView?.dispose();
@@ -1649,6 +1673,22 @@ export class GameApp {
           throw new Error("Could not prepare deterministic boat-driving debug start");
         }
         break;
+      case "storm-skiff":
+        // Open-water storm run for the storm-helm instrument and hull damage:
+        // the skiff starts at speed in exposed water with a full storm front.
+        this.sim.setDebugWeather("storm");
+        if (!this.sim.prepareDebugSkiffReview()) {
+          throw new Error("Could not prepare deterministic storm-skiff debug start");
+        }
+        if (!this.sim.setDebugBoatDriving("boat.player_skiff", {
+          x: 500,
+          z: 200,
+          headingRadians: 0
+        })) {
+          throw new Error("Could not place the skiff in open water for the storm debug start");
+        }
+        this.sim.state.boats["boat.player_skiff"].speed = 6;
+        break;
       case "sport-fishing":
         if (!this.sim.startDebugSportFishing(
           SPORT_FISHING_REVIEW_POINTS.trout.habitatId,
@@ -1670,8 +1710,7 @@ export class GameApp {
       if (this.startupState.status !== "ready") return;
       const isHudOverlayOrToolAction =
         action.startsWith("open-") ||
-        action.startsWith("select-tool-") ||
-        action === "toggle-farm-gis";
+        action.startsWith("select-tool-");
       const catchSummary = this.sim.state.basicFishing?.phase === "caught";
       if (this.modeController.blocksHudOverlaysAndTools && isHudOverlayOrToolAction) {
         if (!(catchSummary && action === "open-inventory")) return;
@@ -2113,6 +2152,15 @@ export class GameApp {
         );
         this.requestAutosave();
       }),
+      this.sim.events.on("CropUnrooted", ({ placedCropId }) => {
+        if (this.inspectedCrop?.placedCropId === placedCropId) this.inspectedCrop = null;
+        this.worldScene.playWorldReaction(
+          "work",
+          presentedPlayerPosition(),
+          presentationSeconds()
+        );
+        this.requestAutosave();
+      }),
       this.sim.events.on("FarmFertilized", () => {
         this.worldScene.playWorldReaction(
           "work",
@@ -2291,6 +2339,7 @@ export class GameApp {
       discontinuityReason: "none" as const,
       discontinuitySequence: 0
     };
+    const presentedBoats = this.boatPresentation.sample(this.physicsAccumulatorSeconds * 60);
     const playerPos = this.presentationPlayerPosition.set(
       presentedPlayer.x,
       presentedPlayer.y,
@@ -2311,6 +2360,8 @@ export class GameApp {
       ? state.boats[state.player.activeBoatId]
       : undefined;
     const presentationInput = this.inputRouter.getInputState();
+    const stormHelmHud = this.sim.query({ type: "boat.get-storm-helm" }) as StormHelmHudDto;
+    this.stormHelmHud = stormHelmHud.active ? stormHelmHud : null;
     const boatPresentationInput: BoatPresentationInput | null =
       this.mode === "boat-driving" && activeBoat
         ? {
@@ -2318,6 +2369,7 @@ export class GameApp {
             boatTypeId: activeBoat.boatTypeId,
             throttle: -presentationInput.moveVector.z,
             steering: presentationInput.moveVector.x,
+            stormHeel: stormHelmHud.heel,
             motion: this.lastBoatMotion[activeBoat.id]
           }
         : null;
@@ -2328,7 +2380,8 @@ export class GameApp {
       boatPresentationInput,
       // Physics intentionally drops excess hitch time. Gaits cover only that
       // resolved travel while action clips retain their full elapsed time.
-      elapsedSeconds > 0 ? deltaSeconds / elapsedSeconds : 1
+      elapsedSeconds > 0 ? deltaSeconds / elapsedSeconds : 1,
+      presentedBoats
     ).catch(error => this.handleStartupFailure(error));
     for (const event of this.worldScene.drainPlayerAnimationEvents()) {
       if (event.name !== "footstep_left" && event.name !== "footstep_right") continue;
@@ -2422,7 +2475,8 @@ export class GameApp {
             x: activeBoat.x,
             y: activeBoat.y,
             z: activeBoat.z,
-            isSkiff: activeBoat.boatTypeId.includes("skiff")
+            isSkiff: activeBoat.boatTypeId.includes("skiff"),
+            wrecked: activeBoat.durability <= 0
           }
         : undefined,
       fishing: encounter
@@ -2571,6 +2625,7 @@ export class GameApp {
       } else {
         this.lastBoatMotion = result.boatMotion;
         this.playerPresentation.push(result.frame.player, result.playerMotion);
+        this.boatPresentation.push(result.frame.boats);
       }
     }
   }
@@ -3198,12 +3253,20 @@ export class GameApp {
       }
     }
 
-    // A dead motor with the player aboard is a tow prompt, not a dead end.
-    // Safe Return refuses with fish aboard; the tow keeps the catch.
+    // A dead motor or a wrecked hull with the player aboard is a tow prompt,
+    // not a dead end. Safe Return refuses with fish aboard; the tow keeps the
+    // catch. A wreck always goes to Neva Harbor, where Silas can repair it.
     const towedBoatId = this.mode === "boat-driving" ? this.sim.state.player.activeBoatId : null;
     const towedBoat = towedBoatId ? this.sim.state.boats[towedBoatId] : null;
     const towedDef = towedBoat ? ContentRegistry.boats.get(towedBoat.boatTypeId) : null;
-    if (towedBoat && towedDef && towedDef.fuelCapacity > 0 && towedBoat.fuel <= 0) {
+    const towedWrecked = Boolean(towedBoat && towedBoat.durability <= 0);
+    const towedEmptyTank = Boolean(
+      towedBoat && towedDef && towedDef.fuelCapacity > 0 && towedBoat.fuel <= 0
+    );
+    if (towedBoat && towedDef && !towedBoat.isDocked && (towedWrecked || towedEmptyTank)) {
+      const towFee = towedWrecked && this.sim.state.player.money < NavigationDomain.EMERGENCY_TOW_COST
+        ? "harbor recovery · no charge"
+        : `${NavigationDomain.EMERGENCY_TOW_COST} G · catch kept`;
       candidates.push({
         id: `boat:${towedBoat.id}:tow`,
         entityId: towedBoat.id,
@@ -3214,8 +3277,39 @@ export class GameApp {
         worldPosition: { x: towedBoat.x, y: towedBoat.y, z: towedBoat.z },
         modes: ["boat-driving"],
         requiresLineOfSight: false,
-        prompt: `[E] Emergency tow · ${NavigationDomain.EMERGENCY_TOW_COST} G · catch kept`
+        prompt: towedWrecked
+          ? `[E] Tow to Neva Harbor · ${towFee}`
+          : `[E] Emergency tow · ${towFee}`
       });
+    }
+
+    if (this.mode === "on-foot") {
+      // Silas repairs hulls at the harbor pier for the catalog's flat fee. The
+      // quote is simulation-owned, so the prompt can never advertise a repair
+      // the command refuses.
+      for (const boat of Object.values(this.sim.state.boats)) {
+        const definition = ContentRegistry.boats.get(boat.boatTypeId);
+        if (!definition) continue;
+        const quote = this.sim.query({
+          type: "boat.get-repair-quote",
+          boatId: boat.id
+        }) as RepairQuoteDto;
+        if (!quote.inReach || boat.durability >= definition.durabilityMax) continue;
+        candidates.push({
+          id: `boat:${boat.id}:repair`,
+          entityId: boat.id,
+          kind: "dock",
+          action: "repair",
+          distanceMeters: Math.hypot(p.x - boat.x, p.z - boat.z),
+          priority: 0,
+          worldPosition: { x: boat.x, y: boat.y, z: boat.z },
+          modes: ["on-foot"],
+          requiresLineOfSight: false,
+          prompt: quote.ok
+            ? `[E] Repair ${definition.name} · ${quote.cost} G`
+            : `Repair ${definition.name} · ${quote.cost} G · ${quote.reason ?? "not now"}`
+        });
+      }
     }
 
     if (this.mode === "on-foot") {
@@ -3244,28 +3338,33 @@ export class GameApp {
           p.z - HARBOR_SKIFF_MOORING.playerPosition.z
         );
         if (skiffDistance <= HARBOR_SKIFF_MOORING.boardRadius) {
+          // The offer, its gate and its price all come from the catalog so the
+          // prompt cannot advertise a commission `purchaseSkiff` will refuse.
           const skiffDef = ContentRegistry.boats.get("boat.skiff");
-          const requiredXp = skiffDef?.requiredSkillXp?.xp ?? 15000;
-          const canAfford = this.sim.state.player.money >= (skiffDef?.costMoney ?? 850);
-          const hasSkill = this.sim.state.player.proficiencies.fishing >= requiredXp;
-          candidates.push({
-            id: "dock:harbor-skiff:purchase",
-            entityId: "boat.skiff",
-            kind: "dock",
-            action: "purchase-boat",
-            distanceMeters: skiffDistance,
-            priority: 0,
-            worldPosition: {
-              x: HARBOR_SKIFF_MOORING.boatPosition.x,
-              y: HARBOR_SKIFF_MOORING.boatPosition.y,
-              z: HARBOR_SKIFF_MOORING.boatPosition.z
-            },
-            modes: ["on-foot"],
-            requiresLineOfSight: false,
-            prompt: hasSkill && canAfford
-              ? "[E] Commission Coastal Skiff · 850 G"
-              : `Coastal Skiff · ${this.sim.state.player.proficiencies.fishing.toLocaleString()} / ${requiredXp.toLocaleString()} Fishing XP · 850 G`
-          });
+          if (skiffDef?.requiredSkillXp) {
+            const requiredXp = skiffDef.requiredSkillXp.xp;
+            const skiffCostLabel = skiffDef.costMoney.toLocaleString();
+            const canAfford = this.sim.state.player.money >= skiffDef.costMoney;
+            const hasSkill = this.sim.state.player.proficiencies.fishing >= requiredXp;
+            candidates.push({
+              id: "dock:harbor-skiff:purchase",
+              entityId: "boat.skiff",
+              kind: "dock",
+              action: "purchase-boat",
+              distanceMeters: skiffDistance,
+              priority: 0,
+              worldPosition: {
+                x: HARBOR_SKIFF_MOORING.boatPosition.x,
+                y: HARBOR_SKIFF_MOORING.boatPosition.y,
+                z: HARBOR_SKIFF_MOORING.boatPosition.z
+              },
+              modes: ["on-foot"],
+              requiresLineOfSight: false,
+              prompt: hasSkill && canAfford
+                ? `[E] Commission Coastal Skiff · ${skiffCostLabel} G`
+                : `Coastal Skiff · ${this.sim.state.player.proficiencies.fishing.toLocaleString()} / ${requiredXp.toLocaleString()} Fishing XP · ${skiffCostLabel} G`
+            });
+          }
         }
       }
     }
@@ -3716,10 +3815,31 @@ export class GameApp {
         break;
       }
       case "tow": {
+        const towedId = this.sim.state.player.activeBoatId;
+        const wasWrecked = towedId ? (this.sim.state.boats[towedId]?.durability ?? 1) <= 0 : false;
         const result = this.sim.execute({ type: "boat.emergency-tow" });
         if (!result.success) this.notify(result.reason ?? "Could not arrange a tow", "danger");
         else {
-          this.notify(`Towed to the nearest mooring · catch kept`, "success", 3200);
+          // The tow leaves the captain on the dock, so the helm mode ends with
+          // it; otherwise the world keeps answering as if they were still aboard.
+          this.restoreGameplayModeFromState();
+          this.notify(
+            wasWrecked
+              ? "Towed to Neva Harbor · see Silas at the pier to repair"
+              : "Towed to the nearest mooring · catch kept",
+            "success",
+            3200
+          );
+          this.requestAutosave();
+        }
+        break;
+      }
+      case "repair": {
+        if (!picked.entityId) break;
+        const result = this.sim.execute({ type: "boat.repair", boatId: picked.entityId });
+        if (!result.success) this.notify(result.reason ?? "Silas cannot repair her yet", "warning");
+        else {
+          this.notify(`Hull repaired · ${(result.cost ?? 0).toLocaleString()} G`, "success", 2600);
           this.requestAutosave();
         }
         break;
@@ -3737,7 +3857,7 @@ export class GameApp {
         if (!result.success) {
           this.notify(result.reason ?? "Could not purchase the skiff", "danger");
         } else {
-          this.notify("Coastal skiff commissioned · 850 G", "reward", 2600);
+          this.notify(`Coastal skiff commissioned · ${(result.cost ?? 0).toLocaleString()} G`, "reward", 2600);
           this.requestAutosave();
         }
         break;
@@ -4374,7 +4494,11 @@ export class GameApp {
           ? snapshot.target.presentationKind === "ready-equipment" ? "gear_check" : "pickup"
           : snapshot.action === "fertilize"
             ? "place"
-            : snapshot.action;
+            : snapshot.action === "unroot"
+              // No dedicated uproot clip; the harvest swing reads as working
+              // the plant loose, and the unroot cue/VFX carry the difference.
+              ? "harvest"
+              : snapshot.action;
       this.worldScene.playPlayerAction(animation);
     }
     if (
@@ -4389,13 +4513,16 @@ export class GameApp {
   private playFarmingActionAudio(snapshot: FarmingActionSnapshot): void {
     const position = snapshot.target;
     const play = (cueId: AudioCueId): void => gameAudio.playOneShot(cueId, position);
-    if (snapshot.phase === "started" && snapshot.action === "harvest") {
+    if (snapshot.phase === "started" && (snapshot.action === "harvest" || snapshot.action === "unroot")) {
       play("sickle-swish");
       return;
     }
     if (snapshot.phase === "committed") {
       switch (snapshot.action) {
         case "plant":
+          play("plant-dirt");
+          break;
+        case "unroot":
           play("plant-dirt");
           break;
         case "fertilize":
@@ -4432,7 +4559,7 @@ export class GameApp {
     }
     if (snapshot.phase === "committed") {
       if (snapshot.action === "harvest" && snapshot.commitSucceeded && snapshot.target.entityId) this.worldScene.punchCropHarvest(snapshot.target.entityId, timeSeconds);
-      if (snapshot.action === "plant" || snapshot.action === "fertilize") this.worldScene.spawnFarmingVfx("dirt", target, timeSeconds);
+      if (snapshot.action === "plant" || snapshot.action === "fertilize" || snapshot.action === "unroot") this.worldScene.spawnFarmingVfx("dirt", target, timeSeconds);
       if (snapshot.action === "harvest") this.worldScene.spawnFarmingVfx("straw", target, timeSeconds);
       if (snapshot.action === "processing-start") this.worldScene.spawnFarmingVfx("workstation", target, timeSeconds);
       if (snapshot.action === "processing-collect") this.worldScene.spawnFarmingVfx("pickup", target, timeSeconds);
@@ -4564,6 +4691,24 @@ export class GameApp {
         }
       }
     });
+  }
+
+  private startUnrootAction(placedCropId: string): void {
+    const crop = this.sim.state.crops[placedCropId];
+    if (!crop) return;
+    const cropName = ContentRegistry.crops.get(crop.cropId)?.name ?? "Crop";
+    const world = farmLocalToWorld(crop.farmId, crop);
+    this.startFarmingAction(
+      "unroot",
+      world.x,
+      world.z,
+      { type: "crop.unroot", placedCropId },
+      (result) => {
+        if (result.success) this.setToast(`${cropName} unrooted`);
+      },
+      undefined,
+      placedCropId
+    );
   }
 
   private toggleBoatBoard(targetBoatId?: string): void {
@@ -4942,8 +5087,7 @@ export class GameApp {
       return;
     }
     const laborHud = this.sim.query({ type: "labor.get-hud" }) as LaborHudDto;
-    this.laborHud = laborHud.active ? laborHud : null;
-    if (this.laborShiftFeedback && performance.now() >= this.laborShiftFeedbackUntilMs) {
+    this.laborHud = laborHud.active ? laborHud : null;    if (this.laborShiftFeedback && performance.now() >= this.laborShiftFeedbackUntilMs) {
       this.laborShiftFeedback = null;
     }
     const worldHud = this.sim.inspectWorldHud(this.selectedCropId);
@@ -5042,6 +5186,9 @@ export class GameApp {
         onDismissCropInspection: () => {
           this.inspectedCrop = null;
         },
+        onUnrootCrop: (placedCropId: string) => {
+          this.startUnrootAction(placedCropId);
+        },
         farmingAction: this.farmingActionSnapshot,
         activeModal: this.activeModal,
         onSetActiveModal: (modal: ActiveModal) => {
@@ -5107,6 +5254,22 @@ export class GameApp {
           const result = this.sim.execute({ type: "inventory.sort-satchel" });
           return { success: result.success, reason: result.reason };
         },
+        onDiscardItem: (itemId: string, quantity: number, quality: CropQuality | null) => {
+          const result = this.sim.execute({
+            type: "inventory.discard",
+            itemId: itemId as never,
+            quantity,
+            quality: quality ?? undefined
+          });
+          // A destroy is a loss, not a reward; re-seed the delta snapshot so the
+          // next sample cannot read the destroyed stack as a gain.
+          if (result.success) {
+            this.rewardFeedback.reset();
+            this.requestAutosave();
+          }
+          this.renderUI();
+          return result;
+        },
         onTransferStores: (
           itemId: string,
           quantity: number,
@@ -5140,6 +5303,7 @@ export class GameApp {
 
         sportFishingHud: this.sim.inspectSportFishingHud(),
         laborHud: this.laborHud,
+        stormHelmHud: this.stormHelmHud,
         laborShiftFeedback: this.laborShiftFeedback,
         onLaborStrike: () => this.strikeLaborShift(),
         onLaborCancel: () => {
@@ -5221,6 +5385,38 @@ export class GameApp {
         onInspectFarmForecast: () => this.sim.inspectFarmForecast(),
         onInspectExpeditionBoard: () => this.sim.inspectExpeditionBoard(),
         onInspectHoldStores: () => this.sim.inspectHoldStores(),
+        onStowCatch: (boatId, placement) => {
+          const result = this.sim.execute({ type: "cargo.stow-aboard", boatId, placement });
+          if (!result.success) this.notify(result.reason ?? "Could not stow the catch", "warning");
+          this.renderUI();
+          return result;
+        },
+        onMoveStorageGoods: (kind, itemId, quantity, direction) => {
+          const result = direction === "deposit"
+            ? this.sim.execute({
+                type: "storage.deposit-item",
+                kind: kind as StorageKind,
+                itemId,
+                quantity
+              })
+            : this.sim.execute({
+                type: "storage.withdraw-item",
+                kind: kind as StorageKind,
+                itemId,
+                quantity
+              });
+          if (!result.success) this.notify(result.reason ?? "Could not move those goods", "warning");
+          this.renderUI();
+          return result;
+        },
+        onMoveStorageFish: (kind, cargoId, direction) => {
+          const result = direction === "store"
+            ? this.sim.execute({ type: "storage.store-fish", kind: kind as StorageKind, cargoId })
+            : this.sim.execute({ type: "storage.take-fish", kind: kind as StorageKind, cargoId });
+          if (!result.success) this.notify(result.reason ?? "Could not move that catch", "warning");
+          this.renderUI();
+          return result;
+        },
         onInspectJournalPages: () => this.sim.inspectJournalPages(),
         onInspectPauseSummary: () => this.sim.inspectPauseSummary(),
         onInspectSkillProgress: () => this.sim.inspectSkillProgress(),
@@ -5326,9 +5522,18 @@ export class GameApp {
           this.handleResetPlayerToSafePlace();
         },
         onEmergencyTow: () => {
+          const towedId = this.sim.state.player.activeBoatId;
+          const wasWrecked = towedId ? (this.sim.state.boats[towedId]?.durability ?? 1) <= 0 : false;
           const result = this.sim.execute({ type: "boat.emergency-tow" });
           if (result.success) {
-            this.notify("Towed to the nearest mooring · catch kept", "success", 3200);
+            this.restoreGameplayModeFromState();
+            this.notify(
+              wasWrecked
+                ? "Towed to Neva Harbor · see Silas at the pier to repair"
+                : "Towed to the nearest mooring · catch kept",
+              "success",
+              3200
+            );
             this.requestAutosave();
           }
           return { success: result.success, reason: result.reason };

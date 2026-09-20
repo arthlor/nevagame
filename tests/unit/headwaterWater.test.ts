@@ -11,12 +11,19 @@ describe("mountain river water", () => {
     for (const z of [-152, -150, -143, -136, -130, -124, -120, -116, -105, 82]) {
       const x = WorldLayout.riverCenterX(z);
       const baseline = WorldLayout.waterSurfaceElevation(x, z);
+      const columnDepth = WorldLayout.waterColumnDepth(x, z);
       const actual = waterHeight(x, z, 17);
       const query = vi.spyOn(WorldLayout, "waterSurfaceElevation").mockReturnValue(0);
+      // Shoaling reads the water column, which is a difference of the mocked
+      // elevation and the bed, so it is pinned separately here. The invariant
+      // under test is that the surface baseline is purely additive — not that
+      // displacement ignores how deep the water is, which it must not.
+      const depth = vi.spyOn(WorldLayout, "waterColumnDepth").mockReturnValue(columnDepth);
       try {
         expect(actual - waterHeight(x, z, 17)).toBeCloseTo(baseline, 10);
       } finally {
         query.mockRestore();
+        depth.mockRestore();
       }
     }
     expect(WorldLayout.waterSurfaceElevation(-30, -150)).toBe(20);

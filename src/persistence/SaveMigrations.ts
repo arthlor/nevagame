@@ -1,3 +1,4 @@
+import { migrateCoastalRoad54 } from "./migrateCoastalRoad54";
 import { createStarterCarriageState, STARTER_CARRIAGE_ID } from "../simulation/mounts/Carriage";
 import { migrateOceanLayout20, translateLegacyOceanPositions } from "./migrateOceanLayout20";
 import { migrateTerrainLayout14 } from "./migrateTerrainLayout14";
@@ -1458,7 +1459,8 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   50: (state: unknown) => migrateMainland50(state as GameState),
   51: (state: unknown) => migrateOrganicMainland51(state as GameState),
   52: (state: unknown) => migrateNevaValley52(state as GameState),
-  53: (state: unknown) => migrateRiver53(state as GameState)
+  53: (state: unknown) => migrateRiver53(state as GameState),
+  54: (state: unknown) => migrateCoastalRoad54(state as GameState)
 };
 
 
@@ -1508,6 +1510,7 @@ export function migrateSaveData(envelope: SaveEnvelope): SaveEnvelope {
     if (layoutRevision(state) < 23) state = migrateOrganicMainland51(state as GameState);
     if (layoutRevision(state) < 24) state = migrateNevaValley52(state as GameState);
     if (layoutRevision(state) < 25) state = migrateRiver53(state as GameState);
+    if (layoutRevision(state) < 26) state = migrateCoastalRoad54(state as GameState);
   }
 
   const migrated = state as GameState;

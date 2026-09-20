@@ -6,7 +6,7 @@ import { stripDevelopmentArtifacts } from "../../tools/vite/productionArtifactsP
 
 const directories: string[] = [];
 
-function fixture(pages = ["ui-atlas_0.webp", "ui-atlas_1.webp"]): { output: string; atlas: string } {
+function fixture(pages = ["ui-atlas_0.01234567.webp", "ui-atlas_1.89abcdef.webp"]): { output: string; atlas: string } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "neva-production-artifacts-"));
   directories.push(root);
   const output = path.join(root, "dist");
@@ -14,7 +14,8 @@ function fixture(pages = ["ui-atlas_0.webp", "ui-atlas_1.webp"]): { output: stri
   fs.mkdirSync(atlas, { recursive: true });
   fs.writeFileSync(path.join(atlas, "ui-atlas.json"), JSON.stringify({ pages: pages.map((imageWebp) => ({ imageWebp })) }));
   for (const filename of ["ui-atlas.png", "ui-atlas.webp", "ui-atlas_0.png", "ui-atlas_1.png",
-    "ui-atlas_0.webp", "ui-atlas_1.webp", "ui-atlas_8.webp", "world-sprout.png", "parchment-grain.png"]) {
+    "ui-atlas_0.01234567.webp", "ui-atlas_1.89abcdef.webp", "ui-atlas_8.deadbeef.webp", "ui-atlas_0.11111111.webp",
+    "world-sprout.png", "parchment-grain.png"]) {
     fs.writeFileSync(path.join(atlas, filename), filename);
   }
   for (const filename of ["index.html", "__hud_preview.html", "__probe.html", "credits.html"]) {
@@ -32,9 +33,9 @@ afterEach(() => {
 describe("production artifact filtering", () => {
   it("removes only development pages and non-runtime packed atlas copies", () => {
     const { output, atlas } = fixture();
-    expect(stripDevelopmentArtifacts(output)).toHaveLength(7);
+    expect(stripDevelopmentArtifacts(output)).toHaveLength(8);
     expect(fs.readdirSync(atlas).sort()).toEqual([
-      "parchment-grain.png", "ui-atlas.json", "ui-atlas_0.webp", "ui-atlas_1.webp", "world-sprout.png"
+      "parchment-grain.png", "ui-atlas.json", "ui-atlas_0.01234567.webp", "ui-atlas_1.89abcdef.webp", "world-sprout.png"
     ]);
     expect(fs.readdirSync(output).sort()).toEqual(["assets", "credits.html", "index.html"]);
     expect(fs.readFileSync(path.join(output, "../public/__hud_preview.html"), "utf8")).toBe("keep authored preview");
@@ -42,13 +43,13 @@ describe("production artifact filtering", () => {
   });
 
   it("follows declared pages rather than assuming a fixed atlas size", () => {
-    const { output, atlas } = fixture(["ui-atlas_0.webp", "ui-atlas_8.webp"]);
+    const { output, atlas } = fixture(["ui-atlas_0.01234567.webp", "ui-atlas_8.deadbeef.webp"]);
     stripDevelopmentArtifacts(output);
-    expect(fs.existsSync(path.join(atlas, "ui-atlas_8.webp"))).toBe(true);
-    expect(fs.existsSync(path.join(atlas, "ui-atlas_1.webp"))).toBe(false);
+    expect(fs.existsSync(path.join(atlas, "ui-atlas_8.deadbeef.webp"))).toBe(true);
+    expect(fs.existsSync(path.join(atlas, "ui-atlas_1.89abcdef.webp"))).toBe(false);
   });
 
-  it.each([["ui-atlas_9.webp"], [], ["../outside.webp"]])("fails before removing files when pages are invalid: %j", (...pages) => {
+  it.each([["ui-atlas_9.webp"], ["ui-atlas_0.webp"], [], ["../outside.webp"]])("fails before removing files when pages are invalid: %j", (...pages) => {
     const { output, atlas } = fixture(pages as string[]);
     const before = fs.readdirSync(atlas);
     expect(() => stripDevelopmentArtifacts(output)).toThrow();

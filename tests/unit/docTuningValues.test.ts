@@ -107,6 +107,7 @@ describe("cargo freshness tables agree with the simulation", () => {
     expect(row).not.toBeNull();
     expect(parseRow(row![0])).toEqual({
       "carried openly": FRESHNESS_STORAGE_MODIFIERS.player,
+      "transom hook": FRESHNESS_STORAGE_MODIFIERS["boat-hook"],
       "boat hold": FRESHNESS_STORAGE_MODIFIERS["boat-hold"],
       "ice box": FRESHNESS_STORAGE_MODIFIERS.iced,
       "cold storage": FRESHNESS_STORAGE_MODIFIERS["cold-storage"]

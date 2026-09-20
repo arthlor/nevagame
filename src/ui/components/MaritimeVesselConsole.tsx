@@ -32,10 +32,11 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
 
   const hullDamageClass = useMemo(() => {
     const pct = boat.hull.percent;
+    if (boat.wrecked || pct <= 0) return "hull-critical is-wrecked";
     if (pct < 30 || boat.hull.danger) return "hull-critical";
     if (pct < 70) return "hull-damaged";
     return "hull-sound";
-  }, [boat.hull.percent, boat.hull.danger]);
+  }, [boat.hull.percent, boat.hull.danger, boat.wrecked]);
 
   return (
     <section
@@ -56,7 +57,11 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
           </div>
 
           <div className="boat-status-chips">
-            {isDocked ? (
+            {boat.wrecked ? (
+              <span className="boat-wrecked-chip" role="status">
+                Wrecked
+              </span>
+            ) : isDocked ? (
               <span className="boat-docked-chip" role="status">
                 Docked
               </span>
@@ -93,7 +98,11 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
               </span>
             </div>
 
-            {boat.seaWarning && (
+            {boat.wrecked ? (
+              <span className="boat-sea-warning" role="alert">
+                <IconWarning size={13} aria-hidden="true" /> Hull lost — tow to Neva Harbor for repairs
+              </span>
+            ) : boat.seaWarning && (
               <span className="boat-sea-warning" role="alert">
                 <IconWarning size={13} aria-hidden="true" /> {boat.seaWarning}
               </span>

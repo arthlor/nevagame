@@ -3884,6 +3884,26 @@
   letter-spacing: 0.02em;
 }
 
+#ui-container .boat-wrecked-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1.5px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fecaca;
+  background: rgba(185, 28, 28, 0.22);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#ui-container .boat-hull-section.is-wrecked .boat-hull-value,
+#ui-container .hud-boat-hull.is-wrecked .chrome-meter-track > span {
+  color: #fecaca;
+  filter: saturate(0.75);
+}
+
 #ui-container .boat-telemetry-row {
   display: flex;
   flex-direction: column;

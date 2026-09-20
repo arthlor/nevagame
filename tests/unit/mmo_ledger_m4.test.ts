@@ -20,12 +20,35 @@ const stores: HoldStoresDto = {
       boatId: "boat.player_rowboat",
       name: "Rowboat",
       statusLabel: "Docked",
+      isActive: true,
       hull: { current: 90, maximum: 100, percent: 90 },
       occupiedSlots: 0,
-      cargoSlots: [{ slotNumber: 1, cargo: null }],
+      cargoSlots: [{ slotNumber: 1, kind: "hold", cargo: null }],
+      stowCarried: { hold: true, hook: false },
       stock: [{ itemId: "item.boat_fuel", name: "Fuel Can", count: 3 }]
     }
-  ] as never
+  ] as never,
+  storage: [
+    {
+      kind: "crate",
+      structureId: "struct.kitchen",
+      name: "Farm Crate",
+      near: true,
+      locked: false,
+      goods: { usedSlots: 1, totalSlots: 8, stock: [{ itemId: "produce.wheat", name: "Harvested Wheat", count: 4 }] },
+      fish: { usedSlots: 0, totalSlots: 2, cargo: [] }
+    },
+    {
+      kind: "cold-storage",
+      structureId: "struct.harbor_fish_table",
+      name: "Harbor Cold Room",
+      near: false,
+      locked: true,
+      blockerReason: "Requires the maritime guild charter",
+      goods: { usedSlots: 0, totalSlots: 8, stock: [] },
+      fish: { usedSlots: 1, totalSlots: 6, cargo: [] }
+    }
+  ]
 };
 
 const render = (over: Partial<React.ComponentProps<typeof LogisticsLedgerModal>> = {}): string =>

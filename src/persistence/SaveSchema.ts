@@ -31,7 +31,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 53;
+export const CURRENT_SCHEMA_VERSION = 54;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -146,8 +146,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 53
+    (schemaVersion >= 54
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 53
+      ? state.world.layoutRevision !== 25
       : schemaVersion >= 52
       ? state.world.layoutRevision !== 24
       : schemaVersion >= 51
@@ -627,6 +629,15 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       const definition = boat ? ContentRegistry.boats.get(boat.boatTypeId) : undefined;
       const slot = definition && typeof slotIndex === "number" ? definition.fishCargoSlots[slotIndex] : undefined;
       if (!boat || !definition || !slot || typeof slotIndex !== "number" || !Number.isSafeInteger(slotIndex) || boat.fishCargoSlotIds[slotIndex] !== cargoId || (cargo.location.type === "boat-hook") !== (slot.type === "external-hook") || !cargoClassFits(cargo.cargoClass, slot.maxCargoClass)) return false;
+    } else if (cargo.location.type === "cold-storage" || cargo.location.type === "crate") {
+      // Fixed storage away from the player's inventory. Temperature and
+      // freshness already resolve these locations through the structure, so
+      // the container must be a registered structure and carry no slot index.
+      if (
+        typeof cargo.location.containerId !== "string" ||
+        !state.world.structures[cargo.location.containerId] ||
+        cargo.location.slotIndex !== undefined
+      ) return false;
     } else {
       return false;
     }

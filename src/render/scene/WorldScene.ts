@@ -69,6 +69,7 @@ import {
   starterStructureAnchor
 } from "../../world/FarmLayout";
 import { STARTER_DONKEY_ID } from "../../simulation/mounts/Mounts";
+import { effectiveSeaRoughness } from "../../simulation/weather/seaState";
 import { HARBOR_FISH_TABLE, HARBOR_SKIFF_MOORING, VILLAGE_BULLETIN } from "../../world/WorldAnchors";
 import { getProcessingStationRuntimeRotationY } from "../../world/ProcessingStationApproach";
 import { WORLD_STATION_DEFINITIONS } from "../../world/WorldGameplayLocations";
@@ -140,6 +141,7 @@ import {
   BoatResponsePresentation,
   type BoatResponseKind
 } from "../presentation/BoatResponsePresentation";
+import type { PresentedBoatPose } from "../presentation/BoatPresentationBuffer";
 import { resolveMountPresentationPose } from "../presentation/MountPresentation";
 import { LightingRig } from "../lighting/LightingRig";
 import {
@@ -268,6 +270,12 @@ import { FishingRodBend } from "../fishing/FishingRodBend";
 
 export interface BoatPresentationInput extends BoatAnimationInput {
   boatId: string;
+  /**
+   * Normalized storm-helm heel echo (-1..1) owned by `StormHelmDomain`.
+   * Presentation only: it leans the driven hull with the gust and never writes
+   * simulation state.
+   */
+  stormHeel?: number;
   motion?: BoatMotionSample;
 }
 
@@ -403,6 +411,7 @@ type FarmingPresentationActionName =
   | "plant"
   | "water"
   | "harvest"
+  | "unroot"
   | "processing-start"
   | "processing-collect"
   | "pickup"
@@ -798,6 +807,7 @@ export class WorldScene {
   private carriedFishPresentation: { cargoId: string; root: THREE.Group } | null = null;
   private readonly playerAnimationEvents: CharacterAnimationEvent[] = [];
   private latestPresentedPlayer: PresentedPlayerFrame | null = null;
+  private latestPresentedBoats: Readonly<Record<string, PresentedBoatPose>> | null = null;
   private playerPresence: PlayerPresence = { ...IDLE_PLAYER_PRESENCE };
   private latestLocomotionTimeScale = 1;
   private readonly visibilityAnchor = new THREE.Vector3(
@@ -1116,7 +1126,8 @@ export class WorldScene {
     this.scene.add(this.water.group);
     this.shoreFoam = new ShoreFoam({
       waterProfileMap: this.water.waterProfileMap,
-      waterProfileBounds: this.water.waterProfileBounds
+      waterProfileBounds: this.water.waterProfileBounds,
+      waterDepthMap: this.water.depthMap
     });
     this.scene.add(this.shoreFoam.mesh);
     this.boatWakes = new BoatWakePool();
@@ -3389,7 +3400,7 @@ export class WorldScene {
         ? "seed"
         : action === "water"
           ? "water"
-          : action === "harvest"
+          : action === "harvest" || action === "unroot"
             ? "sickle"
             : action === "processing-start" || action === "workstation"
               ? presentationKind === "tailoring" ? "tailor"
@@ -3532,7 +3543,9 @@ export class WorldScene {
       headingRadians: 0,
       speed: 0,
       fuel: 0,
-      durability: 0,
+      // Presentation-only hull; a sound value keeps the wrecks-only list off
+      // the unowned preview even if `durability` grows another reader.
+      durability: 250,
       fishCargoSlotIds: [],
       supplyInventoryId: "",
       upgrades: [],
@@ -4587,12 +4600,14 @@ export class WorldScene {
     timeSeconds: number,
     presentedPlayer: PresentedPlayerFrame | null = this.latestPresentedPlayer,
     boatPresentationInput: BoatPresentationInput | null = this.latestBoatPresentationInput,
-    locomotionTimeScale = this.latestLocomotionTimeScale
+    locomotionTimeScale = this.latestLocomotionTimeScale,
+    presentedBoats: Readonly<Record<string, PresentedBoatPose>> | null = this.latestPresentedBoats
   ): void {
     this.immediateSyncCalls += 1;
     const state = sim.getState();
     sampleWeatherMotionSignal(this.weatherAppearance(state, timeSeconds).weather, timeSeconds, this.weatherMotion);
     if (presentedPlayer) this.latestPresentedPlayer = presentedPlayer;
+    if (presentedBoats) this.latestPresentedBoats = presentedBoats;
     this.latestBoatPresentationInput = boatPresentationInput;
     this.latestLocomotionTimeScale = THREE.MathUtils.clamp(locomotionTimeScale, 0, 1);
     const playerPose = presentedPlayer ?? {
@@ -4640,25 +4655,50 @@ export class WorldScene {
     for (const [boatId, boatState] of Object.entries(state.boats)) {
       const bMesh = this.boatMeshes.get(boatId);
       if (!bMesh) continue;
-      const presentation = this.sampleBoatPresentation(boatState, state, timeSeconds);
-      bMesh.position.set(boatState.x, boatState.y + presentation.waveHeight, boatState.z);
-      bMesh.rotation.set(presentation.pitch, boatState.headingRadians, presentation.roll, "YXZ");
+      // Hull transforms ride the same render-time interpolation as the camera
+      // focus. Canonical state still drives the wake and every gameplay reader.
+      const presented = presentedBoats?.[boatId];
+      const hullX = presented?.x ?? boatState.x;
+      const hullZ = presented?.z ?? boatState.z;
+      const hullHeading = presented?.headingRadians ?? boatState.headingRadians;
+      const presentation = this.sampleBoatPresentation(boatState, state, timeSeconds, {
+        x: hullX,
+        z: hullZ,
+        headingRadians: hullHeading
+      });
+      bMesh.position.set(hullX, boatState.y + presentation.waveHeight, hullZ);
+      bMesh.rotation.set(presentation.pitch, hullHeading, presentation.roll, "YXZ");
       bMesh.updateMatrixWorld(true);
       this.updateBoatWake(boatId, boatState, timeSeconds, waterConditions);
-      // Faint hull-ring energy for the water shader; the wake pool keeps the
-      // long trail. Radius follows the hull footprint so a rowboat never
-      // foams like a skiff, and moored hulls stay near 0.1 (no milky halo).
+      // Hull-ring energy for the water shader; the wake pool keeps the long
+      // trail. Radius follows the hull footprint so a rowboat never foams like
+      // a skiff, and moored hulls stay near the base (no milky halo). Rough
+      // water adds the broken-water collar that separates a working hull from
+      // the sea it is moving through.
       const speed = boatState.speed ?? 0;
-      const heading = boatState.headingRadians ?? 0;
       const footprint = boatBuoyancyFootprint(boatState.boatTypeId);
+      const boatsConfig = CANONICAL_RENDER_CONFIG.boats;
       const speedRatio = THREE.MathUtils.clamp(Math.abs(speed) / 8, 0, 1);
+      const roughFoam = THREE.MathUtils.clamp(
+        (effectiveSeaRoughness(state.weather.seaRoughness, state.clock.timeOfDay) - 0.35) / 0.65,
+        0,
+        1
+      );
       floatingBodies.push({
-        x: boatState.x,
-        z: boatState.z,
-        radius: Math.max(1.0, footprint.halfBeam * 1.4),
-        strength: 0.1 + speedRatio * 0.5,
-        vx: Math.sin(heading) * speed,
-        vz: Math.cos(heading) * speed
+        x: hullX,
+        z: hullZ,
+        radius: Math.max(
+          1.0,
+          footprint.halfBeam * 1.4 * (1 + roughFoam * boatsConfig.contactFoamRadiusScale * 0.35)
+        ),
+        strength: Math.min(
+          1.1,
+          boatsConfig.contactFoamBase
+            + speedRatio * boatsConfig.contactFoamSpeedGain
+            + roughFoam * boatsConfig.contactFoamRoughnessGain
+        ),
+        vx: Math.sin(hullHeading) * speed,
+        vz: Math.cos(hullHeading) * speed
       });
     }
     this.water.setFloatingBodies(floatingBodies);
@@ -5749,7 +5789,8 @@ export class WorldScene {
   private sampleBoatPresentation(
     boat: GameState["boats"][string],
     state: Readonly<GameState>,
-    timeSeconds: number
+    timeSeconds: number,
+    samplePose: { x: number; z: number; headingRadians: number } = boat
   ): { waveHeight: number; pitch: number; roll: number } {
     let presentation = this.boatBuoyancyState.get(boat.id);
     if (!presentation) {
@@ -5766,24 +5807,64 @@ export class WorldScene {
     }
 
     const footprint = boatBuoyancyFootprint(boat.boatTypeId);
-    const sinHeading = Math.sin(boat.headingRadians);
-    const cosHeading = Math.cos(boat.headingRadians);
+    const sinHeading = Math.sin(samplePose.headingRadians);
+    const cosHeading = Math.cos(samplePose.headingRadians);
     const sampleHeight = (localX: number, localZ: number): number => this.water.sample(
-      boat.x + localX * cosHeading + localZ * sinHeading,
-      boat.z - localX * sinHeading + localZ * cosHeading,
+      samplePose.x + localX * cosHeading + localZ * sinHeading,
+      samplePose.z - localX * sinHeading + localZ * cosHeading,
       timeSeconds
     ).height;
     const bowHeight = sampleHeight(0, footprint.halfLength);
     const sternHeight = sampleHeight(0, -footprint.halfLength);
     const portHeight = sampleHeight(-footprint.halfBeam, 0);
     const starboardHeight = sampleHeight(footprint.halfBeam, 0);
+    // The hull footprint spans less than a sixth of the shortest wave, so the
+    // four corner samples alone can read a trough while a short cross/detail
+    // crest is passing between them. The centerline samples catch that crest,
+    // and the blend below makes the hull ride it instead of the average.
+    const centerHeight = sampleHeight(0, 0);
+    const bowQuarterHeight = sampleHeight(0, footprint.halfLength * 0.5);
+    const sternQuarterHeight = sampleHeight(0, -footprint.halfLength * 0.5);
+    const hullSamples = [
+      centerHeight,
+      bowHeight,
+      sternHeight,
+      portHeight,
+      starboardHeight,
+      bowQuarterHeight,
+      sternQuarterHeight
+    ];
+    const averageHeight = hullSamples.reduce((sum, value) => sum + value, 0) / hullSamples.length;
+    const crestHeight = Math.max(...hullSamples);
+    const boatsConfig = CANONICAL_RENDER_CONFIG.boats;
+    const definition = ContentRegistry.boats.get(boat.boatTypeId);
+    const speedRatio = THREE.MathUtils.clamp(
+      Math.abs(boat.speed) / Math.max(0.1, definition?.maxSpeed ?? (Math.abs(boat.speed) || 1)),
+      0,
+      1
+    );
+    // A sea beyond the hull's safe range lifts the presentation a bounded
+    // amount while under way, so the deck stays readable in white water. The
+    // physics pose is untouched; this is the same waterline + a hull response.
+    const roughExcess = definition
+      ? THREE.MathUtils.clamp(
+          (effectiveSeaRoughness(state.weather.seaRoughness, state.clock.timeOfDay)
+            - definition.safeSeaRoughness) / 0.6,
+          0,
+          1
+        )
+      : 0;
+    const roughLift = roughExcess
+      * (0.35 + 0.65 * speedRatio)
+      * boatsConfig.roughWaterLiftMeters;
     const eventResponse = this.boatResponses.sample(
       boat.id,
       timeSeconds,
       this.prefersReducedMotion
     );
     const targetWaveHeight =
-      (bowHeight + sternHeight + portHeight + starboardHeight) * 0.25
+      THREE.MathUtils.lerp(averageHeight, crestHeight, boatsConfig.crestRideBlend)
+      + roughLift
       + eventResponse.heaveMeters;
     const tiltScale = this.prefersReducedMotion
       ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
@@ -5811,22 +5892,41 @@ export class WorldScene {
       const loadRatio = THREE.MathUtils.clamp(
         sport.lineTension / Math.max(1, rod?.maxSafeTension ?? 80), 0, 1
       );
-      const bearing = sport.dynamics?.bearingRadians ?? boat.headingRadians;
-      const side = Math.sign(Math.sin(bearing - boat.headingRadians)) || 0;
+      const bearing = sport.dynamics?.bearingRadians ?? samplePose.headingRadians;
+      const side = Math.sign(Math.sin(bearing - samplePose.headingRadians)) || 0;
       surgeRoll = loadRatio * (0.02 * side + Math.sin(timeSeconds * 2.3) * 0.012);
     }
+    // The storm-helm heel echo and a wrecked hull's list extend the ordinary
+    // water tilt. Both are echoes of simulation-owned state, never inputs.
+    const stormHeel = this.latestBoatPresentationInput?.boatId === boat.id
+      ? THREE.MathUtils.clamp(this.latestBoatPresentationInput.stormHeel ?? 0, -1, 1) * tiltScale
+      : 0;
+    const wreckList = boat.durability <= 0 && boat.id !== SKIFF_MOORING_PREVIEW_ID
+      ? boatsConfig.wreckListRadians
+      : 0;
+    const targetRollBudget = maximumTilt
+      + Math.abs(stormHeel) * boatsConfig.stormHeelMaxRadians
+      + wreckList;
     const targetRoll = THREE.MathUtils.clamp(
-      Math.atan2(starboardHeight - portHeight, footprint.halfBeam * 2) * tiltScale
-        + surgeRoll + eventResponse.rollRadians,
-      -maximumTilt,
-      maximumTilt
+      THREE.MathUtils.clamp(
+        Math.atan2(starboardHeight - portHeight, footprint.halfBeam * 2) * tiltScale
+          + surgeRoll + eventResponse.rollRadians,
+        -maximumTilt,
+        maximumTilt
+      )
+        + stormHeel * boatsConfig.stormHeelMaxRadians
+        - wreckList,
+      -targetRollBudget,
+      targetRollBudget
     );
     const dt = THREE.MathUtils.clamp(
       timeSeconds - presentation.lastSampleTimeSeconds,
       0,
       0.1
     );
-    const smoothing = presentation.initialized ? 1 - Math.exp(-8 * dt) : 1;
+    const smoothing = presentation.initialized
+      ? 1 - Math.exp(-boatsConfig.buoyancyResponsePerSecond * dt)
+      : 1;
     presentation.waveHeight = THREE.MathUtils.lerp(
       presentation.waveHeight,
       targetWaveHeight,
@@ -6191,10 +6291,18 @@ export class WorldScene {
     timeSeconds: number,
     presentedPlayer?: PresentedPlayerFrame,
     boatPresentationInput: BoatPresentationInput | null = null,
-    locomotionTimeScale = 1
+    locomotionTimeScale = 1,
+    presentedBoats: Readonly<Record<string, PresentedBoatPose>> | null = null
   ): Promise<void> {
     this.checkAlive();
-    this.applyImmediateSync(sim, timeSeconds, presentedPlayer ?? null, boatPresentationInput, locomotionTimeScale);
+    this.applyImmediateSync(
+      sim,
+      timeSeconds,
+      presentedPlayer ?? null,
+      boatPresentationInput,
+      locomotionTimeScale,
+      presentedBoats
+    );
 
     if (!this.syncInFlight) {
       const signature = this.computeReconciliationSignature(sim);

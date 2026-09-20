@@ -4,7 +4,7 @@ import { MathUtils } from "three";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { boatAssetId } from "../render/assets/AssetCatalog";
 import { WaterSurface } from "../render/water/WaterSurface";
-import type { GameMode, GameState, TimeWindowId } from "../simulation/core/types";
+import type { GameMode, GameState } from "../simulation/core/types";
 import type {
   BoatMotionSample,
   PhysicsAdapter,
@@ -20,6 +20,7 @@ import {
   carriedLoadSpeedScale,
   slopeGaitScale
 } from "../simulation/navigation/PlayerTraversal";
+import { effectiveSeaRoughness } from "../simulation/weather/seaState";
 import type { StaticCollisionProxy } from "./StaticCollision";
 import type { CollisionDebugSnapshot } from "./CollisionDebug";
 import { collisionPrimitivesForAsset } from "./CollisionCatalogAdapter";
@@ -1338,13 +1339,13 @@ export class PhysicsWorld implements PhysicsAdapter {
     let controlEffort = 0;
     let roughnessResponse = 0;
 
-    const active = mode === "boat-driving" && state.player.activeBoatId === id && definition;
+    const active = mode === "boat-driving" && state.player.activeBoatId === id && definition && boat.durability > 0;
     if (active && definition) {
       const outOfFuel = definition.fuelCapacity > 0 && boat.fuel <= 0;
       throttle = outOfFuel ? 0 : clamp(-rawInputZ, -1, 1);
       steering = rawInputX;
       const roughnessPenalty = clamp01(
-        (state.weather.seaRoughness + nightSeaExtra(state.clock.timeOfDay) - definition.safeSeaRoughness)
+        (effectiveSeaRoughness(state.weather.seaRoughness, state.clock.timeOfDay) - definition.safeSeaRoughness)
           / Math.max(0.1, 1 - definition.safeSeaRoughness)
       );
       const control = 1 - roughnessPenalty * 0.38;
@@ -1400,8 +1401,13 @@ export class PhysicsWorld implements PhysicsAdapter {
         Math.abs(steering) * steeringAuthority
       ));
     } else {
-      physics.speed += (boat.speed - physics.speed) * (1 - Math.exp(-8 * safeDt));
-      physics.headingRadians = dampAngle(physics.headingRadians, boat.headingRadians, 10, safeDt);
+      // A wrecked hull holds the water: it makes no way and cannot be steered
+      // until it is towed and repaired.
+      const restSpeed = boat.durability > 0 ? boat.speed : 0;
+      physics.speed += (restSpeed - physics.speed) * (1 - Math.exp(-8 * safeDt));
+      if (boat.durability > 0) {
+        physics.headingRadians = dampAngle(physics.headingRadians, boat.headingRadians, 10, safeDt);
+      }
     }
 
     const deltaX = Math.sin(physics.headingRadians) * physics.speed * safeDt;
@@ -2042,12 +2048,6 @@ export class PhysicsWorld implements PhysicsAdapter {
 
 function clamp01(value: number): number {
   return clamp(value, 0, 1);
-}
-
-function nightSeaExtra(timeOfDay: TimeWindowId): number {
-  if (timeOfDay === "night") return 0.22;
-  if (timeOfDay === "dusk") return 0.1;
-  return 0;
 }
 
 function clamp(value: number, min: number, max: number): number {

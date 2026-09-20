@@ -32,6 +32,7 @@ export type WorkActionId =
   | "farming.plant"
   | "farming.water"
   | "farming.harvest"
+  | "farming.unroot"
   | "farming.fertilize"
   | "farming.irrigate"
   | "fishing.basic-cast"
@@ -94,7 +95,6 @@ export type GameAction =
   | "open-journal"
   | "open-ledger"
   | "open-planning"
-  | "toggle-farm-gis"
   | "select-tool-1"
   | "select-tool-2"
   | "select-tool-3"
@@ -512,6 +512,9 @@ export interface CargoLocation {
   containerId: string;
   slotIndex?: number;
 }
+
+/** Authored storage facility kinds; barn and warehouse are reserved for later stages. */
+export type StorageKind = "crate" | "barn" | "warehouse" | "cold-storage";
 
 export interface FishCargoState {
   id: FishCargoId;

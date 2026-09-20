@@ -28,6 +28,7 @@ describe("physical cargo occupies the character's hands", () => {
       { type: "crop.plant-near", farmId: "farm.starter_garden", cropId: "crop.wheat" },
       { type: "crop.water", placedCropId: cropId },
       { type: "crop.harvest", placedCropId: cropId },
+      { type: "crop.unroot", placedCropId: cropId },
       { type: "farm.apply-fertilizer", farmId: "farm.starter_garden" },
       { type: "farm.irrigate", farmId: "farm.starter_garden" },
       { type: "processing.start", recipeId: "recipe.flour", stationId: "struct.starter_mill" },
@@ -45,7 +46,7 @@ describe("physical cargo occupies the character's hands", () => {
       expect(sim.state, command.type).toEqual(before);
       expect(sim.rng.getState(), command.type).toEqual(rngBefore);
     }
-    expect(sim.inspectCrop(cropId)?.actions).toMatchObject({ canWater: false, canHarvest: false, waterReason: sim.inspectFreeHands() });
+    expect(sim.inspectCrop(cropId)?.actions).toMatchObject({ canWater: false, canHarvest: false, canUnroot: false, waterReason: sim.inspectFreeHands(), unrootReason: sim.inspectFreeHands() });
     expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", 2, 0).reasonCode).toBe("hands-occupied");
   });
 

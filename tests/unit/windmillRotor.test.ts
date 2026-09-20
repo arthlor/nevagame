@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorldScene } from "../../src/render/scene/WorldScene";
+import { EditableStaticSources } from "../../src/render/scene/EditableStaticSources";
 import { WorldLayout } from "../../src/world/WorldLayout";
 
 interface RotorHarness {
@@ -81,6 +82,12 @@ describe("windmill rotor animation pivots", () => {
       staticBatchChunks: [],
       visibilityAnchor: new THREE.Vector3(),
       qualityLevel: 2,
+      // DEV batching hides merged source meshes through this owner and tracks
+      // the resulting BatchedMeshes; the real WorldScene fields are class
+      // initializers, so an `Object.create` fixture must supply them or the
+      // merge path dereferences undefined.
+      editableStaticSources: new EditableStaticSources(),
+      staticPrefabBatches: new Set<THREE.BatchedMesh>(),
       scene: (() => {
         const scene = new THREE.Scene();
         scene.fog = new THREE.Fog(0xffffff, 1, 1000);
@@ -116,7 +123,21 @@ describe("windmill rotor animation pivots", () => {
     world.mergeStaticPrefabMeshes();
 
     expect(rotorLod.parent).toBe(world.staticPrefabGroup);
-    expect(staticLod.parent).toBeNull();
+    if (import.meta.env.DEV) {
+      // DEV keeps every LOD controller (layout-editor picks need live meshes)
+      // and hides the merged sources on the layer mask instead of removing them.
+      // Production removes the static controller so a camera update cannot
+      // reveal its unbatched fallback levels and restore hundreds of draw calls.
+      expect(staticLod.parent).toBe(world.staticPrefabGroup);
+      const staticMeshes: THREE.Mesh[] = [];
+      staticLod.traverse((object) => {
+        if (object instanceof THREE.Mesh) staticMeshes.push(object);
+      });
+      expect(staticMeshes.length).toBeGreaterThan(0);
+      for (const mesh of staticMeshes) expect(mesh.layers.mask).toBe(0);
+    } else {
+      expect(staticLod.parent).toBeNull();
+    }
     expect(hub.parent).toBe(rotor);
     expect(rotorLod.levels[0].object.children).toContain(rotor);
   });
