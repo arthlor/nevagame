@@ -3,6 +3,7 @@ import React from "react";
 import { renderToString } from "react-dom/server";
 import { EscapeMenuModal } from "../../src/ui/EscapeMenuModal";
 import { Simulation } from "../../src/simulation/Simulation";
+import type { EmergencyTowQuoteDto } from "../../src/simulation/core/contracts";
 
 const pause = (sim: Simulation) => sim.inspectPauseSummary();
 
@@ -31,13 +32,21 @@ describe("Milestone M5 — Pause menu recovery actions (F8.1)", () => {
     expect(render(sim)).not.toContain('data-testid="pause-emergency-tow"');
   });
 
-  it("offers Emergency Tow when a tow handler is supplied", () => {
+  it("offers Emergency Tow when a tow handler is supplied and the quote allows one", () => {
     // A stranded player often cannot walk to the boat, so the menu is the only
     // reliable way to reach the tow the simulation already supports.
     const sim = new Simulation();
-    const html = render(sim, { onEmergencyTow: () => ({ success: true }) });
+    const onEmergencyTow = () => ({ success: true });
+    const quote: EmergencyTowQuoteDto = {
+      ok: true, cost: 25, travelMinutes: 15, wrecked: false,
+      destinationMarketId: "market.harbor", destinationLabel: "Neva Harbor"
+    };
+    const html = render(sim, { onEmergencyTow, onInspectEmergencyTowQuote: () => quote });
     expect(html).toContain('data-testid="pause-emergency-tow"');
     expect(html).toContain("Emergency Tow");
+    // Ashore the simulation's own quote refuses, so the menu offers no dead end.
+    expect(render(sim, { onEmergencyTow, onInspectEmergencyTowQuote: () => sim.inspectEmergencyTowQuote() }))
+      .not.toContain('data-testid="pause-emergency-tow"');
   });
 
   it("reports the autosave state on the harbor log line", () => {

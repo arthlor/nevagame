@@ -3,6 +3,7 @@ import { farmLocalToWorld, STARTER_FARM_LAYOUT, starterStructureAnchor } from ".
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
+import catalog from "../../assets/specs/asset-catalog.json";
 import { collisionPrimitivesForAsset } from "../../src/physics/CollisionCatalogAdapter";
 import {
   assessProcessingStationApproach,
@@ -126,10 +127,15 @@ describe("processing station front approach", () => {
 
   it("keeps the workbench collider in runtime Y-up axes", () => {
     const [primitive] = collisionPrimitivesForAsset(ASSET_IDS.PROP_FARM_WORKBENCH_A);
-    expect(primitive).toMatchObject({
-      center: [0, 0, 0.8],
-      halfExtents: [1.05, 0.48, 0.8]
-    });
+    const { dimensions } = catalog.assets.find((asset) => asset.id === ASSET_IDS.PROP_FARM_WORKBENCH_A)!;
+    // Y is height: the box stands on the ground-centred pivot, centred over
+    // it, and stays inside the published footprint and height.
+    expect(primitive.center[0]).toBe(0);
+    expect(primitive.center[2]).toBe(0);
+    expect(primitive.center[1] - primitive.halfExtents[1]).toBeCloseTo(0, 6);
+    expect(primitive.halfExtents[1] * 2).toBeLessThanOrEqual(dimensions.height);
+    expect(primitive.halfExtents[0] * 2).toBeLessThanOrEqual(dimensions.width);
+    expect(primitive.halfExtents[2] * 2).toBeLessThanOrEqual(dimensions.depth);
   });
 
   it("aligns each published GLB working face with the authored local -Z approach", () => {

@@ -1,15 +1,16 @@
 import fs from 'node:fs/promises';
 import { expect, it } from 'vitest';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'meshoptimizer';
+import { createNodeGltfLoader } from '../helpers/nodeGltfLoader';
 import { createTradePackBackSocket, attachBoatTradePack } from '../../src/render/animation/TradePackAttachment';
 import { resolveHumanoidRig } from '../../src/render/animation/HumanoidRig';
 
 async function model(id: string) {
   await MeshoptDecoder.ready;
   const data = await fs.readFile(`public/assets/models/${id}.glb`);
-  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength), '');
+  // The adapted player embeds its source texture, which Node cannot decode.
+  const gltf = await createNodeGltfLoader().parseAsync(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength), '');
   gltf.scene.userData.assetId = id;
   return gltf;
 }

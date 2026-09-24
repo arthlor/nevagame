@@ -48,6 +48,30 @@ describe("starter island terrain preservation", () => {
       ? { ...anchor, height: reference.anchors.find(entry => entry.id === anchor.id)?.height ?? anchor.height }
       : anchor)
   });
+  /**
+   * Layout 28 levels the Sunreach terrace beds (`TerraceProfile`) and regrades
+   * the working settlement around them. From then on the live snapshot pins the
+   * terrace ground heights, the two terrace station heights and the Sunreach
+   * samples; every coordinate, and all other working ground and anchors, still
+   * match each historical snapshot exactly.
+   */
+  const SUNREACH_TERRACE_GROUND = "farm.sunreach_terraces:";
+  const SUNREACH_TERRACE_ANCHOR_IDS = ["struct.sunreach_hand_mill", "struct.sunreach_workbench"];
+  type GroundRow = { id: string; x: number; z: number; height: number };
+  const withSunreachTerracesFrom = <T extends { workingGround: GroundRow[]; anchors: { id: string; height: number }[]; sunreachHash: string }>(
+    snapshot: T,
+    reference: { workingGround: GroundRow[]; anchors: { id: string; height: number }[]; sunreachHash: string }
+  ): T => ({
+    ...snapshot,
+    workingGround: snapshot.workingGround.map(row => row.id.startsWith(SUNREACH_TERRACE_GROUND)
+      ? { ...row, height: reference.workingGround.find(entry =>
+        entry.id === row.id && entry.x === row.x && entry.z === row.z)?.height ?? row.height }
+      : row),
+    anchors: snapshot.anchors.map(anchor => SUNREACH_TERRACE_ANCHOR_IDS.includes(anchor.id)
+      ? { ...anchor, height: reference.anchors.find(entry => entry.id === anchor.id)?.height ?? anchor.height }
+      : anchor),
+    sunreachHash: reference.sunreachHash
+  });
   /** Layout 23 arm geometry for the independently retained layout23 hash. */
   const restorePreSpringTrails = (snapshot: ReturnType<typeof captureTerrainPreservation>) =>
     withRoutes(snapshot, snapshot.routes.map(route =>
@@ -120,7 +144,8 @@ describe("starter island terrain preservation", () => {
 
   it("pins every new mainland route while retaining the protected layout21 fields", () => {
     expect(baseline.routeIds).toEqual(expect.arrayContaining(MAINLAND_ROUTES.map((route) => route.id)));
-    const historical = captureTerrainPreservation(beforeMainland.routeIds, beforeMainland.sunreachSampling);
+    const historical = withSunreachTerracesFrom(
+      captureTerrainPreservation(beforeMainland.routeIds, beforeMainland.sunreachSampling), beforeMainland);
     const { workingChecks } = compareTerrainPreservation(historical, beforeMainland);
     for (const field of ["workingGround", "routeIds", "sunreachSampling", "sunreachHash", "sunreachSampleCount"] as const) {
       expect(workingChecks[field], field).toBe(true);
@@ -137,7 +162,7 @@ describe("starter island terrain preservation", () => {
   });
 
   it("changes only the coastal road, the headwater trail arms and the routed mainland roads while preserving river, work sites and other routes", () => {
-    const restored = withMarketHeightsFrom(restoreLayout25World(current), beforeRoad);
+    const restored = withSunreachTerracesFrom(withMarketHeightsFrom(restoreLayout25World(current), beforeRoad), beforeRoad);
     for (const [field, matches] of Object.entries(compareTerrainPreservation(restored, beforeRoad).workingChecks)) {
       expect(matches, field).toBe(true);
     }
@@ -147,17 +172,19 @@ describe("starter island terrain preservation", () => {
     const protectedStations = (rows: typeof current.lowerRiver) => rows.filter(row =>
       Number(row.z) >= -20 && Number(row.z) <= 14 || Number(row.z) >= 80);
     expect(protectedStations(current.lowerRiver)).toEqual(protectedStations(beforeRiver.lowerRiver));
-    expect(current.workingGround).toEqual(beforeRiver.workingGround);
-    expect(withMarketHeightsFrom(current, beforeRiver).anchors).toEqual(beforeRiver.anchors);
+    const terraced = withSunreachTerracesFrom(current, beforeRiver);
+    expect(terraced.workingGround).toEqual(beforeRiver.workingGround);
+    expect(withMarketHeightsFrom(terraced, beforeRiver).anchors).toEqual(beforeRiver.anchors);
     expect(compareTerrainPreservation(restoreLayout25World(current), beforeRiver).workingChecks.routeHash).toBe(true);
   });
 
   it("retains layout22 working fields and anchor coordinates across the contour-road rework", () => {
+    const terraced = withSunreachTerracesFrom(current, beforeOrganic);
     for (const field of ["workingGround", "routeIds", "sunreachSampling", "sunreachHash", "sunreachSampleCount"] as const) {
-      expect(current[field], field).toEqual(beforeOrganic[field]);
+      expect(terraced[field], field).toEqual(beforeOrganic[field]);
     }
     for (const anchor of beforeOrganic.anchors) {
-      const actual = current.anchors.find(candidate => candidate.id === anchor.id)!;
+      const actual = terraced.anchors.find(candidate => candidate.id === anchor.id)!;
       // These three village ground heights include the intentionally reworked
       // road crowns; the current revision snapshot pins their new heights.
       const comparable = MAINLAND_MARKET_IDS.includes(anchor.id) ? { ...actual, height: anchor.height } : actual;

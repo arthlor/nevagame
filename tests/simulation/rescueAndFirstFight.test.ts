@@ -61,21 +61,21 @@ describe("emergency tow", () => {
     });
   });
 
-  it("refuses with fuel in the tank or an empty purse, spending nothing", () => {
+  it("refuses with fuel in the tank, and waives the fee for a short purse", () => {
     skiffAboardWithNoFuel(sim);
     sim.state.boats["boat.player_skiff"].fuel = 10;
     sim.state.player.money = 100;
     expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({ success: false });
     expect(sim.state.player.money).toBe(100);
+    expect(sim.state.boats["boat.player_skiff"].isDocked).not.toBe(true);
 
+    // 02 §11: the flat fee is waived when the purse is short, so an empty
+    // tank never strands a broke captain at sea.
     sim.state.boats["boat.player_skiff"].fuel = 0;
     sim.state.player.money = NavigationDomain.EMERGENCY_TOW_COST - 1;
-    expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({
-      success: false,
-      reason: `Emergency tow needs ${NavigationDomain.EMERGENCY_TOW_COST} G`
-    });
+    expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({ success: true, cost: 0 });
     expect(sim.state.player.money).toBe(NavigationDomain.EMERGENCY_TOW_COST - 1);
-    expect(sim.state.boats["boat.player_skiff"].isDocked).not.toBe(true);
+    expect(sim.state.boats["boat.player_skiff"].isDocked).toBe(true);
   });
 });
 

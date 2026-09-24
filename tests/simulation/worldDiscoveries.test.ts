@@ -10,8 +10,10 @@ describe("world arrivals", () => {
     const found: string[] = [];
     sim.events.on("PlaceDiscovered", ({ knowledgeId }) => found.push(knowledgeId));
     const entry = WORLD_DISCOVERIES[0];
-    const player = { ...sim.state.player, ...entry.position,
-      y: WorldLayout.traversalSurfaceHeight(entry.position.x, entry.position.z) + 0.5 };
+    // A physics frame carries only the pose fields the navigation owner accepts.
+    const player = { x: entry.position.x, z: entry.position.z,
+      y: WorldLayout.traversalSurfaceHeight(entry.position.x, entry.position.z) + 0.5,
+      rotationY: sim.state.player.rotationY, traversal: { ...sim.state.player.traversal } };
     expect(sim.commitPhysicsFrame({ player: { ...player, x: NaN }, boats: {} }).success).toBe(false);
     expect(found).toEqual([]);
     expect(sim.commitPhysicsFrame({ player, boats: {} }).success).toBe(true);

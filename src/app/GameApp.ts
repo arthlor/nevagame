@@ -71,6 +71,8 @@ import type { ChronicleFilter, NoticeCategory } from "../ui/notifications";
 import { bindUiHoverAudio, playNoticeSound } from "../ui/audio/uiAudio";
 
 const SALE_BATCH_WINDOW_MS = 600;
+/** Real-time cadence of the periodic autosave, and of its retries after a failure. */
+const AUTOSAVE_INTERVAL_MS = 60_000;
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import {
   GraphicsQualitySettings,
@@ -750,6 +752,14 @@ export class GameApp {
   /** Session origin; a telemetry reset starts a new session from here. */
   private telemetryStartedAtMs = performance.now();
   private lastAutosaveMs: number = 0;
+  /**
+   * When the periodic cadence last asked for a save, successful or not. A
+   * failed save leaves `lastAutosaveMs` behind, and gating on it alone
+   * re-requested a full save every frame while storage kept refusing.
+   */
+  private lastPeriodicAutosaveRequestMs: number = Number.NEGATIVE_INFINITY;
+  /** One warning per run of failed autosaves; cleared by the next success. */
+  private autosaveFailureNotified: boolean = false;
   private physicsAccumulatorSeconds: number = 0;
   /**
    * Monotonic count of fixed movement steps actually delivered. The accumulator
@@ -1460,6 +1470,9 @@ export class GameApp {
         this.updateStartupState({ status: "loading", errorMessage: null });
       }
       this.durableWritesEnabled = this.startupState.status !== "error";
+      // The entry commit is a save: the periodic cadence starts from it, not
+      // from the title screen, so a long load does not re-save on reveal.
+      if (this.durableWritesEnabled) this.lastAutosaveMs = performance.now();
     }
     attempt.check();
     syncWorldAudio({ clock: this.sim.state.clock, position: this.sim.state.player, mode: this.mode, weather: this.sim.state.weather.type,
@@ -2235,9 +2248,7 @@ export class GameApp {
       this.hudFishingHold = { isReeling: false, isSlacking: false, isBracing: false, rodDirectionAngle: 0 };
       this.restoreGameplayModeFromState();
     }
-    if (nowMs - this.lastAutosaveMs >= 60_000) {
-      this.requestAutosave();
-    }
+    this.requestPeriodicAutosave(nowMs);
     this.recordPhase("simulation", performance.now() - phaseMark);
     phaseMark = performance.now();
 
@@ -4952,13 +4963,30 @@ export class GameApp {
     });
   }
 
+  /**
+   * Periodic autosave on a fixed cadence measured from the last success or the
+   * last periodic attempt, whichever is later, so a store that keeps refusing
+   * is retried once per interval rather than on every frame.
+   */
+  private requestPeriodicAutosave(nowMs: number): void {
+    if (nowMs - Math.max(this.lastAutosaveMs, this.lastPeriodicAutosaveRequestMs) < AUTOSAVE_INTERVAL_MS) return;
+    this.lastPeriodicAutosaveRequestMs = nowMs;
+    this.requestAutosave();
+  }
+
   private async flushAutosave(): Promise<void> {
     this.autosaveInFlight = true;
     try {
       while (this.autosaveRequested) {
         this.autosaveRequested = false;
         const saved = await this.saveRepo.saveGame(this.sim.state);
-        if (saved) this.lastAutosaveMs = performance.now();
+        if (saved) {
+          this.lastAutosaveMs = performance.now();
+          this.autosaveFailureNotified = false;
+        } else if (!this.autosaveFailureNotified) {
+          this.autosaveFailureNotified = true;
+          this.notify("Autosave failed — recent progress is not saved yet. Retrying.", "warning", 6000);
+        }
       }
     } finally {
       this.autosaveInFlight = false;

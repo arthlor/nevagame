@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import { WorldLayout, SHORE_TREATMENT_TABLE } from "../../src/world/WorldLayout";
 import { SUNREACH_OFFSET_X } from "../../src/world/WorldIslands";
 
+// The layout-25 mainland carries Neva's west and north coasts far past the
+// retained starter district, so those probes sit offshore of the derived rim.
+const WEST_NEVA_WATER = { x: -890, z: -60 } as const;
 const PROJECTION_CASES = [
   { name: "south Neva", query: { x: 20, z: 110 }, islandId: "island.neva", normalAxis: "z", normalSign: 1 },
-  { name: "west Neva", query: { x: -210, z: -60 }, islandId: "island.neva", normalAxis: "x", normalSign: -1 },
-  { name: "north Neva", query: { x: 0, z: -250 }, islandId: "island.neva", normalAxis: "z", normalSign: -1 },
+  { name: "west Neva", query: WEST_NEVA_WATER, islandId: "island.neva", normalAxis: "x", normalSign: -1 },
+  { name: "north Neva", query: { x: 0, z: -730 }, islandId: "island.neva", normalAxis: "z", normalSign: -1 },
   { name: "east Sunreach", query: { x: 660 + SUNREACH_OFFSET_X, z: 60 }, islandId: "island.sunreach", normalAxis: "x", normalSign: 1 },
   { name: "Gull's Rest", query: { x: 420, z: 260 }, islandId: "island.gull_rest", normalAxis: "z", normalSign: 1 }
 ] as const;
@@ -34,7 +37,8 @@ describe("W03 consumer-backed geographical contracts", () => {
   });
 
   it("preserves metric sign on both sides of the same boundary", () => {
-    const water = WorldLayout.shoreProjectionAt(-210, -60);
+    const water = WorldLayout.shoreProjectionAt(WEST_NEVA_WATER.x, WEST_NEVA_WATER.z);
+    expect(water.signedDistanceMeters).toBeGreaterThan(0);
     const landPoint = {
       x: water.boundaryPointXZ.x - water.waterwardNormalXZ.x * 2,
       z: water.boundaryPointXZ.z - water.waterwardNormalXZ.z * 2

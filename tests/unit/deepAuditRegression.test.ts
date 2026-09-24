@@ -137,7 +137,8 @@ describe("gameplay coaching agrees with the implemented rules", () => {
 
   it("does not send physical trade packs to the harbor buyer", () => {
     expect(source).not.toContain("a direct run to the harbor beats a full hold");
-    expect(source).toContain("take physical trade packs to an inland trade counter");
+    expect(source).toContain("Carry trade packs to an inland buyer or a posted fish commission");
+    expect(source).toContain("the Harbor Fish Market does not buy them over the counter");
   });
 
   it("does not describe every docking location as the harbor", () => {

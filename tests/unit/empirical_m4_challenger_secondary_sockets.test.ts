@@ -103,16 +103,18 @@ describe("published source animation and equipment contracts", () => {
   );
 
   it("retains the fallback scale and orientation contract without overriding primary palm frames", () => {
-    for (const [assetId, scale, angle] of [
-      [ASSET_IDS.TOOL_SICKLE_A, 0.82, Math.PI],
-      [ASSET_IDS.TOOL_WORKSTATION_SCOOP_A, 0.78, Math.PI],
-      [ASSET_IDS.TOOL_FISHING_ROD_A, 0.85, Math.PI],
-      [ASSET_IDS.TOOL_WATERING_CAN_A, 0.72, 0],
-      [ASSET_IDS.TOOL_SEED_POUCH_A, 0.72, 0],
-      [ASSET_IDS.PROP_CROP_BUNDLE_A, 0.76, 0],
-      [ASSET_IDS.PROP_HARVEST_BASKET_A, 0.68, 0]
+    for (const [assetId, scale, angle, position] of [
+      [ASSET_IDS.TOOL_SICKLE_A, 0.82, Math.PI, [0, 0, 0]],
+      [ASSET_IDS.TOOL_WORKSTATION_SCOOP_A, 0.78, Math.PI, [0, 0, 0]],
+      [ASSET_IDS.TOOL_FISHING_ROD_A, 0.85, Math.PI, [0, 0, 0]],
+      [ASSET_IDS.TOOL_WATERING_CAN_A, 0.72, 0, [0, 0, 0]],
+      [ASSET_IDS.TOOL_SEED_POUCH_A, 0.72, 0, [0, 0, 0]],
+      [ASSET_IDS.PROP_CROP_BUNDLE_A, 0.76, 0, [0, 0, 0]],
+      // The basket hangs below and slightly ahead of the palm so it rides
+      // below the face (04, interactions) instead of at the grip origin.
+      [ASSET_IDS.PROP_HARVEST_BASKET_A, 0.68, 0, [0, -0.18, 0.08]]
     ] as const) {
-      expect(socketAttachFor(assetId)).toEqual({ position: [0, 0, 0], rotation: [angle, 0, 0], scale });
+      expect(socketAttachFor(assetId)).toEqual({ position, rotation: [angle, 0, 0], scale });
     }
     const accessory = new THREE.Group();
     accessory.position.set(1, 2, 3);

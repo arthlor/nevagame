@@ -301,14 +301,20 @@ describe("source humanoid runtime", () => {
         const contacts = clip.contacts![side]!;
         const wraps = contacts.some((interval) => interval.start === 0) && contacts.some((interval) => Math.abs(interval.end - clip.durationSeconds) < 0.00001);
         const planted = frame * dt > clip.durationSeconds && contacts.some((interval) => {
-          const start = wraps && interval.start === 0 ? 0 : interval.start + 0.08;
-          const end = wraps && Math.abs(interval.end - clip.durationSeconds) < 0.00001 ? clip.durationSeconds : interval.end - 0.08;
+          // Skip lock onset and lift-off. A fixed 80 ms trim would erase a short
+          // run contact (133 ms) entirely, so short windows keep their middle half.
+          const trim = Math.min(0.08, (interval.end - interval.start) * 0.25);
+          const start = wraps && interval.start === 0 ? 0 : interval.start + trim;
+          const end = wraps && Math.abs(interval.end - clip.durationSeconds) < 0.00001 ? clip.durationSeconds : interval.end - trim;
           return phaseTime >= start && phaseTime <= end;
         });
         const point = new THREE.Vector3(); solver.soleWorldPosition(side, point);
         if (planted && valid[side]) {
-          maximumDrift = Math.max(maximumDrift, point.distanceTo(previous[side]));
-          expect(point.distanceTo(previous[side]), `${clipName} ${side} total planted-stance drift`).toBeLessThan(0.02);
+          // Terrain correction keeps the authored heel/toe roll and its sole-center
+          // lift (04, locomotion), so a planted sole may rise; it must not slide.
+          const slide = Math.hypot(point.x - previous[side].x, point.z - previous[side].z);
+          maximumDrift = Math.max(maximumDrift, slide);
+          expect(slide, `${clipName} ${side} total planted-stance slide`).toBeLessThan(0.02);
           expect(point.y - surface(point.x, point.z).height, `${clipName} ${side} floor penetration`).toBeGreaterThan(-0.02);
           checked++;
         }
@@ -317,7 +323,7 @@ describe("source humanoid runtime", () => {
       }
     }
     expect(checked).toBeGreaterThan(4);
-    console.info(`[source stance] ${assetId} ${clipName} slope ${forwardSlope}/${sideSlope} reduced ${reducedMotion}: max cumulative drift ${maximumDrift} m; pelvis drop ${maximumPelvisDrop} m`);
+    console.info(`[source stance] ${assetId} ${clipName} slope ${forwardSlope}/${sideSlope} reduced ${reducedMotion}: max cumulative slide ${maximumDrift} m; pelvis drop ${maximumPelvisDrop} m`);
   });
   it("does not compound lower-body corrections between throttled mixer samples", async () => {
     const roots = await Promise.all([loadHumanoidAsset(ASSET_IDS.CHAR_PLAYER_A), loadHumanoidAsset(ASSET_IDS.CHAR_PLAYER_A)]);

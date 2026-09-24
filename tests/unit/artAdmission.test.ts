@@ -43,6 +43,8 @@ function fixture() {
   put(root, sourceBlend, blendBytes);
   put(root, "tools/blender/generators/registry.py", "from .imported import imported_blend\n");
   put(root, "tools/blender/generators/imported.py", "def imported_blend(): pass\n");
+  // Every checkout declares its authored generators; this fixture has none.
+  put(root, "tools/authored/generators/contracts.json", "{}");
   const asset: CatalogAsset = {
     id: "char_test_a", file: "char_test_a.glb", family: "character", generator: "imported_blend", seed: 1,
     dimensions: { width: 1, depth: 1, height: 1 }, palette: ["canvas_cream_01"],

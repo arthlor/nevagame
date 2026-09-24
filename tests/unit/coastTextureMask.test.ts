@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { SURFACE_FIELD_ATTRIBUTE_NAMES } from "../../src/render/materials/SurfaceFieldAttributes";
 
 function smoothstep(edge0: number, edge1: number, value: number): number {
   const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
@@ -75,7 +76,14 @@ describe("coast texture mask bake", () => {
     const sampledNormals = sampledPlane.getAttribute("normal");
     const gridStep = patch.sizeMeters / patch.resolution;
 
-    let matched = false;
+    // The bake converts grass/meadow to cliff where presentation-only rock is
+    // exposed (withExposedRock) and packs those weights into the surface field.
+    const weights0 = geometry.getAttribute(SURFACE_FIELD_ATTRIBUTE_NAMES.weights0);
+    const weights1 = geometry.getAttribute(SURFACE_FIELD_ATTRIBUTE_NAMES.weights1);
+    const causes = geometry.getAttribute(SURFACE_FIELD_ATTRIBUTE_NAMES.causes);
+    const byte = (value: number) => Math.round(value * 255);
+    let matched = 0;
+    let exposed = 0;
     for (let index = 0; index < positions.count; index += 4096) {
       const x = positions.getX(index);
       const z = positions.getZ(index);
@@ -83,16 +91,30 @@ describe("coast texture mask bake", () => {
       const row = Math.round((z + patch.sizeMeters / 2) / gridStep);
       const normalY = Math.abs(sampledNormals.getY(row * (patch.resolution + 1) + column));
       const weights = WorldLayout.terrainSurfaceWeights(x, z, normalY);
+      const baked = byte(terrainGreenMask.getX(index));
+      if (byte(causes.getY(index)) !== byte(weights.cliff)) {
+        // Exposed rock: the mask follows the baked (exposed) weights, within
+        // the byte quantization of the packed channels.
+        const packed = {
+          grass: weights0.getX(index), meadow: weights0.getY(index),
+          path: weights1.getX(index), shoulder: weights1.getY(index), beach: weights1.getZ(index),
+          wetShoreline: causes.getX(index), cliff: causes.getY(index)
+        };
+        const shoreShare = packed.beach + packed.wetShoreline + packed.cliff;
+        if (shoreShare <= 0 || shoreShare >= 0.42) continue;
+        expect(Math.abs(baked - expectedGreenMaskByte(packed)), `exposed vertex ${x},${z}`).toBeLessThanOrEqual(2);
+        exposed += 1;
+        continue;
+      }
       const shoreShare = weights.beach + weights.wetShoreline + weights.cliff;
       if (shoreShare <= 0 || shoreShare >= 0.42) continue;
 
-      const expected = expectedGreenMaskByte(weights);
-      const baked = Math.round(terrainGreenMask.getX(index) * 255);
-      expect(baked).toBe(expected);
-      matched = true;
+      expect(baked, `vertex ${x},${z}`).toBe(expectedGreenMaskByte(weights));
+      matched += 1;
     }
 
-    expect(matched).toBe(true);
+    expect(matched).toBeGreaterThan(0);
+    expect(exposed).toBeGreaterThan(0);
     geometry.dispose();
     sampledPlane.dispose();
   });

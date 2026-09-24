@@ -59,7 +59,8 @@ describe("QuestDomain & Storyline Progression", () => {
       ["intro", "quest.act1_sow_wheat"]
     ]);
     expect(talkResult.segments[2].startsQuest).toBe(true);
-    expect(talkResult.dialogue[0]).toContain("Welcome to Neva Cove");
+    // The welcome's own opening line comes first; the copy is content-owned.
+    expect(talkResult.dialogue[0]).toBe(ContentRegistry.quests.get("quest.act1_welcome")!.introDialogue[0]);
 
     // Welcome quest should now be completed and advanced to planting seeds
     const nextQuest = sim.query({ type: "quest.get-active" }) as ActiveQuestDto;

@@ -330,19 +330,38 @@ describe("WorldLayout", () => {
       .toBeGreaterThan(0.3);
 
     const positions = geometry.getAttribute("position");
+    // Rapier's landform for this patch. Its border vertices are stitched onto
+    // the adjoining coarser patches' edges (01 §11), so there the rendered and
+    // collision height is the stitched value rather than the analytic landform.
+    const nevaPatch = WorldLayout.terrainPatches().find((patch) => patch.id === "terrain.neva")!;
+    const collisionHeights = WorldLayout.terrainBaseHeightfieldForPatch("terrain.neva");
+    const patchStep = nevaPatch.sizeMeters / nevaPatch.resolution;
     let highRouteBlend = false;
     let lowOffRoadBlend = false;
     let blendRangeOk = true;
     let landformHeightMatches = true;
+    let seamVerticesChecked = 0;
     for (let index = 0; index < positions.count; index += 29) {
       const blend = terrainPathBlend.getX(index);
       if (blend < 0 || blend > 1) blendRangeOk = false;
       if (blend > 0.9) highRouteBlend = true;
       if (blend < 0.12) lowOffRoadBlend = true;
-      if (positions.getY(index) !== Math.fround(WorldLayout.terrainBaseHeight(
-        positions.getX(index), positions.getZ(index)
-      ))) landformHeightMatches = false;
+      const x = positions.getX(index);
+      const z = positions.getZ(index);
+      const onSeam = x === nevaPatch.bounds.minX || x === nevaPatch.bounds.maxX
+        || z === nevaPatch.bounds.minZ || z === nevaPatch.bounds.maxZ;
+      if (onSeam) {
+        seamVerticesChecked += 1;
+        const gridX = Math.round((x - nevaPatch.bounds.minX) / patchStep);
+        const gridZ = Math.round((z - nevaPatch.bounds.minZ) / patchStep);
+        if (positions.getY(index) !== collisionHeights[gridX * (nevaPatch.resolution + 1) + gridZ]) {
+          landformHeightMatches = false;
+        }
+      } else if (positions.getY(index) !== Math.fround(WorldLayout.terrainBaseHeight(x, z))) {
+        landformHeightMatches = false;
+      }
     }
+    expect(seamVerticesChecked).toBeGreaterThan(0);
     expect(blendRangeOk).toBe(true);
     expect(landformHeightMatches).toBe(true);
     let nearestRouteIndex = 0;
@@ -653,9 +672,11 @@ describe("WorldLayout", () => {
     expect(causalCount("island.neva", "rock")).toBe(66);
     // The reed slope/mountain gate only ever lowers reed density, and the
     // lip-crest box excludes the plunging edge; each retired exactly the
-    // reeds it targets (cliff/high/crest floaters). The remaining reeds keep
-    // their wet, depositional, low-access properties below.
-    expect(causalCount("island.neva", "reed")).toBe(51);
+    // reeds it targets (cliff/high/crest floaters). The layout-25 river rework
+    // (compact meanders, varying widths) lengthened the wet depositional bank,
+    // raising the count from 51; every remaining reed keeps its wet,
+    // depositional, low-access properties, checked below.
+    expect(causalCount("island.neva", "reed")).toBe(84);
     expect(causalCount("island.sunreach", "tree")).toBe(48);
     expect(causalCount("island.sunreach", "bush")).toBe(62);
     expect(causalCount("island.sunreach", "rock")).toBe(38);
@@ -834,7 +855,11 @@ describe("WorldLayout", () => {
     expect(authored.filter((placement) => placement.id === "authored.spawn.bush-right")).toHaveLength(1);
     expect(authored.filter((placement) => placement.id === "authored.spawn.rock-foreground")).toHaveLength(1);
     expect(authored.filter((placement) => placement.assetId === "fauna_chicken_a")).toHaveLength(5);
-    const starterAuthored = authored.filter((placement) => !placement.id.startsWith("authored.mainland."));
+    // Starter-district dressing. The mainland and the layout-28 Sunreach
+    // working-settlement pass author their own copies of these props.
+    const starterAuthored = authored.filter((placement) =>
+      !placement.id.startsWith("authored.mainland.") && !placement.id.startsWith("authored.sunreach.living.")
+    );
     expect(starterAuthored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(2);
     expect(authored.filter((placement) => placement.assetId === "fauna_cow_a")).toHaveLength(1);
     // Three rabbits that used to sit right on the spawn apron were removed to
@@ -1022,7 +1047,10 @@ describe("WorldLayout", () => {
     for (let index = 0; index < sections.length; index++) {
       const section = sections[index];
       if (index > 0) {
-        expect(Math.abs(section.bedElevation - sections[index - 1].bedElevation)).toBeLessThanOrEqual(0.25);
+        // Bend scour (layout 25) deepens the bed at the tight meanders and lets
+        // it rise again downstream, up to ~0.28 m across one 5 m sample. The
+        // bed still varies smoothly: no step may approach a riffle drop.
+        expect(Math.abs(section.bedElevation - sections[index - 1].bedElevation)).toBeLessThanOrEqual(0.3);
       }
       expect(Math.abs(section.thalwegOffset)).toBeLessThanOrEqual(
         Math.min(section.leftWaterWidth, section.rightWaterWidth) * 0.35
@@ -1055,10 +1083,15 @@ describe("WorldLayout", () => {
         expect(section.rightFloodplainWidth).toBeLessThan(section.leftFloodplainWidth);
       }
     }
-    const straightReaches = sections.filter((section) =>
-      Math.abs(section.curvature * 42) <= 0.04
-      && Math.abs(section.z - WORLD_LAYOUT_V5.anchors.bridge.z) > 12
-    );
+    // The layout-25 meanders are compact enough that the 5 m grid above never
+    // lands on a straight reach; find the short inflections between bends.
+    const straightReaches = [];
+    for (let z = -115; z <= 80; z += 0.5) {
+      const section = WorldLayout.riverSectionAt(z);
+      if (Math.abs(section.curvature * 42) <= 0.04 && Math.abs(section.z - WORLD_LAYOUT_V5.anchors.bridge.z) > 12) {
+        straightReaches.push(section);
+      }
+    }
     expect(straightReaches.length).toBeGreaterThan(0);
     expect(straightReaches.every((section) => Math.abs(section.thalwegOffset) < 0.001)).toBe(true);
     const bridge = WorldLayout.riverSectionAt(WORLD_LAYOUT_V5.anchors.bridge.z);
@@ -1263,12 +1296,13 @@ describe("WorldLayout", () => {
   });
 
   it("places deterministic discontinuous reeds from wet depositional bank profiles", () => {
-    const first = createWorldEnvironmentLayout(42891).staticPlacements.filter((placement) =>
-      placement.compositionTag?.category === "reed"
+    // River-bank reeds of the starter district. Mainland marsh and lake-shore
+    // reeds come from their own generator and are not bank-profile placements.
+    const riverReeds = (seed: number) => createWorldEnvironmentLayout(seed).staticPlacements.filter((placement) =>
+      placement.compositionTag?.category === "reed" && !placement.id.startsWith("seeded-fill.mainland.")
     );
-    const repeat = createWorldEnvironmentLayout(42891).staticPlacements.filter((placement) =>
-      placement.compositionTag?.category === "reed"
-    );
+    const first = riverReeds(42891);
+    const repeat = riverReeds(42891);
     const differentSeed = generateCausalCompositionPlacements(98765).filter((placement) =>
       placement.compositionTag?.category === "reed"
     );
@@ -1276,9 +1310,10 @@ describe("WorldLayout", () => {
     expect(differentSeed).not.toEqual(first);
     // 55 before the reed gates; the slope/mountain gate retired one steep
     // reed and the lip-crest box three crest floaters (verified: zero seeded
-    // reeds remain in the crest zone, pool margins untouched). Determinism
-    // and the wet/depositional/low-access properties still hold for all 51.
-    expect(first.length).toBe(51);
+    // reeds remain in the crest zone, pool margins untouched). The layout-25
+    // river rework lengthened the qualifying bank to 84. Determinism and the
+    // wet/depositional/low-access properties still hold for every one.
+    expect(first.length).toBe(84);
     expect(first.some((placement) => WorldLayout.riverBankSample(placement.x, placement.z).side === "left")).toBe(true);
     expect(first.some((placement) => WorldLayout.riverBankSample(placement.x, placement.z).side === "right")).toBe(true);
     expect(first.every((placement) => {

@@ -71,3 +71,25 @@ export function expectMarketsPreserved(after: GameState, before: GameState): voi
     );
   }
 }
+
+/**
+ * Asserts contracts survive a migration chain that crosses v57. That step adds
+ * the settlement ledger: `deliveredValueMoney` starts at zero and an active
+ * order's existing fulfilled units become `legacyUnvaluedQuantity`; every other
+ * contract field must pass through unchanged.
+ */
+export function expectContractsPreserved(after: GameState, before: GameState): void {
+  const withoutLedger = (contracts: GameState["contracts"]) => contracts.map((contract) =>
+    Object.fromEntries(Object.entries(contract).filter(([key]) =>
+      key !== "deliveredValueMoney" && key !== "legacyUnvaluedQuantity"
+    ))
+  );
+  expect(withoutLedger(after.contracts), "contracts").toEqual(withoutLedger(before.contracts));
+  after.contracts.forEach((contract, index) => {
+    const original = before.contracts[index]!;
+    expect(contract.deliveredValueMoney ?? 0, `${contract.id} delivered value`).toBe(original.deliveredValueMoney ?? 0);
+    expect(contract.legacyUnvaluedQuantity, `${contract.id} legacy quantity`).toBe(
+      original.legacyUnvaluedQuantity ?? (original.status === "active" ? original.quantityFulfilled : 0)
+    );
+  });
+}

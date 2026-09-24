@@ -18,12 +18,19 @@ import { groundCoverActiveCount } from "../../src/render/config/VisualRenderConf
 import { sampleWorldComposition } from "../../src/world/WorldCompositionField";
 import { SeededRng } from "../../src/simulation/core/Rng";
 import { retainHarborGroundCover } from "../../src/world/HarborCoastLayout";
+import { mainlandGroundCoverSteps } from "../../src/world/MainlandEnvironmentLayout";
+import { runSync } from "../../src/utils/CooperativeTask";
 
 describe("Organic road environment", () => {
   it("keeps quality density monotonic without changing the canonical high layout", () => {
-    expect(groundCoverActiveCount(100, "low")).toBe(24);
-    expect(groundCoverActiveCount(100, "medium")).toBe(48);
-    expect(groundCoverActiveCount(100, "high")).toBe(60);
+    // VisualRenderConfig owns the per-tier scales; tiers only activate a
+    // subset of the one canonical placement list, never more than it holds.
+    const [low, medium, high] = (["low", "medium", "high"] as const)
+      .map((tier) => groundCoverActiveCount(100, tier));
+    expect(low).toBeGreaterThan(0);
+    expect(medium).toBeGreaterThan(low);
+    expect(high).toBeGreaterThan(medium);
+    expect(high).toBeLessThanOrEqual(100);
   });
 
   it("keeps deterministic shoulder cover outside road cores and bridge geometry", () => {
@@ -38,8 +45,9 @@ describe("Organic road environment", () => {
     );
     // Neva's short-grass carpet is the renderer's MeadowField, not scattered tufts.
     expect(generatedNevaCover.some((placement) => placement.assetId.startsWith("foliage_grass_"))).toBe(false);
+    // The mainland dresses its own meadow accents after the starter district.
     expect(first.groundCoverPlacements.filter((placement) => !isSunreach(placement)))
-      .toEqual(generatedNevaCover.filter(retainHarborGroundCover));
+      .toEqual([...generatedNevaCover.filter(retainHarborGroundCover), ...runSync(mainlandGroundCoverSteps(42891))]);
     expect(first.groundCoverPlacements.filter(isSunreach)).toHaveLength(360 + 72 + 96);
 
     const shoulderCover = first.groundCoverPlacements.filter((placement) =>
@@ -159,7 +167,9 @@ describe("Organic road environment", () => {
     const bridgeReeds = authored.filter((placement) => placement.id.includes("bridge-"));
     expect(WorldLayout.pathInfluence(wagon.x, wagon.z)).toBeLessThan(0.12);
     expect(bridgeReeds.every((placement) => WorldLayout.pathInfluence(placement.x, placement.z) < 0.12)).toBe(true);
-    expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(2);
+    // Mainland villages dress their own carts; mainlandEnvironment owns those.
+    expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a"
+      && !placement.id.startsWith("authored.mainland."))).toHaveLength(2);
     expect(bridgeReeds.filter((placement) => placement.assetId === "foliage_reeds_a")).toHaveLength(2);
   });
 

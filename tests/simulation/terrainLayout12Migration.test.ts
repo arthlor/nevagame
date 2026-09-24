@@ -15,7 +15,7 @@ import { defaultMooringForBoatType } from "../../src/world/WorldMoorings";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
-import { expectFarmsPreserved } from "../helpers/migrationPreservation";
+import { expectContractsPreserved, expectFarmsPreserved } from "../helpers/migrationPreservation";
 import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 import fixture from "../fixtures/save_v31_layout11.json";
 
@@ -28,9 +28,10 @@ function legacy(): SaveEnvelope {
 }
 
 function preserveResources(before: GameState, after: GameState): void {
-  for (const key of ["crops", "inventories", "fishCargo", "contracts", "journal", "metadata", "clock"] as const) {
+  for (const key of ["crops", "inventories", "fishCargo", "journal", "metadata", "clock"] as const) {
     expect(after[key], key).toEqual(before[key]);
   }
+  expectContractsPreserved(after, before);
   expectFarmsPreserved(after, before);
   for (const [marketId, oldMarket] of Object.entries(before.markets)) {
     const migratedMarket = after.markets[marketId];

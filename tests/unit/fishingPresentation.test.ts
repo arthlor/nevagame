@@ -58,11 +58,19 @@ describe("sport fishing presentation", () => {
     rod.add(blank);
     parent.updateMatrixWorld(true);
     const presentation = new FishingRodBend(rod);
+    const up = new THREE.Vector3(0, 1, 0);
+    const gripBefore = rod.getObjectByName("rod_primary_grip")!.getWorldPosition(new THREE.Vector3());
+    const dockedElevation = presentation.getTipWorld(new THREE.Vector3()).sub(gripBefore).normalize().dot(up);
     const endpoint = new THREE.Vector3(13, -0.5, 8);
     presentation.aimToward(endpoint, 1 / 60);
     const grip = rod.getObjectByName("rod_primary_grip")!.getWorldPosition(new THREE.Vector3());
     const tip = presentation.getTipWorld(new THREE.Vector3());
-    expect(tip.clone().sub(grip).normalize().dot(endpoint.clone().sub(grip).normalize())).toBeCloseTo(1, 5);
+    const heading = (vector: THREE.Vector3) => vector.clone().projectOnPlane(up).normalize();
+    // The blank swings its heading onto the fish about the fixed grip while the
+    // authored elevation survives (FishingRodBend.aimToward).
+    expect(grip.distanceTo(gripBefore)).toBeCloseTo(0, 5);
+    expect(heading(tip.clone().sub(grip)).dot(heading(endpoint.clone().sub(grip)))).toBeCloseTo(1, 5);
+    expect(tip.clone().sub(grip).normalize().dot(up)).toBeCloseTo(dockedElevation, 5);
     presentation.dispose();
   });
 

@@ -23,12 +23,14 @@ describe("continuous Sunreach shore", () => {
   });
 
   it("keeps retained inland working anchors and the offshore mooring bed unchanged", () => {
+    // Layout 28 re-routes the Sunreach lanes around the living settlement and
+    // levels the terraces; the inland anchors follow that ground from then on.
     for (const [x, z, height] of [
       [343 + SUNREACH_OFFSET_X, 58, -1.073665817411135],
       [373 + SUNREACH_OFFSET_X, 56, 0.8999999999999999],
-      [455 + SUNREACH_OFFSET_X, 5, 4.743148849494423],
-      [515 + SUNREACH_OFFSET_X, 75, 7.919198168349516],
-      [590 + SUNREACH_OFFSET_X, 25, 19.09096862378921],
+      [455 + SUNREACH_OFFSET_X, 5, 4.75],
+      [515 + SUNREACH_OFFSET_X, 75, 7.919388495354648],
+      [590 + SUNREACH_OFFSET_X, 25, 19.06352667781775],
       [520 + SUNREACH_OFFSET_X, 180, 1.4115782359787832]
     ]) expect(WorldLayout.terrainHeight(x, z), `${x},${z}`).toBeCloseTo(height, 8);
     expect(WorldLayout.isSailable(343 + SUNREACH_OFFSET_X, 58)).toBe(true);

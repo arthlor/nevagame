@@ -143,10 +143,10 @@ describe("UI Modals Server/Unit Render", () => {
 
   it("documents the live tool-slot map in the field guide", () => {
     const html = renderToString(React.createElement(HowToPlayGuide));
-    expect(html).toContain("Hand Tools, Seeds, Watering Can, Fertilizer, Harvest Basket");
+    expect(html).toContain("Optional quick tools");
     // The belt changes with the stance, so the guide has to say so rather than
     // presenting one fixed list of five slots as the whole truth.
-    expect(html).toContain("The belt changes with where you are standing");
+    expect(html).toContain("Available shortcuts change near farms, water, and boats");
     expect(html).not.toContain("Hoe, Seeds, Watering Can, Bait, Rod");
   });
 });

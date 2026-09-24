@@ -15,7 +15,7 @@ import { SUNREACH_ANCHORS, SUNREACH_OFFSET_X } from "../../src/world/WorldIsland
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
-import { expectFarmsPreserved } from "../helpers/migrationPreservation";
+import { expectContractsPreserved, expectFarmsPreserved } from "../helpers/migrationPreservation";
 import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 import fixture from "../fixtures/save_v30_layout10.json";
 
@@ -27,9 +27,10 @@ function legacy(): SaveEnvelope {
 }
 
 function preserveResources(before: GameState, after: GameState): void {
-  for (const key of ["crops", "inventories", "fishCargo", "contracts", "journal", "metadata", "clock"] as const) {
+  for (const key of ["crops", "inventories", "fishCargo", "journal", "metadata", "clock"] as const) {
     expect(after[key], key).toEqual(before[key]);
   }
+  expectContractsPreserved(after, before);
   expectFarmsPreserved(after, before);
   for (const [marketId, oldMarket] of Object.entries(before.markets)) {
     const migratedMarket = after.markets[marketId];
@@ -192,7 +193,10 @@ describe("layout 11 coastal terrain save migration", () => {
 
   it.each([false, true])("keeps valid dry X/Z below the padded spring elevation (mounted=%s)", (mounted) => {
     const before = legacy();
-    const point = { x: -12, z: -140 };
+    // The v55 rim terminus of the shortened headwater trail: flat, dry ground
+    // well below the raised spring surface. The former (-12, -140) probe became
+    // the cirque's steep face when layout 27 raised the headwater.
+    const point = { x: -48, z: -155 };
     const support = WorldLayout.traversalSurfaceSample(point.x, point.z);
     expect(WorldLayout.isWater(point.x, point.z)).toBe(false);
     expect(WorldLayout.isWalkable(point.x, point.z)).toBe(true);

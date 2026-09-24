@@ -1060,6 +1060,11 @@ describe("Persistence & Offline Progression", () => {
     legacy.schemaVersion = 23;
     legacy.world.layoutRevision = 8;
     Object.assign(legacy.player, fixture.state.player);
+    // The fixture pose stood in the layout-8 river. The layout-25 river rework
+    // moved the channel, so that exact X is dry bank today; put the player in
+    // the live channel at the fixture's own Z so the relocation path this test
+    // exists for still runs. The retained fixture file is unchanged.
+    legacy.player.x = WorldLayout.riverSectionAt(fixture.state.player.z).centerX;
     Object.assign(legacy.world.structures, fixture.state.world.structures);
     legacy.metadata.rngState = fixture.state.metadata.rngState;
     const preserved = {

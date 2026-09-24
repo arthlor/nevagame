@@ -27,11 +27,13 @@ describe("terrain migration composition boundary", () => {
     expect(createWorldEnvironmentLayout).not.toHaveBeenCalled();
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(before).toEqual(untouched);
+    // One cached request per consuming step: layouts 13–16, the shared mainland
+    // recovery at v50–v54, the Sunreach layout-28 step and v59. The cache keeps
+    // generation shared; there is no extra request per actor.
+    expect(createWorldStaticPlacements).toHaveBeenCalledTimes(11);
+    // The no-op repeat load requests nothing.
     expect(migrateSaveData(after)).toEqual(after);
-    // Count calls by the migration chain, including prior mainland/headwater
-    // recovery steps and the new Sunreach layout-28 recovery. The cache keeps
-    // generation shared; there is no extra request per actor or repeat load.
-    expect(createWorldStaticPlacements).toHaveBeenCalledTimes(10);
+    expect(createWorldStaticPlacements).toHaveBeenCalledTimes(11);
   });
 
   it("shares cached static placements with the renderer without reading its deferred cover", async () => {

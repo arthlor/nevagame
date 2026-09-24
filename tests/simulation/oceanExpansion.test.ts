@@ -22,8 +22,14 @@ function skiff(sim: Simulation) {
   sim.state.inventories[boat.supplyInventoryId] = { id: boat.supplyInventoryId, slotCount: 8, slots: Array.from({ length: 8 }, () => ({})) };
   return boat;
 }
+// A physics frame carries only the pose fields the navigation owner accepts;
+// spreading the whole player record would be rejected as a malformed frame.
 function arrive(sim: Simulation, x: number, z: number) {
-  return sim.commitPhysicsFrame({ player: { ...sim.state.player, x, z, y: WorldLayout.traversalSurfaceHeight(x, z) + 0.5 }, boats: {} });
+  const { rotationY, traversal } = sim.state.player;
+  return sim.commitPhysicsFrame({
+    player: { x, z, y: WorldLayout.traversalSurfaceHeight(x, z) + 0.5, rotationY, traversal: { ...traversal } },
+    boats: {}
+  });
 }
 
 describe("expanded ocean expeditions", () => {
