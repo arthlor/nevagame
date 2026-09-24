@@ -1,6 +1,0 @@
-interface:
-  display_name: "Three.js Audio Generator"
-  short_description: "Generate or process requested ElevenLabs game audio"
-  default_prompt: "Use $threejs-audio-generator for this explicitly requested ElevenLabs audio-generation or processing task and verify the requested audible result."
-policy:
-  allow_implicit_invocation: false

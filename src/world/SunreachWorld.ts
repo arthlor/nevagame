@@ -2,6 +2,9 @@ import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import type { WorldDrainageSample, WorldRegionId } from "./WorldIslands";
 import { isInsideLoop, pointSegmentDistance, SUNREACH_ANCHORS, SUNREACH_COAST_LOOP } from "./WorldIslands";
 import type { WorldPoint, WorldRoute } from "./WorldLayout";
+import { SUNREACH_FARM_LAYOUT } from "./FarmLayout";
+import { createTerraceProfile } from "./TerraceProfile";
+import { SUNREACH_LIVING_ROUTES } from "./SunreachLivingLayout";
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -58,8 +61,8 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
       { x: 373 + SUNREACH_OFFSET_X, z: 62 },
       { x: 392 + SUNREACH_OFFSET_X, z: 65 },
       { x: 397 + SUNREACH_OFFSET_X, z: 43 },
-      { x: 420 + SUNREACH_OFFSET_X, z: 25 },
-      { x: 455 + SUNREACH_OFFSET_X, z: 6 }
+      { x: 425 + SUNREACH_OFFSET_X, z: 43 },
+      { x: 455 + SUNREACH_OFFSET_X, z: 39 }
     ]
   },
   {
@@ -68,8 +71,8 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
     kind: "lane",
     widthMeters: 2.7,
     points: [
-      { x: 455 + SUNREACH_OFFSET_X, z: 6 },
-      { x: 470 + SUNREACH_OFFSET_X, z: 27 },
+      { x: 455 + SUNREACH_OFFSET_X, z: 39 },
+      { x: 477 + SUNREACH_OFFSET_X, z: 39 },
       { x: 492 + SUNREACH_OFFSET_X, z: 51 },
       { x: 515 + SUNREACH_OFFSET_X, z: 75 }
     ]
@@ -83,7 +86,7 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
       { x: 515 + SUNREACH_OFFSET_X, z: 75 },
       { x: 544 + SUNREACH_OFFSET_X, z: 59 },
       { x: 568 + SUNREACH_OFFSET_X, z: 42 },
-      { x: 590 + SUNREACH_OFFSET_X, z: 25 }
+      { x: 585 + SUNREACH_OFFSET_X, z: 30 }
     ]
   },
   {
@@ -97,7 +100,8 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
       { x: 521 + SUNREACH_OFFSET_X, z: 146 },
       { x: 520 + SUNREACH_OFFSET_X, z: 180 }
     ]
-  }
+  },
+  ...SUNREACH_LIVING_ROUTES
 ];
 
 function sunreachMacroHeight(x: number, z: number): number {
@@ -168,13 +172,19 @@ export function sunreachDrainageSample(x: number, z: number): WorldDrainageSampl
   };
 }
 
+const SUNREACH_TERRACE_PROFILE = createTerraceProfile(
+  SUNREACH_FARM_LAYOUT.plantableAreas,
+  SUNREACH_FARM_LAYOUT.farmBounds,
+  [4.15, 4.75, 5.35],
+  8
+);
+
 function terraceHeight(x: number, z: number, base: number): number {
-  const localX = x - SUNREACH_ANCHORS.terraceFarm.x;
-  const localZ = z - SUNREACH_ANCHORS.terraceFarm.z;
-  const terraceEnvelope = 1 - smoothstep(26, 37, Math.hypot(localX * 0.84, localZ));
-  if (terraceEnvelope <= 0) return base;
-  const tier = localZ < -9 ? 4.15 : localZ < 9 ? 4.75 : 5.35;
-  return base + (tier - base) * terraceEnvelope * 0.92;
+  return SUNREACH_TERRACE_PROFILE(
+    x - SUNREACH_FARM_LAYOUT.origin.x,
+    z - SUNREACH_FARM_LAYOUT.origin.z,
+    base
+  );
 }
 
 function coveWorkingPadHeight(x: number, z: number, base: number): number {
@@ -190,7 +200,11 @@ export function sunreachNaturalTerrainHeight(x: number, z: number): number {
   const drainage = sunreachDrainageSample(x, z);
   const washBed = base - drainage.wash * (0.65 + drainage.erosion * 0.8);
   const deposited = washBed + drainage.deposition * 0.18;
-  const routeDistance = Math.min(...SUNREACH_ROUTES.map((route) => distanceToPolyline(x, z, route.points)));
+  let routeDistance = Number.POSITIVE_INFINITY;
+  for (const route of SUNREACH_ROUTES) {
+    routeDistance = Math.min(routeDistance, distanceToPolyline(x, z, route.points));
+    if (routeDistance <= 4.5) break; // The shoulder multiplier is already zero.
+  }
   const farmDistance = Math.hypot((x - SUNREACH_ANCHORS.terraceFarm.x) * 0.84, z - SUNREACH_ANCHORS.terraceFarm.z);
   const coastRelease = smoothstep(18, 42, inland);
   const workingRelease = smoothstep(4.5, 22, routeDistance) * smoothstep(37, 52, farmDistance);

@@ -15,14 +15,17 @@ describe("WaterThreeJS adaptation linkage", () => {
   });
 
   it("shares SSR capture uniforms instead of shadowing them per material", () => {
-    const water = new FacetedWater({ width: 20, depth: 20, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 20, depth: 20 });
     try {
       const uniforms = water.mesh.material.uniforms;
       expect(uniforms.uOpticsProjection).toBe(water.coastalUniforms.uOpticsProjection);
       expect(uniforms.uCameraNear).toBe(water.coastalUniforms.uCameraNear);
       expect(uniforms.uCameraFar).toBe(water.coastalUniforms.uCameraFar);
       expect(uniforms.uSsrEnabled).toBe(water.coastalUniforms.uSsrEnabled);
-      expect(water.nearPatch.mesh.material.uniforms.uOpticsProjection).toBe(
+      expect(water.headwaterSurface.material.uniforms.uOpticsProjection).toBe(
+        water.coastalUniforms.uOpticsProjection,
+      );
+      expect(water.headwaterFall.mesh.material.uniforms.uOpticsProjection).toBe(
         water.coastalUniforms.uOpticsProjection,
       );
     } finally {
@@ -31,12 +34,12 @@ describe("WaterThreeJS adaptation linkage", () => {
   });
 
   it("populates hull state on both water surfaces", () => {
-    const water = new FacetedWater({ width: 20, depth: 20, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 20, depth: 20 });
     try {
       water.setFloatingBodies([
         { x: 10, z: 20, radius: 1.4, strength: 0.3, vx: 1.2, vz: 0.5 },
       ]);
-      for (const material of [water.mesh.material, water.nearPatch.mesh.material]) {
+      for (const material of [water.mesh.material, water.headwaterSurface.material]) {
         expect(material.uniforms.uBodyCount.value).toBe(1);
         const b = material.uniforms.uBodies.value[0] as THREE.Vector4;
         expect([b.x, b.y, b.z, b.w]).toEqual([10, 20, 1.4, 0.3]);
@@ -49,7 +52,7 @@ describe("WaterThreeJS adaptation linkage", () => {
   });
 
   it("updates shared SSR projection from the camera and gates SSR by tier", () => {
-    const water = new FacetedWater({ width: 20, depth: 20, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 20, depth: 20 });
     const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 500);
     camera.updateProjectionMatrix();
     try {
@@ -71,12 +74,12 @@ describe("WaterThreeJS adaptation linkage", () => {
     }
   });
 
-  it.each(["coarse", "near"] as const)("compares SSR depths in view space on the %s surface", (surface) => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+  it.each(["lod", "headwater"] as const)("compares SSR depths in view space on the %s surface", (surface) => {
+    const water = new FacetedWater({ width: 12, depth: 12 });
     try {
-      const shader = surface === "coarse"
+      const shader = surface === "lod"
         ? water.mesh.material.fragmentShader
-        : water.nearPatch.mesh.material.fragmentShader;
+        : water.headwaterSurface.material.fragmentShader;
       expect(shader).toContain("vec3 viewPos = (viewMat * vec4(worldPos, 1.0)).xyz;");
       expect(shader).toContain("vec3 viewReflect = normalize((viewMat * vec4(reflectDir, 0.0)).xyz);");
       expect(shader).toContain("vec3 p = viewPos + viewReflect * (stepLen * float(i));");
@@ -90,25 +93,27 @@ describe("WaterThreeJS adaptation linkage", () => {
   });
 
   it("keeps existing contracts while adding the adapted response", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 12, depth: 12 });
     try {
       const shader = water.mesh.material.fragmentShader;
       // Preserved contracts.
       expect(shader).toContain("nevaOpticsField(worldPosition.xz)");
       expect(shader).toContain("exp(-uWaterAbsorption");
-      expect(shader).toContain("pow(1.0 - ndv, 5.0)");
-      expect(shader).toContain("nevaCoastalWash(worldPosition.xz, field.b)");
+      expect(shader).toContain("pow(1.0 - ndvEffective, 5.0)");
+      // Swash lip and object contact foam sit on a horizontal band at the
+      // water's edge, measured from the exact column on the captured tier.
+      expect(shader).toContain("edgeMeters");
+      expect(shader).toContain("contactDepth");
       expect(shader).toContain("baselineElevation = worldPosition.y - waveHeight");
       // Adapted WaterThreeJS response.
       expect(shader).toContain("oceanContactEnergy");
       expect(shader).toContain("oceanRaymarchSSR");
       expect(shader).toContain("oceanFbm");
       expect(shader).not.toContain("oceanContactFoam(");
-      // Refined base still owns the headwater reach; no extra ribbon mesh.
-      expect(shader).toContain("!nevaHeadwaterOwnsSurface(vWorldPosition.xz)");
-      expect(water.nearPatch.mesh.material.fragmentShader).toContain(
-        "nevaHeadwaterOwnsSurface(vWorldPosition.xz)",
-      );
+      // Complementary ownership of the elevated headwater reach.
+      expect(shader).toContain("#ifdef NEVA_HEADWATER_SURFACE");
+      expect(water.headwaterSurface.material.defines).toHaveProperty("NEVA_HEADWATER_SURFACE");
+      expect(water.mesh.material.defines ?? {}).not.toHaveProperty("NEVA_HEADWATER_SURFACE");
     } finally {
       water.dispose();
     }

@@ -36,11 +36,10 @@ export const LIVE_FEATURE_IDS: ReadonlySet<string> = new Set([
  * becomes available in the band it is listed under, so the advertisement
  * cannot drift from the gate.
  *
- * Master and Artisan move the last tool and work-outfit sidegrades behind
- * higher Processing proficiency, so the back half of the ladder opens real
- * gear instead of only a percentage. Famed carries the optional Master rod;
- * Legendary remains the Records long tail. Filling that final band is content
- * work, not a table edit.
+ * Skilled and Expert open the remaining practical Processing gear. Master and
+ * Artisan add efficient provision batches for longer farm and fishing days.
+ * Famed carries the optional Master rod; Legendary remains the Records long
+ * tail. New rank rewards are content work, not a table edit.
  */
 export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
   {
@@ -96,7 +95,9 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     fishingUnlocks: ["rod.heavy_sport"],
     tradingUnlocks: [],
     processingUnlocks: [
-      "recipe.cook_orchard_tart"
+      "recipe.cook_orchard_tart",
+      "recipe.deck_boots",
+      "recipe.long_spout_can"
     ]
   },
   {
@@ -106,7 +107,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: ["crop.apple_tree", "crop.olive_tree"],
     fishingUnlocks: ["boat.skiff", "rod.offshore"],
     tradingUnlocks: [],
-    processingUnlocks: []
+    processingUnlocks: ["recipe.oilskin_coat", "recipe.balanced_sickle"]
   },
   {
     rankIndex: 4,
@@ -115,7 +116,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: [],
     fishingUnlocks: [],
     tradingUnlocks: [],
-    processingUnlocks: ["recipe.deck_boots", "recipe.long_spout_can"]
+    processingUnlocks: ["recipe.batch_harvest_bowls"]
   },
   {
     rankIndex: 5,
@@ -124,7 +125,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     farmingUnlocks: [],
     fishingUnlocks: [],
     tradingUnlocks: [],
-    processingUnlocks: ["recipe.oilskin_coat", "recipe.balanced_sickle"]
+    processingUnlocks: ["recipe.batch_fish_stews"]
   },
   {
     rankIndex: 6,
@@ -220,11 +221,11 @@ export function rankIndexForRequirement(requiredXp: number): number {
  * `contract_tier3` flags were gesturing at, expressed as something the player
  * can feel: a wider board means a real choice between orders rather than
  * taking whatever the three slots happened to roll. The baseline is three so
- * the early game already offers a produce/fishing choice; rank 5 adds a
- * fourth for high-proficiency play.
+ * the early game already offers a produce/fishing choice. Skilled adds a
+ * fourth; Artisan adds a fifth for high-proficiency play.
  */
 export function contractSlotsForRank(tradingRankIndex: number, hasGuildCharter = false): number {
-  const base = tradingRankIndex >= 5 ? 4 : 3;
+  const base = tradingRankIndex >= 5 ? 5 : tradingRankIndex >= 2 ? 4 : 3;
   // The charter is the story's capstone, so it pays in the same currency the
   // rest of the trading ladder does: one more promise you can carry at once.
   return base + (hasGuildCharter ? 1 : 0);

@@ -297,7 +297,7 @@ describe("W07 headwater fall sheet", () => {
       expect(fall.group.name).toBe("headwater_fall");
       expect(fall.group.children).toContain(fall.mesh);
       expect(fall.group.children).toContain(fall.mist.group);
-      expect(fall.mesh.renderOrder).toBeGreaterThan(CANONICAL_RENDER_CONFIG.waterSurface.quality.high.nearPatch ? -100 : -101);
+      expect(fall.mesh.renderOrder).toBeGreaterThan(-100);
       fall.setQuality("low");
       expect(fall.segments.rows).toBe(FALL_CONFIG.rows.low);
       expect(fall.mist.count).toBe(FALL_CONFIG.mist.count.low);

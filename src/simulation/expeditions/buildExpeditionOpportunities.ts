@@ -165,7 +165,7 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
     summary: `${remaining} remaining for ${ContentRegistry.contractTemplates.get(contract.templateId)?.requesterName ?? "the requester"}`,
     destination: marketName(state, contract.deliveryMarketId),
     journeyLabel: marketJourneyLabel(state, contract.deliveryMarketId),
-    valueLabel: `${contract.rewardMoney} G contract`,
+    valueLabel: `From ${Math.max(contract.rewardMoney, contract.deliveredValueMoney ?? 0)} G contract`,
     deadlineLabel: timeLabel(minutesLeft),
     ready: blockers.length === 0,
     blockers

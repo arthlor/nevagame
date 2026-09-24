@@ -32,10 +32,29 @@ import {
 import { SUNREACH_ANCHORS } from "../../world/WorldIslands";
 import { isBoatWrecked, repairBoatHull } from "../boats/BoatHull";
 import { npcAnchorAt, NPC_TALK_RADIUS } from "../presentation/NpcPresentation";
-import type { RepairQuoteDto } from "../core/contracts";
+import type { EmergencyTowQuoteDto, RepairQuoteDto } from "../core/contracts";
+import { DEFAULT_MINUTES_PER_REAL_SECOND } from "../core/GameClock";
 
 /** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
 export const MOTOR_FUEL_PER_GAME_MINUTE = 0.4;
+
+/**
+ * Ground-drop tuning. One owner for the drop offset, the pickup reach and the
+ * vertical tolerance, consumed by `NavigationDomain` (access) and
+ * `CargoDomain` (drop/collection) so the prompt, the command and the validator
+ * can never disagree.
+ */
+export const GROUND_CARGO_REACH_METERS = 3.0;
+export const GROUND_CARGO_DROP_FORWARD_METERS = 1.4;
+export const GROUND_CARGO_VERTICAL_TOLERANCE_METERS = 2.0;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
+  return Object.keys(value).every((key) => allowed.includes(key));
+}
 
 export function drainMotorFuel(state: GameState, minutes: number): void {
   if (minutes <= 0) return;
@@ -54,6 +73,24 @@ export class NavigationDomain {
   constructor(private readonly context: DomainContext) {}
 
   public commitPhysicsFrame(frame: ResolvedPhysicsFrame): { success: boolean; reason?: string } {
+    if (
+      !isRecord(frame) ||
+      !hasOnlyKeys(frame, ["player", "boats", "mountGait"]) ||
+      !isRecord(frame.player) ||
+      !hasOnlyKeys(frame.player, ["x", "y", "z", "rotationY", "traversal"]) ||
+      !isRecord(frame.player.traversal) ||
+      !hasOnlyKeys(frame.player.traversal, ["sprintStamina", "sprintRecoveryDelaySeconds", "sprintExhausted", "isGrounded"]) ||
+      !isRecord(frame.boats) ||
+      Object.values(frame.boats).some((pose) =>
+        !isRecord(pose) || !hasOnlyKeys(pose, ["x", "y", "z", "headingRadians", "speed"])
+      ) ||
+      (frame.mountGait !== undefined && (
+        !isRecord(frame.mountGait) ||
+        !hasOnlyKeys(frame.mountGait, ["gallopStamina", "gallopRecoveryDelaySeconds", "gallopExhausted"])
+      ))
+    ) {
+      return { success: false, reason: "Physics returned an invalid frame" };
+    }
     const { state } = this.context;
     if (![frame.player.x, frame.player.y, frame.player.z, frame.player.rotationY].every(Number.isFinite)) {
       return { success: false, reason: "Physics returned an invalid player pose" };
@@ -70,6 +107,14 @@ export class NavigationDomain {
         typeof traversal.isGrounded !== "boolean")
     ) {
       return { success: false, reason: "Physics returned an invalid traversal state" };
+    }
+    if (
+      frame.mountGait &&
+      (!Number.isFinite(frame.mountGait.gallopStamina) ||
+        !Number.isFinite(frame.mountGait.gallopRecoveryDelaySeconds) ||
+        typeof frame.mountGait.gallopExhausted !== "boolean")
+    ) {
+      return { success: false, reason: "Physics returned an invalid mount gait" };
     }
     if (
       !WorldLayout.isInterior(frame.player.x, frame.player.z) &&
@@ -446,48 +491,88 @@ export class NavigationDomain {
 
   /** Flat fee for a tow to the nearest compatible mooring. */
   public static readonly EMERGENCY_TOW_COST = 25;
+  /** A recovery crew travels slower than the motor skiff. */
+  public static readonly EMERGENCY_TOW_SPEED_METERS_PER_REAL_SECOND = 2.5;
+  public static readonly EMERGENCY_TOW_MIN_GAME_MINUTES = 15;
 
-  /**
-   * Crude zero-fuel recovery. Safe Return refuses while carrying physical
-   * fish, so the tow is the cargo-safe counterpart: it docks the crewed boat
-   * at the nearest compatible mooring with cargo and fuel untouched, for a
-   * flat fee. No clock advance — the lost trip is the time cost.
-   *
-   * A wrecked hull has no other way home (the boat cannot make way and there
-   * is no swimming), so it is always towed to Neva Harbor, where Silas can
-   * repair it. If the captain cannot pay the fee the harbor covers it rather
-   * than stranding a person at sea; the notice says so.
-   */
-  public emergencyTow(): { success: boolean; reason?: string; cost?: number } {
-    const { state, events } = this.context;
-    if (state.player.activeMountId) return { success: false, reason: "Dismount before signaling a tow" };
-    if (state.basicFishing || state.sportFishing) return { success: false, reason: "Finish fishing first" };
-    const boatId = state.player.activeBoatId;
-    if (!boatId) return { success: false, reason: "Board a boat before signaling a tow" };
-    const boat = state.boats[boatId];
-    if (!boat) return { success: false, reason: "Boat not found" };
-    const definition = ContentRegistry.boats.get(boat.boatTypeId);
-    if (!definition) return { success: false, reason: "Boat not found" };
-    const wrecked = isBoatWrecked(boat);
-    if (!wrecked) {
-      if (definition.fuelCapacity <= 0) {
-        return { success: false, reason: "This boat needs no tow — row it home" };
-      }
-      if (boat.fuel > 0) return { success: false, reason: "The tank still has fuel — sail on" };
-    }
-    if (boat.isDocked) return { success: false, reason: "The vessel is already docked" };
-    const charged = wrecked && state.player.money < NavigationDomain.EMERGENCY_TOW_COST
-      ? 0
-      : NavigationDomain.EMERGENCY_TOW_COST;
-    if (!wrecked && state.player.money < NavigationDomain.EMERGENCY_TOW_COST) {
-      return { success: false, reason: `Emergency tow needs ${NavigationDomain.EMERGENCY_TOW_COST} G` };
-    }
-    // A wreck belongs at the one harbor that can put it right, not the nearest
-    // island landing. A no-fuel tow keeps its existing nearest-service rule.
-    const mooring = wrecked
+  private towMooring(boat: BoatState, wrecked: boolean) {
+    // Wrecks need Silas at Neva Harbor; an empty tank needs the nearest
+    // compatible serviced mooring, not an islet without supplies.
+    return wrecked
       ? harborMooringForBoatType(boat.boatTypeId)
       : nearestMooring(boat.x, boat.z, boat.boatTypeId, true);
+  }
+
+  /** Read-only offer consumed by both recovery surfaces and the command. */
+  public inspectEmergencyTowQuote(): EmergencyTowQuoteDto {
+    const { state } = this.context;
+    const unavailable = (reason: string): EmergencyTowQuoteDto => ({
+      ok: false,
+      cost: 0,
+      travelMinutes: 0,
+      reason,
+      wrecked: false,
+      destinationMarketId: null,
+      destinationLabel: null
+    });
+    if (state.player.activeMountId) return unavailable("Dismount before signaling a tow");
+    if (state.basicFishing || state.sportFishing) return unavailable("Finish fishing first");
+    const boatId = state.player.activeBoatId;
+    if (!boatId) return unavailable("Board a boat before signaling a tow");
+    const boat = state.boats[boatId];
+    if (!boat) return unavailable("Boat not found");
+    const definition = ContentRegistry.boats.get(boat.boatTypeId);
+    if (!definition) return unavailable("Boat not found");
+    const wrecked = isBoatWrecked(boat);
+    if (!wrecked) {
+      if (definition.fuelCapacity <= 0) return unavailable("This boat needs no tow — row it home");
+      if (boat.fuel > 0) return unavailable("The tank still has fuel — sail on");
+    }
+    if (boat.isDocked) return unavailable("The vessel is already docked");
+    const mooring = this.towMooring(boat, wrecked);
+    const destinationMarketId = mooring.marketId;
+    const distanceMeters = distance2d(boat, mooring.boatPosition);
+    const travelMinutes = Math.max(
+      NavigationDomain.EMERGENCY_TOW_MIN_GAME_MINUTES,
+      Math.ceil(distanceMeters / NavigationDomain.EMERGENCY_TOW_SPEED_METERS_PER_REAL_SECOND
+        * DEFAULT_MINUTES_PER_REAL_SECOND)
+    );
+    return {
+      ok: true,
+      cost: state.player.money < NavigationDomain.EMERGENCY_TOW_COST
+        ? 0
+        : NavigationDomain.EMERGENCY_TOW_COST,
+      travelMinutes,
+      wrecked,
+      destinationMarketId,
+      destinationLabel: destinationMarketId === "market.harbor"
+        ? "Neva Harbor"
+        : destinationMarketId
+          ? ContentRegistry.markets.get(destinationMarketId)?.name ?? "the nearest serviced mooring"
+          : "the nearest serviced mooring"
+    };
+  }
+
+  /**
+   * Cargo-safe recovery for a wreck or an empty tank. The harbor covers the
+   * fee when the captain cannot pay, so neither condition strands a boat at
+   * sea. The quote owns eligibility, destination, time and exact charge.
+   * Elapsed time ages the catch before arrival, while the boat is still at
+   * its starting water climate. Arrival events fire after the clock advances.
+   */
+  public emergencyTow(
+    advanceGameMinutes: (minutes: number) => void
+  ): { success: boolean; reason?: string; cost?: number; travelMinutes?: number } {
+    const quote = this.inspectEmergencyTowQuote();
+    if (!quote.ok) return { success: false, reason: quote.reason };
+    const { state, events } = this.context;
+    const boatId = state.player.activeBoatId!;
+    const boat = state.boats[boatId]!;
+    const wrecked = quote.wrecked;
+    const charged = quote.cost;
+    const mooring = this.towMooring(boat, wrecked);
     state.player.money -= charged;
+    advanceGameMinutes(quote.travelMinutes);
     Object.assign(boat, {
       x: mooring.boatPosition.x,
       y: mooring.boatPosition.y,
@@ -520,16 +605,19 @@ export class NavigationDomain {
       title: wrecked ? "Wreck towed home" : "Emergency tow",
       message: wrecked
         ? charged > 0
-          ? `Towed to Neva Harbor · ${charged} G · speak with Silas at the pier to repair`
-          : "Towed to Neva Harbor · the harbor covered the fee · speak with Silas at the pier"
-        : "Towed to the nearest mooring · catch kept · refuel before sailing",
+          ? `Towed to Neva Harbor · ${charged} G · ${quote.travelMinutes} min · speak with Silas at the pier to repair`
+          : `Towed to Neva Harbor · ${quote.travelMinutes} min · the harbor covered the fee · speak with Silas at the pier`
+        : charged > 0
+          ? `Towed to the nearest mooring · ${charged} G · ${quote.travelMinutes} min · catch kept · refuel before sailing`
+          : `Towed to the nearest mooring · ${quote.travelMinutes} min · the harbor covered the fee · catch kept · refuel before sailing`,
       type: "warning"
     });
-    return { success: true, cost: charged };
+    return { success: true, cost: charged, travelMinutes: quote.travelMinutes };
   }
 
   /**
-   * Silas repairs a hull at the harbor for the catalog's flat fee. The quote is
+   * Silas repairs a hull at the harbor for the damaged share of the catalog's
+   * full-wreck fee. The quote is
    * the single authority for the prompt and the command: both go through it, so
    * a prompt can never advertise a repair the command refuses.
    */
@@ -540,7 +628,10 @@ export class NavigationDomain {
     if (!boat || !definition) {
       return { ok: false, cost: 0, reason: "Boat not found", canAfford: false, inReach: false };
     }
-    const cost = definition.repairCostMoney;
+    const missingDurability = Math.max(0, definition.durabilityMax - boat.durability);
+    const cost = missingDurability === 0 ? 0 : Math.max(1,
+      Math.ceil(definition.repairCostMoney * missingDurability / definition.durabilityMax)
+    );
     const canAfford = state.player.money >= cost;
     const inReach = this.isAtSilasRepairPoint(boat);
     if (boat.durability >= definition.durabilityMax) {
@@ -673,11 +764,33 @@ export class NavigationDomain {
     const { state } = this.context;
     if (cargo.location.type === "player") return state.player.carriedFishCargoId === cargo.id;
     if (cargo.location.type === "carriage") return canReachCarriageRear(state, state.mounts[cargo.location.containerId]);
+    if (cargo.location.type === "ground") return this.canReachGroundCargo(cargo);
     if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return false;
     const boat = state.boats[cargo.location.containerId];
     if (!boat) return false;
     if (state.player.activeBoatId === boat.id) return true;
     return Boolean(marketId && boat.isDocked && boat.dockedMarketId === marketId);
+  }
+
+  /**
+   * A pack resting on the ground is reachable on foot within a short radius
+   * and a vertical band. The check is deliberately independent of `marketId`:
+   * proximity owns access, while market and contract callers add their own
+   * at-the-counter gate. Mounted, sailing and mid-fishing players cannot reach
+   * it, so a drop can never be collected through a vehicle or a cast.
+   */
+  public canReachGroundCargo(cargo: FishCargoState): boolean {
+    const { state } = this.context;
+    if (cargo.location.type !== "ground") return false;
+    const { x, z } = cargo.location;
+    if (typeof x !== "number" || typeof z !== "number" || !Number.isFinite(x) || !Number.isFinite(z)) return false;
+    const player = state.player;
+    if (player.activeMountId || player.activeBoatId || state.basicFishing || state.sportFishing) return false;
+    if (player.traversal.isGrounded !== true) return false;
+    if (Math.hypot(player.x - x, player.z - z) > GROUND_CARGO_REACH_METERS) return false;
+    const groundY = WorldLayout.traversalSurfaceHeight(x, z);
+    if (!Number.isFinite(groundY)) return false;
+    return Math.abs(player.y - groundY - 0.5) <= GROUND_CARGO_VERTICAL_TOLERANCE_METERS;
   }
 
   /**

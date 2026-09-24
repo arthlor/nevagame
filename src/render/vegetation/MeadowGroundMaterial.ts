@@ -3,7 +3,7 @@ import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { bindMeadowColorUniforms, MEADOW_COLOR_FIELD_GLSL } from "./MeadowColorField";
 
-export const MEADOW_GROUND_PROGRAM_CACHE_KEY = "neva-meadow-ground-r174-v1";
+export const MEADOW_GROUND_PROGRAM_CACHE_KEY = "neva-meadow-ground-r174-v2-patch-response";
 
 /**
  * Flat review ground that wears the shared meadow field exactly as the world

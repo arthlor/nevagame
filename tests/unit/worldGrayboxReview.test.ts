@@ -17,6 +17,7 @@ const REPO_ROOT = join(__dirname, "..", "..");
 const GRAYBOX_IMPORT_ALLOWLIST = new Set([
   "src/app/GameApp.ts",
   "src/persistence/migrateHeadwaterFall47.ts",
+  "src/persistence/migrateHeadwaterSpring55.ts",
   "src/render/scene/WorldDiagnosticOverlay.ts"
 ]);
 

@@ -10,7 +10,6 @@ export type WaterReflectionQuality = "flat" | "skyGradient" | "skyGradient+sun";
 
 export interface WaterSurfaceTierQuality {
   readonly reflection: WaterReflectionQuality;
-  readonly nearPatch: boolean;
   readonly detailNormal: boolean;
 }
 
@@ -130,6 +129,15 @@ export interface VisualRenderConfig {
     weatherResponseSeconds: number;
     windSpeedScale: number;
     horizonHaze: number;
+    /**
+     * Upper-hemisphere sky probe the water reflects (equirectangular strip,
+     * mipmapped for rough water), refreshed every `refreshFrames` frames.
+     */
+    reflectionProbe: {
+      width: number;
+      height: number;
+      refreshFrames: number;
+    };
     aerialPerspective: {
       clearMistDensity: number;
       poorVisibilityMistDensity: number;
@@ -272,6 +280,8 @@ export interface VisualRenderConfig {
     meadowColorMix: number;
     dryClimateColorMix: number;
     dryRidgeExposureStrength: number;
+    mountainRockExposureStrength: number;
+    mountainDryClimateStrength: number;
     polygonVariationStrength: number;
     polygonJaggedStrength: number;
     polygonFacetLightingStrength: number;
@@ -327,6 +337,8 @@ export interface VisualRenderConfig {
       lodBias: number;
       colorStrength: number;
       roughnessStrength: number;
+      /** Attenuates fine-map color, roughness, and relief without losing meso wear. */
+      fineDetailStrength: number;
     };
     polygonCellScaleMeters: number;
     polygonEdgeCellScaleMeters: number;
@@ -335,6 +347,7 @@ export interface VisualRenderConfig {
     reliefNormalStrength: number;
     wearRoughnessReduction: number;
     shoulderColorMix: number;
+    edgeGrassMix: number;
     polygonVariationStrength: number;
     polygonJaggedStrength: number;
     polygonFacetLightingStrength: number;
@@ -344,90 +357,134 @@ export interface VisualRenderConfig {
     roughnessVariation: number;
   };
   waterSurface: {
-    /** Maximum side of a coarse-water culling tile; the wave lattice stays unchanged. */
-    cullingTileMeters: number;
+    /**
+     * Camera-centred LOD lattice (`WaterLod.ts`): one-metre cells around the
+     * camera, doubling with every ring, drawn as instanced patches. It
+     * carries every wave band a ring can resolve; the detail normals carry
+     * the rest. `rangeScale` and `morphStartRatio` must satisfy the crack-free
+     * inequality `waterLodRanges` checks at construction.
+     */
+    lod: {
+      finestCellMeters: number;
+      /** Cells per patch side; even, so odd vertices can morph away. */
+      patchCells: number;
+      levels: number;
+      /** Ring radius as a multiple of the ring's node size. */
+      rangeScale: number;
+      /** Share of each ring's radius at which morphing toward the next begins. */
+      morphStartRatio: number;
+      /** Instance budget per patch kind. */
+      maxNodes: number;
+      /** Finest ring each tier may draw; Low starts one ring coarser. */
+      finestLevel: Record<QualityTier, number>;
+    };
     optics: {
       absorptionPerMeter: readonly [number, number, number];
       /** Inland water filters the same palette through its suspended minerals. */
       freshwaterAbsorptionScale: readonly [number, number, number];
+      /**
+       * Extra extinction a rough sea adds (stirred sediment and bubbles), as a
+       * multiple of `absorptionPerMeter` at full roughness. Calm water keeps
+       * its clarity; a storm hides the bed instead of showing its facets.
+       */
+      roughTurbidity: number;
       /** Sheltered lake detail and residual outlet drift; geometry remains shared. */
       lakeRippleScale: number;
       lakeCurrentScale: number;
       refractionPixels: number;
-      rippleNormalStrength: number;
       causticStrength: number;
       /** Full shallow response begins fading at the first depth, gone at the second. */
       causticDepthFadeMeters: readonly [number, number];
-      /**
-       * Camera-distance start/end and remaining broad slope at the far end.
-       * Retaining more of it was tried alongside the larger wave field and
-       * made the sea worse, not better: at a grazing view the extra slope
-       * sweeps Fresnel toward the sky over most of the surface and washes the
-       * turquoise body out to pale grey. The swell reads through this filter
-       * already, because the waves are now large enough to survive it.
-       */
-      distantSlope: readonly [number, number, number];
-      /**
-       * Slope retained when the view grazes the surface, for the same reason.
-       * Named rather than inlined so the pair can be reviewed together.
-       */
-      grazingSlopeFloor: number;
-      swashPeriodSeconds: number;
-      swashReachMeters: number;
+      /** Backwash foam lace left on the sand by the swash. */
       foamStrength: number;
       /** High-tier screen-space reflection blend onto the analytic sky. */
       ssrStrength: number;
       /** Restrained backlit-crest translucency added to the shallow body. */
       sssStrength: number;
-      /** Peak FBM-dissolved hull-ring energy; moored hulls use a fraction. */
+      /** Whiteness of the broken hull-contact foam; moored hulls carry less energy. */
       boatFoamStrength: number;
     };
-    polygonCellScaleMeters: number;
-    polygonColorVariationStrength: number;
-    polygonNormalStrength: number;
-    normalQuantizationSteps: number;
+    /**
+     * Ripples below the lattice, from the tileable detail normal map
+     * (`WaterDetailNormals.ts`). The sea layers two tiles turned to the wind;
+     * rivers carry one tile downstream on the two-phase flow scheme; the lake
+     * uses the river strength scaled by `optics.lakeRippleScale`. Mips fold
+     * unresolved ripples into slope variance, so distance reads as roughness.
+     */
+    detailNormals: {
+      /** Tile size in metres: large wind layer, small wind layer, river. */
+      tileMeters: readonly [number, number, number];
+      /** Slope gain: sea (calm; grows with roughness), river. */
+      strength: readonly [number, number];
+      /** Drift of the large and small wind layers, m/s. */
+      driftMetersPerSecond: readonly [number, number];
+      /** Share of the detail kept on tiers without `detailNormal` (large layer only). */
+      reducedTierStrength: number;
+    };
+    /**
+     * Slope variance below the lattice (capillary ripples): constant, then
+     * gain at full sea roughness. Together with the wave bands a ring cannot
+     * draw, it widens the sun lobe and lifts the reflected sky.
+     */
+    microSlopeVariance: readonly [number, number];
     fresnelStrength: number;
     sunGlintStrength: number;
     /**
-     * Breaking-crest foam, driven by the wave field's own fold (the
-     * trochoid's horizontal Jacobian) rather than by the sea-roughness dial.
-     * `foldRange` is where a crest starts and finishes breaking; shoaling
-     * pushes the same signal up, so surf builds over the shallow shelf.
+     * Whitecaps: the wave field's own fold (the trochoid's horizontal
+     * Jacobian) marks the crests, and the shading only lets them break once
+     * the sea is rough, so a fair-weather swell never whitens. `foldRange` is
+     * where a crest starts and finishes breaking; `scatter` is the share of
+     * the drive a rough sea carries between crests, so a storm shows broken
+     * flecks everywhere instead of a few large patches where crests align.
      */
     whitecap: {
       foldRange: readonly [number, number];
+      scatter: number;
       strength: number;
     };
     /**
-     * Crest shading: how much the swell's own faces brighten and darken the
-     * water body toward the sun. This is what makes wave form readable at
-     * distance, where `distantSlope` has deliberately averaged the normal out
-     * of the reflection. Expressed on the body colour rather than the
-     * reflection so the sea keeps its turquoise instead of bleaching toward
-     * sky. It fades across the pixel-footprint range once waves stop being
-     * resolvable, so distant water cannot shimmer.
+     * How much faces tilted toward the sun brighten the water body (and the
+     * backs of troughs darken): a restrained scattering cue that gives the
+     * swell volume. Measured against still water, so the mean colour is
+     * unchanged.
      */
     crestShading: {
       strength: number;
-      fadeFootprintMeters: readonly [number, number];
     };
     /**
-     * Sun-glitter lobe width vs. camera distance. Beyond the far distance the
-     * 3.2 m polygon cells fall below a pixel, so a tight lobe aliases into
-     * crawling speckle; broadening it there averages the facets into a stable
-     * path instead. Narrow band = crisper near shards, more distant shimmer.
+     * Surf. Waves damp to nothing as they run out of depth; this is the share
+     * of that removed energy handed back as breaking foam, so the waterline
+     * gets a surf line that grows with sea state. `dissolveScale` is the
+     * world scale (cycles per metre) of the break-up pattern shared by surf
+     * and whitecaps, and `driftMetersPerSecond` pushes surf shoreward.
      */
-    glitterFocusNearMeters: number;
-    glitterFocusFarMeters: number;
-    /** Lobe-exponent multiplier at and beyond glitterFocusFarMeters. */
-    glitterFarBroadening: number;
-    /** Shore distance at which the open-water body colour is fully reached. */
+    surf: {
+      energyGain: number;
+      dissolveScale: number;
+      driftMetersPerSecond: number;
+      /** Surf breaks whiter than an open-water whitecap, so it has its own. */
+      foamStrength: number;
+    };
+    /**
+     * Swash lip and contact foam: a band `bandMeters` wide (horizontally) at
+     * the water's edge — the run-up sheet's leading edge and, on the captured
+     * tier once the sea is rough, around rocks, posts and hulls.
+     */
+    edgeFoam: {
+      bandMeters: number;
+      strength: number;
+    };
+    /** Depth at which the shallow turquoise has given way to the mid colour. */
+    shallowEndMeters: number;
+    /** Depth range over which the body reaches the deep colour. */
     depthRampStartMeters: number;
     depthRampEndMeters: number;
     depthColorStrength: number;
     headwaters: {
       /** Only the bounded headwater band receives these extra water rows. */
       maxRowSpacingMeters: number;
+      /** Column spacing of the dedicated headwater surface. */
+      surfaceColumnSpacingMeters: number;
       /**
        * Row spacing across the authored fall face. The default band spacing
        * cannot hold the fall's chord error, because a steeper drop needs
@@ -448,8 +505,6 @@ export interface VisualRenderConfig {
       riverFlowMetersPerSecond: number;
       riverFlowDepthStart: number;
       riverFlowDepthFullMeters: number;
-      /** Extra normal detail carried by the drifting current. */
-      riverFlowNormalStrength: number;
       /**
        * Large advected lanes that survive distance filtering, so a wide river
        * still reads as moving water from the bank and from above.
@@ -479,6 +534,13 @@ export interface VisualRenderConfig {
         acrossSegments: number;
         /** Animated sheet displacement; also widens the render bounds. */
         rippleMeters: number;
+        /**
+         * Slow rope-like ribs across the curtain. The fragment normal follows
+         * the same field, so the ropes catch the light as a rounded volume.
+         */
+        ribMeters: number;
+        /** Detail-normal ripples carried down the sheet: tile metres (across, along), strength. */
+        detail: { tileMeters: readonly [number, number]; strength: number };
         /**
          * How far the sheet leaves the terrain profile for a free ballistic
          * arc. 0 hugs the carved face, 1 falls exactly under gravity from the
@@ -551,30 +613,6 @@ export interface VisualRenderConfig {
       };
     };
     quality: Record<QualityTier, WaterSurfaceTierQuality>;
-    nearPatch: {
-      sizeMeters: number;
-      segments: number;
-      innerFadeRadiusMeters: number;
-      outerFadeRadiusMeters: number;
-      detailBandAmplitude: number;
-      detailBandFrequency: number;
-      detailBandSpeed: number;
-      detailNormalStrength: number;
-      detailNormalScrollSpeed: number;
-    };
-    shoreline: {
-      shallowStartMeters: number;
-      shallowEndMeters: number;
-      shallowColorStrength: number;
-      nearShoreNormalScale: number;
-      foamHeightOffsetMeters: number;
-      /** Waterline opacity, so wet sand and riverbed read through the edge. */
-      edgeOpacity: number;
-      bodyOpacity: number;
-      opacityRampMeters: number;
-      swashSpeed: number;
-      swashAmplitudeMeters: number;
-    };
   };
   practicalLights: {
     colorHex: string;
@@ -744,6 +782,8 @@ export interface VisualRenderConfig {
       /** Static lean as a share of blade height. */
       leanRange: readonly [number, number];
       dryHeightScale: number;
+      /** Low-growth density/height scales and shared terrain/blade value range. */
+      patchResponse: readonly [number, number, number, number];
       /** Base value at the root; bases stay subdued without dark strokes. */
       rootShade: number;
       /** Blade normal share bent toward the terrain normal. */
@@ -932,6 +972,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     weatherResponseSeconds: 7,
     windSpeedScale: 0.075,
     horizonHaze: 0.00055,
+    reflectionProbe: {
+      width: 256,
+      height: 64,
+      refreshFrames: 4
+    },
     aerialPerspective: {
       clearMistDensity: 0.001,
       poorVisibilityMistDensity: 0.018,
@@ -1013,8 +1058,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       rainSplashCount: 20,
       fireflyCount: 28,
       waterSurface: {
-        reflection: "flat",
-        nearPatch: false,
+        reflection: "skyGradient",
         detailNormal: false
       },
       meadowField: {
@@ -1045,8 +1089,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       rainSplashCount: 32,
       fireflyCount: 48,
       waterSurface: {
-        reflection: "skyGradient",
-        nearPatch: false,
+        reflection: "skyGradient+sun",
         detailNormal: true
       },
       meadowField: {
@@ -1080,7 +1123,6 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       fireflyCount: 72,
       waterSurface: {
         reflection: "skyGradient+sun",
-        nearPatch: true,
         detailNormal: true
       },
       meadowField: {
@@ -1147,6 +1189,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     meadowColorMix: 0.34,
     dryClimateColorMix: 0.9,
     dryRidgeExposureStrength: 0.72,
+    mountainRockExposureStrength: 0.88,
+    mountainDryClimateStrength: 0.72,
     polygonVariationStrength: 0.24,
     polygonJaggedStrength: 0.14,
     polygonFacetLightingStrength: 0.04,
@@ -1201,7 +1245,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       rotationRadians: 0.37,
       lodBias: 0.2,
       colorStrength: 0.72,
-      roughnessStrength: 1
+      roughnessStrength: 1,
+      fineDetailStrength: 0.3
     },
     polygonCellScaleMeters: 0.75,
     polygonEdgeCellScaleMeters: 1.2,
@@ -1210,6 +1255,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     reliefNormalStrength: 0.065,
     wearRoughnessReduction: 0.075,
     shoulderColorMix: 0.4,
+    edgeGrassMix: 0.68,
     polygonVariationStrength: 0.08,
     polygonJaggedStrength: 0.22,
     polygonFacetLightingStrength: 0.016,
@@ -1219,55 +1265,69 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     roughnessVariation: 0.02
   },
   waterSurface: {
-    cullingTileMeters: 192,
+    lod: {
+      finestCellMeters: 1,
+      patchCells: 16,
+      levels: 8,
+      rangeScale: 3,
+      morphStartRatio: 0.78,
+      maxNodes: 768,
+      finestLevel: { low: 1, medium: 0, high: 0 }
+    },
     optics: {
-      absorptionPerMeter: [0.32, 0.11, 0.075],
+      absorptionPerMeter: [0.34, 0.12, 0.085],
       freshwaterAbsorptionScale: [0.78, 1.14, 1.3],
+      roughTurbidity: 3,
       lakeRippleScale: 0.48,
       lakeCurrentScale: 0.06,
       refractionPixels: 2.4,
-      rippleNormalStrength: 0.105,
-      causticStrength: 0.8,
-      causticDepthFadeMeters: [2, 5],
-      distantSlope: [18, 95, 0.035],
-      grazingSlopeFloor: 0.22,
-      swashPeriodSeconds: 10.8,
-      swashReachMeters: 1.3,
-      foamStrength: 0.78,
+      causticStrength: 0.4,
+      causticDepthFadeMeters: [1.2, 3.6],
+      foamStrength: 0.62,
       // WaterThreeJS adaptations, kept restrained for the cozy baseline:
       // SSR stays a blend onto the sky (never a mirror), SSS a faint crest
       // glow, and hull rings dissolve through FBM instead of stamping white.
       ssrStrength: 0.55,
       sssStrength: 0.22,
-      boatFoamStrength: 0.5
+      boatFoamStrength: 0.75
     },
-    polygonCellScaleMeters: 3.2,
-    polygonColorVariationStrength: 0.008,
-    polygonNormalStrength: 0.016,
-    normalQuantizationSteps: 0,
-    fresnelStrength: 0.92,
-    // Re-tuned with the faceted-normal glitter. The previous 0.13 was set
-    // against a smooth-normal lobe, which concentrates all its energy in one
-    // small mirror highlight; spread across a facet-broken path the same value
-    // reads as nothing at all.
-    sunGlintStrength: 0.3,
+    detailNormals: {
+      tileMeters: [9, 3.4, 2.6],
+      strength: [0.5, 0.34],
+      driftMetersPerSecond: [0.6, 0.95],
+      reducedTierStrength: 0.7
+    },
+    microSlopeVariance: [0.0012, 0.004],
+    fresnelStrength: 0.84,
+    sunGlintStrength: 0.34,
     whitecap: {
-      foldRange: [0.26, 0.72],
-      strength: 0.5
+      foldRange: [0.07, 0.2],
+      scatter: 0.35,
+      strength: 0.82
     },
     crestShading: {
-      strength: 0.38,
-      fadeFootprintMeters: [1.6, 5.5]
+      strength: 0.3
     },
-    glitterFocusNearMeters: 34,
-    glitterFocusFarMeters: 170,
-    glitterFarBroadening: 0.24,
+    surf: {
+      energyGain: 0.8,
+      dissolveScale: 0.95,
+      driftMetersPerSecond: 0.35,
+      foamStrength: 0.8
+    },
+    edgeFoam: {
+      bandMeters: 0.9,
+      strength: 0.7
+    },
+    shallowEndMeters: 1.8,
     depthRampStartMeters: 1.4,
     depthRampEndMeters: 8,
-    depthColorStrength: 0.78,
+    depthColorStrength: 0.82,
     headwaters: {
       maxRowSpacingMeters: 0.75,
-      fallRowSpacingMeters: 0.06,
+      surfaceColumnSpacingMeters: 0.75,
+      // Finer than the sheet rows: the landing's smoothstep curvature still
+      // exceeds a 0.03 m chord budget at 0.06 m spacing on the 27.5 m drop.
+      fallRowSpacingMeters: 0.03,
       rapidsFoamStrength: 0.4,
       rapidsGradeStart: 0.15,
       rapidsGradeFull: 0.65,
@@ -1276,9 +1336,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       riverFlowMetersPerSecond: 1.15,
       riverFlowDepthStart: 0.22,
       riverFlowDepthFullMeters: 1.5,
-      riverFlowNormalStrength: 0.023,
       riverFlowLaneStrength: 0.075,
-      riverDepthShadeStrength: 0.34,
+      riverDepthShadeStrength: 0.5,
       riverEdgeDepthFadeMeters: 1.45,
       riverEdgeOpacity: 0.18,
       riverEdgeFoamStrength: 0.11,
@@ -1297,11 +1356,15 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
          * corrugation when the fall was seen from above.
          */
         rippleMeters: 0.025,
+        ribMeters: 0.12,
+        detail: { tileMeters: [1.6, 4.2], strength: 0.45 },
         nappeDetach: 0.68,
         crossBulgeMeters: 0.38,
         widthSpread: 0.18,
         widthWaistMeters: 0.32,
-        sinkRunMeters: 0.12,
+        // Scaled for the 27.5 m drop: the continued parabola past the landing
+        // buries the sheet foot 0.2–2.5 m under the pool, not through the basin.
+        sinkRunMeters: 0.05,
         sinkRows: 2,
         streakStrength: 0.72,
         streakSpeed: 1.35,
@@ -1328,55 +1391,29 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
         apronMeters: 1.6,
         mist: {
           count: { low: 6, medium: 12, high: 20 },
-          sizeMeters: 0.85,
-          spreadMeters: 1.6,
-          riseMeters: 1.9,
-          driftMeters: 1.1,
-          cycleSeconds: 4.6,
-          opacity: 0.32,
+          sizeMeters: 1.0,
+          spreadMeters: 1.9,
+          riseMeters: 2.6,
+          driftMeters: 1.3,
+          cycleSeconds: 5.2,
+          opacity: 0.34,
           erosion: 0.85
         }
       }
     },
     quality: {
       low: {
-        reflection: "flat",
-        nearPatch: false,
+        reflection: "skyGradient",
         detailNormal: false
       },
       medium: {
-        reflection: "skyGradient",
-        nearPatch: false,
+        reflection: "skyGradient+sun",
         detailNormal: true
       },
       high: {
         reflection: "skyGradient+sun",
-        nearPatch: true,
         detailNormal: true
       }
-    },
-    nearPatch: {
-      sizeMeters: 120,
-      segments: 128,
-      innerFadeRadiusMeters: 42,
-      outerFadeRadiusMeters: 58,
-      detailBandAmplitude: 0,
-      detailBandFrequency: 0.38,
-      detailBandSpeed: 1.6,
-      detailNormalStrength: 0.032,
-      detailNormalScrollSpeed: 0.45
-    },
-    shoreline: {
-      shallowStartMeters: 0.2,
-      shallowEndMeters: 1.8,
-      shallowColorStrength: 0.9,
-      nearShoreNormalScale: 0.48,
-      foamHeightOffsetMeters: 0.024,
-      edgeOpacity: 0.3,
-      bodyOpacity: 0.965,
-      opacityRampMeters: 6.5,
-      swashSpeed: 0.55,
-      swashAmplitudeMeters: 0.22
     }
   },
   practicalLights: {
@@ -1508,14 +1545,15 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       farSegments: 2,
       shortHeightMeters: [0.15, 0.28],
       meadowHeightMeters: [0.3, 0.5],
-      widthMeters: [0.03, 0.05],
+      widthMeters: [0.04, 0.06],
       farWidthScale: 2,
       leanRange: [0.16, 0.5],
       dryHeightScale: 0.62,
-      rootShade: 0.5,
+      patchResponse: [0.72, 0.58, 0.84, 1.16],
+      rootShade: 0.66,
       normalUp: 0.62,
       normalRoundness: 0.45,
-      valueJitter: 0.07,
+      valueJitter: 0.045,
       roughnessRoot: 0.92,
       roughnessTip: 0.84,
       translucency: 0.5,

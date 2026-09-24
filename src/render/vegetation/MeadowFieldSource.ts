@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import type { StaticCollisionProxy } from "../../physics/StaticCollision";
+import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
+import { roadCoverageAt } from "../materials/RoadCoverage";
 import { SURFACE_FIELD_ATTRIBUTE_NAMES } from "../materials/SurfaceFieldAttributes";
 
 /**
@@ -18,8 +20,8 @@ import { SURFACE_FIELD_ATTRIBUTE_NAMES } from "../materials/SurfaceFieldAttribut
  *     B dry      Sunreach dry-climate weight
  *     A damp     damp soil plus shoreline wetness
  * - `exclusion` R8 at `exclusionTexelMeters` over the patch: visible road
- *   coverage from the ribbon's own alpha, architecture pads and ground-touching
- *   collision footprints, so blades never stand in a road, a floor or a rock.
+ *   coverage sampled from the ribbon and its material edge field, architecture
+ *   pads and ground-touching collision footprints.
  *
  * Memory is roughly `vertices² × 8 + (size / texel)²` bytes per patch. The
  * exclusion raster is rebuilt only when the layout editor moves placements.
@@ -243,9 +245,9 @@ function writeExclusion(data: MeadowFieldPatchData, ex: number, ez: number, valu
 }
 
 /**
- * Rasterizes the visible road coverage (the ribbon's colour alpha, the same
- * value its alpha test cuts at) into the exclusion field with barycentric
- * interpolation. Triangles outside this patch are skipped.
+ * Rasterizes the road's colour alpha and shared material edge field into the
+ * exclusion texture. Camera-pixel derivative antialiasing is intentionally
+ * absent at this half-metre control resolution.
  */
 export function* stampRoadCoverageSteps(
   data: MeadowFieldPatchData,
@@ -260,6 +262,7 @@ export function* stampRoadCoverageSteps(
   const maxX = data.originX + data.sizeMeters;
   const maxZ = data.originZ + data.sizeMeters;
   const coverageAt = (vertex: number) => (color && color.itemSize >= 4 ? color.getW(vertex) : 1);
+  let examinedTexels = 0;
   for (let triangle = 0; triangle < triangleCount; triangle += 1) {
     if (triangle % 512 === 0) yield;
     const a = index ? index.getX(triangle * 3) : triangle * 3;
@@ -284,12 +287,16 @@ export function* stampRoadCoverageSteps(
     for (let ez = startZ; ez <= endZ; ez += 1) {
       const pz = data.originZ + (ez + 0.5) * texel;
       for (let ex = startX; ex <= endX; ex += 1) {
+        // A long, thin junction triangle can span many rejected texels too.
+        // Yield on examined texels so the startup budget stays bounded.
+        if ((++examinedTexels & 127) === 0) yield;
         const px = data.originX + (ex + 0.5) * texel;
         const w0 = ((bx - px) * (cz - pz) - (cx - px) * (bz - pz)) / area;
         const w1 = ((cx - px) * (az - pz) - (ax - px) * (cz - pz)) / area;
         const w2 = 1 - w0 - w1;
         if (w0 < -0.001 || w1 < -0.001 || w2 < -0.001) continue;
-        writeExclusion(data, ex, ez, w0 * va + w1 * vb + w2 * vc);
+        const opacity = w0 * va + w1 * vb + w2 * vc;
+        writeExclusion(data, ex, ez, roadCoverageAt(px, pz, opacity, CANONICAL_RENDER_CONFIG.roadSurface));
       }
     }
   }

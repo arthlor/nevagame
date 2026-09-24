@@ -673,6 +673,14 @@ describe("farming action commit controller", () => {
     expect(phases).toEqual(["started", "committed", "completed"]);
   });
 
+  it("retains an admission Work quote and replaces it with the committed charge", () => {
+    const controller = new FarmingActionController(() => ({ success: true, cost: 8 }));
+    expect(controller.start("plant", { x: 0, y: 0, z: 0 }, 0, { type: "player.reset-safe" }, {}, 9)).toBe(true);
+    expect(controller.snapshot(0)?.workCost).toBe(9);
+    controller.update(Math.ceil(FARMING_ACTION_TIMINGS.plant.commitMs));
+    expect(controller.snapshot(0)?.workCost).toBe(8);
+  });
+
   it("cancels before commit but cannot roll back after commit", () => {
     let earlyCommits = 0;
     const early = new FarmingActionController(() => { earlyCommits += 1; return { success: true }; });

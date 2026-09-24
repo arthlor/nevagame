@@ -1,37 +1,29 @@
 import * as THREE from "three";
 import { WorldLayout } from "../../world/WorldLayout";
-import type { MarineSample } from "../../world/WorldIslands";
-import type { ShoreProjection } from "../../world/WorldGeographyTypes";
 import { NEVA_HEADWATERS, headwaterGradientAt } from "../../world/NevaHeadwaters";
-import { mainlandWaterSample } from "../../world/NevaMainland";
-import { WAVE_BAND_PHASES, WAVE_CROSS_AXIS, WAVE_DETAIL_AXIS } from "./waveGlsl";
+import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
+import { createWaterFieldSample, WaterFieldStore, type WaterFieldSample } from "./waterField";
+import {
+  waterSpatialProfile,
+  type WaterRegion,
+  type WaterRegionWeights,
+  type WaterSpatialProfile,
+  type WaterSpatialQueries
+} from "./waterProfile";
 
-export type WaterRegion = "river" | "sea" | "ocean";
+export { waterSpatialProfile };
+export type { WaterRegion, WaterRegionWeights, WaterSpatialProfile, WaterSpatialQueries };
 
 export interface WaterConditions {
   seaRoughness: number;
+  /**
+   * Part of the weather record. The wave field deliberately ignores it: the
+   * bands keep fixed headings so the sea never swings when the wind turns.
+   */
   windDirectionDeg: number;
   windSpeed: number;
-}
-
-export interface WaterRegionWeights {
-  river: number;
-  sea: number;
-  ocean: number;
-}
-
-export interface WaterSpatialProfile {
-  region: WaterRegion;
-  weights: WaterRegionWeights;
-  signedWaterDistance: number;
-  coastDistance: number;
-  localDirection: THREE.Vector2;
-}
-
-/** One texel's canonical queries, shared only while its two water maps are baked. */
-export interface WaterSpatialQueries {
-  marine: MarineSample;
-  shore?: ShoreProjection;
+  /** 0..1 rainfall; presentation only (rain rings on the surface). */
+  precipitation?: number;
 }
 
 export interface WaterSample {
@@ -41,199 +33,299 @@ export interface WaterSample {
   weights: WaterRegionWeights;
 }
 
-interface WaterWaveBand {
-  amplitude: readonly [number, number, number];
-  frequency: readonly [number, number, number];
-  speed: readonly [number, number, number];
+/** Regional triple: river, sea, ocean. */
+type Regional = readonly [number, number, number];
+
+export interface WaterWaveBand {
+  readonly id: string;
+  /** Vertical amplitude in metres, per region (river, sea, ocean). */
+  readonly amplitude: Regional;
+  /** Wavenumber k = 2π/λ in radians per metre — one value everywhere. */
+  readonly wavenumber: number;
+  /**
+   * World travel heading in degrees: 0 travels toward +Z, 90 toward +X. One
+   * fixed heading everywhere, so every band is a true plane wave.
+   */
+  readonly headingDeg: number;
   /**
    * Trochoidal (Gerstner) orbit gain. A deep-water particle traces a circle
    * whose radius is the wave's own amplitude, so the horizontal displacement
-   * is `orbitGain * amplitude` metres and `1` is physically exact. Values
-   * above 1 stretch the orbit to sharpen crests and broaden troughs beyond
-   * what this gentle a sea would do on its own; `0` is the former
-   * vertical-only sine. Expressing the gain against the physical orbit keeps
-   * the displacement tied to the wave's real size — a raw steepness ratio
-   * would have slid several metres sideways on a half-metre wave.
+   * is `orbitGain · amplitude` metres and `1` is physically exact; below 1
+   * the crests stay rounder.
    */
-  orbitGain: readonly [number, number, number];
+  readonly orbitGain: number;
+  /** Constant phase offset, radians. */
+  readonly phase: number;
 }
 
 /**
  * The single numeric owner for CPU buoyancy and GPU water displacement.
  *
- * Bands carry a real sea's structure: a swell, a shorter wind sea crossing
- * it, and a chop band.
+ * Three gentle Gerstner bands — a long swell, a shorter swell crossing it
+ * and the local wind sea — each a true plane wave: one wavenumber, one speed
+ * and one world heading everywhere. Only their height varies, with region,
+ * depth and weather. That is what keeps the sea stable. A wavenumber, speed
+ * or heading that varied across the map (a baked travel direction, the wind
+ * direction, a regional blend) put a spatial gradient into the phase
+ * k(x)·x − ω(x)·t, which squeezed crests into dense bands wherever the field
+ * turned, swung the whole sea when the wind shifted, and grew without bound
+ * with play time. Height is safe to vary: it scales a wave, it cannot shear it.
  *
- * What makes a sea read is steepness (height over wavelength), not height.
- * The earlier set was a ~13 cm swell on a 95 m wavelength — a slope of about
- * 0.3%, which is a millpond, and raising only its height changed the geometry
- * without changing the picture at all. These bands sit near 6-7% instead, so
- * the surface has slopes large enough to shade.
- *
- * Wavelengths stay above roughly four coarse grid cells (`WATER_SURFACE` is
- * ~5.2 m) so the shared lattice can resolve them without the geometry itself
- * aliasing; finer movement than that belongs to the fragment normal, not to
- * displaced vertices.
+ * Ripples smaller than the wind sea are not geometry but the shading's
+ * detail normals. Each band is drawn only where the lattice resolves it
+ * (`lodSamplesPerWavelength`) and handed to the shading as slope variance
+ * (roughness) beyond that.
  */
 export const WATER_WAVE_CONFIG = Object.freeze({
-  primary: {
-    amplitude: [0.038, 0.26, 0.45],
-    frequency: [0.15, 0.175, 0.157],
-    speed: [0.34, 0.81, 0.77],
-    orbitGain: [1, 1.7, 2.1]
-  } satisfies WaterWaveBand,
-  cross: {
-    amplitude: [0.014, 0.135, 0.24],
-    frequency: [0.29, 0.29, 0.262],
-    speed: [-0.23, -1.05, -0.99],
-    orbitGain: [1, 1.6, 1.9]
-  } satisfies WaterWaveBand,
-  detail: {
-    amplitude: [0.004, 0.055, 0.09],
-    frequency: [0.48, 0.34, 0.3],
-    speed: [0.42, 1.13, 1.06],
-    orbitGain: [1, 1.4, 1.6]
-  } satisfies WaterWaveBand,
-  roughnessGain: [0.28, 0.72, 1.2] as const,
+  bands: Object.freeze([
+    {
+      id: "swell",
+      // Rivers and the lake carry no geometric waves: their life is the
+      // current-borne detail in the shading.
+      amplitude: [0, 0.2, 0.34],
+      wavenumber: 0.16,
+      // Toward the main southern coast (its shoreward direction is 160–175°).
+      headingDeg: 165,
+      orbitGain: 0.8,
+      phase: 0
+    },
+    {
+      id: "cross-swell",
+      amplitude: [0, 0.08, 0.14],
+      wavenumber: 0.27,
+      // Off-perpendicular: two trains crossing at exactly ninety degrees
+      // interfere on a square lattice and read as a woven plaid.
+      headingDeg: 128,
+      orbitGain: 0.7,
+      phase: 1.7
+    },
+    {
+      id: "wind-sea",
+      amplitude: [0, 0.035, 0.05],
+      wavenumber: 0.45,
+      headingDeg: 192,
+      orbitGain: 0.6,
+      phase: 4.1
+    }
+  ] as const satisfies readonly WaterWaveBand[]),
+  /** Amplitude gain at full sea roughness, per region. */
+  roughnessGain: [0.3, 0.9, 1.3] as const,
   oceanWindGainPerMeterSecond: 0.018,
   /**
-   * Marine band speeds follow deep-water dispersion, ω = tempo·√(g·k), so the
-   * long swell genuinely outruns the chop instead of every band scrolling at
-   * one authored rate — that ratio is most of what reads as a live sea. The
-   * tempo below holds the whole set back to a cozy pace while preserving it;
-   * river speeds stay authored, because a channel is not a dispersive
-   * deep-water train.
+   * Band speeds follow deep-water dispersion, ω = tempo·√(g·k), so the long
+   * swell genuinely outruns the wind sea. The tempo holds the whole set back
+   * to a cozy pace while preserving the ratios.
    */
   dispersionTempo: 0.62,
   /**
-   * Crest wander. A swell does not arrive as one straight front: its heading
-   * drifts slowly across the fetch, so real crest lines curve and lose
-   * register with each other over a few hundred metres. Rotating the travel
-   * frame by a long, low-amplitude sine of the across-travel coordinate buys
-   * that irregularity for one extra sine per vertex, which is what stops a
-   * sum of three bands from reading as parallel corduroy over the whole sea.
+   * Crest wander: a slow phase warp across the fronts bends the crest lines
+   * out of parallel, the way a real swell arrives. It runs across the
+   * swell's fixed heading and its gradient is bounded by
+   * radiansPerMeter·radians everywhere, so a band keeps its wavelength across
+   * the whole map.
    */
   crestWander: {
     radiansPerMeter: 0.013,
-    radians: 1.1
+    radians: 0.8
   },
   /**
-   * Total trochoidal steepness ceiling across all three bands, measured as
-   * Σ orbitGain·amplitude·frequency. Steepness grows with sea state because
-   * that is what sharpens crests into whitecaps, but the sum is clamped below
-   * the cusp so the surface cannot fold through itself and the CPU inversion
-   * below stays contractive.
+   * Total trochoidal steepness ceiling, Σ orbit·(k + warp). Past 1 the
+   * surface folds through itself; well below it crests stay rounded — a
+   * trochoid near its cusp draws sharp fins and pyramids — and the CPU
+   * inversion converges quickly.
    */
-  steepnessCeiling: 0.82,
+  steepnessCeiling: 0.45,
   /**
-   * Shoaling: a real wave train feels the bed before it reaches the beach,
-   * growing and steepening over the shallow shelf and then dying in the
-   * swash zone. `gain` is the extra amplitude at the peak of the shelf,
-   * `peakMeters`/`deepMeters` bound the band over which the bed is felt, and
-   * `dampMeters` is the depth below which displacement is gone, so waves
-   * cannot punch through the sand. Freshwater keeps its own quiet response
-   * through `freshwaterScale`.
+   * A band is fully drawn while the lattice has at least `full` cells per
+   * wavelength and gone by `gone`. With too few cells the interpolated
+   * normal draws zig-zag creases across the triangles, so a band is handed
+   * to the shading as roughness well before that.
+   */
+  lodSamplesPerWavelength: { full: 9, gone: 6 },
+  /**
+   * Shoaling: a wave train feels the bed before the beach, growing over the
+   * shelf, then dying in the swash zone. `dampMeters` is the depth below
+   * which displacement is gone, so crests cannot punch through the sand; that
+   * removed energy returns as surf foam. The orbit carries the damp twice
+   * (once through the amplitude), so horizontal motion dies first.
    */
   shoaling: {
-    gain: 0.85,
+    gain: 0.6,
     peakMeters: 1.1,
     deepMeters: 7,
     dampMeters: 0.55,
-    freshwaterScale: 0.25
+    freshwaterScale: 0.25,
+    /**
+     * Depth-limited breaking: a wave cannot stand taller than about 0.78 of
+     * the water it runs through, so the summed crest height is capped at this
+     * share of the still-water depth. Without it the shelf gain built walls of
+     * water over the shallows; what the cap removes breaks as surf.
+     */
+    breakingDepthRatio: 0.39
   },
-  riverBlend: [-2, 4] as const,
-  oceanBlend: [105, 145] as const
+  /**
+   * Swash: the waterline itself moves. Each arriving set pushes a thin sheet
+   * up the beach and draws it back, so the sea level over the swash zone rises
+   * and falls by up to `runupMeters` (scaled by the shore's contact weight
+   * and the sea state). The terrain reads the same level for its wet sand, so
+   * water and wet line cannot disagree.
+   */
+  swash: {
+    runupMeters: 0.13,
+    roughnessGain: 0.9,
+    periodSeconds: 9.5,
+    /**
+     * Still-water depth over which the lift fades out seaward. The lift is
+     * held uniform across the whole waterline zone: a lift that varied inside
+     * one lattice triangle there would tilt it, and its intersection with the
+     * beach would zig-zag at triangle scale instead of following the contour.
+     */
+    fadeDepthMeters: [0.9, 2.8] as const,
+    /**
+     * Longest horizontal run-up a set may travel. On a nearly flat shelf a
+     * fixed lift spread a thin sheet tens of metres over the sand, nearly
+     * coplanar with it; the lift is capped by the local bed gradient times
+     * this reach.
+     */
+    maxExcursionMeters: 3.5,
+    /** Spacing of the bed-gradient probe, half a field texel. */
+    gradientProbeMeters: 1.5
+  }
 });
 
-function waveVector(values: readonly [number, number, number]): THREE.Vector3 {
-  return new THREE.Vector3(values[0], values[1], values[2]);
+export const WATER_BAND_COUNT = WATER_WAVE_CONFIG.bands.length;
+const GRAVITY = 9.81;
+
+/** Angular speed (rad/s) of a band, from deep-water dispersion. */
+export function bandAngularSpeed(band: WaterWaveBand): number {
+  return WATER_WAVE_CONFIG.dispersionTempo * Math.sqrt(GRAVITY * band.wavenumber);
+}
+
+/** Unit world travel direction (x, z) of a band. */
+export function bandDirection(band: WaterWaveBand): [number, number] {
+  const radians = THREE.MathUtils.degToRad(band.headingDeg);
+  return [Math.sin(radians), Math.cos(radians)];
+}
+
+/** Finest lattice spacing, which is the resolution the CPU mirror reproduces. */
+export function finestWaterCellMeters(): number {
+  return CANONICAL_RENDER_CONFIG.waterSurface.lod.finestCellMeters;
+}
+
+/** Share of a band the lattice can draw at this cell size (1 = full). */
+export function bandLodWeight(frequency: number, cellMeters: number): number {
+  const wavelength = (Math.PI * 2) / Math.max(1e-4, frequency);
+  const { full, gone } = WATER_WAVE_CONFIG.lodSamplesPerWavelength;
+  return 1 - smoothstep(wavelength / full, wavelength / gone, cellMeters);
 }
 
 /**
- * Worst-case displacement the wave field can apply, in metres.
- *
- * Frustum bounds are authored against the undisplaced lattice, so they have
- * to be widened by whatever the vertex shader can add — horizontally as well
- * as vertically, now that the water moves in orbits. Deriving the margin from
- * the config instead of writing a literal means retuning a band cannot
- * silently start popping tiles at the edge of the view.
+ * Worst-case displacement the wave field can apply, in metres. Frustum and
+ * node bounds are authored against the undisplaced lattice, so they are
+ * widened by whatever the vertex shader can add — horizontally as well as
+ * vertically — derived from the config rather than written as a literal.
  */
 export function maxWaveDisplacement(): { vertical: number; horizontal: number } {
-  const bands = [WATER_WAVE_CONFIG.primary, WATER_WAVE_CONFIG.cross, WATER_WAVE_CONFIG.detail];
-  const peakRegional = (values: readonly [number, number, number]) => Math.max(...values);
-  // The roughness and wind gains multiply amplitude; shoaling multiplies it
-  // again over the shelf. Taking each factor at its ceiling is deliberately
-  // pessimistic — the alternative is a tile that vanishes in a storm.
-  const roughnessCeiling = 1 + peakRegional(WATER_WAVE_CONFIG.roughnessGain)
+  const peak = (values: Regional) => Math.max(...values);
+  const roughnessCeiling = 1 + peak(WATER_WAVE_CONFIG.roughnessGain)
     + 25 * WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond;
   const { gain } = WATER_WAVE_CONFIG.shoaling;
   let vertical = 0;
   let horizontal = 0;
-  for (const band of bands) {
-    const amplitude = peakRegional(band.amplitude) * roughnessCeiling * (1 + gain);
+  for (const band of WATER_WAVE_CONFIG.bands) {
+    const amplitude = peak(band.amplitude) * roughnessCeiling * (1 + gain);
     vertical += amplitude;
-    horizontal += amplitude * peakRegional(band.orbitGain) * (1 + gain * 1.45);
+    horizontal += amplitude * band.orbitGain;
   }
+  const { runupMeters, roughnessGain } = WATER_WAVE_CONFIG.swash;
+  vertical += runupMeters * (1 + roughnessGain);
   return { vertical, horizontal };
 }
 
 /**
+ * Run-up lift after the reach cap: a set cannot push the sheet further up
+ * the beach than `maxExcursionMeters`, so on a gentle shelf the lift is the
+ * bed gradient times that reach. Term for term with `nevaSwashLift`.
+ */
+export function swashLift(level: number, depthGradient: number): number {
+  return Math.min(level, depthGradient * WATER_WAVE_CONFIG.swash.maxExcursionMeters);
+}
+
+/** Run-up height at full contact for the given sea state. */
+export function swashRunupMeters(seaRoughness: number): number {
+  const { runupMeters, roughnessGain } = WATER_WAVE_CONFIG.swash;
+  return runupMeters * (1 + THREE.MathUtils.clamp(seaRoughness, 0, 1) * roughnessGain);
+}
+
+/**
+ * Shared swash level (metres above still water) at a world point. The GLSL
+ * `nevaSwashLevel` in `waveGlsl.ts` is this exact expression; only sines, so
+ * the two agree to float precision.
+ */
+export function swashLevel(x: number, z: number, timeSeconds: number, runup: number, contact: number): number {
+  if (contact <= 0 || runup <= 0) return 0;
+  const offset = 0.31 * Math.sin(x * 0.019 + z * 0.011)
+    + 0.21 * Math.sin(z * 0.027 - x * 0.013 + 1.7)
+    + 0.09 * Math.sin(x * 0.061 + z * 0.047 + 4.1);
+  const period = WATER_WAVE_CONFIG.swash.periodSeconds;
+  const a = swashCycle(timeSeconds / period + offset);
+  const b = swashCycle(timeSeconds / (period * 1.37) + offset * 1.6 + 0.43);
+  return runup * contact * (0.68 * a + 0.32 * b);
+}
+
+/** One run-up: a quick uprush over the first third, a longer backwash. */
+function swashCycle(phase: number): number {
+  const p = phase - Math.floor(phase);
+  return p < 0.32 ? smoothstep(0, 0.32, p) : 1 - smoothstep(0.32, 1, p);
+}
+
+
+/**
  * `WATER_WAVE_CONFIG` expressed as shader uniforms.
  *
- * Three materials displace this same field — the coarse surface, the near
- * tessellation and the shore-foam quads — and a hand-copied uniform list in
- * each is exactly how one band silently stops matching its neighbours at a
- * seam. Keeping the factory beside the numeric owner means a new band
- * parameter reaches every surface or none.
- *
- * The canonical bed uniforms are deliberately not here: both water surfaces
- * already receive those from `createCoastalUniforms`, the single owner the
- * render pipeline updates, and redeclaring them would shadow it.
+ * Every displacing material (the LOD surface, the headwater surface and the
+ * boat wakes) takes these from one factory, so a band parameter reaches every
+ * surface or none. The bed/field uniforms are not here: the water
+ * surfaces receive them from `createCoastalUniforms`, the single owner the
+ * render pipeline updates.
  */
 export function createWaveUniforms() {
-  const { primary, cross, detail, shoaling } = WATER_WAVE_CONFIG;
+  const { shoaling } = WATER_WAVE_CONFIG;
   return {
     uTime: { value: 0 },
     uRoughness: { value: DEFAULT_CONDITIONS.seaRoughness },
     uWindSpeed: { value: 0 },
-    uWindDirection: { value: new THREE.Vector2(0, 1) },
-    uPrimaryAmplitude: { value: waveVector(primary.amplitude) },
-    uPrimaryFrequency: { value: waveVector(primary.frequency) },
-    uPrimarySpeed: { value: waveVector(primary.speed) },
-    uPrimaryOrbit: { value: waveVector(primary.orbitGain) },
-    uCrossAmplitude: { value: waveVector(cross.amplitude) },
-    uCrossFrequency: { value: waveVector(cross.frequency) },
-    uCrossSpeed: { value: waveVector(cross.speed) },
-    uCrossOrbit: { value: waveVector(cross.orbitGain) },
-    uDetailAmplitude: { value: waveVector(detail.amplitude) },
-    uDetailFrequency: { value: waveVector(detail.frequency) },
-    uDetailSpeed: { value: waveVector(detail.speed) },
-    uDetailOrbit: { value: waveVector(detail.orbitGain) },
-    uRoughnessGain: { value: waveVector(WATER_WAVE_CONFIG.roughnessGain) },
+    uBandAmplitude: { value: WATER_WAVE_CONFIG.bands.map((band) => new THREE.Vector3(...band.amplitude)) },
+    /** Per band: (wave vector x, wave vector z, angular speed, phase offset). */
+    uBandWave: {
+      value: WATER_WAVE_CONFIG.bands.map((band) => {
+        const [x, z] = bandDirection(band);
+        return new THREE.Vector4(x * band.wavenumber, z * band.wavenumber, bandAngularSpeed(band), band.phase);
+      })
+    },
+    uBandOrbit: { value: WATER_WAVE_CONFIG.bands.map((band) => band.orbitGain) },
+    uRoughnessGain: { value: new THREE.Vector3(...WATER_WAVE_CONFIG.roughnessGain) },
     uOceanWindGain: { value: WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond },
     uSteepnessCeiling: { value: WATER_WAVE_CONFIG.steepnessCeiling },
+    uLodSamples: { value: new THREE.Vector2(
+      WATER_WAVE_CONFIG.lodSamplesPerWavelength.full,
+      WATER_WAVE_CONFIG.lodSamplesPerWavelength.gone
+    ) },
     uShoalGain: { value: shoaling.gain },
     uShoalPeak: { value: shoaling.peakMeters },
     uShoalDeep: { value: shoaling.deepMeters },
     uShoalDamp: { value: shoaling.dampMeters },
     uShoalFreshwater: { value: shoaling.freshwaterScale },
+    uBreakingDepthRatio: { value: shoaling.breakingDepthRatio },
     uCrestWander: { value: new THREE.Vector2(
       WATER_WAVE_CONFIG.crestWander.radiansPerMeter,
       WATER_WAVE_CONFIG.crestWander.radians
+    ) },
+    uSwashFade: { value: new THREE.Vector2(...WATER_WAVE_CONFIG.swash.fadeDepthMeters) },
+    uSwashReach: { value: new THREE.Vector2(
+      WATER_WAVE_CONFIG.swash.maxExcursionMeters,
+      WATER_WAVE_CONFIG.swash.gradientProbeMeters
     ) }
-  };
-}
-
-/**
- * Bed lookup for a displacing surface that does not already carry the shared
- * coastal uniforms. Passing a null map disables the lookup, and the shoaling
- * function then reports open water, which reproduces the unshoaled field.
- */
-export function createWaterBedUniforms(depthMap: THREE.Texture | null, bounds: THREE.Vector4) {
-  return {
-    uWaterDepthMap: { value: depthMap },
-    uCoastalFieldEnabled: { value: depthMap ? 1 : 0 },
-    uOpticsBounds: { value: bounds }
   };
 }
 
@@ -248,289 +340,179 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
   return amount * amount * (3 - 2 * amount);
 }
 
-function weighted(values: readonly [number, number, number], weights: WaterRegionWeights): number {
-  return values[0] * weights.river + values[1] * weights.sea + values[2] * weights.ocean;
-}
-
-function dominantRegion(weights: WaterRegionWeights): WaterRegion {
-  if (weights.river >= weights.sea && weights.river >= weights.ocean) return "river";
-  return weights.ocean > weights.sea ? "ocean" : "sea";
-}
-
-function normalizedDirection(x: number, z: number): THREE.Vector2 {
-  const length = Math.hypot(x, z);
-  return length > 0.0001 ? new THREE.Vector2(x / length, z / length) : new THREE.Vector2(0, -1);
-}
-
-/** Render-only regional classification with soft estuary and offshore transitions. */
-export function waterSpatialProfile(x: number, z: number, queries?: WaterSpatialQueries): WaterSpatialProfile {
-  const marine = queries?.marine ?? WorldLayout.marineSampleAt(x, z);
-  const southCoastZ = WorldLayout.coastlineZ(x);
-  const riverSignedDistance = WorldLayout.riverWaterSignedDistance(x, z);
-
-  // River corridor: bounded by finite headwater source and southern estuary
-  const inRiverCorridor = z >= NEVA_HEADWATERS.source.z - NEVA_HEADWATERS.sourceRadiusMeters
-    && z <= southCoastZ + 1.5;
-  const channelInfluence = inRiverCorridor
-    ? smoothstep(0, 0.8, riverSignedDistance)
-    : 0;
-
-  // Estuary flow: where the river enters the southern sea
-  const coastDistance = z - southCoastZ;
-  const estuaryFlow = WorldLayout.estuaryInfluence(x, z)
-    * (1 - smoothstep(2, 27, Math.max(0, coastDistance)))
-    * 0.82;
-
-  const mainlandWater = mainlandWaterSample(x, z);
-  const river = Math.min(1, Math.max(channelInfluence, estuaryFlow, smoothstep(0, 0.8, mainlandWater.signedDistance)));
-
-  const oceanBlend = smoothstep(
-    WATER_WAVE_CONFIG.oceanBlend[0],
-    WATER_WAVE_CONFIG.oceanBlend[1],
-    marine.signedShoreDistance
-  );
-  const ocean = THREE.MathUtils.clamp(
-    Math.max(marine.openWaterExposure, oceanBlend) * (1 - river),
-    0,
-    1
-  );
-  const sea = Math.max(0, 1 - river - ocean);
-  const weights = { river, sea, ocean };
-
-  const sampleDistance = 1.25;
-  const riverTangent = mainlandWater.signedDistance > -4
-    ? normalizedDirection(mainlandWater.direction.x, mainlandWater.direction.z)
-    : normalizedDirection(
-      WorldLayout.riverCenterX(z + sampleDistance) - WorldLayout.riverCenterX(z - sampleDistance),
-      sampleDistance * 2
-    );
-  const marineDir = normalizedDirection(marine.waveDirection.x, marine.waveDirection.z);
-  let coastalDirection = marineDir;
-  if (sea > 0.0001 && Math.abs(marine.signedShoreDistance) < 90) {
-    const shore = queries?.shore ?? WorldLayout.shoreProjectionAt(x, z);
-    if (queries) queries.shore = shore;
-    const shoreward = normalizedDirection(
-      -shore.waterwardNormalXZ.x,
-      -shore.waterwardNormalXZ.z
-    );
-    const shoreInfluence = (1 - smoothstep(18, 80, Math.abs(shore.signedDistanceMeters)))
-      * (1 - marine.openWaterExposure * 0.35);
-    coastalDirection = normalizedDirection(
-      THREE.MathUtils.lerp(marineDir.x, shoreward.x, shoreInfluence),
-      THREE.MathUtils.lerp(marineDir.y, shoreward.y, shoreInfluence)
-    );
-  }
-  const localDirection = normalizedDirection(
-    riverTangent.x * river + coastalDirection.x * sea + marineDir.x * ocean,
-    riverTangent.y * river + coastalDirection.y * sea + marineDir.y * ocean
-  );
-
-  return {
-    region: dominantRegion(weights),
-    weights,
-    signedWaterDistance: marine.signedShoreDistance,
-    coastDistance: marine.signedShoreDistance,
-    localDirection
-  };
-}
-
 function resolvedConditions(conditions?: Partial<WaterConditions>): WaterConditions {
   return {
-    seaRoughness: THREE.MathUtils.clamp(
-      conditions?.seaRoughness ?? DEFAULT_CONDITIONS.seaRoughness,
-      0,
-      1
-    ),
+    seaRoughness: THREE.MathUtils.clamp(conditions?.seaRoughness ?? DEFAULT_CONDITIONS.seaRoughness, 0, 1),
     windDirectionDeg: conditions?.windDirectionDeg ?? DEFAULT_CONDITIONS.windDirectionDeg,
     windSpeed: Math.max(0, conditions?.windSpeed ?? DEFAULT_CONDITIONS.windSpeed)
   };
 }
 
-function travelDirection(profile: WaterSpatialProfile, conditions: WaterConditions): THREE.Vector2 {
-  const windRadians = THREE.MathUtils.degToRad(conditions.windDirectionDeg);
-  const wind = new THREE.Vector2(Math.sin(windRadians), Math.cos(windRadians));
-  return normalizedDirection(
-    THREE.MathUtils.lerp(profile.localDirection.x, wind.x, profile.weights.ocean),
-    THREE.MathUtils.lerp(profile.localDirection.y, wind.y, profile.weights.ocean)
-  );
-}
+/**
+ * Scratch for one resolved point: the regional blend the GPU also computes,
+ * held in flat typed arrays so a buoyancy query allocates nothing.
+ */
+const N = WATER_BAND_COUNT;
+/** Per-band constants, resolved once: world axis and angular speed. */
+const BAND_CONSTANTS = WATER_WAVE_CONFIG.bands.map((band) => {
+  const [x, z] = bandDirection(band);
+  return { x, z, speed: bandAngularSpeed(band) };
+});
+/** Crest wander runs across the swell's heading. */
+const WANDER_AXIS = (() => {
+  const [x, z] = bandDirection(WATER_WAVE_CONFIG.bands[0]);
+  return { x: -z, z: x };
+})();
+const scratch = {
+  field: createWaterFieldSample(),
+  axisX: new Float64Array(N),
+  axisZ: new Float64Array(N),
+  k: new Float64Array(N),
+  speed: new Float64Array(N),
+  amplitude: new Float64Array(N),
+  orbit: new Float64Array(N),
+  phase: new Float64Array(N),
+  weights: [0, 0, 0] as [number, number, number],
+  swash: 0
+};
 
-/** One band resolved for a point: the regional blend the GPU also computes. */
-interface ResolvedBand {
-  axis: THREE.Vector2;
-  frequency: number;
-  speed: number;
-  amplitude: number;
-  /** Horizontal orbit radius in metres, after shoaling and the cusp clamp. */
-  orbit: number;
-  /** Band phase offset plus the shared crest warp at this point. */
-  phase: number;
-  /** d(phase)/d(position): the band's own axis scaled by frequency, plus the warp. */
-  phaseGradient: THREE.Vector2;
+function sampleField(x: number, z: number): WaterFieldSample {
+  return WaterFieldStore.canonical().sample(x, z, scratch.field);
 }
 
 /**
- * Still-water column depth over the canonical bed — the same quantity the
- * depth map's R channel carries to the shader, read from its owner here so
- * the two cannot encode it differently.
+ * Resolve every band at a point — the CPU mirror of `nevaResolveWaves` in
+ * waveGlsl.ts, at the finest lattice spacing. Region weights, travel frame
+ * and bed depth are treated as locally constant across the displacement, the
+ * same approximation the shader makes per vertex.
  */
-function bedWaterDepth(x: number, z: number): number {
-  return WorldLayout.waterColumnDepth(x, z);
-}
+function resolveBands(x: number, z: number, conditions: WaterConditions, timeSeconds: number): void {
+  const field = sampleField(x, z);
+  const river = field.river;
+  const ocean = field.ocean;
+  const sea = Math.max(0, 1 - river - ocean);
+  const w = scratch.weights;
+  w[0] = river; w[1] = sea; w[2] = ocean;
 
-/** CPU mirror of nevaWaveShoaling(): (amplitude factor, orbit factor). */
-function shoalingFactors(depth: number, riverWeight: number): { amplitude: number; orbit: number } {
+  // Shoaling at the still-water depth.
   const { gain, peakMeters, deepMeters, dampMeters, freshwaterScale } = WATER_WAVE_CONFIG.shoaling;
+  const depth = field.depth;
   const damp = smoothstep(0, dampMeters, depth);
   const shelf = 1 - smoothstep(peakMeters, deepMeters, depth);
-  const shelfGain = gain * shelf * THREE.MathUtils.lerp(1, freshwaterScale, riverWeight);
-  return { amplitude: (1 + shelfGain) * damp, orbit: (1 + shelfGain * 1.45) * damp };
-}
+  const shelfGain = gain * shelf * THREE.MathUtils.lerp(1, freshwaterScale, river);
+  const amplitudeShoal = (1 + shelfGain) * damp;
 
-/**
- * CPU mirror of nevaWaveAxes(): the primary, cross and detail travel axes.
- *
- * The heading wanders slowly across the fetch so crest lines curve rather
- * than running dead straight, and the cross band sits off-perpendicular so
- * the two trains do not weave a square plaid. All three axes are unit length,
- * so a band's frequency means the same thing on whichever axis it rides.
- */
-function waveAxes(
-  profile: WaterSpatialProfile,
-  conditions: WaterConditions
-): [THREE.Vector2, THREE.Vector2, THREE.Vector2] {
-  const primary = travelDirection(profile, conditions);
-  const perpendicular = new THREE.Vector2(-primary.y, primary.x);
-  const blend = (along: number, across: number) => new THREE.Vector2(
-    primary.x * along + perpendicular.x * across,
-    primary.y * along + perpendicular.y * across
-  ).normalize();
-  return [
-    primary,
-    blend(WAVE_CROSS_AXIS.along, WAVE_CROSS_AXIS.across),
-    blend(WAVE_DETAIL_AXIS.along, WAVE_DETAIL_AXIS.across)
-  ];
-}
-
-/**
- * CPU mirror of nevaCrestWander(): the phase warp and its gradient.
- *
- * See the shader for why this warps the phase rather than turning the travel
- * heading — a rotation's phase effect is levered by distance from the world
- * origin, this one's gradient is bounded everywhere.
- */
-function crestWander(
-  x: number,
-  z: number,
-  travelAxis: THREE.Vector2
-): { warp: number; gradient: THREE.Vector2 } {
-  const { radiansPerMeter, radians } = WATER_WAVE_CONFIG.crestWander;
-  const across = new THREE.Vector2(-travelAxis.y, travelAxis.x);
-  const along = (x * across.x + z * across.y) * radiansPerMeter;
-  return {
-    warp: Math.sin(along) * radians,
-    gradient: across.clone().multiplyScalar(Math.cos(along) * radiansPerMeter * radians)
-  };
-}
-
-/**
- * Resolve the three bands at a point. Regional weights, travel direction and
- * bed depth are treated as locally constant across the wave, which is the
- * same approximation waveGerstner() makes on the GPU.
- */
-function resolveBands(
-  x: number,
-  z: number,
-  profile: WaterSpatialProfile,
-  conditions: WaterConditions
-): ResolvedBand[] {
-  const [direction, crossDirection, detailDirection] = waveAxes(profile, conditions);
-  const wander = crestWander(x, z, direction);
-  const shoal = shoalingFactors(bedWaterDepth(x, z), profile.weights.river);
   const roughnessScale = 1
-    + conditions.seaRoughness * weighted(WATER_WAVE_CONFIG.roughnessGain, profile.weights)
-    + conditions.windSpeed * profile.weights.ocean * WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond;
-  const amplitudeScale = roughnessScale * shoal.amplitude;
-  const sources: readonly (readonly [WaterWaveBand, THREE.Vector2, number])[] = [
-    [WATER_WAVE_CONFIG.primary, direction, WAVE_BAND_PHASES.primary],
-    [WATER_WAVE_CONFIG.cross, crossDirection, WAVE_BAND_PHASES.cross],
-    [WATER_WAVE_CONFIG.detail, detailDirection, WAVE_BAND_PHASES.detail]
-  ];
-  const bands = sources.map(([band, axis, phase]) => {
-    const amplitude = weighted(band.amplitude, profile.weights) * amplitudeScale;
-    const frequency = weighted(band.frequency, profile.weights);
-    return {
-      axis,
-      frequency,
-      speed: weighted(band.speed, profile.weights),
-      amplitude,
-      orbit: weighted(band.orbitGain, profile.weights) * amplitude * shoal.orbit,
-      phase: phase + wander.warp,
-      phaseGradient: axis.clone().multiplyScalar(frequency).add(wander.gradient)
-    };
-  });
-  // Σ orbit·frequency is the trochoid's steepness; past 1 the surface folds
-  // through itself and the inversion below stops contracting. The warp raises
-  // the effective wavenumber, so it counts toward the ceiling. Scaling the
-  // whole set together preserves the bands' relative weight.
+    + conditions.seaRoughness * (WATER_WAVE_CONFIG.roughnessGain[0] * river
+      + WATER_WAVE_CONFIG.roughnessGain[1] * sea + WATER_WAVE_CONFIG.roughnessGain[2] * ocean)
+    + conditions.windSpeed * ocean * WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond;
+  const cell = finestWaterCellMeters();
   const warpCeiling = WATER_WAVE_CONFIG.crestWander.radiansPerMeter * WATER_WAVE_CONFIG.crestWander.radians;
-  const steepness = bands.reduce((sum, band) => sum + band.orbit * (band.frequency + warpCeiling), 0);
+  // Depth-limited breaking (nevaWaveField): cap the summed crest height.
+  let fullSum = 0;
+  for (const band of WATER_WAVE_CONFIG.bands) {
+    fullSum += (band.amplitude[0] * river + band.amplitude[1] * sea + band.amplitude[2] * ocean)
+      * roughnessScale * amplitudeShoal;
+  }
+  const breakLimit = WATER_WAVE_CONFIG.shoaling.breakingDepthRatio * Math.max(0, depth);
+  // Smooth saturation toward the limit (see nevaWaveField): never above it,
+  // and without the kink a hard min() drew as a crease along a depth contour.
+  const breakRatio = fullSum / Math.max(breakLimit, 1e-6);
+  const breakScale = Math.pow(1 + breakRatio ** 4, -0.25);
+  let steepness = 0;
+  for (let index = 0; index < N; index += 1) {
+    const band = WATER_WAVE_CONFIG.bands[index]!;
+    const constants = BAND_CONSTANTS[index]!;
+    const k = band.wavenumber;
+    const amplitude = (band.amplitude[0] * river + band.amplitude[1] * sea + band.amplitude[2] * ocean)
+      * roughnessScale * amplitudeShoal * breakScale * bandLodWeight(k, cell);
+    // The orbit carries the damp twice (once through the amplitude), so the
+    // horizontal motion dies before the vertical and never drags the sheet
+    // across the sand.
+    const orbit = band.orbitGain * amplitude * damp;
+    scratch.axisX[index] = constants.x;
+    scratch.axisZ[index] = constants.z;
+    scratch.k[index] = k;
+    scratch.speed[index] = constants.speed;
+    scratch.amplitude[index] = amplitude;
+    scratch.orbit[index] = orbit;
+    scratch.phase[index] = band.phase;
+    steepness += orbit * (k + warpCeiling);
+  }
   if (steepness > WATER_WAVE_CONFIG.steepnessCeiling) {
     const scale = WATER_WAVE_CONFIG.steepnessCeiling / steepness;
-    for (const band of bands) band.orbit *= scale;
+    for (let index = 0; index < N; index += 1) scratch.orbit[index]! *= scale;
   }
-  return bands;
+  // The authored headwater reach keeps its shape: the trochoid may lift it
+  // but not slide it off the channel (nevaHeadwaterDetailWeight on the GPU).
+  const detail = headwaterDetailWeight(x, z);
+  if (detail < 1) for (let index = 0; index < N; index += 1) scratch.orbit[index]! *= detail;
+
+  // Run-up is marine only: a river bank has a current, not an arriving set.
+  const marine = sea + ocean;
+  const [fadeStart, fadeEnd] = WATER_WAVE_CONFIG.swash.fadeDepthMeters;
+  const level = swashLevel(x, z, timeSeconds, swashRunupMeters(conditions.seaRoughness), field.contact);
+  let lift = 0;
+  if (level > 0) {
+    const probe = WATER_WAVE_CONFIG.swash.gradientProbeMeters;
+    const store = WaterFieldStore.canonical();
+    const depthX = store.sample(x + probe, z, gradientSample).depth;
+    const depthZ = store.sample(x, z + probe, gradientSample).depth;
+    lift = swashLift(level, Math.hypot(depthX - depth, depthZ - depth) / probe);
+  }
+  scratch.swash = lift * marine * (1 - smoothstep(fadeStart, fadeEnd, depth));
 }
 
-/** Horizontal displacement the trochoid applies to a lattice point. */
-function waveOffset(
-  latticeX: number,
-  latticeZ: number,
-  bands: readonly ResolvedBand[],
-  timeSeconds: number,
-  out: THREE.Vector2
-): THREE.Vector2 {
-  out.set(0, 0);
-  for (const band of bands) {
-    const phase = (latticeX * band.axis.x + latticeZ * band.axis.y) * band.frequency
-      + timeSeconds * band.speed + band.phase;
-    const swing = band.orbit * Math.cos(phase);
-    out.x += band.axis.x * swing;
-    out.y += band.axis.y * swing;
-  }
-  return out;
+/** CPU mirror of nevaHeadwaterDetailWeight: 0 across the elevated reach, 1 outside. */
+function headwaterDetailWeight(x: number, z: number): number {
+  const bounds = NEVA_HEADWATERS.bounds;
+  if (x < bounds.minX || x > bounds.maxX || z < bounds.minZ || z > bounds.maxZ) return 1;
+  const knots = NEVA_HEADWATERS.elevationKnots;
+  return smoothstep(knots[knots.length - 1]!.z, bounds.maxZ, z);
+}
+
+/** Crest-wander phase at a lattice point (fixed frame, like the shader). */
+function crestWarp(latticeX: number, latticeZ: number): number {
+  const { radiansPerMeter, radians } = WATER_WAVE_CONFIG.crestWander;
+  return Math.sin((latticeX * WANDER_AXIS.x + latticeZ * WANDER_AXIS.z) * radiansPerMeter) * radians;
+}
+
+function bandPhase(index: number, latticeX: number, latticeZ: number, timeSeconds: number, warp: number): number {
+  // k·x − ωt: crests travel along the band's fixed world heading.
+  return (latticeX * scratch.axisX[index]! + latticeZ * scratch.axisZ[index]!) * scratch.k[index]!
+    - timeSeconds * scratch.speed[index]! + scratch.phase[index]! + warp;
 }
 
 /**
- * Invert the trochoid: find the lattice point whose displaced position lands
- * on world (x, z).
- *
- * The GPU displaces water horizontally, so the surface drawn above a world
- * column no longer comes from the lattice point directly beneath it. Buoyancy
- * asks "how high is the water *here*", and answering with the undisplaced
- * sample would float boats against a surface that is visibly somewhere else.
- * Fixed-point iteration converges because the steepness clamp above keeps the
- * displacement a contraction. Its rate falls as the sea steepens, which is
- * exactly when a hull is moving most, so the pass count is set for the rough
- * end of the range rather than the calm one; the loop costs only trigonometry,
- * because the expensive regional profile is resolved once, outside it.
+ * Invert the trochoid: the lattice point whose displaced position lands on
+ * world (x, z). The GPU moves water horizontally, so buoyancy has to ask what
+ * surface is drawn *here*, not what the lattice point beneath it carries.
+ * Fixed-point iteration converges because the steepness ceiling keeps the
+ * displacement contractive; five passes hold the rough end of the range.
  */
-function latticePointFor(
-  x: number,
-  z: number,
-  bands: readonly ResolvedBand[],
-  timeSeconds: number
-): THREE.Vector2 {
-  const lattice = new THREE.Vector2(x, z);
-  const offset = new THREE.Vector2();
+function latticePointFor(x: number, z: number, timeSeconds: number, out: { x: number; z: number }): void {
+  let lx = x;
+  let lz = z;
   for (let iteration = 0; iteration < 5; iteration += 1) {
-    waveOffset(lattice.x, lattice.y, bands, timeSeconds, offset);
-    lattice.set(x - offset.x, z - offset.y);
+    const warp = crestWarp(lx, lz);
+    let ox = 0;
+    let oz = 0;
+    for (let index = 0; index < N; index += 1) {
+      const swing = scratch.orbit[index]! * Math.cos(bandPhase(index, lx, lz, timeSeconds, warp));
+      ox += scratch.axisX[index]! * swing;
+      oz += scratch.axisZ[index]! * swing;
+    }
+    lx = x - ox;
+    lz = z - oz;
   }
-  return lattice;
+  out.x = lx;
+  out.z = lz;
 }
 
-/** CPU mirror of the shader's world-space regional wave function. */
+const lattice = { x: 0, z: 0 };
+const gradientSample = createWaterFieldSample();
+
+/** CPU mirror of the drawn water surface elevation. */
 export function waterHeight(
   x: number,
   z: number,
@@ -538,30 +520,25 @@ export function waterHeight(
   inputConditions: Partial<WaterConditions> = DEFAULT_CONDITIONS
 ): number {
   const conditions = resolvedConditions(inputConditions);
-  const profile = waterSpatialProfile(x, z);
-  const bands = resolveBands(x, z, profile, conditions);
-  const lattice = latticePointFor(x, z, bands, timeSeconds);
-  let height = 0;
-  for (const band of bands) {
-    height += Math.sin(
-      (lattice.x * band.axis.x + lattice.y * band.axis.y) * band.frequency
-      + timeSeconds * band.speed + band.phase
-    ) * band.amplitude;
+  resolveBands(x, z, conditions, timeSeconds);
+  latticePointFor(x, z, timeSeconds, lattice);
+  const warp = crestWarp(lattice.x, lattice.z);
+  let height = scratch.swash;
+  for (let index = 0; index < N; index += 1) {
+    height += Math.sin(bandPhase(index, lattice.x, lattice.z, timeSeconds, warp)) * scratch.amplitude[index]!;
   }
   return WorldLayout.waterSurfaceElevation(x, z) + height;
 }
 
 /**
- * Analytic surface normal for the same wave field waterHeight() evaluates.
+ * Analytic surface normal for the same field waterHeight() evaluates.
  *
- * Each band contributes A·freq·cos(φ) of vertical slope along its own axis
+ * Each band contributes A·k·cos(φ) of vertical slope along its phase gradient
  * and, because the water also moves horizontally, a term in the horizontal
- * Jacobian. The surface normal is the cross product of the two displaced
- * tangents, which reduces exactly to the former heightfield form when the
- * orbit is zero. Regional weights and travel direction are treated as
- * locally constant, mirroring waveGerstner() in waveGlsl.ts. Presentation
- * only; buoyancy reads height, never this normal. The headwater grade adds
- * the canonical static surface derivative after the wave contribution.
+ * Jacobian; the normal is the cross product of the two displaced tangents,
+ * which reduces to the heightfield form when the orbit is zero. Presentation
+ * only; buoyancy reads height. The headwater grade adds the canonical static
+ * surface derivative.
  */
 export function waterNormal(
   x: number,
@@ -570,26 +547,30 @@ export function waterNormal(
   inputConditions: Partial<WaterConditions> = DEFAULT_CONDITIONS
 ): THREE.Vector3 {
   const conditions = resolvedConditions(inputConditions);
-  const profile = waterSpatialProfile(x, z);
-  const bands = resolveBands(x, z, profile, conditions);
-  const lattice = latticePointFor(x, z, bands, timeSeconds);
+  resolveBands(x, z, conditions, timeSeconds);
+  latticePointFor(x, z, timeSeconds, lattice);
+  const { radiansPerMeter, radians } = WATER_WAVE_CONFIG.crestWander;
+  const acrossPhase = (lattice.x * WANDER_AXIS.x + lattice.z * WANDER_AXIS.z) * radiansPerMeter;
+  const warp = Math.sin(acrossPhase) * radians;
+  const warpGradient = Math.cos(acrossPhase) * radiansPerMeter * radians;
   let dhdx = 0;
   let dhdz = 0;
   let jxx = 0;
   let jzz = 0;
   let jxz = 0;
   let jzx = 0;
-  for (const band of bands) {
-    const phase = (lattice.x * band.axis.x + lattice.y * band.axis.y) * band.frequency
-      + timeSeconds * band.speed + band.phase;
-    const weight = Math.cos(phase) * band.amplitude;
-    dhdx += weight * band.phaseGradient.x;
-    dhdz += weight * band.phaseGradient.y;
-    const compress = band.orbit * Math.sin(phase);
-    jxx -= band.axis.x * band.phaseGradient.x * compress;
-    jxz -= band.axis.x * band.phaseGradient.y * compress;
-    jzx -= band.axis.y * band.phaseGradient.x * compress;
-    jzz -= band.axis.y * band.phaseGradient.y * compress;
+  for (let index = 0; index < N; index += 1) {
+    const phase = bandPhase(index, lattice.x, lattice.z, timeSeconds, warp);
+    const gradientX = scratch.axisX[index]! * scratch.k[index]! + WANDER_AXIS.x * warpGradient;
+    const gradientZ = scratch.axisZ[index]! * scratch.k[index]! + WANDER_AXIS.z * warpGradient;
+    const weight = Math.cos(phase) * scratch.amplitude[index]!;
+    dhdx += weight * gradientX;
+    dhdz += weight * gradientZ;
+    const compress = scratch.orbit[index]! * Math.sin(phase);
+    jxx -= scratch.axisX[index]! * gradientX * compress;
+    jxz -= scratch.axisX[index]! * gradientZ * compress;
+    jzx -= scratch.axisZ[index]! * gradientX * compress;
+    jzz -= scratch.axisZ[index]! * gradientZ * compress;
   }
   const bounds = NEVA_HEADWATERS.bounds;
   if (x >= bounds.minX && x <= bounds.maxX && z >= bounds.minZ && z <= bounds.maxZ) {
@@ -598,6 +579,16 @@ export function waterNormal(
   const tangentX = new THREE.Vector3(1 + jxx, dhdx, jzx);
   const tangentZ = new THREE.Vector3(jxz, dhdz, 1 + jzz);
   return tangentZ.cross(tangentX).normalize();
+}
+
+/** Region and weights at a point, from the same baked field the shaders read. */
+export function waterRegionAt(x: number, z: number): { region: WaterRegion; weights: WaterRegionWeights } {
+  const field = sampleField(x, z);
+  const weights = { river: field.river, sea: Math.max(0, 1 - field.river - field.ocean), ocean: field.ocean };
+  const region: WaterRegion = weights.river >= weights.sea && weights.river >= weights.ocean
+    ? "river"
+    : weights.ocean > weights.sea ? "ocean" : "sea";
+  return { region, weights };
 }
 
 export class WaterSurface {
@@ -616,13 +607,9 @@ export class WaterSurface {
     timeSeconds: number,
     conditions: Partial<WaterConditions> = DEFAULT_CONDITIONS
   ): WaterSample {
-    const height = this.height(x, z, timeSeconds, conditions);
-    const profile = waterSpatialProfile(x, z);
-    return {
-      height,
-      normal: waterNormal(x, z, timeSeconds, conditions),
-      region: profile.region,
-      weights: profile.weights
-    };
+    const height = waterHeight(x, z, timeSeconds, conditions);
+    const normal = waterNormal(x, z, timeSeconds, conditions);
+    const { region, weights } = waterRegionAt(x, z);
+    return { height, normal, region, weights };
   }
 }

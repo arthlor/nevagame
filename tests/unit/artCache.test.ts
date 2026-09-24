@@ -110,7 +110,7 @@ describe("Blender Art Cache & Deterministic Hashing", () => {
   it("correctly resolves generator module files from registry", () => {
     expect(generatorModuleFor("oak_tree", ROOT)).toBe("vegetation.py");
     expect(generatorModuleFor("farmhouse", ROOT)).toBe("architecture.py");
-    expect(generatorModuleFor("stylized_fish", ROOT)).toBe("fish.py");
+    expect(generatorModuleFor("crop_trade_pack", ROOT)).toBe("trade_packs.py");
   });
 
   it("computes asset toolchain and complete asset hash using computeAssetHash", () => {

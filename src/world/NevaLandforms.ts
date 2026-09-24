@@ -1,3 +1,5 @@
+import { drainageStripe, gullyProfile } from "./ProceduralNoise";
+
 /** Small authored Neva landform field. Sunreach never consumes these coordinates. */
 export interface NevaLandformSample {
   minimumElevation: number;
@@ -6,28 +8,35 @@ export interface NevaLandformSample {
 }
 
 export const NEVA_SUMMITS = [
-  { id: "spring-mountain", x: -61, z: -178, elevation: 36, radiusX: 72, radiusZ: 58 },
-  { id: "western-mountain", x: -126, z: -116, elevation: 28, radiusX: 62, radiusZ: 64 },
-  { id: "northeastern-ridge", x: 20, z: -175, elevation: 18, radiusX: 66, radiusZ: 57 },
+  { id: "spring-mountain", x: -61, z: -178, elevation: 58, radiusX: 72, radiusZ: 58 },
+  { id: "western-mountain", x: -126, z: -116, elevation: 34, radiusX: 62, radiusZ: 64 },
+  { id: "northeastern-ridge", x: 20, z: -175, elevation: 26, radiusX: 66, radiusZ: 57 },
   // Long overlapping shoulders make one watershed behind the falls. Small
   // independent domes previously produced a row of isolated vertical humps.
-  { id: "headwater-east-crag", x: 8, z: -155, elevation: 23, radiusX: 36, radiusZ: 39 },
-  { id: "spring-headwall", x: -18, z: -169, elevation: 28, radiusX: 38, radiusZ: 28 }
+  { id: "headwater-east-crag", x: 8, z: -155, elevation: 42, radiusX: 36, radiusZ: 39 },
+  { id: "spring-headwall", x: -18, z: -169, elevation: 48, radiusX: 38, radiusZ: 28 },
+  // Western rim of the spring cleft: hides the source and upper chute from the
+  // shortened foothill-trail terminus without blocking the downstream fall face.
+  { id: "spring-west-rim", x: -41, z: -152, elevation: 38, radiusX: 14, radiusZ: 10 }
 ] as const;
 
 const RIDGE_SHOULDERS = [
-  { start: [-126, -116, 28], end: [-100, -147, 25], width: 38 },
-  { start: [-100, -147, 25], end: [-61, -178, 36], width: 43 },
-  { start: [-61, -178, 36], end: [-18, -169, 28], width: 39 },
-  { start: [-18, -169, 28], end: [20, -175, 18], width: 32 },
-  { start: [20, -175, 18], end: [8, -155, 23], width: 30 },
+  { start: [-126, -116, 34], end: [-100, -147, 30], width: 38 },
+  { start: [-100, -147, 30], end: [-61, -178, 58], width: 43 },
+  { start: [-61, -178, 58], end: [-18, -169, 48], width: 39 },
+  { start: [-18, -169, 48], end: [20, -175, 26], width: 32 },
+  { start: [20, -175, 26], end: [8, -155, 42], width: 30 },
+  // Rim shoulder along the cleft's west wall, chaining into the headwall.
+  { start: [-52, -156, 34], end: [-34, -147, 37], width: 14 },
   { start: [-126, -116, 16], end: [-137, -61, 14], width: 26 },
   { start: [-137, -61, 14], end: [-127, -13, 10], width: 28 }
 ] as const;
 
 export interface NevaTrailPoint { x: number; z: number; elevation: number }
 
-/** A contour climb around the western and northern headland slopes, ending at the spring. */
+/** A contour climb around the western and northern headland slopes.
+ * The farm arm ends at a rim overlook short of the spring; the spring rest
+ * stop no longer sits on the source bank. */
 const AUTHORED_FOOTHILL_TRAILS = [
   {
     id: "farm-headwater-trail",
@@ -40,9 +49,8 @@ const AUTHORED_FOOTHILL_TRAILS = [
       { x: -103, z: -113, elevation: 15 },
       { x: -83, z: -126, elevation: 18.5 },
       { x: -72, z: -145, elevation: 21 },
-      { x: -55, z: -156, elevation: 20.8 },
-      { x: -39, z: -156, elevation: 20.6 },
-      { x: -37, z: -150, elevation: 20.5 }
+      { x: -58, z: -154, elevation: 21.2 },
+      { x: -48, z: -155, elevation: 21.5 }
     ]
   },
   {
@@ -64,12 +72,13 @@ const AUTHORED_FOOTHILL_TRAILS = [
     ]
   },
   {
+    // Forks west of the spring rim so the bluff route never climbs the cirque.
     id: "northern-bluff-trail",
     points: [
-      { x: -37, z: -150, elevation: 20.5 },
-      { x: -36, z: -164, elevation: 21 },
-      { x: -42, z: -178, elevation: 21.5 },
-      { x: -50, z: -192, elevation: 18 },
+      { x: -48, z: -155, elevation: 21.5 },
+      { x: -47, z: -168, elevation: 22 },
+      { x: -52, z: -182, elevation: 21.5 },
+      { x: -54, z: -196, elevation: 18 },
       { x: -54, z: -206, elevation: 13 },
       { x: -52, z: -218, elevation: 8 }
     ]
@@ -134,7 +143,8 @@ export function nevaBaseGroundHeight(x: number, z: number): number {
   return 1.8 + westernRidge + northernRidge + easternUplands + lighthouseHeadland + harborShoulder + farmBasin + authoredPlanes;
 }
 
-export function sampleNevaLandforms(x: number, z: number): NevaLandformSample {
+/** The authored dome-and-shoulder field, retained exactly inside the headwater cirque. */
+function authoredLandforms(x: number, z: number): NevaLandformSample {
   let minimumElevation = 0;
   let mountain = 0;
   for (const peak of NEVA_SUMMITS) {
@@ -172,13 +182,153 @@ export function sampleNevaLandforms(x: number, z: number): NevaLandformSample {
   };
 }
 
+/**
+ * The headwater cirque's rim and headwall own the source-concealment and
+ * fall-visibility contract (the v55 graybox envelope plus a margin). Inside it
+ * the authored field is kept exactly; the procedural summit form fades in
+ * beyond it.
+ */
+const HEADWATER_CIRQUE = { minX: -58, maxX: 23, minZ: -189, maxZ: -107 } as const;
+const CIRQUE_FEATHER_METERS = 20;
+
+function cirqueRetention(x: number, z: number): number {
+  const dx = Math.max(HEADWATER_CIRQUE.minX - x, 0, x - HEADWATER_CIRQUE.maxX);
+  const dz = Math.max(HEADWATER_CIRQUE.minZ - z, 0, z - HEADWATER_CIRQUE.maxZ);
+  return 1 - smoothstep(0, CIRQUE_FEATHER_METERS, Math.hypot(dx, dz));
+}
+
+// Summit cross-section: a concave flank under a small rounded cap, so each
+// summit reads as a peak on a connected ridge rather than a flat-topped dome.
+// The flank reaches a little further than the old dome to keep the massif's
+// volume.
+const SUMMIT_SPREAD = 1.18;
+const SUMMIT_CAP = 0.06;
+const SUMMIT_EXPONENT = 1.7;
+const SUMMIT_CAP_CURVATURE = SUMMIT_EXPONENT * Math.pow(1 - SUMMIT_CAP, SUMMIT_EXPONENT - 1) / (2 * SUMMIT_CAP);
+const SUMMIT_CAP_PEAK = Math.pow(1 - SUMMIT_CAP, SUMMIT_EXPONENT) + SUMMIT_CAP_CURVATURE * SUMMIT_CAP * SUMMIT_CAP;
+const SUMMIT_GULLY_SALT = 0x5c01;
+const SUMMIT_RILL_SALT = 0x5c02;
+/** Mean of `gullyProfile` over a full stripe period, so carving keeps the flank's volume. */
+const GULLY_MEAN = 0.2732;
+// Everything the sculpted summits and shoulders can reach; beyond it only the
+// authored soft shoulders apply.
+const SCULPTED_BOUNDS = { minX: -225, maxX: 108, minZ: -266, maxZ: 76 } as const;
+
+function summitProfile(s: number): number {
+  if (s >= 1) return 0;
+  if (s <= SUMMIT_CAP) return (SUMMIT_CAP_PEAK - SUMMIT_CAP_CURVATURE * s * s) / SUMMIT_CAP_PEAK;
+  return Math.pow(1 - s, SUMMIT_EXPONENT) / SUMMIT_CAP_PEAK;
+}
+
+/**
+ * The same summits and shoulders as concave peaks and ridges cut by
+ * drainage-aligned gullies and spurs, with rock where the form is exposed.
+ */
+function sculptedLandforms(x: number, z: number, authored: NevaLandformSample): NevaLandformSample {
+  if (x < SCULPTED_BOUNDS.minX || x > SCULPTED_BOUNDS.maxX || z < SCULPTED_BOUNDS.minZ || z > SCULPTED_BOUNDS.maxZ) {
+    return authored;
+  }
+  const features: { value: number; elevation: number; flank: number; downX: number; downZ: number }[] = [];
+  for (const peak of NEVA_SUMMITS) {
+    const radiusX = peak.radiusX * SUMMIT_SPREAD, radiusZ = peak.radiusZ * SUMMIT_SPREAD;
+    const ex = (x - peak.x) / radiusX, ez = (z - peak.z) / radiusZ;
+    const s = Math.sqrt(ex * ex + ez * ez);
+    if (s >= 1) continue;
+    // Downslope follows the gradient of the elliptical radius.
+    const gx = ex / radiusX, gz = ez / radiusZ, length = Math.sqrt(gx * gx + gz * gz);
+    features.push({ value: peak.elevation * summitProfile(s), elevation: peak.elevation, flank: s,
+      downX: length > 1e-9 ? gx / length : 0, downZ: length > 1e-9 ? gz / length : 0 });
+  }
+  for (const ridge of RIDGE_SHOULDERS) {
+    const dx = ridge.end[0] - ridge.start[0];
+    const dz = ridge.end[1] - ridge.start[1];
+    const t = Math.max(0, Math.min(1,
+      ((x - ridge.start[0]) * dx + (z - ridge.start[1]) * dz) / (dx * dx + dz * dz)));
+    const offsetX = x - ridge.start[0] - dx * t;
+    const offsetZ = z - ridge.start[1] - dz * t;
+    // The same narrow cut face and broader lee shoulder as the authored ridge.
+    const width = ridge.width * SUMMIT_SPREAD * (offsetX * dz - offsetZ * dx > 0 ? 0.8 : 1.15);
+    const distance = Math.sqrt(offsetX * offsetX + offsetZ * offsetZ);
+    const s = distance / width;
+    if (s >= 1) continue;
+    const elevation = ridge.start[2] + (ridge.end[2] - ridge.start[2]) * t;
+    features.push({ value: elevation * summitProfile(s), elevation, flank: s,
+      downX: distance > 1e-9 ? offsetX / distance : 0, downZ: distance > 1e-9 ? offsetZ / distance : 0 });
+  }
+  const softShoulders = Math.max(
+    14 * mound(x, z, -137, -61, 40, 44),
+    10 * mound(x, z, -127, -13, 38, 40),
+    14 * mound(x, z, 110, -104, 56, 48),
+    9 * mound(x, z, 152, 12, 42, 56),
+    7 * mound(x, z, 80, -135, 46, 40)
+  );
+  if (features.length === 0) return { minimumElevation: softShoulders, mountain: 0, exposure: 0 };
+
+  let owner = features[0], downX = 0, downZ = 0, mountain = 0;
+  for (const feature of features) {
+    if (feature.value > owner.value) owner = feature;
+    mountain = Math.max(mountain, (feature.value / Math.max(1e-6, feature.elevation)) * smoothstep(12, 22, feature.elevation));
+    // A sharp sixth-power weight bends the gully pattern across the seams
+    // between neighbouring summits and shoulders instead of shearing it.
+    const squared = feature.value * feature.value, weight = squared * squared * squared;
+    downX += feature.downX * weight;
+    downZ += feature.downZ * weight;
+  }
+  let rival = 0;
+  for (const feature of features) {
+    if (feature !== owner && feature.downX * owner.downX + feature.downZ * owner.downZ < 0.5) {
+      rival = Math.max(rival, feature.value);
+    }
+  }
+  const downLength = Math.sqrt(downX * downX + downZ * downZ);
+  let gully = 0, chute = 0;
+  if (downLength > 1e-9) {
+    const flankMask = smoothstep(0.02, 0.18, owner.flank) * (1 - smoothstep(0.6, 1, owner.flank));
+    // Two faces meeting in a col share one valley floor, not two gully sets.
+    const coherence = smoothstep(0, Math.max(2, owner.value * 0.3), owner.value - rival);
+    const depth = owner.elevation * 0.05 * flankMask * coherence * smoothstep(14, 26, owner.elevation);
+    if (depth > 0.01) {
+      const unitX = downX / downLength, unitZ = downZ / downLength;
+      const main = gullyProfile(drainageStripe(x, z, unitX, unitZ, 44, SUMMIT_GULLY_SALT)) - GULLY_MEAN;
+      const rill = gullyProfile(drainageStripe(x, z, unitX, unitZ, 18, SUMMIT_RILL_SALT)) - GULLY_MEAN;
+      gully = depth * (main + rill * 0.25);
+      chute = clamp01(-main / 0.9) * flankMask * (1 - smoothstep(0.35, 0.7, owner.flank));
+    }
+  }
+  const relief = Math.max(0, owner.value + gully);
+  const minimumElevation = Math.max(relief, softShoulders);
+  // Rock on the crest and upper face, in the scree chutes and on the highest
+  // ground; spurs and lower flanks keep their soil and trees.
+  const exposure = clamp01((1 - smoothstep(0.05, 0.35, owner.flank)) * 0.75 + chute * 0.55
+    + smoothstep(34, 56, relief) * 0.3) * smoothstep(12, 24, owner.value);
+  return { minimumElevation, mountain, exposure };
+}
+
+export function sampleNevaLandforms(x: number, z: number): NevaLandformSample {
+  const authored = authoredLandforms(x, z);
+  const retention = cirqueRetention(x, z);
+  if (retention >= 1) return authored;
+  const sculpted = sculptedLandforms(x, z, authored);
+  if (retention <= 0) return sculpted;
+  return {
+    minimumElevation: sculpted.minimumElevation + (authored.minimumElevation - sculpted.minimumElevation) * retention,
+    mountain: sculpted.mountain + (authored.mountain - sculpted.mountain) * retention,
+    exposure: sculpted.exposure + (authored.exposure - sculpted.exposure) * retention
+  };
+}
+
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
 /** Bench profile shared with the rendered/colliding trail's exact linear segments. */
-export function nevaTrailBenchAt(x: number, z: number): { elevation: number; influence: number } {
-  if (x < -207 || x > -5 || z < -250 || z > -27.8) return { elevation: 0, influence: 0 };
+export function nevaTrailBenchAt(
+  x: number,
+  z: number
+): { elevation: number; influence: number; nearest: number } {
+  if (x < -207 || x > -5 || z < -250 || z > -27.8) {
+    return { elevation: 0, influence: 0, nearest: Number.POSITIVE_INFINITY };
+  }
   let nearest = Number.POSITIVE_INFINITY;
   let lower = Number.NEGATIVE_INFINITY;
   let upper = Number.POSITIVE_INFINITY;
@@ -204,10 +354,11 @@ export function nevaTrailBenchAt(x: number, z: number): { elevation: number; inf
       nearest = distance;
     }
   }
-  // The walkable core has a broad talus transition, avoiding a deep linear
-  // trench when the contour route passes below a ridge.
+  // The walkable core grades fully; farther out the talus softens the join
+  // without digging the raised massif down to the route envelope.
   return {
     elevation: (lower + upper) * 0.5,
-    influence: 1 - smoothstep(4.8, 12 + 18 * (1 - smoothstep(-100, -78, z)), nearest)
+    influence: 1 - smoothstep(4.8, 12 + 18 * (1 - smoothstep(-100, -78, z)), nearest),
+    nearest
   };
 }

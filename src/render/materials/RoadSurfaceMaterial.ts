@@ -10,13 +10,14 @@ import {
 import { PaletteMaterials } from "./PaletteMaterials";
 import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
 import { PALETTE_HEX } from "./PaletteTokens";
+import { ROAD_COVERAGE_GLSL } from "./RoadCoverage";
 import {
   SURFACE_FIELD_FRAGMENT_GLSL,
   SURFACE_FIELD_VERTEX_ASSIGNMENTS,
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v27-worked-cart-ground";
+export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v31-worked-cart-ground";
 
 type RoadSurfaceConfig = VisualRenderConfig["roadSurface"];
 
@@ -110,11 +111,13 @@ uniform float roadSourceRotation;
 uniform float roadSourceLodBias;
 uniform float roadExternalColorStrength;
 uniform float roadExternalRoughnessStrength;
+uniform float roadFineDetailStrength;
 uniform float roadWearColorMix;
 uniform float roadCrownGrassMix;
 uniform float roadReliefNormalStrength;
 uniform float roadWearRoughnessReduction;
 uniform float roadShoulderColorMix;
+uniform float roadEdgeGrassMix;
 uniform float roadPolygonVariationStrength;
 uniform float roadPolygonJaggedStrength;
 uniform float roadPolygonFacetLightingStrength;
@@ -152,21 +155,7 @@ vec2 nevaRoadWorldUv(float sampleScale) {
     shader.fragmentShader,
     fragmentColor,
     `${fragmentColor}
-vec4 roadEdgeCell = nevaGroundPolygonCell(vRoadWorldPosition.xz, roadEdgeCellScale);
-float roadEdgeSignal = roadEdgeCell.x;
-float roadEdgeDistance = roadEdgeCell.w;
-float roadEdgeBand = 1.0 - smoothstep(roadEdgeFadeFull, 1.0, vRoadOpacity);
-float roadEdgeField = clamp(
-  vRoadOpacity
-    + (roadEdgeSignal - 0.5) * roadPolygonJaggedStrength * 0.55 * roadEdgeBand
-    + (roadEdgeDistance - 0.16) * roadPolygonJaggedStrength * roadEdgeBand,
-  0.0,
-  1.0
-);
-float roadEdgeAntialias = min(0.12, fwidth(roadEdgeField));
-float roadCoverage = smoothstep(roadEdgeFadeStart - roadEdgeAntialias, roadEdgeFadeFull + roadEdgeAntialias, roadEdgeField);
-float roadDither = nevaGroundCellJitter(floor(vRoadWorldPosition.xz * 16.0 + 3.1)).x;
-roadCoverage = clamp(roadCoverage + (roadDither - 0.5) * 0.3, 0.0, 1.0);
+${ROAD_COVERAGE_GLSL}
 diffuseColor.a = roadCoverage;
 // Reuse the shoulder's cell identity: another nine-neighbour search added
 // fine mosaic noise without explaining wear or material identity.
@@ -185,16 +174,16 @@ vec3 roadFineSample = texture2D(roadSourceColorTexture, roadFineUv, roadSourceLo
 vec3 roadMesoSample = texture2D(roadSourceColorTexture, roadMesoUv, roadSourceLodBias + 0.45).rgb;
 float roadFineLuma = dot(roadFineSample, vec3(0.299, 0.587, 0.114));
 float roadMesoLuma = dot(roadMesoSample, vec3(0.299, 0.587, 0.114));
-vec3 roadWearSample = mix(roadMesoSample, roadFineSample, 0.28);
+vec3 roadWearSample = mix(roadMesoSample, roadFineSample, 0.28 * roadFineDetailStrength);
 float roadWearSignal = clamp(
   (roadWearSample.r - roadWearSample.b * 0.52) * 2.8 + 0.32,
   0.0,
   1.0
 );
-float roadFineDelta = clamp((roadFineLuma - roadMesoLuma) * 3.6, -0.24, 0.24);
+float roadFineDelta = clamp((roadFineLuma - roadMesoLuma) * 3.6 * roadFineDetailStrength, -0.24, 0.24);
 float roadLightFleck = smoothstep(0.035, 0.16, roadFineDelta);
 float roadDarkFleck = smoothstep(0.035, 0.16, -roadFineDelta);
-float roadSourceLuma = mix(0.38, 0.68, smoothstep(0.1, 0.9, mix(roadMesoLuma, roadFineLuma, 0.35)));
+float roadSourceLuma = mix(0.38, 0.68, smoothstep(0.1, 0.9, mix(roadMesoLuma, roadFineLuma, 0.35 * roadFineDetailStrength)));
 float roadWarmSignal = clamp(roadWearSignal * 0.45 + roadSourceLuma * 0.55, 0.0, 1.0);
 float roadCoreMix = smoothstep(0.52, 0.88, vRoadOpacity);
 vec3 roadSourceColor = mix(
@@ -203,12 +192,12 @@ vec3 roadSourceColor = mix(
   0.28 + (1.0 - roadWarmSignal) * 0.08
 );
 roadSourceColor = mix(roadSourceColor, roadLightColor, roadWarmSignal * 0.2);
-roadSourceColor = mix(roadSourceColor, roadLightColor, roadLightFleck * 0.25);
-roadSourceColor = mix(roadSourceColor, roadDryColor, roadDarkFleck * 0.2);
+roadSourceColor = mix(roadSourceColor, roadLightColor, roadLightFleck * 0.25 * roadFineDetailStrength);
+roadSourceColor = mix(roadSourceColor, roadDryColor, roadDarkFleck * 0.2 * roadFineDetailStrength);
 roadSourceColor = mix(roadSourceColor, roadPackedColor, roadCoreMix * 0.18);
 roadSourceColor = mix(roadSourceColor, roadLightColor, (1.0 - roadCoreMix) * 0.04);
 roadSourceColor *= mix(0.95, 1.05, roadSourceLuma);
-vec3 roadGreenSample = mix(roadMesoSample, roadFineSample, 0.42);
+vec3 roadGreenSample = mix(roadMesoSample, roadFineSample, 0.42 * roadFineDetailStrength);
 float roadGreenHint = clamp(
   (roadGreenSample.g - max(roadGreenSample.r, roadGreenSample.b)) * 5.5,
   0.0,
@@ -278,7 +267,7 @@ vec4 coastalRoadField = nevaOpticsField(vRoadWorldPosition.xz);
 // The same compacted strips drive color and roughness after source-map blending.
 float roadTrackWear = clamp(vRoadProfile.x, 0.0, 1.0) * roadCoreMix;
 float roadLooseShoulder = clamp(vRoadProfile.y, 0.0, 1.0);
-float roadWearBreakup = mix(0.32, 1.0, smoothstep(0.38, 0.64, roadSourceLuma));
+float roadWearBreakup = mix(0.55, 1.0, smoothstep(0.38, 0.64, roadSourceLuma));
 float roadDetailFilter = 1.0 - smoothstep(0.18, 0.85,
   max(length(dFdx(vRoadWorldPosition.xz)), length(dFdy(vRoadWorldPosition.xz))));
 float roadCrown = clamp(vRoadProfile.z, 0.0, 1.0) * roadCoreMix;
@@ -296,6 +285,12 @@ diffuseColor.rgb = mix(diffuseColor.rgb, roadShoulderGrassColor,
 diffuseColor.rgb = mix(diffuseColor.rgb, roadLightColor, roadCrown * 0.14);
 diffuseColor.rgb = mix(diffuseColor.rgb, roadShoulderGrassColor,
   roadCrownGrowth * roadCrownGrassMix);
+// The loose outer shoulder takes the surrounding grass palette before the
+// alpha edge, leaving a dusty-to-sparse-growth transition on the road itself.
+float roadShoulderGrassFringe = roadLooseShoulder
+  * mix(0.3, 1.0, 1.0 - smoothstep(0.42, 0.9, vRoadOpacity));
+diffuseColor.rgb = mix(diffuseColor.rgb, roadShoulderGrassColor,
+  roadShoulderGrassFringe * roadEdgeGrassMix);
 float roadPackedWetness = sharedRoadWetness * roadTrackWear * roadWearBreakup;
 diffuseColor.rgb = mix(diffuseColor.rgb, roadDryColor,
   roadPackedWetness * roadWetnessColorMix * 0.35);
@@ -311,7 +306,7 @@ diffuseColor.a *= 1.0 - smoothstep(0.25, 0.65, coastalRoadWeight);`,
 float roadSourceRoughness = mix(
   texture2D(roadSourceRoughnessTexture, roadMesoUv, roadSourceLodBias + 0.45).r,
   texture2D(roadSourceRoughnessTexture, roadFineUv, roadSourceLodBias).r,
-  0.28
+  0.28 * roadFineDetailStrength
 );
 roadSourceRoughness = mix(0.90, 0.97, mix(0.42, 0.72, smoothstep(0.18, 0.82, roadSourceRoughness)));
 roughnessFactor = clamp(
@@ -343,7 +338,7 @@ normal = nevaSurfaceFacetNormal(
 );
 // Shallow relief follows compaction and the existing aggregate signal. It
 // changes only the lighting normal, never the physical road or its silhouette.
-float roadRelief = (roadFineDelta * (1.0 - roadTrackWear * 0.65)
+float roadRelief = (roadFineDelta * roadFineDetailStrength * (1.0 - roadTrackWear * 0.65)
   - roadTrackWear * roadWearBreakup + roadLooseShoulder * 0.12)
   * roadReliefNormalStrength * roadDetailFilter * (1.0 - coastalRoadWeight);
 vec3 roadDx = dFdx(-vViewPosition), roadDy = dFdy(-vViewPosition);
@@ -387,11 +382,13 @@ export class RoadSurfaceMaterial {
       roadSourceLodBias: { value: config.externalTexture.lodBias },
       roadExternalColorStrength: { value: config.externalTexture.colorStrength },
       roadExternalRoughnessStrength: { value: config.externalTexture.roughnessStrength },
+      roadFineDetailStrength: { value: config.externalTexture.fineDetailStrength },
       roadWearColorMix: { value: config.wearColorMix },
       roadCrownGrassMix: { value: config.crownGrassMix },
       roadReliefNormalStrength: { value: config.reliefNormalStrength },
       roadWearRoughnessReduction: { value: config.wearRoughnessReduction },
       roadShoulderColorMix: { value: config.shoulderColorMix },
+      roadEdgeGrassMix: { value: config.edgeGrassMix },
       roadPolygonVariationStrength: { value: config.polygonVariationStrength },
       roadPolygonJaggedStrength: { value: config.polygonJaggedStrength },
       roadPolygonFacetLightingStrength: { value: config.polygonFacetLightingStrength },
@@ -406,7 +403,7 @@ export class RoadSurfaceMaterial {
       roadPackedColor: { value: new THREE.Color(PALETTE_HEX.path_dust_01) },
       roadDryColor: { value: new THREE.Color(PALETTE_HEX.soil_dry_01) },
       roadLightColor: { value: new THREE.Color(PALETTE_HEX.sand_warm_01) },
-      roadShoulderGrassColor: { value: new THREE.Color(PALETTE_HEX.foliage_sage_01) }
+      roadShoulderGrassColor: { value: new THREE.Color(PALETTE_HEX.foliage_olive_01) }
     };
 
     const canonicalBase = PaletteMaterials.standard("path_dust_01", {

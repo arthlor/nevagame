@@ -251,7 +251,7 @@ export interface ItemStack {
   quality?: CropQuality;
 }
 
-export type ProcessingWorkTier = "standard" | "masterwork";
+export type ProcessingWorkTier = "light" | "prepared" | "standard" | "masterwork";
 export type ProcessingPresentationKind = "existing" | "tailoring" | "toolmaking";
 export type RecipeResult =
   | { kind: "items"; stacks: ItemStack[] }
@@ -505,12 +505,19 @@ export interface BasicFishingState {
   minigameStepRemainderSeconds?: number;
 }
 
-export type CarryLocationType = "player" | "boat-hold" | "boat-hook" | "carriage" | "cold-storage" | "crate";
+export type CarryLocationType = "player" | "boat-hold" | "boat-hook" | "carriage" | "cold-storage" | "crate" | "ground";
 
 export interface CargoLocation {
   type: CarryLocationType;
   containerId: string;
   slotIndex?: number;
+  /**
+   * Ground-drop pose. Present only when `type === "ground"`: the world-space
+   * X/Z where the pack rests. Y is derived from canonical terrain height, so
+   * it is never persisted. `containerId` is the literal `"ground"`.
+   */
+  x?: number;
+  z?: number;
 }
 
 /** Authored storage facility kinds; barn and warehouse are reserved for later stages. */
@@ -568,6 +575,10 @@ export interface ContractState {
   targetItemIdOrSpecies: string;
   quantityRequired: number;
   quantityFulfilled: number;
+  /** Sum of the actual market sale quotes locked when post-v56 goods were delivered. */
+  deliveredValueMoney: number;
+  /** Older partial deliveries lack their original grade/weight and retain the legacy refund rule. */
+  legacyUnvaluedQuantity: number;
   minQuality?: string;
   minFreshness?: number;
   minWeightKg?: number;

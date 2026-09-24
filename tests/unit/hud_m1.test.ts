@@ -682,6 +682,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       const snapshot: FarmingActionSnapshot = {
         id: 102,
         action: "plant",
+        workCost: 12,
         phase: "started",
         stage: "anticipation",
         target: { x: 1, y: 0, z: 1, entityId: "farm.starter" },
@@ -718,6 +719,40 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       );
       expect(htmlCommitted).toContain("Finishing…");
       expect(htmlCommitted).toContain("is-committed");
+    });
+
+    it("shows captured discounted and recipe costs, but no charge for clearing a withered crop", () => {
+      const action: FarmingActionSnapshot = {
+        id: 103,
+        action: "plant",
+        workCost: 9,
+        phase: "started",
+        stage: "anticipation",
+        target: { x: 0, y: 0, z: 0 },
+        progress: 0,
+        committed: false,
+        commitSucceeded: null,
+        interruptible: true
+      };
+      const discounted = renderToString(React.createElement(FarmingActionStatus, { action }));
+      expect(discounted).toContain("-9 Work");
+      expect(discounted).not.toContain("-12 Work");
+
+      const processing = renderToString(React.createElement(FarmingActionStatus, {
+        action: { ...action, action: "processing-start", workCost: 70 }
+      }));
+      expect(processing).toContain("-70 Work");
+
+      const clearing = renderToString(React.createElement(FarmingActionStatus, {
+        action: { ...action, action: "harvest", workCost: 0 }
+      }));
+      expect(clearing).toContain("Clearing crop…");
+      expect(clearing).not.toContain("cast-bar-work-cost");
+
+      const invalidated = renderToString(React.createElement(FarmingActionStatus, {
+        action: { ...action, phase: "invalidated", commitSucceeded: false }
+      }));
+      expect(invalidated).not.toContain("cast-bar-work-cost");
     });
 
     it("sanitizes SmartActionPrompt to prevent duplicate Work text and renders distinct verb/target", () => {

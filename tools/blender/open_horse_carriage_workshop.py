@@ -1,4 +1,5 @@
-"""Editable assembly review through the registered catalog generators."""
+"""Blender assembly review of GLBs published by the registered catalog pipeline."""
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -6,30 +7,27 @@ import bpy
 from mathutils import Quaternion, Vector
 
 ROOT=Path(__file__).resolve().parents[2]
-sys.path.insert(0,str(ROOT/'tools/blender'))
-from common.pipeline import create_root
-from generators.registry import resolve_generator
-from common.geometry import finish_authored_surface, authored_rest_transforms
 
-
-def build_workshop():
+def build_workshop(output=None):
     catalog=json.loads((ROOT/'assets/specs/asset-catalog.json').read_text())
     by_id={a['id']:a for a in catalog['assets']}
     scene=bpy.data.scenes.new('Horse and merchant carriage | workshop')
     bpy.context.window.scene=scene
+    scene.render.fps=60
     roots=[]
     for id,position in [('fauna_horse_draft_a',(0,-3.50,0)),('prop_merchant_carriage_a',(0,0,0)),
                         ('prop_trade_pack_wheat_a',(0,0,0)),('prop_trade_pack_barley_a',(0,0,0))]:
-        spec=by_id[id]; root=create_root(spec['rootNode']); roots.append(root)
-        resolve_generator(spec['generator'])(spec,root)
-        objects=[root,*root.children_recursive]
-        rest=authored_rest_transforms(objects)
+        spec=by_id[id]
+        previous=set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=str(ROOT/'public/assets/models'/spec['file']))
+        objects=set(bpy.data.objects)-previous
+        root=next(o for o in objects if o.name==spec['rootNode'])
+        roots.append(root)
         for obj in objects:
-            if obj.type=='MESH' and spec.get('surfaceAuthoring'):
-                finish_authored_surface(obj,root,object_to_asset=rest[root].inverted()@rest[obj])
             if '_LOD1' in obj.name or '_far' in obj.name:
                 obj.hide_set(True); obj.hide_render=True
             if obj.animation_data:
+                obj.animation_data.action=None
                 for track in obj.animation_data.nla_tracks:
                     track.mute=track.name!='walk'
                     for strip in track.strips:
@@ -40,7 +38,7 @@ def build_workshop():
     for index,pack in enumerate(roots[2:],1):
         socket=next(o for o in carriage.children_recursive if ('_cargo_%02d'%index) in o.name)
         pack.parent=socket; pack.location=(0,0,0)
-    scene.render.fps=25; scene.frame_start=0; scene.frame_end=239; scene.frame_set(0)
+    scene.render.fps=60; scene.frame_start=0; scene.frame_end=383; scene.frame_set(0)
     for obj in scene.objects: obj.select_set(False)
     for root in roots: root.select_set(True)
     bpy.context.view_layer.objects.active=roots[0]
@@ -79,14 +77,17 @@ def build_workshop():
     note=bpy.data.texts.new('Horse and carriage — review guide')
     note.write('Horse: idle, walk, trot. Carriage: idle, walk, trot, load.\n'
                'Use NLA track mute/solo to choose a clip. The workshop opens on repeating walk.\n'
-               'Horse is a skinned 18-bone rig with baked two-link hoof placement.\n'
-               'Wheels rotate on local X; front axle turns on local Z; tailgate pivots on local X.\n'
+               'Horse uses the published imported rig and Blender-baked planted gaits.\n'
+               'Imported glTF animation axes retain their node transforms; use the runtime Art Yard for controls.\n'
                'Two trade packs are parented to cargo_01 and cargo_02.\n'
-               'Simulation cargo capacity and drivable transport are separate gameplay work.\n')
-    out=ROOT/'art/workshops/horse-carriage.blend'; out.parent.mkdir(parents=True,exist_ok=True)
+               'Runtime terrain support, hand contacts, flexible reins and steering are validated in game.\n')
+    out=Path(output) if output else ROOT/'art/workshops/horse-carriage.blend'; out.parent.mkdir(parents=True,exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(out))
     print('Saved editable workshop:',out)
 
 
 if __name__=='__main__':
-    build_workshop()
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output')
+    args=parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
+    build_workshop(args.output)

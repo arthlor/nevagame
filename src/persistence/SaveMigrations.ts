@@ -1,4 +1,10 @@
 import { migrateCoastalRoad54 } from "./migrateCoastalRoad54";
+import { migrateHeadwaterSpring55 } from "./migrateHeadwaterSpring55";
+import { migrateGroundCargo56 } from "./migrateGroundCargo56";
+import { migrateContractSettlement57 } from "./migrateContractSettlement57";
+import { migrateProcessingWorkTiers58 } from "./migrateProcessingWorkTiers58";
+import { migrateSunreachLayout28 } from "./migrateSunreachLayout28";
+import { migrateProceduralMainland59 } from "./migrateProceduralMainland59";
 import { createStarterCarriageState, STARTER_CARRIAGE_ID } from "../simulation/mounts/Carriage";
 import { migrateOceanLayout20, translateLegacyOceanPositions } from "./migrateOceanLayout20";
 import { migrateTerrainLayout14 } from "./migrateTerrainLayout14";
@@ -1460,9 +1466,47 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   51: (state: unknown) => migrateOrganicMainland51(state as GameState),
   52: (state: unknown) => migrateNevaValley52(state as GameState),
   53: (state: unknown) => migrateRiver53(state as GameState),
-  54: (state: unknown) => migrateCoastalRoad54(state as GameState)
+  54: (state: unknown) => migrateCoastalRoad54(state as GameState),
+  55: (state: unknown) => migrateHeadwaterSpring55(state as GameState),
+  56: (state: unknown) => migrateGroundCargo56(state as GameState),
+  57: (state: unknown) => migrateContractSettlement57(state as GameState),
+  58: (state: unknown) => migrateProcessingWorkTiers58(state as GameState),
+  // Layout 28 has no schema step of its own; bring the save up to it first.
+  59: (state: unknown) => migrateProceduralMainland59(advanceLayoutRevision(state, 28) as GameState)
 };
 
+
+/**
+ * Applies every authored layout step a save has not received, in order, up to
+ * and including `target`. Each guard tests the revision its step produces, so
+ * no step is ever applied twice: a save already at `target` is untouched. A
+ * schema step that produces a newer layout runs this first, so revisions that
+ * never had a schema step of their own (layout 28) are not skipped.
+ */
+function advanceLayoutRevision(state: unknown, target: number): unknown {
+  const layoutRevision = (value: unknown): number => {
+    const revision = (value as GameState | undefined)?.world?.layoutRevision;
+    return typeof revision === "number" ? revision : Number.NaN;
+  };
+  const due = (revision: number): boolean => revision <= target && layoutRevision(state) < revision;
+  if (!(layoutRevision(state) < target)) return state;
+  if (due(18)) state = migrateTerrainLayout18(state as GameState);
+  if (due(19)) state = migrateTerrainLayout19(state as GameState);
+  if (due(20)) {
+    translateLegacyOceanPositions(state as GameState);
+    state = migrateOceanLayout20(state as GameState);
+  }
+  if (due(21)) state = migrateHeadwaterFall47(state as GameState);
+  if (due(22)) state = migrateMainland50(state as GameState);
+  if (due(23)) state = migrateOrganicMainland51(state as GameState);
+  if (due(24)) state = migrateNevaValley52(state as GameState);
+  if (due(25)) state = migrateRiver53(state as GameState);
+  if (due(26)) state = migrateCoastalRoad54(state as GameState);
+  if (due(27)) state = migrateHeadwaterSpring55(state as GameState);
+  if (due(28)) state = migrateSunreachLayout28(state as GameState);
+  if (due(29)) state = migrateProceduralMainland59(state as GameState);
+  return state;
+}
 
 export function migrateSaveData(envelope: SaveEnvelope): SaveEnvelope {
   let currentVersion = envelope.schemaVersion;
@@ -1489,29 +1533,8 @@ export function migrateSaveData(envelope: SaveEnvelope): SaveEnvelope {
   // schema before the matching layout migration lands, leaving a slot whose
   // `schemaVersion` is already at head while `world.layoutRevision` still
   // trails. Run the missing authored steps by the revision the save actually
-  // holds so it is repaired instead of reported corrupt. Each guard tests the
-  // revision it produces, so no step is ever applied twice: a save that already
-  // walked the version chain ends at the shipping revision and is untouched.
-  const layoutRevision = (value: unknown): number => {
-    const revision = (value as GameState | undefined)?.world?.layoutRevision;
-    return typeof revision === "number" ? revision : Number.NaN;
-  };
-  if (layoutRevision(state) < WORLD_LAYOUT_REVISION) {
-    if (layoutRevision(state) < 18) state = migrateTerrainLayout18(state as GameState);
-    if (layoutRevision(state) < 19) state = migrateTerrainLayout19(state as GameState);
-    if (layoutRevision(state) < 20) {
-      translateLegacyOceanPositions(state as GameState);
-      state = migrateOceanLayout20(state as GameState);
-    }
-    if (layoutRevision(state) < 21) {
-      state = migrateHeadwaterFall47(state as GameState);
-    }
-    if (layoutRevision(state) < 22) state = migrateMainland50(state as GameState);
-    if (layoutRevision(state) < 23) state = migrateOrganicMainland51(state as GameState);
-    if (layoutRevision(state) < 24) state = migrateNevaValley52(state as GameState);
-    if (layoutRevision(state) < 25) state = migrateRiver53(state as GameState);
-    if (layoutRevision(state) < 26) state = migrateCoastalRoad54(state as GameState);
-  }
+  // holds so it is repaired instead of reported corrupt.
+  state = advanceLayoutRevision(state, WORLD_LAYOUT_REVISION);
 
   const migrated = state as GameState;
   // `validateSaveEnvelope` requires `state.schemaVersion === envelope.schemaVersion`.

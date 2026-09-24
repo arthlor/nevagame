@@ -5,14 +5,16 @@
  */
 
 :root {
-  --mobile-control-bottom: max(12px, env(safe-area-inset-bottom));
-  --mobile-control-left: max(12px, env(safe-area-inset-left));
-  --mobile-control-right: max(12px, env(safe-area-inset-right));
-  --mobile-control-size: 48px;
-  --mobile-joystick-size: clamp(112px, 18vw, 148px);
-  --mobile-cluster-height: calc(var(--mobile-control-size) * 2 + 8px);
+  --mobile-control-bottom: max(10px, env(safe-area-inset-bottom));
+  --mobile-control-left: max(10px, env(safe-area-inset-left));
+  --mobile-control-right: max(10px, env(safe-area-inset-right));
+  --mobile-control-size: 40px;
+  --mobile-control-btn-w: 54px;
+  --mobile-control-btn-h: 38px;
+  --mobile-joystick-size: clamp(86px, 14vw, 96px);
+  --mobile-cluster-height: calc(var(--mobile-control-btn-h) * 2 + 4px);
   --mobile-controls-stack: max(var(--mobile-joystick-size), var(--mobile-cluster-height));
-  --mobile-hud-gap: 16px;
+  --mobile-hud-gap: 12px;
   --mobile-hud-lift: calc(var(--mobile-control-bottom) + var(--mobile-controls-stack) + var(--mobile-hud-gap));
 }
 
@@ -229,7 +231,7 @@ body,
   max-width: min(46vw, 280px);
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
+  gap: 4px;
   pointer-events: auto;
   touch-action: none;
 }
@@ -240,7 +242,7 @@ body,
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 4px;
 }
 
 .mobile-fishing-direction-actions {
@@ -254,18 +256,22 @@ body,
 
 .mobile-action-button {
   display: inline-flex;
-  min-width: var(--mobile-control-size);
-  min-height: var(--mobile-control-size);
+  width: var(--mobile-control-btn-w, 54px);
+  height: var(--mobile-control-btn-h, 38px);
+  min-width: 50px;
+  min-height: 36px;
+  max-width: 64px;
+  max-height: 42px;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 8px 10px;
+  gap: 2px;
+  padding: 0 4px;
   border: 1px solid rgba(212, 175, 55, 0.62);
   border-radius: 4px;
   background: rgba(18, 27, 38, 0.92);
   color: var(--mm-text-ivory, #fffaf0);
   cursor: pointer;
-  font: 700 11px/1.05 var(--font-sans);
+  font: 700 11.5px/1.1 var(--font-sans);
   letter-spacing: 0.02em;
   text-align: center;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
@@ -273,6 +279,7 @@ body,
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  box-sizing: border-box;
 }
 
 .mobile-action-button--hold {
@@ -290,7 +297,13 @@ body,
 }
 
 .mobile-action-label {
-  max-width: 10ch;
+  font-size: 11.5px;
+  line-height: 1.1;
+  max-width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .mobile-action-hint {
@@ -427,9 +440,12 @@ body,
 }
 
 #ui-container[data-mobile-device="true"] .hud-bottom-left-container,
-#ui-container[data-mobile-device="true"] .hud-play-cluster,
 #ui-container[data-mobile-device="true"] .hud-bottom-center {
   bottom: var(--mobile-hud-lift);
+}
+
+#ui-container[data-mobile-device="true"] .hud-play-cluster {
+  bottom: max(8px, env(safe-area-inset-bottom));
 }
 
 #ui-container[data-mobile-device="true"] .hud-bottom-left-container {
@@ -532,13 +548,16 @@ body,
 #ui-container[data-mobile-device="true"] .modal-overlay,
 #ui-container[data-mobile-device="true"] .dialogue-backdrop {
   inset: 0;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   min-height: 100%;
-  align-items: center;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)) !important;
+  box-sizing: border-box !important;
 }
 
 #ui-container[data-mobile-device="true"] .inventory-satchel-modal,
@@ -549,21 +568,42 @@ body,
 #ui-container[data-mobile-device="true"] .pause-modal,
 #ui-container[data-mobile-device="true"] .expedition-modal,
 #ui-container[data-mobile-device="true"] .dialogue-card,
+#ui-container[data-mobile-device="true"] .crafting-modal,
+#ui-container[data-mobile-device="true"] .catch-inspection-modal,
 #ui-container[data-mobile-device="true"] .modal-content {
-  width: min(100%, 960px);
-  max-width: 100%;
+  width: min(86vw, 720px) !important;
+  max-width: min(86vw, 720px) !important;
   min-height: 0;
-  max-height: calc(100dvh - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom)));
+  max-height: min(86vh, 340px) !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-height: 360px) {
+  #ui-container[data-mobile-device="true"] .inventory-satchel-modal,
+  #ui-container[data-mobile-device="true"] .journal-chronicle-modal,
+  #ui-container[data-mobile-device="true"] .market-trading-modal,
+  #ui-container[data-mobile-device="true"] .world-map-modal,
+  #ui-container[data-mobile-device="true"] .ledger-modal,
+  #ui-container[data-mobile-device="true"] .pause-modal,
+  #ui-container[data-mobile-device="true"] .expedition-modal,
+  #ui-container[data-mobile-device="true"] .dialogue-card,
+  #ui-container[data-mobile-device="true"] .crafting-modal,
+  #ui-container[data-mobile-device="true"] .catch-inspection-modal,
+  #ui-container[data-mobile-device="true"] .modal-content {
+    max-height: calc(100dvh - 24px) !important;
+  }
 }
 
 #ui-container[data-mobile-device="true"] .modal-header,
 #ui-container[data-mobile-device="true"] .market-modal-header,
 #ui-container[data-mobile-device="true"] .map-modal-header,
-#ui-container[data-mobile-device="true"] .ledger-header {
+#ui-container[data-mobile-device="true"] .ledger-header,
+#ui-container[data-mobile-device="true"] .expedition-header,
+#ui-container[data-mobile-device="true"] .dialogue-header {
   flex-wrap: wrap;
   gap: 8px;
-  min-height: 54px;
-  padding: 9px 12px;
+  min-height: 46px !important;
+  padding: 6px 12px !important;
 }
 
 #ui-container[data-mobile-device="true"] .modal-body,
@@ -611,8 +651,13 @@ body,
 }
 
 #ui-container[data-mobile-device="true"] .chrome-close {
-  min-width: 44px;
-  min-height: 44px;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  padding: 0 !important;
   margin-left: auto;
 }
 
@@ -623,29 +668,31 @@ body,
 }
 
 #ui-container[data-mobile-device="true"] .inventory-satchel-modal .inventory-grid {
-  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  gap: 4px;
   width: 100%;
 }
 
 #ui-container[data-mobile-device="true"] .inventory-satchel-modal .inventory-slot {
   width: 100%;
-  min-width: 64px;
-  max-width: 88px;
+  min-width: 44px;
+  max-width: 58px;
+  min-height: 44px;
   justify-self: center;
 }
 
 #ui-container[data-mobile-device="true"] .inventory-satchel-modal .inventory-details-card {
   border-top: 1px solid rgba(245, 240, 230, 0.12) !important;
   border-left: 0 !important;
-  padding: 12px 0 0;
+  padding: 8px 0 0;
 }
 
 #ui-container[data-mobile-device="true"] .map-modal-content {
-  grid-template-rows: minmax(190px, 1fr) minmax(0, auto);
+  grid-template-rows: minmax(140px, 1fr) minmax(0, auto);
 }
 
 #ui-container[data-mobile-device="true"] .map-canvas-container {
-  min-height: 190px;
+  min-height: 140px;
 }
 
 #ui-container[data-mobile-device="true"] .map-sidebar-details {
@@ -674,9 +721,12 @@ body,
 #ui-container[data-mobile-device="true"] .market-modal-title,
 #ui-container[data-mobile-device="true"] .map-title,
 #ui-container[data-mobile-device="true"] .ledger-title,
-#ui-container[data-mobile-device="true"] .modal-heading-with-mark {
+#ui-container[data-mobile-device="true"] .modal-heading-with-mark,
+#ui-container[data-mobile-device="true"] .expedition-header h2 {
   max-width: 100%;
   overflow-wrap: anywhere;
+  font-size: clamp(17px, 2.5vw, 20px) !important;
+  line-height: 1.2 !important;
 }
 
 #ui-container[data-mobile-device="true"] .market-purse-badge {
@@ -727,10 +777,73 @@ body,
 #ui-container[data-mobile-device="true"] .market-ledger-marker,
 #ui-container[data-mobile-device="true"] .inventory-tab-btn,
 #ui-container[data-mobile-device="true"] .map-lens-btn,
-#ui-container[data-mobile-device="true"] .ledger-tab-btn {
+#ui-container[data-mobile-device="true"] .ledger-tab-btn,
+#ui-container[data-mobile-device="true"] .guidebook-subtab-btn {
   flex: 0 0 auto;
-  min-height: 44px;
+  min-height: 34px !important;
+  height: 34px !important;
+  padding: 4px 10px !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
   white-space: nowrap;
+}
+
+#ui-container[data-mobile-device="true"] :is(.inventory-category-tabs, .market-ledger-index) {
+  min-height: 34px !important;
+  padding: 0 8px !important;
+}
+
+#ui-container[data-mobile-device="true"] .ledger-modal .ledger-entry-row {
+  padding: 4px 8px !important;
+  font-size: 13px !important;
+}
+
+#ui-container[data-mobile-device="true"] .ledger-modal .vessel-slots-grid {
+  gap: 4px !important;
+}
+
+#ui-container[data-mobile-device="true"] .stores-storage-section {
+  padding-top: 6px !important;
+  margin-top: 6px !important;
+}
+
+#ui-container[data-mobile-device="true"] .stores-vessel-heading {
+  gap: 8px !important;
+  margin-bottom: 6px !important;
+}
+
+#ui-container[data-mobile-device="true"] .stores-vessel-heading h3 {
+  font-size: 14px !important;
+}
+
+#ui-container[data-mobile-device="true"] .stores-vessel-heading span {
+  font-size: 11px !important;
+}
+
+#ui-container[data-mobile-device="true"] .storage-fish-slot {
+  gap: 2px !important;
+}
+
+#ui-container[data-mobile-device="true"] :is(.guild-vital-label, .guild-work-earned) {
+  display: none !important;
+}
+
+#ui-container[data-mobile-device="true"] .guild-vital-readout {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  padding: 0 4px !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-align: center !important;
+}
+
+#ui-container[data-mobile-device="true"] .guild-vital-readout strong {
+  font-size: 11px !important;
+  font-weight: 600 !important;
 }
 
 @media (pointer: coarse) and (orientation: portrait) {
@@ -741,7 +854,7 @@ body,
 
 @media (max-height: 430px) {
   :root {
-    --mobile-control-size: 44px;
+    --mobile-control-size: 40px;
     --mobile-joystick-size: clamp(96px, 28vh, 118px);
     --mobile-hud-gap: 10px;
   }

@@ -32,7 +32,7 @@ const STANCE_LABELS: Record<ContextualStanceId, string> = {
  * all five tools and their number keys before it folds down to the active
  * socket; 1.4 seconds was shorter than a comfortable first read.
  */
-const COLLAPSE_DELAY_MS = 1400;
+const COLLAPSE_DELAY_MS = 2400;
 
 function toolPainting(icon: ContextualHotbarSlotDto["icon"]): string {
   switch (icon) {

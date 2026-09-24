@@ -1,0 +1,191 @@
+{
+  "sources": [
+    {
+      "download": "cottage-new.glb",
+      "downloadSha256": "2c5a6610dd6fa36a6d0b7983e856c2969bee41f7f24e255ad83452e7051692db",
+      "capture": "art/imported/tripo/sources/cottage-new.glb",
+      "captureSha256": "84da27d98628790ac294a896ed027f8c8c797ff064d067d7ed3458106ec7e416",
+      "binaryChunkSha256": "484e3d3997f5131ef9ee9ac59c06b3dad6893282f23dc857c437bdd825b744b6",
+      "repairedBounds": [
+        {
+          "pointer": "/accessors/2/min/0",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.001327231409959495
+        },
+        {
+          "pointer": "/accessors/2/min/1",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.0026038289070129395
+        }
+      ],
+      "removedMaterialExtensions": [
+        {
+          "material": "d8b6604a_7fe5_4178_970b_bb80a6846af2",
+          "extension": "KHR_materials_specular",
+          "value": {
+            "specularFactor": 1.0,
+            "specularColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929
+            ]
+          }
+        }
+      ],
+      "policy": "json-only: accessor bounds recomputed, provider material extensions removed"
+    },
+    {
+      "download": "donkey.glb",
+      "downloadSha256": "b698a37a357bc512b2ec2775be81a4e347c5bf8ff455a817b856a891b035bd86",
+      "capture": "art/imported/tripo/sources/donkey.glb",
+      "captureSha256": "8f7bcecbab4496ea33ec91022ef4c491263c41205439ab87bf48e18f97d5ccbb",
+      "binaryChunkSha256": "85f63a6aa18d41ecc17050ebe44938739b4158409e1c1ba13f2699132c08dc9c",
+      "repairedBounds": [
+        {
+          "pointer": "/accessors/2/min/0",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.0011599995195865631
+        },
+        {
+          "pointer": "/accessors/2/min/1",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.00128173828125
+        },
+        {
+          "pointer": "/accessors/4/min/0",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.281888484954834
+        },
+        {
+          "pointer": "/accessors/4/min/1",
+          "declared": 2.2250738585072014e-308,
+          "actual": 6.526954530272633e-05
+        },
+        {
+          "pointer": "/accessors/4/min/2",
+          "declared": 2.2250738585072014e-308,
+          "actual": 6.501440111605916e-06
+        },
+        {
+          "pointer": "/accessors/4/min/3",
+          "declared": 2.2250738585072014e-308,
+          "actual": 3.1354231850855285e-06
+        },
+        {
+          "pointer": "/accessors/6/min/15",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.9999998807907104
+        }
+      ],
+      "removedMaterialExtensions": [
+        {
+          "material": "Material_tripo_90479647_0322_4144_a84e_a9871e7ccb87",
+          "extension": "KHR_materials_specular",
+          "value": {
+            "specularFactor": 1.0,
+            "specularColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929
+            ]
+          }
+        }
+      ],
+      "policy": "json-only: accessor bounds recomputed, provider material extensions removed"
+    },
+    {
+      "download": "horse.glb",
+      "downloadSha256": "0965be38a7e64ba1e7aadacb96f20ae9e7a5a3853a11fd6f3007cf11a036df78",
+      "capture": "art/imported/tripo/sources/horse.glb",
+      "captureSha256": "263f620c48b54d4fbd2b262472fb83d69728c6328b84a9fd95f505317c86a43d",
+      "binaryChunkSha256": "614583f8ed39632329149e7671fd0b69a1538ec95b92504b32ea540c34c5087f",
+      "repairedBounds": [
+        {
+          "pointer": "/accessors/2/min/0",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.0009495194535702467
+        },
+        {
+          "pointer": "/accessors/2/min/1",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.0008780956268310547
+        }
+      ],
+      "removedMaterialExtensions": [
+        {
+          "material": "e82cb762_8a39_47ab_b353_a0bc522bef03",
+          "extension": "KHR_materials_specular",
+          "value": {
+            "specularFactor": 1.0,
+            "specularColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929
+            ]
+          }
+        }
+      ],
+      "policy": "json-only: accessor bounds recomputed, provider material extensions removed"
+    },
+    {
+      "download": "main-character.glb",
+      "downloadSha256": "6a6bf15a07f3afdc3f171015b8c50fd21726bc56dc99522e8a43be1ecbc5da76",
+      "capture": "art/imported/tripo/sources/main-character.glb",
+      "captureSha256": "6d370e47ba1511743a7c972820ac334a2f19261e3e81d3e75e954559faa35bb7",
+      "binaryChunkSha256": "10ff827d1f5fde74fae9438bca3943452dfbd5e0a0419ab4ed760461b5fdc5d1",
+      "repairedBounds": [
+        {
+          "pointer": "/accessors/2/min/1",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.0146484375
+        },
+        {
+          "pointer": "/accessors/4/min/0",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.999629020690918
+        },
+        {
+          "pointer": "/accessors/6/min/15",
+          "declared": 2.2250738585072014e-308,
+          "actual": 1.0
+        }
+      ],
+      "removedMaterialExtensions": [],
+      "policy": "json-only: accessor bounds recomputed, provider material extensions removed"
+    },
+    {
+      "download": "ship.glb",
+      "downloadSha256": "3ddba02c09fca91687f65b36884721f824c6225ea9d135c761e138425c9a0ef8",
+      "capture": "art/imported/tripo/sources/ship.glb",
+      "captureSha256": "be95fe8e3f04527aada5112e1c4062553803223b49769866ac7f8f1687b88a02",
+      "binaryChunkSha256": "6b19cbf3c4f6d9487735842bb50fd5d4ed0a537a63615228bf6bc2dc449e904d",
+      "repairedBounds": [
+        {
+          "pointer": "/accessors/2/min/0",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.0011599957942962646
+        },
+        {
+          "pointer": "/accessors/2/min/1",
+          "declared": 2.2250738585072014e-308,
+          "actual": 0.001395106315612793
+        }
+      ],
+      "removedMaterialExtensions": [
+        {
+          "material": "Material_adff0389_7b98_41fc_b5ef_53e15c96f894",
+          "extension": "KHR_materials_specular",
+          "value": {
+            "specularFactor": 1.0,
+            "specularColorFactor": [
+              0.800000011920929,
+              0.800000011920929,
+              0.800000011920929
+            ]
+          }
+        }
+      ],
+      "policy": "json-only: accessor bounds recomputed, provider material extensions removed"
+    }
+  ]
+}

@@ -75,7 +75,7 @@ describe("Simulation Vertical Slice Loop", () => {
     sim.advanceGameMinutes(13);
     expect(sim.state.processingJobs[compostJobId!].status).toBe("complete");
     expect(sim.collectProcessingJob(compostJobId!).success).toBe(true);
-    expect(InventoryManager.getItemCount(playerInv, "item.bait_worms")).toBe(25);
+    expect(InventoryManager.getItemCount(playerInv, "item.bait_worms")).toBe(10);
 
     // 5. Mix Chum Bucket (Station: Workbench)
     movePlayerToProcessingFront(sim, "struct.workbench");
@@ -90,7 +90,7 @@ describe("Simulation Vertical Slice Loop", () => {
     sim.advanceGameMinutes(11);
     expect(sim.state.processingJobs[chumJobId].status).toBe("complete");
     sim.collectProcessingJob(chumJobId);
-    expect(InventoryManager.getItemCount(playerInv, "item.chum_bucket")).toBe(1);
+    expect(InventoryManager.getItemCount(playerInv, "item.chum_bucket")).toBe(2);
 
     // 5b. Craft the mandatory sport lure from the renewable novice recipe.
     const lureRes = sim.startProcessingJob("recipe.craft_lure_simple", "struct.workbench");
@@ -119,6 +119,7 @@ describe("Simulation Vertical Slice Loop", () => {
     // 8. Simulate Fishing Battle through Simulation tick
     let steps = 0;
     while (sim.activeFishingEncounter && steps < 400) {
+      if (sim.state.sportFishing?.awaitingLandingChoice) break;
       const encState = sim.activeFishingEncounter.getState();
       const isReel = encState.lineTension < 70;
       const isBrace = encState.behavior === "dive" || encState.behavior === "burst";
@@ -135,6 +136,8 @@ describe("Simulation Vertical Slice Loop", () => {
       steps++;
     }
 
+    expect(sim.state.sportFishing?.awaitingLandingChoice).toBe(true);
+    expect(sim.execute({ type: "fishing.keep-catch" })).toMatchObject({ success: true });
     const cargoIds = Object.keys(sim.state.fishCargo);
     expect(cargoIds.length).toBe(1);
     const cargo = sim.state.fishCargo[cargoIds[0]];

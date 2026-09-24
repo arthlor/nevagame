@@ -154,6 +154,7 @@ export const bindDomainAudio = (events: EventBus, getPosition: () => AudioPositi
     }),
     events.on("CargoLoaded", () => play("place")),
     events.on("CargoUnloaded", () => play("pickup")),
+    events.on("CargoDropped", () => play("place")),
     events.on("BoatBoarded", () => play("rope-creak")),
     events.on("BoatDocked", () => play("ui-confirm")),
     events.on("BoatTowed", () => play("rope-creak")),

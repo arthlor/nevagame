@@ -18,6 +18,7 @@ import { CharacterPreview3D } from "./CharacterPreview3D";
 import type { CharacterVisualLoadout } from "../render/animation/CharacterEquipmentAssembler";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForEquipment, atlasForRod } from "./chrome/uiAtlas";
+import { handleTabListKeyDown } from "./useTabListKeyboard";
 
 type CharacterSlot = EquipmentSlot | "rod";
 type SelectableItem =
@@ -91,20 +92,6 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
   const [preview, setPreview] = useState<Partial<Record<CharacterSlot, string>>>({});
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const selected = items.find((item) => itemKey(item) === selectedKey) ?? items[0] ?? null;
-  const equippedBySlot = useMemo(
-    () => Object.fromEntries(character.slots.map((slot) => [slot.slot, slot.equippedId])) as Record<CharacterSlot, string>,
-    [character.slots]
-  );
-  const previewBySlot = { ...equippedBySlot, ...preview };
-  const compared = selected
-    ? items.find((item) => item.slot === selected.slot && item.id === equippedBySlot[selected.slot]) ?? null
-    : null;
-  const isEquipped = selected ? equippedBySlot[selected.slot] === selected.id : false;
-  const isPreviewing = selected
-    ? preview[selected.slot] === selected.id && !isEquipped
-    : false;
-
   const categoryCounts = useMemo(() => ({
     all: items.length,
     clothing: items.filter((i) => ["head", "outerwear", "feet"].includes(i.slot)).length,
@@ -118,6 +105,40 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
     if (category === "rods") return items.filter((i) => i.slot === "rod");
     return items;
   }, [items, category]);
+  const selected = filteredItems.find((item) => itemKey(item) === selectedKey) ?? filteredItems[0] ?? null;
+  const equippedBySlot = useMemo(
+    () => Object.fromEntries(character.slots.map((slot) => [slot.slot, slot.equippedId])) as Record<CharacterSlot, string>,
+    [character.slots]
+  );
+  const previewBySlot = { ...equippedBySlot, ...preview };
+  const compared = selected
+    ? items.find((item) => item.slot === selected.slot && item.id === equippedBySlot[selected.slot]) ?? null
+    : null;
+  const isEquipped = selected ? equippedBySlot[selected.slot] === selected.id : false;
+  const isPreviewing = selected
+    ? preview[selected.slot] === selected.id && !isEquipped
+    : false;
+
+  const selectCategory = (nextCategory: WardrobeCategory): void => {
+    setCategory(nextCategory);
+    const nextItems = nextCategory === "clothing"
+      ? items.filter((item) => ["head", "outerwear", "feet"].includes(item.slot))
+      : nextCategory === "tools"
+        ? items.filter((item) => ["watering-tool", "harvest-tool"].includes(item.slot))
+        : nextCategory === "rods"
+          ? items.filter((item) => item.slot === "rod")
+          : items;
+    if (nextItems.length > 0 && !nextItems.some((item) => itemKey(item) === selectedKey)) {
+      setSelectedKey(itemKey(nextItems[0]));
+    }
+    setFeedback(null);
+  };
+
+  const selectItem = (item: SelectableItem): void => {
+    if (!filteredItems.some((candidate) => itemKey(candidate) === itemKey(item))) setCategory("all");
+    setSelectedKey(itemKey(item));
+    setFeedback(null);
+  };
 
   const run = (result: InteractionResult, successCopy: string): void => {
     setFeedback(result.success ? successCopy : result.reason ?? "That change is not available");
@@ -147,7 +168,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
   const previewDescription = character.slots
     .map((slot) => {
       const id = previewBySlot[slot.slot];
-      const item = items.find((candidate) => candidate.id === id);
+      const item = items.find((candidate) => candidate.slot === slot.slot && candidate.id === id);
       return `${slot.label}: ${item?.name ?? slot.equippedName}`;
     })
     .join(". ");
@@ -181,12 +202,13 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="character-screen-title"
-        aria-describedby="character-preview-description"
+        aria-describedby="character-screen-intro"
         tabIndex={-1}
       >
         <header className="modal-header character-screen__header">
           <div className="character-screen__title-block">
             <h2 id="character-screen-title">Character & Gear</h2>
+            <p id="character-screen-intro" className="sr-only">Choose owned gear to inspect it. Try On previews a change; Equip wears it.</p>
             <div className="character-screen__capacity-pills">
               <span className="character-screen__pill">
                 <strong>{character.wardrobe.used}</strong> / {character.wardrobe.capacity} Spaces
@@ -210,16 +232,18 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
             <div className="character-slot-list">
               {character.slots.map((slot) => {
                 const shownId = previewBySlot[slot.slot];
-                const shown = items.find((item) => item.id === shownId);
+                const shown = items.find((item) => item.slot === slot.slot && item.id === shownId);
                 const previewed = shownId !== slot.equippedId;
-                const isSelected = selected ? (selected.id === shownId || (shown && selected.id === shown.id)) : false;
+                const isSelected = selected?.slot === slot.slot && selected.id === shownId;
                 return (
                   <button
                     type="button"
                     key={slot.slot}
                     className={`character-slot ${isSelected ? "is-selected" : ""} ${previewed ? "is-preview" : ""}`}
-                    onClick={() => shown && setSelectedKey(itemKey(shown))}
+                    onClick={() => shown && selectItem(shown)}
                     aria-label={`${slot.label}: ${shown?.name ?? slot.equippedName}${previewed ? ", preview only" : ""}`}
+                    aria-pressed={Boolean(isSelected)}
+                    disabled={!shown}
                   >
                     <span className="character-slot__glyph" aria-hidden="true">
                       <AtlasImage src={itemSprite(shown)} size={28} aria-hidden="true" />
@@ -304,47 +328,59 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
                 <h3>Owned Gear</h3>
                 <small>{filteredItems.length} items</small>
               </div>
-              <div className="character-category-filter" role="tablist" aria-label="Filter gear categories">
+              <div className="character-category-filter" role="tablist" aria-label="Filter gear categories" onKeyDown={handleTabListKeyDown}>
                 <button
                   type="button"
+                  id="character-category-all"
                   role="tab"
                   aria-selected={category === "all"}
+                  aria-controls="character-wardrobe-panel"
+                  tabIndex={category === "all" ? 0 : -1}
                   className={`character-category-tab ${category === "all" ? "is-active" : ""}`}
-                  onClick={() => setCategory("all")}
+                  onClick={() => selectCategory("all")}
                 >
                   All <small>({categoryCounts.all})</small>
                 </button>
                 <button
                   type="button"
+                  id="character-category-clothing"
                   role="tab"
                   aria-selected={category === "clothing"}
+                  aria-controls="character-wardrobe-panel"
+                  tabIndex={category === "clothing" ? 0 : -1}
                   className={`character-category-tab ${category === "clothing" ? "is-active" : ""}`}
-                  onClick={() => setCategory("clothing")}
+                  onClick={() => selectCategory("clothing")}
                 >
                   Clothes <small>({categoryCounts.clothing})</small>
                 </button>
                 <button
                   type="button"
+                  id="character-category-tools"
                   role="tab"
                   aria-selected={category === "tools"}
+                  aria-controls="character-wardrobe-panel"
+                  tabIndex={category === "tools" ? 0 : -1}
                   className={`character-category-tab ${category === "tools" ? "is-active" : ""}`}
-                  onClick={() => setCategory("tools")}
+                  onClick={() => selectCategory("tools")}
                 >
                   Tools <small>({categoryCounts.tools})</small>
                 </button>
                 <button
                   type="button"
+                  id="character-category-rods"
                   role="tab"
                   aria-selected={category === "rods"}
+                  aria-controls="character-wardrobe-panel"
+                  tabIndex={category === "rods" ? 0 : -1}
                   className={`character-category-tab ${category === "rods" ? "is-active" : ""}`}
-                  onClick={() => setCategory("rods")}
+                  onClick={() => selectCategory("rods")}
                 >
                   Rods <small>({categoryCounts.rods})</small>
                 </button>
               </div>
             </div>
 
-            <div className="character-owned-list">
+            <div id="character-wardrobe-panel" className="character-owned-list" role="tabpanel" aria-labelledby={`character-category-${category}`}>
               {filteredItems.map((item) => {
                 const isItemEquipped = equippedBySlot[item.slot] === item.id;
                 const isItemSelected = selected?.id === item.id;
@@ -353,8 +389,9 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
                     type="button"
                     key={itemKey(item)}
                     className={`character-owned-item ${isItemSelected ? "is-selected" : ""} ${isItemEquipped ? "is-equipped" : ""}`}
-                    onClick={() => setSelectedKey(itemKey(item))}
+                    onClick={() => selectItem(item)}
                     aria-pressed={isItemSelected}
+                    aria-controls="character-item-inspector"
                   >
                     <span className="character-owned-item__mark" aria-hidden="true">
                       <AtlasImage src={itemSprite(item)} size={28} aria-hidden="true" />
@@ -372,8 +409,10 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
               })}
             </div>
 
+            {filteredItems.length === 0 && <p className="character-wardrobe-empty">No gear in this category yet.</p>}
+
             {selected && (
-              <article className="character-comparison" aria-live="polite">
+              <article id="character-item-inspector" className="character-comparison" aria-label={`${selected.name} details`}>
                 <div className="character-comparison__header">
                   <div className="character-comparison__slot-tag-row">
                     <span className="character-comparison__slot-tag">{selected.slot.replace("-", " ")}</span>
@@ -427,12 +466,20 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
                         disabled={isPreviewing}
                         onClick={() => setPreview((current) => ({ ...current, [selected.slot]: selected.id }))}
                       >{isPreviewing ? "In Preview" : "Try On"}</ChromeButton>
-                      <ChromeButton type="button" disabled={!character.canEquip} onClick={equipSelected}>
+                      <ChromeButton
+                        type="button"
+                        disabled={!character.canEquip}
+                        aria-describedby={!character.canEquip && character.equipBlocker ? "character-equip-blocker" : undefined}
+                        onClick={equipSelected}
+                      >
                         Equip
                       </ChromeButton>
                     </>
                   )}
                 </div>
+                {!isEquipped && !character.canEquip && character.equipBlocker && (
+                  <p id="character-equip-blocker" className="character-comparison__blocker">{character.equipBlocker}</p>
+                )}
               </article>
             )}
           </section>

@@ -27,16 +27,20 @@ import type { EquipmentDomain } from "./EquipmentDomain";
 import { freeHandsBlocker } from "./domainRules";
 import { assessProcessingStationApproach } from "../../world/ProcessingStationApproach";
 
-/** Standard station job cost, retained as the compatibility owner for existing recipes. */
+/** Existing standard and masterwork values remain valid for saved in-flight jobs. */
+export const LIGHT_PROCESSING_WORK_COST = 15;
+export const PREPARED_PROCESSING_WORK_COST = 25;
 export const PROCESSING_WORK_COST = 35;
 export const MASTERWORK_PROCESSING_WORK_COST = 70;
-export const PROCESSING_XP_BY_TIER: Record<ProcessingWorkTier, number> = {
-  standard: 35,
-  masterwork: 70
-};
 export const PROCESSING_WORK_BY_TIER: Record<ProcessingWorkTier, number> = {
+  light: LIGHT_PROCESSING_WORK_COST,
+  prepared: PREPARED_PROCESSING_WORK_COST,
   standard: PROCESSING_WORK_COST,
   masterwork: MASTERWORK_PROCESSING_WORK_COST
+};
+/** A cheaper job cannot become a higher-XP shortcut. */
+export const PROCESSING_XP_BY_TIER: Record<ProcessingWorkTier, number> = {
+  ...PROCESSING_WORK_BY_TIER
 };
 export const PROCESSING_JOB_SNAPSHOT_LIMITS = {
   maxDurationMinutes: 24 * 60,
@@ -286,7 +290,8 @@ export class ProcessingDomain {
       remainingMinutes: job.status === "complete" ? 0 : remainingMinutes,
       readyClockLabel,
       waitBriefing,
-      startBriefing: `${job.recipeName} started · ${formatGameDuration(job.effectiveDurationMinutes)} · ready ${readyClockLabel}`
+      startBriefing: `${job.recipeName} started · ${formatGameDuration(job.effectiveDurationMinutes)} · ready ${readyClockLabel}`,
+      xpReward: job.xpReward
     };
   }
 
@@ -341,6 +346,7 @@ export class ProcessingDomain {
             outputLabel: recipeOutputLabel(recipe.result),
             inputs,
             work,
+            xpReward: processingXpForRecipe(recipe),
             durationMinutes: effectiveRecipeDurationMinutes(recipe, stationId, state.quests),
             durationLabel: formatGameDuration(effectiveRecipeDurationMinutes(recipe, stationId, state.quests)),
             workTier: recipe.workTier,

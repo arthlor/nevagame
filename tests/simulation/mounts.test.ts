@@ -156,16 +156,21 @@ describe("starter donkey mount", () => {
 
   it("falls back to the right side when the left dismount position is unsafe", () => {
     const simulation = new Simulation();
-    setMountedPose(simulation, -32, -100, Math.PI);
+    // This dry riverbank pose keeps the preferred left exit over the water,
+    // while the right exit remains on walkable land.
+    setMountedPose(simulation, -38.25, -98.25, Math.PI);
     const [left, right] = mountDismountPoseCandidates(simulation.state.player);
+    expect(isValidPlayerMountGround(simulation.state.player)).toBe(true);
+    expect(WorldLayout.waterSignedDistance(left.x, left.z)).toBeGreaterThan(0);
+    expect(WorldLayout.waterSignedDistance(right.x, right.z)).toBeLessThan(-0.01);
     expect(isValidPlayerMountGround(left)).toBe(false);
     expect(isValidPlayerMountGround(right)).toBe(true);
 
     expect(simulation.dismountMount().success).toBe(true);
     expect(simulation.state.player).toMatchObject(right);
     expect(simulation.state.mounts[STARTER_DONKEY_ID]).toMatchObject({
-      x: -32,
-      z: -100,
+      x: -38.25,
+      z: -98.25,
       rotationY: Math.PI
     });
   });
@@ -569,18 +574,18 @@ describe("starter donkey mount", () => {
     }
 
     // The mount carries the load, so the pack penalty never reaches gait
-    // speed: laden and unladen runs must cover the same ground, trot and
+    // speed: laden and unladen runs must cover the same ground, walk and
     // gallop alike.
-    const trotEmpty = await rideDistance(false, false);
-    const trotLaden = await rideDistance(true, false);
-    expect(trotLaden.distance).toBeCloseTo(trotEmpty.distance, 6);
-    expect(trotLaden.gaits).toBe(trotEmpty.gaits);
+    const walkEmpty = await rideDistance(false, false);
+    const walkLaden = await rideDistance(true, false);
+    expect(walkLaden.distance).toBeCloseTo(walkEmpty.distance, 6);
+    expect(walkLaden.gaits).toBe(walkEmpty.gaits);
 
     const gallopEmpty = await rideDistance(false, true);
     const gallopLaden = await rideDistance(true, true);
     expect(gallopLaden.distance).toBeCloseTo(gallopEmpty.distance, 6);
     expect(gallopLaden.gaits).toBe(gallopEmpty.gaits);
-    expect(gallopEmpty.distance).toBeGreaterThan(trotEmpty.distance);
+    expect(gallopEmpty.distance).toBeGreaterThan(walkEmpty.distance);
   });
 
   it("publishes the donkey's gallop stamina to the HUD while mounted", async () => {

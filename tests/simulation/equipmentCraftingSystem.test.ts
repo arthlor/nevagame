@@ -7,7 +7,13 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import legacyRecipeCompatibility from "../fixtures/recipes_v36_compatibility.json";
-import { processingWorkForRecipe, processingXpForRecipe } from "../../src/simulation/domains/ProcessingDomain";
+import {
+  isValidProcessingJobEconomicSnapshot,
+  PROCESSING_WORK_BY_TIER,
+  PROCESSING_XP_BY_TIER,
+  processingWorkForRecipe,
+  processingXpForRecipe
+} from "../../src/simulation/domains/ProcessingDomain";
 import { SIMULATION_ACTION_TIMINGS } from "../../src/simulation/actions/ActionTimeline";
 import { ONBOARDING_PACE, effectiveRecipeDurationMinutes } from "../../src/simulation/core/OnboardingPace";
 import { PROFICIENCY_RANKS } from "../../src/content/progression";
@@ -370,7 +376,7 @@ describe("station crafting lifecycle", () => {
     expect(Object.keys(afterCommitReload.state.processingJobs)).toHaveLength(1);
   });
 
-  it("preserves every v36 recipe output, Work cost, XP reward, gate, and effective duration", () => {
+  it("preserves v36 gates, durations, and captured job economics across recipe yield changes", () => {
     const newGameQuests = new Simulation().state.quests;
     const steadyStateQuests = structuredClone(newGameQuests);
     steadyStateQuests.completedQuestIds.push(ONBOARDING_PACE.gateQuestId);
@@ -378,7 +384,17 @@ describe("station crafting lifecycle", () => {
     for (const [recipeId, legacy] of Object.entries(legacyRecipeCompatibility)) {
       const recipe = ContentRegistry.recipes.get(recipeId);
       expect(recipe, recipeId).toBeDefined();
-      expect(recipe!.result, `${recipeId} output`).toEqual(legacy.result);
+      if (recipeId === "recipe.compost_worms") {
+        expect(recipe!.result, `${recipeId} current output`).toEqual({
+          kind: "items", stacks: [{ itemId: "item.bait_worms", quantity: 10 }]
+        });
+      } else if (recipeId === "recipe.craft_chum") {
+        expect(recipe!.result, `${recipeId} current output`).toEqual({
+          kind: "items", stacks: [{ itemId: "item.chum_bucket", quantity: 2 }]
+        });
+      } else {
+        expect(recipe!.result, `${recipeId} output`).toEqual(legacy.result);
+      }
       expect(recipe!.durationMinutes, `${recipeId} duration`).toBe(legacy.durationMinutes);
       expect(
         effectiveRecipeDurationMinutes(recipe!, legacy.stationId, newGameQuests),
@@ -395,9 +411,163 @@ describe("station crafting lifecycle", () => {
         Math.max(rankGate!, recipe!.minimumSkill?.xp ?? 0),
         `${recipeId} effective gate`
       ).toBe(legacy.effectiveGateXp);
-      expect(processingWorkForRecipe(recipe!), `${recipeId} Work`).toBe(legacy.workCost);
-      expect(processingXpForRecipe(recipe!), `${recipeId} XP`).toBe(legacy.xpReward);
+      // A v36 job committed before this rebalance keeps its captured standard
+      // cost and XP even if new jobs of the same recipe now use a lighter tier.
+      const savedJob: ProcessingJobState = {
+        id: `job_v36_${recipeId}`,
+        recipeId,
+        stationId: legacy.stationId,
+        startedAtMinute: 0,
+        completesAtMinute: legacy.durationMinutes,
+        status: "active",
+        recipeName: recipe!.name,
+        outputLabel: "Saved output",
+        result: structuredClone(legacy.result) as ProcessingJobState["result"],
+        workTier: "standard",
+        presentationKind: "existing",
+        baseWork: legacy.workCost,
+        chargedWork: legacy.workCost,
+        xpReward: legacy.xpReward,
+        effectiveDurationMinutes: legacy.durationMinutes
+      };
+      expect(isValidProcessingJobEconomicSnapshot(savedJob), `${recipeId} historical snapshot`).toBe(true);
       expect(recipe!.presentationKind, `${recipeId} presentation`).toBe("existing");
+    }
+  });
+
+  it("collects a saved compost job's historical 25 worms after the authored yield changes", () => {
+    const sim = new Simulation();
+    moveToStation(sim, "struct.starter_compost");
+    expect(sim.startProcessingJob("recipe.compost_worms", "struct.starter_compost").success).toBe(true);
+    const job = Object.values(sim.state.processingJobs)[0];
+    job.result = structuredClone(
+      legacyRecipeCompatibility["recipe.compost_worms"].result
+    ) as ProcessingJobState["result"];
+    const savedState = structuredClone(sim.state);
+    expect(validateSaveEnvelope({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      savedAtUtcMs: 0,
+      state: savedState
+    })).toBe(true);
+
+    const restored = new Simulation(savedState);
+    restored.advanceGameMinutes(job.effectiveDurationMinutes);
+    expect(restored.collectProcessingJob(job.id).success).toBe(true);
+    expect(InventoryManager.getItemCount(
+      restored.state.inventories[restored.state.player.inventoryId], "item.bait_worms"
+    )).toBe(25);
+  });
+
+  it("collects a saved chum job's captured single bucket after the authored batch doubles", () => {
+    const sim = new Simulation();
+    moveToStation(sim);
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    expect(InventoryManager.addItemsAtomically(inventory, [
+      { itemId: "item.ground_grain", quantity: 2 },
+      { itemId: "item.bait_worms", quantity: 2 }
+    ])).toBe(true);
+    expect(sim.startProcessingJob("recipe.craft_chum", "struct.workbench").success).toBe(true);
+    const job = Object.values(sim.state.processingJobs)[0];
+    job.result = structuredClone(
+      legacyRecipeCompatibility["recipe.craft_chum"].result
+    ) as ProcessingJobState["result"];
+    const savedState = structuredClone(sim.state);
+    expect(validateSaveEnvelope({ schemaVersion: CURRENT_SCHEMA_VERSION, savedAtUtcMs: 0, state: savedState })).toBe(true);
+
+    const restored = new Simulation(savedState);
+    restored.advanceGameMinutes(job.effectiveDurationMinutes);
+    expect(restored.collectProcessingJob(job.id).success).toBe(true);
+    expect(InventoryManager.getItemCount(
+      restored.state.inventories[restored.state.player.inventoryId], "item.chum_bucket"
+    )).toBe(1);
+  });
+
+  it("charges light, prepared, standard, and masterwork jobs for their actual job scale", () => {
+    const assigned: Record<"light" | "prepared" | "standard" | "masterwork", string[]> = {
+      light: [
+        "recipe.wheat_to_grain", "recipe.barley_to_grain", "recipe.perch_to_scraps",
+        "recipe.mackerel_to_scraps", "recipe.carp_to_scraps", "recipe.sunflower_to_grain",
+        "recipe.sardine_to_scraps"
+      ],
+      prepared: [
+        "recipe.craft_chum", "recipe.craft_chum_rich", "recipe.craft_chum_deep",
+        "recipe.craft_lure", "recipe.craft_lure_simple", "recipe.fish_to_fertilizer",
+        "recipe.cure_sardine", "recipe.cook_harvest_bowl", "recipe.cook_fish_stew",
+        "recipe.cook_orchard_tart"
+      ],
+      standard: [
+        "recipe.compost_worms", "recipe.linen_roll", "recipe.oiled_canvas",
+        "recipe.field_hat", "recipe.furrow_boots", "recipe.tidewatch_cap",
+        "recipe.harvest_apron", "recipe.batch_harvest_bowls", "recipe.batch_fish_stews"
+      ],
+      masterwork: [
+        "recipe.copper_rose_can", "recipe.broad_sickle", "recipe.deck_boots",
+        "recipe.oilskin_coat", "recipe.long_spout_can", "recipe.balanced_sickle"
+      ]
+    };
+    expect(PROCESSING_WORK_BY_TIER).toEqual({ light: 15, prepared: 25, standard: 35, masterwork: 70 });
+    expect(PROCESSING_XP_BY_TIER).toEqual(PROCESSING_WORK_BY_TIER);
+    const coveredIds = Object.values(assigned).flat();
+    expect(new Set(coveredIds).size).toBe(coveredIds.length);
+    expect(new Set(coveredIds)).toEqual(new Set(ContentRegistry.recipes.keys()));
+    for (const [tier, ids] of Object.entries(assigned) as Array<[keyof typeof assigned, string[]]>) {
+      for (const recipeId of ids) {
+        const recipe = ContentRegistry.recipes.get(recipeId)!;
+        expect(recipe.workTier, recipeId).toBe(tier);
+        expect(processingWorkForRecipe(recipe), recipeId).toBe(PROCESSING_WORK_BY_TIER[tier]);
+        expect(processingXpForRecipe(recipe), recipeId).toBe(PROCESSING_XP_BY_TIER[tier]);
+      }
+    }
+  });
+
+  it("opens the remaining practical gear at Skilled and Expert Processing", () => {
+    const gates = [
+      { recipeId: "recipe.deck_boots", xp: 3_000 },
+      { recipeId: "recipe.long_spout_can", xp: 3_000 },
+      { recipeId: "recipe.oilskin_coat", xp: 7_500 },
+      { recipeId: "recipe.balanced_sickle", xp: 7_500 }
+    ] as const;
+
+    for (const { recipeId, xp } of gates) {
+      const sim = new Simulation();
+      moveToStation(sim);
+      const recipe = ContentRegistry.recipes.get(recipeId)!;
+      const inventory = sim.state.inventories[sim.state.player.inventoryId];
+      expect(InventoryManager.addItemsAtomically(inventory, recipe.inputs), recipeId).toBe(true);
+      sim.state.player.proficiencies.processing = xp - 1;
+
+      const locked = sim.inspectProcessingStation("struct.workbench")?.recipes
+        .find((row) => row.recipeId === recipeId);
+      expect(locked, `${recipeId} below gate`).toMatchObject({
+        state: "locked",
+        blockers: [`Requires ${xp} Processing XP`]
+      });
+      const workBefore = sim.state.player.workCapacity.current;
+      expect(sim.startProcessingJob(recipeId, "struct.workbench"), `${recipeId} below gate`).toMatchObject({
+        success: false,
+        reason: `Requires ${xp} Processing XP`
+      });
+      expect(sim.state.player.workCapacity.current).toBe(workBefore);
+      expect(InventoryManager.hasItems(inventory, recipe.inputs)).toBe(true);
+      expect(Object.keys(sim.state.processingJobs)).toHaveLength(0);
+
+      sim.state.player.proficiencies.processing = xp;
+      const available = sim.inspectProcessingStation("struct.workbench")?.recipes
+        .find((row) => row.recipeId === recipeId);
+      expect(available, `${recipeId} at gate`).toMatchObject({
+        state: "craftable",
+        work: { baseCost: PROCESSING_WORK_BY_TIER.masterwork, affordable: true }
+      });
+      expect(sim.startProcessingJob(recipeId, "struct.workbench"), `${recipeId} at gate`).toMatchObject({
+        success: true,
+        cost: available!.work.cost
+      });
+      expect(Object.values(sim.state.processingJobs)[0]).toMatchObject({
+        recipeId,
+        workTier: "masterwork",
+        baseWork: PROCESSING_WORK_BY_TIER.masterwork,
+        xpReward: PROCESSING_XP_BY_TIER.masterwork
+      });
     }
   });
 
@@ -406,14 +576,13 @@ describe("station crafting lifecycle", () => {
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
     const startingMinute = sim.state.clock.currentMinute;
     let collectionCount = 0;
-    let recoveryWaitMinutes = 0;
     const noviceRoute = [
-      ["recipe.wheat_to_grain", 6],
-      ["recipe.compost_worms", 3],
-      ["recipe.perch_to_scraps", 6],
-      ["recipe.fish_to_fertilizer", 3],
-      ["recipe.craft_lure_simple", 3],
-      ["recipe.craft_chum", 3],
+      ["recipe.wheat_to_grain", 4],
+      ["recipe.compost_worms", 2],
+      ["recipe.perch_to_scraps", 4],
+      ["recipe.fish_to_fertilizer", 2],
+      ["recipe.craft_lure_simple", 2],
+      ["recipe.craft_chum", 2],
       ["recipe.linen_roll", 3],
       ["recipe.field_hat", 1],
       ["recipe.furrow_boots", 1]
@@ -424,7 +593,7 @@ describe("station crafting lifecycle", () => {
       ["recipe.mackerel_to_scraps", 11],
       ["recipe.fish_to_fertilizer", 4],
       ["recipe.craft_lure", 6],
-      ["recipe.craft_chum_rich", 5],
+      ["recipe.craft_chum_rich", 9],
       ["recipe.linen_roll", 10],
       ["recipe.oiled_canvas", 2],
       ["recipe.tidewatch_cap", 1],
@@ -485,14 +654,29 @@ describe("station crafting lifecycle", () => {
 
     moveToStation(sim);
     expect(sim.startProcessingJob("recipe.oiled_canvas", "struct.workbench").success).toBe(false);
+    // These two early story rewards are earned by harvest/compost, then mill/
+    // chum. The route isolates station transactions, so credit their actual
+    // authored Processing XP without replaying the separate quest chain.
+    for (const questId of ["quest.act2_harvest_and_compost", "quest.act2_mill_and_craft_chum"]) {
+      const reward = ContentRegistry.quests.get(questId)?.rewards.skillXp
+        ?.find((entry) => entry.skill === "processing");
+      expect(reward, `${questId} Processing reward`).toBeDefined();
+      sim.addProficiencyXp("processing", reward!.xp);
+    }
     runRoute(noviceRoute);
     expect(sim.state.player.proficiencies.processing).toBe(1_015);
-    expect(collectionCount).toBe(29);
+    expect(collectionCount).toBe(21);
 
+    // The parallel homestead thread opens after Act 2. Its village-mill errand
+    // adds one reachable reward before the Skilled leg is complete.
+    const homesteadReward = ContentRegistry.quests.get("quest.homestead_worn_tools")?.rewards.skillXp
+      ?.find((entry) => entry.skill === "processing");
+    expect(homesteadReward).toBeDefined();
+    sim.addProficiencyXp("processing", homesteadReward!.xp);
     runRoute(apprenticeRoute);
-    expect(sim.state.player.proficiencies.processing).toBe(3_010);
-    expect(collectionCount).toBe(84);
-    expect(sim.state.clock.currentMinute - startingMinute).toBeGreaterThan(recoveryWaitMinutes);
+    expect(sim.state.player.proficiencies.processing).toBe(3_000);
+    expect(collectionCount).toBe(80);
+    expect(sim.state.clock.currentMinute).toBeGreaterThan(startingMinute);
     expect(new Set(noviceRoute.map(([id]) => id)).size).toBeGreaterThanOrEqual(8);
     expect(new Set(apprenticeRoute.map(([id]) => id)).size).toBeGreaterThanOrEqual(10);
     expect(Math.max(...noviceRoute.map(([, count]) => count))).toBeLessThanOrEqual(6);

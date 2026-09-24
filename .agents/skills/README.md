@@ -1,83 +1,69 @@
 # Three.js Skill Pack
 
-Routing index for the skills in this directory. Skill files are the source of
-truth for technique; this file and `manifest.json` are the index for selection,
-tooling, and validation. Repository `AGENTS.md` outranks every skill here.
+The 24 `threejs-*` skill directories in this folder are installed verbatim from
+[Threejs Awesome Graphics Agent Skills](https://github.com/scottstts/Threejs-Awesome-Graphics-Agent-Skills),
+upstream commit `d1cb23dcce6ea8ee4a60f6159daeb79d4b511dba` (v0.11.0). The MIT
+license is in `LICENSES/Threejs-Awesome-Graphics-Agent-Skills.MIT`.
+
+Neva's root `AGENTS.md` and subsystem authorities remain the routing and design
+owners. These skills provide graphics techniques and examples; they do not
+supply Neva's gameplay, UI, asset publication, release, palette, or renderer
+contracts.
 
 ## Start here
 
-- Explicitly selected whole-game or named multi-system orchestration: `threejs-game-director` (explicit-only).
-- One visual system or a graphics rewrite: `threejs-skill-router`.
-- A specific rendering defect: the owning system skill, or `threejs-debug-profiler` when diagnosis is the task.
-- A generated asset: the relevant generator skill, only with an explicit human request (`AGENTS.md` "Codex and threejs-game-skills").
-
-## Entry and meta
-
-| Skill | Use when | Backend |
-| --- | --- | --- |
-| `threejs-game-director` | explicitly selected whole-game or named multi-system orchestration | both |
-| `threejs-skill-router` | route visual work to the smallest skill set | n/a |
-| `threejs-visual-validation` | fixed-view contracts, seed sweeps, budget evidence | agnostic |
-
-## Game layers
-
-| Skill | Use when | Backend |
-| --- | --- | --- |
-| `threejs-gameplay-systems` | loop, mechanics, input, physics, level/encounter, feel | both |
-| `threejs-aaa-graphics-builder` | scoped authored visual improvement | both |
-| `threejs-game-ui-designer` | HUD, menus, touch UI, responsive fit | dom |
-| `threejs-debug-profiler` | render/runtime/perf/mobile bugs and profiling | both |
-| `threejs-qa-release` | release or visual-gold gates; routine checks use the project matrix | both |
+- Visual work that crosses systems or has an unclear graphics cause: `threejs-skill-router`.
+- One known visual mechanism: load its specialist directly; the router is optional.
+- Evidence for a changed visual system: `threejs-visual-validation`, using the gates in `LLM/03_PRODUCTION_ROADMAP_LLM_AGENT_PLAYBOOK.md`.
+- Gameplay, UI, audio, asset generation, and release tasks: use the corresponding Neva authority in root `AGENTS.md`; this graphics pack has no specialist agents for those jobs.
 
 ## Image and rendering systems
 
-| Skill | Use when | Backend |
-| --- | --- | --- |
-| `threejs-image-pipeline` | several post systems share buffers/order | webgl2 |
-| `threejs-bloom` | HDR bloom and selective emission | webgl2 |
-| `threejs-exposure-color-grading` | metering, tone mapping, LUTs | webgl2 |
-| `threejs-screen-space-ambient-occlusion` | GTAO, bent normals, denoise | webgl2 |
-| `threejs-shadow-systems` | cascades, cached clipmaps, texel stability | webgl2 (+TSL) |
-| `threejs-atmosphere-aerial-perspective` | sky scattering and aerial perspective | webgl2 |
-| `threejs-volumetric-clouds` | weather cloud volumes and shadows | webgl2 |
-| `threejs-raymarched-space-effects` | black holes, wormholes, geodesic integration | webgl2 |
-| `threejs-procedural-vfx` | lens flare, aurora, fire/smoke, sparks, holograms | dual |
+| Skill | Use when |
+| --- | --- |
+| `threejs-image-pipeline` | Several image-space systems share buffers, pass order, or output ownership |
+| `threejs-bloom` | HDR bloom and selective emission |
+| `threejs-exposure-color-grading` | Exposure, tone mapping, LUTs, and output color |
+| `threejs-screen-space-ambient-occlusion` | GTAO, bent normals, and denoising |
+| `threejs-shadow-systems` | Stable cascades, cached clipmaps, and texel stability |
+| `threejs-atmosphere-aerial-perspective` | Sky scattering and aerial perspective |
+| `threejs-volumetric-clouds` | Weather-shaped cloud volumes and shadows |
+| `threejs-procedural-vfx` | Lens flare, aurora, fire/smoke, sparks, trails, and holograms |
+| `threejs-raymarched-space-effects` | Curved-ray space effects such as black holes and wormholes |
 
 ## Geometry and surfaces
 
-| Skill | Use when | Backend |
-| --- | --- | --- |
-| `threejs-procedural-geometry` | hard-surface/humanoid assemblies, topology | dual |
-| `threejs-procedural-architecture` | buildings, facades, architectural kits | dual |
-| `threejs-procedural-materials` | causal PBR, films, gems, glass, diffraction | webgpu-tsl |
-| `threejs-procedural-fields` | shared scalar/vector causes | agnostic |
-| `threejs-procedural-planets` | coupled planetary bodies | webgl2 |
-| `threejs-parallax-occlusion-mapping` | relief ray marching, silhouette, self-shadow | webgpu-tsl |
-| `threejs-procedural-vegetation` | trees, grass, ivy, flower fields, rooted wind | dual |
-| `threejs-water-optics` | analytic and bounded water | webgl2 |
-| `threejs-spectral-ocean` | FFT oceans, coastal breakers, Snell optics | dual |
-| `threejs-precipitation-surfaces` | rain/snow, puddles, splashes, wetness | webgl2 |
-| `threejs-temporal-surfaces` | frost/thaw history, wet-window rain | webgl2 |
+| Skill | Use when |
+| --- | --- |
+| `threejs-procedural-geometry` | Mesh construction, profiles, lofts, assemblies, and geometry audits |
+| `threejs-procedural-architecture` | Building massing and façade grammars |
+| `threejs-procedural-materials` | Causal PBR, optical materials, and surface response |
+| `threejs-procedural-fields` | Shared scalar/vector fields and procedural causes |
+| `threejs-parallax-occlusion-mapping` | Height-field ray marching and silhouette-aware relief |
+| `threejs-procedural-vegetation` | Trees, grass, ivy, fields, and rooted wind |
+| `threejs-procedural-planets` | Spherical terrain, ridges, craters, and biomes |
+| `threejs-spectral-ocean` | FFT oceans and coastal wave/optics systems |
+| `threejs-water-optics` | Analytic waves, bounded water, and water optics |
+| `threejs-precipitation-surfaces` | Rain/snow, wetness, puddles, and splash coupling |
+| `threejs-temporal-surfaces` | View-aligned frost and wet-window history |
 
 ## Motion
 
-| Skill | Use when | Backend |
-| --- | --- | --- |
-| `threejs-camera-direction` | rigs, cinematic framing, camera handoffs | agnostic |
-| `threejs-procedural-animation` | transform timelines, docking, springs, debris | agnostic |
+| Skill | Use when |
+| --- | --- |
+| `threejs-camera-direction` | Camera rigs, composition, and camera handoffs |
+| `threejs-procedural-animation` | Transform timelines, springs, and authored motion phases |
 
-## Generators (explicit human request only)
+## Neva adaptation
 
-| Skill | Use when | Provider |
-| --- | --- | --- |
-| `threejs-3d-generator` | text/image-to-3D, rigging, retargeting, stylization | Tripo |
-| `threejs-image-generator` | concepts, textures, skies, decals, icons, GUI art | Gemini |
-| `threejs-audio-generator` | SFX, ambience, TTS, voice conversion, cleanup | ElevenLabs |
+- Root `AGENTS.md` owns scope and precedence; `04` owns appearance, `VisualRenderConfig` owns renderer values, and `BLENDER.md` plus `tools/authored/README.md` own asset production.
+- Keep Neva's warm, faceted coastal identity. Adapt technical mechanisms and parameters; do not adopt unrelated example aesthetics or migrate the renderer because an example uses another backend.
+- Use only the validation that applies to the changed mechanism and the project task matrix. A skill checklist does not authorize an unrelated system rewrite, new quality tier, diagnostic UI, or capture harness.
+- This pack has no gameplay, UI, provider-generation, or release agent. Use Neva's existing owners and workflows for those tasks.
 
-## Conventions and tooling
+## Pack files
 
-- `CONVENTIONS.md` — scope, risk-based checks, adaptable examples and evidence boundaries.
-- `agents/openai.yaml` — per-skill invocation policy and short starter prompt. The director and provider generators are explicit-only; focused technical skills remain discoverable.
-- `manifest.json` — machine-readable index (category, backend, pairs_with).
-- `tools/validate_skills.py` — frontmatter, links, cross-refs, drift, and contract checks.
-- `_shared/duplication-manifest.json` — intentional mirrors that must not drift.
+- `CONVENTIONS.md` — Neva adaptation rules for examples and evidence.
+- `manifest.json` — skill names, categories, backend labels, and optional pairings.
+- `tools/validate_skills.py` — validates frontmatter, links, cross-references, manifest coverage, and mirrored examples.
+- `_shared/duplication-manifest.json` — intentional mirrored source trees.

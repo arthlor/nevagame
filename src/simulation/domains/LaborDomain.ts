@@ -53,7 +53,17 @@ export class LaborDomain {
     const active = this.runtime !== null;
     return Object.values(LABOR_STATIONS).map((station) => {
       const used = this.progression.hasWorkedLaborStation(station.id);
-      const canStart = !used && !active && !player.activeBoatId && !player.activeMountId;
+      const blocker = player.carriedFishCargoId
+        ? "Stow physical fish cargo before working"
+        : active
+          ? "Finish the job in hand"
+          : this.context.state.basicFishing || this.context.state.sportFishing
+            ? "Put the rod away first"
+            : player.activeBoatId || player.activeMountId
+              ? "Dismount before working here"
+              : used
+                ? "You have already done that work today"
+                : this.progression.workRoomBlocker(station.yield);
       return {
         id: station.id,
         name: station.name,
@@ -63,7 +73,8 @@ export class LaborDomain {
         z: station.position.z,
         reachMeters: station.reachMeters,
         used,
-        available: canStart && this.progression.hasWorkRoom(station.yield)
+        available: blocker === null,
+        blocker
       };
     });
   }
@@ -88,9 +99,8 @@ export class LaborDomain {
     if (this.progression.hasWorkedLaborStation(stationId)) {
       return { success: false, reason: "You have already done that work today" };
     }
-    if (!this.progression.hasWorkRoom(station.yield)) {
-      return { success: false, reason: "You are full of energy already" };
-    }
+    const workBlocker = this.progression.workRoomBlocker(station.yield);
+    if (workBlocker) return { success: false, reason: workBlocker };
     this.runtime = { stationId, meter: 0, direction: 1 };
     return { success: true };
   }
@@ -126,9 +136,8 @@ export class LaborDomain {
       return { success: false, reason: "The strike glanced off — line up the swing" };
     }
     const requested = Math.max(1, Math.round(station.yield * fraction));
-    if (!this.progression.hasWorkRoom(requested)) {
-      return { success: false, reason: "You are full of energy already" };
-    }
+    const workBlocker = this.progression.workRoomBlocker(requested);
+    if (workBlocker) return { success: false, reason: workBlocker };
     const granted = this.progression.earnWork(requested, station.id);
     if (granted <= 0) return { success: false, reason: "You are full of energy already" };
     return { success: true, yield: granted, grade: fraction >= 1 ? "clean" : "glancing" };

@@ -4,7 +4,10 @@ import { renderToString } from "react-dom/server";
 import { GameApp } from "../../src/app/GameApp";
 import { ModeController } from "../../src/app/ModeController";
 import { Simulation } from "../../src/simulation/Simulation";
-import type { EquippedToolId } from "../../src/simulation/core/contracts";
+import type { EquippedToolId, GameCommand } from "../../src/simulation/core/contracts";
+import { ContentRegistry } from "../../src/content/ContentRegistry";
+import { FARMING_ACTION_COST } from "../../src/simulation/domains/FarmingDomain";
+import { processingWorkForRecipe } from "../../src/simulation/domains/ProcessingDomain";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { buildContextualHotbar, buildStatusChips, buildWorldHudDto } from "../../src/simulation/presentation/WorldHudPresentation";
 import { WorldLayout } from "../../src/world/WorldLayout";
@@ -33,7 +36,8 @@ function createAppHarness() {
     activeTool: EquippedToolId;
     selectToolSlot: (slot: number) => void;
     handlePrimaryUse: () => void;
-    resolveCropTarget: (cropId: string) => { action: string } | null;
+    handleContextInteract: (requestedCrop?: { cropId: string; action: "harvest" | "water" | "fertilize" }) => void;
+    resolveCropTarget: (cropId: string, action?: "harvest" | "water" | "fertilize") => { action: string; prompt: string } | null;
     enterCropPlacement: ReturnType<typeof vi.fn>;
   };
   return { app, sim, modeController, dispatchVirtualAction, handleCastFishing };
@@ -46,18 +50,14 @@ function moveToBank(sim: Simulation): void {
   expect(sim.inspectWorldHud().stance).toBe("angling");
 }
 
-describe("contextual toolbar action contracts", () => {
-  it("arms fishing from Fishing Rod and stops casting after Stow Gear", () => {
+describe("contextual action contracts", () => {
+  it("casts at fishable water without selecting a rod slot", () => {
     const { app, sim, handleCastFishing } = createAppHarness();
     moveToBank(sim);
-    app.selectToolSlot(1);
-    expect(app.activeTool).toBe("fishing-rod");
     app.handlePrimaryUse();
     expect(handleCastFishing).toHaveBeenCalledExactlyOnceWith("primary");
-    // Stow Gear moved to slot 3 when the angling belt lost the three sockets
-    // that all opened the ledger.
-    app.selectToolSlot(3);
-    expect(app.activeTool).toBe("hands");
+    sim.state.player.x = 40;
+    sim.state.player.z = -100;
     app.handlePrimaryUse();
     expect(handleCastFishing).toHaveBeenCalledTimes(1);
   });
@@ -76,7 +76,7 @@ describe("contextual toolbar action contracts", () => {
     expect(app.activeTool).toBe("hands");
   });
 
-  it("arms harvest, watering and fertilizer without slot identities leaking", () => {
+  it("keeps a stable crop primary verb and exposes available alternatives", () => {
     const { app, sim } = createAppHarness();
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
@@ -87,21 +87,128 @@ describe("contextual toolbar action contracts", () => {
     crop.stage = "mature";
     crop.effectiveGrowthMinutes = 180;
     crop.moisture = 10;
-    app.selectToolSlot(5);
-    expect(app.activeTool).toBe("harvest");
+    app.activeTool = "watering-can";
     expect(app.resolveCropTarget(cropId)?.action).toBe("harvest");
     crop.stage = "growing";
     crop.effectiveGrowthMinutes = 90;
-    app.selectToolSlot(3);
-    expect(app.activeTool).toBe("watering-can");
     expect(app.resolveCropTarget(cropId)?.action).toBe("water");
     InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
       { itemId: "item.basic_fertilizer", quantity: 2 }
     ]);
     sim.state.farms[crop.farmId].soil.fertility = 40;
-    app.selectToolSlot(4);
+    expect(app.resolveCropTarget(cropId, "fertilize")?.action).toBe("fertilize");
+    expect(app.resolveCropTarget(cropId, "harvest")).toBeNull();
+  });
+
+  it("runs an explicitly chosen crop verb only for the current target", () => {
+    const { app, sim } = createAppHarness();
+    sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
+    sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+    const planted = sim.plantCropNearPlayer("farm.starter_garden", "crop.wheat");
+    expect(planted.success).toBe(true);
+    const cropId = planted.placedCropId!;
+    const crop = sim.state.crops[cropId];
+    crop.stage = "growing";
+    crop.moisture = 10;
+    sim.state.farms[crop.farmId].soil.fertility = 40;
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "item.basic_fertilizer", quantity: 1 }
+    ]);
+    expect(app.resolveCropTarget(cropId)?.action).toBe("water");
+    const startFertilizeAction = vi.fn();
+    const startCropAction = vi.fn();
+    Object.assign(app, {
+      pickInteraction: () => app.resolveCropTarget(cropId),
+      facePlayerToward: vi.fn(),
+      startFertilizeAction,
+      startCropAction
+    });
+    app.handleContextInteract({ cropId: "another-crop", action: "fertilize" });
+    expect(startFertilizeAction).not.toHaveBeenCalled();
+    app.handleContextInteract({ cropId, action: "fertilize" });
+    expect(startFertilizeAction).toHaveBeenCalledOnce();
+    expect(startCropAction).not.toHaveBeenCalled();
     expect(app.activeTool).toBe("fertilizer");
-    expect(app.resolveCropTarget(cropId)?.action).toBe("fertilize");
+  });
+
+  it("offers free withered clearing without a Work charge even at zero Work", () => {
+    const { app, sim } = createAppHarness();
+    sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
+    sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+    const planted = sim.plantCropNearPlayer("farm.starter_garden", "crop.wheat");
+    expect(planted.success).toBe(true);
+    sim.state.crops[planted.placedCropId!].stage = "withered";
+    sim.state.player.workCapacity.current = 0;
+    app.activeTool = "harvest";
+    const target = app.resolveCropTarget(planted.placedCropId!);
+    expect(target?.action).toBe("harvest");
+    expect(target?.prompt).toContain("Clear Wheat");
+    expect(target?.prompt).not.toContain("Work");
+  });
+
+  it("does not claim a wet growing crop needs Work when no action is due", () => {
+    const { app, sim } = createAppHarness();
+    sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
+    sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+    const planted = sim.plantCropNearPlayer("farm.starter_garden", "crop.wheat");
+    expect(planted.success).toBe(true);
+    const crop = sim.state.crops[planted.placedCropId!];
+    crop.stage = "growing";
+    crop.moisture = 100;
+    sim.state.player.workCapacity.current = 0;
+
+    const target = app.resolveCropTarget(crop.id);
+    expect(target?.action).toBe("inspect");
+    expect(target?.prompt).not.toContain("Need 5 Work");
+  });
+
+  it("passes the current farming and recipe Work quotes into action admission", () => {
+    const sim = new Simulation();
+    sim.state.player.proficiencies.farming = 3000;
+    const start = vi.spyOn(sim.actionTimeline, "start").mockImplementation((..._args: unknown[]) => true);
+    const app = Object.assign(Object.create(GameApp.prototype), {
+      sim,
+      inputRouter: { setJumpBlocked: vi.fn(), consumeJumpRequest: vi.fn() },
+      facePlayerToward: vi.fn()
+    }) as {
+      startFarmingAction: (action: "plant" | "processing-start", x: number, z: number, command: GameCommand) => boolean;
+    };
+    const plantCommand: GameCommand = {
+      type: "crop.plant-near", farmId: "farm.starter_garden", cropId: "crop.wheat"
+    };
+    expect(app.startFarmingAction("plant", 0, 0, plantCommand)).toBe(true);
+    expect(start.mock.calls[0]?.[5]).toBe(sim.quoteWorkCost(
+      FARMING_ACTION_COST.plant, "farming", "farming.plant"
+    ).cost);
+
+    const recipe = [...ContentRegistry.recipes.values()].find((entry) => entry.workTier === "masterwork")!;
+    const processingCommand: GameCommand = {
+      type: "processing.start", recipeId: recipe.id, stationId: "struct.workbench"
+    };
+    expect(app.startFarmingAction("processing-start", 0, 0, processingCommand)).toBe(true);
+    expect(start.mock.calls[1]?.[5]).toBe(sim.quoteWorkCost(
+      processingWorkForRecipe(recipe), "processing", "processing.start"
+    ).cost);
+  });
+
+  it("keeps planting placement open when the quoted Work is unavailable", () => {
+    const sim = new Simulation();
+    sim.state.player.workCapacity.current = 0;
+    const setToast = vi.fn();
+    const startFarmingAction = vi.fn();
+    const app = Object.assign(Object.create(GameApp.prototype), {
+      sim,
+      modeController: new ModeController("farm-placement"),
+      selectedCropId: "crop.wheat",
+      placementResult: { valid: true },
+      refreshCropPlacementAtPointer: () => ({ valid: true }),
+      setToast,
+      startFarmingAction
+    }) as { confirmCropPlacement: () => void };
+    app.confirmCropPlacement();
+    const quote = sim.quoteWorkCost(FARMING_ACTION_COST.plant, "farming", "farming.plant");
+    expect(setToast).toHaveBeenCalledWith(expect.stringContaining(`Need ${quote.cost} Work to plant`));
+    expect(startFarmingAction).not.toHaveBeenCalled();
   });
 
   it("uses rod, lure and stores actions aboard a vessel rather than farming actions", () => {

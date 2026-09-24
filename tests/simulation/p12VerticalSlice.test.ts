@@ -163,6 +163,7 @@ function catchBasicFish(simulation: Simulation): void {
 function landSportFish(simulation: Simulation): string {
   const before = new Set(Object.keys(simulation.state.fishCargo));
   for (let step = 0; step < 800 && simulation.activeFishingEncounter; step += 1) {
+    if (simulation.state.sportFishing?.awaitingLandingChoice) break;
     const encounter = simulation.activeFishingEncounter.getState();
     const isSlacking = encounter.lineTension > 82;
     const isReeling = encounter.lineTension < 70 && !isSlacking;
@@ -179,6 +180,8 @@ function landSportFish(simulation: Simulation): string {
     simulation.tick(0.5);
   }
 
+  expect(simulation.state.sportFishing?.awaitingLandingChoice).toBe(true);
+  expect(simulation.execute({ type: "fishing.keep-catch" })).toMatchObject({ success: true });
   expect(simulation.activeFishingEncounter).toBeNull();
   const cargoId = Object.keys(simulation.state.fishCargo).find((id) => !before.has(id));
   expect(cargoId).toBeDefined();
@@ -267,7 +270,7 @@ describe("P12 new-save vertical slice", () => {
     processAndCollect(simulation, "recipe.wheat_to_grain", "struct.starter_mill", 5);
     expect(InventoryManager.getItemCount(playerInventory(), "item.ground_grain")).toBe(4);
     processAndCollect(simulation, "recipe.craft_chum", "struct.workbench", 10);
-    expect(InventoryManager.getItemCount(playerInventory(), "item.chum_bucket")).toBe(1);
+    expect(InventoryManager.getItemCount(playerInventory(), "item.chum_bucket")).toBe(2);
     talkTo(simulation, "npc.barnaby");
     expect(activeQuestId(simulation)).toBe("quest.act3_river_angler");
 

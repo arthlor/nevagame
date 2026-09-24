@@ -10,16 +10,22 @@ import type { DomainContext } from "./DomainContext";
 import type { MarketDomain } from "./MarketDomain";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
-import { cargoClassFits, isProduceContractType, qualityRank, rodMeetsMinimum } from "./domainRules";
+import { cargoClassFits, isPhysicalTradePackSpecies, isProduceContractType, qualityRank, rodMeetsMinimum } from "./domainRules";
 import { isSpeciesInSeason } from "../fishing/seasonalAvailability";
 import { SCHOOL_SPAWN_POINTS } from "./FishingDomain";
 import { getFishWeightMultiplier, getQualityMultiplier } from "../economy/calculateFishValue";
+import { calculateFishPrice } from "../economy/calculateFishValue";
+import { cropQualityPriceMultiplier, quoteCommoditySale } from "../economy/marketPricing";
 import { getFreshnessPriceMultiplier } from "../fishing/calculateFreshness";
+import { sportFishLandingXp } from "../economy/calculateFishXp";
 import { contractSlotsForRank, getRankForXp } from "../../content/progression";
-import { requiredBoatTypeForMarket } from "../../world/WorldMoorings";
+import { BOAT_MOORINGS, requiredBoatTypeForMarket } from "../../world/WorldMoorings";
+import { FISHING_ECOLOGY_DEFINITIONS, type FishingEcologyId } from "../../world/WorldIslands";
 
 
 const FISH_QUALITIES: readonly FishQuality[] = ["common", "fine", "exceptional", "trophy"];
+/** Time spent waiting at the counter for a replacement notice. */
+export const CONTRACT_PASS_WAIT_MINUTES = 120;
 
 /**
  * A delivery market across a sailing route (Sunreach Cove) is reachable only
@@ -28,6 +34,15 @@ const FISH_QUALITIES: readonly FishQuality[] = ["common", "fine", "exceptional",
 export function canReachDeliveryMarket(state: GameState, marketId: string): boolean {
   const boatTypeId = requiredBoatTypeForMarket(marketId);
   return !boatTypeId || Object.values(state.boats).some((boat) => boat.boatTypeId === boatTypeId);
+}
+
+function canReachFishingEcology(state: GameState, ecologyId: FishingEcologyId): boolean {
+  const islandId = FISHING_ECOLOGY_DEFINITIONS[ecologyId].islandId;
+  if (islandId === "island.neva") return true;
+  return BOAT_MOORINGS.some((mooring) =>
+    mooring.islandId === islandId && mooring.marketId !== null
+      && canReachDeliveryMarket(state, mooring.marketId)
+  );
 }
 
 export function feasibleContractTargets(
@@ -42,12 +57,12 @@ export function feasibleContractTargets(
     if (isProduceContractType(template.type)) {
       const crop = [...ContentRegistry.crops.values()].find((candidate) => candidate.harvestItemId === targetId);
       const deliveryMarket = state.markets[template.deliveryMarketId];
-      const seedIsStocked = crop && [...ContentRegistry.markets.values()].some((market) =>
-        market.retail.seedCropIds?.includes(crop.id)
+      const seedIsReachable = crop && [...ContentRegistry.markets.values()].some((market) =>
+        market.retail.seedCropIds?.includes(crop.id) && canReachDeliveryMarket(state, market.id)
       );
       return Boolean(
         crop &&
-        seedIsStocked &&
+        seedIsReachable &&
         state.player.proficiencies.farming >= crop.minimumFarmingXp &&
         deliveryMarket?.commodities[targetId]
       );
@@ -70,7 +85,10 @@ export function feasibleContractTargets(
     }
 
     const hasReachableSchool = SCHOOL_SPAWN_POINTS.some(
-      (point) => fish.habitats.includes(point.habitatId) && rod.allowedHabitats.includes(point.habitatId)
+      (point) => fish.ecologyIds.includes(point.ecologyId)
+        && fish.habitats.includes(point.habitatId)
+        && rod.allowedHabitats.includes(point.habitatId)
+        && canReachFishingEcology(state, point.ecologyId)
     );
     if (!hasReachableSchool || !rodMeetsMinimum(rod.rodClass, fish.minimumRodClass)) return false;
 
@@ -110,20 +128,22 @@ export function voidActiveContracts(state: GameState): number {
 
 function refundAndExpireContract(state: GameState, contract: GameState["contracts"][number]): void {
   contract.status = "expired";
-  if (contract.quantityFulfilled <= 0) return;
+  const exactValue = contract.deliveredValueMoney ?? 0;
+  const legacyQuantity = contract.legacyUnvaluedQuantity ?? contract.quantityFulfilled;
+  state.player.money += exactValue;
+  contract.deliveredValueMoney = 0;
+  contract.legacyUnvaluedQuantity = 0;
+  contract.quantityFulfilled = 0;
+  if (legacyQuantity <= 0) return;
   const itemId = contract.targetItemIdOrSpecies;
-  const quantity = contract.quantityFulfilled;
 
-  // Produce is restored to the satchel when it fits. Physical fish cargo was
-  // already removed from the world by `deliverFish`, so neither lane can hand
-  // the exact goods back; both fall through to the reference-value payout so a
-  // partially kept promise is never silently forfeited.
+  // A pre-v57 delivery has no surviving grade, weight or freshness snapshot.
+  // Preserve its previous refund rule rather than inventing an exact value.
   if (isProduceContractType(contract.type)) {
     const inventory = state.inventories[state.player.inventoryId];
-    const stack = [{ itemId, quantity }];
+    const stack = [{ itemId, quantity: legacyQuantity }];
     if (inventory && InventoryManager.canAddItems(inventory, stack)) {
       InventoryManager.addItemsAtomically(inventory, stack);
-      contract.quantityFulfilled = 0;
       return;
     }
   }
@@ -134,8 +154,7 @@ function refundAndExpireContract(state: GameState, contract: GameState["contract
     : null;
   const item = ContentRegistry.items.get(itemId);
   if (item || referenceValue !== null) {
-    state.player.money += Math.round((referenceValue ?? item!.baseValue) * quantity);
-    contract.quantityFulfilled = 0;
+    state.player.money += Math.round((referenceValue ?? item!.baseValue) * legacyQuantity);
   }
 }
 
@@ -242,6 +261,40 @@ function gentlest<T extends { template: ContractTemplateDefinition }>(candidates
   return candidates.filter(({ template }) => contractTemplateDifficulty(template) === floor);
 }
 
+/**
+ * A posted order freezes its XP alongside its other requirements. Fish effort
+ * follows the same species, grade and weight curve as the catch itself; the
+ * commission then pays for finding and delivering that specific catch. A
+ * cross-channel tag is authored route work, unlike an inferred travel distance.
+ */
+function postedContractXp(
+  template: ContractTemplateDefinition,
+  targetId: string,
+  quantityRequired: number,
+  minWeightKg: number | undefined
+): number {
+  const fish = !isProduceContractType(template.type)
+    ? ContentRegistry.fishSpecies.get(targetId)
+    : undefined;
+  const perUnit = fish
+    ? Math.max(50, Math.round(sportFishLandingXp(
+      fish,
+      minWeightKg ?? fish.weightKg.average,
+      asFishQuality(template.minQuality) ?? "common"
+    ) * 0.75))
+    : 25;
+  const freshnessMultiplier = (template.minFreshness ?? 0) >= 90
+    ? 1.2
+    : (template.minFreshness ?? 0) >= 80 ? 1.1 : 1;
+  const deadlineMultiplier = template.durationMinutes <= 480
+    ? 1.2
+    : template.durationMinutes <= 960 ? 1.1 : 1;
+  const authoredRouteBonus = template.tags?.includes("cross-channel") ? 60 : 0;
+  return Math.min(1200, Math.max(50, Math.round(
+    quantityRequired * perUnit * freshnessMultiplier * deadlineMultiplier + authoredRouteBonus
+  )));
+}
+
 export function refillContracts(
   state: GameState,
   rng: SeededRng,
@@ -270,6 +323,10 @@ export function refillContracts(
     );
     const hasProduce = activeContracts.some((contract) => isProduceContractType(contract.type));
     const hasFishing = activeContracts.some((contract) => !isProduceContractType(contract.type));
+    const hasRegional = activeContracts.some((contract) =>
+      ContentRegistry.contractTemplates.get(contract.templateId)?.tags?.includes("mainland")
+      || ContentRegistry.contractTemplates.get(contract.templateId)?.tags?.includes("cross-channel")
+    );
     const hasRowboat = state.quests.unlockedFeatureIds.includes("boat.player_rowboat");
     const preferred = requested.length > 0
       ? requested
@@ -277,6 +334,10 @@ export function refillContracts(
         ? eligible.filter(({ template }) => isProduceContractType(template.type))
         : hasRowboat && !hasFishing
           ? eligible.filter(({ template }) => !isProduceContractType(template.type))
+          : !hasRegional
+            ? eligible.filter(({ template }) =>
+              template.tags?.includes("mainland") || template.tags?.includes("cross-channel")
+            )
           : [];
     const candidatePool = preferred.length > 0 ? preferred : eligible;
     const candidate = candidatePool[rng.intInclusive(0, candidatePool.length - 1)];
@@ -284,7 +345,7 @@ export function refillContracts(
     const targetId = candidate.targetIds[rng.intInclusive(0, candidate.targetIds.length - 1)];
     const quantityRequired = rng.intInclusive(template.quantityRange[0], template.quantityRange[1]);
     const minWeightKg = template.minWeightKgRange
-      ? rng.range(template.minWeightKgRange[0], template.minWeightKgRange[1])
+      ? Math.round(rng.range(template.minWeightKgRange[0], template.minWeightKgRange[1]) * 10) / 10
       : undefined;
     const referenceValue = contractTargetReferenceValue(state, template, targetId, minWeightKg);
     if (referenceValue === null) return;
@@ -301,13 +362,15 @@ export function refillContracts(
       targetItemIdOrSpecies: targetId,
       quantityRequired,
       quantityFulfilled: 0,
+      deliveredValueMoney: 0,
+      legacyUnvaluedQuantity: 0,
       minQuality: template.type === "produce" ? undefined : asFishQuality(template.minQuality),
       minFreshness: template.type === "produce" ? undefined : template.minFreshness,
       minWeightKg,
       rewardMoney,
       rewardSkillXp: {
         skill: template.rewardSkill,
-        xp: Math.max(50, quantityRequired * 25)
+        xp: postedContractXp(template, targetId, quantityRequired, minWeightKg)
       },
       expiresAtMinute: state.clock.currentMinute + template.durationMinutes,
       status: "active"
@@ -352,10 +415,25 @@ export class ContractDomain {
     const remaining = contract.quantityRequired - contract.quantityFulfilled;
     if (quantity > remaining) return { success: false, reason: `Only ${remaining} more needed for this contract` };
     const inventory = state.inventories[state.player.inventoryId];
-    if (!InventoryManager.hasItems(inventory, [{ itemId, quantity }])) {
+    const removedLots = InventoryManager.planItemRemoval(inventory, itemId, quantity);
+    if (!removedLots) {
       return { success: false, reason: "You do not have enough items to deliver" };
     }
-    InventoryManager.removeItemsAtomically(inventory, [{ itemId, quantity }]);
+    const commodity = state.markets[requiredMarketId]?.commodities[itemId];
+    if (!commodity) return { success: false, reason: "This market cannot value those goods" };
+    const qualityMultipliers = removedLots.flatMap((lot) =>
+      Array<number>(lot.quantity).fill(cropQualityPriceMultiplier(lot.quality))
+    );
+    const deliveredValue = quoteCommoditySale(commodity, quantity, {
+      absoluteHour: state.clock.currentMinute / 60,
+      worldSeed: state.worldSeed,
+      qualityMultipliers
+    }).total;
+    if (!InventoryManager.removeItemsAtomically(inventory, [{ itemId, quantity }])) {
+      return { success: false, reason: "You do not have enough items to deliver" };
+    }
+    contract.legacyUnvaluedQuantity ??= contract.quantityFulfilled;
+    contract.deliveredValueMoney = (contract.deliveredValueMoney ?? 0) + deliveredValue;
     contract.quantityFulfilled += quantity;
     const completion = this.completeIfFulfilled(contract);
     return { success: true, delivered: quantity, completed: completion.completed, rewardMoney: completion.rewardMoney };
@@ -375,6 +453,11 @@ export class ContractDomain {
     }
     const fishCargo = state.fishCargo[cargoId];
     if (!fishCargo) return { success: false, reason: "Fish cargo not found" };
+    const species = ContentRegistry.fishSpecies.get(fishCargo.speciesId);
+    if (species && isPhysicalTradePackSpecies(species) &&
+      (fishCargo.location.type !== "player" || state.player.carriedFishCargoId !== cargoId)) {
+      return { success: false, reason: "Collect this fish trade pack and carry it to the contract counter" };
+    }
     if (!this.navigation.canAccessFishCargo(fishCargo, nearbyMarketId)) {
       return { success: false, reason: "Bring this fish cargo to the market dock" };
     }
@@ -394,8 +477,21 @@ export class ContractDomain {
       return { success: false, reason: `Contract requires at least ${contract.minWeightKg} kg` };
     }
 
+    const commodity = state.markets[requiredMarketId]?.commodities[fishCargo.speciesId];
+    if (!commodity || !species) return { success: false, reason: "This market cannot value that fish" };
+    const demand = quoteCommoditySale(commodity, 1, {
+      absoluteHour: state.clock.currentMinute / 60,
+      worldSeed: state.worldSeed
+    }).averageDemandModifier;
+    const deliveredValue = calculateFishPrice(
+      species, fishCargo.weightKg, fishCargo.quality, fishCargo.freshness,
+      demand, commodity.seasonalModifier
+    ).finalPrice;
+
     this.cargo.clearPointers(fishCargo);
     delete state.fishCargo[cargoId];
+    contract.legacyUnvaluedQuantity ??= contract.quantityFulfilled;
+    contract.deliveredValueMoney = (contract.deliveredValueMoney ?? 0) + deliveredValue;
     contract.quantityFulfilled += 1;
     const completion = this.completeIfFulfilled(contract);
     return { success: true, delivered: 1, completed: completion.completed, rewardMoney: completion.rewardMoney };
@@ -406,11 +502,16 @@ export class ContractDomain {
    * player can actually keep. An order with goods already delivered against it
    * stays: those goods are part of the promise, and expiry is what refunds them.
    * The replacement is posted at once and cannot be the order just passed.
+   * The command caller then advances the quoted wait, so this path cannot
+   * reroll the board without consuming game time.
    */
   public passContract(contractId: string): { success: boolean; reason?: string } {
     const { state } = this.context;
     const contract = this.getActive(contractId);
     if (!contract) return { success: false, reason: "That order is no longer on the board" };
+    if (this.market.getNearbyMarketId() !== contract.deliveryMarketId) {
+      return { success: false, reason: "Visit the order's listed counter to pass on it" };
+    }
     if (contract.quantityFulfilled > 0) {
       return { success: false, reason: "Part of this order is already delivered; it stays until it is filled or runs out" };
     }
@@ -449,17 +550,20 @@ export class ContractDomain {
   ): { completed: boolean; rewardMoney?: number } {
     const { state, events } = this.context;
     if (contract.quantityFulfilled < contract.quantityRequired) return { completed: false };
+    const payoutMoney = Math.max(contract.rewardMoney, contract.deliveredValueMoney ?? 0);
     contract.quantityFulfilled = contract.quantityRequired;
     contract.status = "completed";
-    state.player.money += contract.rewardMoney;
+    contract.deliveredValueMoney = 0;
+    contract.legacyUnvaluedQuantity = 0;
+    state.player.money += payoutMoney;
     this.progression.addProficiencyXp(contract.rewardSkillXp.skill, contract.rewardSkillXp.xp);
     events.emit("ContractCompleted", {
       contractId: contract.id,
       templateId: contract.templateId,
       contractType: contract.type,
-      rewardMoney: contract.rewardMoney,
+      rewardMoney: payoutMoney,
       minute: state.clock.currentMinute
     });
-    return { completed: true, rewardMoney: contract.rewardMoney };
+    return { completed: true, rewardMoney: payoutMoney };
   }
 }

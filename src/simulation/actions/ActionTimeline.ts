@@ -32,6 +32,8 @@ export interface FarmingActionTarget {
 export interface FarmingActionSnapshot {
   id: number;
   action: AuthoredPresentationAction;
+  /** Quoted Work at admission; replaced by the charged amount when a command returns it. */
+  workCost?: number | null;
   phase: FarmingActionPhase;
   stage: AuthoredActionStage;
   target: FarmingActionTarget;
@@ -78,6 +80,7 @@ export const SIMULATION_ACTION_TIMINGS: Readonly<Record<AuthoredPresentationActi
 interface ActiveAction {
   id: number;
   action: AuthoredPresentationAction;
+  workCost: number | null;
   phase: FarmingActionPhase;
   target: FarmingActionTarget;
   command: GameCommand;
@@ -130,12 +133,14 @@ export class SimulationActionTimeline {
     target: FarmingActionTarget,
     nowMs: number,
     command: GameCommand,
-    callbacks: FarmingActionCallbacks = {}
+    callbacks: FarmingActionCallbacks = {},
+    workCost: number | null = null
   ): boolean {
     if (this.activeAction) return false;
     this.activeAction = {
       id: this.nextId++,
       action,
+      workCost,
       phase: "started",
       target: { ...target },
       command: structuredClone(command),
@@ -163,6 +168,9 @@ export class SimulationActionTimeline {
       // change mode and ask presentation code to interrupt the current action.
       active.commitAttempted = true;
       const result = this.executeCommand(active.command);
+      if (active.workCost !== null && result.success && typeof result.cost === "number") {
+        active.workCost = result.cost;
+      }
       active.commitResult = { ...result };
       active.committed = result.success;
       active.phase = result.success ? "committed" : "invalidated";
@@ -201,6 +209,7 @@ export class SimulationActionTimeline {
     return {
       id: active.id,
       action: active.action,
+      workCost: active.workCost,
       phase: active.phase,
       stage,
       target: { ...active.target },

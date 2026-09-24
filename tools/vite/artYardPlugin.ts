@@ -6,6 +6,8 @@ import type { Plugin } from "vite";
 
 const YARD_PATH = "/__neva_art_yard";
 const DATA_PATH = `${YARD_PATH}/data`;
+/** Dev-only: the source catalog entry of an authored asset, for the Art Yard's live generator preview. */
+const SOURCE_PATH = `${YARD_PATH}/source`;
 const STAGE_PATTERN = /^run-[A-Za-z0-9_-]+$/;
 
 type CatalogAsset = {
@@ -186,6 +188,21 @@ export function artYardPlugin(rootDirectory: string): Plugin {
             response.end(transformedHtml);
           } catch (error) {
             next(error);
+          }
+          return;
+        }
+        if (url.pathname === SOURCE_PATH) {
+          try {
+            const assetId = url.searchParams.get("asset");
+            const contracts = readJson(path.resolve(rootDirectory, "tools/authored/generators/contracts.json"));
+            const spec = (readJson(catalogPath).assets as Array<Record<string, unknown>>)
+              .find((asset) => asset.id === assetId);
+            if (!spec) throw new Error(`Unknown catalog asset ${assetId}`);
+            jsonResponse(response, { authored: Object.hasOwn(contracts, String(spec.generator)), spec });
+          } catch (error) {
+            response.statusCode = 404;
+            response.setHeader("Content-Type", "text/plain; charset=utf-8");
+            response.end(error instanceof Error ? error.message : String(error));
           }
           return;
         }

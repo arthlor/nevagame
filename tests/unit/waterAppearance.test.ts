@@ -8,13 +8,13 @@ import { FacetedWater } from "../../src/render/water/FacetedWater";
 // and appearance are exercised in the local production preview separately.
 describe("regional water appearance", () => {
   it("uses the canonical lake bounds on both water surfaces and the fall", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 12, depth: 12 });
     try {
       const shared = water.coastalUniforms;
       expect(shared.uLakeBounds.value.toArray()).toEqual([
         MAINLAND_LAKE.center.x, MAINLAND_LAKE.center.z, MAINLAND_LAKE.radiusX, MAINLAND_LAKE.radiusZ
       ]);
-      for (const material of [water.mesh.material, water.nearPatch.mesh.material, water.headwaterFall.mesh.material]) {
+      for (const material of [water.mesh.material, water.headwaterSurface.material, water.headwaterFall.mesh.material]) {
         for (const key of ["uLakeBounds", "uLakeRippleScale", "uLakeCurrentScale", "uFreshwaterAbsorptionScale"] as const) {
           expect(material.uniforms[key]).toBe(shared[key]);
         }
@@ -22,8 +22,8 @@ describe("regional water appearance", () => {
     } finally { water.dispose(); }
   });
 
-  it("retains the base mesh and field textures through repeated graphics changes", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+  it("retains the lattice and field textures through repeated graphics changes", () => {
+    const water = new FacetedWater({ width: 12, depth: 12 });
     try {
       const geometry = water.mesh.geometry, profile = water.waterProfileMap;
       const depth = water.coastalUniforms.uWaterDepthMap.value;
@@ -33,11 +33,13 @@ describe("regional water appearance", () => {
         expect(water.waterProfileMap).toBe(profile);
         expect(water.coastalUniforms.uWaterDepthMap.value).toBe(depth);
         expect(water.coastalUniforms.uSsrEnabled.value).toBe(tier === "high" ? 1 : 0);
-        // The surface detail normal is one extra normal evaluation, not a
-        // pass or a target, so medium carries it too; only Low drops it.
-        // Read the tier table rather than restating which tiers those are.
-        expect(water.coastalUniforms.uRippleNormalStrength.value > 0)
-          .toBe(CANONICAL_RENDER_CONFIG.waterSurface.quality[tier].detailNormal);
+        // Detail normals are texture taps, not a pass or a target: every tier
+        // keeps the large wind layer; tiers without full detail drop the
+        // small layer. Read the tier table rather than restating the tiers.
+        const detailTier = water.uniforms.uDetailTier.value as THREE.Vector2;
+        const fullDetail = CANONICAL_RENDER_CONFIG.waterSurface.quality[tier].detailNormal;
+        expect(detailTier.x).toBeGreaterThan(0);
+        expect(detailTier.y).toBe(fullDetail ? 1 : 0);
         expect(water.headwaterFall.mesh.geometry.index!.count / 3).toBe(
           CANONICAL_RENDER_CONFIG.waterSurface.headwaters.fall.rows[tier]
           * CANONICAL_RENDER_CONFIG.waterSurface.headwaters.fall.acrossSegments * 2

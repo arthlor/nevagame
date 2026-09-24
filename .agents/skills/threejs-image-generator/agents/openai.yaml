@@ -1,6 +1,0 @@
-interface:
-  display_name: "Three.js Image Generator"
-  short_description: "Generate or edit requested Gemini game art"
-  default_prompt: "Use $threejs-image-generator for this explicitly requested Gemini image-generation or editing task, following the project’s art and integration rules."
-policy:
-  allow_implicit_invocation: false

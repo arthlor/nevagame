@@ -234,56 +234,36 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
   });
 
   // =========================================================================
-  // 3. TOOL HOTBAR SELECTION STATES & INTERACTION PROMPT PARSER
+  // 3. CONTEXTUAL ACTION STATES & INTERACTION PROMPT PARSER
   // =========================================================================
-  describe("3. Tool Hotbar States & Interaction Prompt Bracket Parsing", () => {
-    it("selects hotbar slots 1 through 5 and marks active button with aria-pressed", () => {
+  describe("3. Contextual Actions & Interaction Prompt Bracket Parsing", () => {
+    it("renders only currently relevant actions", () => {
       const state = createInitialGameState();
-
-      for (let slot = 1; slot <= 5; slot++) {
-        const html = renderToString(
-          React.createElement(HUD, {
-            state,
-            promptText: null,
-            activeToolSlot: slot
-          })
-        );
-        const buttons = html.match(/<button\b[^>]*data-testid="tool-slot-\d+"[^>]*>/g) ?? [];
-        expect(buttons).toHaveLength(5);
-        const selected = buttons.filter(button => button.includes('aria-pressed="true"'));
-        expect(selected).toHaveLength(1);
-        expect(selected[0]).toContain(`data-testid="tool-slot-${slot}"`);
-        expect(buttons.filter(button => button.includes('aria-pressed="false"'))).toHaveLength(4);
-      }
+      const empty = renderToString(React.createElement(HUD, { state, promptText: null }));
+      expect(empty).not.toContain("guild-context-actions");
+      expect(empty).not.toContain("smart-contextual-toolbar");
+      const planting = renderToString(React.createElement(HUD, {
+        state, promptText: null, canStartPlanting: true, onStartPlanting: () => {}
+      }));
+      expect(planting).toContain("guild-context-actions");
+      expect(planting).toContain(">Plant</button>");
+      expect(planting).not.toContain("Other actions");
     });
 
-    it("gracefully handles null, undefined, 0, and out-of-bounds tool slot indices", () => {
+    it("shows competing crop verbs without empty sockets", () => {
       const state = createInitialGameState();
-
-      // slot 0 (out of bounds)
-      const html0 = renderToString(
-        React.createElement(HUD, { state, promptText: null, activeToolSlot: 0 })
-      );
-      expect(html0).not.toContain("is-active");
-
-      // slot 6 (out of bounds)
-      const html6 = renderToString(
-        React.createElement(HUD, { state, promptText: null, activeToolSlot: 6 })
-      );
-      expect(html6).not.toContain("is-active");
-
-      // slot -1 (negative)
-      const htmlNeg = renderToString(
-        React.createElement(HUD, { state, promptText: null, activeToolSlot: -1 })
-      );
-      expect(htmlNeg).not.toContain("is-active");
-
-      // slot undefined (falls back to default 1)
-      const htmlDef = renderToString(
-        React.createElement(HUD, { state, promptText: null, activeToolSlot: undefined })
-      );
-      expect(htmlDef).toContain('data-testid="tool-slot-1"');
-      expect(htmlDef).toContain("is-active");
+      const html = renderToString(React.createElement(HUD, { state,
+        promptText: "[E] Harvest Wheat · 5 Work",
+        onChooseCropAction: () => {},
+        contextualCropChoices: [
+          { cropId: "placed.1", action: "water", label: "Water Wheat", detail: "5 Work" },
+          { cropId: "placed.1", action: "fertilize", label: "Fertilize soil", detail: "8 Work" }
+        ]
+      }));
+      expect(html).toContain("Other actions");
+      expect(html).toContain("Water Wheat");
+      expect(html).toContain("Fertilize soil");
+      expect(html).not.toContain("tool-slot-");
     });
 
     it("parses single key brackets: [E], [Space], [F], [W], [Shift]", () => {

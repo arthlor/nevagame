@@ -1,6 +1,8 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { RECORD_TUNING, recordTierForRodClass, type RecordTier } from "../../content/records";
 import { FISHING_ECOLOGY_DEFINITIONS } from "../../world/WorldIslands";
+import { rodMeetsMinimum } from "../domains/domainRules";
+import { isSpeciesInSeason } from "../fishing/seasonalAvailability";
 import type { RecordMilestoneDto } from "../core/contracts";
 import type { GameState } from "../core/types";
 
@@ -14,7 +16,8 @@ function milestone(
   detail: string,
   current: number,
   target: number,
-  currentLabel: string
+  currentLabel: string,
+  followable = false
 ): RecordMilestoneDto {
   const clamped = Math.max(0, Math.min(current, target));
   return {
@@ -23,6 +26,7 @@ function milestone(
     title,
     detail,
     achieved: target > 0 && current >= target,
+    followable: followable && target > 0 && current < target,
     progress: target > 0 ? clamped / target : 0,
     currentLabel
   };
@@ -61,9 +65,17 @@ export function buildRecordMilestones(state: GameState): RecordMilestoneDto[] {
   for (const fish of species) {
     if (!fish.isSportFish) continue;
     const record = state.journal.fishRecords[fish.id];
+    const followable = Boolean(record?.discovered)
+      && isSpeciesInSeason(fish, state.clock.season)
+      && state.player.ownedRodIds.some((rodId) => {
+        const rod = ContentRegistry.rods.get(rodId);
+        return rod ? rodMeetsMinimum(rod.rodClass, fish.minimumRodClass) : false;
+      });
     const tier = recordTierForRodClass(fish.minimumRodClass);
-    const threshold = fish.weightKg.average
-      + (fish.weightKg.max - fish.weightKg.average) * RECORD_TUNING.weightRecordFraction;
+    // Landed weights are recorded to one decimal place. Round the required
+    // weight up to that precision so the displayed target is the actual gate.
+    const threshold = Math.ceil((fish.weightKg.average
+      + (fish.weightKg.max - fish.weightKg.average) * RECORD_TUNING.weightRecordFraction) * 10) / 10;
     const largest = record?.largestWeightKg ?? 0;
     milestones.push(milestone(
       `record.weight.${fish.id}`,
@@ -72,7 +84,8 @@ export function buildRecordMilestones(state: GameState): RecordMilestoneDto[] {
       `Land one at ${threshold.toFixed(1)} kg or better.`,
       largest,
       threshold,
-      `${largest.toFixed(1)} / ${threshold.toFixed(1)} kg`
+      `${largest.toFixed(1)} / ${threshold.toFixed(1)} kg`,
+      followable
     ));
 
     const best = FISH_QUALITY_RANK[record?.bestQuality ?? "common"] ?? 0;
@@ -84,7 +97,8 @@ export function buildRecordMilestones(state: GameState): RecordMilestoneDto[] {
       `Land one graded ${RECORD_TUNING.trophyFishQuality} or better.`,
       record?.bestQuality ? best + 1 : 0,
       wanted + 1,
-      record?.bestQuality ?? "none"
+      record?.bestQuality ?? "none",
+      followable
     ));
   }
 
@@ -98,7 +112,8 @@ export function buildRecordMilestones(state: GameState): RecordMilestoneDto[] {
       `Harvest ${RECORD_TUNING.cropMasteryHarvests} in total.`,
       harvested,
       RECORD_TUNING.cropMasteryHarvests,
-      `${harvested} / ${RECORD_TUNING.cropMasteryHarvests}`
+      `${harvested} / ${RECORD_TUNING.cropMasteryHarvests}`,
+      harvested > 0 && state.player.proficiencies.farming >= crop.minimumFarmingXp
     ));
   }
 
@@ -114,7 +129,8 @@ export function buildRecordMilestones(state: GameState): RecordMilestoneDto[] {
     `Bring any crop in at ${RECORD_TUNING.prizeCropQuality} grade.`,
     Math.min(prizeCrops, 1),
     1,
-    prizeCrops > 0 ? "achieved" : "none"
+    prizeCrops > 0 ? "achieved" : "none",
+    Object.values(state.journal.cropRecords).some((record) => record.harvestedCount > 0)
   ));
 
   const fishedHabitats = RECORD_TUNING.sweepHabitats.filter((habitat) =>

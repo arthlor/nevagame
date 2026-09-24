@@ -39,6 +39,7 @@ describe("UI Bug Hunt Regression Tests", () => {
           isSportFish: false,
           habitatsLabel: "Coastal",
           seasonsLabel: "All seasons",
+          seasonAvailabilityLabel: "Strong run now",
           timeWindowsLabel: "All day",
           rodClassLabel: "Standard",
           weightKg: { min: 1.2, average: 1.8, max: 2.5 },

@@ -8,7 +8,7 @@ and explicit GPU budgets.
 
 - Acceptance principle
 - Visual contract
-- Inspection controls
+- Required inspection controls
 - Mechanism-specific evidence
 - No-post and isolation gates
 - Determinism and captures
@@ -35,7 +35,7 @@ failure, or dependence on post-processing.
 
 ## Visual contract
 
-Reuse the project’s visual contract. When a new mechanism needs one, record only the applicable fields; the type below is an example, not a required new schema:
+Write this before tuning:
 
 ```ts
 type VisualContract = {
@@ -69,11 +69,11 @@ cloud history rejects across a foreground disocclusion
 ```
 
 When matching a supplied visual reference, record the mechanisms that create
-its identity and material divergences in backend, resolution, asset,
-scale, or composition that affect interpretation. Do not substitute a generic category match for the
+its identity and every deliberate divergence in backend, resolution, asset,
+scale, or composition. Do not substitute a generic category match for the
 specific visual contract.
 
-## Inspection controls
+## Required inspection controls
 
 Any runnable inspection surface should expose the controls relevant to its
 mechanism:
@@ -91,7 +91,7 @@ runtime metrics
 reset history
 ```
 
-Use existing controls that answer the current validation question. Add only missing diagnostics needed to resolve uncertainty. A new mechanism may benefit from:
+At minimum, provide:
 
 - one design camera;
 - near and far camera bookmarks;
@@ -104,12 +104,6 @@ Controls must alter the actual pipeline. A debug dropdown that only changes a
 label is worse than no diagnostic because it creates false confidence.
 
 ## Mechanism-specific evidence
-
-The following sections are diagnostic menus for their respective mechanisms.
-Select the changed contract and plausible failure modes; they do not require
-implementing features such as history, foam or cloud shadows that are absent
-from the requested system. Broader certification of a newly published example
-needs evidence for every mechanism it claims.
 
 ### Procedural growth
 
@@ -264,7 +258,7 @@ composite. Tone mapping and output conversion must have one owner.
 
 ## No-post and isolation gates
 
-When diagnosing image-effect composition, inspect the relevant signals using existing controls or a focused diagnostic:
+Every example with image effects must expose:
 
 ```text
 final
@@ -299,7 +293,7 @@ backend
 asset versions
 ```
 
-Select the captures needed for the changed contract or required gate:
+Capture:
 
 ```text
 design view
@@ -391,9 +385,7 @@ Delete or withhold an example when any applies:
 
 ## Sign-off record
 
-For a newly published skill example, record its supported mechanisms and evidence.
-For an application change, follow the project handoff format and include only
-relevant evidence or gaps. Possible fields:
+Record:
 
 ```text
 skill and example ID
@@ -409,6 +401,6 @@ known defects
 review decision
 ```
 
-Publish only accepted examples. When inputs change, rerun the affected checks
-needed to support their claims; broaden if a failure or unresolved concern
-requires it. Application visual approval follows the project’s own authority.
+Publish only accepted examples. Repeat the same evidence set whenever
+mechanism code, Three.js version, renderer backend, camera, or quality tier
+changes.

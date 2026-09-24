@@ -101,11 +101,9 @@ describe("starter donkey asset and placement contract", () => {
 
     expect(donkeyClips.get("walk")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.walkSpeedMetersPerSecond);
     expect(donkeyClips.get("trot")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.trotSpeedMetersPerSecond);
-    // Gallop retuned 8.4 → 7.5 m/s ahead of the Blender rebake (authorized
-    // interim): the baked 8.4 m/s cadence stands until fauna_donkey_a is
-    // regenerated, so playback runs at ~0.89x with feet planted.
-    expect(donkeyClips.get("gallop")?.referenceSpeedMetersPerSecond).toBe(8.4);
-    expect(MOUNT_TUNING.gallopSpeedMetersPerSecond / donkeyClips.get("gallop")!.referenceSpeedMetersPerSecond!).toBeCloseTo(7.5 / 8.4, 8);
+    // The re-rigged donkey bakes its gallop stride at the tuned 7.5 m/s, so
+    // gallop playback runs at 1x with hooves planted.
+    expect(donkeyClips.get("gallop")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.gallopSpeedMetersPerSecond);
     const playerAsset = await loadHumanoidAsset(ASSET_IDS.CHAR_PLAYER_A);
     const sourceClips = playerAsset.userData.animationClips as Array<{ name: string; duration: number }>;
     for (const name of ["walk", "run"]) {
@@ -115,9 +113,7 @@ describe("starter donkey asset and placement contract", () => {
     }
     expect(playerClips.get("mounted_walk")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.walkSpeedMetersPerSecond);
     expect(playerClips.get("mounted_trot")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.trotSpeedMetersPerSecond);
-    // Same interim as the donkey gallop above: char_player_a is regenerated in
-    // the same pass.
-    expect(playerClips.get("mounted_gallop")?.referenceSpeedMetersPerSecond).toBe(8.4);
+    expect(playerClips.get("mounted_gallop")?.referenceSpeedMetersPerSecond).toBe(MOUNT_TUNING.gallopSpeedMetersPerSecond);
     expect(playerClips.get("mounted_walk")?.durationSeconds).toBe(donkeyClips.get("walk")?.durationSeconds);
     expect(playerClips.get("mounted_trot")?.durationSeconds).toBe(donkeyClips.get("trot")?.durationSeconds);
     expect(playerClips.get("mounted_gallop")?.durationSeconds).toBe(donkeyClips.get("gallop")?.durationSeconds);
@@ -136,7 +132,8 @@ describe("starter donkey asset and placement contract", () => {
     const manifestAsset = publishedManifest.assets.find((asset) => asset.id === "fauna_donkey_a");
     expect(manifestAsset).toBeDefined();
     expect(manifestAsset).toMatchObject({
-      generator: "fauna_donkey",
+      // The Tripo donkey is re-rigged offline and published from its adapted library.
+      generator: "imported_blend",
       collision: "none",
       lod: "hero",
       artContractStatus: "passed"

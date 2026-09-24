@@ -1,12 +1,9 @@
 ---
 name: threejs-spectral-ocean
-description: "Build large FFT and spectral oceans plus coastal transitions in Three.js/TSL. Use for multi-cascade oceans, hybrid FFT plus Gerstner water, coastal breakers and swash, Snell windows, caustics, and Jacobian whitecaps. Not for bounded pools."
+description: Build large procedural oceans and coast transitions in Three.js. Use for WebGPU/TSL FFT oceans, multi-cascade wavelength bands, coastal breakers, finite-volume shallow-water beach waves, signed-distance coastlines, shallow-water swash films, wet-sand transitions, rock-impact spray, stylized above/below surface optics, permanently submerged Snell-window views, total internal reflection, forward-refracted structures through an interface, pixel-footprint spectral LOD, aquatic perspective, caustic god rays, choppy displacement, spectral derivatives, Jacobian whitecaps, windrow and temporal foam, analytic sky reflection, underwater absorption, crest scatter, and GPU validation.
 ---
 
 # Spectral Ocean
-
-- **Runtime contract.** Backend: dual — primary WebGPU/TSL FFT with a WebGL2 fragment-FFT compatibility tier. Min three: verify the installed build exposes the referenced TSL nodes (`Fn`/`If`/`Loop`). Fallback: use the WebGL2 fragment-FFT tier and preserve the frequency-space contracts. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Choose the representation that owns the requested view. Open-water sea states use
 explicit frequency-space ownership. A beach-level breaker view uses a coupled
@@ -14,7 +11,9 @@ band-limited wave field, coast representation, swash state, foam history, and
 sand response. Do not reduce either target to scrolling normal maps or unrelated
 foam noise.
 
-Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
+This skill contains exemplary examples and assets beyond descriptive guidance,
+they're worth studying, referencing, or even copying. Use them sufficiently
+when relevant and do NOT blindly skip them.
 
 ## Spectral build order
 
@@ -44,13 +43,6 @@ production WebGPU/TSL architecture described in the reference when the target
 supports it.
 
 Read the
-[hybrid clear-water ocean material](examples/hybrid-clear-water-ocean/hybrid-ocean-material.js)
-when the target needs FFT displacement with authored long swell, clear shallow
-refraction, animated sand-bed caustics, Beer-Lambert color, shared sky
-reflection, side-aware above/below surface normals, GGX sun highlights, and
-foam diagnostics.
-
-Read the
 [stylized above/below ocean material](examples/stylized-above-below-ocean/stylized-ocean-material.js)
 when the target needs a stylized FFT ocean that can be inspected from both
 above and below the surface: height-gradient water color, sun-path glints,
@@ -75,9 +67,14 @@ island coast, coast-normal shallow-water swash chains, persistent breaker and
 film foam, camera-following warped geometry, wet-sand optics, and shared sky
 radiance.
 
-## Invariants and strong defaults (spectral)
+Read the
+[ocean beach waves implementation](examples/ocean-beach-waves/ocean-beach-waves.js)
+when the beach is owned by a positivity-preserving finite-volume solver: it
+provides a rocky coastal grid, reconstructed water and wet-sand fields,
+advected foam, shallow-film optics, reflected and refracted sky radiance, and
+impact-triggered spray.
 
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Spectral non-negotiable gates
 
 - Require a power-of-two grid and a passing FFT impulse/frequency test.
 - Keep cascade wavenumber intervals disjoint.
@@ -94,9 +91,7 @@ Use these checks for the affected mechanism. Preserve concrete ownership, correc
 - Terminate distant underwater sightlines with a safely submerged terrain rim; do not mask an empty seabed/ocean horizon with a view-aligned scattering layer.
 - Keep a deterministic seed and fixed-camera capture for comparisons.
 
-## Invariants and strong defaults (coastal breaker)
-
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Coastal breaker gates
 
 - Keep coastline SDF, arclength tables, ribbon geometry, and swash columns in
   one coast contract; do not derive unstable column ordering from SDF gradients.

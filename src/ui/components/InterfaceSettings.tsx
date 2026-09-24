@@ -9,8 +9,8 @@ const CHOICES: ReadonlyArray<{
   label: string;
   description: string;
 }> = [
-  { value: "auto", label: "Auto", description: "Matches your window" },
-  { value: "small", label: "Small", description: "More world visible" },
+  { value: "auto", label: "Auto", description: "Matches window" },
+  { value: "small", label: "Compact", description: "More world visible (mobile default)" },
   { value: "normal", label: "Normal", description: "Reference size" },
   { value: "large", label: "Large", description: "Easier to read" }
 ];

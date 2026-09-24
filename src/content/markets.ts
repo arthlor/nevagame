@@ -64,6 +64,14 @@ export const MARKETS: Record<string, MarketDefinition> = {
       workshopSupplyItemIds: ["produce.flax", "item.linen_roll"]
     },
     commodities: [
+      { itemId: "seed.wheat", basePrice: 4, targetSupply: 60, consumptionRatePerHour: 6, seasonalFactors: {} },
+      { itemId: "seed.barley", basePrice: 6, targetSupply: 45, consumptionRatePerHour: 4, seasonalFactors: {} },
+      { itemId: "seed.corn", basePrice: 8, targetSupply: 35, consumptionRatePerHour: 3, seasonalFactors: {} },
+      { itemId: "seed.tomato", basePrice: 8, targetSupply: 45, consumptionRatePerHour: 4, seasonalFactors: {} },
+      { itemId: "seed.potato", basePrice: 6, targetSupply: 55, consumptionRatePerHour: 5, seasonalFactors: {} },
+      { itemId: "seed.carrot", basePrice: 5, targetSupply: 45, consumptionRatePerHour: 4, seasonalFactors: {} },
+      { itemId: "seed.flax", basePrice: 10, targetSupply: 30, consumptionRatePerHour: 3, seasonalFactors: {} },
+      { itemId: "seed.apple_sapling", basePrice: 45, targetSupply: 12, consumptionRatePerHour: 1, seasonalFactors: {} },
       { itemId: "produce.wheat", basePrice: 8, targetSupply: 50, consumptionRatePerHour: 4, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
       { itemId: "produce.barley", basePrice: 10, targetSupply: 40, consumptionRatePerHour: 3, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
       { itemId: "produce.corn", basePrice: 14, targetSupply: 30, consumptionRatePerHour: 2.5, seasonalFactors: { summer: 0.85, winter: 1.3 } },
@@ -236,6 +244,8 @@ Object.assign(MARKETS, {
       workshopSupplyItemIds: ["produce.flax", "item.linen_roll"]
     },
     commodities: [
+      regionalCommodity("seed.flax", 40, 4),
+      regionalCommodity("seed.apple_sapling", 15, 1),
       regionalCommodity("item.hardwood_blank", 55, 4),
       regionalCommodity("item.linen_roll", 28, 1.8),
       regionalCommodity("produce.flax", 45, 3),
@@ -266,6 +276,9 @@ Object.assign(MARKETS, {
       rodIds: ["rod.river", "rod.heavy_sport"]
     },
     commodities: [
+      regionalCommodity("seed.barley", 50, 5),
+      regionalCommodity("seed.carrot", 50, 5),
+      regionalCommodity("seed.flax", 35, 3.5),
       regionalCommodity("item.bait_worms", 100, 7),
       regionalCommodity("item.compost_starter", 35, 2.5),
       regionalCommodity("item.crushed_ice", 45, 4),
@@ -298,6 +311,9 @@ Object.assign(MARKETS, {
       itemIds: ["item.tool_steel", "item.tanned_leather", "item.copper_sheet", "item.brass_fittings", "item.crushed_ice"]
     },
     commodities: [
+      regionalCommodity("seed.potato", 60, 6),
+      regionalCommodity("seed.carrot", 50, 5),
+      regionalCommodity("seed.barley", 40, 4),
       regionalCommodity("item.tool_steel", 28, 1.5),
       regionalCommodity("item.tanned_leather", 32, 2),
       regionalCommodity("item.copper_sheet", 30, 2),

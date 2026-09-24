@@ -71,6 +71,8 @@ export interface DomainEvents {
   CargoLoaded: { cargoId: FishCargoId; boatId: BoatId; slotIndex: number; minute: GameMinute };
   CargoUnloaded: { cargoId: FishCargoId; minute: GameMinute };
   CargoStored: { cargoId: FishCargoId; facility: string; minute: GameMinute };
+  /** A carried trade pack was set down on walkable ground at x/z. */
+  CargoDropped: { cargoId: FishCargoId; x: number; z: number; minute: GameMinute };
   BoatBoarded: { boatId: BoatId; minute: GameMinute };
   BoatDisembarked: { boatId: BoatId; minute: GameMinute };
   BoatDocked: { boatId: BoatId; marketId: MarketId | null; minute: GameMinute };

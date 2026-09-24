@@ -144,19 +144,22 @@ export const HEADWATER_MIST_FRAGMENT_GLSL = /* glsl */ `
   out vec4 outColor;
 
   void main() {
-    float radius = length(vec2(vCorner.x, vCorner.y * 1.35));
-    if (radius > 1.0) discard;
-    float core = 1.0 - smoothstep(0.12, 1.0, radius);
-    // Two noise octaves tear the soft disc apart; a single octave still read
-    // as a round puff at gameplay distance.
-    float erosion = nevaGradientNoise(vCorner * 2.4 + vec2(vSeed * 31.7, vSeed * 17.3)) * 0.65
-      + nevaGradientNoise(vCorner * 5.1 - vec2(vSeed * 11.3, vSeed * 5.9)) * 0.35;
-    float alpha = core * (1.0 - uMistErosion * (0.5 + 0.5 * erosion)) * vAlpha;
+    // A soft spray puff: a radial density whose rim is eaten by two noise
+    // octaves, so neighbouring puffs never share a silhouette and the edge
+    // feathers into air instead of ending on a disc.
+    float radius = length(vec2(vCorner.x, vCorner.y * 1.15));
+    float erosion = nevaGradientNoise(vCorner * 2.2 + vec2(vSeed * 31.7, vSeed * 17.3)) * 0.65
+      + nevaGradientNoise(vCorner * 4.7 - vec2(vSeed * 11.3, vSeed * 5.9)) * 0.35;
+    float density = (1.0 - smoothstep(0.15, 0.95, radius + uMistErosion * 0.28 * erosion));
+    density *= density;
+    float alpha = vAlpha * density;
     if (alpha < 0.004) discard;
+    // Thicker cores self-shadow a little; the rim is lit through.
+    float shade = mix(0.97, 0.82, density);
     float cameraDistance = distance(cameraPosition, vWorldPosition);
     // Mist is white water lifted into the air: warm foam against the sky,
     // dimmed with the daylight like every other water surface.
-    vec3 color = mix(uFoamColor, uSkyColor, 0.18) * mix(0.25, 1.0, uDaylight);
+    vec3 color = mix(uFoamColor, uSkyColor, 0.14) * shade * mix(0.25, 1.0, uDaylight);
     vec4 aerial = nevaAerialSegment(vWorldPosition);
     color = color * aerial.a + aerial.rgb;
     float fogFactor = smoothstep(uFogNear, uFogFar, cameraDistance);

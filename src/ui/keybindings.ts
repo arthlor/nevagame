@@ -5,7 +5,7 @@
  *
  * The title screen, the How to Play folio, and the pause menu each used to
  * carry their own hand-written list, and all three had drifted from
- * `InputRouter` — the journal, ledger, planner, tool slots, and the soil
+ * `InputRouter` — the journal, ledger, planner, quick tools, and the soil
  * overlay were missing everywhere. Every surface now renders from here, so a
  * new binding is described once.
  */
@@ -22,19 +22,6 @@ export interface KeyBindingGroup {
   readonly title: string;
   readonly bindings: readonly KeyBinding[];
 }
-
-/**
- * The tool belt is contextual — it holds farm tools on a farm and fishing gear
- * at the water — so no fixed slot list can describe it. These are the farm
- * tools, named because that is the belt a player meets first.
- */
-export const TOOL_SLOT_NAMES = [
-  "Hand Tools",
-  "Seeds",
-  "Watering Can",
-  "Fertilizer",
-  "Harvest Basket"
-] as const;
 
 export const KEY_BINDING_GROUPS: readonly KeyBindingGroup[] = [
   {
@@ -58,11 +45,11 @@ export const KEY_BINDING_GROUPS: readonly KeyBindingGroup[] = [
         action: "Contextual interaction — talk, board, harvest, cast",
         note: "Takes out the tool the action needs"
       },
-      { keys: "LMB", action: "Use the equipped tool at the pointer" },
+      { keys: "LMB", action: "Use the pointed crop action, or cast at water" },
       {
         keys: "1 – 5",
-        action: `Tool belt — on a farm, ${TOOL_SLOT_NAMES.join(", ")}`,
-        note: "The belt changes with where you are standing"
+        action: "Optional quick tools",
+        note: "Available shortcuts change near farms, water, and boats"
       },
       { keys: "Alt", action: "Hold to read the soil overlay on a farm" },
       { keys: "F", action: "Open or close the farm forecast" },

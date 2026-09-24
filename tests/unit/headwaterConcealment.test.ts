@@ -7,7 +7,7 @@ import { AUTHORED_DETAIL_PLACEMENTS } from "../../src/world/WorldEnvironmentLayo
 import {
   HEADWATER_GRAYBOX_VIEWPOINTS
 } from "../../src/world/HeadwaterWaterfallGraybox";
-import { NEVA_HEADWATERS } from "../../src/world/NevaHeadwaters";
+import { NEVA_HEADWATERS, headwaterElevationAt } from "../../src/world/NevaHeadwaters";
 import { WorldLayout } from "../../src/world/WorldLayout";
 
 /** Real projected rock colliders near the slice (the game's own boxes). */
@@ -162,8 +162,12 @@ describe("headwater source concealment", () => {
     // the sliver is pinned, not fixed: it may shrink, never grow.
     const acceptedSky: Record<string, number[]> = {
       "headwater-graybox-pool": [-136],
-      "headwater-graybox-reveal": [],
-      "headwater-graybox-fall-face": [-147, -146, -145]
+      // West-bank oblique: only the lip crest station may read against sky;
+      // every upstream chute station stays backed by the massif.
+      "headwater-graybox-reveal": [-136],
+      // Raised lip: the only sky behind feed water is the crest stations
+      // themselves; the upper chute is fully backed by the massif.
+      "headwater-graybox-fall-face": [-138, -137, -136]
     };
     for (const viewpoint of downstream) {
       const eye = gameplayEye(viewpoint);
@@ -188,10 +192,19 @@ describe("headwater source concealment", () => {
   });
 
   it("keeps the fall face and the pool themselves visible", () => {
+    // Mid-nappe on the live ballistic sheet: the raised 27.5 m drop no longer
+    // has water at a fixed y = 8 (that point is now inside the carved face).
+    const lipZ = NEVA_HEADWATERS.fall.lipZ;
+    const landingZ = NEVA_HEADWATERS.fall.landingZ;
+    const drop = NEVA_HEADWATERS.fall.lipElevation - NEVA_HEADWATERS.fall.landingElevation;
+    const midZ = -135.2;
+    const t = (midZ - lipZ) / (landingZ - lipZ);
+    const nappeY = NEVA_HEADWATERS.fall.lipElevation - drop * t * t;
+    const profileY = headwaterElevationAt(midZ);
     const fallMid = {
-      x: WorldLayout.riverCenterX(-135.2),
-      y: 8,
-      z: -135.2
+      x: WorldLayout.riverCenterX(midZ),
+      y: profileY + (nappeY - profileY) * 0.68,
+      z: midZ
     };
     const poolCenter = {
       x: WorldLayout.riverCenterX(NEVA_HEADWATERS.pool.centerZ),

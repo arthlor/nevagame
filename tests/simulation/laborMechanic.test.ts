@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
+import { ContentRegistry } from "../../src/content/ContentRegistry";
 import {
   applyPassiveWorkRegen,
   earnWorkCapacity,
@@ -15,10 +16,8 @@ import { getProcessingStationFrontPosition } from "../../src/world/ProcessingSta
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import type { WorkCapacityState } from "../../src/simulation/core/types";
 import { FARMING_ACTION_COST } from "../../src/simulation/domains/FarmingDomain";
-import { BASIC_FISHING_WORK_COST } from "../../src/simulation/domains/FishingDomain";
-import { PROCESSING_WORK_COST } from "../../src/simulation/domains/ProcessingDomain";
-import { ACTION_WORK_COSTS } from "../../src/ui/components/FarmingActionStatus";
-import type { LaborHudDto } from "../../src/simulation/core/contracts";
+import { processingWorkForRecipe } from "../../src/simulation/domains/ProcessingDomain";
+import type { LaborHudDto, LaborStationDto } from "../../src/simulation/core/contracts";
 
 function movePlayerToStarterFarm(sim: Simulation, x: number = 0, z: number = 0): { x: number; z: number } {
   const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x, z });
@@ -111,10 +110,10 @@ describe("Work Capacity mechanic", () => {
     it("restores a fraction plus a baseline floor on rest", () => {
       const work: WorkCapacityState = { current: 0, maximum: 500, regeneratedAtMinute: 0 };
       const granted = restoreWorkOnRest(work, 480);
-      expect(granted).toBe(125); // max(0 + 10% of 500, 25% of 500)
-      expect(work.current).toBe(125);
+      expect(granted).toBe(200); // max(0 + 10% of 500, 40% of 500)
+      expect(work.current).toBe(200);
       restoreWorkOnRest(work, 480);
-      expect(work.current).toBe(175);
+      expect(work.current).toBe(250);
     });
 
     it("caps earned Work at the daily earn cap", () => {
@@ -167,8 +166,8 @@ describe("Work Capacity mechanic", () => {
       // 1.5 game days away at 0.4 game-min per real second.
       const oneAndAHalfGameDaysMs = (1440 / 0.4) * 1000 * 1.5;
       applyOfflineProgression(sim.state, oneAndAHalfGameDaysMs);
-      // One rest: max(50 + 10% of 500, 25% of 500) = 125, not a per-hour refill.
-      expect(sim.state.player.workCapacity.current).toBe(125);
+      // One rest: max(50 + 10% of 500, 40% of 500) = 200, not a per-hour refill.
+      expect(sim.state.player.workCapacity.current).toBe(200);
     });
   });
 
@@ -260,10 +259,12 @@ describe("Work Capacity mechanic", () => {
       const wheatBefore = InventoryManager.getItemCount(inventory, "produce.wheat");
       const rngBefore = sim.rng.getState();
 
-      sim.state.player.workCapacity.current = 34.99;
+      const recipe = ContentRegistry.recipes.get("recipe.wheat_to_grain")!;
+      const quoted = sim.quoteWorkCost(processingWorkForRecipe(recipe), "processing", "processing.start").cost;
+      sim.state.player.workCapacity.current = quoted - 0.01;
       const result = sim.startProcessingJob("recipe.wheat_to_grain", "struct.starter_mill");
       expect(result.reasonCode).toBe("insufficient-work");
-      expect(sim.state.player.workCapacity.current).toBe(34.99);
+      expect(sim.state.player.workCapacity.current).toBe(quoted - 0.01);
       expect(InventoryManager.getItemCount(inventory, "produce.wheat")).toBe(wheatBefore);
       expect(sim.rng.getState()).toBe(rngBefore);
       expect(Object.keys(sim.state.processingJobs)).toHaveLength(0);
@@ -284,17 +285,17 @@ describe("Work Capacity mechanic", () => {
     });
   });
 
-  describe("cost table integrity", () => {
-    it("keeps the presentation Work costs derived from the simulation tables", () => {
-      // The interaction prompt once quoted a hardcoded 10 for planting while
-      // FarmingDomain charged 12, so between 10 and 11 Work the prompt read as
-      // affordable and the action was refused.
-      expect(ACTION_WORK_COSTS.plant).toBe(FARMING_ACTION_COST.plant);
-      expect(ACTION_WORK_COSTS.water).toBe(FARMING_ACTION_COST.water);
-      expect(ACTION_WORK_COSTS.harvest).toBe(FARMING_ACTION_COST.harvest);
-      expect(ACTION_WORK_COSTS.fertilize).toBe(FARMING_ACTION_COST.fertilize);
-      expect(ACTION_WORK_COSTS.cast).toBe(BASIC_FISHING_WORK_COST);
-      expect(ACTION_WORK_COSTS.workstation).toBe(PROCESSING_WORK_COST);
+  describe("quoted costs and labor availability", () => {
+    it("does not advertise a labor shift while physical cargo occupies the player's hands", () => {
+      const sim = new Simulation();
+      sim.state.player.workCapacity.current = 100;
+      const station = () => (sim.query({ type: "labor.get-stations" }) as LaborStationDto[])
+        .find((entry) => entry.id === "labor.firewood");
+      expect(station()?.available).toBe(true);
+      sim.state.player.carriedFishCargoId = "cargo.test";
+      expect(station()?.available).toBe(false);
+      expect(sim.execute({ type: "labor.start", stationId: "labor.firewood" }).reason)
+        .toBe("Stow physical fish cargo before working");
     });
 
     it("charges planting exactly what the shared constant quotes", () => {

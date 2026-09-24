@@ -68,17 +68,17 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   // Kitchen provisions and the family's sea keepsakes are displays, not loot pickups.
   { id: "interior_carrot", assetId: ASSET_IDS.ITEM_CARROT_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.65, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2, rotationY: 0.3 },
   { id: "interior_corn", assetId: ASSET_IDS.ITEM_CORN_COB_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.9, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.05, rotationY: -0.4 },
-  { id: "interior_coin_pouch", assetId: ASSET_IDS.ITEM_COIN_POUCH_A, x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.45, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.55, z: FARMHOUSE_INTERIOR_ORIGIN.z - 0.4, rotationY: 0.2 },
-  { id: "interior_compass", assetId: ASSET_IDS.ITEM_COMPASS_A, x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.25, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.55, z: FARMHOUSE_INTERIOR_ORIGIN.z - 0.4, rotationY: 0.6 },
-  { id: "interior_sea_chest", assetId: ASSET_IDS.PROP_TREASURE_CHEST_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 2, y: FARMHOUSE_INTERIOR_BOUNDS.floorY, z: FARMHOUSE_INTERIOR_ORIGIN.z + 2.9, rotationY: 0 },
+  
+  { id: "interior_compass", assetId: ASSET_IDS.ITEM_COMPASS_A, x: 236.5, y: 0.72, z: -241.5, rotationY: 0.6},
+  { id: "interior_sea_chest", assetId: ASSET_IDS.PROP_TREASURE_CHEST_A, x: 241.9, y: 0.17, z: -237.4, rotationY: 3.1416},
   // 1. Rustic Bed in the northwest corner nook
   {
     id: "interior_bed",
     assetId: ASSET_IDS.PROP_BED_COZY_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x - 2.9,
-    y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z + 1.8,
-    rotationY: 0,
+    x: 237.1,
+    y: 0.17,
+    z: -238.2,
+    rotationY: 3.1416,
     scale: 1.0
   },
   // 2. Fireplace Stone Hearth centered on the back wall
@@ -134,9 +134,9 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_armchair",
     assetId: ASSET_IDS.PROP_ARMCHAIR_COZY_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x - 2.8,
-    y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.2,
+    x: 236.8,
+    y: 0.17,
+    z: -242.4,
     rotationY: 0.65,
     scale: 1.0
   },
@@ -154,10 +154,10 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_bookcase",
     assetId: ASSET_IDS.PROP_BOOKCASE_WOOD_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.8,
-    y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z + 0.2,
-    rotationY: Math.PI / 2,
+    x: 236.1,
+    y: 0.17,
+    z: -240.2,
+    rotationY: 1.5708,
     scale: 1.0
   },
   // 9. Sideboard credenza near the kitchen dining zone
@@ -174,9 +174,9 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_side_table",
     assetId: ASSET_IDS.PROP_SIDE_TABLE_WOOD_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.4,
-    y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z - 0.4,
+    x: 236.4,
+    y: 0.17,
+    z: -241.6,
     rotationY: 0.2,
     scale: 1.0
   },
@@ -184,9 +184,9 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_floor_plant",
     assetId: ASSET_IDS.PROP_FLOOR_PLANT_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x - 3.6,
-    y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z + 2.8,
+    x: 238.4,
+    y: 0.17,
+    z: -237.3,
     rotationY: 0,
     scale: 1.0
   },

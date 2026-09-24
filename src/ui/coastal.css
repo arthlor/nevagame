@@ -5190,8 +5190,8 @@
   background:
     linear-gradient(180deg, rgba(28, 25, 20, 0.98) 0%, rgba(18, 16, 13, 0.99) 100%),
     var(--guild-paper-grain) center / 192px !important;
-  background-clip: padding-box !important;
-  border: 18px solid transparent !important;
+  background-clip: border-box !important;
+  border: 18px solid #231f18 !important;
   border-image: var(--guild-panel) 38 / 18px / 0 stretch !important;
   border-radius: 0 !important;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.85) !important;
@@ -5617,10 +5617,10 @@
 #ui-container[data-ui="guildcraft"] .guild-gold-delta.is-gain { color: #9fcc68 !important; }
 #ui-container[data-ui="guildcraft"] .guild-gold-delta.is-spend { color: #f28b72 !important; }
 #ui-container[data-ui="guildcraft"] .guild-objectives {
-  top: calc(var(--ui-safe-top) + 296px);
+  top: calc(var(--ui-safe-top) + 298px);
   right: var(--ui-safe-right);
   width: 284px;
-  max-height: min(540px, calc(100vh - var(--ui-safe-top) - 380px));
+  max-height: min(540px, calc(100vh - var(--ui-safe-top) - 314px));
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
@@ -5930,6 +5930,9 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+  max-height: min(28vh, 210px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0 !important;
 }
 #ui-container[data-ui="guildcraft"] .contract-tracker-item {
@@ -6056,12 +6059,9 @@
   gap: 6px;
   white-space: nowrap;
 }
-/* The bottom-centre column is a real flex stack: the belt sets the floor and
-   the action prompt rides directly above it. It used to be a fixed-position
-   prompt chasing the belt with hardcoded bottom offsets at every breakpoint. */
+/* The bottom-center column has only the immediate prompt and actions that are
+   useful at the current plot. */
 #ui-container[data-ui="guildcraft"] .guild-play-anchor {
-  /* Off the very edge, so the prompt still reads on its own in the stances
-     that carry no belt beneath it. */
   bottom: calc(var(--ui-safe-bottom) + 16px);
   left: 50%;
   transform: translateX(-50%);
@@ -6070,173 +6070,75 @@
   align-items: center;
   gap: 10px;
 }
-/* Sleek, minimal coastal dock for contextual tools */
-#ui-container[data-ui="guildcraft"] .guild-tool-belt {
-  position: relative;
-  padding: 3px;
-  background: linear-gradient(180deg, rgba(28, 22, 16, 0.94) 0%, rgba(16, 13, 10, 0.98) 100%);
-  border: 1px solid rgba(185, 148, 80, 0.45);
-  border-radius: 6px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 235, 175, 0.15);
-  width: max-content;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-}
-#ui-container[data-ui="guildcraft"] .guild-tool-belt:hover {
-  border-color: rgba(212, 175, 105, 0.65);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 235, 175, 0.25);
-}
-/* Eliminate the massive 18px baroque picture frame */
-#ui-container[data-ui="guildcraft"] .guild-tool-belt::before {
-  display: none !important;
-}
-#ui-container[data-ui="guildcraft"] .guild-tool-slots {
+#ui-container[data-ui="guildcraft"] .guild-context-actions {
   display: flex;
-  gap: 3px;
+  order: -1;
   align-items: center;
-}
-/* Compact, refined 44x46px tool slots */
-#ui-container[data-ui="guildcraft"] .guild-tool-slot {
+  justify-content: center;
+  gap: 8px;
   position: relative;
-  flex: 0 0 auto;
-  padding: 0;
-  width: 44px;
-  height: 46px;
-  overflow: hidden;
-  background: rgba(22, 17, 13, 0.75) !important;
-  border: 1px solid rgba(185, 148, 80, 0.3) !important;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: width 170ms ease, opacity 140ms ease, border-color 120ms ease, background-color 120ms ease;
+  z-index: 16;
+  max-width: min(480px, calc(100vw - 32px));
 }
-#ui-container[data-ui="guildcraft"] .guild-tool-slot:hover {
-  background: rgba(36, 28, 20, 0.9) !important;
-  border-color: rgba(245, 197, 85, 0.7) !important;
-}
-#ui-container[data-ui="guildcraft"] .guild-tool-slot.is-active {
-  background: linear-gradient(180deg, rgba(46, 36, 24, 0.95) 0%, rgba(26, 20, 14, 0.95) 100%) !important;
-  border-color: #ffd978 !important;
-  box-shadow: 0 0 8px rgba(245, 197, 85, 0.4), inset 0 0 6px rgba(245, 197, 85, 0.2) !important;
-}
-/* Collapsed state: only the resting/equipped tool is shown */
-#ui-container[data-ui="guildcraft"] .guild-tool-belt.is-collapsed .guild-tool-slot:not(.is-resting) {
-  width: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-}
-/* Contextually useless slots (e.g. 0 seeds, 0 fertilizer, redundant basket) stay collapsed unless explicitly browsing */
-#ui-container[data-ui="guildcraft"] .guild-tool-belt:not(.is-browsing) .guild-tool-slot.is-irrelevant {
-  width: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-}
-/* Slot frame art */
-#ui-container[data-ui="guildcraft"] .guild-slot-armed-ring {
-  position: absolute;
-  inset: 1px;
-  opacity: .85;
-  pointer-events: none;
-}
-#ui-container[data-ui="guildcraft"] .guild-slot-frame {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.7;
-}
-#ui-container[data-ui="guildcraft"] .guild-tool-slot.is-active .guild-slot-frame {
-  opacity: 1;
-}
-/* Painting icon */
-#ui-container[data-ui="guildcraft"] .guild-tool-painting {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 26px;
-  height: 26px;
-  pointer-events: none;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
-}
-#ui-container[data-ui="guildcraft"] .guild-tool-slot.is-unavailable .guild-tool-painting {
-  filter: grayscale(.6) opacity(.4);
-}
-/* Micro keycap badge */
-#ui-container[data-ui="guildcraft"] .guild-slot-number {
-  position: absolute;
-  z-index: 1;
-  left: 3px;
-  top: 3px;
-  min-width: 14px;
-  height: 14px;
-  line-height: 13px;
-  padding: 0 2px;
+#ui-container[data-ui="guildcraft"] :is(.guild-context-action, .guild-context-more > summary) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font: 700 10px/1 var(--font-serif);
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 12px;
+  color: var(--guild-ivory);
+  font: 600 13px/1.2 var(--font-sans);
+  background: rgba(28, 22, 16, 0.96);
+  border: 1px solid rgba(185, 148, 80, 0.65);
+  border-radius: 4px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.48);
+  cursor: pointer;
+  white-space: nowrap;
+}
+#ui-container[data-ui="guildcraft"] .guild-context-more > summary {
+  list-style: none;
+}
+#ui-container[data-ui="guildcraft"] .guild-context-more > summary::-webkit-details-marker {
+  display: none;
+}
+#ui-container[data-ui="guildcraft"] .guild-context-more > summary::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+#ui-container[data-ui="guildcraft"] .guild-context-more[open] > summary::after {
+  transform: translateY(2px) rotate(225deg);
+}
+#ui-container[data-ui="guildcraft"] :is(.guild-context-action, .guild-context-more > summary):is(:hover, :focus-visible) {
+  border-color: #ffd978;
   color: #fff2cc;
-  background: rgba(28, 22, 16, 0.92);
-  border: 1px solid rgba(185, 148, 80, 0.5);
-  border-radius: 2px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
-/* Compact quantity badge */
-#ui-container[data-ui="guildcraft"] .guild-tool-count {
-  position: absolute;
-  z-index: 1;
-  right: 3px;
-  bottom: 2px;
-  font: 700 11px/1 var(--font-serif);
-  color: #ffd978;
-  text-shadow: 0 1px 2px #000;
-}
-/* Floating nameplate / tooltip */
-#ui-container[data-ui="guildcraft"] .guild-tool-readout {
+#ui-container[data-ui="guildcraft"] .guild-context-more-list {
   position: absolute;
   left: 50%;
   bottom: calc(100% + 8px);
   transform: translateX(-50%);
-  min-width: 140px;
-  max-width: 240px;
-  padding: 5px 12px;
-  text-align: center;
-  background: linear-gradient(180deg, rgba(28, 22, 16, 0.96) 0%, rgba(16, 13, 10, 0.98) 100%);
-  border: 1px solid rgba(185, 148, 80, 0.6);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 140ms ease;
-  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
 }
-#ui-container[data-ui="guildcraft"] .guild-tool-belt.is-browsing .guild-tool-readout {
-  opacity: 1;
-  visibility: visible;
+#ui-container[data-ui="guildcraft"] .guild-context-more:not([open]) .guild-context-more-list {
+  display: none;
 }
-#ui-container[data-ui="guildcraft"] .guild-play-anchor:has(.guild-tool-belt.is-browsing) .guild-interaction-anchor {
-  opacity: 0;
+#ui-container[data-ui="guildcraft"] .guild-context-more-list .guild-context-action {
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
 }
-#ui-container[data-ui="guildcraft"] .guild-tool-readout > strong {
-  display: block;
-  font: 700 13px/1.2 var(--font-serif);
+#ui-container[data-ui="guildcraft"] .guild-context-action small {
   color: #ffd978;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-  white-space: nowrap;
-}
-#ui-container[data-ui="guildcraft"] .guild-tool-readout .guild-tool-detail {
-  display: block;
-  font: 500 11px/1.3 var(--font-sans);
-  color: var(--guild-ivory);
-  opacity: 0.85;
-  margin-top: 2px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
+  font: 600 11px/1 var(--font-sans);
 }
 #ui-container[data-ui="guildcraft"] .guild-interaction-anchor {
   width: max-content;
@@ -6334,6 +6236,7 @@
 }
 #ui-container[data-ui="guildcraft"] .guild-utilities-anchor { bottom: var(--ui-safe-bottom); right: var(--ui-safe-right); }
 #ui-container[data-ui="guildcraft"] .guild-utilities { display: flex; flex-direction: row; align-items: flex-end; gap: 6px; padding: 0; width: max-content; background: none; border: 0; box-shadow: none; }
+#ui-container[data-ui="guildcraft"] :is(.guild-secondary-utilities, .guild-satchel-utility) { display: contents; }
 #ui-container[data-ui="guildcraft"] .guild-utility {
   position: relative;
   width: 58px;
@@ -7722,6 +7625,10 @@
 #ui-container[data-ui="guildcraft"] .journal-record-goal.is-achieved strong {
   color: #9fe29d !important;
 }
+#ui-container[data-ui="guildcraft"] .journal-record-follow {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
 #ui-container[data-ui="guildcraft"] .journal-tier-toggle {
   margin-top: 10px !important;
 }
@@ -8225,6 +8132,15 @@
   border: 1px solid rgba(165, 139, 73, 0.25) !important;
   border-radius: 2px !important;
   padding: 2px 8px !important;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#ui-container[data-ui="guildcraft"] .journal-unlock-chips details { max-width: 100%; }
+#ui-container[data-ui="guildcraft"] .journal-unlock-chips summary { cursor: pointer; }
+#ui-container[data-ui="guildcraft"] .journal-unlock-chips ul {
+  margin: 7px 0 3px;
+  padding-left: 18px;
 }
 #ui-container[data-ui="guildcraft"] .journal-mastered-note {
   display: inline-flex !important;
@@ -8387,7 +8303,9 @@
   background: linear-gradient(90deg, #3d6e46 0%, #639c6e 100%) !important;
 }
 
-#ui-container[data-ui="guildcraft"] .start-screen__tray {
+#ui-container[data-ui="guildcraft"] .start-screen__tray,
+#ui-container[data-ui="guildcraft"] .start-screen__tray.chrome-panel--ghost,
+#ui-container[data-ui="guildcraft"] :is(.start-screen--loading, .start-screen--revealing) .start-screen__tray {
   padding: 16px 18px !important;
   display: flex !important;
   flex-direction: column !important;
@@ -8396,15 +8314,23 @@
   background:
     linear-gradient(180deg, rgba(28, 25, 20, 0.98) 0%, rgba(18, 16, 13, 0.99) 100%),
     var(--guild-paper-grain) center / 192px !important;
-  background-clip: padding-box !important;
-  border: 18px solid transparent !important;
+  background-clip: border-box !important;
+  border: 18px solid #231f18 !important;
   border-image: var(--guild-panel) 38 / 18px / 0 stretch !important;
   border-radius: 0 !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85) !important;
+  box-sizing: border-box !important;
 }
-#ui-container[data-ui="guildcraft"] :is(.start-screen--loading, .start-screen--revealing) .start-screen__tray {
-  width: min(420px, 88vw) !important;
-  padding: 16px 20px !important;
+#ui-container[data-ui="guildcraft"] .start-screen__ready-note {
+  margin: 0 0 4px 0 !important;
+  padding: 10px 14px !important;
+  background: linear-gradient(180deg, rgba(28, 24, 18, 0.75) 0%, rgba(18, 15, 12, 0.85) 100%) !important;
+  border: 1px solid rgba(165, 139, 73, 0.35) !important;
+  box-shadow: inset 0 1px 0 rgba(245, 218, 150, 0.08), 0 2px 6px rgba(0, 0, 0, 0.45) !important;
+  border-radius: 3px !important;
+  font: 500 13px/1.4 var(--font-sans) !important;
+  color: var(--guild-gold-bright) !important;
+  box-sizing: border-box !important;
 }
 #ui-container[data-ui="guildcraft"] .start-screen__save-scroll-card {
   margin: 0 0 4px 0 !important;
@@ -8413,6 +8339,7 @@
   border: 1px solid rgba(165, 139, 73, 0.35) !important;
   box-shadow: inset 0 1px 0 rgba(245, 218, 150, 0.08), 0 2px 6px rgba(0, 0, 0, 0.45) !important;
   border-radius: 3px !important;
+  box-sizing: border-box !important;
 }
 #ui-container[data-ui="guildcraft"] .save-scroll-header {
   display: flex !important;
@@ -8606,8 +8533,8 @@
   background:
     linear-gradient(180deg, rgba(28, 25, 20, 0.98) 0%, rgba(18, 16, 13, 0.99) 100%),
     var(--guild-paper-grain) center / 192px !important;
-  background-clip: padding-box !important;
-  border: 18px solid transparent !important;
+  background-clip: border-box !important;
+  border: 18px solid #231f18 !important;
   border-image: var(--guild-panel) 38 / 18px / 0 stretch !important;
   border-radius: 0 !important;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.88) !important;
@@ -9017,7 +8944,6 @@
 
 /* Fit is a layout change, never an unreadably scaled desktop screenshot. */
 @media (max-width: 1180px) {
-  #ui-container[data-ui="guildcraft"] .guild-tool-slot { width: 67px; height: 73px; }
   #ui-container[data-ui="guildcraft"] .guild-utility { width: 49px; height: 50px; }
   #ui-container[data-ui="guildcraft"] .guild-utilities { gap: 3px; }
   #ui-container[data-ui="guildcraft"] .guild-vitals { width: 348px; }
@@ -9029,12 +8955,9 @@
 @media (max-width: 900px) {
   #ui-container[data-ui="guildcraft"] .guild-chart-destination { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; font-size: 12px; }
   #ui-container[data-ui="guildcraft"] .guild-chart-destination select { min-height: 44px; width: 100%; padding: 6px; font-size: 14px; }
-  #ui-container[data-ui="guildcraft"] .guild-tool-slot { width: 57px; height: 63px; }
-  #ui-container[data-ui="guildcraft"] .guild-tool-belt::before { inset: -15px -17px -13px; border-width: 9px; }
-  #ui-container[data-ui="guildcraft"] .guild-tool-readout > strong { font-size: 18px; }
   #ui-container[data-ui="guildcraft"] .guild-navigation { width: 180px; left: 55%; }
   #ui-container[data-ui="guildcraft"] .guild-region { font-size: 14px; }
-  #ui-container[data-ui="guildcraft"] .guild-objectives { top: calc(var(--ui-safe-top) + 280px); width: 225px; }
+  #ui-container[data-ui="guildcraft"] .guild-objectives { top: calc(var(--ui-safe-top) + 298px); width: 225px; }
   #ui-container[data-ui="guildcraft"] .inventory-body { grid-template-columns: minmax(0,1fr) 215px !important; gap: 14px !important; }
   #ui-container[data-ui="guildcraft"] .market-modal-grid { grid-template-columns: minmax(0,1fr) 240px !important; gap: 14px !important; }
 }
@@ -9047,7 +8970,7 @@
   #ui-container[data-ui="guildcraft"] .guild-sprint { width: 185px; height: 24px; top: 55px; }
   #ui-container[data-ui="guildcraft"] .guild-navigation { display: none; }
   #ui-container[data-ui="guildcraft"] .guild-almanac-anchor { transform: scale(.78); transform-origin: top right; right: 7px; }
-  #ui-container[data-ui="guildcraft"] .guild-objectives { width: 195px; top: calc(var(--ui-safe-top) + 225px); }
+  #ui-container[data-ui="guildcraft"] .guild-objectives { width: 195px; top: calc(var(--ui-safe-top) + 234px); }
   #ui-container[data-ui="guildcraft"] .guild-quest .quest-title { font-size: 17px !important; }
   #ui-container[data-ui="guildcraft"] .guild-quest .quest-objective-text { font-size: 14px !important; }
   #ui-container[data-ui="guildcraft"] .guild-quest-seal { width: 34px; flex-basis: 34px; }
@@ -9069,9 +8992,9 @@
   #ui-container[data-ui="guildcraft"] .guild-fishing-map { display: none; }
   #ui-container[data-ui="guildcraft"] .fishing-hud-container.fishing-hud-simple { max-width: 80vw; }
 }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.guild-status-anchor,.guild-almanac-anchor,.guild-objectives,.guild-notes-anchor,.guild-play-anchor,.guild-utilities-anchor,.guild-navigation) { zoom: var(--ui-scale, 0.7); }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.guild-status-anchor,.guild-almanac-anchor,.guild-objectives,.guild-notes-anchor,.guild-play-anchor,.guild-navigation) { zoom: var(--ui-scale, 0.6); }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(button,.chrome-close,.neva-button) { min-height: 44px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-navigation { height: 50px; top: 6px; width: 170px; left: 50%; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-navigation { height: 44px; top: 6px; width: 150px; left: 50%; }
 @media (max-width: 640px) {
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-navigation { display: none; }
 }
@@ -9089,112 +9012,193 @@
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .inventory-details-card .details-name { font-size: 19px !important; }
 }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-status-anchor { left: max(8px,env(safe-area-inset-left)); top: max(6px,env(safe-area-inset-top)); }
-/* Vertical room the player frame owns at this breakpoint (the compact vitals
-   height plus the gap to the objective card below it). The objective anchor
-   reads it so the card can never land on top of the Work/Sprint bars when the
-   UI scale, font metrics or safe area change. */
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] { --guild-status-reserve: 78px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vitals { width: 250px; height: 82px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-profile { width: 76px; height: 76px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-player-name { left: 78px; top: 0; font-size: 17px; font-weight: 650; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-bar { left: 59px; top: 22px; width: 186px; height: 31px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-sprint { top: 49px; width: 157px; height: 25px; }
-/* The portrait and its seal own the Work bar's left end. Inset the readout
-   past them and right-align the small daily-earned tag so no digit or label
-   is ever painted underneath the portrait. The accessible name stays on the
-   Meter itself. */
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-work .guild-vital-readout {
-  justify-content: space-between;
-  gap: 4px;
-  padding: 0 9px 0 18px;
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] { --guild-status-reserve: 52px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vitals { width: 175px; height: 50px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-profile { width: 48px; height: 48px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-profile-seal { width: 16px; height: 16px; bottom: 1px; right: -2px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-player-name { display: none !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-bar { left: 42px; top: 4px; width: 130px; height: 18px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-sprint { top: 25px; width: 115px; height: 15px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.guild-vital-label, .guild-work-earned) {
+  display: none !important;
 }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-work .guild-vital-label { display: none; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-readout {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  padding: 0 4px !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-align: center !important;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-readout strong {
+  font-size: calc(11px / var(--ui-scale, 0.6)) !important;
+  font-weight: 700 !important;
+  color: #fff9ec !important;
+  text-shadow: 0 1px 2px #000, 0 0 2px #000 !important;
+}
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-status-effects { display: none; }
 #ui-container[data-ui="guildcraft"] .mobile-action-button { background: linear-gradient(#4b4430,#24271e) !important; border: 1px solid #aa8848 !important; box-shadow: inset 0 0 0 2px #202018, inset 0 0 0 3px #766039 !important; color: var(--guild-ivory) !important; font-family: var(--font-serif); }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .mobile-action-cluster {
+  gap: 4px !important;
+  max-width: none !important;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .mobile-action-row {
+  gap: 4px !important;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .mobile-action-button {
+  width: 54px !important;
+  height: 38px !important;
+  min-width: 50px !important;
+  min-height: 36px !important;
+  max-width: 64px !important;
+  max-height: 42px !important;
+  padding: 0 4px !important;
+  font-size: 11.5px !important;
+  font-family: var(--font-serif) !important;
+  letter-spacing: 0.02em !important;
+  border-radius: 4px !important;
+  box-sizing: border-box !important;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .mobile-action-button.is-primary {
+  background: linear-gradient(180deg, #6c572b 0%, #3a2e16 100%) !important;
+  border: 1px solid #ffd375 !important;
+  box-shadow: inset 0 0 0 1px #202018, inset 0 0 0 2px #a8823b, 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+  color: #fff8e8 !important;
+  font-weight: 700 !important;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .mobile-action-label {
+  font-size: 11.5px !important;
+  line-height: 1.1 !important;
+  letter-spacing: 0.02em !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}
 #ui-container[data-ui="guildcraft"] .mobile-joystick { background: none !important; border: 0 !important; border-radius: 50% !important; box-shadow: none !important; }
 #ui-container[data-ui="guildcraft"] .mobile-joystick-ring { border-color: #b09150 !important; background: #25291bc7 !important; box-shadow: inset 0 0 0 3px #25291b, inset 0 0 0 4px #817044; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac-anchor { width: 142px; top: max(5px,env(safe-area-inset-top)); right: max(8px,env(safe-area-inset-right)); transform: none; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac { width: 142px; height: 168px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap { width: 125px; height: 125px; right: 0; left: auto; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap-north { top: 14px; font-size: 14px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-weather-medallion { left: 0; top: 100px; width: 44px; height: 44px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-calendar { left: 32px; top: 113px; width: 110px; font-size: 13px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-purse { width: min(100%, 132px); font-size: 15px; height: 18px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-objectives { top: calc(max(6px, env(safe-area-inset-top)) + var(--guild-status-reserve, 78px)); left: max(8px,env(safe-area-inset-left)); right: auto; width: 175px; max-height: 60px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest-seal { width: 31px; height: 36px; flex-basis: 31px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-title { font-size: 15px !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-objective-text { font: 11px/1.3 var(--font-sans) !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac-anchor { width: auto; min-width: calc(112px / var(--ui-scale, 0.6)); top: max(5px,env(safe-area-inset-top)); right: max(8px,env(safe-area-inset-right)); transform: none; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac { width: calc(112px / var(--ui-scale, 0.6)); height: 126px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap { width: 88px; height: 88px; right: 0; left: auto; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap-north { top: 8px; font-size: 11px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-weather-medallion { left: 0; top: 74px; width: 28px; height: 28px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-calendar { left: 24px; top: 76px; width: auto; min-width: calc(96px / var(--ui-scale, 0.6)); max-width: calc(116px / var(--ui-scale, 0.6)); min-height: 24px; font-size: calc(10px / var(--ui-scale, 0.6)) !important; padding: 2px 5px; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-purse { position: absolute; top: 102px; right: 0; left: auto; width: auto; min-width: 72px; max-width: 98px; font-size: calc(11px / var(--ui-scale, 0.6)) !important; height: 18px; display: flex !important; align-items: center !important; justify-content: center !important; padding: 2px 6px !important; border-radius: 10px !important; background: rgba(18, 14, 10, 0.82) !important; border: 1px solid rgba(176, 145, 80, 0.4) !important; box-sizing: border-box !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-objectives {
+  top: calc(max(6px, env(safe-area-inset-top)) + var(--guild-status-reserve, 52px));
+  left: max(8px,env(safe-area-inset-left));
+  right: auto;
+  width: min(calc(240px / var(--ui-scale, 0.6)), 45vw);
+  max-width: min(calc(280px / var(--ui-scale, 0.6)), 50vw);
+  max-height: calc(56px / var(--ui-scale, 0.6));
+  overflow: hidden;
+  background: rgba(20, 16, 11, 0.82) !important;
+  border: 1px solid rgba(176, 145, 80, 0.5) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55) !important;
+  border-radius: 5px;
+  padding: 3px 6px;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest-seal { width: 20px; height: 24px; flex-basis: 20px; flex-shrink: 0; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-title {
+  font-size: calc(11px / var(--ui-scale, 0.6)) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-objective-text {
+  font: calc(10px / var(--ui-scale, 0.6))/1.25 var(--font-sans) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #dfd3ba !important;
+}
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-tracker-content, #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .contracts-tracker-hud { display: none; }
-/* Phone-readable floor (measured 844x390 + 740x360): anchors render at
-   --ui-scale, so glance reads are sized in physical pixels through the same
-   divide-by-scale pattern the touch targets use — 12px for primary reads,
-   10.5px for metadata. The objectives card grows downward into free space. */
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-title { font-size: calc(12px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-objective-text { font: calc(12px / var(--ui-scale, 0.7))/1.35 var(--font-sans) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-objectives { width: 196px; max-height: 88px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-purse { font-size: calc(12px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-calendar { font-size: calc(12px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-player-name { font-size: calc(12px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-readout { font-size: calc(12px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-readout .guild-vital-label { font-size: calc(10.5px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-readout .guild-work-earned { font-size: calc(10.5px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-tool-count { font-size: calc(10.5px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-capacity { font-size: calc(10.5px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-interaction-anchor .banner-text { font-size: calc(12px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-play-anchor { bottom: var(--mobile-control-bottom, max(12px,env(safe-area-inset-bottom))); }
-/* The HUD anchors carry the UI zoom, so a "44px target" has to be expressed in
-   the anchor's own coordinates or it renders at 44 * scale physical pixels and
-   drops below the touch minimum. */
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-tool-slot {
-  width: calc(44px / var(--ui-scale, 0.7));
-  height: calc(50px / var(--ui-scale, 0.7));
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-readout { font-size: calc(11px / var(--ui-scale, 0.6)) !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.guild-vital-label, .guild-work-earned) { display: none !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-capacity { font-size: calc(10px / var(--ui-scale, 0.6)) !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-interaction-anchor .banner-text { font-size: calc(11.5px / var(--ui-scale, 0.6)) !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-play-anchor { bottom: calc(max(8px, env(safe-area-inset-bottom)) / var(--ui-scale, 0.6)) !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.guild-context-action, .guild-context-more > summary) {
+  min-height: calc(44px / var(--ui-scale, 0.6));
+  min-width: calc(44px / var(--ui-scale, 0.6));
+  font-size: calc(12px / var(--ui-scale, 0.6));
 }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-tool-painting {
-  width: calc(26px / var(--ui-scale, 0.7));
-  height: calc(26px / var(--ui-scale, 0.7));
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utilities-anchor {
+  position: static !important;
+  zoom: 1 !important;
 }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-tool-belt::before { inset: -12px -14px -11px; border-width: 8px; }
-/* Touch has no hover, so the belt stays fanned out and the nameplate would
-   sit over the action prompt permanently. The socket art and the count badge
-   carry the identification instead. */
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-tool-readout { display: none; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-slot-number { font-size: 12px; left: 4px; top: 5px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-tool-count { font-size: 13px; right: 5px; bottom: 5px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utilities-anchor { right: calc(max(10px, env(safe-area-inset-right)) / var(--ui-scale, 0.7)) !important; bottom: calc((var(--mobile-control-bottom) + var(--mobile-cluster-height) + 10px) / var(--ui-scale, 0.7)) !important; top: auto; left: auto; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utilities { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 4px; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utility {
-  width: calc(44px / var(--ui-scale, 0.7));
-  height: calc(44px / var(--ui-scale, 0.7));
-  min-width: calc(44px / var(--ui-scale, 0.7));
-  min-height: calc(44px / var(--ui-scale, 0.7));
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-secondary-utilities {
+  position: absolute;
+  top: max(6px, env(safe-area-inset-top));
+  right: calc(max(8px, env(safe-area-inset-right)) + 120px);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 5px;
+  background: rgba(18, 22, 28, 0.78);
+  border: 1px solid rgba(160, 130, 70, 0.45);
+  border-radius: 16px;
+  backdrop-filter: blur(4px);
+  z-index: 25;
+  zoom: var(--ui-scale, 0.6);
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-secondary-utilities .guild-utility {
+  width: calc(34px / var(--ui-scale, 0.6));
+  height: calc(34px / var(--ui-scale, 0.6));
+  min-width: calc(34px / var(--ui-scale, 0.6));
+  min-height: calc(34px / var(--ui-scale, 0.6));
   margin: 0;
 }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-utility-key { display: none; }
-/* Number-key badges are desktop-only cues; on touch the socket art and
-   count badge carry tool identification. */
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-slot-number { display: none; }
-/* The anchors are zoomed by --ui-scale, so a lift expressed in physical
-   control pixels must be divided by that scale or the card sits on the
-   joystick. */
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.guild-notes-anchor, .hud-bottom-left-container) { bottom: calc((var(--mobile-hud-lift) + 6px) / var(--ui-scale, 0.7)) !important; left: 12px !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-interaction-anchor { max-width: 285px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-satchel-utility {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: absolute !important;
+  right: max(8px, env(safe-area-inset-right)) !important;
+  bottom: calc(var(--mobile-cluster-height, 80px) + max(8px, env(safe-area-inset-bottom)) + 8px) !important;
+  z-index: 25 !important;
+  zoom: 1 !important;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-satchel-utility .guild-utility {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-satchel-utility .guild-capacity {
+  font-size: 10px !important;
+  padding: 1px 4px !important;
+  bottom: -2px !important;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.guild-utility kbd, .guild-utility-key, .guild-utility-badge kbd) { display: none !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.guild-notes-anchor, .hud-bottom-left-container) { bottom: calc((var(--mobile-hud-lift) + 4px) / var(--ui-scale, 0.6)) !important; left: 10px !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-interaction-anchor { max-width: 260px; }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac-anchor .forecast-popover { right: 0 !important; top: 48px !important; max-height: calc(100dvh - 75px); overflow-y: auto; }
 /* Touch targets inside zoomed anchors, same physical-px pattern: the
    tracker toggle and forecast closer reach true 44px; the small medallion
    and calendar keep their look and gain a same-action hit slop; the HUD
    cargo bays become tappable slots; the hazard dismiss stops being a 17px
    speck. The journal footer keeps its desktop 32px rule — touch takes 44. */
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-tracker-toggle { min-height: calc(44px / var(--ui-scale, 0.7)); }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .forecast-close-btn { width: calc(44px / var(--ui-scale, 0.7)) !important; height: calc(44px / var(--ui-scale, 0.7)) !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-tracker-toggle { min-height: calc(40px / var(--ui-scale, 0.6)); }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .forecast-close-btn { width: calc(40px / var(--ui-scale, 0.6)) !important; height: calc(40px / var(--ui-scale, 0.6)) !important; }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .journal-footer .neva-button { min-height: 44px !important; }
 /* Small almanac controls keep their look and gain touch reach without
    stealing the chart minimap's taps above them: the round medallion grows
    a same-action slop on every side but up, while the wide calendar simply
    takes a true-44px minimum height. Both open the forecast. */
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-weather-medallion::after { content: ""; position: absolute; top: 0; right: calc((44px / var(--ui-scale, 0.7) - 44px) / 2); bottom: calc(44px / var(--ui-scale, 0.7) - 44px); left: calc((44px / var(--ui-scale, 0.7) - 44px) / 2); }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-calendar { min-height: calc(44px / var(--ui-scale, 0.7)); }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .boat-cargo-slot { width: calc(44px / var(--ui-scale, 0.7)) !important; height: calc(44px / var(--ui-scale, 0.7)) !important; min-width: calc(44px / var(--ui-scale, 0.7)) !important; min-height: calc(44px / var(--ui-scale, 0.7)) !important; }
-#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .hazard-banner-dismiss-btn { min-width: calc(44px / var(--ui-scale, 0.7)) !important; min-height: calc(44px / var(--ui-scale, 0.7)) !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-weather-medallion::after { content: ""; position: absolute; top: 0; right: calc((40px / var(--ui-scale, 0.6) - 28px) / 2); bottom: calc(40px / var(--ui-scale, 0.6) - 28px); left: calc((40px / var(--ui-scale, 0.6) - 28px) / 2); }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-calendar { min-height: calc(24px / var(--ui-scale, 0.6)); }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .boat-cargo-slot { width: calc(40px / var(--ui-scale, 0.6)) !important; height: calc(40px / var(--ui-scale, 0.6)) !important; min-width: calc(40px / var(--ui-scale, 0.6)) !important; min-height: calc(40px / var(--ui-scale, 0.6)) !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .hazard-banner-dismiss-btn { min-width: calc(40px / var(--ui-scale, 0.6)) !important; min-height: calc(40px / var(--ui-scale, 0.6)) !important; }
 /* Touch chart: the canvas owns its overlay tabs (the area ribbon anchored
    to an unpositioned ancestor on single-column layouts), and the on-canvas
    zoom keys meet the touch minimum. */
@@ -9597,8 +9601,8 @@
   background:
     linear-gradient(180deg, rgba(28, 25, 20, 0.98) 0%, rgba(18, 16, 13, 0.99) 100%),
     var(--guild-paper-grain) center / 192px !important;
-  background-clip: padding-box !important;
-  border: 18px solid transparent !important;
+  background-clip: border-box !important;
+  border: 18px solid #231f18 !important;
   border-image: var(--guild-panel) 38 / 18px / 0 stretch !important;
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.85) !important;
   border-radius: 0 !important;
@@ -11544,12 +11548,12 @@
   position: absolute;
   z-index: 4;
   transform: translate(-50%, -100%);
-  width: min(232px, calc(100vw - 24px));
-  padding: 8px 11px 9px;
-  border: 1px solid #7d6837;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #2e2c21f2, #1c1e17f5);
-  box-shadow: inset 0 1px #ae915344, 0 3px 12px #0007;
+  width: min(190px, calc(100vw - 20px));
+  padding: 6px 9px 7px;
+  border: 1px solid rgba(176, 145, 80, 0.45);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(28, 25, 19, 0.95) 0%, rgba(17, 15, 12, 0.98) 100%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 235, 175, 0.18);
   color: #f6e6bd;
   pointer-events: none;
 }
@@ -11558,44 +11562,73 @@
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -6px;
-  width: 1px;
-  height: 6px;
-  background: #78653c;
+  transform: translateX(-50%);
+  bottom: -5px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba(176, 145, 80, 0.6);
 }
 .market-world-board-title {
   display: block;
-  margin-bottom: 4px;
-  color: #e0c48c;
-  font: 600 12px var(--font-serif, Georgia, serif);
-  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(165, 139, 73, 0.28);
+  color: #dfc285;
+  font: 600 11.5px/1.2 var(--font-serif, Georgia, serif);
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 .market-world-board-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 3.5px;
 }
 .market-world-board-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto;
-  align-items: baseline;
-  gap: 7px;
-  font: 12px/1.4 var(--font-sans, system-ui, sans-serif);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font: 11px/1.3 var(--font-sans, system-ui, sans-serif);
 }
 .market-world-board-item {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #ede3ce;
+  font-weight: 500;
 }
-.market-world-board-mark { font-size: 9px; }
-.market-world-board-value { font-variant-numeric: tabular-nums; color: #f0c169; }
+.market-world-board-meta {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.market-world-board-mark {
+  font-size: 8.5px;
+  line-height: 1;
+}
+.market-world-board-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 11px;
+  color: #f0c169;
+}
 .market-world-board-label {
-  font-size: 10px;
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #b7a576;
+  letter-spacing: 0.05em;
+  padding: 1.5px 3.5px;
+  border-radius: 2px;
+  white-space: nowrap;
 }
 .market-world-board-row.is-rising .market-world-board-mark { color: #e0b25c; }
 .market-world-board[data-response="sale"] {
@@ -11615,8 +11648,21 @@
 }
 .market-world-board-row.is-steady .market-world-board-mark { color: #9aa07f; }
 .market-world-board-row.is-falling .market-world-board-mark { color: #8fb7c9; }
-.market-world-board-row[data-label="Wanted"] .market-world-board-label { color: #e9c879; }
-.market-world-board-row[data-label="Plentiful"] .market-world-board-label { color: #9fc0cf; }
+.market-world-board-row[data-label="Wanted"] .market-world-board-label {
+  background: rgba(224, 178, 92, 0.16);
+  color: #e9c879;
+  border: 1px solid rgba(224, 178, 92, 0.32);
+}
+.market-world-board-row[data-label="Plentiful"] .market-world-board-label {
+  background: rgba(143, 183, 201, 0.16);
+  color: #9fc0cf;
+  border: 1px solid rgba(143, 183, 201, 0.32);
+}
+.market-world-board-row[data-label="Steady"] .market-world-board-label {
+  color: #9aa07f;
+  background: rgba(154, 160, 127, 0.12);
+  border: 1px solid rgba(154, 160, 127, 0.22);
+}
 
 .world-reward, .world-pickup-arc {
   position: absolute;
@@ -11884,47 +11930,47 @@
     min-height: 44px !important;
   }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .forecast-close-btn {
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
+    width: calc(44px / var(--ui-scale, 0.7)) !important;
+    height: calc(44px / var(--ui-scale, 0.7)) !important;
+    min-width: calc(44px / var(--ui-scale, 0.7)) !important;
   }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .ledger-transfer-btn {
     padding: 6px 10px !important;
   }
 
   /* Compact the separate Guildcraft pieces; every target remains full-size. */
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vitals { width: 220px; height: 70px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-profile { width: 64px; height: 64px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-profile-seal { width: 22px; height: 22px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-player-name { left: 66px; top: 0; font-size: 16px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-bar { left: 48px; top: 21px; width: 168px; height: 29px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-readout { font-size: 13px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-sprint { top: 47px; width: 142px; height: 23px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-sprint .guild-vital-readout { font-size: 12px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vitals { width: 175px; height: 50px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-profile { width: 48px; height: 48px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-profile-seal { width: 16px; height: 16px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-player-name { display: none !important; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-bar { left: 42px; top: 4px; width: 130px; height: 18px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-vital-readout { font-size: calc(11px / var(--ui-scale, 0.6)); }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-sprint { top: 25px; width: 115px; height: 15px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-sprint .guild-vital-readout { font-size: calc(11px / var(--ui-scale, 0.6)); }
 
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac-anchor { width: 142px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac { width: 142px; height: 154px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap { width: 112px; height: 112px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap-north { top: 12px; font-size: 13px; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-weather-medallion { left: 0; top: 90px; width: 38px; height: 38px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac-anchor { width: 98px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-almanac { width: 98px; height: 112px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap { width: 88px; height: 88px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-minimap-north { top: 8px; font-size: 11px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-weather-medallion { left: 0; top: 76px; width: 28px; height: 28px; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-calendar {
-    left: 36px;
-    top: 96px;
-    width: 106px;
-    min-height: 26px;
-    padding: 2px 6px;
+    left: 24px;
+    top: 78px;
+    width: 74px;
+    min-height: 24px;
+    padding: 1px 4px;
     overflow: hidden;
-    font-size: 12.5px;
+    font-size: calc(10px / var(--ui-scale, 0.6));
     white-space: nowrap;
   }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-objectives {
-    top: calc(max(6px, env(safe-area-inset-top)) + var(--guild-status-reserve, 78px));
+    top: calc(max(6px, env(safe-area-inset-top)) + var(--guild-status-reserve, 52px));
     left: max(8px, env(safe-area-inset-left));
-    width: min(235px, 32vw);
-    max-height: 100px;
+    width: min(180px, 28vw);
+    max-height: 48px;
   }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest { padding: 5px 7px 5px 5px !important; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-tracker-toggle { min-height: calc(44px / var(--ui-scale, 0.7)); gap: 6px; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest { padding: 3px 6px !important; }
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest .quest-tracker-toggle { min-height: calc(40px / var(--ui-scale, 0.6)); gap: 4px; }
 
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock {
     left: 50% !important;
@@ -11948,7 +11994,7 @@
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock-header-row { margin-bottom: 0; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.planting-dock-actions,.planting-current-season-badge,.seed-hotkey-badge) { display: none; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-seeds-row { justify-content: center !important; gap: 6px !important; padding: 2px 0 !important; margin: 0 !important; }
-  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-seed-card { width: 44px !important; height: 44px !important; min-width: 44px !important; min-height: 44px !important; }
+    #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-seed-card { width: calc(44px / var(--ui-scale, 0.7)) !important; height: calc(44px / var(--ui-scale, 0.7)) !important; min-width: calc(44px / var(--ui-scale, 0.7)) !important; min-height: calc(44px / var(--ui-scale, 0.7)) !important; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .planting-dock-meta { justify-content: center !important; margin-top: 0 !important; padding-top: 2px !important; gap: 4px 10px; font-size: 11px !important; line-height: 14px !important; align-items: center; }
   #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .meta-soil-hint { display: inline-flex; align-items: center; gap: 4px; }
 
@@ -13261,3 +13307,572 @@
 }
 }
 
+/* -------------------------------------------------------------------------
+   Mobile starter screen (04 §17).
+   Touch landscape viewports are short (e.g. 844x390): the desktop title
+   (width-driven clamp) plus the framed tray exceed the visible height, so the
+   save card was cut off and the Continue/Start buttons were unreachable.
+   This block makes the title height-driven and compact, anchors the scrollable
+   column to the top (centering a flex column clips the top on overflow), keeps
+   44px touch targets and safe-area padding, and keeps dialogs inside dvh.
+   Declared last in the Guildcraft layer so it outranks the desktop rules.
+   ------------------------------------------------------------------------- */
+@layer neva-ui {
+#ui-container[data-mobile-device="true"] .start-screen {
+  justify-content: flex-start !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__backdrop,
+#ui-container[data-mobile-device="true"] .start-screen__shade {
+  position: fixed !important;
+  inset: 0 !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__backdrop {
+  background-position: 32% center !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__shade {
+  background:
+    linear-gradient(90deg, rgba(4, 16, 20, 0.82) 0, rgba(4, 16, 20, 0.55) 46%, rgba(4, 16, 20, 0.22) 78%, rgba(4, 16, 20, 0.32) 100%),
+    linear-gradient(0deg, rgba(4, 16, 20, 0.6) 0, rgba(4, 16, 20, 0.08) 55%, rgba(4, 16, 20, 0.22) 100%) !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__content {
+  flex: none !important;
+  width: min(400px, calc(100vw - 32px)) !important;
+  max-width: calc(100vw - 32px) !important;
+  min-height: auto !important;
+  margin: 0 !important;
+  margin-left: max(16px, env(safe-area-inset-left)) !important;
+  margin-right: max(16px, env(safe-area-inset-right)) !important;
+  padding-top: max(48px, env(safe-area-inset-top)) !important;
+  padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+  padding-block: max(14px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-bottom)) !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  box-sizing: border-box !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__brand-lockup {
+  max-width: min(400px, calc(100vw - 32px)) !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__brand-lockup h1 {
+  font-size: clamp(34px, 11dvh, 54px) !important;
+  line-height: 0.92 !important;
+  letter-spacing: 0.02em !important;
+  overflow-wrap: break-word !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__brand-rule {
+  width: 84px !important;
+  margin: 10px 0 8px !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__tagline {
+  font-size: clamp(14px, 4.4dvh, 18px) !important;
+  line-height: 1.25 !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__state {
+  width: min(340px, calc(100vw - 32px)) !important;
+  min-height: 0 !important;
+  margin-top: 12px !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__utilities {
+  position: fixed !important;
+  top: max(10px, env(safe-area-inset-top)) !important;
+  right: max(10px, env(safe-area-inset-right)) !important;
+  z-index: 5 !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__utility-button {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__tray,
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__tray.chrome-panel--ghost,
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.start-screen--loading, .start-screen--revealing) .start-screen__tray {
+  width: min(340px, calc(100vw - 32px)) !important;
+  gap: 8px !important;
+  padding: 10px 12px !important;
+  border: 12px solid #231f18 !important;
+  border-image: var(--guild-panel) 38 / 12px / 0 stretch !important;
+  background-clip: border-box !important;
+  box-sizing: border-box !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__ready-note,
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__save-scroll-card {
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__actions {
+  gap: 8px !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__button,
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__secondary-button {
+  width: 100% !important;
+  min-height: 44px !important;
+  font-size: 15px !important;
+  box-sizing: border-box !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__loading {
+  gap: 8px !important;
+  padding: 0 !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__progress-heading {
+  font-size: 13px !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__dialog-backdrop {
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)) !important;
+  overflow-y: auto !important;
+  align-items: flex-start !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__dialog {
+  width: min(560px, calc(100vw - 20px)) !important;
+  max-height: none !important;
+  border-width: 12px !important;
+  border-image: var(--guild-panel) 38 / 12px / 0 stretch !important;
+  box-sizing: border-box !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__new-game-dialog {
+  width: min(440px, calc(100vw - 20px)) !important;
+  max-width: min(440px, calc(100vw - 20px)) !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__options-layout {
+  grid-template-columns: minmax(0, 1fr) !important;
+  min-height: 0 !important;
+  gap: 12px !important;
+  padding: 14px !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__options-pages {
+  flex-direction: row !important;
+  overflow-x: auto !important;
+  border: 0 !important;
+  border-bottom: 1px solid currentColor !important;
+}
+
+#ui-container[data-mobile-device="true"] .start-screen__options-body {
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__dialog-actions {
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__dialog-actions :is(button, .chrome-button) {
+  flex: 1 1 140px !important;
+  min-width: 0 !important;
+  white-space: normal !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.modal-overlay, .modal-overlay.interactive) {
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(
+  .inventory-satchel-modal,
+  .journal-chronicle-modal,
+  .market-trading-modal,
+  .world-map-modal,
+  .ledger-modal,
+  .pause-modal,
+  .expedition-modal,
+  .dialogue-card,
+  .crafting-modal,
+  .catch-inspection-modal,
+  .modal-content
+) {
+  width: min(86vw, 720px) !important;
+  max-width: min(86vw, 720px) !important;
+  min-height: 0 !important;
+  max-height: min(86vh, 340px) !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-height: 360px) {
+  #ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(
+    .inventory-satchel-modal,
+    .journal-chronicle-modal,
+    .market-trading-modal,
+    .world-map-modal,
+    .ledger-modal,
+    .pause-modal,
+    .expedition-modal,
+    .dialogue-card,
+    .crafting-modal,
+    .catch-inspection-modal,
+    .modal-content
+  ) {
+    max-height: calc(100dvh - 24px) !important;
+  }
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.modal-header, .market-modal-header, .map-modal-header, .ledger-header, .expedition-header, .dialogue-header) {
+  min-height: 46px !important;
+  padding: 6px 12px !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.modal-heading-with-mark, .market-modal-title, .map-title, .ledger-title, .expedition-header h2, .dialogue-speaker-name) {
+  font-size: clamp(17px, 2.5vw, 20px) !important;
+  line-height: 1.2 !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .chrome-close {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.inventory-tab-btn, .journal-folio-btn, .market-ledger-marker, .map-lens-btn, .guidebook-subtab-btn) {
+  padding: 4px 10px !important;
+  min-height: 34px !important;
+  height: 34px !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.inventory-category-tabs, .market-ledger-index) {
+  padding: 0 8px !important;
+  gap: 4px !important;
+  min-height: 36px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Short viewports on any pointer (desktop short windows included): keep the
+   title height-driven so the tray and its buttons stay inside the viewport. */
+@media (max-height: 540px) {
+  #ui-container .start-screen__content {
+    padding-block: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-bottom)) !important;
+    justify-content: flex-start !important;
+  }
+
+  #ui-container .start-screen__brand-lockup h1 {
+    font-size: clamp(32px, 10dvh, 52px) !important;
+    line-height: 0.92 !important;
+  }
+
+  #ui-container .start-screen__brand-rule {
+    margin: 10px 0 8px !important;
+  }
+
+  #ui-container .start-screen__tagline {
+    font-size: clamp(14px, 4.2dvh, 18px) !important;
+  }
+
+  #ui-container .start-screen__state {
+    min-height: 0 !important;
+    margin-top: 12px !important;
+  }
+}
+}
+
+/* The folio and world instruments share one readable scale. Keep their painted
+   frames; make the text, scrolling and controls do the organizing. */
+#ui-container[data-ui="guildcraft"] .guild-objectives {
+  top: calc(var(--ui-safe-top) + 298px);
+  width: min(300px, calc(100vw - var(--ui-safe-right) - var(--ui-safe-left)));
+  max-height: calc(100dvh - var(--ui-safe-top) - 314px - var(--ui-safe-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#ui-container[data-ui="guildcraft"] .collapsible-tracker-group { gap: 6px !important; }
+#ui-container[data-ui="guildcraft"] .guild-quest { padding: 8px 10px !important; }
+#ui-container[data-ui="guildcraft"] .guild-quest-seal { width: 38px; height: 42px; flex-basis: 38px; }
+#ui-container[data-ui="guildcraft"] .guild-quest :is(.quest-tracker-content,.quest-progress-wrap) { padding-left: 48px !important; }
+#ui-container[data-ui="guildcraft"] .quest-thread-rail { margin-left: 48px !important; }
+#ui-container[data-ui="guildcraft"] .guild-quest .quest-collapse-chevron { display: inline-block !important; color: var(--guild-gold-bright); }
+#ui-container[data-ui="guildcraft"] .guild-quest.collapsed .quest-collapse-chevron { transform: rotate(-90deg); }
+#ui-container[data-ui="guildcraft"] [data-testid="followed-record-tracker"].collapsed .quest-objective-text { display: block; }
+#ui-container[data-ui="guildcraft"] .guild-quest .quest-objective-text { font-size: 14px !important; line-height: 1.4 !important; }
+#ui-container[data-ui="guildcraft"] .contracts-tracker-hud { margin-top: 0; }
+#ui-container[data-ui="guildcraft"] .contracts-tracker-hud .quest-objective-text { display: none; }
+#ui-container[data-ui="guildcraft"] .contracts-tracker-content {
+  max-height: none;
+  overflow: visible;
+  margin-top: 4px;
+}
+#ui-container[data-ui="guildcraft"] .contract-tracker-item { padding: 6px 8px !important; }
+#ui-container[data-ui="guildcraft"] .contract-target-name { min-width: 0; overflow-wrap: anywhere; }
+#ui-container[data-ui="guildcraft"] .contract-reward-badge { font-size: 12px !important; }
+
+.npc-world-bark { width: min(260px, calc(100vw - 24px)); font-size: 13.5px; }
+
+#ui-container[data-ui="guildcraft"] .journal-open-pages { padding: 20px clamp(20px, 3vw, 36px) 32px !important; }
+#ui-container[data-ui="guildcraft"] .journal-open-pages > .journal-page { width: min(100%, 78ch); margin-inline: auto; }
+#ui-container[data-ui="guildcraft"] .journal-page-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 14px; }
+#ui-container[data-ui="guildcraft"] .journal-page-heading h2 { font-size: 14px !important; line-height: 1.3 !important; letter-spacing: .08em !important; }
+#ui-container[data-ui="guildcraft"] .journal-page-count { color: var(--guild-muted) !important; font: 500 13px/1.3 var(--font-sans) !important; letter-spacing: 0 !important; text-transform: none !important; }
+#ui-container[data-ui="guildcraft"] .journal-page-heading .journal-people-summary {
+  display: inline-flex;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+#ui-container[data-ui="guildcraft"] .journal-story-title-row h3 { font-size: clamp(25px, 2.2vw, 30px) !important; }
+#ui-container[data-ui="guildcraft"] .journal-objective-desc { font-size: 16px !important; line-height: 1.5 !important; }
+#ui-container[data-ui="guildcraft"] .journal-story-brief { max-width: 72ch; }
+#ui-container[data-ui="guildcraft"] .journal-story-brief p { font-size: 15.5px !important; line-height: 1.55 !important; }
+#ui-container[data-ui="guildcraft"] .journal-folio-btn { min-height: 44px; white-space: nowrap; }
+#ui-container[data-ui="guildcraft"] .journal-header { flex: 0 0 auto; min-height: 0; }
+#ui-container[data-ui="guildcraft"] .journal-header h1.modal-heading-with-mark { margin: 0 !important; }
+#ui-container[data-ui="guildcraft"] .journal-open-pages { min-height: 0; flex: 1 1 auto; overflow-y: auto; }
+#ui-container[data-ui="guildcraft"] .journal-record-goal { gap: 8px; }
+#ui-container[data-ui="guildcraft"] .journal-record-follow { min-height: 40px; }
+#ui-container[data-ui="guildcraft"] .journal-person-line,
+#ui-container[data-ui="guildcraft"] .journal-notices-board .journal-notice-body { font-size: 15px !important; line-height: 1.5 !important; }
+#ui-container[data-ui="guildcraft"] .almanac-search-results {
+  margin: 2px 0 12px;
+  color: var(--guild-muted);
+  font: 500 13px/1.4 var(--font-sans);
+}
+
+#ui-container[data-ui="guildcraft"] .expedition-readiness-disclosure {
+  flex: 0 0 auto;
+  min-width: 0;
+  border-bottom: 1px solid rgba(165, 139, 73, .28);
+  background: rgba(18, 15, 11, .7);
+}
+#ui-container[data-ui="guildcraft"] .expedition-readiness-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  min-height: 44px;
+  padding: 8px 18px;
+  color: var(--guild-ivory);
+  cursor: pointer;
+  list-style: none;
+  font: 500 13px/1.35 var(--font-sans);
+}
+#ui-container[data-ui="guildcraft"] .expedition-readiness-summary::-webkit-details-marker { display: none; }
+#ui-container[data-ui="guildcraft"] .expedition-readiness-summary::before { content: "▸"; color: var(--guild-gold); }
+#ui-container[data-ui="guildcraft"] .expedition-readiness-disclosure[open] .expedition-readiness-summary::before { content: "▾"; }
+#ui-container[data-ui="guildcraft"] .expedition-readiness-summary strong { color: var(--guild-gold-bright); font: 600 15px var(--font-serif); }
+#ui-container[data-ui="guildcraft"] .expedition-readiness-summary span { color: var(--guild-muted); }
+#ui-container[data-ui="guildcraft"] .expedition-readiness-summary:focus-visible { outline: 2px solid var(--guild-gold-bright); outline-offset: -3px; }
+#ui-container[data-ui="guildcraft"] .expedition-readiness-strip { gap: 8px !important; padding: 10px 18px !important; }
+#ui-container[data-ui="guildcraft"] .expedition-readiness-strip > div { padding: 8px 10px !important; }
+#ui-container[data-ui="guildcraft"] .expedition-supply-pill { min-width: 0; padding: 3px 4px !important; }
+#ui-container[data-ui="guildcraft"] .expedition-supply-pill > span {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere;
+  line-height: 1.25 !important;
+}
+#ui-container[data-ui="guildcraft"] .expedition-supply-pill.is-missing { opacity: 1 !important; }
+#ui-container[data-ui="guildcraft"] .expedition-supply-pill.is-missing > span { color: #bdb39f !important; }
+#ui-container[data-ui="guildcraft"] .expedition-supply-pill.is-missing strong { color: #d5c8aa !important; }
+#ui-container[data-ui="guildcraft"] .expedition-selected-notice > p { font-size: 14px !important; line-height: 1.5 !important; }
+#ui-container[data-ui="guildcraft"] .expedition-selected-meta { gap: 6px !important; }
+#ui-container[data-ui="guildcraft"] .expedition-selected-meta div {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(165,139,73,.28) !important;
+  padding: 6px 2px !important;
+}
+#ui-container[data-ui="guildcraft"] .expedition-blockers ol { font-size: 14px !important; line-height: 1.45 !important; }
+
+#ui-container[data-ui="guildcraft"] .stores-capacity-line dt { font-size: 12px !important; }
+#ui-container[data-ui="guildcraft"] .stores-capacity-line dd { font-size: 15px !important; }
+#ui-container[data-ui="guildcraft"] .stores-supply-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+#ui-container[data-ui="guildcraft"] .stores-supply-slot,
+#ui-container[data-ui="guildcraft"] .stores-supply-slot.is-occupied {
+  display: grid !important;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px !important;
+  min-width: 0;
+  min-height: 48px !important;
+  padding: 7px 10px !important;
+  background: rgba(25, 21, 15, .82) !important;
+  border: 1px solid rgba(165, 139, 73, .34) !important;
+  border-radius: 3px !important;
+  box-sizing: border-box;
+}
+#ui-container[data-ui="guildcraft"] .stores-supply-slot.is-empty {
+  opacity: .7 !important;
+  border-style: solid !important;
+}
+#ui-container[data-ui="guildcraft"] .stores-supply-icon { width: 24px; height: 24px; }
+#ui-container[data-ui="guildcraft"] .stores-supply-slot > .stores-supply-name {
+  min-width: 0;
+  margin: 0;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere;
+  line-height: 1.25 !important;
+}
+#ui-container[data-ui="guildcraft"] .stores-supply-slot > .stores-supply-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+#ui-container[data-ui="guildcraft"] .ledger-transfer-list { max-height: none !important; overflow: visible !important; }
+#ui-container[data-ui="guildcraft"] .ledger-transfer-btn { min-height: 36px !important; font-size: 13px !important; }
+
+#ui-container[data-ui="guildcraft"] .map-lenses-bar { gap: 3px !important; }
+#ui-container[data-ui="guildcraft"] .map-lens-btn,
+#ui-container[data-ui="guildcraft"] .map-lens-btn.is-active {
+  width: auto !important;
+  min-width: 98px;
+  min-height: 42px;
+  height: auto !important;
+  justify-content: flex-start !important;
+  gap: 7px;
+  padding: 6px 8px !important;
+}
+#ui-container[data-ui="guildcraft"] .map-lens-btn .map-lens-label { display: inline !important; font: 600 12px/1.2 var(--font-serif); }
+#ui-container[data-ui="guildcraft"] .map-svg-canvas { background: #202923 !important; }
+#ui-container[data-ui="guildcraft"] .map-directory-list { max-height: none; overflow: visible; }
+#ui-container[data-ui="guildcraft"] .map-directory-item {
+  min-height: 34px;
+  background: rgba(31, 33, 26, .9) !important;
+  border: 1px solid rgba(165,139,73,.32) !important;
+  color: var(--guild-ivory) !important;
+}
+#ui-container[data-ui="guildcraft"] .map-directory-item:is(:hover,:focus-visible) { background: rgba(55,47,32,.96) !important; }
+#ui-container[data-ui="guildcraft"] .map-directory-item.is-selected { background: rgba(78,64,39,.98) !important; border-color: #d4b571 !important; }
+#ui-container[data-ui="guildcraft"] .map-directory-item-name { color: var(--guild-ivory) !important; font-size: 12.5px !important; }
+#ui-container[data-ui="guildcraft"] .map-directory-item-dist { color: #e2c78d !important; font-size: 11.5px !important; }
+#ui-container[data-ui="guildcraft"] .map-directory-title { color: var(--guild-gold) !important; font-size: 13px; }
+#ui-container[data-ui="guildcraft"] .map-directory-count { color: var(--guild-muted) !important; font-size: 11.5px; }
+
+#ui-container[data-ui="guildcraft"] .character-screen__wardrobe { overflow-y: auto; }
+#ui-container[data-ui="guildcraft"] .character-owned-list { flex: 0 0 auto; max-height: min(30vh, 280px); overflow-y: auto; }
+#ui-container[data-ui="guildcraft"] .character-comparison { flex: 0 0 auto; max-height: none; overflow: visible; }
+#ui-container[data-ui="guildcraft"] .character-comparison__desc { font-size: 14px; line-height: 1.5; opacity: 1; }
+#ui-container[data-ui="guildcraft"] .character-effect-item { font-size: 13px; line-height: 1.4; }
+#ui-container[data-ui="guildcraft"] .character-effect-item.is-none { font-size: 13px; }
+#ui-container[data-ui="guildcraft"] .character-comparison__current-row strong { font-size: 13px; }
+#ui-container[data-ui="guildcraft"] .character-category-tab { min-height: 36px; font-size: 12px; }
+#ui-container[data-ui="guildcraft"] .character-preset .neva-button { min-height: 40px; font-size: 13px; }
+#ui-container[data-ui="guildcraft"] .character-owned-item { min-height: 52px; }
+#ui-container[data-ui="guildcraft"] .character-wardrobe-empty {
+  margin: 12px 0;
+  padding: 14px;
+  color: var(--guild-muted);
+  border: 1px dashed rgba(165, 139, 73, .36);
+  font: 500 14px/1.45 var(--font-sans);
+}
+#ui-container[data-ui="guildcraft"] .character-comparison__blocker {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  color: #f1c0a9;
+  background: rgba(88, 41, 28, .28);
+  border-left: 3px solid #d97e61;
+  font: 500 13px/1.45 var(--font-sans);
+}
+
+@media (min-width: 680px) and (max-width: 1100px) and (min-height: 600px) {
+  #ui-container[data-ui="guildcraft"] .character-screen__body {
+    display: grid;
+    grid-template-columns: minmax(230px, .82fr) minmax(0, 1.18fr);
+    grid-template-rows: minmax(220px, 42%) minmax(0, 1fr);
+    overflow: hidden;
+  }
+  #ui-container[data-ui="guildcraft"] .character-screen__loadout { grid-column: 1; grid-row: 1 / 3; }
+  #ui-container[data-ui="guildcraft"] .character-screen__preview { grid-column: 2; grid-row: 1; min-height: 0; }
+  #ui-container[data-ui="guildcraft"] .character-preview-stage { width: min(100%, 180px); }
+  #ui-container[data-ui="guildcraft"] .character-screen__wardrobe {
+    display: flex;
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 0;
+    overflow-y: auto;
+    border-top: 1px solid rgba(165, 139, 73, .22);
+  }
+  #ui-container[data-ui="guildcraft"] .character-category-filter { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: thin; }
+  #ui-container[data-ui="guildcraft"] .character-category-tab { flex: 0 0 auto; white-space: nowrap; }
+  #ui-container[data-ui="guildcraft"] .character-owned-list { grid-template-columns: 1fr; max-height: 190px; overflow-y: auto; }
+}
+
+@media (min-width: 680px) and (max-width: 1000px) and (max-height: 599px) {
+  #ui-container[data-ui="guildcraft"] .character-screen__body { display: block; overflow-y: auto; }
+  #ui-container[data-ui="guildcraft"] :is(.character-screen__loadout,.character-screen__wardrobe) { overflow: visible; border-inline: 0; }
+  #ui-container[data-ui="guildcraft"] .character-screen__preview { min-height: 220px; border-block: 1px solid rgba(165, 139, 73, .22); }
+  #ui-container[data-ui="guildcraft"] .character-preview-stage { width: min(100%, 165px); }
+  #ui-container[data-ui="guildcraft"] .character-owned-list { max-height: none; overflow: visible; }
+  #ui-container[data-ui="guildcraft"] .character-category-filter { overflow-x: auto; flex-wrap: nowrap; }
+  #ui-container[data-ui="guildcraft"] .character-category-tab { flex: 0 0 auto; white-space: nowrap; }
+}
+
+@media (max-width: 820px) {
+  #ui-container[data-ui="guildcraft"] .guild-objectives { max-height: calc(100dvh - var(--ui-safe-top) - 314px); }
+  #ui-container[data-ui="guildcraft"] .expedition-readiness-strip { grid-template-columns: 1fr 1fr !important; }
+  #ui-container[data-ui="guildcraft"] .expedition-readiness-strip > :last-child { grid-column: 1 / -1; }
+  #ui-container[data-ui="guildcraft"] .stores-supply-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+@media (max-height: 520px) {
+  #ui-container[data-ui="guildcraft"] .journal-open-pages { padding: 10px 16px 18px !important; }
+  #ui-container[data-ui="guildcraft"] .journal-header .modal-heading-with-mark { font-size: 19px !important; }
+  #ui-container[data-ui="guildcraft"] .journal-folio-btn { min-height: 40px; padding: 5px 10px !important; font-size: 13px !important; }
+  #ui-container[data-ui="guildcraft"] .character-owned-list { max-height: 150px; }
+}
+@media (min-width: 800px) and (max-height: 520px) {
+  #ui-container[data-ui="guildcraft"] .stores-supply-row { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-objectives {
+  top: calc(max(6px, env(safe-area-inset-top)) + var(--guild-status-reserve, 52px));
+  width: min(calc(240px / var(--ui-scale, 0.6)), 45vw);
+  max-width: min(calc(280px / var(--ui-scale, 0.6)), 50vw);
+  max-height: calc(56px / var(--ui-scale, 0.6));
+  overflow: hidden;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .guild-quest-seal { width: 20px; height: 24px; flex-basis: 20px; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] :is(.journal-folio-btn,.map-lens-btn,.stores-vessel-tab,.character-category-tab) { min-height: 40px !important; }
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .chrome-close {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .map-lens-btn,
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .map-lens-btn.is-active { min-width: 44px; }

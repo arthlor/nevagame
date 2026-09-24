@@ -1,4 +1,4 @@
-import { isCarriage, carriagePoseIsClear, CARRIAGE_TUNING } from "../simulation/mounts/Carriage";
+import { isCarriage, carriagePoseIsClear, advanceCarriagePose, CARRIAGE_TUNING } from "../simulation/mounts/Carriage";
 import type RAPIER from "@dimforge/rapier3d-compat";
 import { MathUtils } from "three";
 import { ContentRegistry } from "../content/ContentRegistry";
@@ -52,8 +52,6 @@ const CHARACTER_AUTOSTEP_WIDTH_METERS = 0.24;
 const PLAYER_CAPSULE_HALF_HEIGHT_METERS = 0.62;
 const PLAYER_CAPSULE_RADIUS_METERS = 0.32;
 const PLAYER_POSE_GROUND_OFFSET_METERS = 0.5;
-/** Below this stick magnitude a mount walks, so a rider can still line up on a gate. */
-const MOUNT_WALK_INPUT_THRESHOLD = 0.55;
 const PLAYER_COLLIDER_CENTER_FROM_POSE_METERS =
   PLAYER_CAPSULE_HALF_HEIGHT_METERS +
   PLAYER_CAPSULE_RADIUS_METERS -
@@ -323,6 +321,7 @@ interface PlayerBodyRollback {
   rotationY: number;
   grounded: boolean;
   previousResolvedSpeed: number;
+  carriageSteering: number;
   jumpBufferRemainingSeconds: number;
   coyoteTimeRemainingSeconds: number;
   committedPose: ResolvedPhysicsFrame["player"] | null;
@@ -347,6 +346,7 @@ export class PhysicsWorld implements PhysicsAdapter {
   private playerVelocityX = 0;
   private playerVelocityZ = 0;
   private previousResolvedPlayerSpeed = 0;
+  private carriageSteering = 0;
   private playerVerticalVelocity = 0;
   private playerRotationY = 0;
   private playerGrounded = true;
@@ -834,8 +834,7 @@ export class PhysicsWorld implements PhysicsAdapter {
         );
 
     // While mounted the burst comes out of the animal's budget, not the
-    // rider's, and a full stick already trots -- so riding always beats running
-    // and the gallop is the thing that costs something.
+    // rider's; normal movement walks and holding sprint gallops while the budget lasts.
     const activeMount = isMounted && player.activeMountId !== null
       ? state.mounts[player.activeMountId] ?? null
       : null;
@@ -846,20 +845,16 @@ export class PhysicsWorld implements PhysicsAdapter {
           safeDt
         )
       : null;
-    const mountedGait: "walk" | "trot" | "gallop" = inputLength < MOUNT_WALK_INPUT_THRESHOLD
-      ? "walk"
-      : mountGaitStep?.isGalloping
-        ? "gallop"
-        : "trot";
+    const mountedGait: "walk" | "gallop" = mountGaitStep?.isGalloping
+      ? "gallop"
+      : "walk";
 
     const gaitScale = this.playerGrounded
       ? slopeGaitScale(this.playerGroundNormal, inputX, inputZ)
       : 1;
     const mountedSpeed = mountedGait === "gallop"
       ? MOUNT_TUNING.gallopSpeedMetersPerSecond
-      : mountedGait === "trot"
-        ? MOUNT_TUNING.trotSpeedMetersPerSecond
-        : MOUNT_TUNING.walkSpeedMetersPerSecond;
+      : MOUNT_TUNING.walkSpeedMetersPerSecond;
     // A physical trade pack is carried on the back, so it slows both gaits. A
     // mount carries the load instead of the player, so it is exempt.
     const carriedCargo = player.carriedFishCargoId
@@ -1316,7 +1311,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       windDirectionDeg: state.weather.windDirectionDeg,
       windSpeed: state.weather.windSpeed
     };
-    const water = WaterSurface.sample(boat.x, boat.z, timeSeconds, waterConditions);
+    const water = { height: WaterSurface.height(boat.x, boat.z, timeSeconds, waterConditions) };
     const physics = this.ensureBoat(
       id,
       boat.boatTypeId,
@@ -1539,7 +1534,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       physics.speed *= 0.16;
     }
 
-    const nextWater = WaterSurface.sample(nextX, nextZ, timeSeconds, waterConditions);
+    const nextWater = { height: WaterSurface.height(nextX, nextZ, timeSeconds, waterConditions) };
     physics.body.setTranslation({ x: nextX, y: nextWater.height, z: nextZ }, true);
     physics.body.setRotation(rotation, true);
     this.sceneQueriesDirty = true;
@@ -1789,6 +1784,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       rotationY: this.playerRotationY,
       grounded: this.playerGrounded,
       previousResolvedSpeed: this.previousResolvedPlayerSpeed,
+      carriageSteering: this.carriageSteering,
       jumpBufferRemainingSeconds: this.jumpBufferRemainingSeconds,
       coyoteTimeRemainingSeconds: this.coyoteTimeRemainingSeconds,
       committedPose: this.lastResolvedPlayerPose,
@@ -1889,14 +1885,14 @@ export class PhysicsWorld implements PhysicsAdapter {
       const dtSafe = Number.isFinite(dt) ? Math.max(0, Math.min(0.05, dt)) : 0;
       const throttle = Number.isFinite(input.z) ? Math.max(-1, Math.min(1, -input.z)) : 0;
       const steering = Number.isFinite(input.x) ? Math.max(-1, Math.min(1, input.x)) : 0;
-      if (this.lastPlayerAttachmentKey !== attachmentKey) this.previousResolvedPlayerSpeed = 0;
+      if (this.lastPlayerAttachmentKey !== attachmentKey) { this.previousResolvedPlayerSpeed = 0; this.carriageSteering = 0; }
       const previousSpeed = this.previousResolvedPlayerSpeed;
       // The horse trots on the same budget semantic as the donkey gallops:
       // Shift trots while the budget lasts, then the team drops to a walk
       // until it recovers. Walking (and reversing) stays free.
       mountGaitStep = advanceMountGait(
         mount,
-        { wantsGallop: input.sprint, isMoving: Math.abs(throttle) > 0.01 },
+        { wantsGallop: input.sprint && throttle > 0, isMoving: Math.abs(throttle) > 0.01 },
         dtSafe,
         {
           maximumGallopStamina: CARRIAGE_TUNING.staminaMaximum,
@@ -1910,17 +1906,18 @@ export class PhysicsWorld implements PhysicsAdapter {
       const target = throttle * (trotting ? CARRIAGE_TUNING.trotSpeed : CARRIAGE_TUNING.walkSpeed);
       const change = (Math.abs(target) > Math.abs(previousSpeed) ? CARRIAGE_TUNING.acceleration : CARRIAGE_TUNING.braking) * dtSafe;
       let speed = previousSpeed + Math.max(-change, Math.min(change, target - previousSpeed));
-      const yaw = mount.rotationY - steering * CARRIAGE_TUNING.turnRate * Math.min(1, Math.abs(speed)) * Math.sign(speed) * dtSafe;
-      const candidate = { ...mount, rotationY: yaw,
-        x: mount.x + Math.sin(yaw) * speed * dtSafe,
-        z: mount.z + Math.cos(yaw) * speed * dtSafe };
+      const priorSteering = this.carriageSteering;
+      const requestedSteering = Math.abs(speed) > 0.025 ? -steering * CARRIAGE_TUNING.maximumSteerAngle : this.carriageSteering;
+      this.carriageSteering += (requestedSteering - this.carriageSteering) * (1 - Math.exp(-CARRIAGE_TUNING.steeringResponse * dtSafe));
+      const candidate = { ...mount, ...advanceCarriagePose(mount, speed, this.carriageSteering, dtSafe) };
+      const yaw = candidate.rotationY;
       // Each fixed step is shorter than 11 cm. Validate its midpoint too so the
       // full horse/shaft/bed sweep cannot cut through a narrow obstacle on turns.
       const midpoint = { ...candidate, x: (mount.x + candidate.x) / 2,
         z: (mount.z + candidate.z) / 2, rotationY: (mount.rotationY + yaw) / 2 };
-      const clear = Math.abs(speed) < 0.00001 || (carriagePoseIsClear(midpoint, this.carriageCollision)
-        && carriagePoseIsClear(candidate, this.carriageCollision));
-      if (!clear) speed = 0;
+      const clear = Math.abs(speed) < 0.00001 || (carriagePoseIsClear(midpoint, this.carriageCollision, (priorSteering + this.carriageSteering) / 2)
+        && carriagePoseIsClear(candidate, this.carriageCollision, this.carriageSteering));
+      if (!clear) { speed = 0; this.carriageSteering = priorSteering; }
       const accepted = clear ? candidate : mount;
       const support = WorldLayout.traversalSurfaceSample(accepted.x, accepted.z);
       player = { ...player, x: accepted.x, z: accepted.z, y: support.height + MOUNT_TUNING.playerPoseGroundOffsetMeters,
@@ -2038,6 +2035,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.playerRotationY = rollback.rotationY;
     this.playerGrounded = rollback.grounded;
     this.previousResolvedPlayerSpeed = rollback.previousResolvedSpeed;
+    this.carriageSteering = rollback.carriageSteering;
     this.jumpBufferRemainingSeconds = rollback.jumpBufferRemainingSeconds;
     this.coyoteTimeRemainingSeconds = rollback.coyoteTimeRemainingSeconds;
     this.lastResolvedPlayerPose = rollback.committedPose;

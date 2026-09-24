@@ -4,9 +4,13 @@ Pointer only — not an authority. Route work to the owner below; do not infer a
 workflow from a folder dump.
 
 - **Catalog art / GLB production:** obey `LLM/BLENDER.md`, then use
-  `tools/blender/README.md`. The normal path is selected catalog ID → registered
+  `tools/authored/README.md`. The normal path is selected catalog ID → registered
   family generator → `npm run art:generate -- --asset <id>` → Art Yard →
-  `Awaiting human game review`. Isolated studio sheets live in
+  `Awaiting human game review`. Generators are authored Three.js factories in
+  `tools/authored/generators/`; families still on Blender (`tools/blender/`,
+  see its README) are ported rather than extended, and Blender stays only as
+  the donor-import adapter. Preview authored generators live with
+  `/__neva_art_yard?asset=<id>&live=1`. Isolated studio sheets live in
   `tools/blender/references/isolated/`.
 - **World layout / F2 Place editor:** obey `LLM/LAYOUT_EDITOR.md`. Runtime editor
   code lives in `src/layout-editor/` and `src/app/PlacementEditor.ts`; the Vite

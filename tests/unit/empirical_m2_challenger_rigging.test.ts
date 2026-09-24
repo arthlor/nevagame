@@ -25,7 +25,9 @@ describe("actual exported humanoid geometry, bindings and actions", () => {
     const nodes = new Map(doc.getRoot().listNodes().map((node) => [node.getName(), node]));
     const authoring = rawCatalog.assets.find((entry: { id: string }) => entry.id === id);
     expect(authoring.generator).toBe("imported_blend");
-    expect(authoring.humanoidAuthoring.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
+    // Poly Pizza humanoids retain their source skin (humanoidAuthoring); the
+    // Tripo player is re-skinned onto the Neva rig (skinnedAuthoring).
+    expect((authoring.humanoidAuthoring ?? authoring.skinnedAuthoring).sourceSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(spec.humanoidRig).toBeTruthy();
     for (const [semantic, name] of Object.entries(spec.humanoidRig!.bones)) {
       expect(nodes.has(name), `${id}/${semantic}: ${name}`).toBe(true);
@@ -108,9 +110,15 @@ describe("actual exported humanoid geometry, bindings and actions", () => {
       }
     }
     expect(vertices).toBeGreaterThan(1000);
-    expect(materials.size).toBeGreaterThanOrEqual(4);
     expect(smoothedCorners, `${id} must retain selective source smoothing`).toBeGreaterThan(100);
-    expect([...materials].some((name) => name.startsWith("skin_"))).toBe(true);
+    const skinned = rawCatalog.assets.find((entry: { id: string }) => entry.id === id).skinnedAuthoring;
+    if (skinned) {
+      // Texture-preserving regions are named for the catalog material map.
+      expect([...materials].sort()).toEqual(Object.keys(skinned.materialMap).sort());
+    } else {
+      expect(materials.size).toBeGreaterThanOrEqual(4);
+      expect([...materials].some((name) => name.startsWith("skin_"))).toBe(true);
+    }
   });
 
   it.each(CHARACTER_ASSET_IDS)("%s exports every peaceful catalog action with real tracks and exact timing", (id) => {

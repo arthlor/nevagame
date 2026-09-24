@@ -23,8 +23,8 @@ describe("Work economy — earned labor", () => {
     sim.state.player.z = FARMHOUSE_INTERIOR_ORIGIN.z;
     const result = sim.execute({ type: "player.rest-until-dawn" });
     expect(result.success).toBe(true);
-    // max(0 + 10% of 500, 25% of 500) = 125.
-    expect(sim.state.player.workCapacity.current).toBe(125);
+    // max(0 + 10% of 500, 40% of 500) = 200.
+    expect(sim.state.player.workCapacity.current).toBe(200);
   });
 
   it("caps earned Work at the daily cap", () => {
@@ -49,6 +49,23 @@ describe("Work economy — earned labor", () => {
     expect(sim.progression.getWorkDailyStatus().mealsToday).toBe(WORK_MEAL_DAILY_LIMIT);
     const refused = sim.execute({ type: "item.consume", itemId: "item.meal_harvest_bowl" });
     expect(refused.success).toBe(false);
+  });
+
+  it("explains a spent daily earning cap without consuming a meal", () => {
+    const sim = new Simulation();
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    expect(InventoryManager.addItemsAtomically(inventory, [
+      { itemId: "item.meal_harvest_bowl", quantity: 1 }
+    ])).toBe(true);
+    sim.state.player.workCapacity.current = 0;
+    sim.state.player.workCapacity.earnedToday = WORK_DAILY_EARN_CAP;
+
+    const inspection = sim.inspectItem("item.meal_harvest_bowl");
+    expect(inspection?.provisions?.edible).toBe(false);
+    expect(inspection?.provisions?.blockerReason).toContain("earning limit");
+    expect(sim.execute({ type: "item.consume", itemId: "item.meal_harvest_bowl" }))
+      .toMatchObject({ success: false, reason: expect.stringContaining("earning limit") });
+    expect(InventoryManager.getItemCount(inventory, "item.meal_harvest_bowl")).toBe(1);
   });
 
   it("refuses to eat an item that is not a provision", () => {

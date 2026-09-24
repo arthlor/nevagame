@@ -2,6 +2,8 @@ import { oceanIsletPlacements } from "./OceanIsletPlacements";
 import { mainlandGroundCoverSteps, mainlandSettlementPlacements, mainlandStructuralPlacementSteps,
   STARTER_DRESSING_BOUNDS } from "./MainlandEnvironmentLayout";
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
+import { createSunreachDressingPlacements, sunreachCisternPlacement } from "./SunreachDressing";
+import { clearsSunreachDressing } from "./SunreachLivingLayout";
 import { runSync, runCooperatively } from "../utils/CooperativeTask";
 import { createHarborCoastPlacements, retainLegacyHarborDressing, retainHarborGroundCover } from "./HarborCoastLayout";
 import {
@@ -416,12 +418,12 @@ function authoredArchitecturePlacement(
 
 export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
   // Trail rest stops and working village edges keep the arrival centers open.
-  authoredPlacement("authored.arrival.spring.cairn", { assetId: "rock_field_a", x: -35.6, z: -147.1, rotationY: 0.4, scale: [0.8, 0.8, 0.8], clearanceRadiusMeters: 1.5 }),
-  // Spring rest stop, set back west of the fall axis so no hero view finds
-  // furniture silhouetted above the crest. Still on the flat trail-side
-  // terrace by the spring.
-  authoredPlacement("authored.arrival.spring.bench", { assetId: "prop_bench_wood_a", x: -38.9, z: -146.8, rotationY: 6.2832, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.spring.sign", { assetId: "prop_signpost_trail_a", x: -39.1, z: -158.7, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.spring.cairn", { assetId: "rock_field_a", x: -50.5, z: -156.2, rotationY: 0.4, scale: [0.8, 0.8, 0.8], clearanceRadiusMeters: 1.5 }),
+  // Fall-face overlook: the shortened trail ends at the west rim; this bench
+  // sits on the western reveal ledge so the first furniture view is the tall
+  // curtain, not the spring source (which the rim hides upstream).
+  authoredPlacement("authored.arrival.spring.bench", { assetId: "prop_bench_wood_a", x: -45.0, z: -136.5, rotationY: -1.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.spring.sign", { assetId: "prop_signpost_trail_a", x: -51.0, z: -157.5, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.overlook.bench", { assetId: "prop_bench_wood_a", x: -127.2, z: -91.8, rotationY: -1.309, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.overlook.cairn", { assetId: "rock_field_a", x: -125, z: -84, rotationY: 0.6, scale: [0.8, 0.8, 0.8], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.overlook.sign", { assetId: "prop_signpost_trail_a", x: -122, z: -88, rotationY: -1.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
@@ -501,11 +503,17 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.coast.walk-kiosk", { assetId: "prop_trail_kiosk_a", x: -60, z: 65, rotationY: 2.7, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.coast.rest-fire-pit", { assetId: "prop_fire_pit_a", x: -62, z: 60, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.woodland.habitat-snag", { assetId: "tree_dead_a", x: -151, z: -118, rotationY: 0.4, scale: [1, 1, 1] }),
-  // The old toe became a steep face; the broad western summit supports the whole rock.
-  authoredPlacement("authored.woodland.boulder", { assetId: "rock_boulder_large_a", x: -130.33, z: -118.5, rotationY: -0.3, scale: [1, 1, 1], grounding: [1.1, 0.99], clearanceRadiusMeters: 2 }),
+  // A tor on the western summit's rounded cap, the only level ground left on the peaked summit.
+  authoredPlacement("authored.woodland.boulder", { assetId: "rock_boulder_large_a", x: -126, z: -116, rotationY: -0.3, scale: [1, 1, 1], grounding: [1.1, 0.99], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.coast.headland-spire", { assetId: "rock_spire_a", x: -115, z: 72, rotationY: 0.3, scale: [1, 1, 1], grounding: [0.65, 0.73], clearanceRadiusMeters: 1.4 }),
 
-  // Marine plants are rooted on the bed. Only the buoy and lily leaves use waterline height.
+  // Marine plants are rooted on the bed. Only the buoy, the anchored galleon and
+  // lily leaves use waterline height.
+  // A visiting galleon rides at anchor ~45 m off the harbor in the wedge
+  // between the Pinewatch and Sunreach sailing lanes (>12 m clear of both, 4 m
+  // of water). Its keel pivot sits 1.5 m under the surface so the waterline
+  // meets the hull below the ports.
+  authoredPlacement("authored.harbor.anchored-galleon", { assetId: "prop_galleon_a", x: 102.4, y: -1.5, z: 200.4, rotationY: 2.0944, scale: [1, 1, 1] }),
   authoredPlacement("authored.coast.sea-stack", { assetId: "rock_sea_stack_a", x: -151, z: WorldLayout.coastlineZ(-151) + 7, rotationY: 0.3, scale: [1, 1, 1] }),
   authoredPlacement("authored.coast.navigation-buoy", { assetId: "prop_marker_buoy_a", x: 110, y: -0.12, z: WorldLayout.coastlineZ(110) + 10, rotationY: 0.2, scale: [1, 1, 1] }),
   authoredPlacement("authored.river.lily-pocket", { assetId: "foliage_lily_pad_a", x: WorldLayout.riverCenterX(-112) - WorldLayout.riverHalfWidth(-112) + 0.8, y: 0.035, z: -112, rotationY: 0.6, scale: [1, 1, 1] }),
@@ -537,19 +545,19 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.rock.harbor-boulder", { assetId: "rock_boulder_a", x: 97.1, z: 54.6, rotationY: -0.18, scale: [1.1, 0.9, 1], grounding: [1.55, 1.05] }),
   // Existing river rocks follow stable watershed shoulders around the fall.
   // Keep their collision footprints grounded and the water curtain readable.
-  authoredPlacement("authored.headwater.lip-rock-west-outer", { assetId: "rock_field_a", x: -35.90, z: -138.60, rotationY: 0.4, scale: [1, 0.85, 1], grounding: [0.85, 0.75] }),
+  authoredPlacement("authored.headwater.lip-rock-west-outer", { assetId: "rock_field_a", x: -33.9, z: -141.35, rotationY: 0.4, scale: [1, 0.85, 1], grounding: [0.85, 0.75] }),
   authoredPlacement("authored.headwater.lip-rock-west-inner", { assetId: "rock_field_a", x: -34.1, z: -138.6, rotationY: 1.35, scale: [0.92, 0.8, 0.95], grounding: [0.85, 0.75] }),
-  authoredPlacement("authored.headwater.lip-rock-west-crest", { assetId: "rock_boulder_large_a", x: -35.10, z: -138.40, rotationY: 0.6, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
+  authoredPlacement("authored.headwater.lip-rock-west-crest", { assetId: "rock_boulder_large_a", x: -33.85, z: -140.65, rotationY: 0.6, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
   authoredPlacement("authored.headwater.lip-rock-east-inner", { assetId: "rock_field_a", x: -24.6, z: -139.4, rotationY: 2.1, scale: [0.95, 0.8, 1], grounding: [0.85, 0.75] }),
   authoredPlacement("authored.headwater.lip-rock-east-crest", { assetId: "rock_boulder_large_a", x: -24.00, z: -138.00, rotationY: -0.8, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
   authoredPlacement("authored.headwater.lip-rock-east-outer", { assetId: "rock_field_a", x: -22.2, z: -138.6, rotationY: -0.25, scale: [0.88, 0.75, 0.9], grounding: [0.85, 0.75] }),
-  // The spring emerges below the connected headwall; this embedded boulder
-  // marks its source while the nearby trail and rest stop stay clear.
-  authoredPlacement("authored.headwater.springhead-boulder", { assetId: "rock_boulder_large_a", x: -30.2, z: -156.0, rotationY: -0.4, scale: [1, 0.95, 1], grounding: [1.1, 0.99] }),
+  // The spring seeps from the headwall talus; this embedded boulder marks the
+  // source while the shortened trail terminus and rim stay clear upstream-west.
+  authoredPlacement("authored.headwater.springhead-boulder", { assetId: "rock_boulder_large_a", x: -31, z: -154, rotationY: -0.4, scale: [1, 0.95, 1], grounding: [1.1, 0.99] }),
   // W08 basin rim: two embedded outcrops break the carved pool edge so it
   // reads as rock the water worked into, not a smooth trench. Stances of the
   // review cameras stay clear of both footprints.
-  authoredPlacement("authored.headwater.pool-rim-west", { assetId: "rock_field_a", x: -41.00, z: -138.53, rotationY: 0.3, scale: [1, 0.85, 0.95], grounding: [0.85, 0.75] }),
+  authoredPlacement("authored.headwater.pool-rim-west", { assetId: "rock_field_a", x: -48.5, z: -141.5, rotationY: 0.3, scale: [1, 0.85, 0.95], grounding: [0.85, 0.75] }),
   // Kept clear of the walked pool-bank approach (which runs z = -129.5 → -132).
   // Sits clear of the graded approach trail; the bench reshapes this corner,
   // so the cell is chosen against the graded terrain, not the raw bank.
@@ -596,14 +604,15 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.prop.net-rack.harbor", { assetId: "prop_fishing_net_rack_a", x: 67.5, z: 64.5, rotationY: 0.22, scale: [1, 1, 1] }),
   authoredPlacement("authored.fauna.chicken.farm-a", { assetId: "fauna_chicken_a", x: -63.3, z: -69.6, rotationY: 0.7854, scale: [1.1, 1.1, 1.1] }),
   authoredPlacement("authored.fauna.chicken.farm-b", { assetId: "fauna_chicken_a", x: -61.2, z: -68.1, rotationY: -0.5, scale: [0.92, 0.92, 0.92] }),
-  authoredPlacement("authored.prop.wagon.farm-road", { assetId: "prop_wagon_cart_a", x: -52.5, z: -68.5, rotationY: -3.6652, scale: [1, 1, 1], grounding: [1.5, 1.05] }),
+  authoredPlacement("authored.prop.wagon.farm-road", { assetId: "prop_wagon_cart_a", x: -54.5, z: -70.5, rotationY: -3.6652, scale: [1, 1, 1], grounding: [1.5, 1.05] }),
   authoredPlacement("authored.fauna.cow.farm-meadow", { assetId: "fauna_cow_a", x: -70.1, z: -68, rotationY: 0.42, scale: [1, 1, 1], grounding: [0.9, 0.62] }),
   authoredPlacement("authored.fauna.donkey.starter", {
     assetId: "fauna_donkey_a",
     x: STARTER_DONKEY_ANCHOR.x,
     z: STARTER_DONKEY_ANCHOR.z,
     rotationY: STARTER_DONKEY_ANCHOR.rotationY,
-    scale: [1, 1, 1],
+    // Render proportion only; mount clearance and traversal use the anchor below.
+    scale: [0.82, 0.82, 0.82],
     grounding: STARTER_DONKEY_ANCHOR.grounding,
     clearanceRadiusMeters: STARTER_DONKEY_ANCHOR.clearanceRadius,
     frontApproachMeters: STARTER_DONKEY_ANCHOR.frontApproachDistanceMeters
@@ -688,11 +697,12 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   // The village keeps four dwellings plus the market hall, all on the square
   // ring with +Z doors facing the produce stall: the relocated farmhouse (inn),
   // a second farmhouse on the southwest approach, and two cottages west and
-  // south. This is what makes the court read as a small coastal settlement
-  // rather than a building line beside an empty road junction.
+  // south (the west one is the tall timber-and-plaster cottage). This is what
+  // makes the court read as a small coastal settlement rather than a building
+  // line beside an empty road junction.
   authoredArchitecturePlacement("authored.village.inn", "house_farmhouse_a", "village.inn", [0.9, 0.9, 0.9]),
   authoredArchitecturePlacement("authored.village.market-hall", "building_thatched_cottage_a", "village.market-hall", [1.5, 1.5, 1.5]),
-  authoredArchitecturePlacement("authored.village.cottage-west", "house_cottage_a", "village.cottage-west"),
+  authoredArchitecturePlacement("authored.village.cottage-west", "house_cottage_b", "village.cottage-west"),
   authoredArchitecturePlacement("authored.village.cottage-south", "house_cottage_a", "village.cottage-south"),
   authoredArchitecturePlacement("authored.village.approach-inn", "house_farmhouse_a", "village.approach-inn", [0.9, 0.9, 0.9]),
 
@@ -1141,7 +1151,11 @@ export function generateSunreachCausalCompositionPlacements(
       const z = bounds.minZ + 4
         + islandCompositionPriority("island.sunreach", worldSeed, spec.category, address, spec.salt, 1)
           * (bounds.maxZ - bounds.minZ - 8);
-      if (WorldLayout.islandAt(x, z) !== "island.sunreach" || !WorldLayout.isWalkable(x, z)) continue;
+      if (WorldLayout.islandAt(x, z) !== "island.sunreach" || !WorldLayout.isWalkable(x, z)
+        || WorldLayout.isWater(x, z)) continue;
+      const visualRadius = spec.category === "tree" ? 3.6 : spec.category === "bush" ? 1.8 : 1.75;
+      if (!clearsSunreachDressing(x, z, visualRadius)
+        || !clearsCompleteRouteCorridor(x, z, visualRadius)) continue;
       const sample = sampleWorldComposition(worldSeed, x, z);
       const selection = islandCompositionPriority("island.sunreach", worldSeed, spec.category, address, spec.salt, 2);
       const isolateOpportunity = sample.opening >= 0.34 ? 0.12 : 0;
@@ -1212,18 +1226,7 @@ const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
     grounding: [4.5, 3.5],
     practicalLight: true
   },
-  {
-    id: "authored.sunreach.terrace-cistern",
-    origin: "authored",
-    islandId: "island.sunreach",
-    biomeId: "biome.sunreach_warm_dry",
-    assetId: "prop_water_well_a",
-    x: 468 + SUNREACH_OFFSET_X,
-    z: 16,
-    rotationY: 0.42,
-    scale: [0.9, 0.9, 0.9],
-    grounding: [1.8, 1.8]
-  },
+  sunreachCisternPlacement(),
   {
     id: "authored.sunreach.ridge-landmark",
     origin: "authored",
@@ -1779,7 +1782,11 @@ function* generateSunreachGroundCoverPlacementsSteps(worldSeed: number): Generat
       const z = bounds.minZ + 3
         + islandCompositionPriority("island.sunreach", worldSeed, spec.composition, address, spec.salt, 1)
           * (bounds.maxZ - bounds.minZ - 6);
-      if (WorldLayout.islandAt(x, z) !== "island.sunreach" || WorldLayout.terrainNormalY(x, z) < 0.64) continue;
+      if (WorldLayout.islandAt(x, z) !== "island.sunreach" || !WorldLayout.isWalkable(x, z)
+        || WorldLayout.isWater(x, z) || WorldLayout.terrainNormalY(x, z) < 0.64) continue;
+      const visualRadius = spec.category === "flowers" ? 3.6 : spec.category === "grass" ? 1.6 : 1.3;
+      if (!clearsSunreachDressing(x, z, visualRadius)
+        || !clearsCompleteRouteCorridor(x, z, visualRadius)) continue;
       const sample = sampleWorldComposition(worldSeed, x, z);
       if (
         sample.route.clearance > 0.1
@@ -1834,6 +1841,7 @@ function* staticPlacementSteps(worldSeed: number): Generator<void, readonly Envi
   const causalPlacements = yield* causalCompositionSteps(worldSeed);
   const sunreachPlacements = [
     ...SUNREACH_AUTHORED_PLACEMENTS,
+    ...createSunreachDressingPlacements(),
     ...generateSunreachCausalCompositionPlacements(worldSeed)
   ];
   const mainlandPlacements = [...mainlandSettlementPlacements(), ...yield* mainlandStructuralPlacementSteps(worldSeed)];

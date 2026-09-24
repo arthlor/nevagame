@@ -6,6 +6,7 @@ import type { BoatId, BoatState, CargoClass, CargoLocation, FishCargoId, FishCar
 import type { HoldStoresDto } from "../core/contracts";
 import { buildCargoPresentation } from "../presentation/WorldHudPresentation";
 import type { DomainContext } from "./DomainContext";
+import { GROUND_CARGO_DROP_FORWARD_METERS } from "./NavigationDomain";
 import type { NavigationDomain } from "./NavigationDomain";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { cargoClassFits, qualityRank, scrapsForCargoClass } from "./domainRules";
@@ -17,6 +18,7 @@ import {
   type StorageFacilityDefinition
 } from "../storage/storageFacilities";
 import { WorldLayout } from "../../world/WorldLayout";
+import { SAILABLE_BOUNDS } from "../../world/WorldLayout";
 import { accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
 
 export class CargoDomain {
@@ -177,10 +179,10 @@ export class CargoDomain {
   }
 
   /**
-   * Move one physical catch from an accessible boat slot into the player's
-   * hands. This is deliberately a separate transaction from market access:
-   * standing beside a docked vessel exposes its hold, but never counts as
-   * carrying the pack to a counter.
+   * Move one physical catch from an accessible boat slot, carriage slot or
+   * ground rest into the player's hands. This is deliberately a separate
+   * transaction from market access: standing beside a docked vessel exposes
+   * its hold, but never counts as carrying the pack to a counter.
    */
   public pickup(cargoId: FishCargoId): { success: boolean; reason?: string } {
     const { state, events } = this.context;
@@ -195,6 +197,15 @@ export class CargoDomain {
         return { success: false, reason: "Stand at the rear of the parked carriage to collect this pack" };
       }
       mount.fishCargoSlotIds![slot] = null;
+      state.player.carriedFishCargoId = cargo.id;
+      cargo.location = { type: "player", containerId: "player" };
+      events.emit("CargoUnloaded", { cargoId: cargo.id, minute: state.clock.currentMinute });
+      return { success: true };
+    }
+    if (cargo.location.type === "ground") {
+      if (!this.navigation.canReachGroundCargo(cargo)) {
+        return { success: false, reason: "Move closer to the grounded trade pack to collect it" };
+      }
       state.player.carriedFishCargoId = cargo.id;
       cargo.location = { type: "player", containerId: "player" };
       events.emit("CargoUnloaded", { cargoId: cargo.id, minute: state.clock.currentMinute });
@@ -232,6 +243,7 @@ export class CargoDomain {
       return canReachCarriageRear(state, mount) && typeof cargo.location.slotIndex === "number"
         && mount?.fishCargoSlotIds?.[cargo.location.slotIndex] === cargo.id;
     }
+    if (cargo.location.type === "ground") return this.navigation.canReachGroundCargo(cargo);
     if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return false;
     const slotIndex = cargo.location.slotIndex;
     const boat = state.boats[cargo.location.containerId];
@@ -259,6 +271,80 @@ export class CargoDomain {
     return { success: true };
   }
 
+  /**
+   * Whether the carried pack could be set down right now. Pure query: no RNG,
+   * no mutation. The drop point is the player's forward foot, so the answer
+   * moves with facing — the command recomputes it rather than caching it.
+   */
+  public canDropCarried(): boolean {
+    return this.dropPose() !== null;
+  }
+
+  /**
+   * Sets the carried trade pack down on walkable ground at the player's feet.
+   * The pack keeps its identity, weight, quality and freshness and decays at
+   * the open-air rate from its own ground climate. Atomic: any refusal leaves
+   * hands, cargo and world untouched.
+   */
+  public dropCarried(): { success: boolean; reason?: string; cargoId?: FishCargoId } {
+    const { state, events } = this.context;
+    if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
+    if (state.player.activeBoatId) return { success: false, reason: "Disembark before setting a trade pack down" };
+    if (state.basicFishing || state.sportFishing) return { success: false, reason: "Finish fishing first" };
+    if (state.player.traversal.isGrounded !== true) return { success: false, reason: "Land before setting a trade pack down" };
+    const cargoId = state.player.carriedFishCargoId;
+    const cargo = cargoId ? state.fishCargo[cargoId] : undefined;
+    if (!cargo || cargo.location.type !== "player" || cargo.location.containerId !== "player") {
+      return { success: false, reason: "Your hands are empty" };
+    }
+    const pose = this.dropPose();
+    if (!pose) return { success: false, reason: "No clear ground here — find dry, walkable footing" };
+    state.player.carriedFishCargoId = null;
+    cargo.location = { type: "ground", containerId: "ground", x: pose.x, z: pose.z };
+    events.emit("CargoDropped", {
+      cargoId: cargo.id,
+      x: pose.x,
+      z: pose.z,
+      minute: state.clock.currentMinute
+    });
+    return { success: true, cargoId: cargo.id };
+  }
+
+  /**
+   * Forward-foot drop pose, or null when the footing refuses it. The point is
+   * one deliberate step ahead of the player; overlapping rests nudge forward
+   * deterministically (no RNG) so stacked packs stay individually reachable.
+   * Walkable, non-sailable ground only — open water, the headwater fall and
+   * the world edge never accept a pack.
+   */
+  private dropPose(): { x: number; z: number } | null {
+    const { state } = this.context;
+    const player = state.player;
+    if (player.activeMountId || player.activeBoatId || this.context.state.basicFishing || this.context.state.sportFishing) return null;
+    if (player.traversal.isGrounded !== true) return null;
+    if (!player.carriedFishCargoId) return null;
+    const forwardX = Math.sin(player.rotationY);
+    const forwardZ = Math.cos(player.rotationY);
+    const base = Number.isFinite(player.rotationY) ? { forwardX, forwardZ } : { forwardX: 0, forwardZ: 1 };
+    for (let step = 0; step < 6; step++) {
+      const distance = GROUND_CARGO_DROP_FORWARD_METERS + step * 0.4;
+      const x = player.x + base.forwardX * distance;
+      const z = player.z + base.forwardZ * distance;
+      if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+      if (x < SAILABLE_BOUNDS.minX || x > SAILABLE_BOUNDS.maxX || z < SAILABLE_BOUNDS.minZ || z > SAILABLE_BOUNDS.maxZ) continue;
+      if (WorldLayout.isInterior(x, z)) return { x, z };
+      if (!WorldLayout.isWalkable(x, z) || WorldLayout.isSailable(x, z) || WorldLayout.isWater(x, z)) continue;
+      const crowded = Object.values(this.context.state.fishCargo).some(
+        (other) => other.location.type === "ground"
+          && typeof other.location.x === "number" && typeof other.location.z === "number"
+          && Math.hypot(other.location.x - x, other.location.z - z) < 0.3
+      );
+      if (crowded) continue;
+      return { x, z };
+    }
+    return null;
+  }
+
   public tick(minutes: number, startMinute: number = this.context.state.clock.currentMinute - minutes): void {
     const { state } = this.context;
     advanceCargoFreshness(state, minutes, startMinute);
@@ -266,6 +352,9 @@ export class CargoDomain {
 
   public clearPointers(cargo: FishCargoState): void {
     const { state } = this.context;
+    // Ground rests own no slot: the pack's location is the pose itself, so
+    // only the hands pointer can dangle. Boat, carriage and player branches
+    // below own their links; cold/crate storage is location-only by design.
     if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
       const boat = state.boats[cargo.location.containerId];
       if (boat && typeof cargo.location.slotIndex === "number") {

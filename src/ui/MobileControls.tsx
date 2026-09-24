@@ -11,6 +11,7 @@ export interface MobileControlsProps {
   orientationBlocked: boolean;
   bootReady: boolean;
   mode: GameMode;
+  canFishHere?: boolean;
   activeModal: ActiveModal;
   basicFishingPhase: "charging-cast" | "waiting-bite" | "bite-reaction" | "minigame" | "caught" | "escaped" | "casting" | "waiting" | "bite" | null;
   onSetMoveVector: (vector: VirtualMoveVector) => void;
@@ -210,6 +211,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   orientationBlocked,
   bootReady,
   mode,
+  canFishHere = false,
   activeModal,
   basicFishingPhase,
   onSetMoveVector,
@@ -321,6 +323,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   const isPlacement = mode === "farm-placement";
   const isMounted = mode === "mounted";
   const isBoat = mode === "boat-driving";
+  const isAngling = canFishHere && (mode === "on-foot" || isBoat);
 
   return (
     <div className={`mobile-controls mobile-controls--world mobile-controls--${mode}`} data-testid="mobile-world-controls">
@@ -334,12 +337,12 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
           />
           {!isMounted && !isPlacement && (
             <MobileHoldButton
-              label={isBoat ? "Cast" : "Use"}
+              label={isAngling ? "Cast" : "Use"}
               onPress={() => onVirtualAction("use-primary")}
               onRelease={() => onVirtualAction("use-primary-release")}
             />
           )}
-          {!isMounted && !isPlacement && (
+          {isAngling && !isPlacement && (
             <MobileTapButton label="Lure" onTap={() => onVirtualAction("fishing.toggle-lure")} />
           )}
         </div>

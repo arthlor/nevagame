@@ -10,7 +10,7 @@ from mathutils import Vector
 
 from .materials import MATERIAL_SPECS
 from .humanoid_export import restore_solid_humanoid_colors
-from .static_export import restore_static_material_state
+from .static_export import restore_static_material_state, source_material_authoring
 from .geometry import authored_rest_transforms, finish_authored_surface
 
 
@@ -48,11 +48,12 @@ def _is_descendant_of(obj: bpy.types.Object, ancestor: bpy.types.Object) -> bool
 
 
 def _preserved_texture_tokens(spec: dict | None) -> set[str]:
-    if not spec or not spec.get("staticAuthoring"):
+    authoring = source_material_authoring(spec)
+    if not authoring:
         return set()
     return {
         mapping["token"]
-        for mapping in spec["staticAuthoring"]["materialMap"].values()
+        for mapping in authoring["materialMap"].values()
         if mapping["texturePolicy"] == "preserve"
     }
 

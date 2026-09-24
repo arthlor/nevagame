@@ -13,6 +13,7 @@ import {
   relaxSupply
 } from "../../src/simulation/economy/marketPricing";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
+import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import {
   SETTLED_CONTRACT_HISTORY,
   contractTargetReferenceValue,
@@ -29,6 +30,7 @@ import {
   BASIC_FISHING_WORK_COST,
   SPORT_FISHING_WORK_COST_BY_CLASS
 } from "../../src/simulation/domains/FishingDomain";
+import { processingWorkForRecipe } from "../../src/simulation/domains/ProcessingDomain";
 
 describe("economy balance sheet", () => {
   beforeEach(() => ContentRegistry.initializeAndValidate());
@@ -47,6 +49,85 @@ describe("economy balance sheet", () => {
           .toBe(commodity.targetSupply);
       }
     }
+  });
+
+  it("tracks every retail ware and crop seed in finite, replenishing market stock", () => {
+    const state = createInitialGameState(71);
+    const stockedCrops = new Set<string>();
+    for (const definition of ContentRegistry.markets.values()) {
+      const market = state.markets[definition.id];
+      for (const cropId of definition.retail.seedCropIds ?? []) {
+        stockedCrops.add(cropId);
+        const seedId = ContentRegistry.crops.get(cropId)!.seedItemId;
+        const stock = market.commodities[seedId];
+        expect(stock, `${definition.id}:${seedId}`).toBeDefined();
+        expect(stock.localSupply).toBe(stock.targetSupply);
+        expect(stock.targetSupply).toBeGreaterThan(0);
+        expect(stock.consumptionRate).toBeGreaterThan(0);
+      }
+      for (const itemId of definition.retail.itemIds) {
+        expect(market.commodities[itemId], `${definition.id}:${itemId}`).toBeDefined();
+      }
+    }
+    for (const crop of ContentRegistry.crops.values()) {
+      expect(stockedCrops.has(crop.id), crop.id).toBe(true);
+    }
+  });
+
+  it("quotes, charges, exhausts and replenishes a seed from the same stock", () => {
+    const state = createInitialGameState(72);
+    state.player.x = VILLAGE_MARKET.position.x;
+    state.player.z = VILLAGE_MARKET.position.z;
+    const sim = new Simulation(state);
+    const stock = state.markets["market.village"].commodities["seed.wheat"];
+    const before = stock.localSupply;
+    const purseBefore = state.player.money;
+    const quote = sim.inspectCommodityAtMarket("market.village", "seed.wheat", "buy");
+    const purchase = sim.buySeedAtMarket("market.village", "seed.wheat", 1);
+    expect(quote.success).toBe(true);
+    expect(quote.available).toBe(before);
+    expect(purchase).toMatchObject({ success: true, cost: quote.totalPrice });
+    expect(state.player.money).toBe(purseBefore - quote.totalPrice!);
+    expect(stock.localSupply).toBe(before - 1);
+
+    stock.localSupply = 0;
+    expect(sim.inspectCommodityAtMarket("market.village", "seed.wheat", "buy").available).toBe(0);
+    expect(sim.buySeedAtMarket("market.village", "seed.wheat", 1)).toMatchObject({ success: false });
+    sim.advanceGameMinutes(60);
+    expect(stock.localSupply).toBeGreaterThan(0);
+    expect(stock.localSupply).toBeLessThanOrEqual(stock.targetSupply);
+  });
+
+  it("backfills new seed stock in an existing save without changing the input", () => {
+    const state = createInitialGameState(73);
+    const retainedWheatSupply = state.markets["market.village"].commodities["produce.wheat"].localSupply;
+    delete state.markets["market.village"].commodities["seed.wheat"];
+    const restored = migrateSaveData({
+      schemaVersion: state.schemaVersion,
+      savedAtUtcMs: 0,
+      state
+    });
+    expect(restored.state.markets["market.village"].commodities["seed.wheat"]?.localSupply).toBe(60);
+    expect(restored.state.markets["market.village"].commodities["produce.wheat"].localSupply)
+      .toBe(retainedWheatSupply);
+    expect(state.markets["market.village"].commodities["seed.wheat"]).toBeUndefined();
+  });
+
+  it("refuses false purchase quotes and satchel sales of physical fish markers", () => {
+    const state = createInitialGameState(74);
+    state.player.x = VILLAGE_MARKET.position.x;
+    state.player.z = VILLAGE_MARKET.position.z;
+    const inventory = state.inventories[state.player.inventoryId];
+    expect(InventoryManager.addItemsAtomically(inventory, [{ itemId: "fish.sea_bream", quantity: 1 }])).toBe(true);
+    const sim = new Simulation(state);
+    const purseBefore = state.player.money;
+    expect(sim.inspectCommodityAtMarket("market.village", "produce.wheat", "buy").success).toBe(false);
+    expect(sim.inspectCommodityAtMarket("market.village", "fish.sea_bream", "sell").success).toBe(false);
+    expect(sim.inspectMarketBoard("market.village")?.sellRows.some((row) => row.itemId === "fish.sea_bream"))
+      .toBe(false);
+    expect(sim.sellItemAtMarket("market.village", "fish.sea_bream", 1).success).toBe(false);
+    expect(InventoryManager.getItemCount(inventory, "fish.sea_bream")).toBe(1);
+    expect(state.player.money).toBe(purseBefore);
   });
 
   it("keeps representative live production chains inside their authored return bands", () => {
@@ -77,9 +158,32 @@ describe("economy balance sheet", () => {
     const wormValue = ContentRegistry.markets.get("market.village")!.commodities
       .find((commodity) => commodity.itemId === worms.itemId)!.basePrice;
     const starterCost = ContentRegistry.items.get("item.compost_starter")!.baseValue;
-    const wormGoldPerWork = (worms.quantity * wormValue - starterCost) / 35;
-    expect(wormGoldPerWork).toBeGreaterThanOrEqual(2);
-    expect(wormGoldPerWork).toBeLessThanOrEqual(3.5);
+    const plantMatterValue = ContentRegistry.items.get("item.plant_matter")!.baseValue;
+    const plantMatterInput = wormRecipe.inputs.find((input) => input.itemId === "item.plant_matter")!;
+    const wormNetGoldPerWork = (
+      worms.quantity * wormValue - starterCost - plantMatterInput.quantity * plantMatterValue
+    ) / processingWorkForRecipe(wormRecipe);
+    expect(worms.quantity).toBe(10);
+    expect(wormNetGoldPerWork).toBeGreaterThanOrEqual(0.8);
+    expect(wormNetGoldPerWork).toBeLessThanOrEqual(1.2);
+    expect(wormNetGoldPerWork).toBeLessThan(basicGoldPerWork);
+
+    // The batch should reward preparing grain and worms before the Harbor trip.
+    // These are authored reference values; actual market quotes remain dynamic.
+    const chumRecipe = ContentRegistry.recipes.get("recipe.craft_chum")!;
+    if (chumRecipe.result.kind !== "items") throw new Error("Chum must produce items");
+    const chumOutput = chumRecipe.result.stacks.find((output) => output.itemId === "item.chum_bucket")!;
+    const villageCommodities = ContentRegistry.markets.get("market.village")!.commodities;
+    const harborCommodities = ContentRegistry.markets.get("market.harbor")!.commodities;
+    const inputValue = chumRecipe.inputs.reduce((total, input) => {
+      const commodity = villageCommodities.find((candidate) => candidate.itemId === input.itemId)!;
+      return total + input.quantity * commodity.basePrice;
+    }, 0);
+    const chumBasePrice = harborCommodities.find((commodity) => commodity.itemId === chumOutput.itemId)!.basePrice;
+    const chumValuePerWork = (chumOutput.quantity * chumBasePrice - inputValue) / processingWorkForRecipe(chumRecipe);
+    expect(chumOutput.quantity).toBe(2);
+    expect(chumValuePerWork).toBeGreaterThanOrEqual(0.5);
+    expect(chumValuePerWork).toBeLessThanOrEqual(0.9);
 
     const tuna = ContentRegistry.fishSpecies.get("fish.tuna")!;
     const tunaGoldPerWork = tuna.baseMarketValue / SPORT_FISHING_WORK_COST_BY_CLASS[tuna.cargoClass];
@@ -92,6 +196,19 @@ describe("economy balance sheet", () => {
     expect(marlinGoldPerWork).toBeLessThanOrEqual(20);
 
     expect(wormRecipe.inputs).toContainEqual({ itemId: "item.plant_matter", quantity: 4 });
+  });
+
+  it("keeps a repeat compost batch below the former high-margin worm sale", () => {
+    const sim = new Simulation();
+    sim.state.player.x = VILLAGE_MARKET.position.x;
+    sim.state.player.z = VILLAGE_MARKET.position.z;
+    const wormSale = sim.inspectCommodityAtMarket("market.village", "item.bait_worms", "sell", 10);
+    const starterPurchase = sim.inspectCommodityAtMarket("market.village", "item.compost_starter", "buy");
+    const plantMatterSale = sim.inspectCommodityAtMarket("market.village", "item.plant_matter", "sell", 4);
+    expect(wormSale.success && starterPurchase.success && plantMatterSale.success).toBe(true);
+    const net = wormSale.totalPrice! - starterPurchase.totalPrice! - plantMatterSale.totalPrice!;
+    expect(net).toBeGreaterThan(0);
+    expect(net).toBeLessThan(50);
   });
 
   it("allows modest workshop processing margins while every purchased input still resells at a loss", () => {
@@ -288,6 +405,8 @@ describe("economy balance sheet", () => {
       targetItemIdOrSpecies: "produce.wheat",
       quantityRequired: 10,
       quantityFulfilled: 4,
+      deliveredValueMoney: 0,
+      legacyUnvaluedQuantity: 4,
       rewardMoney: 100,
       rewardSkillXp: { skill: "farming", xp: 50 },
       expiresAtMinute: sim.state.clock.currentMinute,
@@ -320,6 +439,8 @@ describe("economy balance sheet", () => {
         targetItemIdOrSpecies: "produce.wheat",
         quantityRequired: 1,
         quantityFulfilled: 1,
+        deliveredValueMoney: 0,
+        legacyUnvaluedQuantity: 0,
         rewardMoney: 10,
         rewardSkillXp: { skill: "farming", xp: 50 },
         expiresAtMinute: 0,

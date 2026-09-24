@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { migrateCoastalRoad54 } from "../../src/persistence/migrateCoastalRoad54";
-import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
+import { validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { playerPoseFromMount, isMountableTraversalPoint } from "../../src/simulation/mounts/Mounts";
+import { expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v53_layout25_road_predecessor.json";
 
 const legacy = () => structuredClone(predecessor) as unknown as SaveEnvelope;
@@ -30,6 +32,7 @@ describe("coastal road layout26 recovery", () => {
       Object.assign(state.player, playerPoseFromMount(mount));
     }
     const untouched = structuredClone(saved);
+    const expected = headSchemaDevelopmentSave(saved).state;
     const after = migrateSaveData(saved);
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
@@ -44,18 +47,18 @@ describe("coastal road layout26 recovery", () => {
       expect(WorldLayout.isWalkable(p.x, p.z)).toBe(true);
       expect(p.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(p.x, p.z) + 0.5, 6);
     }
-    for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "markets", "boats"] as const) {
-      expect(after.state[key], key).toEqual(saved.state[key]);
+    for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "boats"] as const) {
+      expect(after.state[key], key).toEqual(expected[key]);
     }
+    expectMarketsPreserved(after.state, expected);
     expect(saved).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);
   });
 
-  it("repairs head-schema old-layout saves and round-trips through persistence", async () => {
+  it("repairs a head-schema/layout25 development save and round-trips through persistence", async () => {
     const restore = installMemoryIndexedDB();
     try {
-      const saved = legacy();
-      saved.schemaVersion = saved.state.schemaVersion = CURRENT_SCHEMA_VERSION;
+      const saved = headSchemaDevelopmentSave(legacy());
       const after = migrateSaveData(saved), repository = new IndexedDbSaveRepository();
       expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
       expect(await repository.saveGame(after.state)).toBe(true);

@@ -19,6 +19,8 @@ export const meadowColorUniforms = {
   nevaMeadowTipWarm: { value: new THREE.Color(meadow.palette.tipWarmHex) },
   nevaMeadowStraw: { value: new THREE.Color(meadow.palette.strawHex) },
   nevaMeadowScales: { value: new THREE.Vector2(1 / meadow.macroScaleMeters, 1 / meadow.mesoScaleMeters) },
+  /** x minimum blade density, y minimum blade height, zw shared low/high patch value. */
+  nevaMeadowPatch: { value: new THREE.Vector4(...meadow.field.patchResponse) },
   /** x terrain carpet mix, y distant tip share, z thatch share under live blades, w distant carpet value. */
   nevaMeadowCarpet: { value: new THREE.Vector4(
     meadow.terrainCarpetMix, meadow.carpetTipShare, meadow.underCarpetShade, meadow.carpetValue
@@ -56,6 +58,7 @@ uniform vec3 nevaMeadowTip;
 uniform vec3 nevaMeadowTipWarm;
 uniform vec3 nevaMeadowStraw;
 uniform vec2 nevaMeadowScales;
+uniform vec4 nevaMeadowPatch;
 uniform vec4 nevaMeadowCarpet;
 uniform vec4 nevaMeadowField;
 
@@ -96,12 +99,15 @@ struct NevaMeadowSample {
   vec3 root;
   vec3 body;
   vec3 tip;
-  float clump;
+  float growth;
 };
 
 NevaMeadowSample nevaMeadowSample(vec2 xz, float meadowShare, float dry, float damp, float clump) {
   float warm = nevaMeadowMacro(xz);
   float cool = nevaMeadowMacro(xz * 0.63 + vec2(41.0, -17.0));
+  // Broad palette regions set the patch; the existing clump field only
+  // breaks it up locally. Terrain uses a filtered clump but shares the region.
+  float growth = smoothstep(0.36, 0.64, cool * 0.58 + warm * 0.18 + clump * 0.24);
   vec3 root = mix(nevaMeadowRoot, nevaMeadowRootCool, smoothstep(0.3, 0.7, cool));
   // Fresh cool greens carry most of the meadow; olive and leaf warm its drier rises.
   vec3 body = mix(nevaMeadowBody, nevaMeadowBodyCool, smoothstep(0.2, 0.65, cool));
@@ -113,12 +119,12 @@ NevaMeadowSample nevaMeadowSample(vec2 xz, float meadowShare, float dry, float d
   // Damp ground holds deeper, cooler greens.
   body = mix(body, root, damp * 0.22);
   tip = mix(tip, body, damp * 0.2);
-  float value = mix(0.92, 1.06, clump);
+  float value = mix(nevaMeadowPatch.z, nevaMeadowPatch.w, growth) * mix(0.98, 1.02, clump);
   NevaMeadowSample s;
   s.root = nevaApplySeason(root * value);
   s.body = nevaApplySeason(body * value);
   s.tip = nevaApplySeason(tip * value);
-  s.clump = clump;
+  s.growth = growth;
   return s;
 }
 

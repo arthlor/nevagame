@@ -110,7 +110,10 @@ describe("cargo freshness tables agree with the simulation", () => {
       "transom hook": FRESHNESS_STORAGE_MODIFIERS["boat-hook"],
       "boat hold": FRESHNESS_STORAGE_MODIFIERS["boat-hold"],
       "ice box": FRESHNESS_STORAGE_MODIFIERS.iced,
-      "cold storage": FRESHNESS_STORAGE_MODIFIERS["cold-storage"]
+      "cold storage": FRESHNESS_STORAGE_MODIFIERS["cold-storage"],
+      crate: FRESHNESS_STORAGE_MODIFIERS.crate,
+      carriage: FRESHNESS_STORAGE_MODIFIERS.carriage,
+      ground: FRESHNESS_STORAGE_MODIFIERS.ground
     });
   });
 

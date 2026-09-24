@@ -10,6 +10,7 @@ import { WORLD_SPAWN } from "../../src/world/WorldAnchors";
 import { createWorldEnvironmentLayout } from "../../src/world/WorldEnvironmentLayout";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { NEVA_HEADWATERS } from "../../src/world/NevaHeadwaters";
+import { NEVA_FOOTHILL_TRAILS } from "../../src/world/NevaLandforms";
 
 let staticProxies: StaticCollisionProxy[] | undefined;
 
@@ -31,27 +32,19 @@ function worldStaticCollision(): StaticCollisionProxy[] {
 
 const FALL = NEVA_HEADWATERS.fall;
 
-/**
- * The gorge's legal approach: the east rim stays climbable (~38° cap = 0.79
- * normal) while the west bank between z = -141 and -135 is a 50–60° face.
- */
-function eastRimRoute(): Array<{ x: number; z: number }> {
-  const route: Array<{ x: number; z: number }> = [];
-  for (const z of [-147, -144, -141, -138, -135, -132]) {
-    route.push({ x: WorldLayout.riverCenterX(z) + 14, z });
-  }
-  // The basin widened the pool, so the bank walk runs a little further east to
-  // keep real clearance from the waterline.
-  route.push({ x: WorldLayout.riverCenterX(-129.5) + 6.8, z: -129.5 });
-  route.push({ x: WorldLayout.riverCenterX(-128.5) + 6.2, z: -128.5 });
-  return route;
+function farmHeadwaterTrail(): Array<{ x: number; z: number }> {
+  const trail = NEVA_FOOTHILL_TRAILS.find(({ id }) => id === "farm-headwater-trail");
+  if (!trail) throw new Error("farm-headwater-trail is not registered");
+  return trail.points.map(({ x, z }) => ({ x, z }));
 }
 
 describe("W06 headwater fall traversal", () => {
-  it("walks the east rim from the spring to the pool bank and back", async () => {
-    const route = eastRimRoute();
-    expect(route[0].z).toBeLessThan(FALL.lipZ);
-    expect(route.at(-1)!.z).toBeGreaterThan(FALL.landingZ);
+  it("walks the final spring-rim approach to the overlook and back", async () => {
+    const authoredTrail = farmHeadwaterTrail();
+    const trailheadIndex = authoredTrail.findIndex(({ z }) => z <= -143);
+    expect(trailheadIndex, "the spring-rim trail keeps its final approach waypoint").toBeGreaterThanOrEqual(0);
+    const route = authoredTrail.slice(trailheadIndex);
+    expect(route.at(-1)).toMatchObject({ x: -48, z: -155 });
     for (const direction of [false, true] as const) {
       const points = direction ? [...route].reverse() : route;
       const physics = await PhysicsWorld.create(worldStaticCollision());
@@ -84,7 +77,10 @@ describe("W06 headwater fall traversal", () => {
             throw new Error(`lost contact at ${player.x.toFixed(1)},${player.z.toFixed(1)}`);
           }
         }
-        expect(reached, `stalled at ${sim.state.player.x.toFixed(1)},${sim.state.player.z.toFixed(1)} heading ${direction ? "up" : "down"}`).toBe(true);
+        expect(
+          reached,
+          `stalled on ${direction ? "return" : "outbound"} trail at ${sim.state.player.x.toFixed(1)},${sim.state.player.z.toFixed(1)}`
+        ).toBe(true);
       }
     }
   }, 120_000);
@@ -109,22 +105,22 @@ describe("W06 headwater fall traversal", () => {
     expect(WorldLayout.isSailable(WorldLayout.riverCenterX(NEVA_HEADWATERS.endZ), NEVA_HEADWATERS.endZ)).toBe(true);
   });
 
-  it("leaves the west gorge face impassable so the east rim is the only route", () => {
+  it("keeps the west waterfall face too steep to climb", () => {
     // The character controller climbs at most 38° (normal >= 0.79).
     const climbableNormalY = Math.cos((38 * Math.PI) / 180);
-    for (const z of [-142, -141, -140]) {
-      const centerX = WorldLayout.riverCenterX(z);
-      let steepest = 0;
-      for (let lift = 4; lift <= 20; lift += 0.5) {
-        steepest = Math.max(steepest, WorldLayout.terrainNormalY(centerX - lift, z));
-      }
-      // No climbable line exists across the west shoulder at this station, so
-      // the west bank dead-ends instead of forming a second gorge route.
-      expect(steepest, `climbable west line at ${z}`).toBeLessThan(climbableNormalY);
+    // The west-bank approach meets the falling face along the channel, so
+    // sample uphill/downhill there rather than scanning the unrelated flat
+    // shoulder beyond the bank.
+    const westBankX = WorldLayout.riverCenterX(FALL.lipZ - 1) - 10.5;
+    for (const z of [-137, -136.5, -136, -135.5, -135]) {
+      expect(
+        WorldLayout.terrainNormalY(westBankX, z),
+        `climbable west fall face at ${z}`
+      ).toBeLessThan(climbableNormalY);
     }
   });
 
-  it("keeps both pool banks reachable and dry", () => {
+  it("keeps dry footing beside both sides of the plunge pool", () => {
     const z = -126.5;
     const section = WorldLayout.riverSectionAt(z);
     for (const side of [-1, 1] as const) {
@@ -138,7 +134,7 @@ describe("W06 headwater fall traversal", () => {
   it("keeps the legal path dry of the carved plunge basin", () => {
     // The basin widened the pool; the walked bank must keep real clearance,
     // not a knife-edge along the waterline.
-    for (const [z, lift] of [[-129.5, 6.8], [-128.5, 6.2]] as const) {
+    for (const [z, lift] of [[-129.5, 7.5], [-128.5, 7.5]] as const) {
       const section = WorldLayout.riverSectionAt(z);
       const x = WorldLayout.riverCenterX(z) + lift;
       const eastWaterEdge = section.centerX + section.rightWaterWidth;

@@ -41,6 +41,8 @@ async function seedOldEpilogueSave(page: Page): Promise<void> {
     targetItemIdOrSpecies: "produce.wheat",
     quantityRequired: 1,
     quantityFulfilled: 0,
+    deliveredValueMoney: 0,
+    legacyUnvaluedQuantity: 0,
     rewardMoney: 20,
     rewardSkillXp: { skill: "farming", xp: 50 },
     expiresAtMinute: simulation.state.clock.currentMinute + 720,

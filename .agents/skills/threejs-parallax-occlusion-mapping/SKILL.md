@@ -1,17 +1,16 @@
 ---
 name: threejs-parallax-occlusion-mapping
-description: "Build silhouette-aware parallax occlusion mapping in Three.js WebGPU/TSL. Use for height-field ray marching, relief UVs, clipped curved silhouettes, inflated shells, and relief self-shadowing. Not for ordinary PBR."
+description: Build silhouette-aware parallax occlusion mapping in Three.js WebGPU and TSL. Use for height-field ray marching, relief UVs, clipped flat or curved silhouettes, inflated shells, self-shadowing, relief-aware shadow depth, and height-derived normals.
 ---
 
 # Parallax Occlusion Mapping
 
-- **Runtime contract.** Backend: WebGPU/TSL (`three/webgpu`, `three/tsl`) — requires a WebGPU-capable runtime. Min three: verify the installed build exposes the referenced TSL nodes (`Fn`/`If`/`Loop`). Fallback: not provided; state any GLSL port. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
-
 Treat relief as a coupled intersection, coverage, normal, and shadow system.
 Do not stop at offsetting texture coordinates.
 
-Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
+This skill contains exemplary examples and assets beyond descriptive guidance,
+they're worth studying, referencing, or even copying. Use them sufficiently
+when relevant and do NOT blindly skip them.
 
 ## Build order
 
@@ -52,9 +51,7 @@ marched shadow depth, and received-shadow positions.
 - geometry, carved, and full-relief shadow modes;
 - height, coverage, marched UV, normal, and shadow diagnostics.
 
-## Invariants and strong defaults
-
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Failure conditions
 
 - color, normal, and roughness rebuild separate view marches unintentionally;
 - a curved host uses flat silhouette clipping at its geometric horizon;

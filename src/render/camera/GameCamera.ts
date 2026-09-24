@@ -80,6 +80,12 @@ export const CAMERA_TUNING = Object.freeze({
   obstructionRecoveryResponse: 5.5,
   collisionRadiusMeters: 0.32,
   terrainClearanceMeters: 0.48,
+  /**
+   * Over water the terrain below is the seabed, so the boom must also clear
+   * the surface: a low pitch in a swell otherwise put the lens under the
+   * waves, where the single-sided sea is invisible.
+   */
+  waterClearanceMeters: 1.1,
   teleportSnapDistanceMeters: 8,
   maximumNarrowAspectFovIncreaseDegrees: 9,
   explorationPitchOffsetRadians: degrees(-9.5),
@@ -520,6 +526,13 @@ export class GameCamera {
       this.desiredCameraPosition.y,
       groundClearance + CAMERA_TUNING.terrainClearanceMeters
     );
+    if (!isInterior && WorldLayout.isWater(this.desiredCameraPosition.x, this.desiredCameraPosition.z)) {
+      this.desiredCameraPosition.y = Math.max(
+        this.desiredCameraPosition.y,
+        WorldLayout.waterSurfaceElevation(this.desiredCameraPosition.x, this.desiredCameraPosition.z)
+          + CAMERA_TUNING.waterClearanceMeters
+      );
+    }
     if (isInterior) {
       this.clampInteriorBoom();
     }

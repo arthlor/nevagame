@@ -1,5 +1,13 @@
 # Neva art toolchain
 
+> **Producer status.** Authored Three.js generators (`tools/authored/`, see its README) are the main
+> asset generation system. The CLI in this folder is the art pipeline for both producers: it builds
+> authored generators in Node and legacy generators in Blender, then validates, optimises, caches and
+> publishes both the same way. The Python generators here are legacy and are ported family by family;
+> port a family rather than extending it. Blender stays permanently only as the import adapter for
+> donor models (`imported_blend`, the `adapt_*` scripts). Commands below are unchanged; a selection
+> with no legacy generators never needs Blender installed.
+
 This is the short operational guide for routine asset work. root `AGENTS.md`
 owns task routing; `LLM/BLENDER.md` owns production operations and `03` §4
 owns proportional verification. The catalog and palette remain the production
@@ -10,7 +18,7 @@ lists.
 
 The reference-led harbor habitat is authored by the registered `coastal.py` families. Selected catalog entries bind the supplied video frames under `art/references/harbor-coast/` to dimensions, palm lean/crown/leaf structure, fractured stone and timber construction. Regenerate through this CLI; use repeated `--asset ID` arguments when selecting several assets. The generator preserves semantic vertex color without a baked key-light direction, closed leaf ribbons, continuous trunk rings, sloping rock plates with interrupted ledges and worn fracture edges, LODs, pivots and catalog collision proxies. Rock LODs retain their outer profiles; the nearby mesh spends geometry on worn edges without introducing a central pyramid cap. Its exported `_NEVA_WIND` scalar survives Meshopt optimization and drives the same deformation in the visible and shadow materials. Harbor dock/market variants have independent catalog IDs so the shared Sunreach dock remains intact. Task-specific harbor evidence is defined in `LLM/BLENDER.md`; focused agent inspection, technical publication and human in-game approval remain separate.
 
-Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Obey root `AGENTS.md`, `LLM/BLENDER.md`, this file, the selected catalog entry, owning generator, isolated sheet if present, and the relevant Art Bible section. “Generate assets” means catalog ID → registered family generator → measure sheet identity into `parameters` when a sheet exists → `art:brief` only if the brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt.
+Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Obey root `AGENTS.md`, `LLM/BLENDER.md`, this file, the selected catalog entry, owning generator, isolated sheet if present, and the relevant Art Bible section. “Generate assets” means catalog ID → registered family generator → measure sheet identity into `parameters` when a sheet exists → `art:brief` only if the brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. The upstream Three.js skills supply visual techniques only; Neva's catalog production path stays authoritative.
 
 Every catalog command requires `--asset`, `--family`, or explicit release
 `--all`. A bare command fails instead of silently selecting all assets.
@@ -190,6 +198,45 @@ blender --background --factory-startup --python-exit-code 1 \
 blender --background --factory-startup --python-exit-code 1 \
   --python tools/blender/adapt_polypizza_cow.py -- \
   --output-dir output/<fresh-cow-candidate>
+```
+
+- Tripo downloads (explicit human request only) become captures first, then
+  catalog-driven adapters. `prepare_tripo_source.py` is plain Python and only
+  repairs the GLB JSON (accessor bounds, provider material extensions):
+
+```bash
+python3 tools/blender/prepare_tripo_source.py <download.glb> art/imported/tripo/sources/<name>.glb \
+  --report art/imported/tripo/sources/capture-report.json
+blender --background --factory-startup --python tools/blender/adapt_tripo_humanoid.py -- \
+  --asset char_player_a --output-dir output/<fresh-candidate>
+blender --background --factory-startup --python tools/blender/adapt_tripo_quadruped.py -- \
+  --asset <fauna_donkey_a|fauna_horse_draft_a> --output-dir output/<fresh-candidate>
+```
+
+  The player's clips are authored on its fitted rig after adaptation (and
+  whenever a recipe changes). Sample the published companions, bake a
+  candidate, promote it, write the report's clip fields and the new digest
+  into the catalog, then generate:
+
+```bash
+node tools/blender/sample_player_companions.mjs output/<fresh-candidate>
+blender --background --factory-startup --python tools/blender/author_player_performances.py -- \
+  --output-dir output/<fresh-candidate> --companions output/<fresh-candidate>/companions.json --repair-skin
+cp output/<fresh-candidate>/char_player_a.blend art/imported/tripo/char_player_a.blend
+node tools/blender/apply_player_performance_report.mjs output/<fresh-candidate>/char_player_a-performance-report.json
+npm run art:generate -- --asset char_player_a
+```
+
+  `--clips walk,run` rebakes only the named clips and fingerprints the rest.
+
+  Static Tripo props (`house_cottage_b`, `prop_galleon_a`) use
+  `adapt_polypizza_static.py` with their `staticAuthoring` entry. The humanoid
+  and quadruped adapters read `skinnedAuthoring`, write a `.blend` library and a
+  report, and never publish. Promote the library to `art/imported/tripo/`,
+  update its provenance digest, and for the player re-extract `humanoidRig`:
+
+```bash
+node tools/blender/extract_humanoid_binding.mjs public/assets/models/char_player_a.glb
 ```
 
 Decoded source preservation gate:

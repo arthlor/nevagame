@@ -1,0 +1,642 @@
+{
+  "fauna_dog": {},
+  "fauna_cat": {},
+  "fauna_sheep": {},
+  "fauna_duck": {},
+  "fauna_pigeon": {},
+  "banner_cloth": {},
+  "laundry_line": {},
+  "fauna_chicken": {
+    "scale": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 1.5
+    },
+    "combScale": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 2
+    }
+  },
+  "fauna_rabbit": {
+    "scale": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 1.2
+    },
+    "earLength": {
+      "kind": "number",
+      "min": 0.6,
+      "max": 1.6
+    }
+  },
+  "fauna_gull": {
+    "scale": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 1.4
+    },
+    "wingSpan": {
+      "kind": "number",
+      "min": 0.6,
+      "max": 1.6
+    }
+  },
+  "fauna_butterfly": {
+    "scale": {
+      "kind": "number",
+      "min": 0.12,
+      "max": 0.5
+    },
+    "wingSpan": {
+      "kind": "number",
+      "min": 0.6,
+      "max": 1.6
+    }
+  },
+  "wood_fence": {
+    "length": {
+      "kind": "number",
+      "min": 1,
+      "max": 8
+    },
+    "posts": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    },
+    "rails": {
+      "kind": "integer",
+      "min": 1,
+      "max": 6
+    },
+    "hasGate": {
+      "kind": "boolean"
+    }
+  },
+  "milk_churn": {},
+  "water_trough": {},
+  "pumpkin_patch": {
+    "pumpkins": {
+      "kind": "integer",
+      "min": 3,
+      "max": 12
+    },
+    "vineSegments": {
+      "kind": "integer",
+      "min": 3,
+      "max": 20
+    },
+    "lobes": {
+      "kind": "integer",
+      "min": 3,
+      "max": 7
+    },
+    "blossomCount": {
+      "kind": "integer",
+      "min": 2,
+      "max": 12
+    }
+  },
+  "stylized_fish": {
+    "species": {
+      "kind": "choice",
+      "values": [
+        "trout",
+        "catfish",
+        "pike",
+        "arowana",
+        "tuna",
+        "sturgeon",
+        "sailfish",
+        "swordfish",
+        "blue_marlin",
+        "sardine",
+        "sea_bream",
+        "amberjack"
+      ]
+    },
+    "length": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 5
+    },
+    "girth": {
+      "kind": "number",
+      "min": 0.02,
+      "max": 1.5
+    },
+    "finScale": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 2
+    },
+    "bodyDepth": {
+      "kind": "number",
+      "min": 0.6,
+      "max": 3.2
+    },
+    "bodySegments": {
+      "kind": "integer",
+      "min": 8,
+      "max": 24
+    },
+    "radialSegments": {
+      "kind": "integer",
+      "min": 8,
+      "max": 18
+    },
+    "tailPeduncle": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 0.42
+    }
+  },
+  "sickle": {},
+  "watering_can": {},
+  "workstation_scoop": {},
+  "seed_pouch": {},
+  "crop_bundle": {},
+  "harvest_basket": {},
+  "hay_bale": {
+    "length": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 3.0
+    },
+    "radius": {
+      "kind": "number",
+      "min": 0.2,
+      "max": 1.5
+    },
+    "bands": {
+      "kind": "integer",
+      "min": 1,
+      "max": 4
+    },
+    "fiberBands": {
+      "kind": "integer",
+      "min": 6,
+      "max": 20
+    }
+  },
+  "worm_compost_bin": {
+    "width": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 3.0
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 3.0
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 2.0
+    },
+    "slatCount": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    },
+    "lidAngleDeg": {
+      "kind": "number",
+      "min": 0.0,
+      "max": 75.0
+    },
+    "soilFillRatio": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 0.95
+    }
+  },
+  "farm_workbench": {
+    "width": {
+      "kind": "number",
+      "min": 1.0,
+      "max": 5.0
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 3.0
+    },
+    "topHeight": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 2.5
+    }
+  },
+  "wagon_cart": {
+    "length": {
+      "kind": "number",
+      "min": 1.5,
+      "max": 5.0
+    },
+    "width": {
+      "kind": "number",
+      "min": 1.0,
+      "max": 3.0
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.8,
+      "max": 3.0
+    }
+  },
+  "water_well": {
+    "radius": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 2.0
+    },
+    "postHeight": {
+      "kind": "number",
+      "min": 0.8,
+      "max": 2.4
+    }
+  },
+  "lamp_post": {
+    "height": {
+      "kind": "number",
+      "min": 1.5,
+      "max": 8.0
+    },
+    "armLength": {
+      "kind": "number",
+      "min": 0.2,
+      "max": 2.0
+    }
+  },
+  "lobster_trap": {
+    "ribs": {
+      "kind": "integer",
+      "min": 4,
+      "max": 14
+    },
+    "length": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 3.0
+    },
+    "netColumns": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    },
+    "netRows": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    }
+  },
+  "fishing_net_rack": {
+    "width": {
+      "kind": "number",
+      "min": 1.2,
+      "max": 5.0
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 2.0
+    },
+    "height": {
+      "kind": "number",
+      "min": 1.0,
+      "max": 4.0
+    },
+    "netColumns": {
+      "kind": "integer",
+      "min": 3,
+      "max": 12
+    },
+    "netRows": {
+      "kind": "integer",
+      "min": 2,
+      "max": 10
+    },
+    "buoys": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    }
+  },
+  "produce_stall": {
+    "width": {
+      "kind": "number",
+      "min": 1.0,
+      "max": 5.0
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 4.0
+    },
+    "roofHeight": {
+      "kind": "number",
+      "min": 1.5,
+      "max": 4.5
+    },
+    "ladder": {
+      "kind": "boolean"
+    },
+    "sign": {
+      "kind": "boolean"
+    }
+  },
+  "farm_kitchen": {
+    "width": {
+      "kind": "number",
+      "min": 2,
+      "max": 8
+    },
+    "depth": {
+      "kind": "number",
+      "min": 2,
+      "max": 8
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 1.6,
+      "max": 4
+    },
+    "roofPitchDeg": {
+      "kind": "number",
+      "min": 10,
+      "max": 50
+    },
+    "foundationHeight": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 1
+    },
+    "roofOverhang": {
+      "kind": "number",
+      "min": 0,
+      "max": 1
+    },
+    "porchDepth": {
+      "kind": "number",
+      "min": 0,
+      "max": 3
+    },
+    "chimneyHeight": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 4
+    },
+    "doorWidth": {
+      "kind": "number",
+      "min": 0.6,
+      "max": 1.4
+    },
+    "doorHeight": {
+      "kind": "number",
+      "min": 1.3,
+      "max": 2.4
+    }
+  },
+  "driftwood_cluster": {
+    "logCount": {
+      "kind": "integer",
+      "min": 1,
+      "max": 10
+    },
+    "length": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 5.0
+    },
+    "radius": {
+      "kind": "number",
+      "min": 0.02,
+      "max": 0.5
+    },
+    "angle": {
+      "kind": "number",
+      "min": -3.14,
+      "max": 3.14
+    }
+  },
+  "driftwood_log": {},
+  "fallen_log": {},
+  "cozy_bed": {
+    "scale": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 2.0
+    }
+  },
+  "cozy_armchair": {
+    "scale": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 2.0
+    }
+  },
+  "wood_bench": {},
+  "picnic_table": {},
+  "potting_bench": {},
+  "rustic_watering_can": {},
+  "garden_hoe": {},
+  "apiary_hive": {},
+  "dock_lantern_post": {},
+  "hanging_signboard": {},
+  "cargo_sack": {},
+  "cargo_crate_large": {},
+  "treasure_chest": {},
+  "smoke_plume": {},
+  "clay_oven": {
+    "width": {
+      "kind": "number",
+      "min": 0.6,
+      "max": 2.4
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.6,
+      "max": 2.4
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.6,
+      "max": 2.2
+    }
+  },
+  "fire_pit": {},
+  "trail_kiosk": {},
+  "trail_signpost": {},
+  "coral_pillar": {},
+  "coral_staghorn": {},
+  "coral_table": {},
+  "fish_trade_pack": {
+    "stripeToken": {
+      "kind": "nonemptyString"
+    },
+    "backToken": {
+      "kind": "nonemptyString"
+    },
+    "bellyToken": {
+      "kind": "nonemptyString"
+    },
+    "accentToken": {
+      "kind": "nonemptyString"
+    },
+    "width": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 1.4
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 1
+    },
+    "frameHeight": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 1.5
+    },
+    "basketHeight": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 1
+    },
+    "species": {
+      "kind": "choice",
+      "values": [
+        "trout",
+        "catfish",
+        "pike",
+        "arowana",
+        "tuna",
+        "sturgeon",
+        "sailfish",
+        "swordfish",
+        "blue_marlin",
+        "sea_bream",
+        "amberjack"
+      ]
+    },
+    "length": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 2
+    },
+    "girth": {
+      "kind": "number",
+      "min": 0.02,
+      "max": 0.5
+    },
+    "finScale": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 2
+    },
+    "bodyDepth": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 3.2
+    },
+    "bodySegments": {
+      "kind": "integer",
+      "min": 8,
+      "max": 24
+    },
+    "radialSegments": {
+      "kind": "integer",
+      "min": 8,
+      "max": 20
+    },
+    "tailPeduncle": {
+      "kind": "number",
+      "min": 0.05,
+      "max": 0.5
+    }
+  },
+  "equipment_sickle": {
+    "style": {
+      "kind": "choice",
+      "values": [
+        "broad",
+        "balanced"
+      ]
+    }
+  },
+  "equipment_watering_can": {
+    "style": {
+      "kind": "choice",
+      "values": [
+        "copper_rose",
+        "long_spout"
+      ]
+    }
+  },
+  "crafting_job_prop": {
+    "style": {
+      "kind": "choice",
+      "values": [
+        "tailor",
+        "toolmaking",
+        "ready"
+      ]
+    }
+  },
+  "fishing_rod": {
+    "length": {
+      "kind": "number",
+      "min": 1.5,
+      "max": 3.5
+    },
+    "guideCount": {
+      "kind": "integer",
+      "min": 3,
+      "max": 10
+    },
+    "bendFactor": {
+      "kind": "number",
+      "min": 0,
+      "max": 0.2
+    },
+    "reelSpoolRadius": {
+      "kind": "number",
+      "min": 0.03,
+      "max": 0.12
+    },
+    "style": {
+      "kind": "choice",
+      "values": [
+        "willow",
+        "river",
+        "heavy_sport",
+        "offshore",
+        "master"
+      ]
+    }
+  },
+  "merchant_carriage": {
+    "bedWidth": {
+      "kind": "number",
+      "min": 1.2,
+      "max": 2
+    },
+    "bedLength": {
+      "kind": "number",
+      "min": 2,
+      "max": 3.5
+    },
+    "wheelRadius": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 0.8
+    },
+    "shaftLength": {
+      "kind": "number",
+      "min": 1.5,
+      "max": 3
+    }
+  }
+}

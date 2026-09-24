@@ -122,7 +122,7 @@ describe("meadow patch data", () => {
     expect(sampleMeadowDensity(data, 40, -6)).toBe(0);
   });
 
-  it("rasterizes visible road coverage from the ribbon alpha only inside its triangles", () => {
+  it("rasterizes road coverage from the ribbon and edge field only inside its triangles", () => {
     const data = createUniformMeadowPatchData(smallPatch, { density: 1, meadowShare: 0, dry: 0, damp: 0 }, 0.5);
     const road = new THREE.BufferGeometry();
     road.setAttribute("position", new THREE.Float32BufferAttribute([4, 0, -12, 16, 0, -12, 4, 0, -2], 3));
@@ -132,6 +132,30 @@ describe("meadow patch data", () => {
     expect(sampleMeadowExclusion(data, 5, -3.2)).toBeLessThan(0.25);
     expect(sampleMeadowExclusion(data, 15, -3)).toBe(0);
     expect(sampleMeadowExclusion(data, 100, 100)).toBe(1);
+  });
+
+  it("carries the road material's irregular edge into grass exclusion", () => {
+    const data = createUniformMeadowPatchData(smallPatch, { density: 1, meadowShare: 0, dry: 0, damp: 0 }, 0.5);
+    const road = new THREE.BufferGeometry();
+    road.setAttribute("position", new THREE.Float32BufferAttribute([
+      4, 0, -12, 16, 0, -12, 4, 0, -2, 16, 0, -2
+    ], 3));
+    road.setAttribute("color", new THREE.Float32BufferAttribute([
+      1, 1, 1, 0.45, 1, 1, 1, 0.45, 1, 1, 1, 0.45, 1, 1, 1, 0.45
+    ], 4));
+    road.setIndex([0, 1, 2, 1, 3, 2]);
+    runSync(stampRoadCoverageSteps(data, road));
+    let minimum = 1;
+    let maximum = 0;
+    for (let z = -11; z <= -3; z += 0.5) {
+      for (let x = 5; x <= 15; x += 0.5) {
+        const coverage = sampleMeadowExclusion(data, x, z);
+        minimum = Math.min(minimum, coverage);
+        maximum = Math.max(maximum, coverage);
+      }
+    }
+    expect(maximum - minimum).toBeGreaterThan(0.2);
+    expect(sampleMeadowExclusion(data, 3, -6)).toBe(0);
   });
 
   it("stamps yawed footprints with the same convention as the architecture envelopes", () => {

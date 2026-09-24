@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { authoredToolchainFiles, isAuthoredGenerator } from "../authored/pipeline/producer.mjs";
+
 const THIS_FILE = fileURLToPath(import.meta.url);
 const HERE = path.dirname(THIS_FILE);
 const ROOT = path.resolve(HERE, "../..");
@@ -84,6 +86,22 @@ export function generatorModuleFor(generator, repoRoot = ROOT) {
 
 export function computeAssetToolchainHash(asset, repoRoot = ROOT) {
   const blenderDir = path.join(repoRoot, "tools/blender");
+  const packageFiles = ["package.json", "package-lock.json", "npm-shrinkwrap.json"]
+    .map((filename) => path.join(repoRoot, filename))
+    .filter((filename) => fs.existsSync(filename));
+  if (isAuthoredGenerator(asset.generator, repoRoot)) {
+    // Authored generators are TypeScript under tools/authored; their inputs are the kit, every
+    // generator, the Node producer and the shared pipeline stages, never the Blender tree.
+    return hashFiles([
+      ...authoredToolchainFiles(repoRoot),
+      path.join(blenderDir, "cli.mjs"),
+      path.join(blenderDir, "cache.mjs"),
+      path.join(blenderDir, "optimize.mjs"),
+      path.join(repoRoot, "assets/specs/asset-catalog.schema.json"),
+      path.join(blenderDir, "asset_budgets.json"),
+      ...packageFiles,
+    ].filter((filename) => fs.existsSync(filename)), repoRoot);
+  }
   const generatorModule = generatorModuleFor(asset.generator, repoRoot);
   const commonDirectory = path.join(blenderDir, "common");
   const commonFiles = fs.existsSync(commonDirectory)
@@ -91,9 +109,6 @@ export function computeAssetToolchainHash(asset, repoRoot = ROOT) {
         .filter((filename) => TOOLCHAIN_EXTENSIONS.has(path.extname(filename)))
         .map((filename) => path.join(commonDirectory, filename))
     : [];
-  const packageFiles = ["package.json", "package-lock.json", "npm-shrinkwrap.json"]
-    .map((filename) => path.join(repoRoot, filename))
-    .filter((filename) => fs.existsSync(filename));
 
   const toolchainCandidates = [
     path.join(blenderDir, "cli.mjs"),
@@ -103,7 +118,6 @@ export function computeAssetToolchainHash(asset, repoRoot = ROOT) {
     path.join(blenderDir, "bootstrap.py"),
     path.join(blenderDir, "generators/registry.py"),
     path.join(blenderDir, "generators", generatorModule),
-    ...(asset.generator === "fish_trade_pack" ? [path.join(blenderDir, "generators/fish.py")] : []),
     ...commonFiles,
     path.join(repoRoot, "assets/specs/asset-catalog.schema.json"),
     path.join(blenderDir, "asset_budgets.json"),

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import catalog from "../../assets/specs/asset-catalog.json" with { type: "json" };
+import { WORLD_SAILING_ROUTES } from "../../src/world/WorldMoorings";
 import { WaterSurface, waterSpatialProfile } from "../../src/render/water/WaterSurface";
 import {
   BRIDGE_WORLD_PROFILE,
@@ -19,6 +21,7 @@ import {
   WorldLayout
 } from "../../src/world/WorldLayout";
 import { SUNREACH_ROUTES } from "../../src/world/SunreachWorld";
+import { SUNREACH_LIVING_ROUTES } from "../../src/world/SunreachLivingLayout";
 import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
 import {
   PLAYER_HOMESTEAD_LAYOUT,
@@ -523,8 +526,10 @@ describe("WorldLayout", () => {
       "arterial", "lane", "arterial", "lane", "trail",
       "lane", "trail", "lane", "trail", "trail",
       "trail", "trail", "trail", "trail",
-      // ...then Sunreach: cove-terraces, terraces-scrub, scrub-ridge, scrub-reef.
-      "arterial", "lane", "trail", "trail", ...MAINLAND_ROUTES.map(route => route.kind)
+      // ...then Sunreach's original routes, working-settlement walks, and mainland.
+      "arterial", "lane", "trail", "trail",
+      ...SUNREACH_LIVING_ROUTES.map(route => route.kind),
+      ...MAINLAND_ROUTES.map(route => route.kind)
     ]);
     expect(WORLD_ROUTE_PROFILES.arterial.crownMeters).toBeGreaterThan(WORLD_ROUTE_PROFILES.lane.crownMeters);
     expect(WORLD_ROUTE_PROFILES.lane.crownMeters).toBeGreaterThan(WORLD_ROUTE_PROFILES.trail.crownMeters);
@@ -848,13 +853,51 @@ describe("WorldLayout", () => {
     }
     expect(starterAuthored.filter((placement) => placement.assetId === "prop_fishing_net_rack_a")).toHaveLength(2);
     expect(starterAuthored.filter((placement) => placement.assetId === "house_farmhouse_a")).toHaveLength(2);
-    expect(starterAuthored.filter((placement) => placement.assetId === "house_cottage_a")).toHaveLength(2);
+    expect(starterAuthored.filter((placement) => placement.assetId === "house_cottage_a")).toHaveLength(1);
+    expect(starterAuthored.filter((placement) => placement.assetId === "house_cottage_b")).toHaveLength(1);
     expect(starterAuthored.filter((placement) => placement.assetId === "building_thatched_cottage_a")).toHaveLength(1);
     const kelp = seeded.filter((placement) => placement.assetId === "foliage_kelp_a");
     expect(kelp.length).toBeGreaterThanOrEqual(16);
     expect(kelp.every((placement) => placement.z - WorldLayout.coastlineZ(placement.x) > 1.2)).toBe(true);
     expect(kelp.every((placement) => WorldLayout.isWater(placement.x, placement.z))).toBe(true);
   }, 60_000);
+
+  it("anchors the visiting galleon in open water clear of the harbor moorings", () => {
+    const layout = createWorldEnvironmentLayout(42891);
+    const galleons = layout.staticPlacements.filter((placement) => placement.assetId === "prop_galleon_a");
+    expect(galleons).toHaveLength(1);
+    const [galleon] = galleons;
+    const { dimensions } = catalog.assets.find((entry) => entry.id === "prop_galleon_a")!;
+    const draft = -(galleon.y ?? 0);
+    expect(draft).toBeGreaterThan(0);
+    // Every point of the hull footprint is water deeper than the keel.
+    const halfLength = dimensions.depth / 2, halfBeam = dimensions.width / 2;
+    for (let along = -halfLength; along <= halfLength; along += 2) {
+      for (let across = -halfBeam; across <= halfBeam; across += 1.5) {
+        const x = galleon.x + Math.cos(galleon.rotationY) * across + Math.sin(galleon.rotationY) * along;
+        const z = galleon.z - Math.sin(galleon.rotationY) * across + Math.cos(galleon.rotationY) * along;
+        expect(WorldLayout.isWater(x, z), `${x.toFixed(1)},${z.toFixed(1)}`).toBe(true);
+        expect(WorldLayout.waterColumnDepth(x, z), `${x.toFixed(1)},${z.toFixed(1)}`).toBeGreaterThan(draft + 0.5);
+      }
+    }
+    for (const mooring of [HARBOR_DOCK, HARBOR_SKIFF_MOORING]) {
+      expect(Math.hypot(galleon.x - mooring.boatPosition.x, galleon.z - mooring.boatPosition.z))
+        .toBeGreaterThan(halfLength + 20);
+    }
+    // No sailing lane passes within 10 m of the hull.
+    for (const route of WORLD_SAILING_ROUTES) {
+      for (let index = 1; index < route.points.length; index++) {
+        const a = route.points[index - 1]!, b = route.points[index]!;
+        for (let s = 0; s <= 1; s += 0.01) {
+          const x = a.x + (b.x - a.x) * s, z = a.z + (b.z - a.z) * s;
+          const along = (x - galleon.x) * Math.sin(galleon.rotationY) + (z - galleon.z) * Math.cos(galleon.rotationY);
+          const across = (x - galleon.x) * Math.cos(galleon.rotationY) - (z - galleon.z) * Math.sin(galleon.rotationY);
+          const clearance = Math.hypot(Math.max(0, Math.abs(along) - halfLength), Math.max(0, Math.abs(across) - halfBeam));
+          expect(clearance, `${route.id} at ${x.toFixed(1)},${z.toFixed(1)}`).toBeGreaterThan(10);
+        }
+      }
+    }
+  });
 
   it("uses only catalog assets and lets seeded-fill collide only for trees and rocks", () => {
     const layout = createWorldEnvironmentLayout(42891);
@@ -1269,7 +1312,7 @@ describe("WorldLayout", () => {
     expect(first.normal.length()).toBeCloseTo(1, 5);
   });
 
-  it("selects smooth river, coastal sea, and wind-shaped ocean profiles", () => {
+  it("selects smooth river, coastal sea, and weather-scaled ocean profiles", () => {
     const mouth = WORLD_LAYOUT_V5.riverMouth;
     const river = waterSpatialProfile(WorldLayout.riverCenterX(mouth.z - 12), mouth.z - 12);
     const sea = waterSpatialProfile(mouth.x, mouth.z + 28);
@@ -1284,17 +1327,37 @@ describe("WorldLayout", () => {
     const boundaryB = waterSpatialProfile(mouth.x, mouth.z + 119);
     expect(Math.abs(boundaryB.weights.ocean - boundaryA.weights.ocean)).toBeLessThan(0.05);
 
+    // Wind direction never swings the sea; roughness and wind speed scale it.
     const calm = WaterSurface.sample(mouth.x, mouth.z + 170, 12, {
-      seaRoughness: 0.7,
+      seaRoughness: 0.2,
       windDirectionDeg: 0,
-      windSpeed: 8
+      windSpeed: 3
+    });
+    const rough = WaterSurface.sample(mouth.x, mouth.z + 170, 12, {
+      seaRoughness: 0.9,
+      windDirectionDeg: 0,
+      windSpeed: 12
     });
     const crossWind = WaterSurface.sample(mouth.x, mouth.z + 170, 12, {
-      seaRoughness: 0.7,
+      seaRoughness: 0.9,
       windDirectionDeg: 90,
-      windSpeed: 8
+      windSpeed: 12
     });
-    expect(calm.height).not.toBeCloseTo(crossWind.height, 6);
+    const swing = (roughness: number, windSpeed: number): number => {
+      let peak = 0;
+      for (let t = 0; t < 40; t += 0.5) {
+        const sample = WaterSurface.sample(mouth.x, mouth.z + 170, t, {
+          seaRoughness: roughness,
+          windDirectionDeg: 0,
+          windSpeed
+        });
+        peak = Math.max(peak, Math.abs(sample.height));
+      }
+      return peak;
+    };
+    expect(swing(0.9, 12)).toBeGreaterThan(swing(0.2, 3) * 1.2);
+    expect(calm.height).not.toBeCloseTo(rough.height, 6);
+    expect(crossWind.height).toBeCloseTo(rough.height, 9);
   });
 
   it("aligns path influence with curved spline samples and keeps bridge roads out of the riverbed", () => {

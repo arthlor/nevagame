@@ -3,24 +3,19 @@ import type { GameMode } from "../simulation/core/types";
 
 export interface ResolvedInteractionTarget extends InteractionTarget {
   entityId?: string;
+  cropId?: string;
   stationId?: string;
   recipeId?: string;
   worldPosition?: { x: number; y: number; z: number };
   modes?: readonly GameMode[];
   requiresLineOfSight?: boolean;
-  /**
-   * The tool this verb is performed with. The player no longer has to equip it
-   * first — the interaction swaps it in — but holding it deliberately is how
-   * they choose between verbs a plot offers at once.
-   */
+  /** The tool automatically taken out when this verb is performed. */
   requiresTool?: EquippedToolId;
 }
 
 export interface InteractionResolutionContext {
   mode: GameMode;
   player: { x: number; y: number; z: number; rotationY: number };
-  /** The tool in hand, used only to break ties between competing verbs. */
-  activeTool?: EquippedToolId;
   hasLineOfSight?: (
     from: { x: number; y: number; z: number },
     to: { x: number; y: number; z: number }
@@ -30,8 +25,6 @@ export interface InteractionResolutionContext {
 interface RankedTarget {
   target: ResolvedInteractionTarget;
   facingPenalty: number;
-  /** 0 when the target's verb matches the tool in hand, 1 otherwise. */
-  toolPenalty: number;
 }
 
 function isProximityFirstCrop(target: ResolvedInteractionTarget): boolean {
@@ -69,21 +62,13 @@ export class InteractionTargetResolver {
       }
       ranked.push({
         target,
-        facingPenalty,
-        toolPenalty:
-          context.activeTool && target.requiresTool === context.activeTool ? 0 : 1
+        facingPenalty
       });
     }
 
     ranked.sort((a, b) => {
       const priority = a.target.priority - b.target.priority;
       if (priority !== 0) return priority;
-
-      // A plot can be ripe and dry at once. The verbs are no longer gated on
-      // the equipped tool, so holding one is how the player says which they
-      // meant; otherwise the authored priority decides.
-      const tool = a.toolPenalty - b.toolPenalty;
-      if (tool !== 0) return tool;
 
       // Adjacent crops are authored as separate interaction lots. Once a
       // harvest/water/fertilize action is available, the closest lot is the

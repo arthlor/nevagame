@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { FacetedWater } from "../../src/render/water/FacetedWater";
+import { waterDetailNormalTexture } from "../../src/render/water/WaterDetailNormals";
+import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 import {
   WATER_WAVE_CONFIG,
   WaterSurface,
@@ -9,10 +11,9 @@ import {
 } from "../../src/render/water/WaterSurface";
 import { MAINLAND_RIVER, mainlandWaterSample } from "../../src/world/NevaMainland";
 import {
+  WATER_SWASH_GLSL,
   WATER_WAVE_FUNCTION_GLSL,
   WATER_WAVE_UNIFORMS_GLSL,
-  WAVE_BAND_PHASES,
-  WAVE_DETAIL_AXIS,
 } from "../../src/render/water/waveGlsl";
 import type { LightingFrame } from "../../src/render/lighting/LightingRig";
 
@@ -42,24 +43,19 @@ const SHELF_POINTS: ReadonlyArray<readonly [number, number]> = [
 ];
 
 /**
- * Spots where the direction/weight field itself curves sharply (river-bend
- * and offshore ecology transitions). A finite-difference stencil there
- * measures profile-curvature advection levered by world position — the travel
- * direction rotates as the regional blend shifts, and a point 200 m from the
- * origin turns that rotation into gradients around 0.3–0.5 where the largest
- * physical wave slope is under 0.04. Both the CPU analytic form and the GPU's
- * waveGerstner() intentionally omit those advective terms
- * (locally-constant-weights approximation, shared by the mirror), so the
- * stencil cannot serve as a reference here at all.
+ * Spots where the regional weights change (river-bend and offshore ecology
+ * transitions, the sea-to-ocean blend), 60–320 m from the origin. When a
+ * band's wavenumber, speed or heading followed the region or the baked travel
+ * direction, the stencil here measured gradients of 0.3–0.5 against a largest
+ * physical slope under 0.04: the phase k(x)·x − ω(x)·t was sheared by the
+ * lever of world position and by elapsed time. With plane-wave bands only
+ * the height varies across these points, so the analytic form (which holds
+ * it locally constant) must stay close to the stencil at any time.
  */
 const ADVECTION_POINTS: ReadonlyArray<readonly [number, number]> = [
   [60, 200],
   [280, 120],
   [320, -60],
-  // Sits on the sea-to-ocean blend, where the two spectra it mixes are far
-  // enough apart that drift across the stencil dominates the wave's own
-  // slope. Grouped by what varies at the point rather than by how close the
-  // number happens to land to a threshold.
   [250, 120],
 ];
 
@@ -196,45 +192,31 @@ describe("analytic water normal", () => {
           const analytic = waterNormal(x, z, time, conditions);
           const reference = finiteDifferenceNormal(x, z, time, conditions);
           // Plus the shoaling ramp the stencil crosses (see SHELF_POINTS).
-          // The ramp steepens with both sea state and band steepness, so this
-          // is the widest of the parity bounds, near 6° in the roughest sea
-          // the conditions cover. It is a guard
+          // The ramp steepens with both sea state and band steepness, and the
+          // swash lift fades across the same shelf, so this is the widest of
+          // the parity bounds, near 8° in the roughest sea the conditions
+          // cover. It is a guard
           // against the shelf response going wrong in kind — wrong sign, lost
           // normalisation, a normal that stops pointing up — not a precision
           // claim; the uniform-field case above is where precision is pinned.
           expect(
             analytic.dot(reference),
             `shelf parity at (${x}, ${z}), t=${time}, ${JSON.stringify(conditions)}`
-          ).toBeGreaterThan(0.995);
+          ).toBeGreaterThan(0.99);
           expect(analytic.y).toBeGreaterThan(0.9);
         }
       }
-      // The stencil is not a usable reference at these points at all: the
-      // travel direction turns as the regional blend shifts, and that rotation
-      // is levered by ~200 m of world position, so the measured gradient there
-      // runs an order of magnitude past any slope the waves themselves carry.
-      // Comparing against it would only assert how much advection the shared
-      // approximation drops. What is worth pinning is that the analytic form
-      // stays a plausible water normal, so the bound below comes from the
-      // config: no combination of bands, sea state and shoaling can produce a
-      // slope steeper than the sum of each band's own A·k at its ceiling.
-      const peak = (values: readonly [number, number, number]) => Math.max(...values);
-      const roughnessCeiling = 1
-        + conditions.seaRoughness * peak(WATER_WAVE_CONFIG.roughnessGain)
-        + conditions.windSpeed * WATER_WAVE_CONFIG.oceanWindGainPerMeterSecond;
-      const shoalCeiling = 1 + WATER_WAVE_CONFIG.shoaling.gain;
-      const maxSlope = [WATER_WAVE_CONFIG.primary, WATER_WAVE_CONFIG.cross, WATER_WAVE_CONFIG.detail]
-        .reduce((sum, band) => sum + peak(band.amplitude) * peak(band.frequency), 0)
-        * roughnessCeiling * shoalCeiling;
+      // Plane waves: across a regional blend only the height ramps, never the
+      // phase, so parity holds there too — also after an hour of play, when
+      // any spatially varying speed would have sheared the crests apart.
       for (const [x, z] of ADVECTION_POINTS) {
-        for (const time of TIMES) {
+        for (const time of [...TIMES, 3600]) {
           const analytic = waterNormal(x, z, time, conditions);
-          const slope = Math.hypot(analytic.x, analytic.z) / analytic.y;
+          const reference = finiteDifferenceNormal(x, z, time, conditions);
           expect(
-            slope,
-            `wave slope stays within the configured ceiling at (${x}, ${z}), t=${time}`
-          ).toBeLessThanOrEqual(maxSlope);
-          expect(analytic.length()).toBeCloseTo(1, 9);
+            analytic.dot(reference),
+            `blend parity at (${x}, ${z}), t=${time}, ${JSON.stringify(conditions)}`
+          ).toBeGreaterThan(0.995);
           expect(analytic.y).toBeGreaterThan(0.9);
         }
       }
@@ -263,79 +245,84 @@ describe("analytic water normal", () => {
   });
 
   it("keeps the shared GLSL chunk in sync with the CPU constants", () => {
-    expect(WATER_WAVE_FUNCTION_GLSL).toContain("waveHeightAndNormal");
-    expect(WATER_WAVE_FUNCTION_GLSL).toContain("waveHeight(");
+    expect(WATER_WAVE_FUNCTION_GLSL).toContain("void nevaWaveField(");
     expect(WATER_WAVE_UNIFORMS_GLSL).toContain("uWaterProfileMap");
-    for (const phase of Object.values(WAVE_BAND_PHASES)) {
-      expect(WATER_WAVE_FUNCTION_GLSL).toContain(phase.toFixed(1));
-    }
-    expect(WATER_WAVE_FUNCTION_GLSL).toContain(WAVE_DETAIL_AXIS.along.toFixed(2));
-    expect(WATER_WAVE_FUNCTION_GLSL).toContain(WAVE_DETAIL_AXIS.across.toFixed(2));
-    // WATER_WAVE_CONFIG stays the numeric owner; the chunk carries no numbers.
-    for (const amplitude of WATER_WAVE_CONFIG.primary.amplitude) {
-      expect(WATER_WAVE_FUNCTION_GLSL).not.toContain(amplitude.toFixed(3));
+    expect(WATER_WAVE_UNIFORMS_GLSL).toContain(`uBandAmplitude[${WATER_WAVE_CONFIG.bands.length}]`);
+    // The same k·x − ωt travel convention as the CPU mirror, with a constant
+    // wave vector and speed per band.
+    expect(WATER_WAVE_FUNCTION_GLSL).toContain("dot(p, wave.xy) - uTime * wave.z");
+    // WATER_WAVE_CONFIG stays the numeric owner; the band maths carries no
+    // band numbers. (The swash chunk's own sines mirror swashLevel().)
+    const bandMaths = WATER_WAVE_FUNCTION_GLSL.replace(WATER_SWASH_GLSL, "");
+    for (const band of WATER_WAVE_CONFIG.bands) {
+      for (const amplitude of band.amplitude) {
+        if (amplitude === 0) continue;
+        expect(bandMaths).not.toContain(amplitude.toFixed(3));
+      }
     }
   });
 
-  it("drives the water shader: analytic varying, sky gradient, coherent glitter", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+  it("drives the water shader: smooth normals, detail ripples, sky probe, physical glint", () => {
+    const water = new FacetedWater({ width: 12, depth: 12 });
     try {
       const material = water.mesh.material;
       expect(material.vertexShader).toContain("vWaveNormal");
-      expect(material.vertexShader).toContain("waveHeightAndNormal");
       expect(material.fragmentShader).toContain("vWaveNormal");
-      // Derivatives filter subpixel ripples; the shared analytic normal still owns elevation.
-      expect(material.fragmentShader).toContain("pixelFootprint");
+      // Smooth water: no triangle-derived facet normal anywhere.
+      expect(material.fragmentShader).not.toMatch(/cross\(\s*dFdx/);
+      expect(material.fragmentShader).not.toContain("uFacetStrength");
+      // Ripples below the lattice come from the tileable detail map, and its
+      // mip shortfall (Toksvig) joins the unresolved wave slope variance.
+      expect(material.uniforms.uWaterNormalMap.value).toBe(waterDetailNormalTexture());
+      expect(material.fragmentShader).toContain("nevaMarineDetail(");
+      expect(material.fragmentShader).toContain("vSlopeVariance");
+      // Rough water reflects a blurred, higher band of the real sky.
+      expect(material.fragmentShader).toContain("textureLod(uSkyProbe");
+      expect(material.fragmentShader).toContain("float ggx");
       expect(material.fragmentShader).toContain("uSkyHorizonColor");
-      expect(material.fragmentShader).toContain("uWaterAbsorption");
-      expect(material.fragmentShader).toContain("reflectView");
       expect(material.fragmentShader).toContain("exp(-uWaterAbsorption");
-      expect(material.fragmentShader).not.toContain("waterFacetBand = step");
       expect(material.uniforms.uSkyHorizonColor).toBeDefined();
+
+      // The probe is optional: without it the analytic gradient stands in.
+      expect(material.uniforms.uSkyProbeEnabled.value).toBe(0);
+      const probe = new THREE.Texture();
+      water.setSkyProbe(probe, 256);
+      expect(material.uniforms.uSkyProbe.value).toBe(probe);
+      expect(water.headwaterSurface.material.uniforms.uSkyProbe.value).toBe(probe);
+      expect(material.uniforms.uSkyProbeEnabled.value).toBe(1);
+      expect(material.uniforms.uSkyProbeMaxLod.value).toBe(5);
+      water.setSkyProbe(null);
+      expect(material.uniforms.uSkyProbeEnabled.value).toBe(0);
 
       const frame = testFrame();
       water.updateLighting(frame);
       expect(material.side).toBe(THREE.FrontSide);
-      expect(
-        (material.uniforms.uSkyHorizonColor.value as THREE.Color).equals(frame.skyHorizonColor)
-      ).toBe(true);
-      expect(
-        (material.uniforms.uSkyColor.value as THREE.Color).equals(frame.skyTopColor)
-      ).toBe(true);
+      expect((material.uniforms.uSkyHorizonColor.value as THREE.Color).equals(frame.skyHorizonColor)).toBe(true);
+      expect((material.uniforms.uSkyColor.value as THREE.Color).equals(frame.skyTopColor)).toBe(true);
     } finally {
       water.dispose();
     }
   });
 
   it("gates water features by quality tier and controls reflection modes", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 12, depth: 12 });
     try {
-      // Low tier: flat reflection, no near patch
-      water.setQuality("low");
-      expect(water.mesh.material.uniforms.uReflectionMode.value).toBe(0);
-      expect(water.nearPatch.mesh.visible).toBe(false);
-
-      // Medium tier: skyGradient, no near patch
-      water.setQuality("medium");
-      expect(water.mesh.material.uniforms.uReflectionMode.value).toBe(1);
-      expect(water.nearPatch.mesh.visible).toBe(false);
-
-      // High tier: skyGradient+sun, near patch active
-      water.setQuality("high");
-      expect(water.mesh.material.uniforms.uReflectionMode.value).toBe(2);
-      expect(water.mesh.material.uniforms.uNearPatchRadius.value).toBe(42);
-      expect(water.mesh.material.fragmentShader).toContain("uNearPatchRadius");
-      expect(water.mesh.material.fragmentShader).toContain("length(vWorldPosition.xz - uNearPatchCenter) < uNearPatchRadius");
-      expect(water.nearPatch.mesh.visible).toBe(true);
-      expect(water.nearPatch.mesh.material.depthWrite).toBe(true);
-      expect(water.nearPatch.mesh.material.uniforms.uReflectionMode.value).toBe(2);
+      const modes = { flat: 0, skyGradient: 1, "skyGradient+sun": 2 } as const;
+      for (const tier of ["low", "medium", "high"] as const) {
+        water.setQuality(tier);
+        const tierConfig = CANONICAL_RENDER_CONFIG.waterSurface.quality[tier];
+        expect(water.mesh.material.uniforms.uReflectionMode.value).toBe(modes[tierConfig.reflection]);
+        expect(water.headwaterSurface.material.uniforms.uReflectionMode)
+          .toBe(water.mesh.material.uniforms.uReflectionMode);
+        expect(water.coastalUniforms.uSsrEnabled.value).toBe(tier === "high" ? 1 : 0);
+      }
     } finally {
       water.dispose();
     }
   });
 
   it("keeps shallow caustics on the sun while moonlight and lightning own reflection", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 12, depth: 12 });
     try {
       const frame = testFrame();
       frame.sunIntensity = 0;
@@ -345,7 +332,7 @@ describe("analytic water normal", () => {
       expect(water.coastalUniforms.uCausticSunStrength.value).toBe(0);
       expect(water.coastalUniforms.uCausticSunDirection.value.equals(frame.sunDirection)).toBe(true);
       expect(water.mesh.material.uniforms.uSunDirection.value.equals(frame.lightningDirection)).toBe(true);
-      expect(water.nearPatch.mesh.material.uniforms.uCausticSunStrength)
+      expect(water.headwaterSurface.material.uniforms.uCausticSunStrength)
         .toBe(water.mesh.material.uniforms.uCausticSunStrength);
       frame.sunIntensity = 1;
       frame.daylight = 1;
@@ -356,31 +343,20 @@ describe("analytic water normal", () => {
     }
   });
 
-  it("snaps the near-detail patch to grid and respects reduced motion", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4, centerX: 0, centerZ: 0 });
+  it("selects the LOD lattice from the camera and respects reduced motion", () => {
+    const water = new FacetedWater();
     try {
-      water.setQuality("high");
-      expect(water.nearPatch.mesh.visible).toBe(true);
-
-      const target = new THREE.Vector3(14.37, 0, -28.84);
-      water.update(5, CONDITIONS[1]!, target, { reducedMotion: true });
-
-      // The 12 m / 4 segment fixture uses the same 3 m lattice as its base.
-      expect(water.nearPatch.mesh.position.x).toBe(15);
-      expect(water.nearPatch.mesh.position.z).toBe(-30);
-      expect(water.nearPatch.mesh.material.uniforms.uPatchCenter.value.x).toBe(15);
-      expect(water.nearPatch.mesh.material.uniforms.uPatchCenter.value.y).toBe(-30);
-      expect(water.nearPatch.mesh.material.uniforms.uReducedMotion.value).toBe(1);
-
-      // Normal motion
-      water.update(6, CONDITIONS[1]!, target, { reducedMotion: false });
-      expect(water.nearPatch.mesh.material.uniforms.uReducedMotion.value).toBe(0);
-
-      // Shader contains rim fade and 4th wave detail band
-      expect(water.nearPatch.mesh.material.vertexShader).toContain("rimFade");
-      expect(water.nearPatch.mesh.material.vertexShader).toContain("detail4Wave");
-      expect(water.nearPatch.mesh.material.fragmentShader).toContain("vRimFade");
-      expect(water.nearPatch.mesh.material.fragmentShader).toContain("nevaScrollingDetailNormal");
+      const camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.3, 4000);
+      camera.position.set(96, 14.5, 88);
+      camera.lookAt(71, 1.4, 64);
+      camera.updateMatrixWorld(true);
+      water.update(5, CONDITIONS[1]!, undefined, { reducedMotion: true, camera });
+      expect(water.lod.full.geometry.instanceCount).toBeGreaterThan(0);
+      expect(water.mesh.material.uniforms.uReducedMotion.value).toBe(1);
+      expect(water.mesh.material.uniforms.uLodMorph.value).toBe(water.lod.ranges.morph);
+      water.update(6, CONDITIONS[1]!, undefined, { reducedMotion: false });
+      expect(water.mesh.material.uniforms.uReducedMotion.value).toBe(0);
+      expect(water.mesh.material.vertexShader).toContain("nevaLodLattice");
     } finally {
       water.dispose();
     }

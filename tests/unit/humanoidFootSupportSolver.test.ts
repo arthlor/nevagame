@@ -2,13 +2,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import { HumanoidAnimator } from "../../src/render/animation/AnimationController";
 import { characterContext, loadHumanoidAsset } from "../helpers/humanoidAssets";
 import { HumanoidFootSupportSolver } from "../../src/render/animation/HumanoidFootSupportSolver";
 import { resolveHumanoidRig } from "../../src/render/animation/HumanoidRig";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
+import { createNodeGltfLoader } from "../helpers/nodeGltfLoader";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 
@@ -18,7 +19,7 @@ async function loadGlb(assetId: string): Promise<GLTF> {
     ? process.env.NEVA_HUMANOID_CANDIDATE_DIR : process.env.NEVA_EQUIPMENT_CANDIDATE_DIR) || "public/assets/models";
   const bytes = await fs.readFile(path.join(ROOT, modelDirectory, `${assetId}.glb`));
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const loader = createNodeGltfLoader();
   return new Promise((resolve, reject) => loader.parse(buffer, "", resolve, reject));
 }
 

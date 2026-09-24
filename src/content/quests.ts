@@ -54,21 +54,21 @@ export const QUESTS: QuestDefinition[] = [
     trackId: MAIN_QUEST_TRACK_ID,
     actId: "act1_homestead",
     actTitle: "Act 1: Homestead Awakening",
-    questTitle: "The Inherited Soil",
+    questTitle: "The Gate Is Yours",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Welcome to Neva Cove, dear! Your family farmhouse and starter field are waiting for you — they are yours by inheritance, not something you have to buy back from the village.",
-      "They once tended these quiet coastal fields and sailed the deep waters beyond the headland. Let's start with the foundation of all life round the cove: the soil.",
-      "Take these wheat seeds. Head into the prepared garden field just behind me to begin."
+      "Gate's yours. House too — inheritance, not a repurchase from the village.",
+      "Your people worked these beds and knew the water past the headland. Start where they always started: dirt that cakes if you ignore it.",
+      "Wheat's in the tin. Field's behind me. Get them in before the afternoon wind skins the topsoil."
     ],
     completionDialogue: [
-      "You have your grandfather's steady hands. Let's get these seeds into the earth!"
+      "Steady hands. Same as his. Under the soil before it crusts."
     ],
     objectives: [
       {
         id: "step.act1_welcome_talk",
         type: "talk-npc",
-        description: "Speak with Elspeth at the Starter Garden Gate",
+        description: "Talk to Elspeth at the garden gate",
         targetId: "npc.elspeth",
         targetQuantity: 1,
         locationAnchor: { x: -63.5, z: -62.0, name: "Starter Garden Gate" }
@@ -86,20 +86,20 @@ export const QUESTS: QuestDefinition[] = [
     trackId: MAIN_QUEST_TRACK_ID,
     actId: "act1_homestead",
     actTitle: "Act 1: Homestead Awakening",
-    questTitle: "Sowing the First Furrows",
+    questTitle: "Three Seeds In",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Walk onto the prepared field soil. Select the Wheat Seeds and click a clear spot to place them.",
-      "Each crop has its own footprint. Space them out nicely so their roots have room to breathe."
+      "Onto the turned bed. Seeds out, then one clear patch at a time.",
+      "Leave them room. Crowded roots sulk, and sulking wheat feeds no one."
     ],
     completionDialogue: [
-      "Wonderful! The seeds are in the soil. But they won't sprout without water."
+      "They're in. Now they sit there looking smug until you wet them."
     ],
     objectives: [
       {
         id: "step.act1_sow_3_wheat",
         type: "plant-crop",
-        description: "Plant 3 Wheat Seeds in the prepared field",
+        description: "Plant 3 wheat in the prepared bed",
         targetId: "crop.wheat",
         targetQuantity: 3,
         locationAnchor: STARTER_FARM_ANCHOR,
@@ -118,23 +118,23 @@ export const QUESTS: QuestDefinition[] = [
     trackId: MAIN_QUEST_TRACK_ID,
     actId: "act1_homestead",
     actTitle: "Act 1: Homestead Awakening",
-    questTitle: "Morning Dew & Moisture",
+    questTitle: "Before the Crust",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Equip your watering can with [3], then approach a thirsty crop and press [E] or left-click it to water.",
-      "Keep the soil damp but never drowned. A moisture-fed crop grows strong, and a finer harvest grade earns bonus Farming XP and a line in your journal."
+      "Can's by the gate if you set it down. Wet each thirsty one — damp soil, not a puddle.",
+      "This bed crusts fast after noon. Hit them while the top's still dark."
     ],
     completionDialogue: [
       // ONBOARDING_PACE ripens this first bed in a few real minutes; the line
       // used to promise "a morning" and a rest the farmhouse refuses by day.
-      "Look how rich and dark the soil looks when watered! This bed was kept warm and fed for you, so the first wheat comes up quickly — the heads will turn gold in a few minutes.",
-      "Harvest it when it turns, and start a compost run at the bin by the farmhouse while you wait. Barnaby will tell you what the harvest is for."
+      "See the dark? That's the bed drinking. It was kept warm for you, so these heads go gold in a few minutes — not a full season.",
+      "Cut them when they turn. Compost bin's by the house while you wait; Barnaby will say what the grain's for."
     ],
     objectives: [
       {
         id: "step.act1_water_3_crops",
         type: "water-crop",
-        description: "Water your planted crops 3 times",
+        description: "Water your crops 3 times",
         targetQuantity: 3,
         locationAnchor: STARTER_FARM_ANCHOR,
         location: { kind: "farm", id: "farm.starter_garden" },
@@ -474,7 +474,8 @@ export const QUESTS: QuestDefinition[] = [
         { skill: "trading", xp: 600 },
         { skill: "farming", xp: 400 }
       ],
-      unlocksFeatureIds: ["feature.expedition_planner"]
+      unlocksFeatureIds: ["feature.expedition_planner"],
+      unlocksKnowledgeIds: ["knowledge.first_expedition_cycle"]
     },
     nextQuestId: "quest.act6_harbor_promise"
   },

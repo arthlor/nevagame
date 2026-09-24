@@ -197,16 +197,18 @@ describe("rigid animation batching", () => {
     for (const source of sources) expect(source.layers.mask).toBe(3);
   });
 
-  it("preserves the published donkey's animated meshes and rider contacts across every clip", async () => {
+  it("leaves the published skinned donkey unbatched while its rider contacts follow every clip", async () => {
+    // The Tripo donkey is one skinned surface per LOD: nothing rigid to batch,
+    // and the batch helper must neither hide nor move any of it.
     const root = await loadHumanoidAsset(ASSET_IDS.FAUNA_DONKEY_A);
     const control = await loadHumanoidAsset(ASSET_IDS.FAUNA_DONKEY_A);
     const sources: THREE.Mesh[] = [];
-    root.traverse((node) => { if (node instanceof THREE.Mesh) sources.push(node); });
+    root.traverse((node) => { if (node instanceof THREE.Mesh && !node.name.startsWith("COL_")) sources.push(node); });
+    expect(sources.length).toBeGreaterThan(0);
+    expect(sources.every((source) => source instanceof THREE.SkinnedMesh)).toBe(true);
     const helper = new RigidAnimationBatch(root);
-    const submitted = batches(root);
-    expect(submitted.length).toBeGreaterThan(0);
-    expect(submitted.length).toBeLessThan(sources.length / 2);
-    const sourceByName = new Map(sources.map((source) => [source.name, source]));
+    expect(batches(root)).toHaveLength(0);
+    expect(sources.every((source) => source.layers.mask !== 0)).toBe(true);
     const clips = root.userData.animationClips as THREE.AnimationClip[];
     for (const clip of clips) {
       const mixer = new THREE.AnimationMixer(root);
@@ -218,54 +220,14 @@ describe("rigid animation batching", () => {
         controlMixer.update(clip.duration * progress);
         helper.markDirty();
         helper.update();
+        root.updateWorldMatrix(true, true);
         control.updateWorldMatrix(true, true);
-        control.traverse((node) => {
-          const counterpart = sourceByName.get(node.name);
-          if (counterpart) expectMatrix(counterpart.matrixWorld, node.matrixWorld);
-        });
         for (const suffix of ["rider_socket", "stirrup_left_socket", "stirrup_right_socket", "rein_grip_left", "rein_grip_right"]) {
           const name = `fauna_donkey_a_${suffix}`;
           const socket = root.getObjectByName(name);
           const controlSocket = control.getObjectByName(name);
           expect(socket, name).toBeDefined();
           expectMatrix(socket!.matrixWorld, controlSocket!.matrixWorld);
-        }
-        for (const batch of submitted) {
-          const expected = sources.filter((source) => source.layers.mask === 0 && source.material === batch.material
-            && !!source.geometry.index === !!batch.geometry.index
-            && Object.keys(source.geometry.attributes).sort().join() === Object.keys(batch.geometry.attributes).sort().join()
-            && Object.entries(source.geometry.attributes).every(([name, attribute]) => {
-              const target = batch.geometry.getAttribute(name);
-              return attribute.normalized === target.normalized && attribute.itemSize === target.itemSize
-                && attribute.array.constructor === target.array.constructor;
-            }));
-          expect(batch.instanceCount).toBe(expected.length);
-          expected.forEach((source, index) => {
-            expectMatrix(batch.getMatrixAt(index, new THREE.Matrix4()), root.matrixWorld.clone().invert().multiply(source.matrixWorld));
-            if (clip === clips[0] && progress === 0.1) {
-              const range = batch.getGeometryRangeAt(batch.getGeometryIdAt(index))!;
-              let maximumAttributeError = 0;
-              for (const [name, attribute] of Object.entries(source.geometry.attributes)) {
-                const target = batch.geometry.getAttribute(name);
-                for (let vertex = 0; vertex < attribute.count; vertex += 1) {
-                  for (let component = 0; component < attribute.itemSize; component += 1) {
-                    maximumAttributeError = Math.max(maximumAttributeError,
-                      Math.abs(attribute.getComponent(vertex, component) - target.getComponent(range.vertexStart + vertex, component)));
-                  }
-                }
-              }
-              expect(maximumAttributeError).toBe(0);
-              const sourceIndex = source.geometry.index!;
-              expect(range.indexCount).toBe(sourceIndex.count);
-              let indexMismatches = 0;
-              for (let offset = 0; offset < sourceIndex.count; offset += 1) {
-                if (sourceIndex.getX(offset) !== batch.geometry.index!.getX(range.indexStart + offset) - range.vertexStart) {
-                  indexMismatches += 1;
-                }
-              }
-              expect(indexMismatches).toBe(0);
-            }
-          });
         }
       }
       mixer.stopAllAction();

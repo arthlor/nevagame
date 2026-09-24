@@ -42,10 +42,19 @@ vec3 cloudLight(vec3 position, vec3 ray, float density, bool volume) {
 }
 
 void main() {
+  #ifdef SKY_EQUIRECT
+  // Reflection probe: the upper hemisphere as an equirectangular strip
+  // (u: azimuth, v: elevation 0..π/2), sampled by the water's reflections.
+  float probeAzimuth = vUv.x * 6.28318530718 - 3.14159265359;
+  float probeElevation = vUv.y * 1.57079632679;
+  vec3 ray = vec3(cos(probeElevation) * sin(probeAzimuth), sin(probeElevation),
+    cos(probeElevation) * cos(probeAzimuth));
+  #else
   vec2 ndc = vUv * 2.0 - 1.0;
   vec4 nearView = uInverseProjection * vec4(ndc, -1.0, 1.0);
   vec4 farView = uInverseProjection * vec4(ndc, 1.0, 1.0);
   vec3 ray = normalize(uCameraRotation * (farView.xyz / farView.w - nearView.xyz / nearView.w));
+  #endif
   float elevation = max(0.0, ray.y);
   float upper = 1.0 - exp(-elevation * 3.1);
   vec3 sky = mix(uHorizon, uZenith, upper);
@@ -56,8 +65,12 @@ void main() {
   float moonEdge = cos(uDiscRadius.y);
   float sunDisc = smoothstep(sunEdge - 0.000012, sunEdge + 0.000012, sunAngle);
   float moonDisc = smoothstep(moonEdge - 0.000018, moonEdge + 0.000018, dot(ray, uMoonDirection));
+  #ifndef SKY_EQUIRECT
+  // The probe leaves the discs out: the water's specular lobe owns the sun
+  // and moon, and a second disc in the reflection would double them.
   sky += uSunColor * sunDisc * uSkyState.y * 5.0;
   sky += uMoonColor * moonDisc * uSkyState.z * 1.25;
+  #endif
   float starTransmittance = 1.0 - moonDisc;
   if (ray.y > 0.015) {
     // The high veil sits behind the lower cloud deck.

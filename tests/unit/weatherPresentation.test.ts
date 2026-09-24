@@ -1,10 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { WeatherPresentation } from "../../src/render/weather/WeatherPresentation";
+import { WeatherFramePresentation } from "../../src/render/scene/WeatherFramePresentation";
 import { deriveLightingFrame } from "../../src/render/lighting/LightingRig";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import { applyWeatherProfile } from "../../src/simulation/weather/updateWeather";
 
 describe("shared visible weather", () => {
+  it("shares one sampled transition with the water conditions in a frame", () => {
+    const state = createInitialGameState(42);
+    const frame = new WeatherFramePresentation();
+    const first = frame.sample(state, 0);
+    const initialRoughness = first.weather.seaRoughness;
+    applyWeatherProfile(state.weather, "storm");
+    const next = frame.sample(state, 1);
+    expect(next.weather.seaRoughness).toBeGreaterThan(initialRoughness);
+    expect(frame.sample(state, 1)).toBe(next);
+    const water = frame.waterConditions(state.weather, 7);
+    expect(water.seaRoughness).toBe(next.weather.seaRoughness);
+    expect(water.precipitation).toBe(next.weather.precipitation);
+    expect(water.windSpeed).toBe(7);
+  });
+
   it("eases ground light, cloud cover, rain, sea and visibility together without changing gameplay", () => {
     const state = createInitialGameState(42);
     state.clock.currentMinute = 720;

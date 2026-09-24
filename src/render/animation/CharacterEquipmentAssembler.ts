@@ -158,7 +158,7 @@ export class CharacterEquipmentAssembler {
         this.starterLayers.set(slot, this.createStarterLayerControl(slot));
       }
     } catch (error) {
-      for (const control of this.starterLayers.values()) control.dispose();
+      this.disposeStarterLayers();
       for (const anchor of Object.values(this.anchors)) anchor.removeFromParent();
       throw error;
     }
@@ -227,7 +227,7 @@ export class CharacterEquipmentAssembler {
       object.removeFromParent();
       this.options.onToolChanged?.(key, null);
     }
-    for (const control of this.starterLayers.values()) control.dispose();
+    this.disposeStarterLayers();
     for (const anchor of Object.values(this.anchors)) anchor.removeFromParent();
     this.wearables.clear();
     this.tools.clear();
@@ -252,6 +252,17 @@ export class CharacterEquipmentAssembler {
     local.decompose(anchor.position, anchor.quaternion, anchor.scale);
     bone.add(anchor);
     return anchor;
+  }
+
+  /**
+   * Starter regions can share one skinned mesh (the adapted player carries its
+   * vest and boots on the same surface), and each control restores the
+   * material array it found. Undo them newest first so the last restore is
+   * the pristine array.
+   */
+  private disposeStarterLayers(): void {
+    for (const control of [...this.starterLayers.values()].reverse()) control.dispose();
+    this.starterLayers.clear();
   }
 
   private createStarterLayerControl(slot: WearableSlot): StarterLayerControl {

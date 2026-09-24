@@ -2,6 +2,9 @@
 
 Repository `AGENTS.md` owns task routing and project constraints. These skills
 supply techniques; their examples and checklists do not expand the user's task.
+The installed `threejs-*` skills mirror the upstream graphics pack; keep its
+skill files intact and put Neva-specific constraints in this convention file
+and the declared project authorities.
 
 ## Scope and verification
 
@@ -40,6 +43,22 @@ Focused captures, motion checks and diagnostics are useful evidence. Numeric
 style scores, pixel entropy and edge density cannot establish visual quality.
 Keep static checks, observed runtime behavior, human approval and release status
 separate. An inaccessible runtime is a reported evidence gap, not a passing check.
+
+## Applying the graphics-system contract
+
+For a new or materially changed visual system, name the controls by their
+perceptual job and keep their values with the existing owner, normally
+`VisualRenderConfig` for renderer behavior. Make procedural inputs reproducible
+when they affect the image; use existing field or pass diagnostics when they
+resolve a question about the mechanism. Inspect scale, camera distance and
+motion when they affect the result.
+
+Compare with a no-post view when the change adds or modifies post-processing.
+Use a mechanism-backed quality tier when the owning system already defines one;
+do not add a tier, diagnostic UI, or capture harness solely to satisfy a skill
+checklist. For a geometry-only or asset-only edit, use the applicable authored
+view, geometry checks and project task matrix rather than running unrelated
+image-pipeline gates.
 
 Use a compact working record only when a long task has dependencies, decisions
 or blockers worth retaining. No skill-loading/reference/sourcing ledgers are

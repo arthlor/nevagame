@@ -179,6 +179,8 @@ describe("meadow field membership", () => {
     expect(shader.uniforms.meadowWindStrength.value).toBeGreaterThan(1);
     expect(shader.uniforms.meadowMotionScale.value).toBe(0.5);
     expect((shader.uniforms.meadowPresence.value as THREE.Vector4).toArray().slice(0, 3)).toEqual([4, 5, 1]);
+    expect(shader.uniforms.nevaMeadowPatch).toBe(meadowColorUniforms.nevaMeadowPatch);
+    expect(meadowColorUniforms.nevaMeadowPatch.value.toArray()).toEqual([...CANONICAL_RENDER_CONFIG.meadow.field.patchResponse]);
   });
 });
 
@@ -194,6 +196,7 @@ describe("meadow field shader", () => {
     expect(shader.vertexShader).toContain("objectNormal = normalize(mix(rounded, terrainNormal, meadowShading.x));");
     expect(shader.vertexShader).toContain("nevaLandscapeGust(rootXZ, windDirection, meadowTime)");
     expect(shader.vertexShader).toContain("nevaMeadowSample(rootXZ, cover.g, cover.b, cover.a)");
+    expect(shader.vertexShader).toContain("mix(nevaMeadowPatch.x, 1.0, meadowColor.growth)");
     expect(shader.vertexShader).not.toContain("#include <begin_vertex>");
     expect(shader.fragmentShader).toContain("normal = normalize(vNormal);");
     expect(shader.fragmentShader).toContain("#define RE_Direct RE_Direct_Meadow");

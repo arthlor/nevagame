@@ -134,7 +134,7 @@ export class ContentRegistry {
       } else if (!this.equipment.has(recipe.result.equipmentId)) {
         throw new Error(`Recipe '${recipeId}' produces missing equipment '${recipe.result.equipmentId}'`);
       }
-      if (recipe.workTier !== "standard" && recipe.workTier !== "masterwork") {
+      if (!["light", "prepared", "standard", "masterwork"].includes(recipe.workTier)) {
         throw new Error(`Recipe '${recipeId}' has invalid Work tier '${String(recipe.workTier)}'`);
       }
       if (!["existing", "tailoring", "toolmaking"].includes(recipe.presentationKind)) {
@@ -189,9 +189,10 @@ export class ContentRegistry {
         if (!equipment.starter || !["head", "outerwear", "feet"].includes(equipment.slot)) {
           throw new Error(`Equipment '${equipmentId}' has an invalid starter base-layer mapping`);
         }
+        // An empty region (both lists empty) declares that the base body does
+        // not show this starter item; a half-empty one is a broken mapping.
         if (
-          baseLayer.nodeNames.length === 0 ||
-          baseLayer.materialNames.length === 0 ||
+          (baseLayer.nodeNames.length === 0) !== (baseLayer.materialNames.length === 0) ||
           new Set(baseLayer.nodeNames).size !== baseLayer.nodeNames.length ||
           new Set(baseLayer.materialNames).size !== baseLayer.materialNames.length ||
           baseLayer.nodeNames.some((name) => !name.trim()) ||

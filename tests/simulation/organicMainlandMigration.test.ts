@@ -16,7 +16,9 @@ import { MAINLAND_SETTLEMENT_BUILDINGS } from "../../src/world/MainlandSettlemen
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { createWorldStaticPlacements } from "../../src/world/WorldEnvironmentLayout";
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v50_layout22_organic_predecessor.json";
 
 const legacy = (): SaveEnvelope => structuredClone(predecessor) as unknown as SaveEnvelope;
@@ -24,14 +26,34 @@ let collision: StaticCollisionProxy[];
 const obstructed = MAINLAND_SETTLEMENT_BUILDINGS.find(building => building.pad.id === "mainland.pinewatch.west-house")!.pad.center;
 
 function preserved(before: GameState, after: GameState): void {
-  for (const key of ["worldSeed", "farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "metadata", "weather", "markets"] as const) {
-    expect(after[key], key).toEqual(before[key]);
+  // The layout recovery runs after schema v57/v58. Normalize those additive
+  // fields on a clone of the retained predecessor before checking preservation.
+  const expected = headSchemaDevelopmentSave({
+    schemaVersion: before.schemaVersion,
+    savedAtUtcMs: 0,
+    state: before
+  }).state;
+  for (const key of ["worldSeed", "farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "metadata", "weather"] as const) {
+    expect(after[key], key).toEqual(expected[key]);
   }
+  expectMarketsPreserved(after, expected);
   for (const key of ["money", "workCapacity", "proficiencies", "equipment", "ownedRodIds", "carriedFishCargoId", "activeBoatId", "activeMountId"] as const) {
     expect(after.player[key], key).toEqual(before.player[key]);
   }
   expect(after.world.fishingPressureByHabitat).toEqual(before.world.fishingPressureByHabitat);
   expect(after.world.lastSchoolSpawnMinute).toBe(before.world.lastSchoolSpawnMinute);
+}
+
+function expectedStructuresAfterSunreachLayout28(
+  structures: GameState["world"]["structures"]
+): GameState["world"]["structures"] {
+  const expected = structuredClone(structures);
+  for (const structure of Object.values(expected)) {
+    if (WorldLayout.terrainPatchAt(structure.x, structure.z)?.islandId === "island.sunreach") {
+      structure.y = WorldLayout.terrainHeight(structure.x, structure.z);
+    }
+  }
+  return expected;
 }
 
 beforeAll(() => {
@@ -61,7 +83,7 @@ describe("organic mainland layout23 save recovery", () => {
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(migrated.state.player).toMatchObject({ x: saved.state.player.x, z: saved.state.player.z });
-    expect(migrated.state.world.structures).toEqual(saved.state.world.structures);
+    expect(migrated.state.world.structures).toEqual(expectedStructuresAfterSunreachLayout28(saved.state.world.structures));
     expect(migrated.state.boats).toEqual(saved.state.boats);
     preserved(saved.state, migrated.state);
     expect(validateSaveEnvelope(migrated)).toBe(true);
@@ -111,11 +133,10 @@ describe("organic mainland layout23 save recovery", () => {
     expect(validateSaveEnvelope(migrated)).toBe(true);
   });
 
-  it("repairs a schema51/layout22 development slot once and reloads the saved result", async () => {
+  it("repairs a head-schema/layout22 development slot once and reloads the saved result", async () => {
     const restore = installMemoryIndexedDB();
     try {
-      const saved = legacy();
-      saved.schemaVersion = saved.state.schemaVersion = CURRENT_SCHEMA_VERSION;
+      const saved = headSchemaDevelopmentSave(legacy());
       const migrated = migrateSaveData(saved);
       const repository = new IndexedDbSaveRepository();
       expect(await repository.saveGame(migrated.state)).toBe(true);

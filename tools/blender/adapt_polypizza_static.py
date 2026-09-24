@@ -100,9 +100,14 @@ def _normalize(mesh: bpy.types.Mesh, authoring: dict) -> dict:
     reference_axis = axis_names.index(reference["axis"])
     uniform_scale = reference["meters"] / dimensions[reference_axis]
     center = Vector(((minimum.x + maximum.x) / 2, (minimum.y + maximum.y) / 2, minimum.z))
-    mesh.transform(Matrix.Diagonal((uniform_scale, uniform_scale, uniform_scale, 1.0)) @ Matrix.Translation(-center))
+    # A declared pivot offset is in runtime metres (+X right, +Z forward);
+    # Blender's -Y is runtime +Z, so the forward component flips sign here.
+    offset = authoring.get("pivotOffset", {"x": 0.0, "z": 0.0})
+    pivot = Matrix.Translation(Vector((-offset["x"], offset["z"], 0.0)))
+    mesh.transform(pivot @ Matrix.Diagonal((uniform_scale, uniform_scale, uniform_scale, 1.0)) @ Matrix.Translation(-center))
     mesh.update()
     return {
+        "pivotOffset": offset,
         "sourceDimensions": list(dimensions),
         "uniformScale": uniform_scale,
         "scaleReference": reference,

@@ -52,7 +52,9 @@ describe("source humanoid runtime", () => {
     const root = await loadHumanoidAsset(ASSET_IDS.CHAR_PLAYER_A);
     const animator = new HumanoidAnimator(root);
     const duration = (root.userData.animationClips as THREE.AnimationClip[]).find((clip) => clip.name === "walk")!.duration;
-    const context = characterContext({ speedMetersPerSecond: 1.464675, requestedGait: "walk" });
+    const walkReference = ASSET_BY_ID.get(ASSET_IDS.CHAR_PLAYER_A)!.animationClips!
+      .find((clip) => clip.name === "walk")!.referenceSpeedMetersPerSecond!;
+    const context = characterContext({ speedMetersPerSecond: walkReference, requestedGait: "walk" });
     animator.setPreviewClip("walk");
     const bones = resolveHumanoidRig(root).bones;
     const nodes = [bones.thigh_left!, bones.shin_left!, bones.foot_left!, bones.thigh_right!, bones.shin_right!, bones.foot_right!];

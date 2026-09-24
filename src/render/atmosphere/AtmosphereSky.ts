@@ -38,6 +38,15 @@ export class AtmosphereSky {
   private lastTime: number | null = null;
   private lastSeed: number | null = null;
   private quality: QualityTier;
+  /**
+   * Upper-hemisphere reflection probe for water: the same sky, clouds and
+   * weather in an equirectangular strip, mipmapped so rough water can read a
+   * blurred reflection. Refreshed every few frames — the sky changes slowly.
+   */
+  public readonly reflectionTarget: THREE.WebGLRenderTarget;
+  private readonly reflectionScene = new THREE.Scene();
+  private readonly reflectionMaterial: THREE.ShaderMaterial;
+  private reflectionFrame = 0;
 
   constructor(tier: QualityTier) {
     this.quality = tier;
@@ -69,6 +78,23 @@ export class AtmosphereSky {
       fragmentShader: ATMOSPHERE_SKY_FRAGMENT
     });
     const quad = new THREE.Mesh(this.geometry, this.material);
+    const probe = config.reflectionProbe;
+    this.reflectionTarget = new THREE.WebGLRenderTarget(probe.width, probe.height, {
+      type: THREE.HalfFloatType, depthBuffer: false, stencilBuffer: false,
+      minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true,
+      wrapS: THREE.RepeatWrapping, wrapT: THREE.ClampToEdgeWrapping
+    });
+    this.reflectionTarget.texture.name = "atmosphere.skyReflection";
+    // Shares the sky's uniform objects, so time, weather and light stay in step.
+    this.reflectionMaterial = new THREE.ShaderMaterial({
+      name: "NevaSkyReflectionProbe", toneMapped: false, depthTest: false, depthWrite: false,
+      uniforms: this.material.uniforms,
+      vertexShader: SKY_QUAD_VERTEX,
+      fragmentShader: ATMOSPHERE_SKY_FRAGMENT
+    });
+    const probeQuad = new THREE.Mesh(this.geometry, this.reflectionMaterial);
+    probeQuad.frustumCulled = false;
+    this.reflectionScene.add(probeQuad);
     this.cloudShadows = new CloudShadows(this.material.uniforms, tier);
     quad.frustumCulled = false;
     this.scene.add(quad);
@@ -113,6 +139,14 @@ export class AtmosphereSky {
     };
     this.material.needsUpdate = true;
     this.material.uniforms.uVolumeBlend.value = quality.primarySteps > 0 ? 1 : 0;
+    // The probe always uses the layered clouds: at its resolution the volume
+    // march adds cost without adding anything a reflection can show.
+    this.reflectionMaterial.defines = {
+      SKY_EQUIRECT: 1, SKY_VOLUME: 0, PRIMARY_STEPS: 1, LIGHT_STEPS: 1,
+      LAYER_STEPS: Math.max(4, Math.min(8, quality.layerSteps))
+    };
+    this.reflectionMaterial.needsUpdate = true;
+    this.reflectionFrame = 0;
   }
 
   public update(frame: LightingFrame, weather: Readonly<WeatherState>, worldSeed: number, time: number, reducedMotion: boolean): void {
@@ -144,6 +178,7 @@ export class AtmosphereSky {
 
   public async prepare(renderer: THREE.WebGLRenderer): Promise<void> {
     await renderer.compileAsync(this.scene, this.camera);
+    await renderer.compileAsync(this.reflectionScene, this.camera);
     await this.cloudShadows.prepare(renderer);
   }
 
@@ -178,6 +213,16 @@ export class AtmosphereSky {
       renderer.autoClear = true;
       renderer.setScissorTest(false);
       this.cloudShadows.render(renderer, this.material.uniforms.uEye.value);
+      if (this.reflectionFrame % CANONICAL_RENDER_CONFIG.atmosphere.reflectionProbe.refreshFrames === 0) {
+        // The probe ignores the camera projection (its ray comes from its uv),
+        // but it is rendered from the camera's position, like the sky itself.
+        const volumeBlend = this.material.uniforms.uVolumeBlend.value;
+        this.material.uniforms.uVolumeBlend.value = 0;
+        renderer.setRenderTarget(this.reflectionTarget);
+        renderer.render(this.reflectionScene, this.camera);
+        this.material.uniforms.uVolumeBlend.value = volumeBlend;
+      }
+      this.reflectionFrame += 1;
       renderer.setRenderTarget(this.target);
       renderer.render(this.scene, this.camera);
     } finally {
@@ -193,5 +238,6 @@ export class AtmosphereSky {
     this.mesh.removeFromParent();
     this.cloudShadows.dispose();
     this.geometry.dispose(); this.material.dispose(); this.mesh.material.dispose(); this.target.dispose();
+    this.reflectionMaterial.dispose(); this.reflectionTarget.dispose();
   }
 }

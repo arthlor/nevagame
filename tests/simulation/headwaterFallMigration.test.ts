@@ -46,14 +46,14 @@ describe("v46 → v47 headwater fall migration", () => {
 
   it("re-grounds a valid pose in place instead of teleporting the player", () => {
     const state = loadLegacy();
-    state.player.x = -44;
+    state.player.x = -45;
     state.player.z = -152;
     state.player.y = 999;
     const migrated = migrateHeadwaterFall47(state);
-    expect(migrated.player.x).toBe(-44);
+    expect(migrated.player.x).toBe(-45);
     expect(migrated.player.z).toBe(-152);
     expect(migrated.player.y).toBeCloseTo(
-      WorldLayout.traversalSurfaceHeight(-44, -152) + MOUNT_TUNING.playerPoseGroundOffsetMeters,
+      WorldLayout.traversalSurfaceHeight(-45, -152) + MOUNT_TUNING.playerPoseGroundOffsetMeters,
       6
     );
   });

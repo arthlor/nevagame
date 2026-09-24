@@ -154,7 +154,7 @@ export const CONTRACT_TEMPLATES: ContractTemplateDefinition[] = [
     id: "contract.flax_bolts",
     type: "produce",
     requesterName: "Sailmaker",
-    deliveryMarketId: "market.village",
+    deliveryMarketId: "market.reedhaven",
     itemOrSpeciesPool: ["produce.flax"],
     quantityRange: [4, 8],
     durationMinutes: 1440,

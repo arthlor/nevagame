@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { FC, KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { StartupState } from "../app/StartupState";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
-import { AudioControls, GraphicsControls } from "./EscapeMenuModal";
+import { AudioControls, GraphicsControls } from "./components/SettingsControls";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { ControlsReference } from "./components/ControlsReference";
 import { InterfaceSettings } from "./components/InterfaceSettings";
-import { PwaInstallPromptModal } from "./components/PwaInstallPromptModal";
 import { usePwaInstall } from "./pwa/usePwaInstall";
 import { GameSheet } from "./coastal/CoastalUI";
 import { dayOfSeason } from "../simulation/core/GameClock";
@@ -17,6 +16,8 @@ import type { IntroVideoHandle } from "./IntroVideo";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { UI_MENU, UI_STATUS, UI_WORLD } from "./chrome/uiAtlas";
 import { playUiSound } from "./audio/uiAudio";
+
+const PwaInstallPromptModal = React.lazy(async () => ({ default: (await import("./components/PwaInstallPromptModal")).PwaInstallPromptModal }));
 
 export interface StartScreenProps {
   startup: StartupState;
@@ -672,21 +673,23 @@ export const StartScreen: FC<StartScreenProps> = ({
       )}
 
       {showPwaPrompt && (
-        <PwaInstallPromptModal
-          platform={pwa.platform}
-          canPromptDirectly={pwa.canPromptDirectly}
-          onInstall={async () => {
-            const outcome = await pwa.promptInstall();
-            if (outcome === "accepted" || outcome === "dismissed") {
+        <React.Suspense fallback={null}>
+          <PwaInstallPromptModal
+            platform={pwa.platform}
+            canPromptDirectly={pwa.canPromptDirectly}
+            onInstall={async () => {
+              const outcome = await pwa.promptInstall();
+              if (outcome === "accepted" || outcome === "dismissed") {
+                setPwaPromptManualOpen(false);
+                pwa.dismiss();
+              }
+            }}
+            onDismiss={() => {
               setPwaPromptManualOpen(false);
               pwa.dismiss();
-            }
-          }}
-          onDismiss={() => {
-            setPwaPromptManualOpen(false);
-            pwa.dismiss();
-          }}
-        />
+            }}
+          />
+        </React.Suspense>
       )}
     </main>
   );

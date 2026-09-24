@@ -38,6 +38,7 @@ export class InventoryManager {
   }
 
   public static isValidItemStack(item: ItemStack): boolean {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return false;
     return (
       typeof item.itemId === "string" &&
       ContentRegistry.items.has(item.itemId) &&
@@ -51,8 +52,9 @@ export class InventoryManager {
     if (!Array.isArray(items) || items.length === 0) return false;
     const keys = new Set<string>();
     for (const item of items) {
+      if (!this.isValidItemStack(item)) return false;
       const key = lotKey(item.itemId, item.quality);
-      if (!this.isValidItemStack(item) || keys.has(key)) return false;
+      if (keys.has(key)) return false;
       keys.add(key);
     }
     return true;
@@ -69,7 +71,9 @@ export class InventoryManager {
     ) {
       return false;
     }
-    return inventory.slots.every((slot) => {
+    // Array.every skips sparse holes; for-of exposes them as undefined so
+    // malformed inventories are refused before any transaction can touch them.
+    for (const slot of inventory.slots) {
       if (!slot || typeof slot !== "object") return false;
       const empty = slot.itemId === undefined && slot.quantity === undefined;
       const quantity = slot.quantity;
@@ -81,8 +85,9 @@ export class InventoryManager {
         quantity > 0 &&
         quantity <= ContentRegistry.items.get(slot.itemId)!.stackLimit &&
         (slot.quality === undefined || this.isValidProduceQuality(slot.itemId, slot.quality));
-      return empty || populated;
-    });
+      if (!empty && !populated) return false;
+    }
+    return true;
   }
 
   /**
@@ -146,13 +151,20 @@ export class InventoryManager {
    */
   public static hasItems(inventory: InventoryState, items: ItemStack[]): boolean {
     if (!this.isValidInventory(inventory) || !this.isValidItemBatch(items)) return false;
+    // Batch validation guarantees at most one request per exact grade and
+    // one generic request per item. Check each graded reservation AND debit
+    // a shared item total, so generic demand cannot count that stock twice.
+    const remainingByItem = new Map<ItemId, number>();
     for (const req of items) {
-      const available = req.quality === undefined
-        ? this.getItemCount(inventory, req.itemId)
-        : this.getItemLotCount(inventory, req.itemId, req.quality);
-      if (available < req.quantity) {
+      const remaining = remainingByItem.get(req.itemId) ?? this.getItemCount(inventory, req.itemId);
+      if (remaining < req.quantity) return false;
+      if (
+        req.quality !== undefined &&
+        this.getItemLotCount(inventory, req.itemId, req.quality) < req.quantity
+      ) {
         return false;
       }
+      remainingByItem.set(req.itemId, remaining - req.quantity);
     }
     return true;
   }
@@ -169,7 +181,13 @@ export class InventoryManager {
     if (!this.hasItems(inventory, items)) {
       return false;
     }
-    for (const item of items) {
+    // Satisfy exact-grade reservations first. Otherwise a generic request
+    // could consume a reserved low-grade lot and leave a later request short
+    // even though other grades could have satisfied the generic part.
+    const ordered = [...items].sort((a, b) =>
+      Number(a.quality === undefined) - Number(b.quality === undefined)
+    );
+    for (const item of ordered) {
       let needed = item.quantity;
       for (const slot of this.removalOrder(inventory, item.itemId, item.quality)) {
         if (needed <= 0) break;
@@ -227,7 +245,11 @@ export class InventoryManager {
     toRemove: ItemStack[],
     toAdd: ItemStack[]
   ): boolean {
-    if (!this.isValidItemBatch(toRemove) || !this.isValidItemBatch(toAdd)) return false;
+    if (
+      !this.isValidInventory(inventory) ||
+      !this.isValidItemBatch(toRemove) ||
+      !this.isValidItemBatch(toAdd)
+    ) return false;
     const clone = this.cloneInventory(inventory);
     if (!this.removeItemsAtomically(clone, toRemove)) {
       return false;
@@ -276,6 +298,27 @@ export class InventoryManager {
       }
     }
     return lots;
+  }
+
+  /** The exact lots a generic item debit will consume, including their grades. */
+  public static planItemRemoval(
+    inventory: InventoryState,
+    itemId: ItemId,
+    quantity: number
+  ): ItemStack[] | null {
+    if (!this.hasItems(inventory, [{ itemId, quantity }])) return null;
+    const lots: ItemStack[] = [];
+    let remaining = quantity;
+    for (const slot of this.removalOrder(inventory, itemId, undefined)) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, this.getSlotQuantity(slot));
+      if (take <= 0) continue;
+      lots.push(slot.quality === undefined
+        ? { itemId, quantity: take }
+        : { itemId, quantity: take, quality: slot.quality });
+      remaining -= take;
+    }
+    return remaining === 0 ? lots : null;
   }
 
   /**

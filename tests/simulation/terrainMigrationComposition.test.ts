@@ -28,9 +28,10 @@ describe("terrain migration composition boundary", () => {
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(before).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);
-    // One cached placement request for each consuming migration (13–16, 22–24),
-    // with no extra request per actor or from the no-op repeat load.
-    expect(createWorldStaticPlacements).toHaveBeenCalledTimes(8);
+    // Count calls by the migration chain, including prior mainland/headwater
+    // recovery steps and the new Sunreach layout-28 recovery. The cache keeps
+    // generation shared; there is no extra request per actor or repeat load.
+    expect(createWorldStaticPlacements).toHaveBeenCalledTimes(10);
   });
 
   it("shares cached static placements with the renderer without reading its deferred cover", async () => {

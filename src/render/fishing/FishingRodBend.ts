@@ -1,5 +1,10 @@
 import * as THREE from "three";
 
+/** The handle and the authored one-turn reel clip share this presentation clock. */
+export function fishingReelAngularSpeed(retrievalMetersPerSecond: number): number {
+  return Math.max(0, retrievalMetersPerSecond) * 5;
+}
+
 /** Deforms only this held instance; the grip/reel and cached catalog geometry stay intact. */
 export class FishingRodBend {
   private readonly parts: Array<{ mesh: THREE.Mesh; points: Float32Array; toLocal: THREE.Matrix4; reel: boolean }> = [];
@@ -17,8 +22,15 @@ export class FishingRodBend {
   private readonly aimLocalDirection = new THREE.Vector3();
   private readonly aimParentQuaternion = new THREE.Quaternion();
   private readonly aimTargetQuaternion = new THREE.Quaternion();
+  /** Smoothed swing from the docked rod onto the pull, applied on top of the hand's grip. */
   private readonly aimQuaternion = new THREE.Quaternion();
+  private readonly dockedQuaternion = new THREE.Quaternion();
+  private readonly writtenQuaternion = new THREE.Quaternion();
+  private readonly dockedAxis = new THREE.Vector3();
+  private readonly aimUp = new THREE.Vector3();
+  private readonly aimCross = new THREE.Vector3();
   private aimInitialized = false;
+  private aimWritten = false;
   private readonly length: number;
   private lastBend = -1;
   private readonly reelCenter = new THREE.Vector3();
@@ -69,16 +81,33 @@ export class FishingRodBend {
         this.point.fromBufferAttribute(position, i).applyMatrix4(toRoot).toArray(points, i * 3);
       }
       node.frustumCulled = false;
+      // Multi-material glTF nodes become Groups in Three.js; their primitive
+      // children still belong to the named rotating component.
+      let component: THREE.Object3D | null = node;
+      while (component.parent && component.parent !== root
+        && !["rod_reel_spool", "rod_reel_line_coil", "rod_reel_crank_arm", "rod_reel_handle_knob"].includes(component.name)) {
+        component = component.parent;
+      }
       this.parts.push({ mesh: node, points, toLocal: toRoot.clone().invert(),
-        reel: ["rod_reel_spool", "rod_reel_line_coil", "rod_reel_crank_arm", "rod_reel_handle_knob"].includes(node.name) });
+        reel: ["rod_reel_spool", "rod_reel_line_coil", "rod_reel_crank_arm", "rod_reel_handle_knob"].includes(component.name) });
     });
     this.bentTip.copy(this.tip);
-    this.aimQuaternion.copy(root.quaternion);
   }
 
-  /** Keeps the blank pointed into the live pull without inheriting camera motion. */
+  /**
+   * Keeps the blank pointed into the live pull without inheriting camera motion.
+   *
+   * Heading follows the fish while authored elevation and grip roll survive.
+   * Pointing the blank directly at a submerged fish erases the hook-set/pump
+   * and leaves no transverse load to bend the rod against.
+   */
   public aimToward(endpoint: THREE.Vector3, deltaSeconds: number): void {
     this.root.updateWorldMatrix(true, false);
+    // The caller re-docks the rod to the hand each frame; anything but our own
+    // last write is a fresh docked grip.
+    if (!this.aimWritten || this.root.quaternion.angleTo(this.writtenQuaternion) > 1e-6) {
+      this.dockedQuaternion.copy(this.root.quaternion);
+    }
     this.root.localToWorld(this.aimGripWorld.copy(this.base));
     this.aimDirection.subVectors(endpoint, this.aimGripWorld);
     if (this.aimDirection.lengthSq() < 0.0001) return;
@@ -86,10 +115,20 @@ export class FishingRodBend {
     if (this.root.parent) {
       this.root.parent.getWorldQuaternion(this.aimParentQuaternion).invert();
       this.aimLocalDirection.copy(this.aimDirection).applyQuaternion(this.aimParentQuaternion).normalize();
+      this.aimUp.set(0, 1, 0).applyQuaternion(this.aimParentQuaternion);
     } else {
       this.aimLocalDirection.copy(this.aimDirection);
+      this.aimUp.set(0, 1, 0);
     }
-    this.aimTargetQuaternion.setFromUnitVectors(this.axis, this.aimLocalDirection);
+    this.dockedAxis.copy(this.axis).applyQuaternion(this.dockedQuaternion).normalize();
+    this.dockedAxis.addScaledVector(this.aimUp, -this.dockedAxis.dot(this.aimUp));
+    this.aimLocalDirection.addScaledVector(this.aimUp, -this.aimLocalDirection.dot(this.aimUp));
+    if (this.dockedAxis.lengthSq() < 0.000001 || this.aimLocalDirection.lengthSq() < 0.000001) return;
+    this.dockedAxis.normalize();
+    this.aimLocalDirection.normalize();
+    const heading = Math.atan2(this.aimCross.crossVectors(this.dockedAxis, this.aimLocalDirection).dot(this.aimUp),
+      this.dockedAxis.dot(this.aimLocalDirection));
+    this.aimTargetQuaternion.setFromAxisAngle(this.aimUp, heading);
     if (!this.aimInitialized) {
       this.aimQuaternion.copy(this.aimTargetQuaternion);
       this.aimInitialized = true;
@@ -99,7 +138,9 @@ export class FishingRodBend {
         1 - Math.exp(-Math.max(0, deltaSeconds) * 10)
       );
     }
-    this.root.quaternion.copy(this.aimQuaternion);
+    this.root.quaternion.copy(this.aimQuaternion).multiply(this.dockedQuaternion);
+    this.writtenQuaternion.copy(this.root.quaternion);
+    this.aimWritten = true;
     this.root.updateWorldMatrix(true, false);
     // Aim about the actual primary grip, which need not be the asset origin.
     // Keeping this point fixed avoids asking the holding wrist to stretch.
@@ -113,7 +154,8 @@ export class FishingRodBend {
 
   public resetAim(baseQuaternion: THREE.Quaternion): void {
     this.aimInitialized = false;
-    this.aimQuaternion.copy(baseQuaternion);
+    this.aimWritten = false;
+    this.aimQuaternion.identity();
     this.root.quaternion.copy(baseQuaternion);
   }
 
@@ -145,7 +187,7 @@ export class FishingRodBend {
     const dt = Math.max(0, elapsed - this.lastElapsed);
     this.lastElapsed = elapsed;
     const previousReelAngle = this.reelAngle;
-    this.reelAngle = (this.reelAngle + retrieval * dt * 5) % (Math.PI * 2);
+    this.reelAngle = (this.reelAngle + fishingReelAngularSpeed(retrieval) * dt) % (Math.PI * 2);
     this.reelRotation.makeRotationX(this.reelAngle);
     this.updateGripMarker();
 
@@ -205,7 +247,7 @@ export class FishingRodBend {
   }
 
   private nodeCenterInRoot(node: THREE.Object3D, target: THREE.Vector3): THREE.Vector3 {
-    if (node instanceof THREE.Mesh) new THREE.Box3().setFromObject(node).getCenter(target);
+    if (node instanceof THREE.Mesh || node.children.length) new THREE.Box3().setFromObject(node).getCenter(target);
     else node.getWorldPosition(target);
     return this.root.worldToLocal(target);
   }
@@ -219,7 +261,9 @@ export class FishingRodBend {
     this.root.updateWorldMatrix(true, true);
     this.rotateReelPoint(this.gripWorldPoint.copy(this.handle));
     this.root.localToWorld(this.gripWorldPoint);
-    this.gripRotation.setFromRotationMatrix(this.reelRotation).multiply(this.gripRootRotation);
+    // The knob spins freely on its crank pin. Its centre orbits the axle,
+    // but the angler's palm must not roll through a complete crank revolution.
+    this.gripRotation.copy(this.gripRootRotation);
     this.root.getWorldQuaternion(this.gripParentRotation);
     this.gripRotation.premultiply(this.gripParentRotation);
     if (this.secondaryGrip.parent) {

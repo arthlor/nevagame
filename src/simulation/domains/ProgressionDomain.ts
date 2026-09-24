@@ -1,4 +1,5 @@
-import { getNextRank, getRankForXp } from "../../content/progression";
+import { contractSlotsForRank, getNextRank, getRankForXp, PROFICIENCY_RANKS } from "../../content/progression";
+import { ContentRegistry } from "../../content/ContentRegistry";
 import { MINUTES_PER_DAY, REST_WAKE_MINUTE_OF_DAY } from "../core/GameClock";
 import type { GameMinute, SkillId, WorkActionId, WorkCapacityState } from "../core/types";
 import type { SkillProgressDto, WorkCostQuote } from "../core/contracts";
@@ -17,7 +18,7 @@ export const WORK_DAILY_EARN_CAP = 300;
 /** A night's rest restores this share of the ceiling, plus a baseline floor. */
 export const WORK_REST_FRACTION = 0.1;
 /** Waking never leaves the pool below this share of the ceiling. */
-export const WORK_REST_BASELINE_FRACTION = 0.25;
+export const WORK_REST_BASELINE_FRACTION = 0.4;
 /** Meals that restore Work per calendar day. */
 export const WORK_MEAL_DAILY_LIMIT = 3;
 /** Slow idle trickle: this much Work every real-time interval, clamped by the ceiling. */
@@ -94,6 +95,38 @@ export function getProficiencyWorkDiscount(rankIndex: number): number {
   return Math.round(Math.min(0.35, Math.max(0, rankIndex * 0.05)) * 100) / 100;
 }
 
+const RANK_UNLOCK_KEY: Record<SkillId, "farmingUnlocks" | "fishingUnlocks" | "processingUnlocks" | "tradingUnlocks"> = {
+  farming: "farmingUnlocks",
+  fishing: "fishingUnlocks",
+  processing: "processingUnlocks",
+  trading: "tradingUnlocks"
+};
+
+function rankUnlockName(id: string): string {
+  const content = ContentRegistry.crops.get(id)
+    ?? ContentRegistry.rods.get(id)
+    ?? ContentRegistry.markets.get(id)
+    ?? ContentRegistry.recipes.get(id)
+    ?? ContentRegistry.boats.get(id)
+    ?? [...ContentRegistry.boats.values()].find((boat) => boat.id === id);
+  return content?.name ?? id.replace(/^[a-z]+\./, "").replace(/[-_]/g, " ");
+}
+
+/** Derive rank copy from the same gates and slot formula used by the simulation. */
+function rankBenefits(skill: SkillId, rankIndex: number, hasGuildCharter: boolean): string[] {
+  const rank = PROFICIENCY_RANKS[rankIndex];
+  if (!rank) return [];
+  const benefits = rank[RANK_UNLOCK_KEY[skill]].map(rankUnlockName);
+  if (skill === "trading") {
+    const slots = contractSlotsForRank(rankIndex, hasGuildCharter);
+    const previousSlots = rankIndex > 0 ? contractSlotsForRank(rankIndex - 1, hasGuildCharter) : 0;
+    if (slots > previousSlots) benefits.push(`${slots} contract offers at once`);
+  } else if (rankIndex > 0) {
+    benefits.push(`${Math.round(getProficiencyWorkDiscount(rankIndex) * 100)}% less ${skill} Work`);
+  }
+  return benefits;
+}
+
 /**
  * Slow real-time idle trickle. A running, unpaused game grants
  * `WORK_PASSIVE_REGEN_AMOUNT` every `WORK_PASSIVE_REGEN_INTERVAL_SECONDS` real
@@ -127,6 +160,7 @@ export class ProgressionDomain {
   constructor(private readonly context: DomainContext) {}
 
   public inspectSkills(): SkillProgressDto[] {
+    const hasGuildCharter = this.context.state.quests.unlockedFeatureIds.includes("feature.maritime_guild_charter");
     return (Object.entries(this.context.state.player.proficiencies) as Array<[SkillId, number]>).map(([skill, xp]) => {
       const current = getRankForXp(xp);
       const next = getNextRank(xp);
@@ -139,7 +173,10 @@ export class ProgressionDomain {
         progressPercent: next
           ? Math.max(0, Math.min(100, ((xp - current.xpRequired) / span) * 100))
           : 100,
-        nextXp: next?.xpRequired ?? null
+        nextXp: next?.xpRequired ?? null,
+        nextRankName: next?.rankName ?? null,
+        currentRankBenefits: rankBenefits(skill, current.rankIndex, hasGuildCharter),
+        nextRankBenefits: next ? rankBenefits(skill, next.rankIndex, hasGuildCharter) : []
       };
     });
   }
@@ -274,7 +311,7 @@ export class ProgressionDomain {
     return applyPassiveWorkRegen(this.context.state.player.workCapacity, realSeconds);
   }
 
-  /** A night's rest: a small fraction plus a floor, exempt from the daily cap. */
+  /** A night's rest: a small fraction plus a playable floor, exempt from the daily cap. */
   public restoreWorkOnRest(): number {
     return restoreWorkOnRest(
       this.context.state.player.workCapacity,
@@ -328,13 +365,20 @@ export class ProgressionDomain {
    * amount so a limited resource is never spent for a trivial partial grant.
    */
   public hasWorkRoom(amount = 1): boolean {
+    return this.workRoomBlocker(amount) === null;
+  }
+
+  /** Explain the actual recovery limit before a meal or one-use labor shift is consumed. */
+  public workRoomBlocker(amount = 1): string | null {
     const workCapacity = this.context.state.player.workCapacity;
     const minute = this.context.state.clock.currentMinute;
     rollWorkEarnings(workCapacity, workEarningsDayFor(minute));
     const requested = Number.isFinite(amount) && amount > 0 ? amount : 1;
     const roomInCap = Math.max(0, WORK_DAILY_EARN_CAP - (workCapacity.earnedToday ?? 0));
     const roomInPool = Math.max(0, workCapacity.maximum - workCapacity.current);
-    return Math.min(roomInCap, roomInPool) >= requested;
+    if (roomInCap < requested) return "Today's Work earning limit is too close; rest until tomorrow";
+    if (roomInPool < requested) return "Spend some Work before taking more energy";
+    return null;
   }
 
   /**

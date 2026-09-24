@@ -47,7 +47,7 @@ import { NavigationDomain } from "./domains/NavigationDomain";
 import { CargoDomain } from "./domains/CargoDomain";
 import { FishingDomain } from "./domains/FishingDomain";
 import { MarketDomain } from "./domains/MarketDomain";
-import { ContractDomain } from "./domains/ContractDomain";
+import { CONTRACT_PASS_WAIT_MINUTES, ContractDomain } from "./domains/ContractDomain";
 import {
   QuestDomain,
   reconcileCompletedQuestKnowledge,
@@ -69,6 +69,7 @@ import type {
   CropInspectionDto,
   CropPlacementResult,
   FarmForecastDto,
+  EmergencyTowQuoteDto,
   GameCommand,
   GameQuery,
   GameQueryResult,
@@ -193,6 +194,9 @@ export class Simulation {
   }
 
   public execute(command: GameCommand): InteractionResult {
+    if (!command || typeof command !== "object" || typeof command.type !== "string") {
+      return { success: false, reason: "Unknown action type" };
+    }
     switch (command.type) {
       case "physics.commit":
         return this.commitPhysicsFrame(command.frame);
@@ -218,7 +222,7 @@ export class Simulation {
       case "boat.refuel":
         return this.navigationDomain.refuel(command.boatId);
       case "boat.emergency-tow":
-        return this.navigationDomain.emergencyTow();
+        return this.navigationDomain.emergencyTow((minutes) => this.advanceGameMinutes(minutes));
       case "boat.repair":
         return this.navigationDomain.repairHull(command.boatId);
       case "debug.damage-boat": {
@@ -324,6 +328,8 @@ export class Simulation {
         return this.cargoDomain.loadCarriage(command.mountId);
       case "cargo.pickup":
         return this.pickupFishCargo(command.cargoId);
+      case "cargo.drop":
+        return this.cargoDomain.dropCarried();
       case "cargo.stow-aboard":
         return this.cargoDomain.stowAboard(command.boatId, command.placement);
       case "storage.deposit-item":
@@ -356,8 +362,11 @@ export class Simulation {
         return this.deliverItemsToContract(command.contractId, command.itemId, command.quantity);
       case "contract.deliver-fish":
         return this.deliverFishCargoToContract(command.contractId, command.cargoId);
-      case "contract.pass":
-        return this.contractDomain.passContract(command.contractId);
+      case "contract.pass": {
+        const result = this.contractDomain.passContract(command.contractId);
+        if (result.success) this.advanceGameMinutes(CONTRACT_PASS_WAIT_MINUTES);
+        return result;
+      }
       case "quest.talk-npc":
         return this.questDomain.talkToNpc(command.npcId);
       case "quest.claim-reward":
@@ -368,9 +377,11 @@ export class Simulation {
       case "quest.focus-track":
         return this.questDomain.focusTrack(command.trackId);
     }
+    return { success: false, reason: "Unknown action type" };
   }
 
   public query(query: GameQuery): GameQueryResult {
+    if (!query || typeof query !== "object" || typeof query.type !== "string") return null;
     switch (query.type) {
       case "market.nearby":
         return this.getNearbyMarketId();
@@ -400,6 +411,8 @@ export class Simulation {
         return this.stormHelmDomain.inspectHud();
       case "boat.get-repair-quote":
         return this.navigationDomain.inspectRepairQuote(query.boatId);
+      case "boat.get-emergency-tow-quote":
+        return this.inspectEmergencyTowQuote();
       case "labor.get-hud":
         return this.laborDomain.inspectHud();
       case "labor.get-stations":
@@ -437,6 +450,7 @@ export class Simulation {
       case "npc.get-nearby":
         return this.getNearbyNpcId();
     }
+    return null;
   }
 
   public getNearbyMarketId(): MarketId | null {
@@ -462,7 +476,7 @@ export class Simulation {
   // SIMULATION TICK
   // ==========================================
   public tick(realDeltaSeconds: number): void {
-    if (!Number.isFinite(realDeltaSeconds)) return;
+    if (!Number.isFinite(realDeltaSeconds) || realDeltaSeconds < 0) return;
     if (this.clock.isPaused()) {
       this.state.clock = { ...this.clock.getState() };
       return;
@@ -512,7 +526,7 @@ export class Simulation {
     }
     const minutes = minutesUntilNextMorning(clock.currentMinute);
     this.advanceGameMinutes(minutes);
-    // Work is a day's labor budget: waking restores a small share plus a floor,
+    // Work is a day's labor budget: waking restores a share plus a floor,
     // then the new day's earning tallies open.
     const restored = this.progressionDomain.restoreWorkOnRest();
     return { success: true, yield: restored };
@@ -534,16 +548,15 @@ export class Simulation {
     if (!this.progressionDomain.canEatMeal()) {
       return { success: false, reason: "You are well fed — try again tomorrow" };
     }
-    if (!this.progressionDomain.hasWorkRoom(definition.consumable.amount)) {
-      return { success: false, reason: "You are full of energy already" };
-    }
+    const workRoomBlocker = this.progressionDomain.workRoomBlocker(definition.consumable.amount);
+    if (workRoomBlocker) return { success: false, reason: workRoomBlocker };
     if (!InventoryManager.removeItemsAtomically(inventory, [{ itemId, quantity: 1 }])) {
       return { success: false, reason: "Could not eat that meal" };
     }
     const granted = this.progressionDomain.consumeMeal(definition.consumable.amount);
     if (granted <= 0) {
       InventoryManager.addItemsAtomically(inventory, [{ itemId, quantity: 1 }]);
-      return { success: false, reason: "You are full of energy already" };
+      return { success: false, reason: this.progressionDomain.workRoomBlocker(definition.consumable.amount) ?? "Could not restore Work" };
     }
     return { success: true, yield: granted };
   }
@@ -590,7 +603,8 @@ export class Simulation {
 
   /** Development-only state setup still goes through the simulation boundary. */
   public grantDebugMoney(amount: number): void {
-    if (!Number.isSafeInteger(amount) || amount <= 0) return;
+    if (!this.allowDebugCommands || !Number.isSafeInteger(amount) || amount <= 0) return;
+    if (!Number.isSafeInteger(this.state.player.money + amount)) return;
     this.state.player.money += amount;
   }
 
@@ -1012,6 +1026,10 @@ export class Simulation {
     return this.farmingDomain.getNearbyIrrigationFarmId();
   }
 
+  public quoteIrrigationWork(farmId: FarmId): (WorkCostQuote & { cropCount: number }) | null {
+    return this.farmingDomain.quoteIrrigationWork(farmId);
+  }
+
   public inspectCrop(placedCropId: PlacedCropId): CropInspectionDto | null {
     return this.farmingDomain.inspect(placedCropId);
   }
@@ -1112,6 +1130,10 @@ export class Simulation {
     return this.cargoDomain.canPickup(cargoId);
   }
 
+  public canDropCarriedFishCargo(): boolean {
+    return this.cargoDomain.canDropCarried();
+  }
+
   // ==========================================
   // CONTRACT DELIVERY
   // ==========================================
@@ -1177,9 +1199,9 @@ export class Simulation {
 
   /**
    * Moves a stack of goods between the satchel and a vessel's stores. The move
-   * is atomic in both directions: the goods are taken out first, and if the
-   * destination cannot hold them they are put straight back, so a failed
-   * transfer can never lose cargo or duplicate it.
+   * checks both inventories before taking goods out. A full destination is
+   * refused without rearranging either inventory; successful moves preserve
+   * the quantity and grade of every transferred lot.
    */
   public transferBetweenSatchelAndHold(
     itemId: ItemId,
@@ -1187,6 +1209,9 @@ export class Simulation {
     boatId: BoatId,
     direction: "to-hold" | "to-satchel"
   ): InteractionResult {
+    if (direction !== "to-hold" && direction !== "to-satchel") {
+      return { success: false, reasonCode: "invalid-direction", reason: "Choose a valid transfer direction" };
+    }
     const requested = Math.floor(quantity);
     if (!Number.isFinite(requested) || requested <= 0) {
       return { success: false, reason: "Choose how many to move" };
@@ -1230,8 +1255,9 @@ export class Simulation {
    * The move is per lot: a harvest grade is part of a lot's identity, so a
    * generic ungraded batch would silently sever it (and lowest-grade-first
    * removal would spend the wrong bushel). Merge slots that share a lot, spend
-   * lowest grade first, and carry each lot's grade across intact. A full
-   * destination puts the goods straight back, so a failed move costs nothing.
+   * lowest grade first, and carry each lot's grade across intact. Refuse a
+   * full destination before removal: adding goods back could merge stacks
+   * into different slots, silently rearranging a refused transfer.
    */
   private moveInventoryLots(
     source: InventoryState,
@@ -1255,6 +1281,9 @@ export class Simulation {
       const take = Math.min(remaining, quantity);
       removals.push(quality === undefined ? { itemId, quantity: take } : { itemId, quantity: take, quality });
       remaining -= take;
+    }
+    if (!InventoryManager.canAddItems(destination, removals)) {
+      return { success: false, reasonCode: "no-room", reason: destinationFullReason };
     }
     if (!InventoryManager.removeItemsAtomically(source, removals)) {
       return { success: false, reason: "Those goods could not be taken out" };
@@ -1324,17 +1353,15 @@ export class Simulation {
     const dto = buildItemInspectionDto(this.state, itemId);
     if (!dto?.provisions) return dto;
     const canEat = this.progressionDomain.canEatMeal();
-    const hasRoom = this.progressionDomain.hasWorkRoom(dto.provisions.restoresWork);
+    const workRoomBlocker = this.progressionDomain.workRoomBlocker(dto.provisions.restoresWork);
     return {
       ...dto,
       provisions: {
         ...dto.provisions,
-        edible: canEat && hasRoom,
+        edible: canEat && !workRoomBlocker,
         blockerReason: !canEat
           ? "Well fed today"
-          : !hasRoom
-          ? "Work is already full"
-          : undefined
+          : workRoomBlocker ?? undefined
       }
     };
   }
@@ -1436,6 +1463,10 @@ export class Simulation {
 
   public inspectPauseSummary(): PauseSummaryDto {
     return buildPauseSummaryDto(this.state);
+  }
+
+  public inspectEmergencyTowQuote(): EmergencyTowQuoteDto {
+    return this.navigationDomain.inspectEmergencyTowQuote();
   }
 
   public inspectFarmForecast(): FarmForecastDto {

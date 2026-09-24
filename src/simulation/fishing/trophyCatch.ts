@@ -1,10 +1,11 @@
 // src/simulation/fishing/trophyCatch.ts
 
 import { ContentRegistry } from "../../content/ContentRegistry";
-import type { CarryLocationType, FishCargoState, FishQuality } from "../core/types";
+import type { CarryLocationType, FishCargoState, FishQuality, GameState } from "../core/types";
 import { freshnessTone } from "./freshnessBands";
 import type { TrophyCatchDto } from "../core/contracts";
 import { calculateFishPrice } from "../economy/calculateFishValue";
+import { calculateFreshnessLoss, resolveCargoHasIce, resolveCargoTemperatureC } from "./calculateFreshness";
 
 /**
  * Derives fish length in centimeters using standard ichthyological allometric cubic scaling:
@@ -50,7 +51,8 @@ const CATCH_STORAGE_LABEL: Record<CarryLocationType, string> = {
   "boat-hook": "Hung on transom hook",
   "cold-storage": "Stored in cold room",
   crate: "Packed in a crate",
-  carriage: "Stowed in carriage"
+  carriage: "Stowed in carriage",
+  ground: "Resting on the ground"
 };
 
 /** Where a landed catch now sits, in the catch summary's words — for every location. */
@@ -111,4 +113,23 @@ export function buildTrophyCatchDto(
     storageDestination,
     storageLocationLabel
   };
+}
+
+/** Projects a landed cargo using its actual storage conditions at presentation time. */
+export function inspectLandedCatch(
+  state: GameState,
+  cargo: FishCargoState,
+  record: "first" | "weight" | "quality" | null
+): TrophyCatchDto {
+  const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
+  const effectiveDecay = species
+    ? calculateFreshnessLoss(
+        1,
+        species.baseDecayRatePerMinute,
+        cargo.location.type,
+        resolveCargoHasIce(state, cargo),
+        resolveCargoTemperatureC(state, cargo)
+      )
+    : undefined;
+  return buildTrophyCatchDto(cargo, record, 1, 1, effectiveDecay);
 }

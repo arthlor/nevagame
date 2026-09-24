@@ -2,7 +2,27 @@ import * as THREE from "three";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
-import { WaterSurface, type WaterConditions } from "./WaterSurface";
+import { createWaveUniforms, finestWaterCellMeters, type WaterConditions } from "./WaterSurface";
+import { createCoastalUniforms } from "./CoastalOptics";
+import { WATER_NOISE_GLSL, WATER_WAVE_FUNCTION_GLSL, WATER_WAVE_UNIFORMS_GLSL } from "./waveGlsl";
+
+/**
+ * Wave-field uniforms a wake rides on. With the water's shared uniform map the
+ * arms follow the drawn surface exactly (and update with it); standalone they
+ * fall back to the default field with no bed.
+ */
+function wakeWaveUniforms(shared?: Record<string, THREE.IUniform>): Record<string, THREE.IUniform> {
+  const fallback: Record<string, THREE.IUniform> = {
+    ...createWaveUniforms(),
+    ...createCoastalUniforms(null, new THREE.Vector4(0, 0, 1, 1)),
+    uWaterProfileMap: { value: null }
+  };
+  const names = [
+    ...Object.keys(createWaveUniforms()),
+    "uWaterProfileMap", "uWaterDepthMap", "uCoastalFieldEnabled", "uWaterFieldUv", "uSwashPeriod", "uSwashRunup"
+  ];
+  return Object.fromEntries(names.map((name) => [name, shared?.[name] ?? fallback[name]!]));
+}
 
 type DisturbanceKind = "hull" | "paddle";
 
@@ -59,40 +79,58 @@ function createPaddleGeometry(): THREE.BufferGeometry {
   ]);
 }
 
-function createDisturbanceMaterial(): THREE.ShaderMaterial {
+function createDisturbanceMaterial(waveUniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     glslVersion: THREE.GLSL3,
     transparent: true,
     depthWrite: false,
     side: THREE.DoubleSide,
     uniforms: {
-      uTime: { value: 0 },
+      ...waveUniforms,
+      uWakeTime: { value: 0 },
+      uWakeCellMeters: { value: finestWaterCellMeters() },
       uOpacity: { value: 0 },
       uDaylight: { value: 1 },
       uKeyLightStrength: { value: 1 },
       uFoamColor: { value: new THREE.Color(PALETTE_HEX.foam_warm_01) },
-      uWaterColor: { value: new THREE.Color(PALETTE_HEX.water_shallow_01) },
       uFogColor: { value: new THREE.Color(CANONICAL_RENDER_CONFIG.fog.colorHex) },
       uFogNear: { value: CANONICAL_RENDER_CONFIG.fog.near },
       uFogFar: { value: CANONICAL_RENDER_CONFIG.fog.far },
       uFogDistanceDesaturation: { value: CANONICAL_RENDER_CONFIG.fog.distanceDesaturation }
     },
     vertexShader: `
+      ${WATER_WAVE_UNIFORMS_GLSL}
+      uniform float uWakeCellMeters;
       out vec2 vUv;
       out vec3 vWorldPosition;
+      ${WATER_WAVE_FUNCTION_GLSL}
       void main() {
         vUv = uv;
-        vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        // Each arm vertex rides the displaced wave surface it lies on, so a
+        // wake follows the swell instead of sitting on one flat height and
+        // clipping into every sloped face.
+        vec3 world = (modelMatrix * vec4(position, 1.0)).xyz;
+        float height;
+        vec2 offset;
+        vec3 waveNormal;
+        float fold;
+        float surf;
+        vec2 slopeVariance;
+        vec3 weights;
+        vec2 flow;
+        nevaWaveField(world.xz, uWakeCellMeters, height, offset, waveNormal, fold, surf, slopeVariance, weights, flow);
+        vec3 displaced = vec3(world.x + offset.x, world.y + height + 0.02, world.z + offset.y);
+        vWorldPosition = displaced;
+        gl_Position = projectionMatrix * viewMatrix * vec4(displaced, 1.0);
       }
     `,
     fragmentShader: `
-      uniform float uTime;
+      ${WATER_NOISE_GLSL}
+      uniform float uWakeTime;
       uniform float uOpacity;
       uniform float uDaylight;
       uniform float uKeyLightStrength;
       uniform vec3 uFoamColor;
-      uniform vec3 uWaterColor;
       uniform vec3 uFogColor;
       uniform float uFogNear;
       uniform float uFogFar;
@@ -101,14 +139,21 @@ function createDisturbanceMaterial(): THREE.ShaderMaterial {
       in vec3 vWorldPosition;
       out vec4 outColor;
       void main() {
-        float rippleBand = sin(vUv.y * 28.0 - (uTime - vUv.x * 2.0) * 5.0) * 0.5 + 0.5;
-        float ripple = mix(0.85, 1.15, rippleBand);
+        // A broken foam trail, not a tinted sheet: a tinted sheet read as a
+        // dark strip under storm light and as a white film over the hull.
+        // The pattern is anchored in world space and thins toward the arm's
+        // edges and its tail as the wake ages.
         float tapered = smoothstep(0.0, 0.22, vUv.y) * (1.0 - smoothstep(0.72, 1.0, vUv.y));
         float crossFade = smoothstep(0.0, 0.34, vUv.x) * (1.0 - smoothstep(0.66, 1.0, vUv.x));
-        float alpha = uOpacity * mix(0.46, 1.0, tapered) * mix(0.62, 1.0, crossFade) * ripple;
+        float drive = clamp(uOpacity * mix(0.35, 1.0, tapered) * mix(0.45, 1.0, crossFade), 0.0, 1.0);
+        vec2 p = vWorldPosition.xz;
+        float pattern = nevaNoise01(p * 1.3 + vec2(uWakeTime * 0.11, -uWakeTime * 0.07)) * 0.6
+          + nevaNoise01(p * 3.9 - vec2(uWakeTime * 0.05, 0.0)) * 0.4;
+        float threshold = mix(0.86, 0.46, drive);
+        float alpha = smoothstep(threshold - 0.06, threshold + 0.05, pattern) * min(1.0, drive * 1.6) * 0.9;
         if (alpha < 0.012) discard;
-        float lightResponse = clamp(mix(0.14, 0.92, uDaylight) + uKeyLightStrength * 0.08, 0.12, 1.0);
-        vec3 color = mix(uWaterColor, uFoamColor, 0.54 + 0.12 * rippleBand) * lightResponse;
+        float lightResponse = clamp(mix(0.17, 1.0, uDaylight) + uKeyLightStrength * 0.05, 0.15, 1.0);
+        vec3 color = uFoamColor * lightResponse;
         float fogFactor = smoothstep(uFogNear, uFogFar, distance(cameraPosition, vWorldPosition));
         float wakeLuma = dot(color, vec3(0.299, 0.587, 0.114));
         color = mix(color, vec3(wakeLuma), fogFactor * uFogDistanceDesaturation);
@@ -126,9 +171,11 @@ export class BoatWakePool {
   private readonly paddleGeometry = createPaddleGeometry();
   private cursor = 0;
 
-  constructor(size: number = 28) {
+  /** `waveUniforms`: the water's shared uniform map, so wakes ride the drawn surface. */
+  constructor(size: number = 28, waveUniforms?: Record<string, THREE.IUniform>) {
+    const riding = wakeWaveUniforms(waveUniforms);
     for (let index = 0; index < size; index += 1) {
-      const mesh = new THREE.Mesh(this.hullGeometry, createDisturbanceMaterial());
+      const mesh = new THREE.Mesh(this.hullGeometry, createDisturbanceMaterial(riding));
       mesh.visible = false;
       mesh.renderOrder = 3;
       this.group.add(mesh);
@@ -201,11 +248,8 @@ export class BoatWakePool {
     entry.conditions = { ...conditions };
     entry.baseScale = baseScale;
     entry.mesh.geometry = kind === "hull" ? this.hullGeometry : this.paddleGeometry;
-    entry.mesh.position.set(
-      x,
-      WaterSurface.sample(x, z, timeSeconds, conditions).height + 0.015,
-      z
-    );
+    // The vertex stage lifts every arm onto the live surface.
+    entry.mesh.position.set(x, 0, z);
     entry.mesh.rotation.set(0, headingRadians, 0);
     entry.mesh.scale.setScalar(baseScale);
     entry.mesh.material.uniforms.uOpacity.value = opacity;
@@ -222,17 +266,11 @@ export class BoatWakePool {
         continue;
       }
       const eased = 1 - Math.pow(1 - THREE.MathUtils.clamp(progress, 0, 1), 2);
-      entry.mesh.position.y = WaterSurface.sample(
-        entry.x,
-        entry.z,
-        timeSeconds,
-        entry.conditions
-      ).height + 0.015;
       const expansion = entry.kind === "hull" ? 0.66 : 0.42;
       entry.mesh.scale.setScalar(entry.baseScale * (1 + eased * expansion));
       const peakOpacity = entry.kind === "hull" ? 0.34 : 0.24;
       entry.mesh.material.uniforms.uOpacity.value = (1 - eased) * peakOpacity;
-      entry.mesh.material.uniforms.uTime.value = timeSeconds;
+      entry.mesh.material.uniforms.uWakeTime.value = timeSeconds;
     }
   }
 

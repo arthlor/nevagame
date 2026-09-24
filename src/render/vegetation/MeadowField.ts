@@ -33,7 +33,7 @@ import {
   type MeadowTerrainPatch
 } from "./MeadowFieldSource";
 
-export const MEADOW_FIELD_PROGRAM_CACHE_KEY = "neva-meadow-field-r174-v1";
+export const MEADOW_FIELD_PROGRAM_CACHE_KEY = "neva-meadow-field-r174-v3-patch-response";
 
 const FIELD = CANONICAL_RENDER_CONFIG.meadow.field;
 const VISIBILITY_REFRESH_DISTANCE_METERS = 0.5;
@@ -322,7 +322,7 @@ export class MeadowField {
     });
   }
 
-  /** Visible road coverage, from the same ribbon alpha the road's alpha test cuts. */
+  /** Road coverage at meadow-mask resolution, including the road material's broad edge field. */
   public async stampRoadCoverage(pathGeometry: THREE.BufferGeometry, signal?: AbortSignal): Promise<void> {
     for (const island of this.islands) {
       await runCooperatively(stampRoadCoverageSteps(island.data, pathGeometry), signal);

@@ -18,6 +18,11 @@ export const KNOWLEDGE_ENTRIES: Record<string, KnowledgeEntryDefinition> = {
     title: "Wheat Milling",
     summary: "The hand mill turns harvested wheat into ground grain. Grain is the backbone of chum, and chum is how Neva's sport schools are called."
   },
+  "knowledge.first_expedition_cycle": {
+    id: "knowledge.first_expedition_cycle",
+    title: "The First Complete Circuit",
+    summary: "Seed and harvest became grain, bait and chum. Chum led to a fish worth carrying home, and the sale paid for the next trip. Each step gave the next one a purpose."
+  },
   "knowledge.open_horizons": {
     id: "knowledge.open_horizons",
     title: "Open Horizons",

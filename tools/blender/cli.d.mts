@@ -12,11 +12,11 @@ export interface ArtCliArgs {
 }
 
 export interface SourceProvenance {
-  provider: "poly-pizza" | "quaternius";
+  provider: "poly-pizza" | "quaternius" | "tripo";
   modelId: string;
   sourceUrl: string;
   author: string;
-  license: "CC0-1.0" | "CC-BY-3.0";
+  license: "CC0-1.0" | "CC-BY-3.0" | "Tripo-Terms";
   licenseUrl: string;
   sourceBlend: string;
   /** SHA-256 of adapted sourceBlend bytes, not the provider download. */
@@ -83,12 +83,24 @@ export interface CatalogAsset {
     sourceNode: string;
     scaleReference: { axis: "width" | "depth" | "height"; meters: number };
     yawDegrees: number;
+    pivotOffset?: { x: number; z: number };
     materialMap: Record<string, {
       token: string;
       value: number;
       texturePolicy: "none" | "preserve";
     }>;
     addedGeometryNodes?: string[];
+  };
+  skinnedAuthoring?: {
+    sourceFile: string;
+    sourceSha256: string;
+    adapter: string;
+    materialMap: Record<string, {
+      sourceMaterial: string;
+      token: string;
+      value: number;
+      texturePolicy: "preserve";
+    }>;
   };
 }
 
@@ -209,6 +221,14 @@ export function validateStaticAuthoring(
   repoRoot?: string,
   verifySourceFiles?: boolean,
 ): CatalogAsset["staticAuthoring"] | null;
+export function validateSkinnedAuthoring(
+  asset: CatalogAsset,
+  repoRoot?: string,
+  verifySourceFiles?: boolean,
+): CatalogAsset["skinnedAuthoring"] | null;
+export function sourceMaterialAuthoring(
+  asset: CatalogAsset,
+): CatalogAsset["staticAuthoring"] | CatalogAsset["skinnedAuthoring"] | null;
 export function validateStaticSourceContract(
   filename: string,
   spec: CatalogAsset,

@@ -23,6 +23,13 @@ const PAGES: Array<{ id: GuidePage; label: string; icon: React.ReactNode }> = [
 
 export const HowToPlayGuide: React.FC = () => {
   const [page, setPage] = useState<GuidePage>("actions");
+  const selectPage = (next: GuidePage, tab: HTMLElement) => {
+    if (next === page) return;
+    playUiSound("page-turn");
+    setPage(next);
+    const pages = tab.closest<HTMLElement>(".journal-open-pages");
+    if (pages) pages.scrollTop = 0;
+  };
   return (
     <section className="guidebook-container" aria-label="Guide">
       <div className="journal-page-heading"><h2>Working along the coast</h2></div>
@@ -37,10 +44,7 @@ export const HowToPlayGuide: React.FC = () => {
             aria-controls="guide-active-page"
             tabIndex={page === entry.id ? 0 : -1}
             className={`guidebook-subtab-btn ${page === entry.id ? "is-active" : ""}`}
-            onClick={() => {
-              playUiSound("page-turn");
-              setPage(entry.id);
-            }}
+            onClick={(event) => selectPage(entry.id, event.currentTarget)}
           >
             {entry.icon}{entry.label}
           </button>

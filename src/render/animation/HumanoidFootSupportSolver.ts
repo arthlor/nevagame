@@ -45,10 +45,10 @@ export class HumanoidFootSupportSolver {
   }
 
   /** Constrains the contact point and normal without replacing the source pose. */
-  public alignSole(side: HumanoidSide, target: THREE.Vector3, normal: Readonly<{ x: number; y: number; z: number }>, weight = 1): void {
+  public alignSole(side: HumanoidSide, target: THREE.Vector3, normal: Readonly<{ x: number; y: number; z: number }>, weight = 1, preserveRoll = false): void {
     const blend = THREE.MathUtils.clamp(weight, 0, 1);
     if (blend === 0) return;
-    const leg = this.prepareSoleTarget(side, target, normal, 1);
+    const leg = this.prepareSoleTarget(side, target, normal, 1, preserveRoll);
     if (!leg) return;
     this.sourceThigh.copy(leg.thigh.quaternion).normalize();
     this.sourceShin.copy(leg.shin.quaternion).normalize();
@@ -66,8 +66,8 @@ export class HumanoidFootSupportSolver {
   }
 
   /** Vertical body adaptation needed to reach a contact without stretching. */
-  public requiredPelvisDrop(side: HumanoidSide, target: THREE.Vector3, normal: Readonly<{ x: number; y: number; z: number }>, weight: number): number {
-    const leg = this.prepareSoleTarget(side, target, normal, 1);
+  public requiredPelvisDrop(side: HumanoidSide, target: THREE.Vector3, normal: Readonly<{ x: number; y: number; z: number }>, weight: number, preserveRoll = false): number {
+    const leg = this.prepareSoleTarget(side, target, normal, 1, preserveRoll);
     if (!leg) return 0;
     leg.thigh.getWorldPosition(this.hip);
     leg.shin.getWorldPosition(this.knee);
@@ -78,14 +78,19 @@ export class HumanoidFootSupportSolver {
     return Math.max(0, this.hip.y - this.target.y - verticalReach) * weight;
   }
 
-  private prepareSoleTarget(side: HumanoidSide, target: THREE.Vector3, normal: Readonly<{ x: number; y: number; z: number }>, weight: number): HumanoidLegBinding | undefined {
+  private prepareSoleTarget(side: HumanoidSide, target: THREE.Vector3, normal: Readonly<{ x: number; y: number; z: number }>, weight: number, preserveRoll = false): HumanoidLegBinding | undefined {
     const leg = this.rig.legs[side];
     if (!leg) return undefined;
     this.root.updateWorldMatrix(true, true);
     leg.foot.getWorldQuaternion(this.footWorld);
     this.desiredFootWorld.copy(this.footWorld);
     if (leg.soleNormal.lengthSq() > 0.000001) {
-      this.from.copy(leg.soleNormal).normalize().applyQuaternion(this.footWorld);
+      // Terrain adds a slope to the authored heel/toe roll. Seats and stirrups
+      // still require the entire sole to align with their support frame.
+      if (preserveRoll) {
+        this.root.getWorldQuaternion(this.rootWorld);
+        this.from.set(0, 1, 0).applyQuaternion(this.rootWorld);
+      } else this.from.copy(leg.soleNormal).normalize().applyQuaternion(this.footWorld);
       this.to.set(normal.x, normal.y, normal.z).normalize();
       this.rotation.setFromUnitVectors(this.from, this.to);
       this.desiredFootWorld.premultiply(this.rotation);

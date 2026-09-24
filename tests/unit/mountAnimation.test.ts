@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import {
   AnimationController
@@ -14,6 +13,7 @@ import { MOUNT_TUNING } from "../../src/simulation/mounts/Mounts";
 import { WorldScene } from "../../src/render/scene/WorldScene";
 import type { GameState } from "../../src/simulation/core/types";
 import type { PresentedPlayerFrame } from "../../src/render/presentation/PlayerPresentationBuffer";
+import { createNodeGltfLoader } from "../helpers/nodeGltfLoader";
 
 function motion(overrides: Partial<PlayerMotionSample> = {}): PlayerMotionSample {
   return {
@@ -38,7 +38,7 @@ describe("mounted character animation", () => {
   it.each([false, true])("keeps rider and donkey cadence aligned during acceleration, braking and hitches (reduced motion: %s)", async (reducedMotion) => {
     const bytes = await fs.readFile(path.resolve(process.env.NEVA_EQUIPMENT_CANDIDATE_DIR ?? "public/assets/models", "fauna_donkey_a.glb"));
     await MeshoptDecoder.ready;
-    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(
+    const gltf = await createNodeGltfLoader().parseAsync(
       bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), ""
     );
     const mixer = new THREE.AnimationMixer(gltf.scene);

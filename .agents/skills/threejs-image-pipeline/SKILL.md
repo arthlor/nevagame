@@ -1,12 +1,9 @@
 ---
 name: threejs-image-pipeline
-description: "Compose a deliberate final-image pipeline in Three.js. Use for shared depth/normal/velocity ownership, GTAO plus bloom plus exposure ordering, effect-local render targets, and pass diagnostics. Not for one isolated effect."
+description: Build a deliberate final-image pipeline for advanced Three.js scenes. Use for depth, normal, albedo, and history ownership; GTAO or bent normals; bloom; eye adaptation; tone mapping; 3D LUT grading; effect-local render targets; and pass diagnostics.
 ---
 
 # Image Pipeline
-
-- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Pass graph is WebGL2 unless the project owns a WebGPU post graph. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Use this skill only when composing several image-space systems or defining shared buffers. For one effect, load its atomic skill instead.
 
@@ -46,12 +43,6 @@ ownership boundaries between whole-scene and effect-local graphs.
 - Build pass toggles and effect-only views before tuning.
 - UI rendered in the same target needs an explicit protection strategy.
 - Do not load all atomic post skills by default. Route only the effects actually requested.
-
-## Deliverable
-
-- Inputs: the image-space systems in scope, buffer ownership, and the output target.
-- Artifacts: pass graph, buffer formats/resolutions, per-pass toggles, and diagnostic captures.
-- Acceptance: every pass is toggleable; no doubled tone map or encode; low-resolution effects upsample depth/normal-aware.
 
 ## Routing boundary
 

@@ -27,6 +27,36 @@ describe("held rod aiming", () => {
     expect(rod.position.distanceTo(position)).toBeLessThan(1e-6);
     bend.dispose();
   });
+  it("tracks the fish heading while preserving the authored elevation and grip roll", () => {
+    const parent = new THREE.Group(); parent.rotation.set(0.3, -0.7, 0.2);
+    const rod = rodFixture(); parent.add(rod);
+    // The hand docks the rod rolled about its own axis, as a palm frame does.
+    const docked = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.4, 1.1, -0.3));
+    rod.quaternion.copy(docked); parent.updateMatrixWorld(true);
+    const bend = new FishingRodBend(rod);
+    const grip = rod.getObjectByName("rod_primary_grip")!.getWorldPosition(new THREE.Vector3());
+    const tip = rod.getObjectByName("rod_line_exit")!.getWorldPosition(new THREE.Vector3());
+    // A pull straight along the docked rod needs no swing, so no roll either.
+    bend.aimToward(grip.clone().addScaledVector(tip.clone().sub(grip).normalize(), 12), 1 / 60);
+    expect(rod.quaternion.angleTo(docked)).toBeLessThan(1e-5);
+    // A pull elsewhere swings about an axis perpendicular to the rod: the
+    // secondary palm frame keeps its side of the rod.
+    const side = rod.getObjectByName("rod_secondary_grip")!;
+    const before = side.getWorldPosition(new THREE.Vector3()).sub(grip);
+    bend.resetAim(docked); parent.updateMatrixWorld(true);
+    const endpoint = grip.clone().add(new THREE.Vector3(3, -1, 2));
+    bend.aimToward(endpoint, 1 / 60);
+    rod.updateMatrixWorld(true);
+    const after = side.getWorldPosition(new THREE.Vector3()).sub(grip);
+    const originalAxis = tip.clone().sub(grip).normalize();
+    const wanted = endpoint.clone().sub(grip); wanted.y = 0; wanted.normalize();
+    const horizontal = originalAxis.clone(); horizontal.y = 0; horizontal.normalize();
+    const swing = new THREE.Quaternion().setFromUnitVectors(horizontal, wanted);
+    expect(after.distanceTo(before.applyQuaternion(swing))).toBeLessThan(1e-5);
+    const aimedAxis = rod.getObjectByName("rod_line_exit")!.getWorldPosition(new THREE.Vector3()).sub(grip).normalize();
+    expect(aimedAxis.y).toBeCloseTo(originalAxis.y, 5);
+    bend.dispose();
+  });
   it("moves the secondary palm frame with the rigid reel even without blank bend and resets it", () => {
     const rod = rodFixture(); const marker = rod.getObjectByName("rod_secondary_grip")!;
     const spool = rod.getObjectByName("rod_reel_spool")!;
@@ -37,7 +67,7 @@ describe("held rod aiming", () => {
     bend.update(0, new THREE.Vector3(4, -1, 2), 0.6, 0.1);
     expect(marker.getWorldPosition(new THREE.Vector3()).distanceTo(bend.getGripWorld(new THREE.Vector3()))).toBeLessThan(1e-7);
     expect(marker.position.distanceTo(originalGrip)).toBeGreaterThan(0.005);
-    expect(marker.quaternion.angleTo(originalRotation)).toBeGreaterThan(0.1);
+    expect(marker.quaternion.angleTo(originalRotation)).toBeLessThan(1e-7);
     expect(Array.from(reel.geometry.getAttribute("position").array)).not.toEqual(originalVertices);
     bend.resetDynamics();
     expect(marker.position.distanceTo(originalGrip)).toBeLessThan(1e-7);

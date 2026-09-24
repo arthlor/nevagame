@@ -7,6 +7,7 @@ import { ChromeButton, ChromeClose, ChromeQuality } from "../chrome/Chrome";
 import { GameSheet, ItemSlot, Meter } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish, atlasForItem } from "../chrome/uiAtlas";
+import { handleTabListKeyDown } from "../useTabListKeyboard";
 
 export type LedgerTransferDirection = "to-hold" | "to-satchel";
 
@@ -38,6 +39,8 @@ interface LogisticsLedgerModalProps {
     cargoId: string,
     direction: "store" | "take"
   ) => { success: boolean; reason?: string };
+  /** Sets the carried catch down on walkable ground at the player's feet. */
+  onDropCatch?: () => { success: boolean; reason?: string };
 }
 
 export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
@@ -46,12 +49,13 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
   onTransfer,
   onStowCatch,
   onMoveStorageGoods,
-  onMoveStorageFish
+  onMoveStorageFish,
+  onDropCatch
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [transferNotice, setTransferNotice] = useState<string | null>(null);
   const [selectedBoatId, setSelectedBoatId] = useState<string>(
-    stores.vessels[0]?.boatId ?? ""
+    stores.vessels.find((vessel) => vessel.isActive)?.boatId ?? stores.vessels[0]?.boatId ?? ""
   );
   useModalAccessibility(modalRef, onClose);
 
@@ -61,6 +65,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
 
   const runTransfer = (
     itemId: string,
+    itemName: string,
     quantity: number,
     boatId: string,
     direction: LedgerTransferDirection
@@ -70,7 +75,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
     playUiSound(result.success ? "confirm" : "click");
     setTransferNotice(
       result.success
-        ? `Moved ${quantity} ${direction === "to-hold" ? "to the hold" : "to the satchel"}`
+        ? `Moved ${quantity} ${itemName} ${direction === "to-hold" ? "to the hold" : "to the satchel"}`
         : result.reason ?? "That move was refused"
     );
   };
@@ -91,6 +96,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
   const runStorageGoods = (
     kind: string,
     itemId: string,
+    itemName: string,
     quantity: number,
     direction: "deposit" | "withdraw"
   ): void => {
@@ -99,7 +105,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
     playUiSound(result.success ? "confirm" : "click");
     setTransferNotice(
       result.success
-        ? `Moved ${quantity} ${direction === "deposit" ? "into storage" : "to the satchel"}`
+        ? `Moved ${quantity} ${itemName} ${direction === "deposit" ? "into storage" : "to the satchel"}`
         : result.reason ?? "That move was refused"
     );
   };
@@ -114,6 +120,17 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
           ? "Stored the catch"
           : "Collected the catch"
         : result.reason ?? "That move was refused"
+    );
+  };
+
+  const runDropCatch = (): void => {
+    const result = onDropCatch?.();
+    if (!result) return;
+    playUiSound(result.success ? "confirm" : "click");
+    setTransferNotice(
+      result.success
+        ? "Trade pack set down nearby. Collect it when ready."
+        : result.reason ?? "No clear ground here"
     );
   };
 
@@ -152,20 +169,18 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
 
           <section className="ledger-section stores-supplies" aria-labelledby="stores-supplies-title">
             <h3 id="stores-supplies-title">Supplies</h3>
-            <div className="stores-supply-row">
+            <ul className="stores-supply-row">
               {stores.supplies.map(({ itemId, name, count }) => (
-                <ItemSlot
+                <li
                   key={itemId}
-                  className={`stores-supply-slot ${count > 0 ? "is-occupied" : ""}`}
-                  filled={count > 0}
-                  label={`${name}: ${count}`}
+                  className={`stores-supply-slot ${count > 0 ? "is-occupied" : "is-empty"}`}
                 >
-                  <AtlasImage src={atlasForItem(itemId)} alt="" size={26} />
-                  <span>{name}</span>
-                  <strong>{count}</strong>
-                </ItemSlot>
+                  <AtlasImage src={atlasForItem(itemId)} alt="" size={26} className="stores-supply-icon" />
+                  <span className="stores-supply-name">{name}</span>
+                  <strong className="stores-supply-count">{count}</strong>
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
 
           {stores.carriedCatch && (() => {
@@ -175,26 +190,45 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                 <h3 id="stores-carried-title">Carried catch</h3>
                 <CargoSlot cargo={stores.carriedCatch} slotNumber={1} />
                 {activeVessel ? (
-                  <div className="stores-stow-actions" role="group" aria-label="Stow the carried catch">
-                    <ChromeButton
-                      size="sm"
-                      soundCue="click"
-                      disabled={!activeVessel.stowCarried.hold}
-                      onClick={() => runStowCatch(activeVessel.boatId, "hold")}
-                    >
-                      Stow in hold
-                    </ChromeButton>
-                    <ChromeButton
-                      size="sm"
-                      soundCue="click"
-                      disabled={!activeVessel.stowCarried.hook}
-                      onClick={() => runStowCatch(activeVessel.boatId, "hook")}
-                    >
-                      Hang on transom hook
-                    </ChromeButton>
-                  </div>
+                  <>
+                    <div className="stores-stow-actions" role="group" aria-label="Stow the carried catch">
+                      <ChromeButton
+                        size="sm"
+                        soundCue="click"
+                        disabled={!activeVessel.stowCarried.hold}
+                        onClick={() => runStowCatch(activeVessel.boatId, "hold")}
+                      >
+                        Stow in hold
+                      </ChromeButton>
+                      <ChromeButton
+                        size="sm"
+                        soundCue="click"
+                        disabled={!activeVessel.stowCarried.hook}
+                        onClick={() => runStowCatch(activeVessel.boatId, "hook")}
+                      >
+                        Hang on transom hook
+                      </ChromeButton>
+                    </div>
+                    {!activeVessel.stowCarried.hold && !activeVessel.stowCarried.hook && (
+                      <p className="stores-stow-note">No hold slot or transom hook fits this catch.</p>
+                    )}
+                  </>
                 ) : (
                   <p className="stores-stow-note">Board your vessel to stow this catch.</p>
+                )}
+                {onDropCatch && !activeVessel && (
+                  <div className="stores-stow-actions" role="group" aria-label="Set the carried catch down">
+                    <ChromeButton size="sm" soundCue="click" onClick={runDropCatch}>
+                      Set down on the ground
+                    </ChromeButton>
+                  </div>
+                )}
+                {onDropCatch && (
+                  <p className="stores-stow-note">
+                    {activeVessel
+                      ? "Disembark to set this pack down."
+                      : "A pack set on the ground stays here and loses freshness in the open air."}
+                  </p>
                 )}
               </section>
             );
@@ -203,15 +237,18 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
           <div className="stores-vessels">
             {stores.vessels.length === 0 && <p className="expedition-empty">No vessel is registered.</p>}
             {stores.vessels.length > 1 && (
-              <div className="stores-vessel-tabs" role="tablist" aria-label="Select vessel">
+              <div className="stores-vessel-tabs" role="tablist" aria-label="Select vessel" onKeyDown={handleTabListKeyDown}>
                 {stores.vessels.map((v) => {
                   const isSelected = v.boatId === activeBoatId;
                   return (
                     <button
                       key={v.boatId}
+                      id={`stores-vessel-tab-${v.boatId}`}
                       type="button"
                       role="tab"
                       aria-selected={isSelected}
+                      aria-controls={`stores-vessel-panel-${v.boatId}`}
+                      tabIndex={isSelected ? 0 : -1}
                       className={`stores-vessel-tab ${isSelected ? "is-active" : ""}`}
                       onClick={() => {
                         playUiSound("click");
@@ -231,10 +268,13 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
             {stores.vessels.map((vessel) => (
               <section
                 key={vessel.boatId}
+                id={`stores-vessel-panel-${vessel.boatId}`}
                 className={`ledger-section vessel-spatial-bay-section ${
                   stores.vessels.length > 1 && vessel.boatId !== activeBoatId ? "is-vessel-hidden" : ""
                 }`}
-                aria-labelledby={`stores-${vessel.boatId}`}
+                role={stores.vessels.length > 1 ? "tabpanel" : undefined}
+                aria-labelledby={stores.vessels.length > 1 ? `stores-vessel-tab-${vessel.boatId}` : `stores-${vessel.boatId}`}
+                hidden={stores.vessels.length > 1 && vessel.boatId !== activeBoatId}
               >
                 <div className="stores-vessel-heading">
                   <div>
@@ -266,6 +306,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                 {onTransfer && (
                   <div
                     className="ledger-transfer"
+                    role="group"
                     data-testid={`ledger-transfer-${vessel.boatId}`}
                     aria-label={`Move goods between the satchel and ${vessel.name}`}
                   >
@@ -275,8 +316,8 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                       rows={stores.satchelStock}
                       actionLabel="Stow"
                       testIdPrefix={`stow-${vessel.boatId}`}
-                      onMove={(itemId, count) =>
-                        runTransfer(itemId, count, vessel.boatId, "to-hold")
+                      onMove={(itemId, name, count) =>
+                        runTransfer(itemId, name, count, vessel.boatId, "to-hold")
                       }
                     />
                     <TransferColumn
@@ -285,8 +326,8 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                       rows={vessel.stock}
                       actionLabel="Take"
                       testIdPrefix={`take-${vessel.boatId}`}
-                      onMove={(itemId, count) =>
-                        runTransfer(itemId, count, vessel.boatId, "to-satchel")
+                      onMove={(itemId, name, count) =>
+                        runTransfer(itemId, name, count, vessel.boatId, "to-satchel")
                       }
                     />
                   </div>
@@ -327,10 +368,11 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                             size="sm"
                             soundCue="click"
                             data-testid={`storage-take-${facility.kind}-${cargo.cargoId}`}
+                            aria-label={`Take ${cargo.name} from ${facility.name}`}
                             disabled={facility.locked || !facility.near || Boolean(stores.carriedCatch)}
                             onClick={() => runStorageFish(facility.kind, cargo.cargoId, "take")}
                           >
-                            Take
+                            Take catch
                           </ChromeButton>
                         )}
                       </div>
@@ -351,7 +393,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                         variant="gold"
                         soundCue="confirm"
                         data-testid={`storage-store-${facility.kind}`}
-                        disabled={!facility.near}
+                        disabled={facility.locked || !facility.near}
                         onClick={() => runStorageFish(facility.kind, stores.carriedCatch!.cargoId, "store")}
                       >
                         Store carried catch
@@ -362,6 +404,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                   {onMoveStorageGoods && facility.near && !facility.locked && (
                     <div
                       className="ledger-transfer"
+                      role="group"
                       data-testid={`ledger-storage-transfer-${facility.kind}`}
                       aria-label={`Move goods between the satchel and ${facility.name}`}
                     >
@@ -371,7 +414,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                         rows={stores.satchelStock}
                         actionLabel="Store"
                         testIdPrefix={`storage-deposit-${facility.kind}`}
-                        onMove={(itemId, count) => runStorageGoods(facility.kind, itemId, count, "deposit")}
+                        onMove={(itemId, name, count) => runStorageGoods(facility.kind, itemId, name, count, "deposit")}
                       />
                       <TransferColumn
                         title={`${facility.name} goods`}
@@ -379,7 +422,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                         rows={facility.goods.stock}
                         actionLabel="Take"
                         testIdPrefix={`storage-withdraw-${facility.kind}`}
-                        onMove={(itemId, count) => runStorageGoods(facility.kind, itemId, count, "withdraw")}
+                        onMove={(itemId, name, count) => runStorageGoods(facility.kind, itemId, name, count, "withdraw")}
                       />
                     </div>
                   )}
@@ -395,9 +438,6 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
           </p>
         )}
 
-        <footer className="modal-footer">
-          <ChromeButton onClick={onClose}>Close</ChromeButton>
-        </footer>
       </GameSheet>
     </div>
   );
@@ -414,7 +454,7 @@ const TransferColumn: React.FC<{
   actionLabel: string;
   testIdPrefix: string;
   rows: ReadonlyArray<{ itemId: string; name: string; count: number }>;
-  onMove: (itemId: string, count: number) => void;
+  onMove: (itemId: string, name: string, count: number) => void;
 }> = ({ title, emptyLabel, actionLabel, testIdPrefix, rows, onMove }) => (
   <section className="ledger-transfer-column">
     <h4 className="ledger-transfer-title">{title}</h4>
@@ -426,13 +466,12 @@ const TransferColumn: React.FC<{
           <li key={row.itemId} className="ledger-transfer-row">
             <AtlasImage src={atlasForItem(row.itemId)} alt="" size={20} />
             <span className="ledger-transfer-name">{row.name}</span>
-            <span className="ledger-transfer-count">{row.count}</span>
             <ChromeButton
               size="sm"
               className="ledger-transfer-btn"
               data-testid={`${testIdPrefix}-${row.itemId}`}
               aria-label={`${actionLabel} ${row.count} ${row.name}`}
-              onClick={() => onMove(row.itemId, row.count)}
+              onClick={() => onMove(row.itemId, row.name, row.count)}
             >
               {actionLabel} {row.count}
             </ChromeButton>

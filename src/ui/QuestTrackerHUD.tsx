@@ -32,6 +32,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
 }) => {
   const [questCollapsed, setQuestCollapsed] = useState(false);
   const [contractsCollapsed, setContractsCollapsed] = useState(true);
+  const [recordsCollapsed, setRecordsCollapsed] = useState(true);
 
   const handleQuestToggle = () => {
     playUiSound("click");
@@ -76,6 +77,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
               type="button"
               className="quest-tracker-toggle"
               aria-expanded={!questCollapsed}
+              aria-controls={!questCollapsed ? "quest-tracker-details" : undefined}
               aria-label={questCollapsed ? "Show active objective" : "Hide active objective details"}
               onClick={handleQuestToggle}
               data-testid="quest-tracker-toggle-btn"
@@ -114,6 +116,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
                     type="button"
                     role="tab"
                     aria-selected={selected}
+                    aria-controls="quest-tracker-details"
                     tabIndex={selected ? 0 : -1}
                     className={`quest-thread-tab${selected ? " is-current" : ""}${
                       thread.isQuestReadyToTurnIn ? " is-ready" : ""
@@ -135,7 +138,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
           )}
 
           {!questCollapsed && (
-            <div className="quest-tracker-content">
+            <div className="quest-tracker-content" id="quest-tracker-details" role={showThreadPicker ? "tabpanel" : undefined} aria-label={showThreadPicker ? "Active quest thread" : undefined}>
               {activeQuest.targetQuantity > 1 && !activeQuest.isQuestReadyToTurnIn && (
                 <div className="quest-progress-wrap">
                   <Meter
@@ -188,16 +191,37 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
         </HudCluster>
       )}
 
-      {!activeQuest && records.length > 0 && (
-        <HudCluster className="quest-tracker-hud-wood guild-quest" aria-label="Records Board" data-testid="endgame-record-tracker">
-          <header className="quest-tracker-header"><h3 className="quest-title">Records Board</h3></header>
-          <div className="quest-tracker-content">
+      {records.length > 0 && (
+        <HudCluster
+          className={`quest-tracker-hud-wood guild-quest${activeQuest && recordsCollapsed ? " collapsed" : ""}`}
+          aria-label={activeQuest ? "Followed record" : "Records Board"}
+          data-testid={activeQuest ? "followed-record-tracker" : "endgame-record-tracker"}
+        >
+          <header className="quest-tracker-header">
+            {activeQuest ? (
+              <button
+                type="button"
+                className="quest-tracker-toggle"
+                aria-expanded={!recordsCollapsed}
+                aria-controls={!recordsCollapsed ? "followed-record-details" : undefined}
+                aria-label={recordsCollapsed ? "Show followed record" : "Hide followed record details"}
+                onClick={() => { playUiSound("click"); setRecordsCollapsed((value) => !value); }}
+              >
+                <span className="quest-tracker-copy">
+                  <h3 className="quest-title">Optional record</h3>
+                  <span className="quest-objective-text">{records[0].title}</span>
+                </span>
+                <span className={`quest-collapse-chevron ${recordsCollapsed ? "is-collapsed" : ""}`} aria-hidden="true">▾</span>
+              </button>
+            ) : <h3 className="quest-title">Records Board</h3>}
+          </header>
+          {(!activeQuest || !recordsCollapsed) && <div className="quest-tracker-content" id={activeQuest ? "followed-record-details" : undefined}>
             {records.map((record) => <div key={record.id} className="contract-tracker-item">
               <span className="quest-objective-text">{record.title}</span>
               <Meter label={record.title} value={record.progress} max={1} showValue={false} showLabel={false} variant="gold" />
               <span className="quest-progress-count">{record.currentLabel}</span>
             </div>)}
-          </div>
+          </div>}
         </HudCluster>
       )}
 
@@ -214,6 +238,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
               type="button"
               className="quest-tracker-toggle"
               aria-expanded={!contractsCollapsed}
+              aria-controls={!contractsCollapsed ? "active-contracts-list" : undefined}
               aria-label={
                 contractsCollapsed
                   ? "Show active market contracts"
@@ -239,7 +264,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
           </header>
 
           {!contractsCollapsed && (
-            <div className="contracts-tracker-content" role="list" aria-label="Contracts list">
+            <div className="contracts-tracker-content" id="active-contracts-list" role="list" aria-label="Contracts list">
               {activeContracts.map((contract) => (
                 <div
                   key={contract.id}
@@ -249,7 +274,7 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
                 >
                   <div className="contract-item-head">
                     <span className="contract-target-name">{contract.targetName}</span>
-                    <span className="contract-reward-badge">{`+${contract.rewardMoney} G`}</span>
+                    <span className="contract-reward-badge">{`From ${contract.rewardMoney} G`}</span>
                   </div>
 
                   <div className="contract-item-progress-row">

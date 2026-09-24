@@ -170,6 +170,11 @@ export class MarketBoardOverlay {
       const name = document.createElement("span");
       name.className = "market-world-board-item";
       name.textContent = highlight.itemName;
+      const meta = document.createElement("span");
+      meta.className = "market-world-board-meta";
+      const label = document.createElement("span");
+      label.className = "market-world-board-label";
+      label.textContent = highlight.label;
       const mark = document.createElement("span");
       mark.className = "market-world-board-mark";
       mark.setAttribute("aria-hidden", "true");
@@ -177,10 +182,8 @@ export class MarketBoardOverlay {
       const value = document.createElement("span");
       value.className = "market-world-board-value";
       value.textContent = `${highlight.demandPercent}%`;
-      const label = document.createElement("span");
-      label.className = "market-world-board-label";
-      label.textContent = highlight.label;
-      row.append(name, mark, value, label);
+      meta.append(label, mark, value);
+      row.append(name, meta);
       this.list.append(row);
     }
   }

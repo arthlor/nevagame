@@ -1,12 +1,11 @@
 import { MAINLAND_VILLAGES } from "../world/NevaMainland";
-import { SUNREACH_OFFSET_X } from "../world/WorldIslands";
+import { SUNREACH_NPC_STATIONS } from "../world/SunreachLivingLayout";
 // src/content/npcs.ts
 
 import type { NpcId } from "../simulation/core/QuestTypes";
 import type { ClockState, SkillId } from "../simulation/core/types";
 import { ASSET_IDS, type AssetId } from "../render/assets/AssetCatalog.generated";
 import { HARBOR_MAEVE_ANCHOR, HARBOR_MARKET, HARBOR_SILAS_ANCHOR } from "../world/WorldAnchors";
-import { SUNREACH_ANCHORS } from "../world/WorldIslands";
 
 export interface NpcDefinition {
   id: NpcId;
@@ -60,13 +59,13 @@ export const NPCS: NpcDefinition[] = [
       { phase: "dusk", position: { x: 55.5, z: -42.5, rotationY: 1.2, locationName: "Village Inn Porch" } }
     ],
     idleDialogue: [
-      "The soil here is rich and eager for seed. Keep your fields watered, and Neva will feed you well.",
-      "Nothing beats the warmth of fresh-baked bread made from home-grown grain.",
-      "The morning sun warms the furrows just right today."
+      "Front bed crusts by noon if you ignore it. Water before the crust, or you're just washing dust.",
+      "Bread's only as good as the grain you didn't rush.",
+      "Furrows are warm this morning. Good day to stop saying you'll do it later."
     ],
     beckonLines: [
-      "Come here a moment, dear — I have something for you.",
-      "There you are. Come and stand by the gate a while."
+      "Gate. A minute. Don't make me shout across the rows.",
+      "There. Stand by the post — wind's quieter here."
     ],
     recognitionDialogue: [
       {
@@ -385,15 +384,11 @@ export const NPCS: NpcDefinition[] = [
     district: "Sunreach Cove",
     portraitIcon: "boat",
     assetId: ASSET_IDS.CHAR_NPC_TOMAS_A,
-    anchor: {
-      x: SUNREACH_ANCHORS.coveMarket.x - 2.8,
-      z: SUNREACH_ANCHORS.coveMarket.z + 2.2,
-      rotationY: -Math.PI * 0.35,
-      locationName: "Sunreach Cove Landing"
-    },
+    anchor: { ...SUNREACH_NPC_STATIONS.tomas },
     schedule: [
-      { phase: "dawn", position: { x: 355 + SUNREACH_OFFSET_X, z: 58, rotationY: -1.1, locationName: "Sunreach Dock" } },
-      { phase: "dusk", position: { x: 375 + SUNREACH_OFFSET_X, z: 59, rotationY: -1.1, locationName: "Sunreach Cove Market" } }
+      { phase: "dawn", position: { ...SUNREACH_NPC_STATIONS.tomasDawn } },
+      { phase: "dusk", position: { ...SUNREACH_NPC_STATIONS.tomasDusk } },
+      { phase: "night", position: { ...SUNREACH_NPC_STATIONS.tomasDusk } }
     ],
     idleDialogue: [
       "The channel is calmest when the cove lies flat. Leave enough fuel for the crossing home.",
@@ -454,15 +449,10 @@ export const NPCS: NpcDefinition[] = [
     district: "Sunreach Terraces",
     portraitIcon: "sprout",
     assetId: ASSET_IDS.CHAR_NPC_INES_A,
-    anchor: {
-      x: SUNREACH_ANCHORS.terraceFarm.x + 4.2,
-      z: SUNREACH_ANCHORS.terraceFarm.z - 2.4,
-      rotationY: Math.PI * 0.8,
-      locationName: "Sunreach Cistern Terrace"
-    },
+    anchor: { ...SUNREACH_NPC_STATIONS.ines },
     schedule: [
-      { phase: "dusk", position: { x: 376 + SUNREACH_OFFSET_X, z: 53, rotationY: 2.5, locationName: "Sunreach Cove Market" } },
-      { phase: "night", position: { x: 376 + SUNREACH_OFFSET_X, z: 53, rotationY: 2.5, locationName: "Sunreach Cove Market" } }
+      { phase: "dusk", position: { ...SUNREACH_NPC_STATIONS.inesDusk } },
+      { phase: "night", position: { ...SUNREACH_NPC_STATIONS.inesDusk } }
     ],
     idleDialogue: [
       "These terraces hold water only when you give it to them carefully.",

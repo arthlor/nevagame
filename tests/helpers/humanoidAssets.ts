@@ -1,17 +1,18 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import * as THREE from "three";
-import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import { ASSET_BY_ID, ASSET_CATALOG, type AssetId } from "../../src/render/assets/AssetCatalog";
 import type { CharacterAnimationContext } from "../../src/render/animation/AnimationController";
 import type { PlayerMotionSample } from "../../src/simulation/core/PhysicsAdapter";
+import { createNodeGltfLoader } from "./nodeGltfLoader";
 
 export const CHARACTER_ASSET_IDS = ASSET_CATALOG.filter((asset) => asset.family === "character").map((asset) => asset.id);
 const loaded = new Map<AssetId, Promise<GLTF>>();
 
-/** The same Meshopt decoder and GLTFLoader as production, with isolated bones per test. */
+/** The production GLTFLoader and Meshopt decoder (textures skipped), with isolated bones per test. */
 export async function loadHumanoidAsset(id: AssetId): Promise<THREE.Group> {
   let pending = loaded.get(id);
   if (!pending) {
@@ -21,7 +22,7 @@ export async function loadHumanoidAsset(id: AssetId): Promise<THREE.Group> {
         ?? path.resolve(import.meta.dirname, "../../public/assets/models");
       const bytes = await fs.readFile(path.resolve(directory, asset.file));
       await MeshoptDecoder.ready;
-      return new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(
+      return createNodeGltfLoader().parseAsync(
         bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), ""
       );
     })();

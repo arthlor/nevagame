@@ -292,6 +292,16 @@ export const ASSET_IDS = {
   PROP_CRAFTING_READY_A: "prop_crafting_ready_a",
   FAUNA_HORSE_DRAFT_A: "fauna_horse_draft_a",
   PROP_MERCHANT_CARRIAGE_A: "prop_merchant_carriage_a",
+  FAUNA_DOG_A: "fauna_dog_a",
+  FAUNA_CAT_A: "fauna_cat_a",
+  FAUNA_PIGEON_A: "fauna_pigeon_a",
+  FAUNA_SHEEP_A: "fauna_sheep_a",
+  FAUNA_DUCK_A: "fauna_duck_a",
+  BUILDING_DOVECOTE_A: "building_dovecote_a",
+  PROP_LAUNDRY_LINE_A: "prop_laundry_line_a",
+  PROP_BANNER_CLOTH_A: "prop_banner_cloth_a",
+  HOUSE_COTTAGE_B: "house_cottage_b",
+  PROP_GALLEON_A: "prop_galleon_a",
 } as const;
 
 export type AssetId = (typeof ASSET_IDS)[keyof typeof ASSET_IDS];
@@ -322,6 +332,8 @@ export const ASSET_IDS_BY_FAMILY = {
     ASSET_IDS.BUILDING_COASTAL_STORE_A,
     ASSET_IDS.DOCK_HARBOR_COASTAL_A,
     ASSET_IDS.BUILDING_FISH_MARKET_COASTAL_A,
+    ASSET_IDS.BUILDING_DOVECOTE_A,
+    ASSET_IDS.HOUSE_COTTAGE_B,
   ],
   "boat": [
     ASSET_IDS.BOAT_ROWBOAT_A,
@@ -546,6 +558,14 @@ export const ASSET_IDS_BY_FAMILY = {
     ASSET_IDS.PROP_CRAFTING_READY_A,
     ASSET_IDS.FAUNA_HORSE_DRAFT_A,
     ASSET_IDS.PROP_MERCHANT_CARRIAGE_A,
+    ASSET_IDS.FAUNA_DOG_A,
+    ASSET_IDS.FAUNA_CAT_A,
+    ASSET_IDS.FAUNA_PIGEON_A,
+    ASSET_IDS.FAUNA_SHEEP_A,
+    ASSET_IDS.FAUNA_DUCK_A,
+    ASSET_IDS.PROP_LAUNDRY_LINE_A,
+    ASSET_IDS.PROP_BANNER_CLOTH_A,
+    ASSET_IDS.PROP_GALLEON_A,
   ],
   "rock": [
     ASSET_IDS.ROCK_BOULDER_A,

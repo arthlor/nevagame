@@ -32,6 +32,14 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
   const [strand, setStrand] = useState<AlmanacStrand>("fish");
   const [search, setSearch] = useState("");
 
+  const selectStrand = (next: AlmanacStrand, tab: HTMLElement) => {
+    if (next === strand) return;
+    setStrand(next);
+    setSearch("");
+    const pages = tab.closest<HTMLElement>(".journal-open-pages");
+    if (pages) pages.scrollTop = 0;
+  };
+
   const query = search.trim().toLowerCase();
   // Thirstiest authored crop is the band ceiling; the 25 floor keeps a sane
   // scale if the registry is not ready (e.g. an isolated component test).
@@ -71,10 +79,10 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
             tabIndex={strand === "fish" ? 0 : -1}
             className={`almanac-strand-btn${strand === "fish" ? " is-active" : ""}`}
             data-testid="almanac-strand-fish"
-            onClick={() => setStrand("fish")}
+            onClick={(event) => selectStrand("fish", event.currentTarget)}
           >
             <IconFish size={14} aria-hidden="true" /> Fish
-            <span className="almanac-progress" data-testid="almanac-fish-progress">
+            <span className="almanac-progress" data-testid="almanac-fish-progress" aria-label={`${almanac.discoveredFish} of ${almanac.totalFish} fish recorded`}>
               {`${almanac.discoveredFish}/${almanac.totalFish}`}
             </span>
           </button>
@@ -87,10 +95,10 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
             tabIndex={strand === "crops" ? 0 : -1}
             className={`almanac-strand-btn${strand === "crops" ? " is-active" : ""}`}
             data-testid="almanac-strand-crops"
-            onClick={() => setStrand("crops")}
+            onClick={(event) => selectStrand("crops", event.currentTarget)}
           >
             <IconSprout size={14} aria-hidden="true" /> Crops
-            <span className="almanac-progress" data-testid="almanac-crop-progress">
+            <span className="almanac-progress" data-testid="almanac-crop-progress" aria-label={`${almanac.discoveredCrops} of ${almanac.totalCrops} crops recorded`}>
               {`${almanac.discoveredCrops}/${almanac.totalCrops}`}
             </span>
           </button>
@@ -109,6 +117,14 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
           />
         </label>
       </header>
+
+      {query.length > 0 && (
+        <p className="almanac-search-results" role="status">
+          {strand === "fish"
+            ? `${fish.length} of ${almanac.fish.length} fish match “${search.trim()}”`
+            : `${crops.length} of ${almanac.crops.length} crops match “${search.trim()}”`}
+        </p>
+      )}
 
       {strand === "fish" ? (
         <div
@@ -139,6 +155,7 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
                   <dl className="almanac-facts">
                     <div><dt>Waters</dt><dd>{entry.habitatsLabel}</dd></div>
                     <div><dt>Season</dt><dd>{entry.seasonsLabel}</dd></div>
+                    <div><dt>Current season</dt><dd>{entry.seasonAvailabilityLabel}</dd></div>
                     <div><dt>Runs</dt><dd>{entry.timeWindowsLabel}</dd></div>
                     <div><dt>Rod</dt><dd>{entry.rodClassLabel}</dd></div>
                     <div>

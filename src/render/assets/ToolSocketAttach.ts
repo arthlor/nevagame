@@ -50,7 +50,7 @@ export const SOCKET_ATTACH_BY_ASSET: Readonly<Record<string, SocketAttachPose>> 
     scale: 0.76
   },
   [ASSET_IDS.PROP_HARVEST_BASKET_A]: {
-    position: PALM_ORIGIN,
+    position: [0, -0.18, 0.08],
     rotation: IDENTITY_EULER,
     scale: 0.68
   }

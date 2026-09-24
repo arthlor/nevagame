@@ -1,12 +1,9 @@
 ---
 name: threejs-camera-direction
-description: "Direct authored Three.js camera systems. Use for chase, side, or orbit rigs, cinematic framing, pointer look, camera handoffs, floating origins, projection ownership. Not for object transform timelines."
+description: Direct advanced Three.js camera systems. Use for scale-aware chase rigs, thrust lag, side/orbit cameras, body-relative up vectors, quaternion handoffs, authored cinematic framing, floating origins, pointer-look controls, camera collision constraints, projection ownership, and lifecycle restoration.
 ---
 
 # Camera Direction
-
-- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Backend-agnostic camera math; examples run under either backend. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Treat the camera as an authored visual system, not a passive viewport. Compose
 the subject, establish scale, choose a stable up frame, and make every mode
@@ -30,9 +27,7 @@ Read [references/camera-rig-and-cinematic-systems.md](references/camera-rig-and-
 for exact chase/side/orbit rigs, projection values, transition
 rules, floating-origin shot, pointer controls, and implementation limits.
 
-## Invariants and strong defaults
-
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Non-negotiable rules
 
 - Use subject dimensions to derive offsets; do not tune one fixed distance for
   differently scaled assets.
@@ -45,12 +40,6 @@ Use these checks for the affected mechanism. Preserve concrete ownership, correc
 - Keep stars or infinite backgrounds camera-relative when large translation
   would create false parallax or precision loss.
 - Restore camera and input ownership on scene disposal.
-
-## Deliverable
-
-- Inputs: subject dimensions, lens, up convention, and the mode list.
-- Artifacts: per-mode frames, transition rules, constraint ranges, and lifecycle restore.
-- Acceptance: offsets scale with the subject; position uses lerp and orientation slerp; each handoff uses one blend stage.
 
 ## Routing boundary
 

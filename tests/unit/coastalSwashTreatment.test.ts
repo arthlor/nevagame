@@ -118,9 +118,13 @@ describe("W04 All-Coast Coastal Swash and Contact Treatment", () => {
   });
 
   describe("local shore coordinates and legacy coordination", () => {
-    it("derives swash direction from the local signed-distance gradient", () => {
+    it("shares one run-up level between the water sheet and the wet sand", () => {
+      // The terrain's wetness and backwash lace read the same level the water
+      // surface is lifted by, so the wet line cannot disagree with the water.
+      expect(COASTAL_FIELD_GLSL).toContain("nevaSwashLevel(xz, time, uSwashPeriod, uSwashRunup, contact)");
+      expect(COASTAL_FIELD_GLSL).toContain("vec3 nevaCoastalWash(vec2 xz, float y, float contact)");
+      // The alongshore tangent still comes from the world-space field.
       expect(COASTAL_FIELD_GLSL).toContain("nevaShoreTangent");
-      expect(COASTAL_FIELD_GLSL).toContain("alongShore");
       expect(COASTAL_FIELD_GLSL).not.toContain("(xz.x + xz.y");
     });
 

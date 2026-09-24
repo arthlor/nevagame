@@ -1,12 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { SIMULATION_ACTION_TIMINGS } from "../../src/simulation/actions/ActionTimeline";
 import { ASSET_BY_ID, type AssetId } from "../../src/render/assets/AssetCatalog";
 import { UI_EQUIPMENT, UI_RODS, UI_SUPPLIES } from "../../src/ui/chrome/uiAtlas.generated";
+import { createNodeGltfLoader } from "../helpers/nodeGltfLoader";
 
 const SYSTEM_ASSET_IDS = [
   "wearable_field_hat_a",
@@ -58,7 +58,7 @@ describe("equipment presentation asset contracts", () => {
     ContentRegistry.initializeAndValidate();
     const bytes = await fs.readFile(path.resolve("public/assets/models/char_player_a.glb"));
     await MeshoptDecoder.ready;
-    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(
+    const gltf = await createNodeGltfLoader().parseAsync(
       bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
       ""
     );
@@ -93,7 +93,7 @@ describe("equipment presentation asset contracts", () => {
   it("exports the three crafting actions with catalog and simulation commit timing aligned", async () => {
     const bytes = await fs.readFile(path.resolve("public/assets/models/char_player_a.glb"));
     await MeshoptDecoder.ready;
-    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(
+    const gltf = await createNodeGltfLoader().parseAsync(
       bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
       ""
     );

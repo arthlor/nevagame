@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Object3D } from 'three';
 import { Simulation } from '../../src/simulation/Simulation';
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from '../../src/persistence/SaveSchema';
-import { migrateSaveData } from '../../src/persistence/SaveMigrations';
+import { migrateSaveData, MIGRATIONS } from '../../src/persistence/SaveMigrations';
 import legacy from '../fixtures/save_v45_carriage_predecessor.json';
 import { WorldLayout } from '../../src/world/WorldLayout';
 import { STARTER_CARRIAGE_ID, CARRIAGE_TUNING, carriagePoint, carriagePoseIsClear } from '../../src/simulation/mounts/Carriage';
@@ -43,26 +43,19 @@ describe('horse carriage gameplay', () => {
     const migrated = migrateSaveData(input);
     expect(input).toEqual(before);
     expect(migrated.state.mounts[STARTER_CARRIAGE_ID].fishCargoSlotIds).toEqual([null,null]);
-    const { mounts, schemaVersion: _schemaVersion, world, ...rest } = migrated.state;
-    const { mounts: priorMounts, schemaVersion: _priorVersion, world: priorWorld, ...priorRest } = input.state;
+    // Isolate the carriage migration's preservation contract. Later migrations
+    // intentionally add markets, contract settlement fields and world structures.
+    const added = MIGRATIONS[46](input.state) as typeof input.state;
+    const { mounts, schemaVersion: _schemaVersion, ...rest } = added;
+    const { mounts: priorMounts, schemaVersion: _priorVersion, ...priorRest } = input.state;
     expect(rest).toEqual(priorRest);
-    // The chain now also walks the headwater layout step and the v48 kitchen
-    // re-anchor, so the world may differ by its published revision and the
-    // documented kitchen pose and nothing else.
-    expect(world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
-    const kitchenAnchor = starterStructureAnchor('struct.kitchen')!;
-    expect(world.structures['struct.kitchen']).toMatchObject({
-      x: kitchenAnchor.x,
-      z: kitchenAnchor.z
-    });
-    const withoutKitchen = (candidate: typeof world) => {
-      const { 'struct.kitchen': _kitchen, ...structures } = candidate.structures;
-      return { ...candidate, structures };
-    };
-    expect(withoutKitchen({ ...world, layoutRevision: priorWorld.layoutRevision })).toEqual(
-      withoutKitchen(priorWorld)
-    );
     expect(mounts['mount.donkey_starter']).toEqual(priorMounts['mount.donkey_starter']);
+    expect(MIGRATIONS[46](added)).toEqual(added);
+    expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    const kitchenAnchor = starterStructureAnchor('struct.kitchen')!;
+    expect(migrated.state.world.structures['struct.kitchen']).toMatchObject({
+      x: kitchenAnchor.x, z: kitchenAnchor.z
+    });
     expect(validateSaveEnvelope(migrated)).toBe(true);
     expect(migrateSaveData(migrated)).toEqual(migrated);
   });

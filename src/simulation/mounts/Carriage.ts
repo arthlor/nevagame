@@ -12,7 +12,11 @@ export const CARRIAGE_TUNING = Object.freeze({
   trotSpeed: 3.2,
   acceleration: 1.5,
   braking: 3,
-  turnRate: 0.6,
+  wheelbase: 1.976,
+  rearAxleOffset: -0.962,
+  frontAxleOffset: 1.014,
+  maximumSteerAngle: 0.42,
+  steeringResponse: 6,
   /** Trot (Shift) budget: roughly ten seconds of trot; walk stays free. */
   staminaMaximum: 100,
   trotDrainPerSecond: 10,
@@ -36,14 +40,16 @@ export function carriagePoint(pose: Pick<MountState, 'x' | 'z' | 'rotationY'>, l
 }
 
 /** Overlapping circles cover the bed, shafts and horse, including turning sweep. */
-export function carriageFootprint(pose: Pick<MountState, 'x' | 'z' | 'rotationY'>) {
-  return [[-0.65, 1.05], [0.65, 1.05], [1.8, 0.6], [2.9, 0.55], [4.0, 0.55]].map(([z, radius]) => ({
-    ...carriagePoint(pose, 0, z), radius
-  }));
+export function carriageFootprint(pose: Pick<MountState, 'x' | 'z' | 'rotationY'>, steering = 0) {
+  return [[-0.65, 1.05], [0.65, 1.05], [1.8, 0.6], [2.9, 0.55], [4.0, 0.55], [4.8, 0.35]].map(([z, radius]) => {
+    const ahead = z > CARRIAGE_TUNING.frontAxleOffset ? z - CARRIAGE_TUNING.frontAxleOffset : 0;
+    return { ...carriagePoint(pose, Math.sin(steering) * ahead,
+      ahead ? CARRIAGE_TUNING.frontAxleOffset + Math.cos(steering) * ahead : z), radius };
+  });
 }
 
-export function isCarriageGround(pose: Pick<MountState, 'x' | 'z' | 'rotationY'>): boolean {
-  return carriageFootprint(pose).every(p => {
+export function isCarriageGround(pose: Pick<MountState, 'x' | 'z' | 'rotationY'>, steering = 0): boolean {
+  return carriageFootprint(pose, steering).every(p => {
     if (WorldLayout.traversalSurfaceSample(p.x, p.z).normal.y < CARRIAGE_TUNING.maximumSlopeNormalY) return false;
     return [[0, 0], [-p.radius, 0], [p.radius, 0], [0, -p.radius], [0, p.radius]].every(([dx, dz]) => {
       const x = p.x + dx, z = p.z + dz;
@@ -53,9 +59,22 @@ export function isCarriageGround(pose: Pick<MountState, 'x' | 'z' | 'rotationY'>
   });
 }
 
-export function carriagePoseIsClear(pose: Pick<MountState, 'x' | 'z' | 'rotationY'>, boxes: readonly StaticCollisionProxy[]): boolean {
-  return isCarriageGround(pose) && carriageFootprint(pose).every(p =>
+export function carriagePoseIsClear(pose: Pick<MountState, 'x' | 'z' | 'rotationY'>, boxes: readonly StaticCollisionProxy[], steering = 0): boolean {
+  return isCarriageGround(pose, steering) && carriageFootprint(pose, steering).every(p =>
     staticPoseIsClear(boxes, p, WorldLayout.traversalSurfaceHeight(p.x, p.z), p.radius));
+}
+
+/** Rear wheels roll along their tangent; the kingpin turns the front axle/horse. */
+export function advanceCarriagePose(pose: Pick<MountState, 'x' | 'z' | 'rotationY'>, speed: number, steering: number, dt: number) {
+  const yawRate = speed * Math.tan(steering) / CARRIAGE_TUNING.wheelbase;
+  const rotationY = pose.rotationY + yawRate * dt;
+  const rear = carriagePoint(pose, 0, CARRIAGE_TUNING.rearAxleOffset);
+  const middleYaw = (pose.rotationY + rotationY) / 2;
+  return {
+    x: rear.x + Math.sin(middleYaw) * speed * dt - Math.sin(rotationY) * CARRIAGE_TUNING.rearAxleOffset,
+    z: rear.z + Math.cos(middleYaw) * speed * dt - Math.cos(rotationY) * CARRIAGE_TUNING.rearAxleOffset,
+    rotationY
+  };
 }
 
 export function createStarterCarriageState(): MountState {

@@ -1,12 +1,9 @@
 ---
 name: threejs-procedural-animation
-description: "Animate procedural object transform timelines in Three.js. Use for launch, staging, docking, spin, springs, rotating-frame alignment, debris, frame-rate-independent motion. Not for camera framing or particle VFX."
+description: Build advanced procedural animation in Three.js. Use for launch kinematics, gravity turns, staging, spin docking, target-frame decomposition, spring-follow motion, rotating-frame alignment, peeling debris, analytic transform timelines, frame-rate-independent response, and quaternion control.
 ---
 
 # Procedural Animation
-
-- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Backend-agnostic transform math; examples run under either backend. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Animate semantic state, not unrelated transform curves. Define phases,
 coordinate frames, velocities, and ownership before writing per-frame updates.
@@ -27,9 +24,7 @@ Read [references/procedural-motion-and-docking-systems.md](references/procedural
 for the launch, staging, docking, debris, spring, quaternion, and
 frame-rate-independent response implementations.
 
-## Invariants and strong defaults
-
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Non-negotiable rules
 
 - Use elapsed seconds and `deltaSeconds`; do not make motion frame-count based.
 - Derive orientation from direction/frame, then apply roll or spin as a
@@ -41,12 +36,6 @@ Use these checks for the affected mechanism. Preserve concrete ownership, correc
   scale before removal.
 - Use seeded randomness when motion must be reproducible.
 - Keep visual shake in a bounded envelope and separate it from trajectory.
-
-## Deliverable
-
-- Inputs: timeline phases, coordinate frames, and target poses.
-- Artifacts: phase table, per-phase frame, spring/kinematic constants, and replay reset behavior.
-- Acceptance: motion is frame-rate independent; reparenting keeps world transforms; the terminal pose is exact.
 
 ## Routing boundary
 

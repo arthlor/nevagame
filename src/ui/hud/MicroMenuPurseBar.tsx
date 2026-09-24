@@ -51,19 +51,68 @@ export const MicroMenuPurseBar: React.FC<MicroMenuPurseBarProps> = ({
     ...(expeditionUnlocked ? [{ id: "expedition" as const, label: "Open expedition planner", key: "P", art: UI_MENU.expedition, test: "expeditions" }] : []),
     { id: "pause", label: "Open game menu (Esc)", key: "Esc", art: UI_MENU.menu, test: "menu" }
   ];
-  return <nav className={`micro-menu-purse-bar guild-utilities interactive ${className}`}
-    data-testid="micro-menu-purse-bar" aria-label="Capacities and system menu">
-    {items.map((item) => <button type="button" key={item.id}
-      className={`guild-utility ${item.id === "pause" ? "guild-menu-button" : ""} ${item.id === "inventory" && full ? "is-full" : item.id === "inventory" && nearlyFull ? "is-warning" : ""}`}
-      onClick={() => handleAction(item.id)} aria-label={item.label}
-      title={`${item.label} (${item.key})`} data-testid={`micro-btn-${item.test}`}>
+  const renderItem = (item: (typeof items)[number]) => (
+    <button
+      type="button"
+      key={item.id}
+      className={`guild-utility guild-utility--${item.test} ${
+        item.id === "pause" ? "guild-menu-button" : ""
+      } ${
+        item.id === "inventory" && full
+          ? "is-full"
+          : item.id === "inventory" && nearlyFull
+            ? "is-warning"
+            : ""
+      }`}
+      onClick={() => handleAction(item.id)}
+      aria-label={item.label}
+      title={`${item.label} (${item.key})`}
+      data-testid={`micro-btn-${item.test}`}
+    >
       <GuildcraftArt art="ring" className="guild-utility-rim" />
-      {item.id === "inventory" || item.id === "journal" || item.id === "map"
-        ? <TidebookArt art={item.id === "inventory" ? "satchel" : item.id} className="guild-utility-painting" />
-        : <AtlasImage src={item.art} className="guild-utility-painting" aria-hidden="true" />}
-      {item.id === "inventory" && <span className="guild-capacity" data-testid="satchel-capacity-badge">{capacity.satchelUsed}/{capacity.satchelMax}</span>}
-      {item.id === "ledger" && capacity.cargoUsed > 0 && <span className="guild-capacity" data-testid="cargo-capacity-badge">{capacity.cargoUsed}/{capacity.cargoMax}</span>}
+      {item.id === "inventory" || item.id === "journal" || item.id === "map" ? (
+        <TidebookArt
+          art={item.id === "inventory" ? "satchel" : item.id}
+          className="guild-utility-painting"
+        />
+      ) : (
+        <AtlasImage
+          src={item.art}
+          className="guild-utility-painting"
+          aria-hidden="true"
+        />
+      )}
+      {item.id === "inventory" && (
+        <span className="guild-capacity" data-testid="satchel-capacity-badge">
+          {capacity.satchelUsed}/{capacity.satchelMax}
+        </span>
+      )}
+      {item.id === "ledger" && capacity.cargoUsed > 0 && (
+        <span className="guild-capacity" data-testid="cargo-capacity-badge">
+          {capacity.cargoUsed}/{capacity.cargoMax}
+        </span>
+      )}
       <span className="guild-utility-key">{item.key}</span>
-    </button>)}
-  </nav>;
+    </button>
+  );
+
+  const satchelItem = items.find((i) => i.id === "inventory");
+  const secondaryItems = items.filter((i) => i.id !== "inventory");
+
+  return (
+    <nav
+      className={`micro-menu-purse-bar guild-utilities interactive ${className}`}
+      data-testid="micro-menu-purse-bar"
+      aria-label="Capacities and system menu"
+    >
+      <div className="guild-secondary-utilities">
+        {secondaryItems.map(renderItem)}
+      </div>
+      {satchelItem && (
+        <div className="guild-satchel-utility">
+          {renderItem(satchelItem)}
+        </div>
+      )}
+    </nav>
+  );
 };

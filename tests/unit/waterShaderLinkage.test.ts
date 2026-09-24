@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
 import { FacetedWater } from "../../src/render/water/FacetedWater";
-import { ShoreFoam } from "../../src/render/water/ShoreFoam";
 import { WATER_SURFACE_SHADING_GLSL } from "../../src/render/water/waterShadingGlsl";
 
 /**
@@ -73,11 +72,7 @@ interface WaterProgram {
 }
 
 function waterPrograms(): { programs: WaterProgram[]; dispose: () => void } {
-  const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
-  const foam = new ShoreFoam({
-    waterProfileMap: water.waterProfileMap,
-    waterProfileBounds: water.waterProfileBounds
-  });
+  const water = new FacetedWater({ width: 12, depth: 12 });
   // One wake mesh is enough: the pool builds every entry from the same
   // `createDisturbanceMaterial` source.
   const wakes = new BoatWakePool(1);
@@ -87,16 +82,14 @@ function waterPrograms(): { programs: WaterProgram[]; dispose: () => void } {
   >;
     return {
       programs: [
-        { label: "FacetedWater", material: water.mesh.material },
-        { label: "NearWaterPatch", material: water.nearPatch.mesh.material },
+        { label: "WaterLod", material: water.mesh.material },
+        { label: "HeadwaterSurface", material: water.headwaterSurface.material },
         { label: "HeadwaterFall", material: water.headwaterFall.mesh.material },
         { label: "HeadwaterFallMist", material: water.headwaterFall.mist.mesh.material },
-        { label: "ShoreFoam", material: foam.mesh.material },
         { label: "BoatWakePool", material: wakeMesh.material }
       ],
     dispose: () => {
       wakes.dispose();
-      foam.dispose();
       water.dispose();
     }
   };
@@ -180,21 +173,21 @@ describe("water shader linkage", () => {
   });
 
   it("carries the river in its own flow frame on both water surfaces", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 12, depth: 12 });
     try {
-      for (const fragment of [
-        water.mesh.material.fragmentShader,
-        water.nearPatch.mesh.material.fragmentShader
-      ]) {
-        // The tangent is read from the profile map, never assumed to be +Z.
-        expect(fragment).toContain("profileAt(vWorldPosition.xz).a");
-        expect(fragment).toContain("localFlow");
-        expect(fragment).toContain("nevaShadeWaterSurface(");
+      for (const material of [water.mesh.material, water.headwaterSurface.material]) {
+        // The tangent comes from the baked field's direction vector, never
+        // assumed to be +Z, and reaches the fragment as a varying.
+        expect(material.vertexShader).toContain("flow = profile.zw");
+        expect(material.fragmentShader).toContain("vFlow");
+        expect(material.fragmentShader).toContain("nevaShadeWaterSurface(");
       }
-      expect(WATER_SURFACE_SHADING_GLSL).toContain("flowOffset");
+      // Two-phase advection: bounded offsets that cannot shear around a bend.
+      expect(WATER_SURFACE_SHADING_GLSL).toContain("nevaRiverDetail(worldPosition.xz, riverFlow");
       expect(WATER_SURFACE_SHADING_GLSL).toContain("riverFlow");
       expect(WATER_SURFACE_SHADING_GLSL).toContain("rapidGate");
       expect(WATER_SURFACE_SHADING_GLSL).toContain("uPlungeRingWavelength");
+      expect(WATER_SURFACE_SHADING_GLSL).not.toContain("flowOffset");
     } finally {
       water.dispose();
     }

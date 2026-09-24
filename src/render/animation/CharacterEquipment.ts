@@ -10,10 +10,11 @@ export function fishingClipUsesRod(clip: string): boolean {
 }
 
 /** A shared cradle for existing catalog cargo; does not alter cached meshes. */
-export function createCarryCradle(payload: THREE.Group, fish = false): THREE.Group {
+export function createCarryCradle(payload: THREE.Group, kind: "upright" | "fish" | "bundle" = "upright"): THREE.Group {
   const cradle = new THREE.Group();
   cradle.name = "character_carry_cradle";
-  if (fish) payload.rotation.y = Math.PI / 2;
+  if (kind === "fish") payload.rotation.y = Math.PI / 2;
+  if (kind === "bundle") payload.rotation.z = Math.PI / 2;
   cradle.add(payload);
   cradle.updateMatrixWorld(true);
   const bounds = new THREE.Box3();
@@ -130,7 +131,9 @@ export function alignEquipmentHands(animator: HumanoidAnimator, equipment: THREE
 }
 
 /** Oar motion is boat-owned; hands follow these moving grip targets. */
-export function rowboatOarRotation(phase: number, rowing: boolean, side: "left" | "right", out: THREE.Euler): THREE.Euler {
+export function rowboatOarRotation(phase: number, rowing: boolean, side: "left" | "right", out: THREE.Euler, stowed = false): THREE.Euler {
+  // Released oars lie along the gunwales, clear of the angler's arms and rod.
+  if (stowed) return out.set(0, (side === "left" ? 1 : -1) * Math.PI / 2, 0, "YXZ");
   if (!rowing) return out.set(0, 0, 0, "YXZ");
   const angle = (phase - Math.floor(phase)) * Math.PI * 2;
   const sideSign = side === "left" ? 1 : -1;

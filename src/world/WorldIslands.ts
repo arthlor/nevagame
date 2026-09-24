@@ -1,11 +1,15 @@
 import { OCEAN_ISLAND_DEFINITIONS, type OceanIsletId } from "./OceanIslets";
 import type { WorldBounds, WorldPoint } from "./WorldLayout";
-import { isInsideLoop, pointSegmentDistance } from "./WorldGeometry";
-import { MAINLAND_BOUNDS, type MainlandBiomeId } from "./NevaMainland";
+import { LoopSegmentIndex } from "./WorldGeometry";
+import { nevaHeadlandAt } from "./NevaCoastField";
+import type { MainlandBiomeId } from "./NevaMainland";
 
 export { isInsideLoop, pointSegmentDistance } from "./WorldGeometry";
 
 export const SUNREACH_OFFSET_X = 800;
+
+/** Authored mainland envelope; the coast loop and scatter grids stay inside it. */
+export const MAINLAND_BOUNDS = { minX: -890, maxX: 210, minZ: -780, maxZ: 710 } as const;
 
 export type WorldIslandId = "island.neva" | "island.sunreach" | OceanIsletId;
 export type WorldBiomeId = MainlandBiomeId | "biome.sunreach_warm_dry";
@@ -153,7 +157,73 @@ function terrainPatch(
 }
 
 
-export const NEVA_COAST_LOOP = [
+/**
+ * Outer mainland rim, from the northeastern bluffs round the mountain coast to
+ * the tip of the southern headland. These knots set the continent's outline;
+ * the shoreline itself is derived below.
+ */
+const NEVA_OUTER_RIM_KNOTS: readonly Readonly<WorldPoint>[] = [
+  { x: 165, z: -350 }, { x: 120, z: -590 }, { x: -30, z: -710 },
+  { x: -310, z: -760 }, { x: -555, z: -735 }, { x: -755, z: -585 },
+  { x: -860, z: -330 }, { x: -880, z: -30 }, { x: -850, z: 260 },
+  { x: -780, z: 555 }, { x: -570, z: 690 }, { x: -350, z: 650 }
+];
+const NEVA_RIM_SPACING_METERS = 16;
+const NEVA_RIM_HEADLAND_METERS = 46;
+/** Keeps the displaced shore, its beach and shelf inside the authored envelope. */
+const NEVA_RIM_ENVELOPE_INSET_METERS = 6;
+
+/**
+ * Curves the outer rim through its knots, then pushes hard-rock headlands out
+ * to sea and lets soft ground erode back into bays, using the same geology
+ * field that later picks cliff or beach for each shore.
+ */
+function deriveNevaOuterRim(): WorldPoint[] {
+  const knots = NEVA_OUTER_RIM_KNOTS;
+  const curve: WorldPoint[] = [];
+  for (let i = 0; i < knots.length - 1; i++) {
+    const a = knots[Math.max(0, i - 1)], b = knots[i], c = knots[i + 1], d = knots[Math.min(knots.length - 1, i + 2)];
+    const length = Math.hypot(c.x - b.x, c.z - b.z);
+    const tangent = (previous: WorldPoint, center: WorldPoint, next: WorldPoint): WorldPoint => {
+      const before = Math.hypot(center.x - previous.x, center.z - previous.z);
+      const after = Math.hypot(next.x - center.x, next.z - center.z);
+      const divisor = Math.max(0.001, before + after);
+      return { x: (next.x - previous.x) * length / divisor, z: (next.z - previous.z) * length / divisor };
+    };
+    const first = tangent(a, b, c), second = tangent(b, c, d);
+    const steps = Math.max(2, Math.ceil(length / NEVA_RIM_SPACING_METERS));
+    for (let step = i === 0 ? 0 : 1; step <= steps; step++) {
+      const t = step / steps, t2 = t * t, t3 = t2 * t;
+      const h0 = 2 * t3 - 3 * t2 + 1, h1 = t3 - 2 * t2 + t, h2 = -2 * t3 + 3 * t2, h3 = t3 - t2;
+      curve.push({ x: h0 * b.x + h1 * first.x + h2 * c.x + h3 * second.x,
+        z: h0 * b.z + h1 * first.z + h2 * c.z + h3 * second.z });
+    }
+  }
+  const arc = [0];
+  for (let i = 1; i < curve.length; i++) arc.push(arc[i - 1] + Math.hypot(curve[i].x - curve[i - 1].x, curve[i].z - curve[i - 1].z));
+  const total = arc[arc.length - 1];
+  const inset = NEVA_RIM_ENVELOPE_INSET_METERS;
+  return curve.map((point, i) => {
+    if (i === 0 || i === curve.length - 1) return { x: point.x, z: point.z };
+    const previous = curve[i - 1], next = curve[i + 1];
+    const tx = next.x - previous.x, tz = next.z - previous.z, length = Math.max(0.001, Math.hypot(tx, tz));
+    // Travelling from the northeastern bluffs round to the southern headland,
+    // the open sea lies on the left of travel: (-tz, tx) in x/z.
+    const seaX = -tz / length, seaZ = tx / length;
+    // The rim meets the authored bluffs and headland without a kink.
+    const join = Math.min(1, arc[i] / 70, (total - arc[i]) / 70);
+    let offset = nevaHeadlandAt(point.x, point.z) * NEVA_RIM_HEADLAND_METERS * join * join * (3 - 2 * join);
+    if (offset > 0) {
+      // Headlands ease off before the envelope instead of being sheared flat by it.
+      const margin = Math.max(0, Math.min(point.x - MAINLAND_BOUNDS.minX, MAINLAND_BOUNDS.maxX - point.x,
+        point.z - MAINLAND_BOUNDS.minZ, MAINLAND_BOUNDS.maxZ - point.z) - inset);
+      offset = offset * margin / (margin + offset);
+    }
+    return { x: point.x + seaX * offset, z: point.z + seaZ * offset };
+  });
+}
+
+export const NEVA_COAST_LOOP: readonly Readonly<WorldPoint>[] = Object.freeze([
   // Southern coast (preserving authored shoreline points)
   { x: -184, z: 89 },
   { x: -130, z: 96 },
@@ -174,33 +244,26 @@ export const NEVA_COAST_LOOP = [
   { x: 160, z: -150 },
   { x: 140, z: -190 },
   { x: 164, z: -220 },
-  // The old northern hills now lead inland into a broad mountain-backed continent.
-  { x: 165, z: -350 }, { x: 120, z: -590 }, { x: -30, z: -710 },
-  { x: -310, z: -760 }, { x: -555, z: -735 }, { x: -755, z: -585 },
-  { x: -860, z: -330 }, { x: -880, z: -30 }, { x: -850, z: 260 },
-  { x: -780, z: 555 }, { x: -570, z: 690 }, { x: -350, z: 650 },
+  // The old northern hills lead inland into a broad mountain-backed continent
+  // whose outer shore alternates rock headlands and bays.
+  ...deriveNevaOuterRim(),
   // A long southern headland cups the water; the mouth remains open to the east.
   { x: -230, z: 525 }, { x: -340, z: 440 }, { x: -440, z: 390 },
   { x: -485, z: 350 }, { x: -490, z: 305 }, { x: -510, z: 240 },
   { x: -500, z: 175 }, { x: -460, z: 130 }, { x: -395, z: 101 },
   { x: -340, z: 99 }
-] as const;
+].map(point => Object.freeze(point)));
+
+const NEVA_COAST_INDEX = new LoopSegmentIndex(NEVA_COAST_LOOP);
+
+/** Exact accelerated segment index over `NEVA_COAST_LOOP`. */
+export function nevaCoastIndex(): LoopSegmentIndex {
+  return NEVA_COAST_INDEX;
+}
 
 /** Positive in water, negative on Neva dry land. */
 export function signedDistanceToNevaCoast(x: number, z: number): number {
-  let distance = Number.POSITIVE_INFINITY;
-  for (let index = 0; index < NEVA_COAST_LOOP.length; index++) {
-    distance = Math.min(
-      distance,
-      pointSegmentDistance(
-        x,
-        z,
-        NEVA_COAST_LOOP[index],
-        NEVA_COAST_LOOP[(index + 1) % NEVA_COAST_LOOP.length]
-      )
-    );
-  }
-  return isInsideLoop(x, z, NEVA_COAST_LOOP) ? -distance : distance;
+  return NEVA_COAST_INDEX.signedDistance(x, z);
 }
 
 /**

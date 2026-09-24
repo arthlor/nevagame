@@ -12,20 +12,24 @@ import { MOUNT_TUNING } from "../../src/simulation/mounts/Mounts";
  */
 const SLOPE_GAIT_BOUNDS = { minimum: 0.78, maximum: 1.14 };
 /**
- * On flat ground — where the player spends nearly all of their time — no clip
- * may exceed this. Raising walk to 2.0 and sprint to 5.2 puts walk at 1.37x and
- * run at 1.59x of their authored cadence; the donor clips cannot be retimed
- * without re-authoring their root motion, so this is the accepted cost of the
- * speed increase rather than a bound the code enforces.
+ * On flat ground — where the player spends nearly all of their time — the
+ * player's gaits play at exactly their authored cadence: the walk and run are
+ * authored on the player's own 0.87 m legs at the shipped 2.0 and 5.2 m/s
+ * (`tools/blender/common/player_clips.py`), so their catalog reference speeds
+ * are the tuning speeds. A speed change must re-author the stride.
  */
-const MAX_FLAT_PLAYBACK = 1.6;
+const MAX_FLAT_PLAYBACK = 1;
 /**
  * The absolute worst case, sprinting down a steep bank at the 1.14x slope
  * ceiling. Pinned so a further speed increase has to be a deliberate decision.
  */
-const MAX_DOWNHILL_PLAYBACK = 1.82;
-/** Below this the clip reads as a laboured trudge. */
-const MIN_ACCEPTABLE_PLAYBACK = 0.6;
+const MAX_DOWNHILL_PLAYBACK = 1.14;
+/**
+ * Below this the clip reads as a laboured trudge. The heaviest load up the
+ * steepest bank walks at 0.47x: about 70 steps a minute on the body's short
+ * 1.6 m stride, a slow but still walking cadence.
+ */
+const MIN_ACCEPTABLE_PLAYBACK = 0.45;
 
 function clipReferenceSpeed(assetId: string, name: string): number {
   const spec = ASSET_BY_ID.get(assetId as never)!;
@@ -59,22 +63,17 @@ describe("locomotion playback rate at the shipped tuning", () => {
     expect(fastest).toBeLessThanOrEqual(MAX_DOWNHILL_PLAYBACK);
   });
 
-  it("plays walk and trot at authored cadence; gallop runs an interim ratio pending rebake", () => {
-    // Walk/trot clips match mount tuning exactly, so their playback is 1.0.
-    // Gallop retuned 8.4 → 7.5 m/s ahead of the Blender rebake (authorized
-    // interim): playback runs at tuning/catalog until fauna_donkey_a and
-    // char_player_a are regenerated. Unbounded playback keeps feet planted.
+  it("plays every mounted gait at authored cadence", () => {
+    // Rider and donkey clips are baked at the mount tuning, so mounted
+    // playback is exactly 1.0 and hooves stay planted.
     const exact: Array<[string, string, number]> = [
       ["mounted_walk", "walk", MOUNT_TUNING.walkSpeedMetersPerSecond],
-      ["mounted_trot", "trot", MOUNT_TUNING.trotSpeedMetersPerSecond]
+      ["mounted_trot", "trot", MOUNT_TUNING.trotSpeedMetersPerSecond],
+      ["mounted_gallop", "gallop", MOUNT_TUNING.gallopSpeedMetersPerSecond]
     ];
     for (const [riderClip, donkeyClip, speed] of exact) {
       expect(clipReferenceSpeed(ASSET_IDS.CHAR_PLAYER_A, riderClip)).toBe(speed);
       expect(clipReferenceSpeed(ASSET_IDS.FAUNA_DONKEY_A, donkeyClip)).toBe(speed);
     }
-    const gallopReference = clipReferenceSpeed(ASSET_IDS.FAUNA_DONKEY_A, "gallop");
-    expect(gallopReference).toBe(8.4);
-    expect(clipReferenceSpeed(ASSET_IDS.CHAR_PLAYER_A, "mounted_gallop")).toBe(gallopReference);
-    expect(MOUNT_TUNING.gallopSpeedMetersPerSecond / gallopReference).toBeCloseTo(7.5 / 8.4, 8);
   });
 });

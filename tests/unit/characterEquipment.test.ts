@@ -20,7 +20,7 @@ describe("character equipment presentation", () => {
     const collision = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20));
     collision.name = "COL_fish";
     payload.add(collision);
-    const cradle = createCarryCradle(payload, true);
+    const cradle = createCarryCradle(payload, "fish");
     cradle.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(mesh);
     expect(bounds.getCenter(new THREE.Vector3()).length()).toBeLessThan(1e-6);
@@ -36,6 +36,31 @@ describe("character equipment presentation", () => {
       .toEqual(rowboatOarRotation(1, true, "left", new THREE.Euler()).toArray().map(value => typeof value === "number" && Math.abs(value) < 1e-10 ? 0 : value));
     const parked = rowboatOarRotation(0.3, false, "right", new THREE.Euler());
     for (const angle of [parked.x, parked.y, parked.z]) expect(angle).toBeCloseTo(0, 10);
+  });
+
+  it("lays released oars along the gunwales without changing the ready pose", () => {
+    for (const side of ["left", "right"] as const) {
+      const stowed = rowboatOarRotation(0.3, false, side, new THREE.Euler(), true);
+      const span = new THREE.Vector3(1, 0, 0).applyEuler(stowed);
+      expect(Math.abs(span.x)).toBeLessThan(1e-7);
+      expect(Math.abs(span.z)).toBeCloseTo(1);
+      expect(rowboatOarRotation(0.3, false, side, new THREE.Euler()).y).toBe(0);
+    }
+  });
+
+  it("cradles a tall crop bundle horizontally below the face", () => {
+    const payload = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.25));
+    mesh.position.y = 0.4;
+    payload.add(mesh);
+    const cradle = createCarryCradle(payload, "bundle");
+    cradle.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(mesh);
+    const size = bounds.getSize(new THREE.Vector3());
+    expect(size.x).toBeCloseTo(0.8);
+    expect(size.y).toBeCloseTo(0.2);
+    expect(bounds.getCenter(new THREE.Vector3()).length()).toBeLessThan(1e-7);
+    expect(cradle.getObjectByName("carry_grip_left")!.position.y).toBeLessThan(0);
   });
 
   it("pulls both handles together and lifts both blades for recovery", () => {

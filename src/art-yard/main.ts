@@ -9,16 +9,17 @@ import {
   type AssetId,
   type RuntimeAssetSpec
 } from "../render/assets/AssetCatalog";
-import { AssetLoader } from "../render/loaders/AssetLoader";
+import { AssetLoader, prepareAssetTemplate } from "../render/loaders/AssetLoader";
+import type { CatalogAssetSpec } from "../../tools/authored/kit/types";
 import { LightingRig } from "../render/lighting/LightingRig";
 import { PaletteMaterials } from "../render/materials/PaletteMaterials";
 import { PALETTE_HEX } from "../render/materials/PaletteTokens";
 import { HumanoidAnimator, type PlayerAnimation } from "../render/animation/AnimationController";
 import { resolveHumanoidRig } from "../render/animation/HumanoidRig";
 import { alignEquipmentHands, alignMarkerHand, alignSupportFeet, applyEquipmentSocketPose, createCarryCradle, fishingClipUsesRod, rowboatOarRotation } from "../render/animation/CharacterEquipment";
-import { sampleAttachmentCurve } from "../render/animation/PlayerAttachmentTransition";
+import { attachmentPelvisOffset, sampleAttachmentCurve } from "../render/animation/PlayerAttachmentTransition";
 import { characterPreviewContext, clipLoops, displayedClipTime } from "./characterPreview";
-import { FishingRodBend } from "../render/fishing/FishingRodBend";
+import { FishingRodBend, fishingReelAngularSpeed } from "../render/fishing/FishingRodBend";
 import type { GameState, WeatherState, WeatherTag } from "../simulation/core/types";
 import {
   resolveArtYardAssetId,
@@ -1298,10 +1299,11 @@ function positionContextTransition(normalizedTime: number): void {
   const target = anchor.getWorldPosition(new THREE.Vector3());
   root.worldToLocal(target);
   const source = target.clone().add(new THREE.Vector3(spec.side * 0.95, 0, 0.08));
-  source.y = 0;
+  // Preview boarding starts on the adjoining dock, not at the waterline.
+  source.y = spec.assetId === "fauna_donkey_a" ? 0 : target.y;
   if (spec.pelvisContact && contextPlayerPelvis) {
-    player.updateWorldMatrix(true, true);
-    const pelvisLocal = player.worldToLocal(contextPlayerPelvis.getWorldPosition(new THREE.Vector3()));
+    const pelvisLocal = attachmentPelvisOffset(player,
+      spec.assetId === "fauna_donkey_a" ? "mounted_idle" : "rowboat_idle", contextPlayerPelvis.name);
     const anchorLocal = new THREE.Matrix4().copy(root.matrixWorld).invert().multiply(anchor.matrixWorld);
     target.copy(pelvisLocal).negate().applyMatrix4(anchorLocal);
   }
@@ -1375,11 +1377,12 @@ function updateRuntimePreview(deltaSeconds: number): void {
   }
   runtimeAnimator.resolveGroundContacts(context, () => ({ height: 0, normal: { x: 0, y: 1, z: 0 } }), deltaSeconds);
   applyContextSupports();
-  if (contextOars.length && ["row", "rowboat_idle"].includes(clipSelect.value)) {
+  if (contextOars.length) {
+    const holdingOars = ["row", "rowboat_idle"].includes(clipSelect.value);
     for (const oar of contextOars) {
-      oar.pivot.rotation.copy(rowboatOarRotation(runtimeAnimator.normalizedBasePhase(), clipSelect.value === "row", oar.side, contextOarEuler));
+      oar.pivot.rotation.copy(rowboatOarRotation(runtimeAnimator.normalizedBasePhase(), clipSelect.value === "row", oar.side, contextOarEuler, !holdingOars));
       oar.pivot.updateWorldMatrix(true, true);
-      alignMarkerHand(runtimeAnimator, oar.side, oar.grip);
+      if (holdingOars) alignMarkerHand(runtimeAnimator, oar.side, oar.grip);
     }
   }
   if (activeContextPreviewSpec?.assetId === "boat_skiff_a" && clipSelect.value === "skiff_drive") {
@@ -1408,6 +1411,14 @@ function syncContextPreviewTime(normalizedTime: number): void {
   }
   if (usesRuntimePreview()) {
     runtimeAnimator!.setPreviewPhase(normalized);
+    if (previewRod) {
+      previewRod.resetDynamics();
+      const context = characterPreviewContext(clipSelect.value, currentSpec!, activeContextPreviewSpec?.assetId ?? null);
+      const retrieval = context.fishingInput?.retrievalMetersPerSecond ?? 0;
+      // Scrubbing a one-turn reel clip must also seek the physical crank.
+      previewEquipmentElapsed = clipSelect.value === "reel" && retrieval > 0
+        ? normalized * Math.PI * 2 / fishingReelAngularSpeed(retrieval) : 0;
+    }
     updateRuntimePreview(0);
   } else {
     if (activeAction) activeAction.time = normalized * currentClipDuration;
@@ -1554,6 +1565,11 @@ function playAnimationClip(name: string): void {
   } else if (name === "workstation") {
     socketPropSelect.value = "tool_workstation_scoop_a";
     void attachSocketProp("tool_workstation_scoop_a");
+  } else if (name === "craft_tailor" || name === "craft_tool" || name === "gear_check") {
+    const assetId = name === "craft_tailor" ? "prop_crafting_tailor_a"
+      : name === "craft_tool" ? "prop_crafting_toolmaking_a" : "prop_crafting_ready_a";
+    socketPropSelect.value = assetId;
+    void attachSocketProp(assetId);
   } else if (name === "pickup" || name === "place") {
     socketPropSelect.value = "prop_harvest_basket_a";
     void attachSocketProp("prop_harvest_basket_a");
@@ -1595,7 +1611,8 @@ async function attachSocketProp(assetId: string): Promise<void> {
   try {
     const payload = await AssetLoader.loadModel(assetId as AssetId);
     const carried = assetId.startsWith("prop_crop_bundle") || assetId.startsWith("prop_harvest_basket") || assetId.startsWith("fish_");
-    const propModel = carried ? createCarryCradle(payload, assetId.startsWith("fish_")) : payload;
+    const propModel = carried ? createCarryCradle(payload, assetId.startsWith("fish_") ? "fish"
+      : assetId === "prop_crop_bundle_a" ? "bundle" : "upright") : payload;
     if (
       requestSerial !== socketPropSerial ||
       assetSerialAtStart !== loadSerial ||
@@ -1840,6 +1857,24 @@ async function loadShowcase(showcaseId: string): Promise<void> {
   }
 }
 
+/**
+ * `?live=1`: build authored (Three.js) generators in the page instead of loading their published GLB.
+ * Vite reloads the page whenever a kit or generator file changes, so saving a factory re-renders it
+ * at once. The live scene goes through the same `prepareAssetTemplate` as a loaded GLB; only the
+ * pipeline's quantisation and compression are skipped.
+ */
+const liveAuthored = new URLSearchParams(window.location.search).get("live") === "1";
+
+async function buildLiveAuthored(assetId: string, spec: RuntimeAssetSpec): Promise<THREE.Group | null> {
+  const response = await fetch(`/__neva_art_yard/source?asset=${encodeURIComponent(assetId)}`, { cache: "no-store" });
+  if (!response.ok) return null;
+  const source = await response.json() as { authored: boolean; spec: CatalogAssetSpec };
+  if (!source.authored) return null;
+  const { buildAuthoredModel } = await import("../../tools/authored/pipeline/build");
+  const { root, clips } = buildAuthoredModel(source.spec);
+  return prepareAssetTemplate(root, clips, spec);
+}
+
 async function loadAsset(assetId: string): Promise<void> {
   window.history.replaceState({}, "", syncArtYardAssetUrl(new URL(window.location.href), assetId));
   if (assetId.startsWith("__showcase_")) {
@@ -1855,8 +1890,10 @@ async function loadAsset(assetId: string): Promise<void> {
   try {
     const spec = ASSET_BY_ID.get(assetId as AssetId);
     if (!spec) throw new Error(`Unknown catalog asset ${assetId}`);
-    const model = await AssetLoader.loadModel(assetId as AssetId);
+    const live = liveAuthored ? await buildLiveAuthored(assetId, spec) : null;
+    const model = live ?? await AssetLoader.loadModel(assetId as AssetId);
     if (serial !== loadSerial) return;
+    sourceBadge.textContent = live ? "live generator" : yardData?.source ?? "published";
     model.name = `yard_${assetId}`;
     model.traverse((object) => {
       const mesh = object as THREE.Mesh;

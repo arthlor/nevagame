@@ -3,6 +3,7 @@ import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { PhysicsWorld } from "../../src/physics/PhysicsWorld";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { Simulation } from "../../src/simulation/Simulation";
+import type { EmergencyTowQuoteDto } from "../../src/simulation/core/contracts";
 import {
   STORM_HELM_FIXED_STEP_SECONDS,
   createStormHelmRuntime,
@@ -240,6 +241,17 @@ describe("harbor hull repair", () => {
     expect(repaired).toEqual([150]);
   });
 
+  it("charges only the missing hull share for a partial repair", () => {
+    const sim = dockedWreck(40);
+    sim.state.boats["boat.player_skiff"]!.durability = 200;
+    const quote = sim.query({ type: "boat.get-repair-quote", boatId: "boat.player_skiff" });
+    expect(quote).toMatchObject({ ok: true, cost: 30, canAfford: true });
+    expect(sim.execute({ type: "boat.repair", boatId: "boat.player_skiff" }))
+      .toMatchObject({ success: true, cost: 30 });
+    expect(sim.state.player.money).toBe(10);
+    expect(sim.state.boats["boat.player_skiff"]!.durability).toBe(250);
+  });
+
   it("refuses without touching money or the hull when the purse is short", () => {
     const sim = dockedWreck(100);
     const quote = sim.query({ type: "boat.get-repair-quote", boatId: "boat.player_skiff" });
@@ -268,6 +280,12 @@ describe("harbor hull repair", () => {
   it("tows a wrecked hull to Neva Harbor and charges the flat fee", () => {
     const sim = skiffAtSea(0, 0, 0);
     sim.state.player.money = 100;
+    const quote = sim.query({ type: "boat.get-emergency-tow-quote" }) as EmergencyTowQuoteDto;
+    expect(quote).toMatchObject({
+      ok: true, cost: 25, wrecked: true, destinationMarketId: "market.harbor", destinationLabel: "Neva Harbor"
+    });
+    expect(quote.travelMinutes).toBeGreaterThan(15);
+    expect(sim.state.player.money).toBe(100);
     const towed: string[] = [];
     sim.events.on("BoatTowed", (event) => towed.push(event.reason));
     expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({ success: true, cost: 25 });
@@ -287,6 +305,57 @@ describe("harbor hull repair", () => {
     expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({ success: true, cost: 0 });
     expect(sim.state.player.money).toBe(10);
     expect(sim.state.boats["boat.player_skiff"]!.isDocked).toBe(true);
+  });
+
+  it("recovers an empty skiff with cargo even when the captain has less than the tow fee", () => {
+    const sim = skiffAtSea(0, 0, 250);
+    const boat = sim.state.boats["boat.player_skiff"]!;
+    boat.fuel = 0;
+    boat.fishCargoSlotIds[0] = "cargo.carp";
+    sim.state.fishCargo["cargo.carp"] = {
+      id: "cargo.carp",
+      speciesId: "fish.carp",
+      weightKg: 2,
+      quality: "fine",
+      caughtAtMinute: sim.state.clock.currentMinute,
+      freshness: 100,
+      cargoClass: "small",
+      location: { type: "boat-hold", containerId: boat.id, slotIndex: 0 }
+    };
+    sim.state.player.money = 10;
+
+    expect(sim.execute({ type: "player.reset-safe" })).toMatchObject({ success: false });
+    const quote = sim.query({ type: "boat.get-emergency-tow-quote" }) as EmergencyTowQuoteDto;
+    expect(quote).toMatchObject({ ok: true, cost: 0, wrecked: false });
+    expect(quote.travelMinutes).toBeGreaterThan(15);
+    expect(quote.destinationMarketId).toBeTruthy();
+    expect(quote.destinationLabel).toBeTruthy();
+    expect(sim.state.player.money).toBe(10);
+    const minuteBefore = sim.state.clock.currentMinute;
+    const freshnessBefore = sim.state.fishCargo["cargo.carp"].freshness;
+    expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({ success: true, cost: 0 });
+    expect(sim.state.clock.currentMinute - minuteBefore).toBe(quote.travelMinutes);
+    expect(sim.state.player.money).toBe(10);
+    expect(boat.isDocked).toBe(true);
+    expect(boat.dockedMarketId).toBe(quote.destinationMarketId);
+    expect(boat.fishCargoSlotIds[0]).toBe("cargo.carp");
+    expect(sim.state.fishCargo["cargo.carp"].freshness).toBeLessThan(freshnessBefore);
+    expect(sim.state.fishCargo["cargo.carp"].location).toEqual({
+      type: "boat-hold", containerId: boat.id, slotIndex: 0
+    });
+  });
+
+  it("quotes no charge and refuses a tow while the skiff can still sail", () => {
+    const sim = skiffAtSea(0);
+    const boat = sim.state.boats["boat.player_skiff"]!;
+    const money = sim.state.player.money;
+    expect(sim.query({ type: "boat.get-emergency-tow-quote" })).toMatchObject({
+      ok: false, cost: 0, travelMinutes: 0, reason: "The tank still has fuel — sail on",
+      destinationMarketId: null
+    });
+    expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({ success: false });
+    expect(sim.state.player.money).toBe(money);
+    expect(boat.isDocked).toBe(false);
   });
 
   it("writes a wrecked hull through a save envelope and reloads her wrecked", () => {

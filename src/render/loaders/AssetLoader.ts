@@ -72,6 +72,90 @@ export function configureRuntimeLod(root: THREE.Group, spec: RuntimeAssetSpec): 
   return lod;
 }
 
+/**
+ * Adopts a decoded (or freshly built) asset scene as a runtime template: hides `COL_` proxies,
+ * adopts palette materials into the shared cache, records clips and collision nodes, and configures
+ * skinned culling bounds and generated LOD levels. The GLB loader and the Art Yard's live preview of
+ * authored generators both go through here, so a live build renders exactly as the published GLB.
+ */
+export function prepareAssetTemplate(
+  root: THREE.Group,
+  animations: THREE.AnimationClip[],
+  spec: RuntimeAssetSpec
+): THREE.Group {
+  const collisionNodes: string[] = [];
+  let hasSkinnedMeshes = false;
+  root.traverse((child) => {
+    if (child.name.startsWith("COL_")) {
+      collisionNodes.push(child.name);
+      child.visible = false;
+      return;
+    }
+    if ((child as THREE.Mesh).isMesh) {
+      const mesh = child as THREE.Mesh;
+      hasSkinnedMeshes ||= (mesh as THREE.SkinnedMesh).isSkinnedMesh === true;
+      mesh.material = Array.isArray(mesh.material)
+        ? mesh.material.map((material) => PaletteMaterials.canonicalizeLoaded(material))
+        : PaletteMaterials.canonicalizeLoaded(mesh.material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    }
+  });
+  root.userData.animationClips = animations;
+  root.userData.collisionNodes = collisionNodes;
+  root.userData.assetId = spec.id;
+  root.userData.hasSkinnedMeshes = hasSkinnedMeshes;
+  // Any skinned asset culls against its bind pose unless given an
+  // articulated envelope; fauna and fish deform as much as people do.
+  if (hasSkinnedMeshes) {
+    configureConservativeSkinnedBounds(root);
+  }
+  const missingLodNodes = spec.lodLevels?.filter((level) => !root.getObjectByName(level.node)) ?? [];
+  if (missingLodNodes.length > 0) {
+    root.userData.runtimeLodLevels = null;
+    root.userData.runtimeLodFallback = {
+      expectedNodes: spec.lodLevels?.map((level) => level.node) ?? [],
+      missingNodes: missingLodNodes.map((level) => level.node),
+    };
+  } else {
+    configureRuntimeLod(root, spec);
+  }
+  return root;
+}
+
+/**
+ * Clones a skinned model so each source skeleton stays one skeleton in the clone.
+ *
+ * GLTFLoader splits a skin that spans several palette materials into sibling
+ * SkinnedMeshes sharing one Skeleton, but `SkeletonUtils.clone` gives every
+ * cloned mesh a Skeleton of its own. A four-token animal then recomputes and
+ * uploads four identical bone palettes every frame, which measured roughly a
+ * third of its frame cost. Rebinding the siblings onto one skeleton restores
+ * the sharing the source already had.
+ */
+export function cloneSkinnedModel(source: THREE.Object3D): THREE.Object3D {
+  const cloned = cloneSkeleton(source);
+  const sourceMeshes: THREE.SkinnedMesh[] = [];
+  const clonedMeshes: THREE.SkinnedMesh[] = [];
+  source.traverse((object) => {
+    if ((object as THREE.SkinnedMesh).isSkinnedMesh) sourceMeshes.push(object as THREE.SkinnedMesh);
+  });
+  cloned.traverse((object) => {
+    if ((object as THREE.SkinnedMesh).isSkinnedMesh) clonedMeshes.push(object as THREE.SkinnedMesh);
+  });
+  const shared = new Map<THREE.Skeleton, THREE.Skeleton>();
+  sourceMeshes.forEach((sourceMesh, index) => {
+    const clonedMesh = clonedMeshes[index];
+    const existing = shared.get(sourceMesh.skeleton);
+    if (existing) {
+      clonedMesh.bind(existing, clonedMesh.bindMatrix);
+    } else {
+      shared.set(sourceMesh.skeleton, clonedMesh.skeleton);
+    }
+  });
+  return cloned;
+}
+
 export class AssetLoader {
   private static loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   private static modelCache: Map<AssetId, THREE.Group> = new Map();
@@ -132,7 +216,7 @@ export class AssetLoader {
 
   private static cloneModel(source: THREE.Group): THREE.Group {
     const cloned = source.userData.hasSkinnedMeshes
-      ? cloneSkeleton(source) as THREE.Group
+      ? cloneSkinnedModel(source) as THREE.Group
       : source.clone(true);
     cloned.userData.animationClips = source.userData.animationClips;
     cloned.userData.collisionNodes = source.userData.collisionNodes;
@@ -170,43 +254,7 @@ export class AssetLoader {
             }
             const spec = ASSET_BY_ID.get(assetId);
             if (!spec) throw new Error(`[AssetLoader] Missing runtime catalog entry for ${assetId}`);
-            const collisionNodes: string[] = [];
-            let hasSkinnedMeshes = false;
-            root.traverse((child) => {
-              if (child.name.startsWith("COL_")) {
-                collisionNodes.push(child.name);
-                child.visible = false;
-                return;
-              }
-              if ((child as THREE.Mesh).isMesh) {
-                const mesh = child as THREE.Mesh;
-                hasSkinnedMeshes ||= (mesh as THREE.SkinnedMesh).isSkinnedMesh === true;
-                mesh.material = Array.isArray(mesh.material)
-                  ? mesh.material.map((material) => PaletteMaterials.canonicalizeLoaded(material))
-                  : PaletteMaterials.canonicalizeLoaded(mesh.material);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-              }
-            });
-            root.userData.animationClips = gltf.animations;
-            root.userData.collisionNodes = collisionNodes;
-            root.userData.assetId = assetId;
-            root.userData.hasSkinnedMeshes = hasSkinnedMeshes;
-            // Any skinned asset culls against its bind pose unless given an
-            // articulated envelope; fauna and fish deform as much as people do.
-            if (hasSkinnedMeshes) {
-              configureConservativeSkinnedBounds(root);
-            }
-            const missingLodNodes = spec.lodLevels?.filter((level) => !root.getObjectByName(level.node)) ?? [];
-            if (missingLodNodes.length > 0) {
-              root.userData.runtimeLodLevels = null;
-              root.userData.runtimeLodFallback = {
-                expectedNodes: spec.lodLevels?.map((level) => level.node) ?? [],
-                missingNodes: missingLodNodes.map((level) => level.node),
-              };
-            } else {
-              configureRuntimeLod(root, spec);
-            }
+            prepareAssetTemplate(root, gltf.animations, spec);
             this.modelCache.set(assetId, root);
             this.templateBytes.set(assetId, this.estimateGeometryBytes(root));
             this.templateLastUse.set(assetId, performance.now());

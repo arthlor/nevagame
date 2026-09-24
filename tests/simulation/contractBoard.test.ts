@@ -36,6 +36,22 @@ function fullyEquippedState(): GameState {
 }
 
 describe("contract board", () => {
+  it("keeps produce commissions from paying a premium for goods retailed at their own counter", () => {
+    ContentRegistry.initializeAndValidate();
+    for (const template of ContentRegistry.contractTemplates.values()) {
+      if (!isProduceContractType(template.type)) continue;
+      const retail = ContentRegistry.markets.get(template.deliveryMarketId)!.retail.itemIds;
+      for (const targetId of template.itemOrSpeciesPool) {
+        expect(
+          retail,
+          `${template.id} would let a player buy ${targetId} and hand it back at the same counter`
+        ).not.toContain(targetId);
+      }
+    }
+    expect(ContentRegistry.contractTemplates.get("contract.flax_bolts")?.deliveryMarketId)
+      .toBe("market.reedhaven");
+  });
+
   it("can actually generate every authored target", () => {
     ContentRegistry.initializeAndValidate();
     const state = fullyEquippedState();
@@ -174,6 +190,29 @@ describe("contract board", () => {
     expect(offered()).toEqual(cove);
   });
 
+  it("does not post mainland deliveries for goods whose only source is beyond an unreachable crossing", () => {
+    ContentRegistry.initializeAndValidate();
+    const sim = new Simulation();
+    const state = sim.state;
+    state.quests.unlockedFeatureIds.push("boat.player_rowboat");
+    for (const skill of ["farming", "fishing", "processing", "trading"] as const) {
+      state.player.proficiencies[skill] = 100_000;
+    }
+    state.player.equippedRodId = "rod.master";
+    state.player.ownedRodIds = [...ContentRegistry.rods.keys()];
+    state.clock.season = "summer";
+
+    const olive = ContentRegistry.contractTemplates.get("contract.sunreach_olive_delivery")!;
+    const highridgeFish = ContentRegistry.contractTemplates.get("contract.highridge_fresh_fish")!;
+    expect(feasibleContractTargets(state, olive)).not.toContain("produce.olive");
+    expect(feasibleContractTargets(state, highridgeFish)).not.toContain("fish.sea_bream");
+    expect(feasibleContractTargets(state, highridgeFish)).toContain("fish.trout");
+
+    sim.prepareDebugSkiffReview();
+    expect(feasibleContractTargets(state, olive)).toContain("produce.olive");
+    expect(feasibleContractTargets(state, highridgeFish)).toContain("fish.sea_bream");
+  });
+
   it("sends each expedition contract to its own delivery market", () => {
     ContentRegistry.initializeAndValidate();
     const state = fullyEquippedState();
@@ -181,7 +220,8 @@ describe("contract board", () => {
     state.contracts = [{
       id: "contract.cove_test", templateId: template.id, requesterId: template.id,
       deliveryMarketId: template.deliveryMarketId, type: template.type, targetItemIdOrSpecies: "fish.sea_bream",
-      quantityRequired: 1, quantityFulfilled: 0, minFreshness: template.minFreshness, rewardMoney: 90,
+      quantityRequired: 1, quantityFulfilled: 0, deliveredValueMoney: 0, legacyUnvaluedQuantity: 0,
+      minFreshness: template.minFreshness, rewardMoney: 90,
       rewardSkillXp: { skill: "fishing", xp: 50 }, expiresAtMinute: state.clock.currentMinute + 600, status: "active"
     }];
     const signal = { success: false } as MarketDemandSignal;
@@ -203,10 +243,13 @@ describe("contract board", () => {
 
   it("widens the board with Trading rank instead of a tier flag", () => {
     expect(contractSlotsForRank(0)).toBe(3);
-    expect(contractSlotsForRank(2)).toBe(3);
-    expect(contractSlotsForRank(3)).toBe(3);
-    expect(contractSlotsForRank(4)).toBe(3);
-    expect(contractSlotsForRank(5)).toBe(4);
-    expect(contractSlotsForRank(7)).toBe(4);
+    expect(contractSlotsForRank(1)).toBe(3);
+    expect(contractSlotsForRank(2)).toBe(4);
+    expect(contractSlotsForRank(3)).toBe(4);
+    expect(contractSlotsForRank(4)).toBe(4);
+    expect(contractSlotsForRank(5)).toBe(5);
+    expect(contractSlotsForRank(7)).toBe(5);
+    expect(contractSlotsForRank(2, true)).toBe(5);
+    expect(contractSlotsForRank(5, true)).toBe(6);
   });
 });

@@ -11,22 +11,18 @@ describe("mountain river water", () => {
     for (const z of [-152, -150, -143, -136, -130, -124, -120, -116, -105, 82]) {
       const x = WorldLayout.riverCenterX(z);
       const baseline = WorldLayout.waterSurfaceElevation(x, z);
-      const columnDepth = WorldLayout.waterColumnDepth(x, z);
       const actual = waterHeight(x, z, 17);
+      // The wave field shoals against the baked bed, which does not change
+      // when the static surface baseline is mocked away, so the difference is
+      // purely the additive baseline.
       const query = vi.spyOn(WorldLayout, "waterSurfaceElevation").mockReturnValue(0);
-      // Shoaling reads the water column, which is a difference of the mocked
-      // elevation and the bed, so it is pinned separately here. The invariant
-      // under test is that the surface baseline is purely additive — not that
-      // displacement ignores how deep the water is, which it must not.
-      const depth = vi.spyOn(WorldLayout, "waterColumnDepth").mockReturnValue(columnDepth);
       try {
         expect(actual - waterHeight(x, z, 17)).toBeCloseTo(baseline, 10);
       } finally {
         query.mockRestore();
-        depth.mockRestore();
       }
     }
-    expect(WorldLayout.waterSurfaceElevation(-30, -150)).toBe(20);
+    expect(WorldLayout.waterSurfaceElevation(-30, -150)).toBe(33.5);
     for (const [x, z] of [[-30, -105], [68, 90], [350, 80], [600, 200]]) {
       expect(WorldLayout.waterSurfaceElevation(x, z)).toBe(0);
     }
@@ -35,8 +31,10 @@ describe("mountain river water", () => {
   it("tilts surface normals downhill with the actual raised water surface", () => {
     const step = 0.01;
     // Graded run stations only: the lip crest, the pool shelf and the sea-level
-    // handoff are deliberate level surfaces (asserted separately below).
-    for (const z of [-146, -143, -139, -135.3, -121, -118]) {
+    // handoff are deliberate level surfaces (asserted separately below). Avoid
+    // exact knots — smoothstep zero-derivative there lets wave normals own the
+    // tilt — and sample mid-segment instead.
+    for (const z of [-144, -143, -139, -135.3, -121, -118]) {
       const x = WorldLayout.riverCenterX(z);
       const normal = waterNormal(x, z, 9);
       const dx = (waterHeight(x + step, z, 9) - waterHeight(x - step, z, 9)) / (2 * step);
@@ -108,53 +106,41 @@ describe("mountain river water", () => {
     }
   });
 
-  it("gives both shaders the same world profile and keeps steep water on the refined base", () => {
-    const water = new FacetedWater({ width: 60, depth: 60, centerX: -30, centerZ: -133, segmentsX: 12, segmentsZ: 12 });
+  it("gives the elevated reach its own refined surface that exactly covers what it owns", () => {
+    const water = new FacetedWater({ width: 60, depth: 60, centerX: -30, centerZ: -133 });
     try {
-      for (const material of [water.mesh.material, water.nearPatch.mesh.material]) {
+      const headwater = water.headwaterSurface;
+      for (const material of [water.mesh.material, headwater.material]) {
         expect(Array.from(material.uniforms.uHeadwaterElevations.value as Float32Array))
           .toEqual(Array.from(new Float32Array(NEVA_HEADWATERS.elevationKnots.flatMap((knot) => [knot.z, knot.elevation]))));
-        expect(material.vertexShader).toContain("displaced.y += headwater.x + height");
-        expect(material.vertexShader).toContain("vWaveHeight = height");
-        expect(material.fragmentShader).toContain("signedWaterDistance <= 0.0) discard");
-        expect(material.fragmentShader).toContain("profileAt(worldPosition.xz)");
+        expect(material.fragmentShader).toContain("field.b <= 0.0) discard");
         expect(material.fragmentShader).toContain("baselineElevation = worldPosition.y - waveHeight");
-        expect(material.fragmentShader).toContain("|| baselineElevation > 0.001");
       }
-      // A finite vertex envelope does not bound the displaced fragments:
-      // triangles crossing it still have raised centroids on dry ground.
-      const geometry = water.mesh.geometry;
-      const positions = geometry.getAttribute("position");
-      const indices = geometry.index!;
+      // Only the headwater surface climbs the authored profile; the sea-level
+      // lattice yields that reach to it on the same world-space test.
+      expect(headwater.material.vertexShader).toContain("headwater.x + height");
+      expect(water.mesh.material.vertexShader).not.toContain("nevaHeadwaterElevationAndGrade(lattice");
+      // The fixed surface spans exactly the owned rectangle, and its culling
+      // bounds include the raised profile plus the displacement margin.
+      const box = headwater.geometry.boundingBox!.clone().translate(headwater.position);
       const bounds = NEVA_HEADWATERS.bounds;
-      let eastRaisedChord = false;
-      let northRaisedChord = false;
-      for (let index = 0; index < indices.count; index += 3) {
-        let x = 0;
-        let z = 0;
-        let interpolatedBaseline = 0;
-        for (let corner = 0; corner < 3; corner++) {
-          const vertex = indices.getX(index + corner);
-          const vx = positions.getX(vertex) + water.mesh.position.x;
-          const vz = positions.getZ(vertex) + water.mesh.position.z;
-          x += vx / 3;
-          z += vz / 3;
-          interpolatedBaseline += WorldLayout.waterSurfaceElevation(vx, vz) / 3;
-        }
-        if (interpolatedBaseline <= 0.1) continue;
-        if (x > bounds.maxX || z < bounds.minZ) {
-          expect(WorldLayout.waterSignedDistance(x, z)).toBeLessThan(0);
-          eastRaisedChord ||= x > bounds.maxX;
-          northRaisedChord ||= z < bounds.minZ;
-        }
+      const lastKnotZ = NEVA_HEADWATERS.elevationKnots[NEVA_HEADWATERS.elevationKnots.length - 1]!.z;
+      const positions = headwater.geometry.getAttribute("position");
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      for (let index = 0; index < positions.count; index += 1) {
+        minX = Math.min(minX, positions.getX(index) + headwater.position.x);
+        maxX = Math.max(maxX, positions.getX(index) + headwater.position.x);
+        minZ = Math.min(minZ, positions.getZ(index) + headwater.position.z);
+        maxZ = Math.max(maxZ, positions.getZ(index) + headwater.position.z);
       }
-      expect(eastRaisedChord).toBe(true);
-      expect(northRaisedChord).toBe(true);
-      expect(water.mesh.material.fragmentShader).toContain("!nevaHeadwaterOwnsSurface(vWorldPosition.xz)");
-      expect(water.nearPatch.mesh.material.fragmentShader).toContain("|| nevaHeadwaterOwnsSurface(vWorldPosition.xz)");
-      water.update(12, { seaRoughness: 0.2, windDirectionDeg: 0, windSpeed: 2 }, new THREE.Vector3(-30, 20, -145), { reducedMotion: true });
+      expect(minX).toBeCloseTo(bounds.minX, 6);
+      expect(maxX).toBeCloseTo(bounds.maxX, 6);
+      expect(minZ).toBeCloseTo(bounds.minZ, 6);
+      expect(maxZ).toBeCloseTo(lastKnotZ, 6);
+      expect(box.max.y).toBeGreaterThan(NEVA_HEADWATERS.elevationKnots[0]!.elevation);
+      water.update(12, { seaRoughness: 0.2, windDirectionDeg: 0, windSpeed: 2 }, undefined, { reducedMotion: true });
       expect(water.mesh.material.uniforms.uReducedMotion.value).toBe(1);
-      expect(water.nearPatch.mesh.material.uniforms.uReducedMotion.value).toBe(1);
+      expect(headwater.material.uniforms.uReducedMotion).toBe(water.mesh.material.uniforms.uReducedMotion);
     } finally {
       water.dispose();
     }

@@ -88,4 +88,42 @@ describe("story flow presentation", () => {
     expect(html).toContain("What Old Silas said");
     expect(html).toContain("Coastal Fishing Skiff");
   });
+
+  it("hides manual record following when endgame guidance owns the HUD tracker", () => {
+    const pages = {
+      completedStories: [],
+      fishRecords: [],
+      cropRecords: [],
+      knowledge: [],
+      records: [{
+        id: "record.harvest.wheat",
+        tier: "field" as const,
+        title: "Wheat mastery",
+        detail: "Harvest 100 wheat.",
+        achieved: false,
+        followable: true,
+        progress: 0.25,
+        currentLabel: "25 / 100"
+      }]
+    };
+    const renderRecords = (canFollowRecords: boolean) => renderToString(
+      React.createElement(JournalModal, {
+        pages,
+        activeQuest: null,
+        skills: [],
+        initialFolio: "records",
+        followingRecordId: null,
+        canFollowRecords,
+        onFollowRecord: () => {},
+        onClose: () => {}
+      })
+    );
+
+    const duringStory = renderRecords(true);
+    const afterStory = renderRecords(false);
+
+    expect(duringStory).toContain("journal-record-follow");
+    expect(afterStory).toContain("Wheat mastery");
+    expect(afterStory).not.toContain("journal-record-follow");
+  });
 });

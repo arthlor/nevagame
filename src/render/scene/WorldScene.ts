@@ -1,7 +1,12 @@
 import { CarriagePresentation } from "../presentation/CarriagePresentation";
 import { STARTER_CARRIAGE_ID } from "../../simulation/mounts/Carriage";
 import { AMBIENT_BOAT_ROUTES, sampleAmbientBoatPose } from "./ambientBoats";
-import { AMBIENT_TOWNSFOLK_ROUTES, sampleAmbientTownsfolkPose, type AmbientTownsfolkRoute } from "./ambientTownsfolk";
+import {
+  AMBIENT_ANIMAL_ROUTES,
+  AMBIENT_TOWNSFOLK_ROUTES,
+  sampleAmbientTownsfolkPose,
+  type AmbientTownsfolkRoute
+} from "./ambientTownsfolk";
 import { architectureWindowMaterial, disposeArchitectureWindows, updateArchitectureWindows } from "../materials/WindowMaterial";
 import { npcAnchorAt } from "../../simulation/presentation/NpcPresentation";
 import { yieldToTask } from "../../utils/CooperativeTask";
@@ -10,9 +15,26 @@ import { yieldToTask } from "../../utils/CooperativeTask";
 import * as THREE from "three";
 import { setRainSurfaceWetness } from "../materials/RainSurfaceMaterial";
 import { createSpatialSurfaceBatch } from "./spatialSurfaceBatch";
-import { configureStaticBatchSubmission } from "./staticBatchSubmission";
+import {
+  batchCompatibleMeshes,
+  STATIC_BATCH_CHUNK_SIZE_METERS,
+  STATIC_BATCH_FOG_MARGIN_METERS,
+  type StaticBatchInstance,
+  type StaticBatchChunk,
+  type StaticLodBatchInstance,
+  type StaticLodPlacement
+} from "./StaticPrefabBatcher";
 import { EditableStaticSources } from "./EditableStaticSources";
 import { RigidAnimationBatch } from "./RigidAnimationBatch";
+import {
+  updateFaunaMotion,
+  updateAmbientAnimals,
+  type AmbientAnimalPresentation,
+  type FaunaAnimationClip,
+  type FaunaKind,
+  type FaunaMotionNode,
+  type FaunaPresentation
+} from "./FaunaMotionPresentation";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
@@ -116,6 +138,7 @@ import {
 import {
   attachPreservingWorld,
   attachmentClip,
+  attachmentPelvisOffset,
   attachmentSideFromLocalX,
   sampleAttachmentCurve
 } from "../animation/PlayerAttachmentTransition";
@@ -127,11 +150,7 @@ import {
   IDLE_PLAYER_PRESENCE,
   type PlayerPresence
 } from "../presentation/PlayerPresence";
-import {
-  acknowledgeHeadYaw,
-  ACKNOWLEDGE_HEAD_TURN_RADIUS_METERS,
-  presenceFalloff
-} from "../presentation/WorldAcknowledgment";
+import { acknowledgeHeadYaw } from "../presentation/WorldAcknowledgment";
 import {
   sampleWeatherPosture,
   SocialReactionPresentation,
@@ -178,6 +197,11 @@ export interface WorldRenderDiagnostics {
     programs: number;
   };
   pipeline: RendererPipelineDiagnostics;
+  /** Camera-centred water lattice selected for the last rendered view. */
+  water: {
+    lodNodes: { full: number; quarter: number };
+    lodTriangles: number;
+  } | null;
   fieldOverlay: WorldFieldOverlay | null;
   /** Per-frame reconciliation, sync and instance-write counters. */
   presentationWork: {
@@ -219,7 +243,6 @@ export interface WorldRenderDiagnostics {
     } | null;
   };
 }
-import { ShoreFoam } from "../water/ShoreFoam";
 
 import { BoatWakePool } from "../water/BoatWakePool";
 import { CropInstanceRenderer, cropStageAsset } from "./CropInstanceRenderer";
@@ -234,6 +257,7 @@ import { AtmosphereSky } from "../atmosphere/AtmosphereSky";
 import {
   BUTTERFLY_ORBITS,
   GULL_ORBITS,
+  PIGEON_ORBITS,
   sampleAmbientFlyerPose,
   type AmbientFlyerOrbit
 } from "./ambientFlyers";
@@ -244,8 +268,16 @@ import { alignEquipmentHands, alignMarkerHand, alignSupportFeet, applyEquipmentS
 import { buildStarterFarmGround } from "./StarterFarmGround";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { fishCargoPackAsset, fishSchoolMemberAssets, fishSpeciesAsset } from "./FishSchoolAssets";
-import { advanceSchoolFish, type SchoolFishMotion, type SchoolBoatObstacle } from "../fishing/FishSchoolMotion";
+import { advanceSchoolFish, type SchoolBoatObstacle } from "../fishing/FishSchoolMotion";
 import { SchoolSurfaceRipples } from "../fishing/SchoolSurfaceRipples";
+import {
+  prepareFishVisibility,
+  updateFishVisibility,
+  disposeFishVisibility,
+  updateFishAnimation,
+  type FishAnimationClip,
+  type FishPresentationMember
+} from "../fishing/FishPresentation";
 
 
 
@@ -259,7 +291,7 @@ import {
   sampleWeatherMotionSignal,
   type WeatherMotionSignal
 } from "../motion/WeatherMotionSignal";
-import { WeatherPresentation, type WeatherAppearance } from "../weather/WeatherPresentation";
+import { WeatherFramePresentation } from "./WeatherFramePresentation";
 import {
   createSportFishingPresentationSample,
   sampleSportFishingPresentation,
@@ -346,6 +378,40 @@ const FARMHOUSE_SMOKE_ATTACHMENT = {
   rotationY: 0.18,
   scale: 0.65
 } as const;
+
+/**
+ * Chimney smoke for the village dwellings.
+ *
+ * Only the starter farmhouse ships a `socket-chimney-smoke` node, so the rest
+ * of the settlement is placed from its architecture pad instead: `lateral` and
+ * `forward` are metres in the pad's own frame, which keeps a plume on the right
+ * corner of a building however the pad is rotated. Height is measured from each
+ * spawned root's world bounding box rather than guessed, so rescaling a house
+ * in the layout cannot leave its smoke hanging in the air or buried in thatch.
+ *
+ * Smoke is presentation only: it never enters the static batches, casts no
+ * shadow, and lights nothing.
+ */
+const DWELLING_SMOKE_ATTACHMENTS: readonly {
+  placementId: string;
+  localX: number;
+  localY: number;
+  localZ: number;
+  scale: number;
+}[] = [
+  // Village Inn: model house_farmhouse_a, round terracotta flue pot centered at (3.35, 8.90, -0.35)
+  { placementId: "authored.village.inn", localX: 3.35, localY: 8.90, localZ: -0.35, scale: 0.48 },
+  // Village Market Hall: model building_thatched_cottage_a, stone chimney flue at (0.70, 5.425, -0.72)
+  { placementId: "authored.village.market-hall", localX: 0.70, localY: 5.425, localZ: -0.72, scale: 0.46 },
+  // Village Cottage West: model house_cottage_b, red brick chimney pot centered at (1.53, 7.78, 1.22)
+  { placementId: "authored.village.cottage-west", localX: 1.53, localY: 7.78, localZ: 1.22, scale: 0.42 },
+  // Village Cottage South: model house_cottage_a, ashlar stack flue top centered at (2.46, 7.34, -0.13)
+  { placementId: "authored.village.cottage-south", localX: 2.46, localY: 7.34, localZ: -0.13, scale: 0.42 },
+  // Approach Inn: model house_farmhouse_a, round terracotta flue pot centered at (3.35, 8.90, -0.35)
+  { placementId: "authored.village.approach-inn", localX: 3.35, localY: 8.90, localZ: -0.35, scale: 0.48 },
+  // Cooperative Hall (fallback if placed)
+  { placementId: "authored.village.coop.cooperative-hall", localX: 0.70, localY: 5.425, localZ: -0.72, scale: 0.34 }
+];
 const CHARACTER_DETAIL_NODE_PATTERNS = [
   /finger/,
   /lace/,
@@ -422,47 +488,6 @@ type FarmingPresentationActionName =
   | "dock";
 type FarmingPresentationPhase = "started" | "committed" | "invalidated" | "completed" | "cancelled";
 
-interface StaticBatchInstance {
-  batch: THREE.BatchedMesh;
-  instanceId: number;
-  chunk: StaticBatchChunk;
-  lodVisible: boolean;
-  visible: boolean;
-}
-
-interface StaticLodBatchInstance extends StaticBatchInstance {
-  levelIndex: number;
-  distances: readonly number[];
-  position: THREE.Vector3;
-}
-
-interface StaticBatchSource {
-  mesh: THREE.Mesh;
-  geometry: THREE.BufferGeometry;
-  chunkKey: string;
-  detail: boolean;
-  lod?: { key: string; levelIndex: number; distances: readonly number[]; position: THREE.Vector3 };
-}
-
-interface StaticLodPlacement {
-  position: THREE.Vector3;
-  distances: readonly number[];
-  instances: StaticLodBatchInstance[];
-  selectedLevel: number;
-}
-
-interface StaticBatchChunk {
-  batch: THREE.BatchedMesh;
-  instances: StaticBatchInstance[];
-  center: THREE.Vector3;
-  radius: number;
-  visible: boolean;
-  detail: boolean;
-}
-
-const STATIC_BATCH_CHUNK_SIZE_METERS = 80;
-const STATIC_BATCH_FOG_MARGIN_METERS = 24;
-
 interface PropAttachmentConfig {
   readonly key: string;
   readonly assetId: AssetId;
@@ -496,28 +521,18 @@ interface BoatBuoyancyPresentationState {
   initialized: boolean;
 }
 
-interface FaunaMotionNode {
+/**
+ * One authored `<id>_sway_<n>` pivot on a cloth prop, turned by the live wind.
+ * `base` is the authored rest rotation so a calm minute returns the cloth to
+ * exactly where the generator put it.
+ */
+interface ClothSwayPivot {
   object: THREE.Object3D;
-  basePosition: THREE.Vector3;
-  baseRotation: THREE.Euler;
-}
-
-type FaunaAnimationClip = "idle" | "graze" | "peck" | "look" | "hop";
-type FaunaKind = "cow" | "chicken" | "rabbit" | "donkey";
-
-interface FaunaPresentation {
-  id: string;
-  kind: Exclude<FaunaKind, "donkey">;
+  baseRotationX: number;
+  baseRotationZ: number;
   phase: number;
-  root: THREE.Group;
-  body: FaunaMotionNode;
-  head?: FaunaMotionNode;
-  tail?: FaunaMotionNode;
-  wings: readonly FaunaMotionNode[];
-  mixer: THREE.AnimationMixer | null;
-  actions: Map<FaunaAnimationClip, THREE.AnimationAction>;
-  activeClip: FaunaAnimationClip | null;
-  lastMotionUpdateSeconds: number;
+  /** Hanging cloth swings about the line it hangs from; a banner also rolls. */
+  rollScale: number;
 }
 
 type DonkeyAnimationClip = "idle" | "graze" | "look" | "walk" | "trot" | "gallop" | "mount" | "dismount";
@@ -555,36 +570,13 @@ interface PlayerAttachmentTransition {
 }
 
 interface AmbientFlyerPresentation {
-  kind: "gull" | "butterfly";
+  kind: "gull" | "butterfly" | "pigeon";
   object: THREE.Group;
   orbit: AmbientFlyerOrbit;
   mixer: THREE.AnimationMixer | null;
   flap: THREE.AnimationAction | null;
   glide: THREE.AnimationAction | null;
   lastAnimationUpdateSeconds: number;
-}
-
-type FishAnimationClip = "swim" | "turn" | "burst" | "struggle";
-
-interface FishPresentationMember {
-  root: THREE.Group;
-  phase: number;
-  mixer: THREE.AnimationMixer | null;
-  actions: Map<FishAnimationClip, THREE.AnimationAction>;
-  activeClip: FishAnimationClip | null;
-  tailPivot?: THREE.Object3D;
-  visibilityMaterials: FishVisibilityMaterial[];
-  lastFeedingCycle?: number;
-  schoolMotion?: SchoolFishMotion;
-}
-
-interface FishVisibilityMaterial {
-  material: THREE.Material & { color?: THREE.Color };
-  baseColor: THREE.Color | null;
-  baseOpacity: number;
-  baseTransparent: boolean;
-  baseDepthTest: boolean;
-  baseDepthWrite: boolean;
 }
 
 export interface SportFishingCameraHint {
@@ -769,7 +761,6 @@ export class WorldScene {
   public hemiLight: THREE.HemisphereLight;
   private readonly lightingRig: LightingRig;
   private readonly rendererPipeline: RendererPipeline;
-  private shoreFoam!: ShoreFoam;
   private boatWakes!: BoatWakePool;
   private farmVfx!: FarmVfxPool;
   private footfallVfx!: FootfallVfxPool;
@@ -805,6 +796,8 @@ export class WorldScene {
   private playerBackpackSocket: THREE.Group | null = null;
   private boatFishPacks = new Map<string, { root: THREE.Group; boatId: string; slot: number }>();
   private carriedFishPresentation: { cargoId: string; root: THREE.Group } | null = null;
+  /** Packs resting on the ground. Presentation only: `FishCargoState.location` owns the pose. */
+  private readonly groundFishPacks = new Map<string, { root: THREE.Group }>();
   private readonly playerAnimationEvents: CharacterAnimationEvent[] = [];
   private latestPresentedPlayer: PresentedPlayerFrame | null = null;
   private latestPresentedBoats: Readonly<Record<string, PresentedBoatPose>> | null = null;
@@ -836,11 +829,6 @@ export class WorldScene {
   private readonly practicalLightFocus = new THREE.Vector3();
   private readonly practicalLightWorld = new THREE.Vector3();
   private readonly practicalLightWorldPositions: THREE.Vector3[] = [];
-  private readonly waterConditionSnapshot: WaterConditions = {
-    seaRoughness: 0,
-    windDirectionDeg: 0,
-    windSpeed: 0
-  };
   private playerContactShadow: ContactShadowMesh | null = null;
   /** Authored `*_rotor` pivots (one per LOD level) turned by the ambient wind. */
   private readonly windmillRotors: THREE.Object3D[] = [];
@@ -856,6 +844,10 @@ export class WorldScene {
   private readonly backgroundBoats: THREE.Object3D[] = [];
   private readonly ambientTownsfolk: AmbientTownsfolkPresentation[] = [];
   private readonly ambientFlyers: AmbientFlyerPresentation[] = [];
+  private readonly ambientAnimals: AmbientAnimalPresentation[] = [];
+  /** Authored `*_sway_<n>` cloth pivots turned by the ambient wind. */
+  private readonly clothSwayPivots: ClothSwayPivot[] = [];
+  private readonly dwellingSmoke: THREE.Object3D[] = [];
   private readonly rigidAnimationBatches = new Map<THREE.Object3D, RigidAnimationBatch>();
   private syncInFlight: Promise<void> | null = null;
   private phaseRecorder: ((phase: string, elapsedMs: number) => void) | null = null;
@@ -962,7 +954,6 @@ export class WorldScene {
   private readonly fishingLineColors = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
   private readonly fishingSubmergedLinePositions = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
   private readonly fishingSubmergedLineColors = new Float32Array((FISHING_LINE_SEGMENTS + 1) * 3);
-  private readonly fishWaterTint = new THREE.Color(PALETTE_HEX.water_deep_01);
   private fishingRodBend: FishingRodBend | null = null;
   private readonly fishingMouthLocal = new THREE.Vector3();
   private fishingMouthNode: THREE.Object3D | null = null;
@@ -1005,10 +996,7 @@ export class WorldScene {
   private readonly npcPresentations = new Map<string, NpcPresentation>();
   private activeDialogueNpcId: string | null = null;
   private readonly weatherMotion: WeatherMotionSignal = createWeatherMotionSignal();
-  private readonly weatherPresentation = new WeatherPresentation();
-  private frameWeatherAppearance: WeatherAppearance | null = null;
-  private frameWeatherAppearanceTime = Number.NaN;
-  private frameWeatherAppearanceSeed = Number.NaN;
+  private readonly weatherFrame = new WeatherFramePresentation();
   private lastAmbientMotionTimeSeconds = 0;
   /** Unpaused presentation clock for the ambient drift; frozen while paused. */
   private ambientTownsfolkElapsedSeconds = 0;
@@ -1108,6 +1096,17 @@ export class WorldScene {
     }
   }
 
+  private syncGroundFishPacks(state: Readonly<GameState>): void {
+    for (const [id, pack] of this.groundFishPacks) {
+      const cargo = state.fishCargo[id];
+      if (!cargo || cargo.location.type !== "ground") {
+        pack.root.removeFromParent();
+        AssetLoader.releaseModel(pack.root);
+        this.groundFishPacks.delete(id);
+      }
+    }
+  }
+
   private async loadModel(assetId: AssetId): Promise<THREE.Group> {
     this.checkAlive();
     const model = await AssetLoader.loadModel(assetId);
@@ -1120,17 +1119,16 @@ export class WorldScene {
     this.buildSky();
     this.water = await FacetedWater.create(WATER_SURFACE, this.startupSignal);
     this.checkAlive();
-    this.rendererPipeline.bindWaterCapture([...this.water.meshes, this.water.nearPatch.mesh], this.water.coastalUniforms);
+    this.rendererPipeline.bindWaterCapture(this.water.meshes, this.water.coastalUniforms);
     this.terrainSurfaceMaterial.bindCoastalField(this.water.coastalUniforms);
     this.roadSurfaceMaterial.bindCoastalField(this.water.coastalUniforms);
     this.scene.add(this.water.group);
-    this.shoreFoam = new ShoreFoam({
-      waterProfileMap: this.water.waterProfileMap,
-      waterProfileBounds: this.water.waterProfileBounds,
-      waterDepthMap: this.water.depthMap
-    });
-    this.scene.add(this.shoreFoam.mesh);
-    this.boatWakes = new BoatWakePool();
+    // The water reflects the atmosphere's own sky probe: clouds, gradient and
+    // sun halo, blurred by roughness through its mips.
+    if (this.atmosphereSky) {
+      this.water.setSkyProbe(this.atmosphereSky.reflectionTarget.texture, this.atmosphereSky.reflectionTarget.width);
+    }
+    this.boatWakes = new BoatWakePool(28, this.water.uniforms);
     this.scene.add(this.boatWakes.group);
     this.farmVfx = new FarmVfxPool();
     this.scene.add(this.farmVfx.group);
@@ -1338,8 +1336,8 @@ export class WorldScene {
     await yieldToTask(this.startupSignal);
     const pathGeometry = await WorldLayout.buildPathGeometryAsync(this.startupSignal);
     this.checkAlive();
-    // The carpet stops where the ribbon's own alpha test draws dirt, and never
-    // grows through a building pad or the farmhouse interior pocket.
+    // The carpet follows the road's broad coverage edge at meadow-mask
+    // resolution, then excludes building pads and the farmhouse interior.
     await this.meadowField.stampRoadCoverage(pathGeometry, this.startupSignal);
     this.checkAlive();
     const interiorPad = 3;
@@ -1718,6 +1716,14 @@ export class WorldScene {
         programs: this.renderer.info.programs?.length ?? 0
       },
       pipeline: this.rendererPipeline.diagnostics(),
+      water: this.water ? (() => {
+        const nodes = this.water.lod.nodeCount;
+        const cells = this.water.lod.settings.patchCells;
+        return {
+          lodNodes: nodes,
+          lodTriangles: nodes.full * cells * cells * 2 + nodes.quarter * (cells / 2) * (cells / 2) * 2
+        };
+      })() : null,
       fieldOverlay: this.diagnosticOverlayMode,
       presentationWork: {
         immediateSyncCalls: this.immediateSyncCalls,
@@ -1908,6 +1914,8 @@ export class WorldScene {
     if (assetId === ASSET_IDS.FAUNA_COW_A) return "cow";
     if (assetId === ASSET_IDS.FAUNA_CHICKEN_A) return "chicken";
     if (assetId === ASSET_IDS.FAUNA_RABBIT_A) return "rabbit";
+    if (assetId === ASSET_IDS.FAUNA_SHEEP_A) return "sheep";
+    if (assetId === ASSET_IDS.FAUNA_DUCK_A) return "duck";
     if (assetId === ASSET_IDS.FAUNA_DONKEY_A) return "donkey";
     return null;
   }
@@ -2535,6 +2543,13 @@ export class WorldScene {
         id: placement.id,
         practicalLightFallback: placement.practicalLight === true
       });
+      if (placement.assetId === ASSET_IDS.PROP_LAUNDRY_LINE_A) this.configureClothSway(object, 0.35);
+      if (placement.assetId === ASSET_IDS.PROP_BANNER_CLOTH_A) this.configureClothSway(object, 1);
+      // Cheap guard first: this loop runs for every placement in the world, and
+      // only six of them carry a chimney.
+      if (DWELLING_SMOKE_ATTACHMENTS.some((entry) => entry.placementId === placement.id)) {
+        await this.attachDwellingSmoke(object, placement.id);
+      }
       placementIndex += 1;
       if (placementIndex % 80 === 0) {
         await yieldToTask(this.startupSignal);
@@ -2569,7 +2584,8 @@ export class WorldScene {
       for (const root of spawnedRoots) {
         const assetId = root.userData.assetId as AssetId | undefined;
         if (assetId && (this.faunaKindForAsset(assetId)
-          || assetId === ASSET_IDS.FAUNA_GULL_A || assetId === ASSET_IDS.FAUNA_BUTTERFLY_A)) {
+          || assetId === ASSET_IDS.FAUNA_GULL_A || assetId === ASSET_IDS.FAUNA_BUTTERFLY_A
+          || assetId === ASSET_IDS.FAUNA_PIGEON_A)) {
           this.rigidAnimationBatches.set(root, new RigidAnimationBatch(root));
         }
       }
@@ -2596,40 +2612,7 @@ export class WorldScene {
     farmhouseSmoke.rotation.y = FARMHOUSE_SMOKE_ATTACHMENT.rotationY;
     farmhouseSmoke.scale.setScalar(FARMHOUSE_SMOKE_ATTACHMENT.scale);
     this.setShadowPolicy(farmhouseSmoke, false);
-    farmhouseSmoke.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
-        const mat = child.material.clone();
-        mat.onBeforeCompile = (shader) => {
-          shader.uniforms.nevaSmokeTime = this.farmhouseSmokeUniforms.nevaSmokeTime;
-          shader.uniforms.nevaSmokeWind = this.farmhouseSmokeUniforms.nevaSmokeWind;
-          shader.vertexShader = `
-            uniform float nevaSmokeTime;
-            uniform vec2 nevaSmokeWind;
-          ` + shader.vertexShader;
-          shader.vertexShader = shader.vertexShader.replace(
-            "#include <begin_vertex>",
-            `#include <begin_vertex>
-            float nevaH = clamp(transformed.y / 2.7, 0.0, 1.0);
-            float nevaBaseHold = smoothstep(0.0, 0.12, nevaH);
-            float nevaWave1 = sin(transformed.y * 3.8 - nevaSmokeTime * 2.6);
-            float nevaWave2 = cos(transformed.y * 2.4 - nevaSmokeTime * 1.8 + 1.2);
-            float nevaWave3 = sin(transformed.y * 5.2 - nevaSmokeTime * 3.4);
-
-            float nevaBillow = 1.0 + (0.18 * nevaWave1 + 0.08 * nevaWave2) * nevaBaseHold;
-            transformed.xz *= nevaBillow;
-
-            transformed.x += (nevaWave1 * 0.10 + nevaWave2 * 0.06 + nevaSmokeWind.x * 0.14) * nevaBaseHold * nevaH;
-            transformed.z += (nevaWave2 * 0.08 + nevaWave3 * 0.05 + nevaSmokeWind.y * 0.14) * nevaBaseHold * nevaH;
-
-            transformed.y += nevaWave2 * 0.06 * nevaBaseHold;
-            `
-          );
-        };
-        mat.customProgramCacheKey = () => "neva-farmhouse-smoke-billow-v1";
-        mat.needsUpdate = true;
-        child.material = mat;
-      }
-    });
+    this.applySmokeBillow(farmhouseSmoke);
     farmhouse.add(farmhouseSmoke);
     this.farmhouseSmoke = farmhouseSmoke;
     if (!this.layoutEditingEnabled) {
@@ -2734,7 +2717,8 @@ export class WorldScene {
     const assetId = root.userData.assetId as AssetId | undefined;
     const spec = assetId ? ASSET_BY_ID.get(assetId) : undefined;
     if (!spec) return;
-    if (assetId === ASSET_IDS.FAUNA_GULL_A || assetId === ASSET_IDS.FAUNA_BUTTERFLY_A) {
+    if (assetId === ASSET_IDS.FAUNA_GULL_A || assetId === ASSET_IDS.FAUNA_BUTTERFLY_A
+      || assetId === ASSET_IDS.FAUNA_PIGEON_A) {
       this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castAmbientFlyers);
       return;
     }
@@ -2830,197 +2814,15 @@ export class WorldScene {
     for (const lod of flattenedLods) lod.removeFromParent();
   }
 
-  private batchCompatibleMeshes(
-    root: THREE.Group,
-    shouldSkip: (object: THREE.Mesh) => boolean
-  ): void {
-    root.updateMatrixWorld(true);
-    const rootWorldInverse = root.matrixWorld.clone().invert();
-    const trackStaticLods = root === this.staticPrefabGroup;
-    const compatibleGroups = new Map<
-      string,
-      {
-        material: THREE.Material;
-        sources: StaticBatchSource[];
-      }
-    >();
-    const uvStrippedGeometries = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
-    root.traverse((object) => {
-      if (!(object instanceof THREE.Mesh) || object instanceof THREE.BatchedMesh || !object.visible) return;
-      if (Array.isArray(object.material)) return;
-      if ((object as THREE.SkinnedMesh).isSkinnedMesh || object.morphTargetInfluences) return;
-      let lod: StaticBatchSource["lod"];
-      let detail = false;
-      let child: THREE.Object3D = object;
-      let ancestor: THREE.Object3D | null = object.parent;
-      while (ancestor && ancestor !== root) {
-        const assetId = ancestor.userData.assetId as AssetId | undefined;
-        const spec = assetId ? ASSET_BY_ID.get(assetId) : undefined;
-        if (spec) {
-          // Structural silhouettes remain present at every tier; a bush or
-          // small rock need not pay horizon-distance cost in a dense forest.
-          detail = (spec.family === "vegetation" && !assetId!.startsWith("tree_"))
-            || (spec.family === "rock" && spec.lod === "small")
-            || (spec.family === "prop" && spec.collision === "none" && spec.readDistanceMeters <= 12);
-        }
-        if (ancestor instanceof THREE.LOD && trackStaticLods) {
-          const levelIndex = ancestor.levels.findIndex((level) => level.object === child);
-          if (levelIndex >= 0) {
-            lod = {
-              key: ancestor.uuid,
-              levelIndex,
-              distances: ancestor.levels.map((level) => level.distance),
-              position: ancestor.getWorldPosition(new THREE.Vector3())
-            };
-          }
-        } else if (
-          !ancestor.visible &&
-          !(
-            trackStaticLods &&
-            ancestor.parent instanceof THREE.LOD &&
-            ancestor.parent.levels.some((level) => level.object === ancestor)
-          )
-        ) {
-          return;
-        }
-        child = ancestor;
-        ancestor = ancestor.parent;
-      }
-      if (shouldSkip(object)) return;
-      const material = object.material as THREE.MeshStandardMaterial;
-      const hasTexture = material instanceof THREE.MeshStandardMaterial && [
-        material.map,
-        material.alphaMap,
-        material.aoMap,
-        material.bumpMap,
-        material.displacementMap,
-        material.emissiveMap,
-        material.envMap,
-        material.lightMap,
-        material.metalnessMap,
-        material.normalMap,
-        material.roughnessMap
-      ].some(Boolean);
-      // Published Neva materials are palette-only. Some GLBs still carry an
-      // unused TEXCOORD_0 accessor, which needlessly splits otherwise
-      // compatible static/boat batches from their non-UV counterparts.
-      let batchGeometry = object.geometry;
-      if (!hasTexture && object.geometry.getAttribute("uv")) {
-        let geometry = uvStrippedGeometries.get(object.geometry);
-        if (!geometry) {
-          const stripped = object.geometry.clone();
-          stripped.deleteAttribute("uv");
-          uvStrippedGeometries.set(object.geometry, stripped);
-          geometry = stripped;
-        }
-        batchGeometry = geometry;
-      }
-      const attributes = (Object.entries(batchGeometry.attributes) as Array<
-        [string, THREE.BufferAttribute]
-      >)
-        .map(([name, attribute]) =>
-          `${name}:${attribute.itemSize}:${attribute.normalized}:${attribute.array.constructor.name}`
-        )
-        .sort()
-        .join("|");
-      const worldX = object.matrixWorld.elements[12];
-      const worldZ = object.matrixWorld.elements[14];
-      const islandBatchKey = WorldLayout.islandAt(worldX, worldZ) ?? "ocean";
-      const chunkKey = trackStaticLods
-        ? `${islandBatchKey}:${detail ? "detail" : "structure"}:${Math.floor(worldX / STATIC_BATCH_CHUNK_SIZE_METERS)}:${Math.floor(worldZ / STATIC_BATCH_CHUNK_SIZE_METERS)}`
-        : "unbounded";
-      const batchRegion = trackStaticLods ? islandBatchKey : "unbounded";
-      const signature = `${batchRegion}|${object.material.uuid}|cast:${object.castShadow}|receive:${object.receiveShadow}|indexed:${Boolean(batchGeometry.index)}|${attributes}`;
-      const group = compatibleGroups.get(signature) ?? {
-        material: object.material,
-        sources: [] as StaticBatchSource[]
-      };
-      group.sources.push({ mesh: object, geometry: batchGeometry, lod, chunkKey, detail });
-      compatibleGroups.set(signature, group);
+  private batchCompatibleMeshes(root: THREE.Group, shouldSkip: (object: THREE.Mesh) => boolean): void {
+    batchCompatibleMeshes(root, shouldSkip, {
+      staticPrefabGroup: this.staticPrefabGroup,
+      staticLodBatchInstances: this.staticLodBatchInstances,
+      staticLodPlacements: this.staticLodPlacements,
+      editableStaticSources: this.editableStaticSources,
+      staticPrefabBatches: this.staticPrefabBatches,
+      staticBatchChunks: this.staticBatchChunks
     });
-
-    let batchIndex = 0;
-    for (const { material, sources } of compatibleGroups.values()) {
-      if (sources.length < 2 && !(trackStaticLods && sources.some((source) => source.lod))) continue;
-      const uniqueGeometries = new Map<string, THREE.BufferGeometry>();
-      for (const { geometry } of sources) uniqueGeometries.set(geometry.uuid, geometry);
-      const maxVertexCount = [...uniqueGeometries.values()].reduce(
-        (sum, geometry) => sum + geometry.getAttribute("position").count,
-        0
-      );
-      const maxIndexCount = [...uniqueGeometries.values()].reduce(
-        (sum, geometry) => sum + (geometry.index?.count ?? 0),
-        0
-      );
-      const batched = new THREE.BatchedMesh(
-        sources.length,
-        maxVertexCount,
-        maxIndexCount || undefined,
-        material
-      );
-      const geometryIds = new Map<string, number>();
-      for (const geometry of uniqueGeometries.values()) {
-        geometryIds.set(geometry.uuid, batched.addGeometry(geometry));
-      }
-      const chunks = new Map<string, { chunk: StaticBatchChunk; bounds: THREE.Sphere }>();
-      for (const { mesh, geometry, lod, chunkKey, detail } of sources) {
-        const geometryId = geometryIds.get(geometry.uuid);
-        if (geometryId === undefined) continue;
-        const instanceId = batched.addInstance(geometryId);
-        const relativeMatrix = new THREE.Matrix4().multiplyMatrices(rootWorldInverse, mesh.matrixWorld);
-        batched.setMatrixAt(instanceId, relativeMatrix);
-        if (trackStaticLods) {
-          let chunkRecord = chunks.get(chunkKey);
-          if (!chunkRecord) {
-            chunkRecord = {
-              chunk: { batch: batched, instances: [], center: new THREE.Vector3(), radius: 0, visible: true, detail },
-              bounds: new THREE.Sphere().makeEmpty()
-            };
-            chunks.set(chunkKey, chunkRecord);
-          }
-          const instance: StaticBatchInstance = {
-            batch: batched,
-            instanceId,
-            chunk: chunkRecord.chunk,
-            lodVisible: true,
-            visible: true
-          };
-          chunkRecord.chunk.instances.push(instance);
-          chunkRecord.bounds.union(batched.getBoundingSphereAt(geometryId, new THREE.Sphere())!.applyMatrix4(relativeMatrix));
-          if (lod) {
-            const lodInstance = Object.assign(instance, lod);
-            this.staticLodBatchInstances.push(lodInstance);
-            let placement = this.staticLodPlacements.get(lod.key);
-            if (!placement) {
-              placement = { position: lod.position, distances: lod.distances, instances: [], selectedLevel: -1 };
-              this.staticLodPlacements.set(lod.key, placement);
-            }
-            placement.instances.push(lodInstance);
-          }
-        }
-        if (trackStaticLods && import.meta.env.DEV) this.editableStaticSources.hide(mesh);
-        else mesh.parent?.remove(mesh);
-      }
-      batched.name = `runtime_batch_${batchIndex++}`;
-      batched.computeBoundingBox();
-      batched.computeBoundingSphere();
-      batched.frustumCulled = true;
-      batched.castShadow = sources[0].mesh.castShadow;
-      batched.customDepthMaterial = sources[0].mesh.customDepthMaterial;
-      batched.receiveShadow = sources[0]?.mesh.receiveShadow ?? true;
-      if (trackStaticLods) {
-        configureStaticBatchSubmission(batched);
-        this.staticPrefabBatches.add(batched);
-      }
-      root.add(batched);
-      for (const { chunk, bounds } of chunks.values()) {
-        bounds.applyMatrix4(root.matrixWorld);
-        chunk.center.copy(bounds.center);
-        chunk.radius = bounds.radius;
-        this.staticBatchChunks.push(chunk);
-      }
-    }
-    for (const geometry of uvStrippedGeometries.values()) geometry.dispose();
   }
 
   private updateStaticBatchChunkVisibility(): void {
@@ -3212,30 +3014,12 @@ export class WorldScene {
     this.boatResponses.trigger(boatId, kind, timeSeconds, slotIndex);
   }
 
-  /**
-   * One weather transition per presentation frame. Lighting, motion sampling
-   * and the water conditions all read the same appearance instead of advancing
-   * the transition three times.
-   */
-  private weatherAppearance(state: Readonly<GameState>, timeSeconds: number): WeatherAppearance {
-    if (
-      !this.frameWeatherAppearance
-      || timeSeconds !== this.frameWeatherAppearanceTime
-      || state.worldSeed !== this.frameWeatherAppearanceSeed
-    ) {
-      this.frameWeatherAppearance = this.weatherPresentation.sample(state.weather, state.worldSeed, timeSeconds);
-      this.frameWeatherAppearanceTime = timeSeconds;
-      this.frameWeatherAppearanceSeed = state.worldSeed;
-    }
-    return this.frameWeatherAppearance;
-  }
-
   public updateEnvironment(
     state: Readonly<GameState>,
     timeSeconds: number,
     focus: THREE.Vector3
   ): void {
-    const appearance = this.weatherAppearance(state, timeSeconds);
+    const appearance = this.weatherFrame.sample(state, timeSeconds);
     const frame = this.lightingRig.update(state, timeSeconds, focus, this.prefersReducedMotion, appearance);
     this.atmosphereSky?.update(frame, appearance.weather, state.worldSeed, timeSeconds, this.prefersReducedMotion);
     if (this.practicalLightFocus.distanceToSquared(focus) >= 0.25) {
@@ -3263,7 +3047,6 @@ export class WorldScene {
       );
     }
     this.water.updateLighting(frame);
-    this.shoreFoam.updateLighting(frame);
     this.boatWakes.updateLighting(frame);
     this.terrainSurfaceMaterial.updateWeather(appearance.weather.precipitation, timeSeconds);
     const sharedGroundWetness = this.terrainSurfaceMaterial.wetness;
@@ -3284,18 +3067,10 @@ export class WorldScene {
       timeSeconds,
       precipitation: appearance.weather.precipitation,
       wind: this.weatherMotion,
-      waterConditions: this.waterConditions(state),
+      waterConditions: this.weatherFrame.waterConditions(state.weather, this.weatherMotion.effectiveWindSpeed),
       reducedMotion: this.prefersReducedMotion,
       daylight: frame.daylight
     });
-  }
-
-  private waterConditions(state: Readonly<GameState>): WaterConditions {
-    const weather = this.weatherPresentation.current?.weather ?? state.weather;
-    this.waterConditionSnapshot.seaRoughness = weather.seaRoughness;
-    this.waterConditionSnapshot.windDirectionDeg = weather.windDirectionDeg;
-    this.waterConditionSnapshot.windSpeed = this.weatherMotion.effectiveWindSpeed;
-    return this.waterConditionSnapshot;
   }
 
   /**
@@ -3451,7 +3226,7 @@ export class WorldScene {
     if (this.farmingPropsAttached || player !== this.playerMesh) return;
     for (const { attachment, object: payload } of loaded) {
       const object = attachment.key === "bundle" || attachment.key === "basket"
-        ? createCarryCradle(payload) : payload;
+        ? createCarryCradle(payload, attachment.key === "bundle" ? "bundle" : "upright") : payload;
       const socket = player.getObjectByName(attachment.socket);
       if (!socket) throw new Error(`[WorldScene] Missing farming prop socket ${attachment.socket}`);
       object.name = `cosmetic_${attachment.key}`;
@@ -3601,7 +3376,7 @@ export class WorldScene {
     for (const [boatId, rig] of this.rowboatPresentationRigs) {
       const active = holdingOars && boatId === activeBoatId;
       for (const oar of rig.oars) {
-        rowboatOarRotation(phase, active && rowing, oar.side, this.tempOarEuler);
+        rowboatOarRotation(phase, active && rowing, oar.side, this.tempOarEuler, !active);
         this.tempOarDeltaQuaternion.setFromEuler(this.tempOarEuler);
         this.tempOarQuaternion.copy(oar.restPivotQuaternion).multiply(this.tempOarDeltaQuaternion);
         oar.pivot.quaternion.slerp(this.tempOarQuaternion, response);
@@ -3620,7 +3395,7 @@ export class WorldScene {
   ): void {
     const sideX = Math.cos(boat.headingRadians);
     const sideZ = -Math.sin(boat.headingRadians);
-    const conditions = this.waterConditions(state);
+    const conditions = this.weatherFrame.waterConditions(state.weather, this.weatherMotion.effectiveWindSpeed);
     for (const side of [-1, 1]) {
       this.boatWakes.spawnPaddle(
         boat.x + sideX * side * 1.05,
@@ -3730,7 +3505,7 @@ export class WorldScene {
   }
 
   private updateAmbientMotion(state: Readonly<GameState>, timeSeconds: number): void {
-    sampleWeatherMotionSignal(this.weatherAppearance(state, timeSeconds).weather, timeSeconds, this.weatherMotion);
+    sampleWeatherMotionSignal(this.weatherFrame.sample(state, timeSeconds).weather, timeSeconds, this.weatherMotion);
     const delta = this.lastAmbientMotionTimeSeconds > 0
       ? THREE.MathUtils.clamp(timeSeconds - this.lastAmbientMotionTimeSeconds, 0, 0.1)
       : 1 / 60;
@@ -3766,8 +3541,18 @@ export class WorldScene {
       this.farmhouseSmoke.rotation.z = Math.sin(timeSeconds * 0.8) * 0.035 * motionScale;
       this.farmhouseSmoke.rotation.x = Math.cos(timeSeconds * 0.6) * 0.025 * motionScale;
     }
-    this.updateFaunaMotion(timeSeconds, delta, motionScale);
+    updateFaunaMotion({
+      faunaPresentations: this.faunaPresentations,
+      ambientAnimals: this.ambientAnimals,
+      visibilityAnchor: this.visibilityAnchor,
+      rigidAnimationBatches: this.rigidAnimationBatches,
+      weatherMotion: this.weatherMotion,
+      playerPresence: this.playerPresence,
+      prefersReducedMotion: this.prefersReducedMotion
+    }, timeSeconds, delta, motionScale);
     this.updateAmbientFlyers(timeSeconds, delta, motionScale);
+    this.updateClothSway(timeSeconds, motionScale);
+    this.updateDwellingSmoke(timeSeconds, motionScale);
     this.groundCover.updateWind(this.weatherMotion, timeSeconds, motionScale, this.playerPresence);
     this.meadowField.updateWind(this.weatherMotion, timeSeconds, motionScale, this.playerPresence);
     updateVegetationWind(this.weatherMotion, timeSeconds, motionScale);
@@ -3782,7 +3567,11 @@ export class WorldScene {
       ? "fauna_cow_a"
       : kind === "chicken"
         ? "fauna_chicken_a"
-        : "fauna_rabbit_a";
+        : kind === "sheep"
+          ? "fauna_sheep_a"
+          : kind === "duck"
+            ? "fauna_duck_a"
+            : "fauna_rabbit_a";
     const node = (name: string): FaunaMotionNode | undefined => {
       const object = root.getObjectByName(name);
       return object
@@ -3807,7 +3596,7 @@ export class WorldScene {
     const mixer = clips.length > 0 ? new THREE.AnimationMixer(root) : null;
     const actions = new Map<FaunaAnimationClip, THREE.AnimationAction>();
     if (mixer) {
-      for (const clipName of ["idle", "graze", "peck", "look", "hop"] as const) {
+      for (const clipName of ["idle", "graze", "peck", "look", "hop", "paddle", "dabble"] as const) {
         const clip = clips.find((candidate) => candidate.name === clipName);
         if (!clip) continue;
         const action = mixer.clipAction(clip);
@@ -3840,7 +3629,7 @@ export class WorldScene {
     const members = group.userData.fishMembers as FishPresentationMember[] | undefined;
     for (const member of members ?? []) {
       AssetLoader.releaseModel(member.root);
-      this.disposeFishVisibility(member);
+      disposeFishVisibility(member);
     }
     const gull = group.userData.schoolGull as THREE.Object3D | undefined;
     if (gull) AssetLoader.releaseModel(gull);
@@ -4021,8 +3810,8 @@ export class WorldScene {
       target.updateWorldMatrix(true, false);
       this.playerAttachmentWorldMatrix.copy(target.matrixWorld);
       if (pelvisContact && this.playerPelvis) {
-        this.playerMesh.updateWorldMatrix(true, true);
-        this.playerMesh.worldToLocal(this.playerPelvis.getWorldPosition(this.tempCharacterWorldPosition));
+        this.tempCharacterWorldPosition.copy(attachmentPelvisOffset(this.playerMesh,
+          transition.action === "mount" ? "mounted_idle" : "rowboat_idle", this.playerPelvis.name));
         this.playerAttachmentLocalMatrix.makeTranslation(-this.tempCharacterWorldPosition.x,
           -this.tempCharacterWorldPosition.y, -this.tempCharacterWorldPosition.z);
         this.playerAttachmentWorldMatrix.multiply(this.playerAttachmentLocalMatrix);
@@ -4166,15 +3955,11 @@ export class WorldScene {
       if (timeSeconds >= donkey.transitionUntilSeconds) {
         const gait = playerPose.motion?.requestedGait === "gallop"
           ? "gallop"
-          : playerPose.motion?.requestedGait === "trot"
-            ? "trot"
-            : "walk";
+          : "walk";
         const riderState = this.playerAnimation?.playbackState();
         const riderGait = gait === "gallop"
           ? "mounted_gallop"
-          : gait === "trot"
-            ? "mounted_trot"
-            : "mounted_walk";
+          : "mounted_walk";
         this.setDonkeyAnimation(
           donkey,
           playerPose.motion?.speedMetersPerSecond > 0.1 && !playerPose.motion.isCollisionBlocked ? gait : "idle",
@@ -4227,108 +4012,6 @@ export class WorldScene {
     donkey.root.updateMatrixWorld(true);
   }
 
-  private setFaunaAnimation(fauna: FaunaPresentation, clipName: FaunaAnimationClip): void {
-    if (fauna.activeClip === clipName) return;
-    const next = fauna.actions.get(clipName) ?? fauna.actions.get("idle");
-    if (!next) return;
-    const resolvedClip = next === fauna.actions.get("idle") ? "idle" : clipName;
-    const previous = fauna.activeClip ? fauna.actions.get(fauna.activeClip) : undefined;
-    previous?.fadeOut(0.18);
-    next.reset().fadeIn(0.18).play();
-    fauna.activeClip = resolvedClip;
-  }
-
-  private updateFaunaMotion(timeSeconds: number, delta: number, motionScale: number): void {
-    const windLean = this.weatherMotion.directionX
-      * this.weatherMotion.normalizedStrength
-      * (0.025 + this.weatherMotion.gust * 0.004)
-      * motionScale;
-    for (const fauna of this.faunaPresentations) {
-      const dx = fauna.root.position.x - this.visibilityAnchor.x;
-      const dz = fauna.root.position.z - this.visibilityAnchor.z;
-      const distanceSq = dx * dx + dz * dz;
-      const visible = distanceSq <= 150 * 150;
-      if (visible !== fauna.root.visible) {
-        fauna.root.visible = visible;
-        this.rigidAnimationBatches.get(fauna.root)?.markDirty();
-      }
-      if (!visible) continue;
-      const interval = distanceSq <= 36 * 36 ? 0 : distanceSq <= 85 * 85 ? 1 / 12 : 0.4;
-      if (timeSeconds - fauna.lastMotionUpdateSeconds < interval) continue;
-      this.rigidAnimationBatches.get(fauna.root)?.markDirty();
-      const faunaDelta = fauna.lastMotionUpdateSeconds > 0
-        ? Math.min(0.4, timeSeconds - fauna.lastMotionUpdateSeconds)
-        : delta;
-      fauna.lastMotionUpdateSeconds = timeSeconds;
-      const localTime = timeSeconds + fauna.phase * 9.7;
-      const cycle = localTime % (fauna.kind === "cow" ? 13 : fauna.kind === "rabbit" ? 6.4 : 7.5);
-      const breathing = Math.sin(localTime * (fauna.kind === "cow" ? 1.25 : 2.1));
-      const activity = fauna.kind === "cow"
-        ? smoothPresentationWindow(cycle, 3.2, 8.4, 0.9)
-        : fauna.kind === "rabbit"
-          ? smoothPresentationWindow(cycle, 1.4, 2.4, 0.22)
-          : smoothPresentationWindow(cycle, 1.1, 4.3, 0.32);
-      const lookActivity = fauna.kind === "cow"
-        ? smoothPresentationWindow(cycle, 10.1, 12.2, 0.35)
-        : fauna.kind === "rabbit"
-          ? smoothPresentationWindow(cycle, 3.6, 5.2, 0.28)
-          : smoothPresentationWindow(cycle, 5.2, 7, 0.25);
-      const acknowledgesPlayer = !this.prefersReducedMotion
-        && presenceFalloff(this.playerPresence, fauna.root.position.x, fauna.root.position.z,
-          ACKNOWLEDGE_HEAD_TURN_RADIUS_METERS) > 0.2;
-      const desiredClip: FaunaAnimationClip = this.prefersReducedMotion
-        ? "idle"
-        : acknowledgesPlayer
-          ? "look"
-          : activity > 0.05
-            ? fauna.kind === "cow" ? "graze" : fauna.kind === "rabbit" ? "hop" : "peck"
-            : lookActivity > 0.05 ? "look" : "idle";
-      this.setFaunaAnimation(fauna, desiredClip);
-      if (fauna.mixer) {
-        fauna.mixer.timeScale = this.prefersReducedMotion
-          ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
-          : 1;
-      }
-      fauna.mixer?.update(faunaDelta);
-
-      if (!fauna.mixer) {
-        fauna.body.object.position.y = fauna.body.basePosition.y
-          + breathing * (fauna.kind === "cow" ? 0.012 : 0.009) * motionScale;
-        fauna.body.object.rotation.x = fauna.body.baseRotation.x;
-        fauna.body.object.rotation.y = fauna.body.baseRotation.y
-          + Math.sin(localTime * 0.31) * (fauna.kind === "cow" ? 0.035 : 0.08) * motionScale;
-        fauna.body.object.rotation.z = fauna.body.baseRotation.z + windLean;
-      }
-
-      if (fauna.head && !fauna.mixer) {
-        const peck = fauna.kind === "chicken"
-          ? Math.max(0, Math.sin((cycle - 1.1) * Math.PI * 3.2)) * activity
-          : activity;
-        fauna.head.object.rotation.x = fauna.head.baseRotation.x
-          + (fauna.kind === "cow" ? 0.72 * activity : 0.86 * peck) * motionScale;
-        fauna.head.object.rotation.y = fauna.head.baseRotation.y
-          + Math.sin(localTime * 0.67 + fauna.phase) * 0.18 * (1 - activity * 0.65) * motionScale
-          + acknowledgeHeadYaw(
-            this.playerPresence,
-            fauna.root.position.x,
-            fauna.root.position.z,
-            fauna.root.rotation.y
-          ) * 0.6 * (1 - activity * 0.5);
-        fauna.head.object.rotation.z = fauna.head.baseRotation.z - windLean * 0.45;
-      }
-      if (fauna.tail) {
-        fauna.tail.object.rotation.y = fauna.tail.baseRotation.y
-          + Math.sin(localTime * 1.7 + fauna.phase) * 0.22 * motionScale;
-      }
-      for (const [index, wing] of fauna.wings.entries()) {
-        const wingSign = index === 0 ? -1 : 1;
-        wing.object.rotation.y = wing.baseRotation.y
-          + wingSign * Math.sin(localTime * 2.4 + fauna.phase) * 0.08 * motionScale;
-        wing.object.rotation.z = wing.baseRotation.z + wingSign * windLean * 1.8;
-      }
-    }
-  }
-
   private async loadAmbientFlyers(): Promise<void> {
     const spawn = async (
       kind: AmbientFlyerPresentation["kind"],
@@ -4339,7 +4022,7 @@ export class WorldScene {
         try {
           const object = await this.loadModel(assetId);
           object.userData.dynamicPresentation = true;
-          object.scale.setScalar(kind === "butterfly" ? 3.4 : 1.45);
+          object.scale.setScalar(kind === "butterfly" ? 3.4 : kind === "pigeon" ? 1 : 1.45);
           this.applyStaticShadowPolicy(object);
           this.environmentGroup.add(object);
           const clips = (object.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
@@ -4409,17 +4092,205 @@ export class WorldScene {
     }
     await spawn("gull", ASSET_IDS.FAUNA_GULL_A, GULL_ORBITS);
     await spawn("butterfly", ASSET_IDS.FAUNA_BUTTERFLY_A, BUTTERFLY_ORBITS);
+    // Village doves ride the same two-clip mixer as the gulls, which is why the
+    // dove asset authors `glide` on its motion root and `flap` on its wing
+    // bones: the runtime plays both at once and blends by speed.
+    await spawn("pigeon", ASSET_IDS.FAUNA_PIGEON_A, PIGEON_ORBITS);
+
+    // The village dog and the mill cat. They share the townsfolk drift solver
+    // but are catalog fauna, not humanoids, so they run a plain clip mixer.
+    for (const route of AMBIENT_ANIMAL_ROUTES) {
+      try {
+        const object = await this.loadModel(route.assetId as AssetId);
+        object.userData.dynamicPresentation = true;
+        const station = route.stations.day;
+        object.position.set(
+          station.x,
+          WorldLayout.traversalSurfaceHeight(station.x, station.z),
+          station.z
+        );
+        this.applyStaticShadowPolicy(object);
+        this.environmentGroup.add(object);
+        const clips = (object.userData.animationClips as THREE.AnimationClip[] | undefined) ?? [];
+        const mixer = clips.length > 0 ? new THREE.AnimationMixer(object) : null;
+        const actions = new Map<string, THREE.AnimationAction>();
+        if (mixer) {
+          for (const name of [route.idleClip, route.walkClip, route.restClip]) {
+            const clip = clips.find((candidate) => candidate.name === name);
+            if (!clip || actions.has(name)) continue;
+            const action = mixer.clipAction(clip);
+            action.setLoop(THREE.LoopRepeat, Infinity);
+            actions.set(name, action);
+          }
+        }
+        this.ambientAnimals.push({
+          route, object, mixer, actions, activeClip: null, lastAnimationUpdateSeconds: 0
+        });
+      } catch (error) {
+        console.warn(`[WorldScene] Failed to load ambient animal ${route.id}:`, error);
+      }
+    }
+  }
+
+  /**
+   * Drives the dog and the cat along their authored drift.
+   *
+   * Their pose comes from the same solver the townsfolk use, so a villager and
+   * the dog beside her stop and start on the same rhythm. What is different is
+   * that the night station plays the authored rest clip -- the dog sits, the cat
+   * curls up -- instead of the standing idle, which is most of what makes them
+   * read as living in the village rather than patrolling it.
+   */
+  /**
+   * Binds the authored `<id>_sway_<n>` pivots on a cloth prop.
+   *
+   * Cloth could have shipped a baked sway clip, but then a washing line would
+   * move identically in a dead calm and in a gale. Marking the pivots dynamic
+   * (the arrangement `configureWindmillRotor` already uses) keeps them out of
+   * the merged static batches so `updateClothSway` can turn them from the live
+   * weather signal instead.
+   */
+  private configureClothSway(root: THREE.Object3D, rollScale: number): void {
+    root.traverse((object) => {
+      if (!/_sway_\d+$/.test(object.name)) return;
+      if (this.clothSwayPivots.some((pivot) => pivot.object === object)) return;
+      object.userData.dynamicPresentation = true;
+      object.traverse((child) => {
+        child.userData.dynamicPresentation = true;
+      });
+      this.clothSwayPivots.push({
+        object,
+        baseRotationX: object.rotation.x,
+        baseRotationZ: object.rotation.z,
+        phase: stablePresentationPhase(object.name) * Math.PI * 2,
+        rollScale
+      });
+    });
+  }
+
+  /**
+   * The chimney billow. Shared by the farmhouse and every village dwelling, so
+   * the whole settlement's smoke rises on one shader and one uniform pair.
+   */
+  private applySmokeBillow(plume: THREE.Object3D): void {
+    plume.traverse((child) => {
+      if (!(child instanceof THREE.Mesh) || !(child.material instanceof THREE.MeshStandardMaterial)) return;
+      const mat = child.material.clone();
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.nevaSmokeTime = this.farmhouseSmokeUniforms.nevaSmokeTime;
+        shader.uniforms.nevaSmokeWind = this.farmhouseSmokeUniforms.nevaSmokeWind;
+        shader.vertexShader = `
+          uniform float nevaSmokeTime;
+          uniform vec2 nevaSmokeWind;
+        ` + shader.vertexShader;
+        shader.vertexShader = shader.vertexShader.replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+          float nevaH = clamp(transformed.y / 2.7, 0.0, 1.0);
+          float nevaBaseHold = smoothstep(0.0, 0.12, nevaH);
+          float nevaWave1 = sin(transformed.y * 3.8 - nevaSmokeTime * 2.6);
+          float nevaWave2 = cos(transformed.y * 2.4 - nevaSmokeTime * 1.8 + 1.2);
+          float nevaWave3 = sin(transformed.y * 5.2 - nevaSmokeTime * 3.4);
+
+          float nevaBillow = 1.0 + (0.18 * nevaWave1 + 0.08 * nevaWave2) * nevaBaseHold;
+          transformed.xz *= nevaBillow;
+
+          transformed.x += (nevaWave1 * 0.10 + nevaWave2 * 0.06 + nevaSmokeWind.x * 0.14) * nevaBaseHold * nevaH;
+          transformed.z += (nevaWave2 * 0.08 + nevaWave3 * 0.05 + nevaSmokeWind.y * 0.14) * nevaBaseHold * nevaH;
+
+          transformed.y += nevaWave2 * 0.06 * nevaBaseHold;
+          `
+        );
+      };
+      mat.customProgramCacheKey = () => "neva-farmhouse-smoke-billow-v1";
+      mat.needsUpdate = true;
+      child.material = mat;
+    });
+  }
+
+  /**
+   * Hangs a smoke plume over a village dwelling's chimney.
+   *
+   * The plume is added to the environment group rather than to the building, so
+   * the static-batch merge never sees it and the house it belongs to can still
+   * batch normally. Its world position is derived from the building's own
+   * bounding box, so it follows a rescale or a layout-editor move on reload.
+   */
+  private async attachDwellingSmoke(root: THREE.Object3D, placementId: string): Promise<void> {
+    const attachment = DWELLING_SMOKE_ATTACHMENTS.find(
+      (candidate) => candidate.placementId === placementId
+    );
+    if (!attachment) return;
+    try {
+      const plume = await this.loadModel(STATIC_LANDMARK_ASSETS.farmhouseSmoke);
+      plume.name = `${placementId}.chimney-smoke`;
+      plume.userData.dynamicPresentation = true;
+      root.updateMatrixWorld(true);
+
+      const smokeSocket = root.getObjectByName("socket-chimney-smoke");
+      if (smokeSocket) {
+        smokeSocket.getWorldPosition(plume.position);
+      } else {
+        const localPoint = new THREE.Vector3(attachment.localX, attachment.localY, attachment.localZ);
+        root.localToWorld(localPoint);
+        plume.position.copy(localPoint);
+      }
+      plume.scale.setScalar(attachment.scale);
+      this.setShadowPolicy(plume, false);
+      this.applySmokeBillow(plume);
+      this.environmentGroup.add(plume);
+      this.dwellingSmoke.push(plume);
+    } catch (error) {
+      console.warn(`[WorldScene] Failed to attach chimney smoke for ${placementId}:`, error);
+    }
+  }
+
+  /**
+   * Village plumes breathe out of phase with one another and with the farm, so
+   * a row of chimneys never pulses in lockstep.
+   */
+  private updateDwellingSmoke(timeSeconds: number, motionScale: number): void {
+    for (const plume of this.dwellingSmoke) {
+      const phase = stablePresentationPhase(plume.name) * Math.PI * 2;
+      const base = plume.userData.smokeScale as number | undefined;
+      const scale = base ?? plume.scale.x;
+      if (base === undefined) plume.userData.smokeScale = scale;
+      const breathe = Math.sin(timeSeconds * 1.4 + phase) * 0.04 * motionScale;
+      plume.scale.set(scale * (1 - breathe * 0.4), scale * (1 + breathe), scale * (1 - breathe * 0.4));
+      plume.rotation.y = Math.sin(timeSeconds * 0.42 + phase) * 0.14 * motionScale;
+      plume.rotation.z = Math.sin(timeSeconds * 0.74 + phase) * 0.04 * motionScale
+        + this.weatherMotion.directionX * this.weatherMotion.normalizedStrength * 0.16;
+      plume.rotation.x = Math.cos(timeSeconds * 0.56 + phase) * 0.03 * motionScale
+        + this.weatherMotion.directionZ * this.weatherMotion.normalizedStrength * 0.16;
+    }
+  }
+
+  private updateClothSway(timeSeconds: number, motionScale: number): void {
+    if (this.clothSwayPivots.length === 0) return;
+    const wind = this.weatherMotion;
+    // A dead calm still breathes a little; a gale pushes the cloth off vertical
+    // and holds it there, with the gust riding on top.
+    const strength = 0.06 + wind.normalizedStrength * 0.55;
+    const gust = wind.gust * 0.12;
+    for (const pivot of this.clothSwayPivots) {
+      const swing = Math.sin(timeSeconds * (0.9 + wind.normalizedStrength * 1.5) + pivot.phase);
+      const flutter = Math.sin(timeSeconds * 3.1 + pivot.phase * 1.7) * gust;
+      const amount = (strength * swing + flutter) * motionScale;
+      pivot.object.rotation.x = pivot.baseRotationX + amount * 0.55;
+      pivot.object.rotation.z = pivot.baseRotationZ
+        + (wind.directionX * strength * 0.8 + amount * 0.25) * pivot.rollScale;
+    }
   }
 
   private updateAmbientFlyers(timeSeconds: number, delta: number, motionScale: number): void {
     this.backgroundBoats.forEach((object, index) => {
       const pose = sampleAmbientBoatPose(AMBIENT_BOAT_ROUTES[index], timeSeconds, this.prefersReducedMotion ? 0 : 1);
-      object.position.set(pose.x, this.water.sample(pose.x, pose.z, timeSeconds).height, pose.z);
+      object.position.set(pose.x, this.water.height(pose.x, pose.z, timeSeconds), pose.z);
       object.rotation.y = pose.heading;
       object.visible = Math.hypot(pose.x - this.visibilityAnchor.x, pose.z - this.visibilityAnchor.z) < 430;
     });
     for (const flyer of this.ambientFlyers) {
-      const visibilityDistance = flyer.kind === "butterfly" ? 120 : 190;
+      const visibilityDistance = flyer.kind === "butterfly" ? 120 : flyer.kind === "pigeon" ? 150 : 190;
       const orbitReach = visibilityDistance + Math.max(flyer.orbit.radiusX, flyer.orbit.radiusZ) + 3;
       const originX = flyer.orbit.originX - this.visibilityAnchor.x;
       const originZ = flyer.orbit.originZ - this.visibilityAnchor.z;
@@ -4458,7 +4329,7 @@ export class WorldScene {
         flyer.lastAnimationUpdateSeconds = timeSeconds;
         flyer.mixer.timeScale = this.prefersReducedMotion
           ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
-          : flyer.kind === "butterfly" ? 1.35 : 1;
+          : flyer.kind === "butterfly" ? 1.35 : flyer.kind === "pigeon" ? 1.2 : 1;
         flyer.mixer.update(flyerDelta);
       }
     }
@@ -4496,78 +4367,8 @@ export class WorldScene {
       actions,
       activeClip: swim ? "swim" : null,
       tailPivot: root.getObjectByName(`${assetId}_tail_pivot`) ?? undefined,
-      visibilityMaterials: this.prepareFishVisibility(root)
+      visibilityMaterials: prepareFishVisibility(root)
     };
-  }
-
-  /**
-   * Fish GLB clones share catalog materials, so clone just the materials before
-   * applying the water-visibility treatment. The treatment is presentation-only:
-   * it never changes the simulation-owned fish depth or position.
-   */
-  private prepareFishVisibility(root: THREE.Group): FishVisibilityMaterial[] {
-    const tracked: FishVisibilityMaterial[] = [];
-    root.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const originals = Array.isArray(object.material) ? object.material : [object.material];
-      const clones = originals.map((material) => material.clone());
-      object.material = Array.isArray(object.material) ? clones : clones[0];
-      for (const material of clones) {
-        const colored = material as THREE.Material & { color?: THREE.Color };
-        tracked.push({
-          material: colored,
-          baseColor: colored.color?.clone() ?? null,
-          baseOpacity: material.opacity,
-          baseTransparent: material.transparent,
-          baseDepthTest: material.depthTest,
-          baseDepthWrite: material.depthWrite
-        });
-      }
-    });
-    return tracked;
-  }
-
-  private updateFishVisibility(
-    member: FishPresentationMember,
-    depthMeters: number,
-    prominence: number
-  ): void {
-    const submerged = depthMeters > 0.035;
-    const depthFade = THREE.MathUtils.clamp(1 - depthMeters / 7, 0, 1);
-    const opacity = THREE.MathUtils.lerp(0.42, 0.82, depthFade) * prominence;
-    member.root.traverse((object) => {
-      if (object instanceof THREE.Mesh) object.renderOrder = submerged ? 4 : 0;
-    });
-    for (const tracked of member.visibilityMaterials) {
-      const { material } = tracked;
-      material.transparent = submerged || tracked.baseTransparent;
-      material.opacity = submerged ? Math.min(tracked.baseOpacity, opacity) : tracked.baseOpacity;
-      // The water mesh is intentionally opaque and depth-writing. Let the fish
-      // read through it as a soft teal silhouette instead of moving the fish out
-      // of the simulation-owned depth.
-      material.depthTest = submerged ? false : tracked.baseDepthTest;
-      material.depthWrite = submerged ? false : tracked.baseDepthWrite;
-      if (tracked.baseColor && material.color) {
-        material.color.copy(tracked.baseColor);
-        if (submerged) material.color.lerp(this.fishWaterTint, 0.24 + (1 - depthFade) * 0.22);
-      }
-    }
-  }
-
-  private disposeFishVisibility(member: FishPresentationMember | null): void {
-    member?.mixer?.stopAllAction();
-    for (const tracked of member?.visibilityMaterials ?? []) tracked.material.dispose();
-  }
-
-  private setFishAnimation(member: FishPresentationMember, clipName: FishAnimationClip): void {
-    if (member.activeClip === clipName) return;
-    const next = member.actions.get(clipName) ?? member.actions.get("swim");
-    if (!next) return;
-    const resolvedClip = next === member.actions.get("swim") ? "swim" : clipName;
-    const previous = member.activeClip ? member.actions.get(member.activeClip) : undefined;
-    previous?.fadeOut(0.1);
-    next.reset().fadeIn(0.1).play();
-    member.activeClip = resolvedClip;
   }
 
   private updateFishAnimation(
@@ -4577,19 +4378,7 @@ export class WorldScene {
     timeSeconds: number,
     beatScale = 1
   ): void {
-    this.setFishAnimation(member, clipName);
-    const beat = this.prefersReducedMotion
-      ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
-      : beatScale;
-    if (member.mixer) {
-      member.mixer.timeScale = beat;
-    }
-    member.mixer?.update(delta);
-    if (!member.mixer && member.tailPivot) {
-      member.tailPivot.rotation.y = Math.sin(timeSeconds * 8.5 * beat + member.phase * Math.PI * 2)
-        * 0.28
-        * (this.prefersReducedMotion ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale : 1);
-    }
+    updateFishAnimation(member, clipName, delta, timeSeconds, this.prefersReducedMotion, beatScale);
   }
 
   /**
@@ -4604,8 +4393,13 @@ export class WorldScene {
     presentedBoats: Readonly<Record<string, PresentedBoatPose>> | null = this.latestPresentedBoats
   ): void {
     this.immediateSyncCalls += 1;
+    // Debug-only sub-phase rings. Null-gated like render()'s recorder, so
+    // shipped frames pay one null check and nothing else; names surface in
+    // phaseTimingSnapshot automatically. No visual or gameplay change.
+    const syncRecord = this.phaseRecorder;
+    let syncMark = syncRecord ? performance.now() : 0;
     const state = sim.getState();
-    sampleWeatherMotionSignal(this.weatherAppearance(state, timeSeconds).weather, timeSeconds, this.weatherMotion);
+    sampleWeatherMotionSignal(this.weatherFrame.sample(state, timeSeconds).weather, timeSeconds, this.weatherMotion);
     if (presentedPlayer) this.latestPresentedPlayer = presentedPlayer;
     if (presentedBoats) this.latestPresentedBoats = presentedBoats;
     this.latestBoatPresentationInput = boatPresentationInput;
@@ -4634,17 +4428,17 @@ export class WorldScene {
         this.prefersReducedMotion ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale : 1,
         this.sportFishingPresentation);
     }
-    const waterConditions = this.waterConditions(state);
+    const waterConditions = this.weatherFrame.waterConditions(state.weather, this.weatherMotion.effectiveWindSpeed);
     this.water.update(
       timeSeconds,
       waterConditions,
       this.visibilityAnchor,
       { reducedMotion: this.prefersReducedMotion, camera: this.activeCamera ?? this.visibilityLodCamera }
     );
-    this.shoreFoam.update(timeSeconds, waterConditions);
     this.boatWakes.update(timeSeconds);
     this.farmVfx.update(timeSeconds);
     this.footfallVfx.update(timeSeconds);
+    if (syncRecord) { syncRecord("sync:water-fx", performance.now() - syncMark); syncMark = performance.now(); }
     if (this.cosmeticCropCarryUntilSeconds > 0 && this.characterElapsedSeconds >= this.cosmeticCropCarryUntilSeconds) {
       this.cosmeticCropCarryUntilSeconds = 0;
       const bundle = this.farmingProps.get("bundle");
@@ -4703,11 +4497,13 @@ export class WorldScene {
     }
     this.water.setFloatingBodies(floatingBodies);
     this.syncSkiffMooringPreview(state, timeSeconds);
+    if (syncRecord) { syncRecord("sync:boats", performance.now() - syncMark); syncMark = performance.now(); }
     this.updateDonkeyPresentation(state, playerPose, this.characterElapsedSeconds, delta, this.latestLocomotionTimeScale);
     const carriageState = state.mounts[STARTER_CARRIAGE_ID];
     const drivingCarriage = state.player.activeMountId === STARTER_CARRIAGE_ID;
     if (carriageState) this.carriagePresentation?.update(carriageState, playerPose, drivingCarriage, delta, this.latestLocomotionTimeScale);
     this.syncCarriagePacks(state);
+    if (syncRecord) { syncRecord("sync:mounts", performance.now() - syncMark); syncMark = performance.now(); }
 
     if (this.playerMesh) {
       const presentationMode = state.sportFishing
@@ -4865,6 +4661,10 @@ export class WorldScene {
         alignSupportFeet(this.playerAnimation, this.donkeyPresentation.stirrupLeftSocket, this.donkeyPresentation.stirrupRightSocket);
         alignMarkerHand(this.playerAnimation, "left", this.donkeyPresentation.reinLeftGrip);
         alignMarkerHand(this.playerAnimation, "right", this.donkeyPresentation.reinRightGrip);
+      } else if (this.playerAnimation && drivingCarriage && !attachmentTransitionActive && this.carriagePresentation) {
+        alignSupportFeet(this.playerAnimation, this.carriagePresentation.feet.left, this.carriagePresentation.feet.right);
+        alignMarkerHand(this.playerAnimation, "left", this.carriagePresentation.grips.left);
+        alignMarkerHand(this.playerAnimation, "right", this.carriagePresentation.grips.right);
       } else if (this.playerAnimation && !attachmentTransitionActive && rowboatRig) {
         alignSupportFeet(this.playerAnimation, rowboatRig.footLeftSupport, rowboatRig.footRightSupport);
       } else if (this.playerAnimation && !attachmentTransitionActive && skiffFootSupports
@@ -4912,7 +4712,9 @@ export class WorldScene {
       }
     }
 
+    if (syncRecord) { syncRecord("sync:player", performance.now() - syncMark); syncMark = performance.now(); }
     this.cropInstances.sync(state, timeSeconds, this.weatherMotion, this.isFarmGisMode);
+    if (syncRecord) { syncRecord("sync:crops", performance.now() - syncMark); syncMark = performance.now(); }
 
     // Despawn school VFX whose school is gone
     for (const [schoolId, sGroup] of this.schoolEffects.entries()) {
@@ -4929,7 +4731,13 @@ export class WorldScene {
       const nearEnoughForFullRate = dx * dx + dz * dz < 58 * 58;
       const lastMotionUpdate = (sGroup.userData.lastMotionUpdateSeconds as number | undefined) ?? 0;
       const updateInterval = nearEnoughForFullRate ? 0 : 0.24;
-      if (!sGroup.visible || timeSeconds - lastMotionUpdate < updateInterval) continue;
+      // Distant schools keep the same update rate, but each stable school ID
+      // gets a different deadline. A shared 240 ms timer made all schools do
+      // water/avoidance/skin work on one frame and caused periodic movement hitches.
+      const phase = stablePresentationPhase(schoolId);
+      const updateDue = updateInterval === 0 || lastMotionUpdate === 0
+        || Math.floor(timeSeconds / updateInterval + phase) > Math.floor(lastMotionUpdate / updateInterval + phase);
+      if (!sGroup.visible || !updateDue) continue;
       const schoolDelta = THREE.MathUtils.clamp(timeSeconds - lastMotionUpdate, 0, 0.25);
       sGroup.userData.lastMotionUpdateSeconds = timeSeconds;
       sGroup.position.set(school.x, 0, school.z);
@@ -4959,7 +4767,7 @@ export class WorldScene {
         const pose = { ...sample.motion, visible: sample.visible, surface: sample.surface, cycle: sample.cycle };
         member.schoolMotion = sample.motion;
         const speed = Math.hypot(pose.vx, pose.vz);
-        const surfaceY = this.water.sample(pose.x, pose.z, timeSeconds).height;
+        const surfaceY = this.water.height(pose.x, pose.z, timeSeconds);
         fish.visible = pose.visible;
         fish.position.set(pose.x - school.x, surfaceY - pose.depth, pose.z - school.z);
         if (speed > 0.01) {
@@ -4980,7 +4788,7 @@ export class WorldScene {
           ripples.emit(index, pose.x - school.x, pose.z - school.z, timeSeconds, 0.55 + feeding * 0.45);
         }
       });
-      ripples.update(timeSeconds, (x, z) => this.water.sample(x + school.x, z + school.z, timeSeconds).height,
+      ripples.update(timeSeconds, (x, z) => this.water.height(x + school.x, z + school.z, timeSeconds),
         this.prefersReducedMotion);
       const gull = sGroup.userData.schoolGull as THREE.Group | undefined;
       if (gull) {
@@ -5138,7 +4946,7 @@ export class WorldScene {
       }
       if (npc.motionFrame) {
         const weatherPosture = sampleWeatherPosture(
-          this.weatherPresentation.current?.weather ?? state.weather,
+          this.weatherFrame.currentWeather(state.weather),
           npc.model.rotation.y,
           timeSeconds,
           this.prefersReducedMotion,
@@ -5163,8 +4971,23 @@ export class WorldScene {
       }
     }
 
+    if (syncRecord) { syncRecord("sync:actors", performance.now() - syncMark); syncMark = performance.now(); }
     this.updateAmbientTownsfolk(state, timeSeconds, delta);
+    updateAmbientAnimals({
+      faunaPresentations: this.faunaPresentations,
+      ambientAnimals: this.ambientAnimals,
+      visibilityAnchor: this.visibilityAnchor,
+      rigidAnimationBatches: this.rigidAnimationBatches,
+      weatherMotion: this.weatherMotion,
+      playerPresence: this.playerPresence,
+      prefersReducedMotion: this.prefersReducedMotion
+    }, state.clock,
+      this.ambientTownsfolkElapsedSeconds,
+      delta,
+      this.prefersReducedMotion ? 0 : 1
+    );
     this.updateFishingPresentation(state, playerPose, timeSeconds, delta);
+    if (syncRecord) { syncRecord("sync:fishing", performance.now() - syncMark); }
   }
 
   /**
@@ -5276,7 +5099,7 @@ export class WorldScene {
       }
       if (person.motionFrame) {
         const weatherPosture = sampleWeatherPosture(
-          this.weatherPresentation.current?.weather ?? state.weather,
+          this.weatherFrame.currentWeather(state.weather),
           person.model.rotation.y,
           timeSeconds,
           this.prefersReducedMotion,
@@ -5470,7 +5293,7 @@ export class WorldScene {
       const castDrift = basic.castLateralDriftMeters ?? 0;
       const targetX = playerPose.x + forwardX * castDistance + rightX * castDrift;
       const targetZ = playerPose.z + forwardZ * castDistance + rightZ * castDrift;
-      const targetWaterY = this.water.sample(targetX, targetZ, timeSeconds).height;
+      const targetWaterY = this.water.height(targetX, targetZ, timeSeconds);
       const sinceRelease = timeSeconds - this.basicCastReleaseAtSeconds;
       const flightProgress = Number.isFinite(sinceRelease)
         ? THREE.MathUtils.smoothstep(sinceRelease, 0, 0.44)
@@ -5512,7 +5335,7 @@ export class WorldScene {
       const presentation = this.sportFishingPresentation;
       endpointX = presentation.endpointX;
       endpointZ = presentation.endpointZ;
-      endpointY = this.water.sample(endpointX, endpointZ, timeSeconds).height - presentation.depthMeters;
+      endpointY = this.water.height(endpointX, endpointZ, timeSeconds) - presentation.depthMeters;
       const newlyHooked = this.lastFishingInstanceId !== sport.fish.instanceId;
       this.sportFishingCameraHint = {
         lookHint: { x: endpointX, y: endpointY, z: endpointZ },
@@ -5566,13 +5389,13 @@ export class WorldScene {
           "YXZ"
         );
         if (this.hookedFishPresentation) {
-          this.updateFishVisibility(this.hookedFishPresentation, presentation.depthMeters, 1);
+          updateFishVisibility(this.hookedFishPresentation, presentation.depthMeters, 1);
         }
       }
     }
 
     if (rodProp?.visible && this.playerAnimation) alignEquipmentHands(this.playerAnimation, rodProp);
-    const waterHeight = this.water.sample(endpointX, endpointZ, timeSeconds).height;
+    const waterHeight = this.water.height(endpointX, endpointZ, timeSeconds);
     if (sport) {
       const presentation = this.sportFishingPresentation;
       const sameFish = this.lastFishingInstanceId === sport.fish.instanceId;
@@ -5693,7 +5516,7 @@ export class WorldScene {
       this.fishingLinePathPositions[offset] = cx;
       this.fishingLinePathPositions[offset + 1] = cy;
       this.fishingLinePathPositions[offset + 2] = cz;
-      this.fishingLineWaterOffsets[index] = cy - this.water.sample(cx, cz, timeSeconds).height;
+      this.fishingLineWaterOffsets[index] = cy - this.water.height(cx, cz, timeSeconds);
     }
 
     let waterSplitIndex = -1;
@@ -5729,7 +5552,7 @@ export class WorldScene {
         this.fishingLinePathPositions[next + 2],
         crossing
       );
-      entryY = this.water.sample(entryX, entryZ, timeSeconds).height + 0.008;
+      entryY = this.water.height(entryX, entryZ, timeSeconds) + 0.008;
     }
 
     for (let index = 0; index <= FISHING_LINE_SEGMENTS; index += 1) {
@@ -5809,11 +5632,11 @@ export class WorldScene {
     const footprint = boatBuoyancyFootprint(boat.boatTypeId);
     const sinHeading = Math.sin(samplePose.headingRadians);
     const cosHeading = Math.cos(samplePose.headingRadians);
-    const sampleHeight = (localX: number, localZ: number): number => this.water.sample(
+    const sampleHeight = (localX: number, localZ: number): number => this.water.height(
       samplePose.x + localX * cosHeading + localZ * sinHeading,
       samplePose.z - localX * sinHeading + localZ * cosHeading,
       timeSeconds
-    ).height;
+    );
     const bowHeight = sampleHeight(0, footprint.halfLength);
     const sternHeight = sampleHeight(0, -footprint.halfLength);
     const portHeight = sampleHeight(-footprint.halfBeam, 0);
@@ -6141,11 +5964,34 @@ export class WorldScene {
       }
     }
 
+    this.syncGroundFishPacks(sim.getState());
+    for (const [cargoId, cargo] of Object.entries(sim.getState().fishCargo)) {
+      if (cargo.location.type !== "ground" || this.groundFishPacks.has(cargoId)) continue;
+      const { x, z } = cargo.location;
+      if (typeof x !== "number" || typeof z !== "number") continue;
+      const assetId = fishCargoPackAsset(cargo.speciesId);
+      if (!assetId) throw new Error(`No trade pack for ${cargo.speciesId}`);
+      const root = await this.loadModel(assetId);
+      const live = sim.getState().fishCargo[cargoId];
+      if (!live || live.location.type !== "ground" || this.groundFishPacks.has(cargoId)) {
+        AssetLoader.releaseModel(root);
+        continue;
+      }
+      root.position.set(x, WorldLayout.traversalSurfaceHeight(x, z), z);
+      root.userData.dynamicPresentation = true;
+      root.userData.cargoId = cargoId;
+      this.scene.add(root);
+      this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
+      this.lightingRig.shadowAtlas.registerDynamicRoot(root);
+      this.groundFishPacks.set(cargoId, { root });
+      loadedNewMesh = true;
+    }
+
     const sportFishAssetId = state.sportFishing
       ? fishSpeciesAsset(state.sportFishing.fish.speciesId)
       : null;
     if (this.hookedFishAssetId !== sportFishAssetId) {
-      this.disposeFishVisibility(this.hookedFishPresentation);
+      disposeFishVisibility(this.hookedFishPresentation);
       if (this.hookedFishModel) AssetLoader.releaseModel(this.hookedFishModel);
       this.hookedFishModel?.removeFromParent();
       this.hookedFishModel = null;
@@ -6277,6 +6123,7 @@ export class WorldScene {
     }
     for (const cargoId of this.boatFishPacks.keys()) parts.push(`boat-pack:${cargoId}`);
     for (const cargoId of this.carriagePacks.keys()) parts.push(`carriage-pack:${cargoId}`);
+    for (const cargoId of this.groundFishPacks.keys()) parts.push(`ground-pack:${cargoId}`);
     for (const schoolId of Object.keys(state.world.activeSchools)) {
       parts.push(`school:${schoolId}:${this.schoolEffects.has(schoolId) ? "yes" : "missing"}`);
     }
@@ -6329,23 +6176,32 @@ export class WorldScene {
   public render(camera: THREE.Camera, deltaSeconds = 1 / 60): void {
     const record = this.phaseRecorder;
     let mark = record ? performance.now() : 0;
+    const worldUpdateStart = mark;
     this.activeCamera = camera;
     updateVegetationObstruction(camera, this.playerMesh?.getWorldPosition(this.tempCharacterWorldPosition) ?? null);
     this.water?.updateCamera(camera);
     this.hasRenderedFrame = true;
     this.updateQuestWaypoint(camera, deltaSeconds);
     this.updateQualityTransition(deltaSeconds);
+    if (record) { record("wu:env", performance.now() - mark); mark = performance.now(); }
     this.updateDistanceManagedPresentation();
+    if (record) { record("wu:distance", performance.now() - mark); mark = performance.now(); }
     this.groundCover.update(this.visibilityAnchor.x, this.visibilityAnchor.z);
+    if (record) { record("wu:cover-select", performance.now() - mark); mark = performance.now(); }
     this.groundCover.updateRenderVisibility(camera);
+    if (record) { record("wu:cover-submit", performance.now() - mark); mark = performance.now(); }
     this.meadowField.update(this.visibilityAnchor.x, this.visibilityAnchor.z);
+    if (record) { record("wu:meadow-select", performance.now() - mark); mark = performance.now(); }
     this.meadowField.updateRenderVisibility(camera);
+    if (record) { record("wu:meadow-submit", performance.now() - mark); mark = performance.now(); }
     for (const batch of this.rigidAnimationBatches.values()) {
       if (batch.update()) this.rigidBatchUpdates += 1;
       else this.rigidBatchSkips += 1;
     }
     if (record) {
-      record("render:world-update", performance.now() - mark);
+      record("wu:rigid", performance.now() - mark);
+      // Total preserved: sub-rings partition it, they do not replace it.
+      record("render:world-update", performance.now() - worldUpdateStart);
       mark = performance.now();
     }
     this.rendererPipeline.render(camera);
@@ -6531,6 +6387,11 @@ export class WorldScene {
       AssetLoader.releaseModel(pack.root);
     }
     this.boatFishPacks.clear();
+    for (const pack of this.groundFishPacks.values()) {
+      pack.root.removeFromParent();
+      AssetLoader.releaseModel(pack.root);
+    }
+    this.groundFishPacks.clear();
     this.playerBackpackSocket = null;
     this.lastPlayerDiscontinuitySequence = -1;
     for (const npc of this.npcPresentations.values()) {
@@ -6543,6 +6404,19 @@ export class WorldScene {
       person.model.removeFromParent();
     }
     this.ambientTownsfolk.length = 0;
+    for (const animal of this.ambientAnimals) {
+      animal.mixer?.stopAllAction();
+      if (animal.mixer) animal.mixer.uncacheRoot(animal.object);
+      animal.object.removeFromParent();
+      AssetLoader.releaseModel(animal.object);
+    }
+    this.ambientAnimals.length = 0;
+    this.clothSwayPivots.length = 0;
+    for (const plume of this.dwellingSmoke) {
+      plume.removeFromParent();
+      AssetLoader.releaseModel(plume);
+    }
+    this.dwellingSmoke.length = 0;
     this.playerAnimationEvents.length = 0;
     this.carriagePresentation?.dispose();
     this.carriagePresentation = null;
@@ -6576,8 +6450,6 @@ export class WorldScene {
     disposeArchitectureWindows();
     this.water?.dispose();
     this.water?.group.removeFromParent();
-    this.shoreFoam?.dispose();
-    this.shoreFoam?.mesh.removeFromParent();
     this.boatWakes?.dispose();
     this.boatWakes?.group.removeFromParent();
     this.rendererPipeline.dispose();
@@ -6589,7 +6461,7 @@ export class WorldScene {
       this.disposeSchoolEffect(group);
     }
     this.schoolEffects.clear();
-    this.disposeFishVisibility(this.hookedFishPresentation);
+    disposeFishVisibility(this.hookedFishPresentation);
     if (this.hookedFishModel) AssetLoader.releaseModel(this.hookedFishModel);
     this.hookedFishModel?.removeFromParent();
     this.hookedFishModel = null;
@@ -6767,15 +6639,4 @@ function stablePresentationPhase(value: string): number {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0) / 0x1_0000_0000;
-}
-
-function smoothPresentationWindow(
-  value: number,
-  start: number,
-  end: number,
-  edge: number
-): number {
-  const enter = THREE.MathUtils.smoothstep(value, start, start + edge);
-  const exit = 1 - THREE.MathUtils.smoothstep(value, end - edge, end);
-  return Math.min(enter, exit);
 }

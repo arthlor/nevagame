@@ -134,9 +134,22 @@ def _linear_rgb(hex_value: str) -> list[float]:
     return [channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4 for channel in channels]
 
 
+def source_material_authoring(spec: dict | None) -> dict | None:
+    """The imported-source material contract, whether static or skinned.
+
+    Static sources keep their surface bit-for-bit. Skinned sources are re-posed
+    and reweighted by their adapter and may split one provider material into
+    several named regions, each naming the ``sourceMaterial`` whose texture it
+    keeps. Both share the per-region palette token and texture policy.
+    """
+    if not spec:
+        return None
+    return spec.get("staticAuthoring") or spec.get("skinnedAuthoring")
+
+
 def restore_static_material_state(path, spec, palette) -> dict | None:
     """Restore declared source sampler and solid-emission JSON without touching BIN."""
-    authoring = spec.get("staticAuthoring")
+    authoring = source_material_authoring(spec)
     if not authoring:
         return None
     regions = [
@@ -157,7 +170,8 @@ def restore_static_material_state(path, spec, palette) -> dict | None:
             raise ValueError(f"{spec['id']}: immutable static texture source differs from the catalog")
         source_document, _ = _read_glb(source_path)
     for region in regions:
-        source_material = _material_by_name(source_document, region)
+        source_name = authoring["materialMap"][region].get("sourceMaterial", region)
+        source_material = _material_by_name(source_document, source_name)
         candidate_material = _material_by_name(candidate_document, region)
         extras = candidate_material.get("extras", {})
         if extras.get("neva_source_material") != region:

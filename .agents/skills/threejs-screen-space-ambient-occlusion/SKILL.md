@@ -1,12 +1,9 @@
 ---
 name: threejs-screen-space-ambient-occlusion
-description: "Implement a production GTAO path in Three.js. Use for half-resolution horizon sampling, reversed-depth reconstruction, bent normals, bilateral reconstruction, contact grounding, and halo diagnosis. Not for cast shadows."
+description: Implement a production GTAO path in Three.js. Use for half-resolution horizon sampling, reversed-depth reconstruction, bent-normal encoding, full-resolution bilateral reconstruction, environment-light application, contact grounding, and halo diagnosis.
 ---
 
 # Screen-Space Ambient Occlusion
-
-- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Post chain is WebGL2 unless the project owns a WebGPU post graph. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 AO estimates missing ambient visibility. It must modulate indirect lighting, not repaint all scene color with a dark multiply.
 
@@ -21,9 +18,7 @@ AO estimates missing ambient visibility. It must modulate indirect lighting, not
 
 Read [references/gtao-bent-normal-pipeline.md](references/gtao-bent-normal-pipeline.md).
 
-## Invariants and strong defaults
-
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Failure conditions
 
 - direct light and emission are darkened;
 - radius is specified only in pixels;
@@ -32,12 +27,6 @@ Use these checks for the affected mechanism. Preserve concrete ownership, correc
 - AO remains strong at distances where its world radius is subpixel;
 - bent normals are treated as ordinary geometric normals;
 - the implementation claims temporal accumulation even though this path has none.
-
-## Deliverable
-
-- Inputs: linear depth and view normals, plus the world-space AO radius.
-- Artifacts: AO and optional bent-normal targets, denoise weights, and an AO-only view.
-- Acceptance: direct light and emission are unchanged; no foreground halos; AO fades where its world radius is subpixel.
 
 ## Routing boundary
 

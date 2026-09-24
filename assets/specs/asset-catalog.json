@@ -8098,21 +8098,22 @@
       "generator": "water_well",
       "seed": 301,
       "dimensions": {
-        "width": 2.2,
-        "depth": 1.9,
-        "height": 2.8
+        "width": 2.29,
+        "depth": 2.2,
+        "height": 3.13
       },
       "palette": [
         "stone_warm_01",
         "wood_dark_01",
         "roof_terracotta_01",
-        "metal_dark_01"
+        "metal_dark_01",
+        "water_shallow_01"
       ],
       "budget": {
         "trianglesMin": 200,
-        "trianglesTarget": 3000,
+        "trianglesTarget": 4270,
         "trianglesMax": 6000,
-        "materialsMax": 4
+        "materialsMax": 5
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -8133,13 +8134,13 @@
           "id": "main",
           "center": [
             0,
-            0,
-            1.4
+            1.55,
+            0
           ],
           "halfExtents": [
-            1.1,
-            0.95,
-            1.4
+            0.9,
+            1.55,
+            0.9
           ]
         }
       ],
@@ -8297,10 +8298,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -8310,18 +8307,19 @@
       "generator": "pumpkin_patch",
       "seed": 307,
       "dimensions": {
-        "width": 3.2,
-        "depth": 2.2,
-        "height": 0.7
+        "width": 3.01,
+        "depth": 2,
+        "height": 0.58
       },
       "palette": [
         "soil_warm_01",
-        "accent_ochre_01",
-        "foliage_olive_01"
+        "roof_warm_orange_01",
+        "foliage_olive_01",
+        "accent_ochre_01"
       ],
       "budget": {
         "trianglesMin": 220,
-        "trianglesTarget": 3000,
+        "trianglesTarget": 5600,
         "trianglesMax": 6000,
         "materialsMax": 4
       },
@@ -8339,10 +8337,6 @@
         "vineSegments": 9,
         "lobes": 4,
         "blossomCount": 6
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -8352,9 +8346,9 @@
       "generator": "lobster_trap",
       "seed": 311,
       "dimensions": {
-        "width": 1.1,
-        "depth": 0.8,
-        "height": 0.7
+        "width": 1.16,
+        "depth": 0.62,
+        "height": 0.67
       },
       "palette": [
         "wood_weathered_01",
@@ -8363,8 +8357,8 @@
       ],
       "budget": {
         "trianglesMin": 180,
-        "trianglesTarget": 2000,
-        "trianglesMax": 2500,
+        "trianglesTarget": 2610,
+        "trianglesMax": 3400,
         "materialsMax": 3
       },
       "pivot": "ground_center",
@@ -8529,10 +8523,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -8542,9 +8532,9 @@
       "generator": "fishing_net_rack",
       "seed": 319,
       "dimensions": {
-        "width": 2.7,
-        "depth": 0.9,
-        "height": 2.2
+        "width": 2.75,
+        "depth": 1.15,
+        "height": 2.05
       },
       "palette": [
         "wood_weathered_01",
@@ -8554,8 +8544,8 @@
       ],
       "budget": {
         "trianglesMin": 220,
-        "trianglesTarget": 1000,
-        "trianglesMax": 2800,
+        "trianglesTarget": 4000,
+        "trianglesMax": 5300,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -8574,10 +8564,6 @@
         "netColumns": 7,
         "netRows": 5,
         "buoys": 4
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -8698,8 +8684,8 @@
       "generator": "wood_fence",
       "seed": 331,
       "dimensions": {
-        "width": 2.1,
-        "depth": 0.3,
+        "width": 2.23,
+        "depth": 0.23,
         "height": 1.2
       },
       "palette": [
@@ -8708,7 +8694,7 @@
       ],
       "budget": {
         "trianglesMin": 100,
-        "trianglesTarget": 900,
+        "trianglesTarget": 440,
         "trianglesMax": 2500,
         "materialsMax": 2
       },
@@ -8726,7 +8712,6 @@
         "length": 2,
         "posts": 3,
         "rails": 2,
-        "railSegments": 7,
         "hasGate": false
       },
       "collisionPrimitives": [
@@ -8743,11 +8728,7 @@
             0.12
           ]
         }
-      ],
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      ]
     },
     {
       "id": "prop_hay_bale_a",
@@ -8756,9 +8737,9 @@
       "generator": "hay_bale",
       "seed": 337,
       "dimensions": {
-        "width": 1.9,
-        "depth": 1.2,
-        "height": 1.12
+        "width": 1.93,
+        "depth": 1.3,
+        "height": 1.26
       },
       "palette": [
         "accent_ochre_01",
@@ -8766,8 +8747,8 @@
       ],
       "budget": {
         "trianglesMin": 120,
-        "trianglesTarget": 1500,
-        "trianglesMax": 2500,
+        "trianglesTarget": 3040,
+        "trianglesMax": 4000,
         "materialsMax": 2
       },
       "pivot": "ground_center",
@@ -8791,12 +8772,12 @@
           "id": "main",
           "center": [
             0,
-            0.56,
+            0.63,
             0
           ],
           "halfExtents": [
             0.95,
-            0.56,
+            0.63,
             0.6
           ]
         }
@@ -8956,10 +8937,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -8969,9 +8946,9 @@
       "generator": "lamp_post",
       "seed": 347,
       "dimensions": {
-        "width": 0.8,
-        "depth": 0.8,
-        "height": 3.7
+        "width": 0.98,
+        "depth": 0.44,
+        "height": 3.61
       },
       "palette": [
         "wood_dark_01",
@@ -8980,7 +8957,7 @@
       ],
       "budget": {
         "trianglesMin": 220,
-        "trianglesTarget": 900,
+        "trianglesTarget": 1000,
         "trianglesMax": 2500,
         "materialsMax": 3
       },
@@ -8996,10 +8973,6 @@
       "parameters": {
         "height": 3.4,
         "armLength": 0.55
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -9009,9 +8982,9 @@
       "generator": "worm_compost_bin",
       "seed": 353,
       "dimensions": {
-        "width": 1.4,
-        "depth": 1.2,
-        "height": 1.1
+        "width": 1.29,
+        "depth": 1.09,
+        "height": 1.79
       },
       "palette": [
         "wood_warm_01",
@@ -9021,8 +8994,8 @@
       ],
       "budget": {
         "trianglesMin": 200,
-        "trianglesTarget": 900,
-        "trianglesMax": 2500,
+        "trianglesTarget": 1950,
+        "trianglesMax": 2600,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -9052,9 +9025,9 @@
             0
           ],
           "halfExtents": [
-            0.625,
+            0.64,
             0.45,
-            0.525
+            0.54
           ]
         }
       ],
@@ -9261,10 +9234,6 @@
           "gameplay_read_distance",
           "close_material"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -9274,9 +9243,9 @@
       "generator": "wagon_cart",
       "seed": 367,
       "dimensions": {
-        "width": 1.7,
-        "depth": 3.2,
-        "height": 1.4
+        "width": 1.88,
+        "depth": 3.67,
+        "height": 1.42
       },
       "palette": [
         "wood_honey_01",
@@ -9286,7 +9255,7 @@
       ],
       "budget": {
         "trianglesMin": 400,
-        "trianglesTarget": 3100,
+        "trianglesTarget": 4100,
         "trianglesMax": 6000,
         "materialsMax": 4
       },
@@ -9310,13 +9279,13 @@
           "id": "main",
           "center": [
             0,
-            0,
-            0.65
+            0.7,
+            -0.13
           ],
           "halfExtents": [
-            0.85,
-            1.6,
-            0.65
+            0.95,
+            0.7,
+            1.2
           ]
         }
       ],
@@ -9483,10 +9452,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -9552,9 +9517,9 @@
       "generator": "farm_workbench",
       "seed": 374,
       "dimensions": {
-        "width": 2.1,
-        "depth": 0.95,
-        "height": 1.6
+        "width": 2,
+        "depth": 1.15,
+        "height": 1.7
       },
       "palette": [
         "wood_honey_01",
@@ -9564,7 +9529,7 @@
       ],
       "budget": {
         "trianglesMin": 500,
-        "trianglesTarget": 1400,
+        "trianglesTarget": 2040,
         "trianglesMax": 3200,
         "materialsMax": 4
       },
@@ -9588,13 +9553,13 @@
           "id": "main",
           "center": [
             0,
-            0,
-            0.8
+            0.8,
+            0
           ],
           "halfExtents": [
-            1.05,
-            0.48,
-            0.8
+            1,
+            0.8,
+            0.5
           ]
         }
       ],
@@ -9758,10 +9723,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -9771,9 +9732,9 @@
       "generator": "produce_stall",
       "seed": 375,
       "dimensions": {
-        "width": 3.3,
-        "depth": 2,
-        "height": 3
+        "width": 3.73,
+        "depth": 2.39,
+        "height": 2.73
       },
       "palette": [
         "wood_honey_01",
@@ -9784,8 +9745,8 @@
       ],
       "budget": {
         "trianglesMin": 700,
-        "trianglesTarget": 3100,
-        "trianglesMax": 4500,
+        "trianglesTarget": 7410,
+        "trianglesMax": 9700,
         "materialsMax": 5
       },
       "pivot": "ground_center",
@@ -9801,20 +9762,22 @@
       "parameters": {
         "width": 3.1,
         "depth": 1.8,
-        "roofHeight": 2.65
+        "roofHeight": 2.65,
+        "ladder": true,
+        "sign": true
       },
       "collisionPrimitives": [
         {
           "id": "main",
           "center": [
             0,
-            0,
-            1.45
+            1.35,
+            0
           ],
           "halfExtents": [
-            1.65,
-            1,
-            1.45
+            1.6,
+            1.35,
+            0.95
           ]
         }
       ],
@@ -9964,6 +9927,24 @@
               "sign"
             ],
             "purpose": "Sets post height, canopy hang, and sign drop."
+          },
+          {
+            "parameter": "ladder",
+            "componentIds": [
+              "frame",
+              "counter",
+              "canopy"
+            ],
+            "purpose": "Leans a ladder against the stall side (dock stall)."
+          },
+          {
+            "parameter": "sign",
+            "componentIds": [
+              "frame",
+              "counter",
+              "canopy"
+            ],
+            "purpose": "Hangs a painted sign from the front eave (dock stall)."
           }
         ],
         "failureModes": [
@@ -9980,10 +9961,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -9993,9 +9970,9 @@
       "generator": "seed_pouch",
       "seed": 376,
       "dimensions": {
-        "width": 0.42,
-        "depth": 0.24,
-        "height": 0.55
+        "width": 0.33,
+        "depth": 0.21,
+        "height": 0.5
       },
       "palette": [
         "burlap_grain_01",
@@ -10003,7 +9980,7 @@
       ],
       "budget": {
         "trianglesMin": 80,
-        "trianglesTarget": 100,
+        "trianglesTarget": 330,
         "trianglesMax": 700,
         "materialsMax": 2
       },
@@ -10016,11 +9993,7 @@
         "tool_seed_pouch_a_root"
       ],
       "readDistanceMeters": 8,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "tool_watering_can_a",
@@ -10029,9 +10002,9 @@
       "generator": "watering_can",
       "seed": 377,
       "dimensions": {
-        "width": 0.55,
-        "depth": 0.45,
-        "height": 0.42
+        "width": 0.3,
+        "depth": 0.52,
+        "height": 0.32
       },
       "palette": [
         "metal_iron_01",
@@ -10040,8 +10013,8 @@
       ],
       "budget": {
         "trianglesMin": 120,
-        "trianglesTarget": 150,
-        "trianglesMax": 1000,
+        "trianglesTarget": 1020,
+        "trianglesMax": 1400,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -10054,11 +10027,7 @@
         "tool_primary_grip"
       ],
       "readDistanceMeters": 8,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "tool_sickle_a",
@@ -10067,9 +10036,9 @@
       "generator": "sickle",
       "seed": 378,
       "dimensions": {
-        "width": 0.72,
-        "depth": 0.12,
-        "height": 0.72
+        "width": 0.52,
+        "depth": 0.07,
+        "height": 0.6
       },
       "palette": [
         "wood_honey_01",
@@ -10077,8 +10046,8 @@
       ],
       "budget": {
         "trianglesMin": 40,
-        "trianglesTarget": 50,
-        "trianglesMax": 450,
+        "trianglesTarget": 540,
+        "trianglesMax": 800,
         "materialsMax": 2
       },
       "pivot": "center",
@@ -10091,11 +10060,7 @@
         "tool_primary_grip"
       ],
       "readDistanceMeters": 8,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_crop_bundle_a",
@@ -10104,9 +10069,9 @@
       "generator": "crop_bundle",
       "seed": 380,
       "dimensions": {
-        "width": 0.55,
-        "depth": 0.55,
-        "height": 0.85
+        "width": 0.37,
+        "depth": 0.36,
+        "height": 0.78
       },
       "palette": [
         "grass_yellow_01",
@@ -10115,8 +10080,8 @@
       ],
       "budget": {
         "trianglesMin": 150,
-        "trianglesTarget": 180,
-        "trianglesMax": 1200,
+        "trianglesTarget": 1320,
+        "trianglesMax": 1800,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -10128,11 +10093,7 @@
         "prop_crop_bundle_a_root"
       ],
       "readDistanceMeters": 8,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_harvest_basket_a",
@@ -10141,9 +10102,9 @@
       "generator": "harvest_basket",
       "seed": 381,
       "dimensions": {
-        "width": 0.8,
-        "depth": 0.8,
-        "height": 0.95
+        "width": 0.75,
+        "depth": 0.75,
+        "height": 0.9
       },
       "palette": [
         "wood_honey_01",
@@ -10152,8 +10113,8 @@
       ],
       "budget": {
         "trianglesMin": 220,
-        "trianglesTarget": 250,
-        "trianglesMax": 1800,
+        "trianglesTarget": 2800,
+        "trianglesMax": 3700,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -10165,11 +10126,7 @@
         "prop_harvest_basket_a_root"
       ],
       "readDistanceMeters": 8,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "tool_workstation_scoop_a",
@@ -10178,9 +10135,9 @@
       "generator": "workstation_scoop",
       "seed": 382,
       "dimensions": {
-        "width": 0.34,
-        "depth": 0.16,
-        "height": 0.86
+        "width": 0.17,
+        "depth": 0.17,
+        "height": 0.82
       },
       "palette": [
         "wood_honey_01",
@@ -10188,8 +10145,8 @@
       ],
       "budget": {
         "trianglesMin": 24,
-        "trianglesTarget": 30,
-        "trianglesMax": 350,
+        "trianglesTarget": 740,
+        "trianglesMax": 1000,
         "materialsMax": 2
       },
       "pivot": "center",
@@ -10202,11 +10159,7 @@
         "tool_primary_grip"
       ],
       "readDistanceMeters": 8,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "tool_fishing_rod_a",
@@ -10215,9 +10168,9 @@
       "generator": "fishing_rod",
       "seed": 385,
       "dimensions": {
-        "width": 0.28,
-        "depth": 0.38,
-        "height": 2.35
+        "width": 0.09,
+        "depth": 0.19,
+        "height": 2.62
       },
       "palette": [
         "wood_honey_01",
@@ -10228,8 +10181,8 @@
       ],
       "budget": {
         "trianglesMin": 200,
-        "trianglesTarget": 650,
-        "trianglesMax": 1400,
+        "trianglesTarget": 2190,
+        "trianglesMax": 2900,
         "materialsMax": 5
       },
       "pivot": "center",
@@ -10241,14 +10194,20 @@
         "tool_fishing_rod_a_root",
         "rod_primary_grip",
         "rod_secondary_grip",
-        "rod_line_exit"
+        "rod_line_exit",
+        "rod_reel_spool",
+        "rod_reel_line_coil",
+        "rod_reel_crank_arm",
+        "rod_reel_handle_knob",
+        "rod_guide_tiptop"
       ],
       "readDistanceMeters": 8,
       "parameters": {
         "length": 2.25,
         "guideCount": 5,
         "bendFactor": 0.08,
-        "reelSpoolRadius": 0.055
+        "reelSpoolRadius": 0.055,
+        "style": "willow"
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -10419,10 +10378,6 @@
           "gameplay_read_distance",
           "close_material"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -10432,9 +10387,9 @@
       "generator": "driftwood_cluster",
       "seed": 379,
       "dimensions": {
-        "width": 2.2,
-        "depth": 1.8,
-        "height": 0.45
+        "width": 1.92,
+        "depth": 1.13,
+        "height": 0.37
       },
       "palette": [
         "wood_weathered_01",
@@ -10442,7 +10397,7 @@
       ],
       "budget": {
         "trianglesMin": 60,
-        "trianglesTarget": 132,
+        "trianglesTarget": 290,
         "trianglesMax": 500,
         "materialsMax": 2
       },
@@ -10603,10 +10558,6 @@
           "gameplay_read_distance",
           "close_material"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -10616,9 +10567,9 @@
       "generator": "driftwood_cluster",
       "seed": 383,
       "dimensions": {
-        "width": 1.8,
-        "depth": 1.6,
-        "height": 0.45
+        "width": 1.83,
+        "depth": 0.97,
+        "height": 0.41
       },
       "palette": [
         "wood_weathered_01",
@@ -10626,7 +10577,7 @@
       ],
       "budget": {
         "trianglesMin": 50,
-        "trianglesTarget": 88,
+        "trianglesTarget": 210,
         "trianglesMax": 460,
         "materialsMax": 2
       },
@@ -10787,10 +10738,6 @@
           "gameplay_read_distance",
           "close_material"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -10800,9 +10747,9 @@
       "generator": "driftwood_cluster",
       "seed": 389,
       "dimensions": {
-        "width": 2.5,
-        "depth": 2,
-        "height": 0.5
+        "width": 1.88,
+        "depth": 1.87,
+        "height": 0.44
       },
       "palette": [
         "wood_dark_01",
@@ -10810,7 +10757,7 @@
       ],
       "budget": {
         "trianglesMin": 70,
-        "trianglesTarget": 132,
+        "trianglesTarget": 290,
         "trianglesMax": 560,
         "materialsMax": 2
       },
@@ -10971,10 +10918,6 @@
           "gameplay_read_distance",
           "close_material"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -13359,9 +13302,9 @@
       "generator": "stylized_fish",
       "seed": 601,
       "dimensions": {
-        "width": 0.35,
-        "depth": 0.9,
-        "height": 0.5
+        "width": 0.16,
+        "depth": 0.88,
+        "height": 0.24
       },
       "palette": [
         "fish_trout_back_01",
@@ -13369,9 +13312,9 @@
         "fish_trout_spot_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 900,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3710,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -13411,16 +13354,12 @@
       "parameters": {
         "species": "trout",
         "length": 0.75,
-        "girth": 0.13,
+        "girth": 0.0488,
         "finScale": 0.85,
-        "bodyDepth": 0.92,
-        "bodySegments": 16,
-        "radialSegments": 14,
+        "bodyDepth": 1.846,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.18
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -13430,9 +13369,9 @@
       "generator": "stylized_fish",
       "seed": 602,
       "dimensions": {
-        "width": 0.7,
-        "depth": 1.45,
-        "height": 0.65
+        "width": 0.61,
+        "depth": 1.33,
+        "height": 0.33
       },
       "palette": [
         "wood_weathered_01",
@@ -13440,9 +13379,9 @@
         "wood_dark_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 1000,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3770,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -13482,16 +13421,12 @@
       "parameters": {
         "species": "catfish",
         "length": 1.15,
-        "girth": 0.24,
+        "girth": 0.115,
         "finScale": 0.76,
-        "bodyDepth": 0.78,
-        "bodySegments": 16,
-        "radialSegments": 14,
+        "bodyDepth": 1,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.22
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -13501,9 +13436,9 @@
       "generator": "stylized_fish",
       "seed": 603,
       "dimensions": {
-        "width": 0.55,
-        "depth": 1.65,
-        "height": 0.55
+        "width": 0.21,
+        "depth": 1.45,
+        "height": 0.31
       },
       "palette": [
         "fish_trout_back_01",
@@ -13511,9 +13446,9 @@
         "accent_ochre_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 1050,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3730,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -13553,16 +13488,12 @@
       "parameters": {
         "species": "pike",
         "length": 1.25,
-        "girth": 0.16,
+        "girth": 0.0688,
         "finScale": 0.92,
-        "bodyDepth": 0.72,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 1.364,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.17
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -13572,9 +13503,9 @@
       "generator": "stylized_fish",
       "seed": 604,
       "dimensions": {
-        "width": 0.65,
-        "depth": 1.6,
-        "height": 0.75
+        "width": 0.36,
+        "depth": 1.52,
+        "height": 0.4
       },
       "palette": [
         "accent_ochre_01",
@@ -13582,9 +13513,9 @@
         "accent_red_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 1100,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3440,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -13624,16 +13555,12 @@
       "parameters": {
         "species": "arowana",
         "length": 1.2,
-        "girth": 0.2,
+        "girth": 0.066,
         "finScale": 1.05,
-        "bodyDepth": 1.15,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 2.364,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.2
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -13643,9 +13570,9 @@
       "generator": "stylized_fish",
       "seed": 607,
       "dimensions": {
-        "width": 1,
-        "depth": 1.95,
-        "height": 1.4
+        "width": 0.62,
+        "depth": 1.97,
+        "height": 0.8
       },
       "palette": [
         "fish_tuna_back_01",
@@ -13653,9 +13580,9 @@
         "accent_ochre_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 900,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 4100,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -13695,16 +13622,12 @@
       "parameters": {
         "species": "tuna",
         "length": 1.55,
-        "girth": 0.32,
+        "girth": 0.1705,
         "finScale": 1.1,
-        "bodyDepth": 1.42,
-        "bodySegments": 16,
-        "radialSegments": 14,
+        "bodyDepth": 1.273,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.16
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -13714,9 +13637,9 @@
       "generator": "stylized_fish",
       "seed": 608,
       "dimensions": {
-        "width": 0.85,
-        "depth": 2.35,
-        "height": 0.75
+        "width": 0.39,
+        "depth": 2.26,
+        "height": 0.35
       },
       "palette": [
         "stone_cool_01",
@@ -13724,9 +13647,9 @@
         "rock_coastal_dark_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 1050,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3500,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -13766,16 +13689,12 @@
       "parameters": {
         "species": "sturgeon",
         "length": 1.8,
-        "girth": 0.3,
+        "girth": 0.135,
         "finScale": 0.82,
-        "bodyDepth": 0.72,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 0.933,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.14
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -13785,19 +13704,19 @@
       "generator": "stylized_fish",
       "seed": 609,
       "dimensions": {
-        "width": 1,
-        "depth": 2.2,
-        "height": 1.45
+        "width": 0.48,
+        "depth": 2.68,
+        "height": 1.16
       },
       "palette": [
         "fish_tuna_back_01",
         "fish_belly_01",
-        "accent_ochre_01"
+        "accent_teal_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 1000,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 4420,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -13837,16 +13756,12 @@
       "parameters": {
         "species": "sailfish",
         "length": 1.7,
-        "girth": 0.27,
+        "girth": 0.102,
         "finScale": 1.25,
-        "bodyDepth": 1.12,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 1.5,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.14
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -13856,9 +13771,9 @@
       "generator": "stylized_fish",
       "seed": 610,
       "dimensions": {
-        "width": 1.05,
-        "depth": 3.5,
-        "height": 1.1
+        "width": 0.63,
+        "depth": 3.58,
+        "height": 1
       },
       "palette": [
         "stone_cool_01",
@@ -13866,9 +13781,9 @@
         "fish_tuna_back_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 1000,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3110,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -13908,16 +13823,12 @@
       "parameters": {
         "species": "swordfish",
         "length": 2.1,
-        "girth": 0.32,
+        "girth": 0.168,
         "finScale": 1.05,
-        "bodyDepth": 1.08,
+        "bodyDepth": 1.375,
         "bodySegments": 20,
-        "radialSegments": 14,
+        "radialSegments": 16,
         "tailPeduncle": 0.12
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -13927,9 +13838,9 @@
       "generator": "stylized_fish",
       "seed": 611,
       "dimensions": {
-        "width": 1.25,
-        "depth": 3.7,
-        "height": 1.35
+        "width": 0.74,
+        "depth": 3.6,
+        "height": 1.25
       },
       "palette": [
         "fish_tuna_back_01",
@@ -13937,9 +13848,9 @@
         "accent_teal_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 1050,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3960,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -13979,16 +13890,12 @@
       "parameters": {
         "species": "blue_marlin",
         "length": 2.3,
-        "girth": 0.38,
+        "girth": 0.184,
         "finScale": 1.18,
-        "bodyDepth": 1.16,
+        "bodyDepth": 1.5,
         "bodySegments": 20,
-        "radialSegments": 14,
+        "radialSegments": 16,
         "tailPeduncle": 0.11
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -14039,24 +13946,20 @@
       "generator": "imported_blend",
       "seed": 801,
       "dimensions": {
-        "width": 1.9,
-        "depth": 0.8,
-        "height": 2.12
+        "width": 0.743478,
+        "depth": 0.422325,
+        "height": 1.9
       },
       "palette": [
         "skin_warm_01",
-        "cloth_teal_01",
         "cloth_slate_01",
-        "hair_brown_01",
-        "canvas_cream_01",
-        "leather_harness_01",
-        "wood_dark_01"
+        "leather_harness_01"
       ],
       "budget": {
-        "trianglesMin": 2500,
-        "trianglesTarget": 5000,
+        "trianglesMin": 7500,
+        "trianglesTarget": 8734,
         "trianglesMax": 20000,
-        "materialsMax": 7
+        "materialsMax": 3
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -14087,25 +13990,24 @@
       "animationClips": [
         {
           "name": "idle",
-          "durationSeconds": 1.666666667,
+          "durationSeconds": 4,
           "loop": true,
           "motionSource": {
-            "kind": "native",
+            "kind": "authored",
             "sourceTimebase": "seconds",
-            "sourceClip": "Idle_Neutral",
-            "sourceDurationSeconds": 1.666666667
+            "recipe": "idle"
           },
           "contacts": {
             "left": [
               {
                 "start": 0,
-                "end": 1.666667
+                "end": 4
               }
             ],
             "right": [
               {
                 "start": 0,
-                "end": 1.666667
+                "end": 4
               }
             ]
           },
@@ -14124,12 +14026,20 @@
             "left": [
               {
                 "start": 0,
-                "end": 0.066667
+                "end": 0.016667
+              },
+              {
+                "start": 0.216667,
+                "end": 0.233333
               }
             ],
             "right": [
               {
-                "start": 0.166667,
+                "start": 0,
+                "end": 0.15
+              },
+              {
+                "start": 0.216667,
                 "end": 0.233333
               }
             ]
@@ -14138,9 +14048,9 @@
         },
         {
           "name": "walk",
-          "durationSeconds": 1.333333333,
+          "durationSeconds": 0.733333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 1.464675,
+          "referenceSpeedMetersPerSecond": 2,
           "events": [
             {
               "name": "footstep_left",
@@ -14148,26 +14058,29 @@
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.633333
+              "timeSeconds": 0.366667
             }
           ],
           "motionSource": {
-            "kind": "native",
+            "kind": "authored",
             "sourceTimebase": "seconds",
-            "sourceClip": "Walk",
-            "sourceDurationSeconds": 1.333333333
+            "recipe": "walk"
           },
           "contacts": {
             "left": [
               {
                 "start": 0,
-                "end": 0.6
+                "end": 0.396
               }
             ],
             "right": [
               {
-                "start": 0.633333,
-                "end": 1.3
+                "start": 0,
+                "end": 0.029333
+              },
+              {
+                "start": 0.366667,
+                "end": 0.733333
               }
             ]
           }
@@ -14184,14 +14097,18 @@
           "contacts": {
             "left": [
               {
-                "start": 0.166667,
+                "start": 0,
+                "end": 0.016667
+              },
+              {
+                "start": 0.216667,
                 "end": 0.233333
               }
             ],
             "right": [
               {
                 "start": 0,
-                "end": 0.233333
+                "end": 0.133333
               }
             ]
           },
@@ -14199,43 +14116,35 @@
         },
         {
           "name": "run",
-          "durationSeconds": 0.8,
+          "durationSeconds": 0.533333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 3.261,
+          "referenceSpeedMetersPerSecond": 5.2,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.3
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.7
+              "timeSeconds": 0.266667
             }
           ],
           "motionSource": {
-            "kind": "native",
+            "kind": "authored",
             "sourceTimebase": "seconds",
-            "sourceClip": "Run",
-            "sourceDurationSeconds": 0.8,
-            "loopClosureStartSeconds": 0.7000000000000001,
-            "loopClosureEndSeconds": 0.8,
-            "loopClosureWindowSeconds": 0.1
+            "recipe": "run"
           },
           "contacts": {
             "left": [
               {
-                "start": 0.3,
-                "end": 0.633333
+                "start": 0,
+                "end": 0.133333
               }
             ],
             "right": [
               {
-                "start": 0,
-                "end": 0.2
-              },
-              {
-                "start": 0.7,
-                "end": 0.8
+                "start": 0.266667,
+                "end": 0.4
               }
             ]
           }
@@ -14252,14 +14161,18 @@
           "contacts": {
             "left": [
               {
-                "start": 0.266667,
+                "start": 0,
                 "end": 0.333333
               }
             ],
             "right": [
               {
                 "start": 0,
-                "end": 0.066667
+                "end": 0.05
+              },
+              {
+                "start": 0.216667,
+                "end": 0.333333
               }
             ]
           },
@@ -14278,20 +14191,20 @@
             "left": [
               {
                 "start": 0,
-                "end": 0.233333
+                "end": 0.033333
               },
               {
-                "start": 0.366667,
+                "start": 0.233333,
                 "end": 0.4
               }
             ],
             "right": [
               {
                 "start": 0,
-                "end": 0.033333
+                "end": 0.166667
               },
               {
-                "start": 0.166667,
+                "start": 0.366667,
                 "end": 0.4
               }
             ]
@@ -14311,20 +14224,20 @@
             "left": [
               {
                 "start": 0,
-                "end": 0.033333
+                "end": 0.166667
               },
               {
-                "start": 0.166667,
+                "start": 0.366667,
                 "end": 0.4
               }
             ],
             "right": [
               {
                 "start": 0,
-                "end": 0.233333
+                "end": 0.033333
               },
               {
-                "start": 0.366667,
+                "start": 0.233333,
                 "end": 0.4
               }
             ]
@@ -14350,13 +14263,13 @@
             "left": [
               {
                 "start": 0,
-                "end": 0.233333
+                "end": 0.066667
               }
             ],
             "right": [
               {
                 "start": 0,
-                "end": 0.233333
+                "end": 0.066667
               }
             ]
           }
@@ -14394,13 +14307,13 @@
           "contacts": {
             "left": [
               {
-                "start": 0.033333,
+                "start": 0,
                 "end": 0.333333
               }
             ],
             "right": [
               {
-                "start": 0.033333,
+                "start": 0,
                 "end": 0.333333
               }
             ]
@@ -14424,13 +14337,13 @@
           "contacts": {
             "left": [
               {
-                "start": 0.066667,
+                "start": 0,
                 "end": 0.466667
               }
             ],
             "right": [
               {
-                "start": 0.066667,
+                "start": 0,
                 "end": 0.466667
               }
             ]
@@ -14462,6 +14375,10 @@
             "right": [
               {
                 "start": 0,
+                "end": 0.033333
+              },
+              {
+                "start": 0.633333,
                 "end": 0.733333
               }
             ]
@@ -14562,7 +14479,7 @@
         },
         {
           "name": "carry_idle",
-          "durationSeconds": 1.6,
+          "durationSeconds": 3.2,
           "loop": true,
           "motionSource": {
             "kind": "authored",
@@ -14573,13 +14490,13 @@
             "left": [
               {
                 "start": 0,
-                "end": 1.6
+                "end": 3.2
               }
             ],
             "right": [
               {
                 "start": 0,
-                "end": 1.6
+                "end": 3.2
               }
             ]
           },
@@ -14587,9 +14504,9 @@
         },
         {
           "name": "carry_walk",
-          "durationSeconds": 1.333333333,
+          "durationSeconds": 0.733333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 1.464675,
+          "referenceSpeedMetersPerSecond": 2,
           "events": [
             {
               "name": "footstep_left",
@@ -14597,7 +14514,7 @@
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.633333
+              "timeSeconds": 0.366667
             }
           ],
           "motionSource": {
@@ -14609,30 +14526,34 @@
             "left": [
               {
                 "start": 0,
-                "end": 0.6
+                "end": 0.396
               }
             ],
             "right": [
               {
-                "start": 0.633333,
-                "end": 1.3
+                "start": 0,
+                "end": 0.029333
+              },
+              {
+                "start": 0.366667,
+                "end": 0.733333
               }
             ]
           }
         },
         {
           "name": "carry_run",
-          "durationSeconds": 0.8,
+          "durationSeconds": 0.533333333,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 3.261,
+          "referenceSpeedMetersPerSecond": 5.2,
           "events": [
             {
               "name": "footstep_left",
-              "timeSeconds": 0.3
+              "timeSeconds": 0
             },
             {
               "name": "footstep_right",
-              "timeSeconds": 0.7
+              "timeSeconds": 0.266667
             }
           ],
           "motionSource": {
@@ -14643,18 +14564,14 @@
           "contacts": {
             "left": [
               {
-                "start": 0.3,
-                "end": 0.633333
+                "start": 0,
+                "end": 0.133333
               }
             ],
             "right": [
               {
-                "start": 0,
-                "end": 0.2
-              },
-              {
-                "start": 0.7,
-                "end": 0.8
+                "start": 0.266667,
+                "end": 0.4
               }
             ]
           }
@@ -14678,14 +14595,14 @@
           "contacts": {
             "left": [
               {
-                "start": 0.566667,
-                "end": 0.7
+                "start": 0,
+                "end": 0.733333
               }
             ],
             "right": [
               {
-                "start": 0.566667,
-                "end": 0.7
+                "start": 0,
+                "end": 0.733333
               }
             ]
           }
@@ -15197,7 +15114,7 @@
           "name": "mounted_gallop",
           "durationSeconds": 0.266667,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 8.4,
+          "referenceSpeedMetersPerSecond": 7.5,
           "motionSource": {
             "kind": "authored",
             "sourceTimebase": "seconds",
@@ -15292,7 +15209,7 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/poly-pizza/char_player_a.blend",
+        "sourceBlend": "art/imported/tripo/char_player_a.blend",
         "sourceCollection": "char_player_a"
       },
       "lodLevels": [
@@ -15309,183 +15226,41 @@
           "triangleRatioMax": 0.52
         }
       ],
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Adult coastal farmer using original Quaternius farmer anatomy and source skinning",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
-            "id": "quaternius_source",
-            "kind": "structural_study",
-            "uri": "https://poly.pizza/m/7pn3R6hPvE",
-            "use": [
-              "silhouette",
-              "proportion",
-              "structure"
-            ],
-            "notes": "Original adult geometry, 62 bone rest rig, weights, UVs, authored smoothing and source timestamps are preserved under one uniform stature scale."
-          }
-        ],
-        "components": [
-          {
-            "id": "body",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Source adult anatomy and coherent articulation",
-            "shape": "Original modular torso and limbs retain source proportions",
-            "count": "1 body",
-            "cues": [
-              "No segment fitting",
-              "Source skin weights retained"
-            ]
-          },
-          {
-            "id": "workwear",
-            "parent": "body",
-            "importance": "primary",
-            "role": "Recognizable coastal occupation",
-            "shape": "Cream work shirt, slate overalls, leather boots, and a cream brimmed hat with a restrained teal band",
-            "count": "1 outfit",
-            "cues": [
-              "Dark overalls separate seated legs from the honey timber boat",
-              "Cream sleeves keep arm gestures readable",
-              "The teal hatband echoes the coastal palette"
-            ]
-          },
-          {
-            "id": "face",
-            "parent": "body",
-            "importance": "primary",
-            "role": "Cohesive adult roster identity",
-            "shape": "Original source head proportions and retained hair silhouette",
-            "count": "1 head",
-            "cues": [
-              "Face remains legible",
-              "No chibi enlargement"
-            ]
-          }
-        ],
-        "silhouette": [
-          "Original adult head-to-body ratio remains intact.",
-          "Source arm and leg lengths change only by uniform scale.",
-          "Work clothing and accessories identify the coastal role."
-        ],
-        "negativeSpace": [
-          "Arms remain separated from torso.",
-          "Legs retain a natural stance."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Original back and side surfaces are retained.",
-            "Modular seams remain coherent throughout every authored pose."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "source_shape",
-            "componentIds": [
-              "body",
-              "face"
-            ],
-            "requirement": "Retain original geometry, bone rest transforms and skin influences under uniform scale.",
-            "priority": "must"
-          },
-          {
-            "id": "source_motion",
-            "componentIds": [
-              "body"
-            ],
-            "requirement": "Retain peaceful native animation timestamps and author missing actions on the source rig.",
-            "priority": "must"
-          },
-          {
-            "id": "materials",
-            "componentIds": [
-              "workwear",
-              "face"
-            ],
-            "requirement": "Retain source corner normals and UVs with semantic matte palette materials.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "sourceBlend",
-            "componentIds": [
-              "body",
-              "workwear",
-              "face"
-            ],
-            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
-          },
-          {
-            "parameter": "sourceCollection",
-            "componentIds": [
-              "body",
-              "workwear",
-              "face"
-            ],
-            "purpose": "Loads the catalog-owned collection into shared validation and export."
-          }
-        ],
-        "failureModes": [
-          "Nonuniform anatomy fitting changes original source proportions.",
-          "Source timing is inferred from an unrelated Blender scene frame rate.",
-          "Missing task actions reuse unrelated donor local curves."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance"
-        ]
-      },
       "sourceProvenance": {
-        "provider": "poly-pizza",
-        "modelId": "7pn3R6hPvE",
-        "sourceUrl": "https://poly.pizza/m/7pn3R6hPvE",
-        "author": "Quaternius",
-        "license": "CC0-1.0",
-        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceBlend": "art/imported/poly-pizza/char_player_a.blend",
-        "sourceSha256": "e03b55bd0c677bf8d013e0a2885e70ea0acb9743cbe15566f735ff4b5349f729",
-        "attribution": "farmer by Quaternius, https://poly.pizza/m/7pn3R6hPvE. CC0-1.0. Original source shape, rig and native timing retained."
+        "provider": "tripo",
+        "modelId": "10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "MoonGaze Developer (generated with Tripo AI)",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/char_player_a.blend",
+        "sourceSha256": "6cc433b0bfa0253415eacfe744b49ceb466f924f6860a71f908f6a1843c98348",
+        "attribution": "Adventurer player character generated by the Neva project owner with Tripo AI (generation 10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Textured surface retained and re-skinned onto the Neva player rig and authored performances by tools/blender/adapt_tripo_humanoid.py."
       },
-      "humanoidAuthoring": {
-        "sourceFile": "art/imported/poly-pizza/sources/farmer.gltf",
-        "sourceSha256": "46d3e85fa8d848ee479ab8e4672c16724ee4ea51f3af5733705a153937f93555",
-        "heightMeters": 2.02,
-        "role": "farmer",
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/main-character.glb",
+        "sourceSha256": "6d370e47ba1511743a7c972820ac334a2f19261e3e81d3e75e954559faa35bb7",
+        "adapter": "tools/blender/adapt_tripo_humanoid.py",
         "materialMap": {
-          "Farmer_Body/Skin": "skin_warm_01",
-          "Farmer_Body/LightBlue": "cloth_slate_01",
-          "Farmer_Body/Brown": "canvas_cream_01",
-          "Farmer_Body/Beige": "canvas_cream_01",
-          "Farmer_Feet/Brown": "leather_harness_01",
-          "Farmer_Feet/Brown2": "leather_harness_01",
-          "Farmer_Head/Skin": "skin_warm_01",
-          "Farmer_Head/Eyebrows": "wood_dark_01",
-          "Farmer_Head/Beige": "canvas_cream_01",
-          "Farmer_Head/Red": "cloth_teal_01",
-          "Farmer_Head/Eye": "wood_dark_01",
-          "Farmer_Pants/LightBlue": "cloth_slate_01"
-        },
-        "accessoryPalette": []
+          "char_player_a_body": {
+            "sourceMaterial": "Material_tripo_node_10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae",
+            "token": "skin_warm_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          },
+          "char_player_a_vest": {
+            "sourceMaterial": "Material_tripo_node_10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          },
+          "char_player_a_boots": {
+            "sourceMaterial": "Material_tripo_node_10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae",
+            "token": "leather_harness_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        }
       },
       "humanoidRig": {
         "bones": {
@@ -15516,19 +15291,19 @@
         "legs": {
           "left": {
             "shinTip": [
-              6.383127147957525e-07,
-              0.5111210329583777,
-              -6.258710193857154e-07
+              6.083204035778332e-07,
+              0.4715808408109999,
+              -5.770259492651751e-07
             ],
             "soleOffset": [
-              -1.2929099347941397e-06,
-              -0.0001236628320798877,
-              0.023125198465485924
+              -1.2226243172458462e-06,
+              -0.00011425101348860184,
+              0.021365159456085164
             ],
             "soleNormal": [
-              5.590833951138684e-05,
-              0.005347459567500491,
-              -0.9999857006729805
+              5.7224328694580946e-05,
+              0.005347462067896048,
+              -0.9999857005851679
             ],
             "bendDirection": [
               0.13864784453440623,
@@ -15538,19 +15313,19 @@
           },
           "right": {
             "shinTip": [
-              -6.5211120695019e-07,
-              0.5111211747214249,
-              7.02440019741124e-07
+              -5.912972754901214e-07,
+              0.4715808558537874,
+              6.288526131700834e-07
             ],
             "soleOffset": [
-              1.2929007115192181e-06,
-              -0.00012366187103979992,
-              0.023125018690854714
+              8.404904832670641e-07,
+              -8.232815192382027e-05,
+              0.015395522650759993
             ],
             "soleNormal": [
-              -5.590837530380808e-05,
-              0.005347459580957948,
-              -0.9999857006729066
+              -5.4592398974357175e-05,
+              0.005347462152409777,
+              -0.9999857007318649
             ],
             "bendDirection": [
               -0.13864784453440623,
@@ -15562,16 +15337,16 @@
         "arms": {
           "left": {
             "bendDirection": [
-              0.5734623443633283,
-              0,
-              -0.8192319205190405
+              0.20924044115561732,
+              0.028057281027186912,
+              -0.9774616241911311
             ]
           },
           "right": {
             "bendDirection": [
-              -0.5734623443633283,
-              0,
-              -0.8192319205190405
+              -0.5043568985185403,
+              0.016503485116358234,
+              -0.8633375665959246
             ]
           }
         },
@@ -17929,26 +17704,21 @@
       "id": "fauna_donkey_a",
       "file": "fauna_donkey_a.glb",
       "family": "prop",
-      "generator": "fauna_donkey",
+      "generator": "imported_blend",
       "seed": 839,
       "dimensions": {
-        "width": 1.45,
+        "width": 0.743039,
         "depth": 2.6,
-        "height": 2.35
+        "height": 2.394236
       },
       "palette": [
-        "stone_cool_01",
-        "canvas_cream_01",
-        "animal_hide_black_01",
-        "leather_harness_01",
-        "accent_teal_01",
-        "metal_brass_01"
+        "animal_hide_white_01"
       ],
       "budget": {
-        "trianglesMin": 600,
-        "trianglesTarget": 2000,
-        "trianglesMax": 5000,
-        "materialsMax": 6
+        "trianglesMin": 9000,
+        "trianglesTarget": 10800,
+        "trianglesMax": 11600,
+        "materialsMax": 2
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -18002,7 +17772,7 @@
           "events": [
             {
               "name": "hoofstep_rear_left",
-              "timeSeconds": 0.0
+              "timeSeconds": 0
             },
             {
               "name": "hoofstep_front_left",
@@ -18026,7 +17796,7 @@
           "events": [
             {
               "name": "hoofstep_front_left_rear_right",
-              "timeSeconds": 0.0
+              "timeSeconds": 0
             },
             {
               "name": "hoofstep_front_right_rear_left",
@@ -18038,7 +17808,7 @@
           "name": "gallop",
           "durationSeconds": 0.266667,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 8.4
+          "referenceSpeedMetersPerSecond": 7.5
         },
         {
           "name": "mount",
@@ -18053,9 +17823,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "scale": 1,
-        "earLength": 1,
-        "legLength": 1
+        "sourceBlend": "art/imported/tripo/fauna_donkey_a.blend",
+        "sourceCollection": "fauna_donkey_a"
       },
       "lodLevels": [
         {
@@ -18071,164 +17840,29 @@
           "triangleRatioMax": 0.72
         }
       ],
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Warm faceted coastal-farm donkey with long ears, a readable saddle, and a friendly sturdy silhouette",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "proportion",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns the planar faceted geometry, warm tactile palette, and gameplay-camera readability target."
-          }
-        ],
-        "components": [
-          {
-            "id": "body",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Carries the donkey's sturdy travel silhouette",
-            "shape": "Long barrel with distinct chest and rounded haunch",
-            "count": "1 connected body",
-            "cues": [
-              "Sturdy rather than horse-slim",
-              "Broad planar masses remain readable at distance"
-            ]
-          },
-          {
-            "id": "head",
-            "parent": "body",
-            "importance": "primary",
-            "role": "Identifies the donkey from the front and three-quarter views",
-            "shape": "Long muzzle, soft brow, bright eyes, and tall ears",
-            "count": "1 head with 2 ears",
-            "cues": [
-              "Ears are long and expressive",
-              "Muzzle stays lighter than the hide"
-            ]
-          },
-          {
-            "id": "legs",
-            "parent": "body",
-            "importance": "primary",
-            "role": "Grounds the mount with four articulated leg chains",
-            "shape": "Tapered upper and lower segments ending in blocky hooves",
-            "count": "4 legs with 8 articulated pivots",
-            "cues": [
-              "Hoof contacts remain distinct",
-              "Leg gaps preserve daylight under the belly"
-            ]
-          },
-          {
-            "id": "saddle",
-            "parent": "body",
-            "importance": "secondary",
-            "role": "Makes the mount socket and riding use legible",
-            "shape": "Cream blanket, teal trim, leather saddle, and simple reins",
-            "count": "1 saddle assembly",
-            "cues": [
-              "Socket sits above the saddle center",
-              "Materials stay matte and tactile"
-            ]
-          }
-        ],
-        "silhouette": [
-          "A long low barrel, high rump, and four planted legs read as a donkey rather than a small horse.",
-          "Tall ears, a blunt pale muzzle, and a short mane carry the character at gameplay distance.",
-          "The saddle blanket and restrained teal accent distinguish the rideable mount without fantasy ornament."
-        ],
-        "negativeSpace": [
-          "Daylight remains visible between all four legs and beneath the belly.",
-          "The neck gap and ear separation keep the head silhouette open from the front.",
-          "The saddle does not merge into the rider socket or back contour."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "All four leg chains, hooves, reins, and the tail continue around the far side.",
-            "The saddle blanket and body masses remain closed enough for a rear three-quarter camera."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "donkey_head",
-            "componentIds": [
-              "head"
-            ],
-            "requirement": "Long ears and a pale muzzle must remain readable in the gameplay camera.",
-            "priority": "must"
-          },
-          {
-            "id": "articulated_grounding",
-            "componentIds": [
-              "legs"
-            ],
-            "requirement": "Each leg has an upper pivot, lower pivot, and separate hoof contact.",
-            "priority": "must"
-          },
-          {
-            "id": "rider_read",
-            "componentIds": [
-              "saddle"
-            ],
-            "requirement": "The saddle, reins, and rider socket read as a coherent riding seat.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "scale",
-            "componentIds": [
-              "body",
-              "head",
-              "legs",
-              "saddle"
-            ],
-            "purpose": "Scales the full mount while preserving the authored proportions."
-          },
-          {
-            "parameter": "earLength",
-            "componentIds": [
-              "head"
-            ],
-            "purpose": "Adjusts the expressive ear silhouette without changing the body mass."
-          },
-          {
-            "parameter": "legLength",
-            "componentIds": [
-              "legs"
-            ],
-            "purpose": "Adjusts leg reach while keeping hoof contacts grounded."
-          }
-        ],
-        "failureModes": [
-          "The donkey becomes a smooth horse, toy, or chibi mascot instead of a sturdy faceted farm animal.",
-          "Ears, muzzle, saddle socket, or hoof contacts disappear in the gameplay camera.",
-          "Leg pivots create visible foot sliding or collapse the daylight gaps beneath the body.",
-          "The saddle adds noisy ornament or glossy plastic materials outside the cozy coastal palette."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "90479647-0322-4144-a84e-a9871e7ccb87",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "MoonGaze Developer (generated with Tripo AI)",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/fauna_donkey_a.blend",
+        "sourceSha256": "6fc7288addf4d026b33b6a885d16817bdae8dedaaa6d6e2a1002911bb2fda448",
+        "attribution": "Donkey generated by the Neva project owner with Tripo AI (generation 90479647-0322-4144-a84e-a9871e7ccb87); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Textured surface retained; Neva rig, weights and clips authored by tools/blender/adapt_tripo_quadruped.py."
       },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/donkey.glb",
+        "sourceSha256": "8f7bcecbab4496ea33ec91022ef4c491263c41205439ab87bf48e18f97d5ccbb",
+        "adapter": "tools/blender/adapt_tripo_quadruped.py",
+        "materialMap": {
+          "fauna_donkey_a_hide": {
+            "sourceMaterial": "Material_tripo_90479647_0322_4144_a84e_a9871e7ccb87",
+            "token": "animal_hide_white_01",
+            "value": 0.8,
+            "texturePolicy": "preserve"
+          }
+        }
       }
     },
     {
@@ -18238,9 +17872,9 @@
       "generator": "fauna_chicken",
       "seed": 827,
       "dimensions": {
-        "width": 0.4,
-        "depth": 0.5,
-        "height": 0.55
+        "width": 0.366,
+        "depth": 0.617,
+        "height": 0.578
       },
       "palette": [
         "canvas_cream_01",
@@ -18250,7 +17884,7 @@
       ],
       "budget": {
         "trianglesMin": 150,
-        "trianglesTarget": 650,
+        "trianglesTarget": 796,
         "trianglesMax": 1500,
         "materialsMax": 4
       },
@@ -18443,10 +18077,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -18456,20 +18086,22 @@
       "generator": "fauna_gull",
       "seed": 831,
       "dimensions": {
-        "width": 0.7,
-        "depth": 0.55,
-        "height": 0.22
+        "width": 0.71,
+        "depth": 0.542,
+        "height": 0.104
       },
       "palette": [
         "canvas_cream_01",
         "foam_warm_01",
+        "stone_cool_01",
+        "animal_hide_black_01",
         "accent_ochre_01"
       ],
       "budget": {
         "trianglesMin": 80,
-        "trianglesTarget": 320,
+        "trianglesTarget": 471,
         "trianglesMax": 900,
-        "materialsMax": 3
+        "materialsMax": 5
       },
       "pivot": "center",
       "collision": "none",
@@ -18501,7 +18133,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Faceted coastal gull with cream body and broad wing planes",
+        "subject": "Faceted coastal gull with a cream body, grey mantle, black-tipped wings and an ochre bill",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -18533,7 +18165,7 @@
             "parent": "root",
             "importance": "primary",
             "role": "Carries the gull fuselage",
-            "shape": "Elongated cream ico body",
+            "shape": "Cream body with a grey mantle over the back and a square white tail",
             "count": "1 body",
             "cues": [
               "Reads as a bird, not a cloud",
@@ -18545,10 +18177,10 @@
             "parent": "body",
             "importance": "primary",
             "role": "Creates the flying silhouette",
-            "shape": "Broad flat wing boxes",
+            "shape": "Long narrow wings that fold at the wrist: grey above, pale below, black tips",
             "count": "2 wings",
             "cues": [
-              "Wings are planes, not feathers",
+              "Black primaries at the tip",
               "Pivots allow flap"
             ]
           },
@@ -18568,7 +18200,7 @@
         "silhouette": [
           "The gull reads as a simple coastal bird with a wide wing span.",
           "The body is longer than it is tall.",
-          "Wings stay planar and chunky."
+          "Wings are long and narrow, and fold at the wrist on the upstroke."
         ],
         "negativeSpace": [
           "Keep air under the wings.",
@@ -18588,7 +18220,7 @@
             "componentIds": [
               "wings"
             ],
-            "requirement": "Wings are broad faceted planes with flap pivots.",
+            "requirement": "Long wings with black tips fold at the wrist, with flap pivots.",
             "priority": "must"
           },
           {
@@ -18597,7 +18229,7 @@
               "body",
               "head"
             ],
-            "requirement": "Cream body and ochre beak read as a gull at 15 m.",
+            "requirement": "A cream body, grey mantle and ochre beak read as a gull at 15 m.",
             "priority": "must"
           },
           {
@@ -18640,10 +18272,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -18653,9 +18281,9 @@
       "generator": "fauna_butterfly",
       "seed": 832,
       "dimensions": {
-        "width": 0.18,
-        "depth": 0.12,
-        "height": 0.06
+        "width": 0.146,
+        "depth": 0.092,
+        "height": 0.017
       },
       "palette": [
         "wood_dark_01",
@@ -18664,7 +18292,7 @@
       ],
       "budget": {
         "trianglesMin": 40,
-        "trianglesTarget": 140,
+        "trianglesTarget": 308,
         "trianglesMax": 400,
         "materialsMax": 3
       },
@@ -18693,7 +18321,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Tiny faceted meadow butterfly with ochre and red wing planes",
+        "subject": "Tiny faceted meadow butterfly with ochre forewings, red hindwings and dark margins",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -18725,7 +18353,7 @@
             "parent": "root",
             "importance": "primary",
             "role": "Carries the insect body",
-            "shape": "Dark short cylinder",
+            "shape": "Slim dark body: abdomen, thorax and a small head",
             "count": "1 body",
             "cues": [
               "Tiny at gameplay distance",
@@ -18737,7 +18365,7 @@
             "parent": "body",
             "importance": "primary",
             "role": "Creates the butterfly read",
-            "shape": "Paired triangular wing planes",
+            "shape": "Rounded ochre forewings over lobed red hindwings, each with a dark outer margin",
             "count": "2 wings",
             "cues": [
               "Ochre and red stay distinct",
@@ -18758,9 +18386,9 @@
           }
         ],
         "silhouette": [
-          "The insect reads as two wing planes on a dark body.",
+          "The insect reads as paired fore and hind wings on a slim dark body.",
           "It stays tiny against meadow grass.",
-          "Wings are triangular, not discs."
+          "Forewings are rounded triangles and hindwings rounded lobes, never discs."
         ],
         "negativeSpace": [
           "Keep a gap between the two wings.",
@@ -18832,10 +18460,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -18984,9 +18608,9 @@
       "generator": "cozy_bed",
       "seed": 311,
       "dimensions": {
-        "width": 1.6,
-        "depth": 2.2,
-        "height": 1.25
+        "width": 1.62,
+        "depth": 2.17,
+        "height": 1.32
       },
       "palette": [
         "wood_honey_01",
@@ -18996,7 +18620,7 @@
       ],
       "budget": {
         "trianglesMin": 400,
-        "trianglesTarget": 2500,
+        "trianglesTarget": 1850,
         "trianglesMax": 5000,
         "materialsMax": 4
       },
@@ -19027,11 +18651,7 @@
             1.1
           ]
         }
-      ],
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      ]
     },
     {
       "id": "prop_fireplace_hearth_a",
@@ -19309,9 +18929,9 @@
       "generator": "cozy_armchair",
       "seed": 371,
       "dimensions": {
-        "width": 1,
-        "depth": 0.95,
-        "height": 0.95
+        "width": 0.95,
+        "depth": 0.85,
+        "height": 0.99
       },
       "palette": [
         "burlap_grain_01",
@@ -19320,7 +18940,7 @@
       ],
       "budget": {
         "trianglesMin": 300,
-        "trianglesTarget": 1800,
+        "trianglesTarget": 1170,
         "trianglesMax": 4000,
         "materialsMax": 3
       },
@@ -19351,11 +18971,7 @@
             0.46
           ]
         }
-      ],
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      ]
     },
     {
       "id": "prop_tool_shed_a",
@@ -19620,12 +19236,12 @@
       "id": "building_farm_kitchen_a",
       "file": "building_farm_kitchen_a.glb",
       "family": "architecture",
-      "generator": "village_building",
+      "generator": "farm_kitchen",
       "seed": 452,
       "dimensions": {
-        "width": 4.4,
-        "depth": 4.9,
-        "height": 5.3
+        "width": 4.55,
+        "depth": 4.7,
+        "height": 5.7
       },
       "palette": [
         "stone_warm_01",
@@ -19637,7 +19253,7 @@
       ],
       "budget": {
         "trianglesMin": 1500,
-        "trianglesTarget": 9500,
+        "trianglesTarget": 10470,
         "trianglesMax": 19000,
         "materialsMax": 6
       },
@@ -19658,25 +19274,10 @@
         "roofPitchDeg": 30,
         "foundationHeight": 0.42,
         "roofOverhang": 0.34,
-        "roofCourses": 3,
-        "shingleRows": 4,
-        "shingleColumns": 5,
-        "masonryCourses": 2,
-        "masonryBlocks": 3,
         "porchDepth": 1.35,
-        "porchPlanks": 4,
-        "wingOffset": 0.15,
-        "wingWidth": 0.9,
-        "wingDepth": 0.9,
-        "chimneyOffsetX": 1.35,
         "chimneyHeight": 2.4,
-        "plinthScale": 1,
-        "porchWidthRatio": 0.65,
         "doorWidth": 0.86,
-        "doorHeight": 1.55,
-        "roofForm": "lean-to",
-        "openingLayout": "shed-tools",
-        "variant": "kitchen"
+        "doorHeight": 1.55
       },
       "collisionPrimitives": [
         {
@@ -19692,11 +19293,7 @@
             1.45
           ]
         }
-      ],
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      ]
     },
     {
       "id": "prop_beehive_a",
@@ -19705,9 +19302,9 @@
       "generator": "apiary_hive",
       "seed": 114,
       "dimensions": {
-        "width": 0.47,
-        "depth": 0.58,
-        "height": 0.9
+        "width": 0.49,
+        "depth": 0.68,
+        "height": 0.97
       },
       "palette": [
         "wood_honey_01",
@@ -19717,7 +19314,7 @@
       ],
       "budget": {
         "trianglesMin": 114,
-        "trianglesTarget": 380,
+        "trianglesTarget": 620,
         "trianglesMax": 1140,
         "materialsMax": 4
       },
@@ -19730,11 +19327,7 @@
         "prop_beehive_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_potting_bench_a",
@@ -19743,21 +19336,22 @@
       "generator": "potting_bench",
       "seed": 120,
       "dimensions": {
-        "width": 1.5,
-        "depth": 0.6,
-        "height": 0.9
+        "width": 1.4,
+        "depth": 0.53,
+        "height": 1.21
       },
       "palette": [
         "wood_warm_01",
         "wood_dark_01",
         "soil_damp_01",
-        "foliage_sage_01"
+        "foliage_sage_01",
+        "roof_terracotta_01"
       ],
       "budget": {
         "trianglesMin": 156,
-        "trianglesTarget": 520,
-        "trianglesMax": 1560,
-        "materialsMax": 4
+        "trianglesTarget": 1510,
+        "trianglesMax": 2000,
+        "materialsMax": 5
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -19768,11 +19362,7 @@
         "prop_potting_bench_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "crop_turnip_mature",
@@ -19900,9 +19490,9 @@
       "generator": "rustic_watering_can",
       "seed": 126,
       "dimensions": {
-        "width": 0.18,
+        "width": 0.14,
         "depth": 0.46,
-        "height": 0.35
+        "height": 0.34
       },
       "palette": [
         "metal_iron_01",
@@ -19911,7 +19501,7 @@
       ],
       "budget": {
         "trianglesMin": 90,
-        "trianglesTarget": 300,
+        "trianglesTarget": 510,
         "trianglesMax": 900,
         "materialsMax": 3
       },
@@ -19924,11 +19514,7 @@
         "prop_watering_can_rustic_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_garden_hoe_a",
@@ -19937,9 +19523,9 @@
       "generator": "garden_hoe",
       "seed": 117,
       "dimensions": {
-        "width": 0.4,
+        "width": 0.16,
         "depth": 0.26,
-        "height": 1.5
+        "height": 1.49
       },
       "palette": [
         "wood_warm_01",
@@ -19948,7 +19534,7 @@
       ],
       "budget": {
         "trianglesMin": 60,
-        "trianglesTarget": 200,
+        "trianglesTarget": 220,
         "trianglesMax": 600,
         "materialsMax": 3
       },
@@ -19961,11 +19547,7 @@
         "prop_garden_hoe_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_wheelbarrow_a",
@@ -20012,9 +19594,9 @@
       "generator": "water_trough",
       "seed": 119,
       "dimensions": {
-        "width": 1.6,
-        "depth": 0.6,
-        "height": 0.5
+        "width": 1.54,
+        "depth": 0.67,
+        "height": 0.55
       },
       "palette": [
         "wood_weathered_01",
@@ -20024,7 +19606,7 @@
       ],
       "budget": {
         "trianglesMin": 126,
-        "trianglesTarget": 420,
+        "trianglesTarget": 440,
         "trianglesMax": 1260,
         "materialsMax": 4
       },
@@ -20037,11 +19619,7 @@
         "prop_water_trough_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_firewood_stack_a",
@@ -20103,9 +19681,9 @@
       "generator": "milk_churn",
       "seed": 117,
       "dimensions": {
-        "width": 0.42,
-        "depth": 0.42,
-        "height": 0.8
+        "width": 0.44,
+        "depth": 0.38,
+        "height": 0.79
       },
       "palette": [
         "metal_iron_01",
@@ -20114,7 +19692,7 @@
       ],
       "budget": {
         "trianglesMin": 96,
-        "trianglesTarget": 320,
+        "trianglesTarget": 640,
         "trianglesMax": 1200,
         "materialsMax": 3
       },
@@ -20127,11 +19705,7 @@
         "prop_milk_churn_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_farm_gate_a",
@@ -20140,9 +19714,9 @@
       "generator": "wood_fence",
       "seed": 463,
       "dimensions": {
-        "width": 2,
-        "depth": 0.32,
-        "height": 1.25
+        "width": 2.07,
+        "depth": 0.55,
+        "height": 1.4
       },
       "palette": [
         "wood_weathered_01",
@@ -20150,7 +19724,7 @@
       ],
       "budget": {
         "trianglesMin": 100,
-        "trianglesTarget": 900,
+        "trianglesTarget": 400,
         "trianglesMax": 2500,
         "materialsMax": 2
       },
@@ -20166,13 +19740,12 @@
       "parameters": {
         "length": 1.8,
         "posts": 2,
-        "rails": 2,
-        "railSegments": 4,
+        "rails": 4,
         "hasGate": true
       },
       "referenceAuthoring": {
         "status": "ready",
-        "subject": "Farm gate with square posts, rails, and a braced timber leaf",
+        "subject": "Five-bar farm gate with square capped posts, a braced leaf and strap hinges",
         "sources": [
           {
             "id": "neva_art_bible",
@@ -20215,8 +19788,8 @@
             "parent": "posts",
             "importance": "primary",
             "role": "Reads as a working gate, not another fence bay",
-            "shape": "Timber leaf with a diagonal brace",
-            "count": "1 leaf",
+            "shape": "Stiles and bars with a diagonal brace board from the hinge foot to the latch head",
+            "count": "1 leaf, ajar",
             "cues": [
               "Leaf is slightly ajar",
               "Brace is a separate board"
@@ -20227,10 +19800,11 @@
             "parent": "leaf",
             "importance": "secondary",
             "role": "Shows the gate is hung, not a floating panel",
-            "shape": "Fasteners on the hinge post",
+            "shape": "Dark strap hinges on the top and bottom bars, pintle blocks on the post",
             "count": "2 hinges",
             "cues": [
-              "Pegs sit on the post face"
+              "Pintle blocks sit on the post face",
+              "A latch bar and keeper mark the free end"
             ]
           }
         ],
@@ -20306,14 +19880,7 @@
             "componentIds": [
               "leaf"
             ],
-            "purpose": "Keeps rail count for any remaining bay."
-          },
-          {
-            "parameter": "railSegments",
-            "componentIds": [
-              "leaf"
-            ],
-            "purpose": "Sets remaining rail board count."
+            "purpose": "Sets the number of bars across the gate leaf."
           }
         ],
         "failureModes": [
@@ -20330,10 +19897,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -20700,9 +20263,9 @@
       "generator": "dock_lantern_post",
       "seed": 119,
       "dimensions": {
-        "width": 0.51,
-        "depth": 0.94,
-        "height": 2.6
+        "width": 0.27,
+        "depth": 0.93,
+        "height": 2.44
       },
       "palette": [
         "wood_dark_01",
@@ -20712,7 +20275,7 @@
       ],
       "budget": {
         "trianglesMin": 156,
-        "trianglesTarget": 520,
+        "trianglesTarget": 980,
         "trianglesMax": 1560,
         "materialsMax": 4
       },
@@ -20725,11 +20288,7 @@
         "prop_dock_lantern_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_signboard_hanging_a",
@@ -20738,9 +20297,9 @@
       "generator": "hanging_signboard",
       "seed": 124,
       "dimensions": {
-        "width": 1.31,
-        "depth": 0.29,
-        "height": 1.93
+        "width": 1.29,
+        "depth": 0.24,
+        "height": 2
       },
       "palette": [
         "wood_warm_01",
@@ -20750,7 +20309,7 @@
       ],
       "budget": {
         "trianglesMin": 144,
-        "trianglesTarget": 480,
+        "trianglesTarget": 840,
         "trianglesMax": 1440,
         "materialsMax": 4
       },
@@ -20763,11 +20322,7 @@
         "prop_signboard_hanging_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_anchor_admiralty_a",
@@ -20943,7 +20498,7 @@
             0
           ],
           "halfExtents": [
-            1.0,
+            1,
             0.6,
             0.72
           ]
@@ -20957,9 +20512,9 @@
       "generator": "driftwood_log",
       "seed": 120,
       "dimensions": {
-        "width": 2.02,
-        "depth": 0.81,
-        "height": 0.81
+        "width": 1.89,
+        "depth": 0.85,
+        "height": 0.57
       },
       "palette": [
         "wood_weathered_01",
@@ -20968,7 +20523,7 @@
       ],
       "budget": {
         "trianglesMin": 114,
-        "trianglesTarget": 380,
+        "trianglesTarget": 500,
         "trianglesMax": 1140,
         "materialsMax": 3
       },
@@ -20981,11 +20536,7 @@
         "prop_driftwood_log_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "foliage_beach_grass_a",
@@ -21031,8 +20582,8 @@
       "generator": "cargo_sack",
       "seed": 117,
       "dimensions": {
-        "width": 0.38,
-        "depth": 0.39,
+        "width": 0.37,
+        "depth": 0.37,
         "height": 0.7
       },
       "palette": [
@@ -21042,7 +20593,7 @@
       ],
       "budget": {
         "trianglesMin": 72,
-        "trianglesTarget": 240,
+        "trianglesTarget": 260,
         "trianglesMax": 720,
         "materialsMax": 3
       },
@@ -21055,11 +20606,7 @@
         "prop_cargo_sack_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_cargo_crate_large_a",
@@ -21068,9 +20615,9 @@
       "generator": "cargo_crate_large",
       "seed": 124,
       "dimensions": {
-        "width": 0.8,
-        "depth": 0.8,
-        "height": 0.8
+        "width": 0.88,
+        "depth": 0.88,
+        "height": 0.82
       },
       "palette": [
         "wood_warm_01",
@@ -21080,8 +20627,8 @@
       ],
       "budget": {
         "trianglesMin": 156,
-        "trianglesTarget": 520,
-        "trianglesMax": 1560,
+        "trianglesTarget": 1800,
+        "trianglesMax": 2400,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -21093,11 +20640,7 @@
         "prop_cargo_crate_large_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "tree_oak_broadleaf_a",
@@ -21558,9 +21101,9 @@
       "generator": "fallen_log",
       "seed": 117,
       "dimensions": {
-        "width": 3.09,
-        "depth": 0.7,
-        "height": 0.9
+        "width": 2.98,
+        "depth": 0.93,
+        "height": 0.84
       },
       "palette": [
         "wood_dark_01",
@@ -21570,7 +21113,7 @@
       ],
       "budget": {
         "trianglesMin": 138,
-        "trianglesTarget": 460,
+        "trianglesTarget": 530,
         "trianglesMax": 1380,
         "materialsMax": 4
       },
@@ -21583,11 +21126,7 @@
         "prop_fallen_log_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "fauna_rabbit_a",
@@ -21596,20 +21135,21 @@
       "generator": "fauna_rabbit",
       "seed": 833,
       "dimensions": {
-        "width": 0.28,
+        "width": 0.175,
         "depth": 0.42,
-        "height": 0.38
+        "height": 0.39
       },
       "palette": [
         "canvas_cream_01",
         "wood_dark_01",
-        "plaster_cream_01"
+        "plaster_cream_01",
+        "animal_hide_white_01"
       ],
       "budget": {
         "trianglesMin": 80,
-        "trianglesTarget": 420,
+        "trianglesTarget": 716,
         "trianglesMax": 900,
-        "materialsMax": 3
+        "materialsMax": 4
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -21784,10 +21324,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -21838,9 +21374,9 @@
       "generator": "smoke_plume",
       "seed": 118,
       "dimensions": {
-        "width": 1.29,
-        "depth": 1.18,
-        "height": 2.83
+        "width": 1.34,
+        "depth": 1.06,
+        "height": 2.98
       },
       "palette": [
         "sky_pale_01",
@@ -21849,8 +21385,8 @@
       ],
       "budget": {
         "trianglesMin": 168,
-        "trianglesTarget": 560,
-        "trianglesMax": 2000,
+        "trianglesTarget": 1600,
+        "trianglesMax": 2100,
         "materialsMax": 3
       },
       "pivot": "ground_center",
@@ -21862,11 +21398,7 @@
         "prop_smoke_plume_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "building_market_stall_a",
@@ -21875,9 +21407,9 @@
       "generator": "produce_stall",
       "seed": 461,
       "dimensions": {
-        "width": 2.5,
-        "depth": 1.7,
-        "height": 2.5
+        "width": 2.7,
+        "depth": 1.99,
+        "height": 2.23
       },
       "palette": [
         "wood_honey_01",
@@ -21888,8 +21420,8 @@
       ],
       "budget": {
         "trianglesMin": 800,
-        "trianglesTarget": 2200,
-        "trianglesMax": 4000,
+        "trianglesTarget": 5130,
+        "trianglesMax": 6700,
         "materialsMax": 5
       },
       "pivot": "ground_center",
@@ -21905,7 +21437,9 @@
       "parameters": {
         "width": 2.2,
         "depth": 1.4,
-        "roofHeight": 2.15
+        "roofHeight": 2.15,
+        "ladder": false,
+        "sign": false
       },
       "collisionPrimitives": [
         {
@@ -22056,6 +21590,24 @@
               "canopy"
             ],
             "purpose": "Sets post height and canopy hang."
+          },
+          {
+            "parameter": "ladder",
+            "componentIds": [
+              "frame",
+              "counter",
+              "canopy"
+            ],
+            "purpose": "Leans a ladder against the stall side (dock stall)."
+          },
+          {
+            "parameter": "sign",
+            "componentIds": [
+              "frame",
+              "counter",
+              "canopy"
+            ],
+            "purpose": "Hangs a painted sign from the front eave (dock stall)."
           }
         ],
         "failureModes": [
@@ -22072,10 +21624,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -22144,9 +21692,9 @@
       "generator": "clay_oven",
       "seed": 467,
       "dimensions": {
-        "width": 1.45,
-        "depth": 1.4,
-        "height": 1.45
+        "width": 1.55,
+        "depth": 1.48,
+        "height": 1.38
       },
       "palette": [
         "stone_warm_01",
@@ -22155,8 +21703,8 @@
       ],
       "budget": {
         "trianglesMin": 200,
-        "trianglesTarget": 900,
-        "trianglesMax": 2500,
+        "trianglesTarget": 2060,
+        "trianglesMax": 2700,
         "materialsMax": 3
       },
       "pivot": "ground_center",
@@ -22338,10 +21886,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -22351,9 +21895,9 @@
       "generator": "fire_pit",
       "seed": 115,
       "dimensions": {
-        "width": 1.21,
-        "depth": 1.16,
-        "height": 0.67
+        "width": 1.16,
+        "depth": 1.14,
+        "height": 0.53
       },
       "palette": [
         "stone_cool_01",
@@ -22363,7 +21907,7 @@
       ],
       "budget": {
         "trianglesMin": 156,
-        "trianglesTarget": 520,
+        "trianglesTarget": 1060,
         "trianglesMax": 1560,
         "materialsMax": 4
       },
@@ -22376,11 +21920,7 @@
         "prop_fire_pit_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_trail_kiosk_a",
@@ -22389,9 +21929,9 @@
       "generator": "trail_kiosk",
       "seed": 118,
       "dimensions": {
-        "width": 1.44,
-        "depth": 0.8,
-        "height": 2
+        "width": 1.54,
+        "depth": 0.88,
+        "height": 2.04
       },
       "palette": [
         "wood_warm_01",
@@ -22401,7 +21941,7 @@
       ],
       "budget": {
         "trianglesMin": 192,
-        "trianglesTarget": 640,
+        "trianglesTarget": 1200,
         "trianglesMax": 1920,
         "materialsMax": 4
       },
@@ -22414,11 +21954,7 @@
         "prop_trail_kiosk_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_signpost_trail_a",
@@ -22427,8 +21963,8 @@
       "generator": "trail_signpost",
       "seed": 121,
       "dimensions": {
-        "width": 1.15,
-        "depth": 1.16,
+        "width": 0.73,
+        "depth": 0.73,
         "height": 2
       },
       "palette": [
@@ -22439,8 +21975,8 @@
       ],
       "budget": {
         "trianglesMin": 144,
-        "trianglesTarget": 480,
-        "trianglesMax": 1440,
+        "trianglesTarget": 1150,
+        "trianglesMax": 1500,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -22452,11 +21988,7 @@
         "prop_signpost_trail_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_picnic_table_a",
@@ -22465,9 +21997,9 @@
       "generator": "picnic_table",
       "seed": 119,
       "dimensions": {
-        "width": 2,
+        "width": 1.9,
         "depth": 1.6,
-        "height": 0.75
+        "height": 0.76
       },
       "palette": [
         "wood_warm_01",
@@ -22476,7 +22008,7 @@
       ],
       "budget": {
         "trianglesMin": 186,
-        "trianglesTarget": 620,
+        "trianglesTarget": 630,
         "trianglesMax": 1860,
         "materialsMax": 3
       },
@@ -22489,11 +22021,7 @@
         "prop_picnic_table_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_bench_wood_a",
@@ -22502,9 +22030,9 @@
       "generator": "wood_bench",
       "seed": 117,
       "dimensions": {
-        "width": 1.8,
-        "depth": 0.53,
-        "height": 0.9
+        "width": 1.7,
+        "depth": 0.52,
+        "height": 0.92
       },
       "palette": [
         "wood_warm_01",
@@ -22513,7 +22041,7 @@
       ],
       "budget": {
         "trianglesMin": 156,
-        "trianglesTarget": 520,
+        "trianglesTarget": 780,
         "trianglesMax": 1560,
         "materialsMax": 3
       },
@@ -22526,11 +22054,7 @@
         "prop_bench_wood_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "building_outhouse_a",
@@ -22982,9 +22506,9 @@
       "generator": "coral_pillar",
       "seed": 119,
       "dimensions": {
-        "width": 0.87,
-        "depth": 0.82,
-        "height": 1.8
+        "width": 0.71,
+        "depth": 0.74,
+        "height": 1.85
       },
       "palette": [
         "accent_teal_01",
@@ -22994,7 +22518,7 @@
       ],
       "budget": {
         "trianglesMin": 156,
-        "trianglesTarget": 520,
+        "trianglesTarget": 860,
         "trianglesMax": 1560,
         "materialsMax": 4
       },
@@ -23007,11 +22531,7 @@
         "prop_coral_pillar_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_coral_staghorn_a",
@@ -23020,9 +22540,9 @@
       "generator": "coral_staghorn",
       "seed": 121,
       "dimensions": {
-        "width": 1.27,
-        "depth": 0.85,
-        "height": 1.41
+        "width": 0.65,
+        "depth": 0.47,
+        "height": 0.88
       },
       "palette": [
         "accent_ochre_01",
@@ -23031,7 +22551,7 @@
       ],
       "budget": {
         "trianglesMin": 144,
-        "trianglesTarget": 480,
+        "trianglesTarget": 760,
         "trianglesMax": 1440,
         "materialsMax": 3
       },
@@ -23044,11 +22564,7 @@
         "prop_coral_staghorn_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_coral_table_a",
@@ -23057,9 +22573,9 @@
       "generator": "coral_table",
       "seed": 118,
       "dimensions": {
-        "width": 1.59,
-        "depth": 1.6,
-        "height": 0.69
+        "width": 1.5,
+        "depth": 1.49,
+        "height": 0.66
       },
       "palette": [
         "accent_teal_01",
@@ -23069,7 +22585,7 @@
       ],
       "budget": {
         "trianglesMin": 138,
-        "trianglesTarget": 460,
+        "trianglesTarget": 780,
         "trianglesMax": 1380,
         "materialsMax": 4
       },
@@ -23082,11 +22598,7 @@
         "prop_coral_table_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "prop_bookcase_wood_a",
@@ -23507,9 +23019,9 @@
       "generator": "treasure_chest",
       "seed": 121,
       "dimensions": {
-        "width": 0.9,
-        "depth": 0.56,
-        "height": 0.6
+        "width": 0.94,
+        "depth": 1.02,
+        "height": 0.9
       },
       "palette": [
         "wood_dark_01",
@@ -23519,8 +23031,8 @@
       ],
       "budget": {
         "trianglesMin": 186,
-        "trianglesTarget": 620,
-        "trianglesMax": 1860,
+        "trianglesTarget": 2290,
+        "trianglesMax": 3000,
         "materialsMax": 4
       },
       "pivot": "ground_center",
@@ -23532,11 +23044,7 @@
         "prop_treasure_chest_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {}
     },
     {
       "id": "house_cottage_a",
@@ -23585,9 +23093,9 @@
         {
           "id": "main",
           "center": [
-            0.0,
+            0,
             2.777419,
-            0.0
+            0
           ],
           "halfExtents": [
             3.43871,
@@ -24497,7 +24005,7 @@
       "seed": 1653,
       "dimensions": {
         "width": 1.15,
-        "depth": 1.0,
+        "depth": 1,
         "height": 1.75
       },
       "palette": [
@@ -24571,7 +24079,7 @@
       "parameters": {
         "stage": "mature",
         "height": 3.4,
-        "spread": 1.0,
+        "spread": 1,
         "leafLength": 0.24,
         "leafWidth": 0.1,
         "branches": 8,
@@ -24618,7 +24126,7 @@
       "parameters": {
         "stage": "overripe",
         "height": 3.3,
-        "spread": 1.0,
+        "spread": 1,
         "leafLength": 0.24,
         "leafWidth": 0.1,
         "branches": 8,
@@ -24684,9 +24192,9 @@
       "generator": "stylized_fish",
       "seed": 1621,
       "dimensions": {
-        "width": 0.18,
-        "depth": 0.48,
-        "height": 0.22
+        "width": 0.07,
+        "depth": 0.52,
+        "height": 0.11
       },
       "palette": [
         "fish_tuna_back_01",
@@ -24694,9 +24202,9 @@
         "canvas_cream_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 900,
-        "trianglesMax": 2500,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3230,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -24736,16 +24244,12 @@
       "parameters": {
         "species": "sardine",
         "length": 0.45,
-        "girth": 0.075,
+        "girth": 0.0248,
         "finScale": 0.72,
-        "bodyDepth": 0.72,
-        "bodySegments": 16,
-        "radialSegments": 14,
+        "bodyDepth": 1.818,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.2
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -24755,9 +24259,9 @@
       "generator": "stylized_fish",
       "seed": 1622,
       "dimensions": {
-        "width": 0.32,
-        "depth": 0.72,
-        "height": 0.58
+        "width": 0.19,
+        "depth": 0.81,
+        "height": 0.32
       },
       "palette": [
         "accent_ochre_01",
@@ -24765,9 +24269,9 @@
         "foliage_olive_01"
       ],
       "budget": {
-        "trianglesMin": 500,
-        "trianglesTarget": 1000,
-        "trianglesMax": 2700,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3580,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -24807,16 +24311,12 @@
       "parameters": {
         "species": "sea_bream",
         "length": 0.68,
-        "girth": 0.15,
+        "girth": 0.0476,
         "finScale": 0.9,
-        "bodyDepth": 1.78,
-        "bodySegments": 16,
-        "radialSegments": 14,
+        "bodyDepth": 3,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.2
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -24826,9 +24326,9 @@
       "generator": "stylized_fish",
       "seed": 1623,
       "dimensions": {
-        "width": 0.42,
-        "depth": 1.5,
-        "height": 0.62
+        "width": 0.35,
+        "depth": 1.72,
+        "height": 0.48
       },
       "palette": [
         "fish_tuna_back_01",
@@ -24836,9 +24336,9 @@
         "accent_ochre_01"
       ],
       "budget": {
-        "trianglesMin": 700,
-        "trianglesTarget": 1300,
-        "trianglesMax": 3200,
+        "trianglesMin": 1000,
+        "trianglesTarget": 3800,
+        "trianglesMax": 5000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -24878,16 +24378,12 @@
       "parameters": {
         "species": "amberjack",
         "length": 1.4,
-        "girth": 0.2,
+        "girth": 0.098,
         "finScale": 1,
-        "bodyDepth": 0.95,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 1.714,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.16
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -28971,9 +28467,9 @@
       "generator": "fish_trade_pack",
       "seed": 8100,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 0.94,
+        "depth": 0.78,
+        "height": 0.96
       },
       "palette": [
         "wood_honey_01",
@@ -28989,7 +28485,7 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
+        "trianglesTarget": 7520,
         "trianglesMax": 10000,
         "materialsMax": 10
       },
@@ -29025,11 +28521,11 @@
         "basketHeight": 0.58,
         "species": "trout",
         "length": 0.77,
-        "girth": 0.13346666666666668,
+        "girth": 0.0501,
         "finScale": 0.85,
-        "bodyDepth": 0.92,
-        "bodySegments": 16,
-        "radialSegments": 14,
+        "bodyDepth": 1.846,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.18,
         "stripeToken": "cloth_teal_01",
         "backToken": "fish_trout_back_01",
@@ -29215,10 +28711,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -29228,9 +28720,9 @@
       "generator": "fish_trade_pack",
       "seed": 8101,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 0.93,
+        "depth": 0.78,
+        "height": 0.96
       },
       "palette": [
         "wood_honey_01",
@@ -29245,7 +28737,7 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
+        "trianglesTarget": 7580,
         "trianglesMax": 10000,
         "materialsMax": 10
       },
@@ -29281,11 +28773,11 @@
         "basketHeight": 0.58,
         "species": "catfish",
         "length": 0.77,
-        "girth": 0.16069565217391305,
+        "girth": 0.077,
         "finScale": 0.76,
-        "bodyDepth": 0.78,
-        "bodySegments": 16,
-        "radialSegments": 14,
+        "bodyDepth": 1,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.22,
         "stripeToken": "cloth_teal_01",
         "backToken": "wood_weathered_01",
@@ -29471,10 +28963,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -29484,9 +28972,9 @@
       "generator": "fish_trade_pack",
       "seed": 8102,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 0.93,
+        "depth": 0.78,
+        "height": 0.96
       },
       "palette": [
         "wood_honey_01",
@@ -29502,7 +28990,7 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
+        "trianglesTarget": 7540,
         "trianglesMax": 10000,
         "materialsMax": 10
       },
@@ -29538,11 +29026,11 @@
         "basketHeight": 0.58,
         "species": "pike",
         "length": 0.77,
-        "girth": 0.09856,
+        "girth": 0.0424,
         "finScale": 0.92,
-        "bodyDepth": 0.72,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 1.364,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.17,
         "stripeToken": "cloth_olive_01",
         "backToken": "fish_trout_back_01",
@@ -29728,10 +29216,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -29741,9 +29225,9 @@
       "generator": "fish_trade_pack",
       "seed": 8103,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 0.97,
+        "depth": 0.78,
+        "height": 0.96
       },
       "palette": [
         "wood_honey_01",
@@ -29758,7 +29242,7 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
+        "trianglesTarget": 7250,
         "trianglesMax": 10000,
         "materialsMax": 10
       },
@@ -29794,11 +29278,11 @@
         "basketHeight": 0.58,
         "species": "arowana",
         "length": 0.77,
-        "girth": 0.12833333333333335,
+        "girth": 0.0424,
         "finScale": 1.05,
-        "bodyDepth": 1.15,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 2.364,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.2,
         "stripeToken": "accent_ochre_01",
         "backToken": "accent_ochre_01",
@@ -29984,10 +29468,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -29997,9 +29477,9 @@
       "generator": "fish_trade_pack",
       "seed": 8104,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 0.98,
+        "depth": 0.78,
+        "height": 0.98
       },
       "palette": [
         "wood_honey_01",
@@ -30015,8 +29495,8 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
-        "trianglesMax": 10000,
+        "trianglesTarget": 7910,
+        "trianglesMax": 10300,
         "materialsMax": 10
       },
       "pivot": "ground_center",
@@ -30051,11 +29531,11 @@
         "basketHeight": 0.58,
         "species": "tuna",
         "length": 0.77,
-        "girth": 0.15896774193548388,
+        "girth": 0.0847,
         "finScale": 1.1,
-        "bodyDepth": 1.42,
-        "bodySegments": 16,
-        "radialSegments": 14,
+        "bodyDepth": 1.273,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.16,
         "stripeToken": "cloth_teal_01",
         "backToken": "fish_tuna_back_01",
@@ -30241,10 +29721,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -30254,9 +29730,9 @@
       "generator": "fish_trade_pack",
       "seed": 8105,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 0.97,
+        "depth": 0.78,
+        "height": 0.96
       },
       "palette": [
         "wood_honey_01",
@@ -30272,7 +29748,7 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
+        "trianglesTarget": 7300,
         "trianglesMax": 10000,
         "materialsMax": 10
       },
@@ -30308,11 +29784,11 @@
         "basketHeight": 0.58,
         "species": "sturgeon",
         "length": 0.77,
-        "girth": 0.12833333333333333,
+        "girth": 0.0578,
         "finScale": 0.82,
-        "bodyDepth": 0.72,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 0.933,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.14,
         "stripeToken": "cloth_teal_01",
         "backToken": "stone_cool_01",
@@ -30498,10 +29974,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -30511,9 +29983,9 @@
       "generator": "fish_trade_pack",
       "seed": 8106,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 1.04,
+        "depth": 0.78,
+        "height": 1.04
       },
       "palette": [
         "wood_honey_01",
@@ -30525,12 +29997,12 @@
         "cloth_teal_01",
         "fish_tuna_back_01",
         "fish_belly_01",
-        "accent_ochre_01"
+        "accent_teal_01"
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
-        "trianglesMax": 10000,
+        "trianglesTarget": 8230,
+        "trianglesMax": 10800,
         "materialsMax": 10
       },
       "pivot": "ground_center",
@@ -30565,16 +30037,16 @@
         "basketHeight": 0.58,
         "species": "sailfish",
         "length": 0.66,
-        "girth": 0.10482352941176472,
+        "girth": 0.0396,
         "finScale": 1.25,
-        "bodyDepth": 1.12,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 1.5,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.14,
         "stripeToken": "cloth_teal_01",
         "backToken": "fish_tuna_back_01",
         "bellyToken": "fish_belly_01",
-        "accentToken": "accent_ochre_01"
+        "accentToken": "accent_teal_01"
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -30755,10 +30227,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -30768,9 +30236,9 @@
       "generator": "fish_trade_pack",
       "seed": 8107,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 1.12,
+        "depth": 0.78,
+        "height": 0.96
       },
       "palette": [
         "wood_honey_01",
@@ -30786,7 +30254,7 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
+        "trianglesTarget": 6920,
         "trianglesMax": 10000,
         "materialsMax": 10
       },
@@ -30822,11 +30290,11 @@
         "basketHeight": 0.58,
         "species": "swordfish",
         "length": 0.66,
-        "girth": 0.10057142857142858,
+        "girth": 0.0528,
         "finScale": 1.05,
-        "bodyDepth": 1.08,
+        "bodyDepth": 1.375,
         "bodySegments": 20,
-        "radialSegments": 14,
+        "radialSegments": 16,
         "tailPeduncle": 0.12,
         "stripeToken": "cloth_teal_01",
         "backToken": "stone_cool_01",
@@ -31012,10 +30480,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -31025,9 +30489,9 @@
       "generator": "fish_trade_pack",
       "seed": 8108,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 1.03,
+        "depth": 0.78,
+        "height": 0.96
       },
       "palette": [
         "wood_honey_01",
@@ -31043,8 +30507,8 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
-        "trianglesMax": 10000,
+        "trianglesTarget": 7770,
+        "trianglesMax": 10200,
         "materialsMax": 10
       },
       "pivot": "ground_center",
@@ -31079,11 +30543,11 @@
         "basketHeight": 0.58,
         "species": "blue_marlin",
         "length": 0.6599999999999999,
-        "girth": 0.10904347826086958,
+        "girth": 0.0528,
         "finScale": 1.18,
-        "bodyDepth": 1.16,
+        "bodyDepth": 1.5,
         "bodySegments": 20,
-        "radialSegments": 14,
+        "radialSegments": 16,
         "tailPeduncle": 0.11,
         "stripeToken": "cloth_teal_01",
         "backToken": "fish_tuna_back_01",
@@ -31269,10 +30733,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -31282,9 +30742,9 @@
       "generator": "fish_trade_pack",
       "seed": 8109,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 0.96,
+        "depth": 0.78,
+        "height": 0.96
       },
       "palette": [
         "wood_honey_01",
@@ -31299,7 +30759,7 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
+        "trianglesTarget": 7610,
         "trianglesMax": 10000,
         "materialsMax": 10
       },
@@ -31335,11 +30795,11 @@
         "basketHeight": 0.58,
         "species": "amberjack",
         "length": 0.77,
-        "girth": 0.11000000000000001,
+        "girth": 0.0539,
         "finScale": 1,
-        "bodyDepth": 0.95,
-        "bodySegments": 18,
-        "radialSegments": 14,
+        "bodyDepth": 1.714,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.16,
         "stripeToken": "accent_ochre_01",
         "backToken": "fish_tuna_back_01",
@@ -31525,10 +30985,6 @@
           "gameplay_15m",
           "gameplay_read_distance"
         ]
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -31538,9 +30994,9 @@
       "generator": "fish_trade_pack",
       "seed": 8119,
       "dimensions": {
-        "width": 1.15,
-        "depth": 0.79,
-        "height": 1.02
+        "width": 0.9,
+        "depth": 0.78,
+        "height": 0.96
       },
       "palette": [
         "wood_honey_01",
@@ -31556,7 +31012,7 @@
       ],
       "budget": {
         "trianglesMin": 1000,
-        "trianglesTarget": 4000,
+        "trianglesTarget": 7390,
         "trianglesMax": 10000,
         "materialsMax": 10
       },
@@ -31592,20 +31048,16 @@
         "basketHeight": 0.58,
         "species": "sea_bream",
         "length": 0.68,
-        "girth": 0.15,
+        "girth": 0.0476,
         "finScale": 0.9,
-        "bodyDepth": 1.78,
-        "bodySegments": 16,
-        "radialSegments": 14,
+        "bodyDepth": 3,
+        "bodySegments": 20,
+        "radialSegments": 16,
         "tailPeduncle": 0.2,
         "stripeToken": "cloth_teal_01",
         "backToken": "accent_ochre_01",
         "bellyToken": "fish_belly_01",
         "accentToken": "foliage_olive_01"
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -34076,9 +33528,9 @@
       "generator": "equipment_watering_can",
       "seed": 4111,
       "dimensions": {
-        "width": 0.48,
-        "depth": 0.52,
-        "height": 0.42
+        "width": 0.32,
+        "depth": 0.5,
+        "height": 0.34
       },
       "palette": [
         "metal_brass_01",
@@ -34087,7 +33539,7 @@
       ],
       "budget": {
         "trianglesMin": 180,
-        "trianglesTarget": 720,
+        "trianglesTarget": 1160,
         "trianglesMax": 2400,
         "materialsMax": 3
       },
@@ -34103,10 +33555,6 @@
       "readDistanceMeters": 8,
       "parameters": {
         "style": "copper_rose"
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -34116,9 +33564,9 @@
       "generator": "equipment_watering_can",
       "seed": 4112,
       "dimensions": {
-        "width": 0.48,
-        "depth": 0.76,
-        "height": 0.42
+        "width": 0.31,
+        "depth": 0.73,
+        "height": 0.33
       },
       "palette": [
         "metal_iron_01",
@@ -34127,7 +33575,7 @@
       ],
       "budget": {
         "trianglesMin": 120,
-        "trianglesTarget": 560,
+        "trianglesTarget": 1110,
         "trianglesMax": 2000,
         "materialsMax": 3
       },
@@ -34143,10 +33591,6 @@
       "readDistanceMeters": 8,
       "parameters": {
         "style": "long_spout"
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -34156,9 +33600,9 @@
       "generator": "equipment_sickle",
       "seed": 4113,
       "dimensions": {
-        "width": 0.78,
-        "depth": 0.12,
-        "height": 0.78
+        "width": 0.63,
+        "depth": 0.08,
+        "height": 0.79
       },
       "palette": [
         "wood_honey_01",
@@ -34167,8 +33611,8 @@
       ],
       "budget": {
         "trianglesMin": 80,
-        "trianglesTarget": 360,
-        "trianglesMax": 1400,
+        "trianglesTarget": 1240,
+        "trianglesMax": 1700,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -34183,10 +33627,6 @@
       "readDistanceMeters": 8,
       "parameters": {
         "style": "broad"
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -34196,9 +33636,9 @@
       "generator": "equipment_sickle",
       "seed": 4114,
       "dimensions": {
-        "width": 0.66,
-        "depth": 0.12,
-        "height": 0.74
+        "width": 0.53,
+        "depth": 0.08,
+        "height": 0.69
       },
       "palette": [
         "wood_coastal_01",
@@ -34207,7 +33647,7 @@
       ],
       "budget": {
         "trianglesMin": 80,
-        "trianglesTarget": 340,
+        "trianglesTarget": 770,
         "trianglesMax": 1400,
         "materialsMax": 3
       },
@@ -34223,10 +33663,6 @@
       "readDistanceMeters": 8,
       "parameters": {
         "style": "balanced"
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -34236,9 +33672,9 @@
       "generator": "fishing_rod",
       "seed": 4121,
       "dimensions": {
-        "width": 0.08,
-        "depth": 0.3,
-        "height": 2.5
+        "width": 0.09,
+        "depth": 0.2,
+        "height": 2.82
       },
       "palette": [
         "wood_honey_01",
@@ -34249,8 +33685,8 @@
       ],
       "budget": {
         "trianglesMin": 500,
-        "trianglesTarget": 1000,
-        "trianglesMax": 2200,
+        "trianglesTarget": 2720,
+        "trianglesMax": 3600,
         "materialsMax": 5
       },
       "pivot": "center",
@@ -34262,18 +33698,20 @@
         "tool_fishing_rod_river_a_root",
         "rod_primary_grip",
         "rod_secondary_grip",
-        "rod_line_exit"
+        "rod_line_exit",
+        "rod_reel_spool",
+        "rod_reel_line_coil",
+        "rod_reel_crank_arm",
+        "rod_reel_handle_knob",
+        "rod_guide_tiptop"
       ],
       "readDistanceMeters": 8,
       "parameters": {
         "length": 2.45,
         "guideCount": 5,
         "bendFactor": 0.1,
-        "reelSpoolRadius": 0.062
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "reelSpoolRadius": 0.062,
+        "style": "river"
       }
     },
     {
@@ -34283,9 +33721,9 @@
       "generator": "fishing_rod",
       "seed": 4122,
       "dimensions": {
-        "width": 0.08,
-        "depth": 0.34,
-        "height": 2.68
+        "width": 0.15,
+        "depth": 0.25,
+        "height": 3.04
       },
       "palette": [
         "wood_coastal_dark_01",
@@ -34296,8 +33734,8 @@
       ],
       "budget": {
         "trianglesMin": 550,
-        "trianglesTarget": 1100,
-        "trianglesMax": 2400,
+        "trianglesTarget": 3200,
+        "trianglesMax": 4200,
         "materialsMax": 5
       },
       "pivot": "center",
@@ -34309,18 +33747,20 @@
         "tool_fishing_rod_heavy_sport_a_root",
         "rod_primary_grip",
         "rod_secondary_grip",
-        "rod_line_exit"
+        "rod_line_exit",
+        "rod_reel_spool",
+        "rod_reel_line_coil",
+        "rod_reel_crank_arm",
+        "rod_reel_handle_knob",
+        "rod_guide_tiptop"
       ],
       "readDistanceMeters": 8,
       "parameters": {
         "length": 2.62,
         "guideCount": 6,
         "bendFactor": 0.075,
-        "reelSpoolRadius": 0.077
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "reelSpoolRadius": 0.077,
+        "style": "heavy_sport"
       }
     },
     {
@@ -34330,9 +33770,9 @@
       "generator": "fishing_rod",
       "seed": 4123,
       "dimensions": {
-        "width": 0.08,
-        "depth": 0.36,
-        "height": 2.9
+        "width": 0.16,
+        "depth": 0.29,
+        "height": 3.27
       },
       "palette": [
         "wood_wet_01",
@@ -34343,8 +33783,8 @@
       ],
       "budget": {
         "trianglesMin": 600,
-        "trianglesTarget": 1180,
-        "trianglesMax": 2500,
+        "trianglesTarget": 3180,
+        "trianglesMax": 4200,
         "materialsMax": 5
       },
       "pivot": "center",
@@ -34356,18 +33796,20 @@
         "tool_fishing_rod_offshore_a_root",
         "rod_primary_grip",
         "rod_secondary_grip",
-        "rod_line_exit"
+        "rod_line_exit",
+        "rod_reel_spool",
+        "rod_reel_line_coil",
+        "rod_reel_crank_arm",
+        "rod_reel_handle_knob",
+        "rod_guide_tiptop"
       ],
       "readDistanceMeters": 8,
       "parameters": {
         "length": 2.85,
         "guideCount": 7,
         "bendFactor": 0.065,
-        "reelSpoolRadius": 0.09
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "reelSpoolRadius": 0.09,
+        "style": "offshore"
       }
     },
     {
@@ -34377,9 +33819,9 @@
       "generator": "fishing_rod",
       "seed": 4124,
       "dimensions": {
-        "width": 0.08,
-        "depth": 0.38,
-        "height": 3.05
+        "width": 0.1,
+        "depth": 0.29,
+        "height": 3.37
       },
       "palette": [
         "wood_honey_01",
@@ -34390,8 +33832,8 @@
       ],
       "budget": {
         "trianglesMin": 650,
-        "trianglesTarget": 1250,
-        "trianglesMax": 2600,
+        "trianglesTarget": 3630,
+        "trianglesMax": 4800,
         "materialsMax": 5
       },
       "pivot": "center",
@@ -34403,18 +33845,20 @@
         "tool_fishing_rod_master_a_root",
         "rod_primary_grip",
         "rod_secondary_grip",
-        "rod_line_exit"
+        "rod_line_exit",
+        "rod_reel_spool",
+        "rod_reel_line_coil",
+        "rod_reel_crank_arm",
+        "rod_reel_handle_knob",
+        "rod_guide_tiptop"
       ],
       "readDistanceMeters": 8,
       "parameters": {
         "length": 3,
         "guideCount": 8,
         "bendFactor": 0.09,
-        "reelSpoolRadius": 0.098
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "reelSpoolRadius": 0.098,
+        "style": "master"
       }
     },
     {
@@ -34424,9 +33868,9 @@
       "generator": "crafting_job_prop",
       "seed": 4131,
       "dimensions": {
-        "width": 0.56,
-        "depth": 0.22,
-        "height": 0.62
+        "width": 0.14,
+        "depth": 0.15,
+        "height": 0.46
       },
       "palette": [
         "cloth_teal_01",
@@ -34435,7 +33879,7 @@
       ],
       "budget": {
         "trianglesMin": 100,
-        "trianglesTarget": 480,
+        "trianglesTarget": 950,
         "trianglesMax": 1600,
         "materialsMax": 3
       },
@@ -34451,10 +33895,6 @@
       "readDistanceMeters": 8,
       "parameters": {
         "style": "tailor"
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -34464,9 +33904,9 @@
       "generator": "crafting_job_prop",
       "seed": 4132,
       "dimensions": {
-        "width": 0.58,
-        "depth": 0.2,
-        "height": 0.72
+        "width": 0.29,
+        "depth": 0.07,
+        "height": 0.66
       },
       "palette": [
         "wood_honey_01",
@@ -34475,7 +33915,7 @@
       ],
       "budget": {
         "trianglesMin": 60,
-        "trianglesTarget": 280,
+        "trianglesTarget": 530,
         "trianglesMax": 1200,
         "materialsMax": 3
       },
@@ -34491,10 +33931,6 @@
       "readDistanceMeters": 8,
       "parameters": {
         "style": "toolmaking"
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
@@ -34504,9 +33940,9 @@
       "generator": "crafting_job_prop",
       "seed": 4133,
       "dimensions": {
-        "width": 0.56,
-        "depth": 0.34,
-        "height": 0.48
+        "width": 0.39,
+        "depth": 0.28,
+        "height": 0.33
       },
       "palette": [
         "canvas_cream_01",
@@ -34515,8 +33951,8 @@
       ],
       "budget": {
         "trianglesMin": 40,
-        "trianglesTarget": 180,
-        "trianglesMax": 900,
+        "trianglesTarget": 750,
+        "trianglesMax": 1000,
         "materialsMax": 3
       },
       "pivot": "center",
@@ -34531,35 +33967,27 @@
       "readDistanceMeters": 8,
       "parameters": {
         "style": "ready"
-      },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
       }
     },
     {
       "id": "fauna_horse_draft_a",
       "file": "fauna_horse_draft_a.glb",
       "family": "prop",
-      "generator": "draft_horse",
+      "generator": "imported_blend",
       "seed": 8916,
       "dimensions": {
-        "width": 1.05,
-        "depth": 3.3,
-        "height": 2.65
+        "width": 0.976795,
+        "depth": 3.1,
+        "height": 2.763801
       },
       "palette": [
-        "wood_warm_01",
-        "animal_hide_black_01",
-        "animal_hide_white_01",
-        "leather_harness_01",
-        "metal_brass_01"
+        "animal_hide_white_01"
       ],
       "budget": {
-        "trianglesMin": 1000,
-        "trianglesTarget": 3200,
-        "trianglesMax": 10000,
-        "materialsMax": 5
+        "trianglesMin": 9000,
+        "trianglesTarget": 10741,
+        "trianglesMax": 11600,
+        "materialsMax": 2
       },
       "pivot": "ground_center",
       "collision": "none",
@@ -34572,22 +34000,27 @@
         "fauna_horse_draft_a_LOD0",
         "fauna_horse_draft_a_LOD1",
         "fauna_horse_draft_a_trace_left",
-        "fauna_horse_draft_a_trace_right"
+        "fauna_horse_draft_a_trace_right",
+        "fauna_horse_draft_a_bit_left",
+        "fauna_horse_draft_a_bit_right"
       ],
       "readDistanceMeters": 30,
-      "parameters": {},
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/fauna_horse_draft_a.blend",
+        "sourceCollection": "fauna_horse_draft_a"
+      },
       "animationClips": [
         {
           "name": "walk",
-          "durationSeconds": 1.2,
+          "durationSeconds": 1.0666666666666667,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 1.1
+          "referenceSpeedMetersPerSecond": 1.6
         },
         {
           "name": "trot",
-          "durationSeconds": 0.8,
+          "durationSeconds": 0.6666666666666666,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 2.1
+          "referenceSpeedMetersPerSecond": 3.2
         },
         {
           "name": "idle",
@@ -34595,10 +34028,6 @@
           "loop": true
         }
       ],
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      },
       "lodLevels": [
         {
           "node": "fauna_horse_draft_a_LOD0",
@@ -34612,7 +34041,31 @@
           "triangleRatioMin": 0.1,
           "triangleRatioMax": 0.95
         }
-      ]
+      ],
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "e82cb762-8a39-47ab-b353-a0bc522bef03",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "MoonGaze Developer (generated with Tripo AI)",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/fauna_horse_draft_a.blend",
+        "sourceSha256": "a2d1619c98b1918887ca7b60ea03131d9de4135571fa705554b56f0cef871b6b",
+        "attribution": "Draft horse generated by the Neva project owner with Tripo AI (generation e82cb762-8a39-47ab-b353-a0bc522bef03); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Textured surface retained; Neva rig, weights and clips authored by tools/blender/adapt_tripo_quadruped.py."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/horse.glb",
+        "sourceSha256": "263f620c48b54d4fbd2b262472fb83d69728c6328b84a9fd95f505317c86a43d",
+        "adapter": "tools/blender/adapt_tripo_quadruped.py",
+        "materialMap": {
+          "fauna_horse_draft_a_hide": {
+            "sourceMaterial": "e82cb762_8a39_47ab_b353_a0bc522bef03",
+            "token": "animal_hide_white_01",
+            "value": 0.8,
+            "texturePolicy": "preserve"
+          }
+        }
+      }
     },
     {
       "id": "prop_merchant_carriage_a",
@@ -34622,8 +34075,8 @@
       "seed": 8917,
       "dimensions": {
         "width": 2.05,
-        "depth": 5.05,
-        "height": 2.3
+        "depth": 6.3,
+        "height": 2.7
       },
       "palette": [
         "wood_honey_01",
@@ -34648,27 +34101,40 @@
         "prop_merchant_carriage_a_cargo_01",
         "prop_merchant_carriage_a_cargo_02",
         "prop_merchant_carriage_a_tailgate",
-        "prop_merchant_carriage_a_driver_socket"
+        "prop_merchant_carriage_a_driver_socket",
+        "prop_merchant_carriage_a_front_axle",
+        "prop_merchant_carriage_a_rear_axle",
+        "prop_merchant_carriage_a_foot_left",
+        "prop_merchant_carriage_a_foot_right",
+        "prop_merchant_carriage_a_rein_grip_left",
+        "prop_merchant_carriage_a_rein_grip_right",
+        "prop_merchant_carriage_a_rein_left",
+        "prop_merchant_carriage_a_rein_right",
+        "prop_merchant_carriage_a_harness_body",
+        "prop_merchant_carriage_a_harness_head",
+        "prop_merchant_carriage_a_shafts",
+        "prop_merchant_carriage_a_shaft_tug_left",
+        "prop_merchant_carriage_a_shaft_tug_right"
       ],
       "readDistanceMeters": 30,
       "parameters": {
         "bedWidth": 1.4,
         "bedLength": 2.6,
-        "wheelRadius": 0.56,
+        "wheelRadius": 0.64,
         "shaftLength": 2.2
       },
       "animationClips": [
         {
           "name": "walk",
-          "durationSeconds": 3.2,
+          "durationSeconds": 7.5398223686155035,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 1.0995574287564276
+          "referenceSpeedMetersPerSecond": 1.6
         },
         {
           "name": "trot",
-          "durationSeconds": 1.68,
+          "durationSeconds": 3.7699111843077517,
           "loop": true,
-          "referenceSpeedMetersPerSecond": 2.0943951023931957
+          "referenceSpeedMetersPerSecond": 3.2
         },
         {
           "name": "load",
@@ -34684,6 +34150,747 @@
       "surfaceAuthoring": {
         "normalPolicy": "authored",
         "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "fauna_dog_a",
+      "file": "fauna_dog_a.glb",
+      "family": "prop",
+      "generator": "fauna_dog",
+      "seed": 20260917,
+      "dimensions": {
+        "width": 0.238,
+        "depth": 1.058,
+        "height": 0.685
+      },
+      "palette": [
+        "soil_dry_01",
+        "wood_dark_01",
+        "animal_hide_white_01",
+        "metal_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 260,
+        "trianglesTarget": 1223,
+        "trianglesMax": 2600,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "fauna_dog_a_root",
+      "requiredNodes": [
+        "fauna_dog_a_root",
+        "fauna_dog_a_motion_root",
+        "fauna_dog_a_head_pivot",
+        "fauna_dog_a_tail_pivot"
+      ],
+      "animationClips": [
+        {
+          "name": "idle",
+          "durationSeconds": 2,
+          "loop": true
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 0.96,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 1.1
+        },
+        {
+          "name": "sit",
+          "durationSeconds": 2.4,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 22,
+      "parameters": {}
+    },
+    {
+      "id": "fauna_cat_a",
+      "file": "fauna_cat_a.glb",
+      "family": "prop",
+      "generator": "fauna_cat",
+      "seed": 20260918,
+      "dimensions": {
+        "width": 0.149,
+        "depth": 0.605,
+        "height": 0.477
+      },
+      "palette": [
+        "stone_cool_01",
+        "wood_coastal_dark_01",
+        "animal_hide_white_01",
+        "metal_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 220,
+        "trianglesTarget": 1031,
+        "trianglesMax": 2200,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "fauna_cat_a_root",
+      "requiredNodes": [
+        "fauna_cat_a_root",
+        "fauna_cat_a_motion_root",
+        "fauna_cat_a_head_pivot",
+        "fauna_cat_a_tail_pivot"
+      ],
+      "animationClips": [
+        {
+          "name": "idle",
+          "durationSeconds": 2.4,
+          "loop": true
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 1.04,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 0.9
+        },
+        {
+          "name": "sleep",
+          "durationSeconds": 4,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 18,
+      "parameters": {}
+    },
+    {
+      "id": "fauna_pigeon_a",
+      "file": "fauna_pigeon_a.glb",
+      "family": "prop",
+      "generator": "fauna_pigeon",
+      "seed": 20260919,
+      "dimensions": {
+        "width": 0.465,
+        "depth": 0.393,
+        "height": 0.101
+      },
+      "palette": [
+        "cloth_slate_01",
+        "stone_coastal_light_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 80,
+        "trianglesTarget": 643,
+        "trianglesMax": 950,
+        "materialsMax": 3
+      },
+      "pivot": "center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "fauna_pigeon_a_root",
+      "requiredNodes": [
+        "fauna_pigeon_a_root",
+        "fauna_pigeon_a_motion_root",
+        "fauna_pigeon_a_wing_left_pivot",
+        "fauna_pigeon_a_wing_right_pivot"
+      ],
+      "animationClips": [
+        {
+          "name": "glide",
+          "durationSeconds": 1.2,
+          "loop": true
+        },
+        {
+          "name": "flap",
+          "durationSeconds": 0.28,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {}
+    },
+    {
+      "id": "fauna_sheep_a",
+      "file": "fauna_sheep_a.glb",
+      "family": "prop",
+      "generator": "fauna_sheep",
+      "seed": 20260920,
+      "dimensions": {
+        "width": 0.503,
+        "depth": 0.972,
+        "height": 0.706
+      },
+      "palette": [
+        "foam_warm_01",
+        "animal_hide_black_01",
+        "soil_shadow_01",
+        "metal_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 280,
+        "trianglesTarget": 1042,
+        "trianglesMax": 2800,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "fauna_sheep_a_root",
+      "requiredNodes": [
+        "fauna_sheep_a_root",
+        "fauna_sheep_a_motion_root",
+        "fauna_sheep_a_head_pivot"
+      ],
+      "animationClips": [
+        {
+          "name": "idle",
+          "durationSeconds": 3.2,
+          "loop": true
+        },
+        {
+          "name": "graze",
+          "durationSeconds": 3.6,
+          "loop": true
+        },
+        {
+          "name": "look",
+          "durationSeconds": 2,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {}
+    },
+    {
+      "id": "fauna_duck_a",
+      "file": "fauna_duck_a.glb",
+      "family": "prop",
+      "generator": "fauna_duck",
+      "seed": 20260921,
+      "dimensions": {
+        "width": 0.22,
+        "depth": 0.56,
+        "height": 0.266
+      },
+      "palette": [
+        "foliage_shadow_01",
+        "wood_weathered_01",
+        "canvas_cream_01",
+        "accent_ochre_01",
+        "stone_cool_01"
+      ],
+      "budget": {
+        "trianglesMin": 180,
+        "trianglesTarget": 547,
+        "trianglesMax": 1900,
+        "materialsMax": 5
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "fauna_duck_a_root",
+      "requiredNodes": [
+        "fauna_duck_a_root",
+        "fauna_duck_a_motion_root",
+        "fauna_duck_a_head_pivot"
+      ],
+      "animationClips": [
+        {
+          "name": "idle",
+          "durationSeconds": 2.8,
+          "loop": true
+        },
+        {
+          "name": "paddle",
+          "durationSeconds": 1.6,
+          "loop": true
+        },
+        {
+          "name": "dabble",
+          "durationSeconds": 2.2,
+          "loop": true
+        }
+      ],
+      "readDistanceMeters": 20,
+      "parameters": {}
+    },
+    {
+      "id": "building_dovecote_a",
+      "file": "building_dovecote_a.glb",
+      "family": "architecture",
+      "generator": "dovecote",
+      "seed": 20260922,
+      "dimensions": {
+        "width": 1.34,
+        "depth": 1.34,
+        "height": 3.81
+      },
+      "palette": [
+        "wood_warm_01",
+        "plaster_cream_01",
+        "roof_terracotta_01",
+        "wood_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 1300,
+        "trianglesMax": 3000,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "building_dovecote_a_root",
+      "requiredNodes": [
+        "building_dovecote_a_root"
+      ],
+      "collisionPrimitives": [
+        {
+          "id": "post",
+          "center": [
+            0,
+            1,
+            0
+          ],
+          "halfExtents": [
+            0.22,
+            1,
+            0.22
+          ]
+        }
+      ],
+      "readDistanceMeters": 40,
+      "parameters": {
+        "postHeight": 1.95,
+        "cotePitch": 1
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "A cream plaster dove cote on a timber post with a terracotta cap and a landing ledge",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "neva_hud_on_foot",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/neva-ui-hud-on-foot.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "detail_density"
+            ],
+            "notes": "Locks lush meadow drifts, path slabs, and ambient village life at gameplay distance."
+          }
+        ],
+        "components": [
+          {
+            "id": "post",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Lifts the cote to roof height",
+            "shape": "Square timber post with a brace collar",
+            "count": "1 post",
+            "cues": [
+              "The post is square, matching Neva's timber language",
+              "A brace collar sits under the cote"
+            ]
+          },
+          {
+            "id": "cote",
+            "parent": "post",
+            "importance": "primary",
+            "role": "Carries the identity",
+            "shape": "Cream plaster box with a ring of entry holes",
+            "count": "1 cote",
+            "cues": [
+              "Entry holes are a visible dark ring",
+              "The box overhangs the post on every side"
+            ]
+          },
+          {
+            "id": "ledge",
+            "parent": "cote",
+            "importance": "secondary",
+            "role": "Gives the doves somewhere to land",
+            "shape": "Thin timber shelf wrapping the cote",
+            "count": "1 ledge",
+            "cues": [
+              "The ledge wraps all four faces"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "cote",
+            "importance": "secondary",
+            "role": "Closes the silhouette against the sky",
+            "shape": "Terracotta pyramid cap with a finial",
+            "count": "1 roof",
+            "cues": [
+              "The cap matches village roof tokens",
+              "A small finial tops it"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A tall thin post topped by a bright box reads as a dovecote from across the village.",
+          "The terracotta cap ties it to the cottage roofs already on the square.",
+          "The entry-hole ring keeps the box from reading as a birdhouse toy."
+        ],
+        "negativeSpace": [
+          "Daylight passes under the cote on all four sides of the post.",
+          "The entry holes stay as real dark voids, not painted dots."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Entry holes and the landing ledge exist on all four faces.",
+            "The post brace collar is modelled all the way round."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "entry_ring",
+            "componentIds": [
+              "cote"
+            ],
+            "requirement": "A ring of dark entry holes reads at 25 m.",
+            "priority": "must"
+          },
+          {
+            "id": "raised_post",
+            "componentIds": [
+              "post"
+            ],
+            "requirement": "The cote stands clear on a post with daylight underneath.",
+            "priority": "must"
+          },
+          {
+            "id": "village_roof",
+            "componentIds": [
+              "roof"
+            ],
+            "requirement": "The cap uses the village terracotta token so it belongs to the square.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "postHeight",
+            "componentIds": [
+              "post"
+            ],
+            "purpose": "Sets how far the cote clears the surrounding cottages."
+          },
+          {
+            "parameter": "cotePitch",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Sets the cap pitch against the neighbouring roofs."
+          }
+        ],
+        "failureModes": [
+          "The cote reads as a lamp post because the box is too small.",
+          "Entry holes are painted rather than modelled, so they vanish in silhouette.",
+          "The roof uses a token no other village building uses."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "prop_laundry_line_a",
+      "file": "prop_laundry_line_a.glb",
+      "family": "prop",
+      "generator": "laundry_line",
+      "seed": 20260923,
+      "dimensions": {
+        "width": 4.722,
+        "depth": 0.32,
+        "height": 1.978
+      },
+      "palette": [
+        "wood_warm_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "cloth_teal_01",
+        "cloth_rust_01"
+      ],
+      "budget": {
+        "trianglesMin": 220,
+        "trianglesTarget": 1948,
+        "trianglesMax": 2400,
+        "materialsMax": 5
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "prop_laundry_line_a_root",
+      "requiredNodes": [
+        "prop_laundry_line_a_root",
+        "prop_laundry_line_a_sway_0",
+        "prop_laundry_line_a_sway_1",
+        "prop_laundry_line_a_sway_2",
+        "prop_laundry_line_a_sway_3"
+      ],
+      "readDistanceMeters": 25,
+      "parameters": {}
+    },
+    {
+      "id": "prop_banner_cloth_a",
+      "file": "prop_banner_cloth_a.glb",
+      "family": "prop",
+      "generator": "banner_cloth",
+      "seed": 20260924,
+      "dimensions": {
+        "width": 0.974,
+        "depth": 0.54,
+        "height": 3.302
+      },
+      "palette": [
+        "wood_warm_01",
+        "cloth_rust_01",
+        "accent_ochre_01",
+        "metal_brass_01"
+      ],
+      "budget": {
+        "trianglesMin": 140,
+        "trianglesTarget": 1046,
+        "trianglesMax": 1600,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "prop_banner_cloth_a_root",
+      "requiredNodes": [
+        "prop_banner_cloth_a_root",
+        "prop_banner_cloth_a_sway_0"
+      ],
+      "readDistanceMeters": 45,
+      "parameters": {}
+    },
+    {
+      "id": "house_cottage_b",
+      "file": "house_cottage_b.glb",
+      "family": "architecture",
+      "generator": "imported_blend",
+      "seed": 20260922,
+      "dimensions": {
+        "width": 7.815271,
+        "depth": 6.127753,
+        "height": 7.8
+      },
+      "palette": [
+        "plaster_cream_01"
+      ],
+      "budget": {
+        "trianglesMin": 7000,
+        "trianglesTarget": 7791,
+        "trianglesMax": 8200,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            2.6,
+            0
+          ],
+          "halfExtents": [
+            2.2,
+            2.6,
+            2.82
+          ]
+        }
+      ],
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "house_cottage_b_root",
+      "requiredNodes": [
+        "house_cottage_b_root",
+        "house_cottage_b_LOD0",
+        "house_cottage_b_LOD1",
+        "COL_house_cottage_b"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/house_cottage_b.blend",
+        "sourceCollection": "house_cottage_b"
+      },
+      "lodLevels": [
+        {
+          "node": "house_cottage_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "house_cottage_b_LOD1",
+          "distanceMeters": 48,
+          "triangleRatioMin": 0.2,
+          "triangleRatioMax": 0.5
+        }
+      ],
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "d8b6604a-7fe5-4178-970b-bb80a6846af2",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "MoonGaze Developer (generated with Tripo AI)",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/house_cottage_b.blend",
+        "sourceSha256": "19dcfdf8089f5901385c3915013af556b8b4f2dfef58f6694e84cf2e15b11112",
+        "attribution": "Timber-framed cottage generated by the Neva project owner with Tripo AI (generation d8b6604a-7fe5-4178-970b-bb80a6846af2); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Original textured surface retained."
+      },
+      "staticAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/cottage-new.glb",
+        "sourceSha256": "84da27d98628790ac294a896ed027f8c8c797ff064d067d7ed3458106ec7e416",
+        "sourceNode": "d8b6604a_7fe5_4178_970b_bb80a6846af2",
+        "scaleReference": {
+          "axis": "height",
+          "meters": 7.8
+        },
+        "yawDegrees": 0,
+        "pivotOffset": {
+          "x": 1.52,
+          "z": 0.08
+        },
+        "materialMap": {
+          "d8b6604a_7fe5_4178_970b_bb80a6846af2": {
+            "token": "plaster_cream_01",
+            "value": 0.8,
+            "texturePolicy": "preserve"
+          }
+        }
+      }
+    },
+    {
+      "id": "prop_galleon_a",
+      "file": "prop_galleon_a.glb",
+      "family": "prop",
+      "generator": "imported_blend",
+      "seed": 20260923,
+      "dimensions": {
+        "width": 8.931119,
+        "depth": 22,
+        "height": 14.799219
+      },
+      "palette": [
+        "wood_honey_01"
+      ],
+      "budget": {
+        "trianglesMin": 7000,
+        "trianglesTarget": 7867,
+        "trianglesMax": 8400,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "collisionPrimitives": [
+        {
+          "id": "hull",
+          "center": [
+            0,
+            2.5,
+            0
+          ],
+          "halfExtents": [
+            3.4,
+            2.5,
+            9.9
+          ]
+        }
+      ],
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "prop_galleon_a_root",
+      "requiredNodes": [
+        "prop_galleon_a_root",
+        "prop_galleon_a_LOD0",
+        "prop_galleon_a_LOD1",
+        "COL_prop_galleon_a"
+      ],
+      "readDistanceMeters": 80,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/prop_galleon_a.blend",
+        "sourceCollection": "prop_galleon_a"
+      },
+      "lodLevels": [
+        {
+          "node": "prop_galleon_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "prop_galleon_a_LOD1",
+          "distanceMeters": 70,
+          "triangleRatioMin": 0.2,
+          "triangleRatioMax": 0.5
+        }
+      ],
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "adff0389-7b98-41fc-b5ef-53e15c96f894",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "MoonGaze Developer (generated with Tripo AI)",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/prop_galleon_a.blend",
+        "sourceSha256": "4c6a1e68e77020877038cc4035a9112086d9435aa92a910ba4cd83d9c4c438b2",
+        "attribution": "Three-masted galleon generated by the Neva project owner with Tripo AI (generation adff0389-7b98-41fc-b5ef-53e15c96f894); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Original textured surface retained."
+      },
+      "staticAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/ship.glb",
+        "sourceSha256": "be95fe8e3f04527aada5112e1c4062553803223b49769866ac7f8f1687b88a02",
+        "sourceNode": "adff0389_7b98_41fc_b5ef_53e15c96f894",
+        "scaleReference": {
+          "axis": "depth",
+          "meters": 22
+        },
+        "yawDegrees": -90,
+        "pivotOffset": {
+          "x": 0,
+          "z": -0.885
+        },
+        "materialMap": {
+          "Material_adff0389_7b98_41fc_b5ef_53e15c96f894": {
+            "token": "wood_honey_01",
+            "value": 0.8,
+            "texturePolicy": "preserve"
+          }
+        }
       }
     }
   ]

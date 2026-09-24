@@ -1,6 +1,0 @@
-interface:
-  display_name: "Three.js Game Director"
-  short_description: "Orchestrate complete Three.js games"
-  default_prompt: "Use $threejs-game-director to coordinate this explicitly requested whole-game or named multi-system task within the project’s scope and verification rules."
-policy:
-  allow_implicit_invocation: false

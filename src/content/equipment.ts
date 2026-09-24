@@ -20,10 +20,8 @@ export const EQUIPMENT: Record<EquipmentId, EquipmentDefinition> = {
     starter: true,
     effects: [],
     presentation: {
-      characterBaseLayer: {
-        nodeNames: ["char_player_a_Farmer_Head_LOD0", "char_player_a_Farmer_Head_LOD1"],
-        materialNames: ["canvas_cream_01", "cloth_teal_01"]
-      },
+      // The adapted player body is bare-headed: nothing to hide under a hat.
+      characterBaseLayer: { nodeNames: [], materialNames: [] },
       socket: "head"
     },
     icon: "equipment.weathered_straw_hat"
@@ -37,8 +35,8 @@ export const EQUIPMENT: Record<EquipmentId, EquipmentDefinition> = {
     effects: [],
     presentation: {
       characterBaseLayer: {
-        nodeNames: ["char_player_a_Farmer_Body_LOD0", "char_player_a_Farmer_Body_LOD1"],
-        materialNames: ["cloth_slate_01"]
+        nodeNames: ["char_player_a_surface_LOD0", "char_player_a_surface_LOD1"],
+        materialNames: ["char_player_a_vest"]
       },
       socket: "body"
     },
@@ -53,8 +51,8 @@ export const EQUIPMENT: Record<EquipmentId, EquipmentDefinition> = {
     effects: [],
     presentation: {
       characterBaseLayer: {
-        nodeNames: ["char_player_a_Farmer_Feet_LOD0", "char_player_a_Farmer_Feet_LOD1"],
-        materialNames: ["leather_harness_01"]
+        nodeNames: ["char_player_a_surface_LOD0", "char_player_a_surface_LOD1"],
+        materialNames: ["char_player_a_boots"]
       },
       socket: "feet"
     },

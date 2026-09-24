@@ -4,10 +4,8 @@ import {
   CropQuality,
   EquipmentId,
   EquipmentPresetId,
-  FishCargoState,
   GameAction,
   GameMode,
-  GameState,
   MarketId,
   RecipeId,
   RodId
@@ -15,32 +13,26 @@ import {
 import { NauticalCompassAlmanac } from "./hud/NauticalCompassAlmanac";
 import { NoticeStack } from "./components/NoticeStack";
 import { HUD } from "./HUD";
-import { InventoryModal } from "./InventoryModal";
-import { MarketModal } from "./MarketModal";
+import type { ContextualCropChoice } from "./hud/ContextualCropChoice";
 import { FishingHUD } from "./FishingHUD";
 import { BasicFishingMinigameWidget } from "./fishing/BasicFishingMinigameWidget";
 import { LaborMinigameWidget } from "./labor/LaborMinigameWidget";
 import { LaborShiftResult, type LaborShiftFeedbackDto } from "./labor/LaborShiftResult";
 import { StormHelmWidget } from "./boats/StormHelmWidget";
-import { ExpeditionBoard } from "./ExpeditionBoard";
-import { JournalFolio, JournalModal } from "./JournalModal";
-import { EscapeMenuModal } from "./EscapeMenuModal";
-import { WorldMapModal } from "./components/WorldMapModal";
-import { LogisticsLedgerModal } from "./components/LogisticsLedgerModal";
-import { CatchInspectionModal, CatchSummaryToast } from "./components/CatchInspectionModal";
+import type { JournalFolio } from "./JournalModal";
+import { CatchSummaryToast } from "./components/CatchSummaryToast";
 import { CropInspection } from "./components/CropInspection";
 import { PlantingSeedBar } from "./components/PlantingSeedBar";
 import { FarmGISLegend } from "./components/FarmGISLegend";
-import { buildTrophyCatchDto } from "../simulation/fishing/trophyCatch";
-import { calculateFreshnessLoss, resolveCargoHasIce, resolveCargoTemperatureC } from "../simulation/fishing/calculateFreshness";
-import { ContentRegistry } from "../content/ContentRegistry";
+import type { DebugGameSnapshot } from "../app/GameUiSnapshot";
+import { GameUiModalLayer } from "./GameUiModalLayer";
 import {
   DebugOverlay,
   type DebugCameraDiagnostics,
   type DebugCharacterDiagnostics,
   type RenderStats
 } from "./DebugOverlay";
-import { DialogueModal, type DialogueTalkResult } from "./DialogueModal";
+import type { DialogueTalkResult } from "./DialogueModal";
 import { ContextualHintCard } from "./ContextualHintCard";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import type { ExpeditionBoardDto } from "../simulation/expeditions/buildExpeditionOpportunities";
@@ -54,6 +46,7 @@ import type {
   CommodityQuote,
   CompassMarkerDto,
   CropInspectionDto,
+  EmergencyTowQuoteDto,
   FarmForecastDto,
   HoldStoresDto,
   InteractionResult,
@@ -79,15 +72,11 @@ import type { ChronicleEntry, ChronicleFilter, Notice } from "./notifications";
 import { StartScreen } from "./StartScreen";
 import type { VillageNoticeDto } from "../content/villageBulletin";
 import { PlacementEditorHud } from "./PlacementEditorHud";
-import { CharacterScreen } from "./CharacterScreen";
-import { CraftingModal } from "./CraftingModal";
 import { MobileControls, MobileOrientationGate } from "./MobileControls";
 import type { FishingInputState, VirtualMoveVector } from "../input/InputRouter";
 import type { LayoutEditHudSelection } from "../layout-editor/layoutEdit";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
-import { usePwaInstall } from "./pwa/usePwaInstall";
-import { PwaInstallPromptModal } from "./components/PwaInstallPromptModal";
 
 const READY_STARTUP_STATE: StartupState = {
   status: "ready",
@@ -104,10 +93,13 @@ const READY_STARTUP_STATE: StartupState = {
 };
 
 export interface GameUIProps {
-  state: GameState;
+  playerPosition: { x: number; z: number };
+  sessionRevision: number;
+  debugSnapshot: DebugGameSnapshot | null;
   /** A detached presentation snapshot; the widget must never receive live sim state. */
   basicFishingState: Readonly<BasicFishingState> | null;
   mode: GameMode;
+  canFishHere?: boolean;
   fps: number;
   renderStats: RenderStats;
   cameraDiagnostics: DebugCameraDiagnostics;
@@ -158,11 +150,11 @@ export interface GameUIProps {
   selectedPlantCropId?: string | null;
   onCancelPlacement: () => void;
   isFarmGisHeld?: boolean;
-  activeToolSlot?: number;
-  onSelectToolSlot?: (slot: number) => void;
-  toolRevealToken?: number;
-  landedCatch?: FishCargoState | TrophyCatchDto | null;
-  landedCatchRecord?: "first" | "weight" | "quality" | null;
+  contextualCropChoices?: readonly ContextualCropChoice[];
+  onChooseCropAction?: (choice: ContextualCropChoice) => void;
+  canStartPlanting?: boolean;
+  onStartPlanting?: () => void;
+  landedCatch?: TrophyCatchDto | null;
   onDismissCatchSummary?: () => void;
   sportFishingHud: SportFishingHudDto | null;
   /** Active Work-shift timing readout; null when no shift is in progress. */
@@ -215,6 +207,8 @@ export interface GameUIProps {
     cargoId: string,
     direction: "store" | "take"
   ) => { success: boolean; reason?: string };
+  /** Sets the carried catch down on walkable ground at the player's feet. */
+  onDropCatch?: () => { success: boolean; reason?: string };
   onInspectJournalPages: () => JournalPagesDto;
   onInspectPauseSummary: () => PauseSummaryDto;
   onInspectSkillProgress: () => SkillProgressDto[];
@@ -242,6 +236,7 @@ export interface GameUIProps {
   savingAvailable?: boolean;
   onResetPlayerToSafePlace: () => void;
   onEmergencyTow?: () => { success: boolean; reason?: string };
+  onInspectEmergencyTowQuote?: () => EmergencyTowQuoteDto;
   chronicleEntries?: readonly ChronicleEntry[];
   chronicleFilter?: ChronicleFilter;
   onSelectChronicleFilter?: (filter: ChronicleFilter) => void;
@@ -281,10 +276,14 @@ export interface GameUIProps {
   } | null;
 }
 
-export const GameUI: React.FC<GameUIProps> = ({
-  state,
+export const GameUI: React.FC<GameUIProps> = (props) => {
+  const {
+  playerPosition,
+  sessionRevision,
+  debugSnapshot,
   basicFishingState,
   mode,
+  canFishHere = false,
   fps,
   renderStats,
   cameraDiagnostics,
@@ -295,8 +294,6 @@ export const GameUI: React.FC<GameUIProps> = ({
   worldHud,
   toastMessage,
   notices,
-  villageNotices = [],
-  people,
   journalOpenRequest = null,
   inspectedCrop,
   inspectedCropPosition = null,
@@ -305,35 +302,21 @@ export const GameUI: React.FC<GameUIProps> = ({
   farmingAction,
   activeModal,
   onSetActiveModal,
-  marketId,
   activeQuest,
   activeQuests,
   onFocusTrack,
-  onTalkNpc,
-  activeDialogueNpcId,
   activeHint,
   onDismissHint,
   onSelectPlantCrop,
-  onInspectPlanting,
-  onInspectItem,
-  onConsumeItem,
-  onSortSatchel,
-  onDiscardItem,
-  onTransferStores,
-  onStowCatch,
-  onMoveStorageGoods,
-  onMoveStorageFish,
-  onInspectDemandTrend,
-  onInspectSatchel,
   onInspectSeedBelt,
   selectedPlantCropId = null,
   onCancelPlacement,
   isFarmGisHeld = false,
-  activeToolSlot = 1,
-  onSelectToolSlot,
-  toolRevealToken = 0,
+  contextualCropChoices = [],
+  onChooseCropAction,
+  canStartPlanting = false,
+  onStartPlanting,
   landedCatch = null,
-  landedCatchRecord = null,
   onDismissCatchSummary,
   sportFishingHud,
   laborHud,
@@ -349,42 +332,8 @@ export const GameUI: React.FC<GameUIProps> = ({
   onHookBasicFishingBite,
   onDismissBasicFishingModal,
   onDiscardBasicCatch,
-  onSellItem,
-  onSellAllProduce,
-  onInspectCommodity,
-  onInspectMarketBoard,
-  onInspectMarketDemand,
-  onInspectWorldMap,
   onInspectFarmForecast,
-  onInspectExpeditionBoard,
-  onInspectHoldStores,
   onInspectJournalPages,
-  onInspectPauseSummary,
-  onInspectSkillProgress,
-  onInspectCharacter,
-  onEquipEquipment,
-  onEquipCharacterRod,
-  onSaveEquipmentPreset,
-  onApplyEquipmentPreset,
-  craftingStationId = null,
-  onInspectProcessingStation,
-  onStartProcessing,
-  onInspectAlmanac,
-  onBuySeed,
-  onBuyItem,
-  onBuyRod,
-  onEquipRod,
-  onSellFishCargo,
-  onSellAllFishCargo,
-  onDiscardFishCargo,
-  onReleaseFishCargo,
-  onDeliverContractItems,
-  onDeliverFishCargo,
-  onPassContract,
-  onQuickSave,
-  savingAvailable = true,
-  onResetPlayerToSafePlace,
-  onEmergencyTow,
   chronicleEntries,
   chronicleFilter,
   onSelectChronicleFilter,
@@ -417,9 +366,10 @@ export const GameUI: React.FC<GameUIProps> = ({
   onReleaseBasicFishingCast = () => {},
   onClearVirtualInput = () => {},
   layoutEditor = null
-}) => {
+  } = props;
   const showDiagnostics =
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
+    import.meta.env.DEV && typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).has("debug");
   const [journalInitialFolio, setJournalInitialFolio] = useState<JournalFolio>("story");
   // The world board asks for the notices folio by token, so a repeated read
   // still lands on Notices instead of the journal's last page.
@@ -428,24 +378,36 @@ export const GameUI: React.FC<GameUIProps> = ({
   }, [journalOpenRequest]);
   const showTrophyModal = activeModal === "catch";
 
-  const pwa = usePwaInstall();
-  const [pwaPromptManualOpen, setPwaPromptManualOpen] = useState(false);
-
-  // The automatic install invitation lives on the starter screen (StartScreen).
-  // In-game, players can reopen the guide from the Escape menu; Pause stays in
-  // the overlay stack beneath it, so time and world input remain frozen.
-  const showPwaPromptInGame =
-    pwaPromptManualOpen &&
-    startup.status === "ready" &&
-    (activeModal === null || activeModal === "pause") &&
-    !mobileOrientationBlocked;
-
   const [customWaypoint, setCustomWaypoint] = useState<{ x: number; z: number } | null>(null);
+  const [followingRecordId, setFollowingRecordId] = useState<string | null>(null);
+  const hasEndgameRecordGuidance = Boolean(worldHud.recordTracker?.length);
+  const canFollowRecords = !hasEndgameRecordGuidance;
+  const recordSessionRevision = React.useRef(sessionRevision);
+  useEffect(() => {
+    if (recordSessionRevision.current !== sessionRevision) {
+      recordSessionRevision.current = sessionRevision;
+      setFollowingRecordId(null);
+    }
+  }, [sessionRevision]);
+  const journalPages = activeModal === "journal" || followingRecordId
+    ? onInspectJournalPages()
+    : null;
+  const followedRecord = followingRecordId
+    ? journalPages?.records.find((record) => record.id === followingRecordId) ?? null
+    : null;
+  useEffect(() => {
+    if (followingRecordId && (!followedRecord || followedRecord.achieved)) {
+      setFollowingRecordId(null);
+    }
+  }, [followingRecordId, followedRecord]);
+  useEffect(() => {
+    if (hasEndgameRecordGuidance && followingRecordId) setFollowingRecordId(null);
+  }, [hasEndgameRecordGuidance, followingRecordId]);
 
   const effectiveWorldHud = React.useMemo(() => {
     if (!customWaypoint) return worldHud;
-    const dx = customWaypoint.x - state.player.x;
-    const dz = customWaypoint.z - state.player.z;
+    const dx = customWaypoint.x - playerPosition.x;
+    const dz = customWaypoint.z - playerPosition.z;
     const distanceMeters = Math.round(Math.hypot(dx, dz));
     const targetAngleDeg = (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360;
     const relativeBearingDeg = ((targetAngleDeg - worldHud.compass.headingDegrees + 540) % 360) - 180;
@@ -469,25 +431,12 @@ export const GameUI: React.FC<GameUIProps> = ({
         nearbyMarkers: [waypointMarker, ...worldHud.compass.nearbyMarkers]
       }
     };
-  }, [worldHud, customWaypoint, state.player.x, state.player.z]);
+  }, [worldHud, customWaypoint, playerPosition.x, playerPosition.z]);
 
-  const trophyCatchDto = ((): TrophyCatchDto | null => {
-    if (!landedCatch) return null;
-    if ("qualityStars" in landedCatch) return landedCatch;
-    // Shelf life must use the cargo's real decay: an iced hold or cold room
-    // keeps a catch far longer than the species' open-air base rate.
-    const species = ContentRegistry.fishSpecies.get(landedCatch.speciesId);
-    const effectiveDecay = species
-      ? calculateFreshnessLoss(
-          1,
-          species.baseDecayRatePerMinute,
-          landedCatch.location.type,
-          resolveCargoHasIce(state, landedCatch),
-          resolveCargoTemperatureC(state, landedCatch)
-        )
-      : undefined;
-    return buildTrophyCatchDto(landedCatch, landedCatchRecord, 1, 1, effectiveDecay);
-  })();
+  const guidedWorldHud = React.useMemo(() => {
+    if (!followedRecord || followedRecord.achieved || effectiveWorldHud.recordTracker?.length) return effectiveWorldHud;
+    return { ...effectiveWorldHud, recordTracker: [followedRecord] };
+  }, [effectiveWorldHud, followedRecord]);
 
   // Debug sessions need the diagnostic surface while the real runtime boots;
   // the boot-ready attribute is the synchronization point for browser checks.
@@ -523,8 +472,6 @@ export const GameUI: React.FC<GameUIProps> = ({
     );
   }
 
-  const plannerUnlocked = worldHud.expeditionUnlocked;
-
   return (
     <div
       id="ui-container"
@@ -544,8 +491,8 @@ export const GameUI: React.FC<GameUIProps> = ({
 
       {mode !== "sport-fishing" && (
         <HUD
-          hud={effectiveWorldHud}
-          playerPosition={state.player}
+          hud={guidedWorldHud}
+          playerPosition={playerPosition}
           blocked={!!activeModal}
           promptText={promptText}
           toastMessage={toastMessage}
@@ -553,9 +500,10 @@ export const GameUI: React.FC<GameUIProps> = ({
           activeQuest={activeQuest}
           activeQuests={activeQuests}
           onFocusTrack={onFocusTrack}
-          activeToolSlot={activeToolSlot}
-          onSelectToolSlot={onSelectToolSlot}
-          toolRevealToken={toolRevealToken}
+          contextualCropChoices={contextualCropChoices}
+          onChooseCropAction={onChooseCropAction}
+          canStartPlanting={canStartPlanting}
+          onStartPlanting={onStartPlanting}
           onOpenMenu={() => onSetActiveModal("pause")}
           onOpenModal={onSetActiveModal}
           onInspectFarmForecast={onInspectFarmForecast}
@@ -572,6 +520,7 @@ export const GameUI: React.FC<GameUIProps> = ({
       <MobileControls
         touchDevice={mobileTouchDevice}
         landscape={mobileLandscape}
+        canFishHere={canFishHere}
         orientationBlocked={mobileOrientationBlocked}
         bootReady={bootReady}
         mode={mode}
@@ -650,7 +599,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 
       {mode === "sport-fishing" && !activeModal && <div className="guild-fishing-map interactive">
         <NauticalCompassAlmanac clock={worldHud.clock} weather={worldHud.weather} compass={worldHud.compass}
-          playerPosition={state.player} onToggleForecast={() => onSetActiveModal("pause")} passive />
+          playerPosition={playerPosition} onToggleForecast={() => onSetActiveModal("pause")} passive />
       </div>}
 
       {mode === "sport-fishing" && sportFishingHud && !activeModal && (
@@ -665,23 +614,9 @@ export const GameUI: React.FC<GameUIProps> = ({
 
       {mode !== "sport-fishing" && landedCatch && onDismissCatchSummary && !showTrophyModal && (
         <CatchSummaryToast
-          cargo={"qualityStars" in landedCatch ? undefined : landedCatch}
-          catchData={trophyCatchDto}
+          catchData={landedCatch}
           onDismiss={onDismissCatchSummary}
           onClick={() => onSetActiveModal("catch")}
-        />
-      )}
-
-      {showTrophyModal && trophyCatchDto && (
-        <CatchInspectionModal
-          catchData={trophyCatchDto}
-          onDismiss={() => {
-            onDismissCatchSummary?.();
-          }}
-          onOpenHoldOrSatchel={() => {
-            onDismissCatchSummary?.();
-            onSetActiveModal("inventory");
-          }}
         />
       )}
 
@@ -689,170 +624,17 @@ export const GameUI: React.FC<GameUIProps> = ({
           must still hear about a snapped line, an escape or a full hold. */}
       {mode === "sport-fishing" && !activeModal && notices && <NoticeStack notices={notices} />}
 
-      {activeModal === "dialogue" && activeDialogueNpcId && onTalkNpc && (
-        <DialogueModal
-          npcId={activeDialogueNpcId}
-          onClose={() => onSetActiveModal(null)}
-          onTalkNpc={onTalkNpc}
-        />
-      )}
-
-      {activeModal === "inventory" && (
-        <InventoryModal
-          satchel={onInspectSatchel()}
-          onClose={() => onSetActiveModal(null)}
-          onSelectPlantCrop={onSelectPlantCrop}
-          onInspectPlanting={onInspectPlanting}
-          onInspectItem={onInspectItem}
-          onSortSatchel={onSortSatchel}
-          onConsumeItem={onConsumeItem}
-          onDiscardItem={onDiscardItem}
-        />
-      )}
-
-      {activeModal === "character" && (
-        <CharacterScreen
-          character={onInspectCharacter()}
-          onClose={() => onSetActiveModal(null)}
-          onEquipEquipment={onEquipEquipment}
-          onEquipRod={onEquipCharacterRod}
-          onSavePreset={onSaveEquipmentPreset}
-          onApplyPreset={onApplyEquipmentPreset}
-          onOpenSatchel={() => onSetActiveModal("inventory")}
-          onOpenPause={() => onSetActiveModal("pause")}
-        />
-      )}
-
-      {activeModal === "crafting" && craftingStationId && (() => {
-        const station = onInspectProcessingStation(craftingStationId);
-        return station ? (
-          <CraftingModal
-            station={station}
-            onClose={() => onSetActiveModal(null)}
-            onStart={onStartProcessing}
-          />
-        ) : null;
-      })()}
-
-      {activeModal === "market" && (
-        <MarketModal
-          board={marketId ? onInspectMarketBoard(marketId) : null}
-          onSellItem={onSellItem}
-          onSellAllProduce={onSellAllProduce}
-          onInspectCommodity={onInspectCommodity}
-          onInspectDemandTrend={onInspectDemandTrend}
-          onBuySeed={onBuySeed}
-          onBuyItem={onBuyItem}
-          onBuyRod={onBuyRod}
-          onEquipRod={onEquipRod}
-          onSellFishCargo={onSellFishCargo}
-          onSellAllFishCargo={onSellAllFishCargo}
-          onDiscardFishCargo={onDiscardFishCargo}
-          onReleaseFishCargo={onReleaseFishCargo}
-          onDeliverContractItems={onDeliverContractItems}
-          onDeliverFishCargo={onDeliverFishCargo}
-          onPassContract={onPassContract}
-          onClose={() => onSetActiveModal(null)}
-        />
-      )}
-
-      {activeModal === "map" && (
-        <WorldMapModal
-          map={onInspectWorldMap()}
-          questMarkers={worldHud.compass.nearbyMarkers.filter(
-            (marker) => marker.kind === "quest" || marker.kind === "quest-secondary"
-          )}
-          customWaypoint={customWaypoint}
-          onSetCustomWaypoint={setCustomWaypoint}
-          onInspectMarketDemand={onInspectMarketDemand}
-          onClose={() => onSetActiveModal(null)}
-        />
-      )}
-
-      {activeModal === "ledger" && (
-        <LogisticsLedgerModal
-          stores={onInspectHoldStores()}
-          onClose={() => onSetActiveModal(null)}
-          onTransfer={onTransferStores}
-          onStowCatch={onStowCatch}
-          onMoveStorageGoods={onMoveStorageGoods}
-          onMoveStorageFish={onMoveStorageFish}
-        />
-      )}
-
-      {activeModal === "expedition" && plannerUnlocked && (
-        <ExpeditionBoard board={onInspectExpeditionBoard()} onClose={() => onSetActiveModal(null)} />
-      )}
-
-      {activeModal === "journal" && (
-        <JournalModal
-          pages={onInspectJournalPages()}
-          activeQuest={activeQuest ?? null}
-          activeQuests={activeQuests}
-          skills={onInspectSkillProgress()}
-          almanac={onInspectAlmanac?.()}
-          // Omit the prop entirely when empty so the Notices folio is hidden;
-          // an empty array is truthy and would always show the tab.
-          notices={villageNotices.length > 0 ? villageNotices : undefined}
-          people={people}
-          initialFolio={journalInitialFolio}
-          onClose={() => {
-            setJournalInitialFolio("story");
-            onSetActiveModal(null);
-          }}
-        />
-      )}
-
-      {activeModal === "pause" && (
-        <EscapeMenuModal
-          pause={onInspectPauseSummary()}
-          onClose={() => onSetActiveModal(null)}
-          onResetPlayerToSafePlace={onResetPlayerToSafePlace}
-          onEmergencyTow={onEmergencyTow}
-          onQuickSave={onQuickSave}
-          savingAvailable={savingAvailable}
-          onOpenInventory={() => onSetActiveModal("inventory")}
-          onOpenJournal={() => {
-            setJournalInitialFolio("story");
-            onSetActiveModal("journal");
-          }}
-          onOpenGuide={() => {
-            setJournalInitialFolio("guide");
-            onSetActiveModal("journal");
-          }}
-          onOpenMap={() => onSetActiveModal("map")}
-          onOpenLedger={() => onSetActiveModal("ledger")}
-          onOpenExpedition={() => onSetActiveModal("expedition")}
-          expeditionUnlocked={plannerUnlocked}
-          graphicsQuality={graphicsQuality}
-          effectiveGraphicsQuality={effectiveGraphicsQuality}
-          onGraphicsQualityChange={onGraphicsQualityChange}
-          onPromptPwaInstall={() => {
-            // Keep Pause in the stack: the sheet inherits its time freeze,
-            // world-input suspension and return-to-Pause behavior.
-            setPwaPromptManualOpen(true);
-          }}
-          isStandalone={pwa.isStandalone || pwa.isInstalled}
-        />
-      )}
-
-      {showPwaPromptInGame && (
-        <PwaInstallPromptModal
-          platform={pwa.platform}
-          canPromptDirectly={pwa.canPromptDirectly}
-          onInstall={async () => {
-            const outcome = await pwa.promptInstall();
-            if (outcome === "accepted" || outcome === "dismissed") {
-              setPwaPromptManualOpen(false);
-              pwa.dismiss();
-            }
-          }}
-          onDismiss={() => {
-            setPwaPromptManualOpen(false);
-            pwa.dismiss();
-          }}
-        />
-      )}
+      <GameUiModalLayer
+        ui={props}
+        journalPages={journalPages}
+        journalInitialFolio={journalInitialFolio}
+        setJournalInitialFolio={setJournalInitialFolio}
+        followingRecordId={followingRecordId}
+        setFollowingRecordId={setFollowingRecordId}
+        canFollowRecords={canFollowRecords}
+        customWaypoint={customWaypoint}
+        setCustomWaypoint={setCustomWaypoint}
+      />
 
       {/* Modal notices are deliberately last so the status layer paints over
           the modal scrim/card instead of disappearing behind it. */}
@@ -867,9 +649,9 @@ export const GameUI: React.FC<GameUIProps> = ({
         />
       )}
 
-      {showDiagnostics && (
+      {showDiagnostics && debugSnapshot && (
         <DebugOverlay
-          state={state}
+          snapshot={debugSnapshot}
           mode={mode}
           fps={fps}
           renderStats={renderStats}

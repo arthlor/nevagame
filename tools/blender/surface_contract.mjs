@@ -28,7 +28,11 @@ export async function validateSurfaceContract(bytes, spec) {
       }
     }
   }
-  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  // Geometry, skin and clip checks never read pixels, and Node has no image
+  // decoder for a texture-preserving import; skip texture loading entirely.
+  const loader = new GLTFLoader()
+    .setMeshoptDecoder(MeshoptDecoder)
+    .register(() => ({ name: "neva_skip_textures", loadTexture: () => Promise.resolve(null) }));
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   const gltf = await loader.parseAsync(buffer, "");
   const meshes = [];

@@ -2,10 +2,11 @@ import { CARRIAGE_TYPE_ID, CARRIAGE_TUNING, STARTER_CARRIAGE_ID } from "../simul
 import { dockedMooring } from "../world/WorldMoorings";
 // src/persistence/SaveSchema.ts
 
-import type { CropStage, GameState } from "../simulation/core/types";
+import type { CropStage, GameState, ProcessingWorkTier } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { PLAYER_SATCHEL_SLOT_COUNT } from "../simulation/inventory/InventoryLimits";
+import { SPORT_FISHING_WORK_COST_BY_CLASS } from "../simulation/domains/FishingDomain";
 import {
   PROCESSING_JOB_SNAPSHOT_LIMITS,
   PROCESSING_WORK_BY_TIER,
@@ -15,6 +16,7 @@ import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversa
 import { calendarAtMinute, isValidClockSpeed } from "../simulation/core/GameClock";
 import { cargoClassFits, isProduceContractType } from "../simulation/domains/domainRules";
 import { WORLD_LAYOUT_REVISION } from "../world/WorldAnchors";
+import { SAILABLE_BOUNDS } from "../world/WorldLayout";
 import {
   MAX_EARLY_ACTION_CREDIT_QUANTITY,
   MAX_EARLY_ACTION_CREDIT_RECORDS,
@@ -31,7 +33,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 54;
+export const CURRENT_SCHEMA_VERSION = 59;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -146,8 +148,16 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 54
+    (schemaVersion >= 59
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 58
+      ? state.world.layoutRevision !== 28
+      : schemaVersion >= 57
+      ? (state.world.layoutRevision !== 28 && state.world.layoutRevision !== 27)
+      : schemaVersion >= 55
+      ? state.world.layoutRevision !== 27
+      : schemaVersion >= 54
+      ? state.world.layoutRevision !== 26
       : schemaVersion >= 53
       ? state.world.layoutRevision !== 25
       : schemaVersion >= 52
@@ -328,6 +338,15 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     const depthBounds = profile && isFiniteNumber(state.sportFishing.distanceMeters, 0)
       ? fishingDepthBounds(profile, state.sportFishing.distanceMeters)
       : null;
+    // The snapshot is optional for old fights. Its upper bound is the hooked
+    // species' undiscounted class cost; the hook-time rank and equipment may
+    // have changed since then, so a tighter current quote would reject saves.
+    const workCharged = state.sportFishing.workCharged;
+    if (workCharged !== undefined && (
+      !isSafeInteger(workCharged, 1) ||
+      !species ||
+      workCharged > SPORT_FISHING_WORK_COST_BY_CLASS[species.cargoClass]
+    )) return false;
     if (schemaVersion >= 19 && (
       !isRecord(dynamics) ||
       ![dynamics.originX, dynamics.originZ, dynamics.bearingRadians, dynamics.headingRadians,
@@ -534,7 +553,9 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         job.outputLabel.trim().length === 0 ||
         job.outputLabel.length > PROCESSING_JOB_SNAPSHOT_LIMITS.maxLabelCharacters ||
         !isRecord(job.result) ||
-        !isOneOf(job.workTier, ["standard", "masterwork"]) ||
+        !isOneOf(job.workTier, schemaVersion >= 58
+          ? ["light", "prepared", "standard", "masterwork"]
+          : ["standard", "masterwork"]) ||
         !isOneOf(job.presentationKind, ["existing", "tailoring", "toolmaking"]) ||
         !isSafeInteger(job.baseWork, 1) ||
         !isSafeInteger(job.chargedWork, 1) ||
@@ -549,7 +570,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         (job.status === "active" && state.clock.currentMinute >= job.completesAtMinute) ||
         (job.status === "complete" && state.clock.currentMinute < job.completesAtMinute)
       ) return false;
-      const workTier = job.workTier as "standard" | "masterwork";
+      const workTier = job.workTier as ProcessingWorkTier;
       if (
         job.baseWork !== PROCESSING_WORK_BY_TIER[workTier] ||
         job.xpReward !== PROCESSING_XP_BY_TIER[workTier]
@@ -638,6 +659,21 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         !state.world.structures[cargo.location.containerId] ||
         cargo.location.slotIndex !== undefined
       ) return false;
+    } else if (schemaVersion >= 56 && cargo.location.type === "ground") {
+      // A pack resting on the ground owns its pose: the literal container,
+      // no slot, and finite X/Z inside the world bounds. Walkability is not
+      // a validity gate — terrain revisions re-ground, they never corrupt —
+      // so the validator checks structure only and the migration/recovery
+      // path owns footing.
+      const { x, z } = cargo.location as { x?: unknown; z?: unknown };
+      if (
+        cargo.location.containerId !== "ground" ||
+        cargo.location.slotIndex !== undefined ||
+        !isFiniteNumber(x) ||
+        !isFiniteNumber(z) ||
+        (x as number) < SAILABLE_BOUNDS.minX || (x as number) > SAILABLE_BOUNDS.maxX ||
+        (z as number) < SAILABLE_BOUNDS.minZ || (z as number) > SAILABLE_BOUNDS.maxZ
+      ) return false;
     } else {
       return false;
     }
@@ -716,7 +752,9 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         contract.requesterId.length === 0 ||
         typeof contract.deliveryMarketId !== "string" ||
         !ContentRegistry.markets.has(contract.deliveryMarketId) ||
-        contract.deliveryMarketId !== template.deliveryMarketId ||
+        (contract.deliveryMarketId !== template.deliveryMarketId && !(
+          contract.templateId === "contract.flax_bolts" && contract.deliveryMarketId === "market.village"
+        )) ||
         contract.type !== template.type ||
         typeof targetId !== "string" ||
         !template.itemOrSpeciesPool.includes(targetId) ||
@@ -724,6 +762,12 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         !isSafeInteger(contract.quantityRequired, 1) ||
         !isSafeInteger(contract.quantityFulfilled, 0) ||
         contract.quantityFulfilled > contract.quantityRequired ||
+        (schemaVersion >= 57 && (
+          !isSafeInteger(contract.deliveredValueMoney, 0) ||
+          !isSafeInteger(contract.legacyUnvaluedQuantity, 0) ||
+          contract.legacyUnvaluedQuantity > contract.quantityFulfilled ||
+          (contract.status !== "active" && (contract.deliveredValueMoney !== 0 || contract.legacyUnvaluedQuantity !== 0))
+        )) ||
         !isSafeInteger(contract.rewardMoney, 0) ||
         !isRecord(rewardSkillXp) ||
         !isOneOf(rewardSkillXp.skill, SKILL_IDS) ||

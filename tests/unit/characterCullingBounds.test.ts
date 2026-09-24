@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import { characterPreviewContext } from "../../src/art-yard/characterPreview";
 import { HumanoidAnimator } from "../../src/render/animation/AnimationController";
@@ -20,6 +19,7 @@ import {
 } from "../../src/render/loaders/CharacterCullingBounds";
 import { ASSET_BY_ID, type AssetId } from "../../src/render/assets/AssetCatalog";
 import { CHARACTER_ASSET_IDS, loadHumanoidAsset } from "../helpers/humanoidAssets";
+import { createNodeGltfLoader } from "../helpers/nodeGltfLoader";
 
 const VERTEX_TOLERANCE_METERS = 1e-5;
 
@@ -27,7 +27,7 @@ async function loadAsset(id: AssetId): Promise<THREE.Group> {
   const spec = ASSET_BY_ID.get(id)!;
   const bytes = await fs.readFile(path.resolve(import.meta.dirname, "../../public/assets/models", spec.file));
   await MeshoptDecoder.ready;
-  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(
+  const gltf = await createNodeGltfLoader().parseAsync(
     bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
     "",
   );
@@ -178,7 +178,7 @@ describe("cached conservative character culling bounds", () => {
     };
 
     const carrySocket = root.getObjectByName("char_player_carry_socket")!;
-    const cargo = createCarryCradle(await loadAsset("prop_crop_bundle_a"));
+    const cargo = createCarryCradle(await loadAsset("prop_crop_bundle_a"), "bundle");
     carrySocket.add(cargo);
     animator.setPreviewClip("carry_walk");
     for (const phase of [0.15, 0.5, 0.85]) {

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Three.js 3D Generator"
-  short_description: "Generate and prepare requested Tripo 3D assets"
-  default_prompt: "Use $threejs-3d-generator for this explicitly requested Tripo generation or processing task, retaining provenance and the project’s asset pipeline."
-policy:
-  allow_implicit_invocation: false

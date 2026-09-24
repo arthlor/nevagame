@@ -47,7 +47,8 @@ export const FRESHNESS_STORAGE_MODIFIERS = {
   "boat-hook": 1.0,
   carriage: 1.0,
   "cold-storage": 0.15,
-  crate: 0.9
+  crate: 0.9,
+  ground: 1.0
 } as const;
 
 /**
@@ -100,6 +101,10 @@ export function resolveCargoTemperatureC(state: GameState, cargo: FishCargoState
     holder = state.mounts[cargo.location.containerId] ?? holder;
   } else if (cargo.location.type === "cold-storage" || cargo.location.type === "crate") {
     holder = state.world.structures[cargo.location.containerId] ?? holder;
+  } else if (cargo.location.type === "ground") {
+    if (typeof cargo.location.x === "number" && typeof cargo.location.z === "number") {
+      holder = { x: cargo.location.x, z: cargo.location.z };
+    }
   }
   return WorldLayout.climateSampleAt(holder.x, holder.z, state.weather).temperatureC;
 }
@@ -133,6 +138,7 @@ export function advanceCargoFreshness(
     const untilHourBoundary = minuteOfHour === 0 ? 60 : 60 - minuteOfHour;
     const sliceMinutes = Math.min(minutes - elapsed, untilHourBoundary);
     const activeCargos = cargos.filter((cargo) => cargo.freshness > 0 && ContentRegistry.fishSpecies.has(cargo.speciesId));
+    const billedInventories = new Set<string>();
 
     for (const cargo of activeCargos) {
       const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
@@ -141,6 +147,10 @@ export function advanceCargoFreshness(
       const sliceEnd = sliceStart + sliceMinutes;
       const decayMinutes = Math.max(0, sliceEnd - Math.max(sliceStart, cargo.caughtAtMinute));
       if (decayMinutes <= 0) continue;
+      // Fishing resolves before elapsed-minute decay. A catch landed exactly
+      // at this slice's end did not use ice during the preceding hour.
+      const iceInv = resolveCargoIceInventory(state, cargo);
+      if (iceInv) billedInventories.add(iceInv.id);
       const freshnessBefore = cargo.freshness;
       cargo.freshness = Math.max(
         0,
@@ -157,12 +167,6 @@ export function advanceCargoFreshness(
 
     elapsed += sliceMinutes;
     if ((startMinute + elapsed) % 60 === 0) {
-      const billedInventories = new Set<string>();
-      for (const cargo of activeCargos) {
-        const iceInv = resolveCargoIceInventory(state, cargo);
-        if (!iceInv) continue;
-        billedInventories.add(iceInv.id);
-      }
       for (const inventoryId of billedInventories) {
         const inventory = state.inventories[inventoryId];
         if (inventory) InventoryManager.removeItemsAtomically(inventory, [{ itemId: "item.crushed_ice", quantity: 1 }]);

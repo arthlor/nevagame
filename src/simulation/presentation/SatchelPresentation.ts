@@ -90,7 +90,8 @@ const STORAGE_LABEL: Record<CarryLocationType, string> = {
   carriage: "Carriage bed",
   "boat-hook": "Transom hook",
   "cold-storage": "Cold room",
-  crate: "Crate"
+  crate: "Crate",
+  ground: "On the ground"
 };
 
 function freshnessLabel(percent: number): string {

@@ -7,6 +7,10 @@
  * `art/authored/<model>/export/`. That offline GLB is the `sourceGlb` a `prebuilt_glb` catalog entry
  * publishes to `public/assets/models/`.
  *
+ * This path is only for the photo-reconstructed buildings, whose factories paint canvas textures.
+ * Every other authored asset is a registered generator in `tools/authored/generators/` and is built
+ * by the main art pipeline (`npm run art:generate`) in Node.
+ *
  * Determinism: the bytes are not guaranteed identical run to run because three's GLTFExporter packs
  * textures asynchronously and only the order of the image bufferViews varies. `--verify` builds each
  * target twice and asserts the semantic digest (hierarchy, geometry, and the texture set) matches.

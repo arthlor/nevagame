@@ -3,6 +3,8 @@ import type { AlmanacDto, JournalPagesDto } from "../core/contracts";
 import { rarityForEncounterWeight } from "./SatchelPresentation";
 import type { GameState } from "../core/types";
 import { buildRecordMilestones } from "./buildRecordMilestones";
+import { SEASONS } from "../core/GameClock";
+import { speciesSeasonWeight } from "../fishing/seasonalAvailability";
 
 export function buildJournalPagesDto(state: GameState): JournalPagesDto {
   const fishRecords = [...ContentRegistry.fishSpecies.values()]
@@ -65,12 +67,25 @@ export function buildAlmanacDto(state: GameState): AlmanacDto {
     .map((species) => {
       const record = state.journal.fishRecords[species.id];
       const discovered = Boolean(record?.discovered);
+      const seasonWeight = speciesSeasonWeight(species, state.clock.season);
+      const currentSeasonIndex = SEASONS.indexOf(state.clock.season);
+      const nextRunningSeason = Array.from({ length: SEASONS.length - 1 }, (_, offset) =>
+        SEASONS[(currentSeasonIndex + offset + 1) % SEASONS.length]
+      ).find((season) => speciesSeasonWeight(species, season) > 0);
+      const seasonAvailabilityLabel = seasonWeight >= 1
+        ? "Strong run now"
+        : seasonWeight > 0
+          ? "Scarce this season"
+          : nextRunningSeason
+            ? `Returns in ${titleCase(nextRunningSeason)}`
+            : "No current run";
       return {
         speciesId: species.id,
         name: species.name,
         discovered,
         habitatsLabel: listLabel(species.habitats, "Unknown waters"),
         seasonsLabel: listLabel(species.seasons, "All year"),
+        seasonAvailabilityLabel,
         timeWindowsLabel: listLabel(species.timeWindows, "Any hour"),
         weightKg: species.weightKg,
         baseMarketValue: species.baseMarketValue,

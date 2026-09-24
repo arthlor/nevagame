@@ -329,6 +329,8 @@ describe("the contract board and the story", () => {
         targetItemIdOrSpecies: template.itemOrSpeciesPool[0],
         quantityRequired: template.quantityRange[0],
         quantityFulfilled: 0,
+        deliveredValueMoney: 0,
+        legacyUnvaluedQuantity: 0,
         rewardMoney: 50,
         rewardSkillXp: { skill: template.rewardSkill, xp: 50 },
         expiresAtMinute: state.clock.currentMinute + 10_000,
@@ -345,10 +347,13 @@ describe("the contract board and the story", () => {
     sim.state.player.ownedRodIds = ["rod.willow", "rod.river", "rod.heavy_sport"];
     sim.state.player.equippedRodId = "rod.heavy_sport";
     fillBoardWithProduce(sim.state);
+    const villageCounter = ContentRegistry.markets.get("market.village")!.interactionPosition;
+    sim.state.player.x = villageCounter.x;
+    sim.state.player.z = villageCounter.z;
 
     expect(sim.execute({ type: "contract.pass", contractId: "contract.test_0" })).toMatchObject({ success: true });
     const active = sim.state.contracts.filter((contract) => contract.status === "active");
-    expect(active).toHaveLength(3);
+    expect(active).toHaveLength(4);
     const posted = active.find((contract) => !contract.id.startsWith("contract.test_"))!;
     expect(posted.type).toBe("quality-target");
     // Of the quality orders this player can take, the one without a trophy
@@ -359,6 +364,9 @@ describe("the contract board and the story", () => {
   it("keeps an order once goods have been delivered against it", () => {
     const sim = new Simulation();
     fillBoardWithProduce(sim.state);
+    const villageCounter = ContentRegistry.markets.get("market.village")!.interactionPosition;
+    sim.state.player.x = villageCounter.x;
+    sim.state.player.z = villageCounter.z;
     sim.state.contracts[0].quantityFulfilled = 1;
     expect(sim.execute({ type: "contract.pass", contractId: sim.state.contracts[0].id })).toMatchObject({ success: false });
     expect(sim.state.contracts[0].status).toBe("active");

@@ -2,6 +2,31 @@ import * as THREE from "three";
 
 export type AttachmentSide = "left" | "right";
 
+const terminalPelvisOffsets = new WeakMap<THREE.Object3D, Map<string, THREE.Vector3>>();
+
+/** Destination calibration comes from the seated clip, never the moving transition pelvis. */
+export function attachmentPelvisOffset(root: THREE.Object3D, clipName: string, pelvisName: string): THREE.Vector3 {
+  let offsets = terminalPelvisOffsets.get(root);
+  if (!offsets) { offsets = new Map(); terminalPelvisOffsets.set(root, offsets); }
+  let offset = offsets.get(clipName);
+  if (!offset) {
+    const clip = (root.userData.animationClips as THREE.AnimationClip[]).find(value => value.name === clipName);
+    if (!clip) throw new Error(`Missing attachment pose ${clipName}`);
+    // Only sample transforms on an isolated hierarchy; no live mixer, bones,
+    // cached geometry, or gameplay position is modified.
+    const copy = root.clone(true);
+    const mixer = new THREE.AnimationMixer(copy);
+    mixer.clipAction(clip).play(); mixer.update(0);
+    copy.updateMatrixWorld(true);
+    const pelvis = copy.getObjectByName(pelvisName);
+    if (!pelvis) throw new Error(`Missing attachment pelvis ${pelvisName}`);
+    offset = copy.worldToLocal(pelvis.getWorldPosition(new THREE.Vector3()));
+    mixer.stopAllAction(); mixer.uncacheRoot(copy);
+    offsets.set(clipName, offset);
+  }
+  return offset;
+}
+
 export function attachmentSideFromLocalX(localX: number): AttachmentSide {
   // With +Z forward and +Y up, anatomical left is +X.
   return localX >= 0 ? "left" : "right";

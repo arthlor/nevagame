@@ -217,6 +217,8 @@ export function createInitialGameState(worldSeed: number = 42891): GameState {
         targetItemIdOrSpecies: "produce.wheat",
         quantityRequired: 6,
         quantityFulfilled: 0,
+        deliveredValueMoney: 0,
+        legacyUnvaluedQuantity: 0,
         rewardMoney: 65,
         rewardSkillXp: { skill: "farming", xp: 150 },
         expiresAtMinute: 24 * 60,

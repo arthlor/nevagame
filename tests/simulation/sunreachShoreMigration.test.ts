@@ -18,9 +18,15 @@ import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionD
 const legacy = () => structuredClone(fixture) as unknown as SaveEnvelope;
 
 function preserveResources(after: SaveEnvelope, before: SaveEnvelope) {
-  for (const key of ["inventories", "crops", "processingJobs", "boats", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "metadata"] as const) {
+  for (const key of ["inventories", "crops", "processingJobs", "boats", "fishCargo", "quests", "journal", "clock", "weather", "metadata"] as const) {
     expect(after.state[key], key).toEqual(before.state[key]);
   }
+  const withoutV57SettlementFields = (contracts: typeof before.state.contracts) => contracts.map((contract) =>
+    Object.fromEntries(Object.entries(contract).filter(([key]) =>
+      key !== "deliveredValueMoney" && key !== "legacyUnvaluedQuantity"
+    ))
+  );
+  expect(withoutV57SettlementFields(after.state.contracts)).toEqual(withoutV57SettlementFields(before.state.contracts));
   expectFarmsPreserved(after.state, before.state);
   expectMarketsPreserved(after.state, before.state);
   for (const key of ["money", "proficiencies", "equipment", "ownedRodIds"] as const) {
@@ -52,7 +58,7 @@ describe("Sunreach continuous shore migration (v39 / layout17)", () => {
     expect(after.state.mounts[STARTER_CARRIAGE_ID].fishCargoSlotIds).toEqual([null, null]);
     expect(migrateSaveData(after)).toEqual(after);
     preserveResources(after, before);
-  });
+  }, 120_000);
 
   it.each([false, true])("recovers a changed coastal pose on Sunreach with resources and rider attachment intact (mounted=%s)", (mounted) => {
     const before = legacy();

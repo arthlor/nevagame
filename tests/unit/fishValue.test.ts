@@ -12,6 +12,7 @@ import { FISH_SPECIES } from "../../src/content/fish";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
+import { inspectLandedCatch } from "../../src/simulation/fishing/trophyCatch";
 
 describe("Fish Value & Freshness Calculations", () => {
   beforeEach(() => {
@@ -27,6 +28,30 @@ describe("Fish Value & Freshness Calculations", () => {
 
     expect(lossIce).toBeLessThan(lossHold);
     expect(lossHold).toBeLessThan(lossOpen);
+  });
+
+  it("presents a landed catch with the actual ice available to its carrier", () => {
+    const state = createInitialGameState();
+    const cargo = {
+      id: "cargo.presentation-ice",
+      speciesId: tuna.id,
+      weightKg: 35,
+      quality: "fine" as const,
+      caughtAtMinute: 0,
+      freshness: 90,
+      cargoClass: "medium" as const,
+      location: { type: "player" as const, containerId: "player" }
+    };
+    const withoutIce = inspectLandedCatch(state, cargo, "weight");
+    InventoryManager.addItemsAtomically(
+      state.inventories[state.player.inventoryId],
+      [{ itemId: "item.crushed_ice", quantity: 1 }]
+    );
+    const withIce = inspectLandedCatch(state, cargo, "weight");
+
+    expect(withIce.estimatedShelfLifeMinutes).toBeGreaterThan(withoutIce.estimatedShelfLifeMinutes);
+    expect(withIce.record).toBe("weight");
+    expect(withIce.cargoId).toBe(cargo.id);
   });
 
   it("clamps commodity demand through the single marketPricing owner", () => {

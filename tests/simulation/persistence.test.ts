@@ -30,6 +30,7 @@ import saveV30Layout10 from "../fixtures/save_v30_layout10.json";
 import saveV36Layout15 from "../fixtures/save_v36_layout15.json";
 import saveV36RetiredMarketCommodity from "../fixtures/save_v36_retired_market_commodity.json";
 import saveV41Layout19 from "../fixtures/save_v41_layout19.json";
+import saveV56ContractSettlementPredecessor from "../fixtures/save_v56_contract_settlement_predecessor.json";
 import { STARTER_CARRIAGE_ID } from "../../src/simulation/mounts/Carriage";
 import {
   DAYS_PER_SEASON,
@@ -425,6 +426,30 @@ describe("Persistence & Offline Progression", () => {
       expect(validateSaveEnvelope(loaded.envelope)).toBe(true);
     });
 
+    it("preserves both raw save slots if committing a migrated v56 contract ledger fails", async () => {
+      const predecessor = structuredClone(saveV56ContractSettlementPredecessor) as unknown as SaveEnvelope;
+      const backup: SaveEnvelope = {
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        savedAtUtcMs: 2,
+        state: createInitialGameState(9393)
+      };
+      backup.state.player.money = 731;
+      await putRawSave("primary_save", predecessor);
+      await putRawSave("backup_save", backup);
+
+      const loaded = await new IndexedDbSaveRepository().loadGameResult();
+      expect(loaded.status).toBe("loaded");
+      if (loaded.status !== "loaded") throw new Error(`Expected v56 migration, got ${loaded.status}`);
+      expect(loaded.envelope.state.contracts[0].legacyUnvaluedQuantity).toBe(2);
+      expect(await readRawSave("primary_save")).toEqual(predecessor);
+      expect(await readRawSave("backup_save")).toEqual(backup);
+
+      patchIndexedDbPuts((key) => key === "primary_save");
+      expect(await new IndexedDbSaveRepository().saveGame(loaded.envelope.state)).toBe(false);
+      expect(await readRawSave("primary_save")).toEqual(predecessor);
+      expect(await readRawSave("backup_save")).toEqual(backup);
+    });
+
     it("loads a v36 slot containing a retired authored commodity instead of declaring it corrupt", async () => {
       const repo = new IndexedDbSaveRepository();
       const legacy = v36RetiredMarketCommodityFixture();
@@ -780,8 +805,8 @@ describe("Persistence & Offline Progression", () => {
 
     applyOfflineProgression(sim.state, now);
 
-    // Work is earned, not regenerated: one wake grants the 25% baseline floor.
-    expect(sim.state.player.workCapacity.current).toBe(125);
+    // Work is earned, not regenerated: one wake grants the 40% baseline floor.
+    expect(sim.state.player.workCapacity.current).toBe(200);
   });
 
   it("advances offline markets hour by hour without supply overshooting its target", () => {

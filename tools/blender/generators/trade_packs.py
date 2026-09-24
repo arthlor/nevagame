@@ -5,12 +5,10 @@ from common.design_primitives import add_crafted_box
 import math
 
 import bpy
-from mathutils import Matrix, Vector
 
 from common.authored import add_plank_field, add_rope_line
 from common.geometry import add_box, add_ico, add_limb_tube, add_lofted_form, add_tri_prism, seeded_rng
 from common.lod import create_lod_roots, consolidate_lod_level
-from .fish import stylized_fish
 
 
 def _roles(spec):
@@ -84,63 +82,6 @@ def _frame(spec, root, detail):
     return w,d,h,rim
 
 
-def _fish_payload(spec, root, detail, w, d, rim):
-    p=spec['parameters']
-    holder=bpy.data.objects.new(f'{root.name}_catch',None)
-    bpy.context.collection.objects.link(holder)
-    holder.parent=root
-    keys=('species','length','girth','finScale','bodyDepth','bodySegments','radialSegments','tailPeduncle')
-    fp={key:p[key] for key in keys}
-    if not detail:
-        fp['bodySegments']=8
-        fp['radialSegments']=8
-    before=set(bpy.context.scene.objects)
-    stylized_fish({'id':f'{root.name}_fish','parameters':fp,'palette':[p['backToken'],p['bellyToken'],p['accentToken']]},holder)
-    if p['species'] == 'sailfish':
-        add_limb_tube(f'{root.name}_sailfish_bill',
-                      [(0,-p['length']*.49,0),(0,-p['length']*.72,.004),(0,-p['length']*.98,.007)],
-                      [p['girth']*.11,p['girth']*.055,.002],p['backToken'],holder,sides=6)
-    # Flatten only this static catch, preserving the live fish generator and its animation.
-    bpy.context.view_layer.update()
-    transform=Matrix.Translation((0,-d*.03,rim+.065)) @ Matrix.Rotation(math.pi/2,4,'Z') @ Matrix.Rotation(-.20,4,'Y')
-    created=set(bpy.context.scene.objects)-before
-    for obj in sorted(created,key=lambda ob:ob.name):
-        if obj.type!='MESH': continue
-        for modifier in list(obj.modifiers):
-            if modifier.type=='ARMATURE': obj.modifiers.remove(modifier)
-        obj.data.transform(transform @ obj.matrix_world)
-        obj.parent=root
-        obj.matrix_parent_inverse.identity()
-        obj.matrix_basis.identity()
-        obj.name=f'{root.name}_{obj.name}'
-    for obj in created:
-        # The catch is flattened into the carrier, so its rig and motion
-        # carriers must not survive as a stray hierarchy or skin.
-        if obj.type in {'EMPTY','ARMATURE'}: bpy.data.objects.remove(obj,do_unlink=True)
-    bpy.data.objects.remove(holder,do_unlink=True)
-    rope,canvas,ink=_roles(spec)[3],_roles(spec)[2],_roles(spec)[6]
-    rng=seeded_rng(spec['seed'])
-    for i in range(18 if detail else 7):
-        x=rng.uniform(-w*.37,w*.37); y=rng.uniform(-d*.30,d*.30)
-        add_ico(f'{root.name}_ice_{i}',(x,y,rim-.008),(.046,.033,.035),p['bellyToken'],root,
-                rotation=(.2,.1,rng.uniform(0,3)),subdivisions=1)
-    # A coarse net pocket and cork floats retain the reference's working-fisher silhouette.
-    for j in range(4 if detail else 2):
-        points=[]
-        for k in range(7):
-            t=k/6
-            points.append((w*.51+.065*math.sin(t*math.pi), (j-1.5)*.065*math.sin(t*math.pi), rim-.03-t*.39))
-        add_rope_line(f'{root.name}_net_{j}',points,.009,rope,root,vertices=5)
-    for j in range(3):
-        z=rim-.08-j*.12
-        add_rope_line(f'{root.name}_net_cross_{j}',[(w*.53,-.10,z),(w*.585,0,z-.03),(w*.53,.10,z)],.008,rope,root,vertices=5)
-    for j,y in enumerate((-.16,.16)):
-        add_rope_line(f'{root.name}_float_tie_{j}',[(w*.48,y,rim-.02),(w*.57,y,rim-.16)],.009,rope,root,vertices=5)
-        add_lofted_form(f'{root.name}_float_{j}',[((w*.57,y,z),r,r) for z,r in
-                         [(rim-.29,.020),(rim-.27,.035),(rim-.20,.035),(rim-.17,.017)]],canvas,root,sides=8)
-        add_box(f'{root.name}_float_band_{j}',(w*.60,y,rim-.235),(.009,.055,.032),ink,root,bevel=.004)
-
-
 def _crop_payload(spec,root,detail,w,d,rim):
     p=spec['parameters']; crop=p['commodity']; token=p['produceToken']; leaf='foliage_leaf_01'
     rope=_roles(spec)[3]; rng=seeded_rng(spec['seed'])
@@ -182,16 +123,9 @@ def _crop_payload(spec,root,detail,w,d,rim):
                                   leaf,root,rotation=(.2*(k-1),.25*(k-1),k*1.7))
 
 
-def _build(spec,root,fish):
+def crop_trade_pack(spec,root):
+    # Fish packs are authored (tools/authored/generators/props/createFishTradePackModel.ts).
     for index,level in create_lod_roots(spec,root):
         w,d,h,rim=_frame(spec,level,index==0)
-        (_fish_payload if fish else _crop_payload)(spec,level,index==0,w,d,rim)
+        _crop_payload(spec,level,index==0,w,d,rim)
         consolidate_lod_level(level,level.name)
-
-
-def fish_trade_pack(spec,root):
-    _build(spec,root,True)
-
-
-def crop_trade_pack(spec,root):
-    _build(spec,root,False)

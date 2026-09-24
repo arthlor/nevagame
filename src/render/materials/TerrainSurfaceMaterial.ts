@@ -17,7 +17,7 @@ import {
 } from "./SurfaceFieldShader";
 import { bindMeadowColorUniforms, MEADOW_COLOR_FIELD_GLSL } from "../vegetation/MeadowColorField";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v29-ground-regions";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v30-ground-regions";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
@@ -687,9 +687,11 @@ diffuseColor.rgb = mix(
   terrainSharedWetness * terrainSharedTransition * 0.03
 );
 vec4 coastalField = nevaOpticsField(vTerrainWorldPosition.xz);
-vec3 coastalWash = nevaCoastalWash(vTerrainWorldPosition.xz, coastalField.b);
+// The swash leaves damp sand up to the sets' highest reach and a broken foam
+// lace behind the backwash; the water surface is lifted by the same level.
+vec3 coastalWash = nevaCoastalWash(vTerrainWorldPosition.xz, vTerrainWorldPosition.y, coastalField.a);
 float coastalSandWeight = coastalField.a * nevaSurfaceBeachWeight();
-float coastalDampness = coastalWash.y * (1.0 - smoothstep(0.08, 0.24, vTerrainWorldPosition.y));
+float coastalDampness = coastalWash.y;
 coastalDampness = max(coastalDampness, terrainWetness * 0.62);
 vec3 coastalSandColor = mix(terrainCoastalSand, terrainCoastalWetSand, coastalDampness);
 coastalSandColor *= mix(0.87, 1.06, terrainBeachValue) + terrainBeachFineDelta * 0.24;

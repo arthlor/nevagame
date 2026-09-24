@@ -1,4 +1,0 @@
-interface:
-  display_name: "Three.js Gameplay Systems"
-  short_description: "Design and build playable Three.js systems"
-  default_prompt: "Use $threejs-gameplay-systems to implement the requested gameplay behavior through its existing owners and verify the affected player path."

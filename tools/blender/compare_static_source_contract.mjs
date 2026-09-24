@@ -16,7 +16,11 @@ import { Matrix3, Matrix4, Vector3 } from "three";
 import { createNodeIO, ensureMeshoptReady } from "./optimize.mjs";
 
 const POSITION_TOLERANCE_METERS = 0.0001;
-const NORMAL_TOLERANCE_RADIANS = Math.PI / 900; // 0.2 degrees.
+// Blender stores split normals as quantized lnor-space offsets; a smooth-shaded
+// provider surface (the Tripo cottage and galleon) round-trips within ~1.3
+// degrees, a faceted one far tighter. Two degrees still rejects any rebuilt,
+// flattened or flipped normal.
+const NORMAL_TOLERANCE_RADIANS = Math.PI / 90;
 const UV_TOLERANCE = 0.00002;
 const COLOR_TOLERANCE = 0.00002;
 const MATERIAL_SCALAR_TOLERANCE = 0.00002;
@@ -102,8 +106,10 @@ export function declaredSourceTransform(sourceNode, authoring) {
     minimum.y,
     (minimum.z + maximum.z) * 0.5,
   );
+  const offset = authoring.pivotOffset ?? { x: 0, z: 0 };
   const outerMatrix = new Matrix4()
-    .makeScale(uniformScale, uniformScale, uniformScale)
+    .makeTranslation(-offset.x, 0, -offset.z)
+    .multiply(new Matrix4().makeScale(uniformScale, uniformScale, uniformScale))
     .multiply(new Matrix4().makeTranslation(-center.x, -center.y, -center.z))
     .multiply(rotation);
   const output = outerMatrix.clone().multiply(new Matrix4().fromArray(sourceNode.getWorldMatrix()));
@@ -201,8 +207,18 @@ export function compareRegionTriangles(sourceTriangles, candidateTriangles) {
     uv: 0,
     color: 0,
     missingTriangles: 0,
+    collinearSourceTriangles: 0,
   };
   for (const source of sourceTriangles) {
+    // A provider triangle whose corners are collinear has zero area: it shades
+    // nothing and has no face to anchor a split normal, so Blender assigns it
+    // an arbitrary one. Its positions and UVs are still compared; its normals
+    // are counted, not compared.
+    const [a, b, c] = source.map((value) => new Vector3().fromArray(value.position));
+    const longest = Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a));
+    const collinear = longest > 0
+      && b.clone().sub(a).cross(c.clone().sub(a)).length() / (longest * longest) < 1e-6;
+    if (collinear) errors.collinearSourceTriangles += 1;
     const origin = cell(source[0].position);
     const possible = [];
     for (let x = -1; x <= 1; x += 1) {
@@ -219,7 +235,7 @@ export function compareRegionTriangles(sourceTriangles, candidateTriangles) {
       const positionError = Math.max(...source.map((value, index) =>
         maxArrayError(value.position, candidate[(match.cornerIndex + index) % 3].position)));
       if (positionError > POSITION_TOLERANCE_METERS) continue;
-      const normalError = Math.max(...source.map((value, index) =>
+      const normalError = collinear ? 0 : Math.max(...source.map((value, index) =>
         new Vector3().fromArray(value.normal).angleTo(
           new Vector3().fromArray(candidate[(match.cornerIndex + index) % 3].normal),
         )));

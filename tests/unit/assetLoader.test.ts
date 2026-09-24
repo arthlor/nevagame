@@ -2,7 +2,65 @@ import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
 import { ASSET_BY_ID, ASSET_CATALOG, ASSET_IDS } from "../../src/render/assets/AssetCatalog";
-import { AssetLoader, configureRuntimeLod } from "../../src/render/loaders/AssetLoader";
+import { AssetLoader, cloneSkinnedModel, configureRuntimeLod } from "../../src/render/loaders/AssetLoader";
+
+describe("skinned model clones", () => {
+  /** A glTF skin split across two palette materials loads as two meshes on one skeleton. */
+  function twoMaterialSkin(): { root: THREE.Group; skeleton: THREE.Skeleton } {
+    const root = new THREE.Group();
+    const hip = new THREE.Bone();
+    hip.name = "hip";
+    const tail = new THREE.Bone();
+    tail.name = "tail";
+    tail.position.set(0, 0, -0.3);
+    hip.add(tail);
+    root.add(hip);
+    root.updateMatrixWorld(true);
+    const skeleton = new THREE.Skeleton([hip, tail]);
+    for (const name of ["coat", "saddle"]) {
+      const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+      const count = geometry.getAttribute("position").count;
+      geometry.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(new Array(count * 4).fill(0), 4));
+      geometry.setAttribute("skinWeight", new THREE.Float32BufferAttribute(
+        Array.from({ length: count * 4 }, (_, index) => (index % 4 === 0 ? 1 : 0)), 4
+      ));
+      const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshStandardMaterial({ name }));
+      mesh.name = name;
+      root.add(mesh);
+      mesh.bind(skeleton);
+    }
+    return { root, skeleton };
+  }
+
+  it("keeps one skeleton per source skeleton instead of one per material mesh", () => {
+    const { root, skeleton } = twoMaterialSkin();
+    const clone = cloneSkinnedModel(root);
+    const meshes: THREE.SkinnedMesh[] = [];
+    clone.traverse((object) => {
+      if ((object as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(object as THREE.SkinnedMesh);
+    });
+
+    expect(meshes).toHaveLength(2);
+    expect(meshes[0].skeleton).toBe(meshes[1].skeleton);
+    expect(meshes[0].skeleton).not.toBe(skeleton);
+    // The shared skeleton drives the clone's own bones, never the template's.
+    const cloneHip = clone.getObjectByName("hip");
+    expect(meshes[0].skeleton.bones[0]).toBe(cloneHip);
+    expect(skeleton.bones[0]).not.toBe(cloneHip);
+  });
+
+  it("still gives separate clones independent skeletons", () => {
+    const { root } = twoMaterialSkin();
+    const skeletonOf = (object: THREE.Object3D): THREE.Skeleton | undefined => {
+      let found: THREE.Skeleton | undefined;
+      object.traverse((child) => {
+        if ((child as THREE.SkinnedMesh).isSkinnedMesh) found ??= (child as THREE.SkinnedMesh).skeleton;
+      });
+      return found;
+    };
+    expect(skeletonOf(cloneSkinnedModel(root))).not.toBe(skeletonOf(cloneSkinnedModel(root)));
+  });
+});
 
 describe("generated asset LOD runtime", () => {
   it("reparents catalog-named levels into a Three.js distance switch", () => {

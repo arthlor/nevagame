@@ -171,41 +171,29 @@ describe("HUD notification rendering", () => {
   });
 });
 
-describe("HUD tool belt", () => {
-  it("reports what each slot is carrying", () => {
+describe("contextual HUD actions", () => {
+  it("leaves exploration free of action sockets", () => {
     const state = createInitialGameState();
     const html = renderToString(
-      React.createElement(HUD, { state, promptText: null, activeToolSlot: 2 })
+      React.createElement(HUD, { state, promptText: null })
     );
-    const buttons = html.match(/<button\b[^>]*data-testid="tool-slot-\d"[^>]*>[\s\S]*?<\/button>/g) ?? [];
-    expect(buttons).toHaveLength(5);
-    for (let slot = 1; slot <= 5; slot += 1) {
-      const button = buttons.find((candidate) => candidate.includes(`data-testid="tool-slot-${slot}"`));
-      expect(button).toMatch(new RegExp(`aria-label="[^" ,][^"]+, slot ${slot}"`));
-      expect(button).toContain("guild-tool-painting");
-    }
-    const readout = html.match(/<div class="guild-tool-readout"[^>]*>[\s\S]*?<\/div>/)?.[0];
-    expect(readout).toContain('aria-live="polite"');
-    expect(readout).toContain("<strong>Seed Belt</strong>");
+    expect(html).not.toContain('data-testid="smart-contextual-toolbar"');
+    expect(html).not.toContain("guild-context-actions");
   });
 
-  it("marks a slot unavailable when it has nothing to use", () => {
+  it("shows only relevant planting and crop alternatives", () => {
     const state = createInitialGameState();
-    const inventory = state.inventories[state.player.inventoryId];
-    for (const slot of inventory.slots) {
-      if (slot.itemId?.startsWith("seed.")) {
-        slot.itemId = undefined;
-        slot.quantity = 0;
-      }
-    }
     const html = renderToString(
-      React.createElement(HUD, { state, promptText: null, activeToolSlot: 2 })
+      React.createElement(HUD, { state, promptText: "[E] Harvest Wheat · 5 Work",
+        canStartPlanting: true,
+        onStartPlanting: () => {},
+        onChooseCropAction: () => {},
+        contextualCropChoices: [{ cropId: "placed.1", action: "water", label: "Water Wheat", detail: "5 Work" }] })
     );
-    const seedButton = html.match(/<button\b[^>]*data-testid="tool-slot-2"[^>]*>/)?.[0];
-    expect(seedButton).toContain('data-ready="false"');
-    expect(seedButton).toContain('aria-pressed="true"');
-    const readout = html.match(/<div class="guild-tool-readout"[^>]*>[\s\S]*?<\/div>/)?.[0];
-    expect(readout).toContain("No seeds");
+    expect(html).toContain("Plant");
+    expect(html).toContain("Other actions");
+    expect(html).toContain("Water Wheat");
+    expect(html).not.toContain('data-testid="smart-contextual-toolbar"');
   });
 });
 
@@ -235,14 +223,14 @@ describe("uiScale", () => {
     expect(isUiScalePreference("gigantic")).toBe(false);
   });
 
-  it("resolves to compact scale on mobile viewports with small preset at 0.70", () => {
+  it("resolves to compact scale on mobile viewports with small preset at 0.60", () => {
     // Phone in landscape (e.g. 844x390, 667x375)
     expect(isMobileViewport(844, 390)).toBe(true);
     expect(isMobileViewport(667, 375)).toBe(true);
-    expect(resolveUiScale("small", 844, 390)).toBe(0.70);
-    expect(resolveUiScale("small", 667, 375)).toBe(0.70);
-    expect(resolveUiScale("normal", 844, 390)).toBe(0.85);
-    expect(resolveUiScale("large", 844, 390)).toBe(1.0);
+    expect(resolveUiScale("small", 844, 390)).toBe(0.60);
+    expect(resolveUiScale("small", 667, 375)).toBe(0.60);
+    expect(resolveUiScale("normal", 844, 390)).toBe(0.72);
+    expect(resolveUiScale("large", 844, 390)).toBe(0.85);
 
     // Desktop viewports are not mobile
     expect(isMobileViewport(1440, 810)).toBe(false);

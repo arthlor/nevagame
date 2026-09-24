@@ -3,11 +3,29 @@ import { describe, expect, it } from "vitest";
 import {
   attachPreservingWorld,
   attachmentClip,
+  attachmentPelvisOffset,
   attachmentSideFromLocalX,
   sampleAttachmentCurve
 } from "../../src/render/animation/PlayerAttachmentTransition";
+import { loadHumanoidAsset } from "../helpers/humanoidAssets";
+import { resolveHumanoidRig } from "../../src/render/animation/HumanoidRig";
 
 describe("player attachment presentation", () => {
+  it("calibrates a fixed destination from the seated pose without moving the live transition", async () => {
+    const root = await loadHumanoidAsset("char_player_a");
+    const pelvis = resolveHumanoidRig(root).bones.pelvis!;
+    const mixer = new THREE.AnimationMixer(root);
+    const clip = (root.userData.animationClips as THREE.AnimationClip[]).find(value => value.name === "board")!;
+    const action = mixer.clipAction(clip).play(); action.paused = true;
+    action.time = clip.duration * 0.4; mixer.update(0); root.updateMatrixWorld(true);
+    const before = pelvis.position.clone();
+    const destination = attachmentPelvisOffset(root, "rowboat_idle", pelvis.name).clone();
+    expect(pelvis.position.distanceTo(before)).toBeLessThan(1e-9);
+    expect(destination.y).toBeGreaterThan(0.2);
+    expect(destination.y).toBeLessThan(0.5);
+    action.time = clip.duration * 0.7; mixer.update(0);
+    expect(attachmentPelvisOffset(root, "rowboat_idle", pelvis.name).distanceTo(destination)).toBeLessThan(1e-9);
+  });
   it("resolves craft and mirrored mount variants without changing caller actions", () => {
     expect(attachmentClip("board")).toBe("board");
     expect(attachmentClip("board", { skiff: true })).toBe("board_skiff");

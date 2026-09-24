@@ -281,7 +281,7 @@ describe("LIMITS probe", () => {
 
   describe("fishing", () => {
     it("enforces chum radius 12m, spent schools, and class Work costs", () => {
-      expect(BASIC_FISHING_WORK_COST).toBe(15);
+      expect(BASIC_FISHING_WORK_COST).toBe(20);
       expect(SPORT_FISHING_WORK_COST_BY_CLASS).toEqual({ small: 18, medium: 28, large: 36, gargantuan: 44 });
 
       const sim = new Simulation();

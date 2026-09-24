@@ -1,7 +1,8 @@
 // src/ui/DebugOverlay.tsx
 import React from "react";
-import { GameMode, GameState } from "../simulation/core/types";
+import type { GameMode } from "../simulation/core/types";
 import type { AssetCoverageSummary } from "../render/assets/AssetCoverage";
+import type { DebugGameSnapshot } from "../app/GameUiSnapshot";
 
 export interface RenderStats {
   calls: number;
@@ -43,7 +44,7 @@ export interface DebugCharacterDiagnostics {
 }
 
 interface DebugOverlayProps {
-  state: GameState;
+  snapshot: DebugGameSnapshot;
   mode: GameMode;
   fps: number;
   renderStats: RenderStats;
@@ -60,7 +61,7 @@ interface DebugOverlayProps {
 }
 
 export const DebugOverlay: React.FC<DebugOverlayProps> = ({
-  state,
+  snapshot,
   mode,
   fps,
   renderStats,
@@ -75,11 +76,11 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
   assetCoverage,
   bootReady
 }) => {
-  const p = state.player;
-  const activeSchoolsCount = Object.keys(state.world.activeSchools).length;
-  const activeCropsCount = Object.keys(state.crops).length;
-  const activeBoat = state.player.activeBoatId ? state.boats[state.player.activeBoatId] : null;
-  const fishing = state.sportFishing;
+  const p = snapshot.player;
+  const activeSchoolsCount = snapshot.activeSchoolsCount;
+  const activeCropsCount = snapshot.activeCropsCount;
+  const activeBoat = snapshot.activeBoat;
+  const fishing = snapshot.fishing;
 
   return (
     <div
@@ -133,11 +134,11 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
         <br />Meshes: {renderStats.visibleMeshes} | Shadows: {renderStats.shadowCasters} | Batches: {renderStats.batchedMeshes} | Instances: {renderStats.instancedMeshes}
       </div>
       <div>
-        Pos: ({p.x.toFixed(1)}, {p.y.toFixed(1)}, {p.z.toFixed(1)}) | Seed: {state.worldSeed}
+        Pos: ({p.x.toFixed(1)}, {p.y.toFixed(1)}, {p.z.toFixed(1)}) | Seed: {snapshot.worldSeed}
         <br />Grounded: {String(p.traversal.isGrounded)} | Sprint: {p.traversal.sprintStamina.toFixed(0)} | Motion: {character.requestedGait} {character.speedMetersPerSecond.toFixed(1)} m/s | Clip: {character.animationClip}
       </div>
       <div>Camera: ({camera.x.toFixed(1)}, {camera.y.toFixed(1)}, {camera.z.toFixed(1)}) | FOV: {camera.fovDegrees.toFixed(1)}° | Boom: {camera.resolvedDistance.toFixed(1)}m{camera.obstructed ? " blocked" : ""}</div>
-      <div>Crops: {activeCropsCount} | Schools: {activeSchoolsCount} | Weather: {state.weather.type}</div>
+      <div>Crops: {activeCropsCount} | Schools: {activeSchoolsCount} | Weather: {snapshot.weatherType}</div>
       <div
         data-testid="asset-coverage"
         data-total-assets={assetCoverage.total}

@@ -38,10 +38,12 @@ function findSupportedCoastPoint(
 }
 
 describe("W01/W02 water classification and coastal access", () => {
-  it("classifies ocean around every side of Neva as sea/ocean with normalized weights", () => {
+  it("classifies sampled in-bounds Neva outer waters as sea/ocean with normalized weights", () => {
     const oceanPoints = [
-      { name: "west", x: -220, z: -60 },
-      { name: "north", x: 0, z: -240 },
+      // The old west and north samples are inland under the current expanded
+      // coast loop. Sample the corresponding in-bounds outer shores instead.
+      { name: "southwest", x: -220, z: 100 },
+      { name: "northeast", x: 190, z: -240 },
       { name: "east", x: 190, z: -40 },
       { name: "south", x: 60, z: 80 }
     ];
@@ -77,7 +79,7 @@ describe("W01/W02 water classification and coastal access", () => {
   });
 
   it("orients near-coast sea waves toward the nearest shore", () => {
-    for (const point of [{ x: -220, z: -60 }, { x: 0, z: -240 }, { x: 190, z: -40 }]) {
+    for (const point of [{ x: -220, z: 100 }, { x: 190, z: -240 }, { x: 190, z: -40 }]) {
       const profile = waterSpatialProfile(point.x, point.z);
       const shore = WorldLayout.shoreProjectionAt(point.x, point.z);
       const shoreward = {
@@ -89,8 +91,8 @@ describe("W01/W02 water classification and coastal access", () => {
     }
   });
 
-  it("targets adjacent water from the western Neva beach within actual rod reach", () => {
-    const point = { x: -188, z: -60 };
+  it("targets adjacent water from Neva's supported southwest shore within actual rod reach", () => {
+    const point = { x: -181.2, z: 88.6 };
     const access = WorldLayout.fishingAccessAt(point.x, point.z, 8);
     expect(WorldLayout.fishingAccessAt(point.x, point.z).accessible).toBe(true);
     expect(WorldLayout.isWalkable(point.x, point.z)).toBe(true);

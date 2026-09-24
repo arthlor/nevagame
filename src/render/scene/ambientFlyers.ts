@@ -174,6 +174,24 @@ export const GULL_ORBITS: readonly AmbientFlyerOrbit[] = [
   { originX: -546, originY: 10, originZ: 162, radiusX: 18, radiusZ: 12, altitude: 0.4, phase: 5.1, speed: 0.15 }
 ];
 
+/**
+ * Village doves. They orbit lower, tighter and faster than the gulls, and they
+ * stay inland: a dove circling the harbour would just read as a small gull. The
+ * first four rings sit over the dovecote on the square so the cote reads as the
+ * reason the flock is there; the rest work the mill, the cooperative store and
+ * the cottage roofs the player walks past.
+ */
+export const PIGEON_ORBITS: readonly AmbientFlyerOrbit[] = [
+  { originX: 44.5, originY: 6.4, originZ: -62.5, radiusX: 9, radiusZ: 7, altitude: 0.4, phase: 0.3, speed: 0.33 },
+  { originX: 42.5, originY: 7.2, originZ: -66.5, radiusX: 11, radiusZ: 8, altitude: 0.9, phase: 1.9, speed: 0.29 },
+  { originX: 47, originY: 5.9, originZ: -59, radiusX: 8, radiusZ: 6, altitude: 0.2, phase: 3.6, speed: 0.36 },
+  { originX: 39.5, originY: 6.8, originZ: -70, radiusX: 10, radiusZ: 7, altitude: 0.6, phase: 5.2, speed: 0.31 },
+  { originX: 63, originY: 6.6, originZ: -71, radiusX: 9, radiusZ: 7, altitude: 0.5, phase: 2.4, speed: 0.3 },
+  { originX: 66, originY: 7.4, originZ: -50, radiusX: 10, radiusZ: 8, altitude: 0.8, phase: 4.7, speed: 0.27 },
+  { originX: 30, originY: 6.2, originZ: -60, radiusX: 8, radiusZ: 6, altitude: 0.3, phase: 1.1, speed: 0.34 },
+  { originX: 38, originY: 4.6, originZ: 12, radiusX: 11, radiusZ: 8, altitude: 0.7, phase: 3.1, speed: 0.28 }
+];
+
 export const BUTTERFLY_ORBITS: readonly AmbientFlyerOrbit[] = [
   { originX: -58, originY: 1.15, originZ: -48, radiusX: 2.8, radiusZ: 2.1, altitude: 0.22, phase: 0.4, speed: 0.55 },
   { originX: -70, originY: 1.2, originZ: -52, radiusX: 2.4, radiusZ: 1.9, altitude: 0.28, phase: 1.2, speed: 0.62 },

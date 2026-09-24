@@ -78,7 +78,7 @@ const SCHOOL_POSITION_OFFSETS = Object.freeze([
   { x: -3.5, z: 3 },
   { x: 2.5, z: -4 }
 ]);
-export const BASIC_FISHING_WORK_COST = 15;
+export const BASIC_FISHING_WORK_COST = 20;
 /** Bite-reaction is a short input window; a hitch must not consume the whole cue. */
 const BITE_REACTION_MAX_STEP_SECONDS = 0.05;
 /**
@@ -97,8 +97,17 @@ export const SPORT_FISHING_WORK_COST = SPORT_FISHING_WORK_COST_BY_CLASS.medium;
 export const SPORT_FISHING_WORK_REFUND_RATIO = 0.6;
 /** Work earned for a flawless basic catch — the green bar never lost contact. */
 export const BASIC_FISHING_PERFECT_WORK_REBATE = 8;
-/** Work earned for landing a sport fish. Fight skill feeds the labor pool. */
+/** Maximum Work earned for landing a sport fish. Fight skill feeds the labor pool. */
 export const SPORT_FISHING_LANDING_WORK_REBATE = 12;
+/** A cheap hook cannot return almost its entire Work debit on landing or release. */
+export const SPORT_FISHING_LANDING_WORK_REBATE_RATIO = 0.4;
+
+export function sportLandingWorkRebate(chargedWork: number): number {
+  return Math.min(
+    SPORT_FISHING_LANDING_WORK_REBATE,
+    Math.max(0, Math.round(chargedWork * SPORT_FISHING_LANDING_WORK_REBATE_RATIO))
+  );
+}
 /** Fight seconds a species signature moment stays on the HUD after it fires. */
 export const SIGNATURE_MOMENT_SECONDS = 3;
 /**
@@ -376,10 +385,14 @@ function recordEndedSchool(state: GameState, schoolId: FishSchoolId): void {
   };
 }
 
-/** Drop expired or spent schools unless an active sport fight still references them. */
+/** Drop expired or spent schools unless a fight or its landing choice still references them. */
 export function expireSpentSchools(state: GameState): void {
-  const protectedSchoolId =
-    state.sportFishing?.result === "active" ? state.sportFishing.schoolId ?? null : null;
+  const encounter = state.sportFishing;
+  const protectsSchool = encounter && (
+    encounter.result === "active" ||
+    (encounter.result === "landed" && encounter.awaitingLandingChoice === true)
+  );
+  const protectedSchoolId = protectsSchool ? encounter.schoolId ?? null : null;
   const currentMinute = state.clock.currentMinute;
   for (const [id, school] of Object.entries(state.world.activeSchools)) {
     if (id === protectedSchoolId) continue;
@@ -758,8 +771,10 @@ export class FishingDomain {
           : landing.reason ?? "Could not stow the catch"
       };
     }
+    const chargedWork = this.context.state.sportFishing?.workCharged
+      ?? this.fallbackHookCost(encounterState.fish.speciesId);
     this.clearResolvedEncounter();
-    this.progression.earnWork(SPORT_FISHING_LANDING_WORK_REBATE);
+    this.progression.earnWork(sportLandingWorkRebate(chargedWork));
     return { success: true };
   }
 
@@ -776,6 +791,8 @@ export class FishingDomain {
       return { success: false, reason: "The fight is still running" };
     }
     const species = ContentRegistry.fishSpecies.get(encounterState.fish.speciesId);
+    const chargedWork = state.sportFishing?.workCharged
+      ?? this.fallbackHookCost(encounterState.fish.speciesId);
     this.clearResolvedEncounter();
     if (species) {
       this.progression.addProficiencyXp(
@@ -783,7 +800,7 @@ export class FishingDomain {
         sportFishReleaseXp(species, encounterState.fish.weightKg, encounterState.fish.quality)
       );
     }
-    this.progression.earnWork(SPORT_FISHING_LANDING_WORK_REBATE);
+    this.progression.earnWork(sportLandingWorkRebate(chargedWork));
     events.emit("SportFishReleased", {
       speciesId: encounterState.fish.speciesId,
       weightKg: encounterState.fish.weightKg,

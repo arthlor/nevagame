@@ -114,7 +114,12 @@ vec3 meadowLocalPosition = vec3(0.0);
   vec2 exclusionUv = (rootXZ - meadowExclusionGrid.xy) / (meadowExclusionGrid.z * meadowExclusionGrid.w);
   float exclusion = textureLod(meadowExclusion, exclusionUv, 0.0).r;
   bool inside = all(greaterThanEqual(coverUv, vec2(0.0))) && all(lessThanEqual(coverUv, vec2(1.0)));
-  float density = inside ? cover.r * (1.0 - smoothstep(0.3, 0.6, exclusion)) : 0.0;
+  NevaMeadowSample meadowColor = nevaMeadowSample(rootXZ, cover.g, cover.b, cover.a);
+  // Semantic cover stays primary. Sparse patch edges reveal a little more
+  // ground without cutting holes in the connected low carpet.
+  float density = inside
+    ? cover.r * (1.0 - smoothstep(0.3, 0.6, exclusion)) * mix(nevaMeadowPatch.x, 1.0, meadowColor.growth)
+    : 0.0;
   float survival = meadowUnit(seed);
   // Blades near a density edge shorten instead of popping in and out.
   float presence = smoothstep(survival - 0.14, survival + 0.02, density);
@@ -128,15 +133,14 @@ vec3 meadowLocalPosition = vec3(0.0);
 
   vec3 terrainNormal;
   float ground = meadowTerrainHeight(rootXZ, terrainNormal) - meadowTiles.w;
-  NevaMeadowSample meadowColor = nevaMeadowSample(rootXZ, cover.g, cover.b, cover.a);
-  float tallness = clamp(cover.g * (0.55 + 0.9 * meadowColor.clump) - 0.15, 0.0, 1.0);
+  float tallness = clamp(cover.g * (0.45 + 1.05 * meadowColor.growth) - 0.15, 0.0, 1.0);
   float heightPick = meadowUnit(seed);
   float bladeHeight = mix(
     mix(meadowHeightRange.x, meadowHeightRange.y, heightPick),
     mix(meadowHeightRange.z, meadowHeightRange.w, heightPick),
     tallness
   );
-  bladeHeight *= mix(1.0, meadowWidthRange.w, cover.b) * mix(0.62, 1.12, meadowColor.clump) * scale;
+  bladeHeight *= mix(1.0, meadowWidthRange.w, cover.b) * mix(nevaMeadowPatch.y, 1.0, meadowColor.growth) * scale;
   float farWidth = mix(1.0, meadowWidthRange.z, smoothstep(meadowRadii.x, meadowRadii.z, anchorDistance));
   float bladeWidth = mix(meadowWidthRange.x, meadowWidthRange.y, meadowUnit(seed)) * farWidth * mix(0.45, 1.0, scale);
   if (scale < 0.02) {

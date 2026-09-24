@@ -75,6 +75,8 @@ export interface LaborStationDto {
   reachMeters: number;
   used: boolean;
   available: boolean;
+  /** Reason a nearby shift cannot begin, supplied by the Work owner. */
+  blocker: string | null;
 }
 
 export interface InteractionResult {
@@ -204,6 +206,12 @@ export interface MarketContractRowDto {
   targetId: string;
   targetName: string;
   rewardMoney: number;
+  rewardSkillXp: { skill: SkillId; xp: number };
+  /** The payable floor if the remaining goods are delivered now. */
+  currentCompletionFloorMoney: number;
+  requirementLabels: string[];
+  deadlineLabel: string;
+  passWaitLabel: string;
   quantityFulfilled: number;
   quantityRequired: number;
   remaining: number;
@@ -275,7 +283,7 @@ export interface TrophyCatchDto {
   estimatedShelfLifeMinutes: number;
   estimatedMarketValue: number;
   record: "first" | "weight" | "quality" | null;
-  storageDestination: "player-carry" | "boat-hold" | "boat-hook" | "cold-storage" | "crate" | "carriage";
+  storageDestination: "player-carry" | "boat-hold" | "boat-hook" | "cold-storage" | "crate" | "carriage" | "ground";
   storageLocationLabel: string;
 }
 
@@ -441,6 +449,18 @@ export interface RepairQuoteDto {
   canAfford: boolean;
   /** True when the player and vessel are at the harbor repair point. */
   inReach: boolean;
+}
+
+/** The exact recovery offer for the vessel the player is currently aboard. */
+export interface EmergencyTowQuoteDto {
+  ok: boolean;
+  cost: number;
+  /** Elapsed game time charged to a successful tow; zero when unavailable. */
+  travelMinutes: number;
+  reason?: string;
+  wrecked: boolean;
+  destinationMarketId: MarketId | null;
+  destinationLabel: string | null;
 }
 
 export interface WorldHudDto {
@@ -709,6 +729,8 @@ export interface RecordMilestoneDto {
   title: string;
   detail: string;
   achieved: boolean;
+  /** Current equipment, season and practice permit following this optional goal. */
+  followable: boolean;
   /** 0..1, for a progress bar. */
   progress: number;
   currentLabel: string;
@@ -746,6 +768,8 @@ export interface AlmanacDto {
     discovered: boolean;
     habitatsLabel: string;
     seasonsLabel: string;
+    /** Current seasonal presence, or the next season in which this fish runs. */
+    seasonAvailabilityLabel: string;
     /** Dawn / day / dusk / night, when the species runs. */
     timeWindowsLabel: string;
     weightKg: { min: number; average: number; max: number };
@@ -915,6 +939,11 @@ export interface SkillProgressDto {
   rankName: string;
   progressPercent: number;
   nextXp: number | null;
+  nextRankName: string | null;
+  /** Content-backed rewards in this band, suitable for rank feedback. */
+  currentRankBenefits: string[];
+  /** The complete next-band preview; presentation must not truncate the rules. */
+  nextRankBenefits: string[];
 }
 
 export type BuySeedReasonCode =
@@ -1081,6 +1110,8 @@ export interface ProcessingJobInspectionDto {
   readyClockLabel: string;
   waitBriefing: string;
   startBriefing: string;
+  /** Frozen with the job so collection displays the actual saved reward. */
+  xpReward: number;
 }
 
 export interface ProcessingRecipeRowDto {
@@ -1090,6 +1121,8 @@ export interface ProcessingRecipeRowDto {
   outputLabel: string;
   inputs: ReadonlyArray<{ itemId: ItemId; name: string; required: number; owned: number; enough: boolean }>;
   work: WorkCostQuote;
+  /** Processing XP paid on collection, independent of a Work discount. */
+  xpReward: number;
   durationMinutes: number;
   durationLabel: string;
   workTier: ProcessingWorkTier;
@@ -1199,6 +1232,7 @@ export type GameCommand =
   | { type: "cargo.release"; cargoId: FishCargoId; marketId?: MarketId }
   | { type: "cargo.load-carriage"; mountId: MountId }
   | { type: "cargo.pickup"; cargoId: FishCargoId }
+  | { type: "cargo.drop" }
   | { type: "cargo.stow-aboard"; boatId: BoatId; placement: "hold" | "hook" }
   | { type: "storage.deposit-item"; kind: StorageKind; itemId: ItemId; quantity: number }
   | { type: "storage.withdraw-item"; kind: StorageKind; itemId: ItemId; quantity: number }
@@ -1245,6 +1279,7 @@ export type GameQuery =
   | { type: "fishing.get-sport-hud" }
   | { type: "boat.get-storm-helm" }
   | { type: "boat.get-repair-quote"; boatId: BoatId }
+  | { type: "boat.get-emergency-tow-quote" }
   | { type: "labor.get-hud" }
   | { type: "labor.get-stations" }
   | { type: "progression.get-skills" }
@@ -1279,6 +1314,7 @@ export type GameQueryResult =
   | SportFishingHudDto
   | StormHelmHudDto
   | RepairQuoteDto
+  | EmergencyTowQuoteDto
   | LaborHudDto
   | LaborStationDto[]
   | SkillProgressDto[]

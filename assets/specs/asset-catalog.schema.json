@@ -262,6 +262,9 @@
         "staticAuthoring": {
           "$ref": "#/$defs/staticAuthoring"
         },
+        "skinnedAuthoring": {
+          "$ref": "#/$defs/skinnedAuthoring"
+        },
         "humanoidRig": {
           "$ref": "#/$defs/humanoidRig"
         },
@@ -410,7 +413,8 @@
         "provider": {
           "enum": [
             "poly-pizza",
-            "quaternius"
+            "quaternius",
+            "tripo"
           ]
         },
         "modelId": {
@@ -422,7 +426,7 @@
         "sourceUrl": {
           "type": "string",
           "maxLength": 500,
-          "pattern": "^https://(poly\\.pizza/m/[A-Za-z0-9_-]+|quaternius\\.com/packs/[a-z0-9]+\\.html)$"
+          "pattern": "^https://(poly\\.pizza/m/[A-Za-z0-9_-]+|quaternius\\.com/packs/[a-z0-9]+\\.html|www\\.tripo3d\\.ai/)$"
         },
         "author": {
           "type": "string",
@@ -433,13 +437,14 @@
         "license": {
           "enum": [
             "CC0-1.0",
-            "CC-BY-3.0"
+            "CC-BY-3.0",
+            "Tripo-Terms"
           ]
         },
         "licenseUrl": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "^https://creativecommons\\.org/"
+          "pattern": "^https://(creativecommons\\.org/|www\\.tripo3d\\.ai/terms$)"
         },
         "sourceBlend": {
           "type": "string",
@@ -1509,6 +1514,27 @@
           "minimum": -360,
           "maximum": 360
         },
+        "pivotOffset": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional horizontal shift, in adapted runtime metres (+X right, +Z forward), subtracted after uniform ground-centering so the pivot sits under the asset's own footprint rather than the centre of a source that carries off-centre yard dressing. The surface itself is unchanged.",
+          "required": [
+            "x",
+            "z"
+          ],
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": -20,
+              "maximum": 20
+            },
+            "z": {
+              "type": "number",
+              "minimum": -20,
+              "maximum": 20
+            }
+          }
+        },
         "materialMap": {
           "type": "object",
           "minProperties": 1,
@@ -1545,6 +1571,70 @@
           "items": {
             "type": "string",
             "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+          }
+        }
+      }
+    },
+    "skinnedAuthoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Offline contract for an explicitly requested provider mesh that a Blender import adapter rigs, weights and animates around its textured source surface. The adapter may re-pose, reweight and split the surface into named regions, so LOD0 is not compared to source geometry the way staticAuthoring is; this pins the immutable source bytes and each adapted region's palette token and texture policy. Excluded from the runtime catalog projection.",
+      "required": [
+        "sourceFile",
+        "sourceSha256",
+        "adapter",
+        "materialMap"
+      ],
+      "properties": {
+        "sourceFile": {
+          "type": "string",
+          "pattern": "^art/imported/.*\\.glb$"
+        },
+        "sourceSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "adapter": {
+          "type": "string",
+          "pattern": "^tools/blender/adapt_[a-z0-9_]+\\.py$"
+        },
+        "materialMap": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Adapted region material name -> the source material whose texture it keeps, its palette token and texture policy.",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sourceMaterial",
+              "token",
+              "value",
+              "texturePolicy"
+            ],
+            "properties": {
+              "sourceMaterial": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "token": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "value": {
+                "type": "number",
+                "minimum": 0.7,
+                "maximum": 1.04
+              },
+              "texturePolicy": {
+                "enum": [
+                  "preserve"
+                ]
+              }
+            }
           }
         }
       }

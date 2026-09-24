@@ -153,7 +153,8 @@ export interface EquipmentDefinition {
     /**
      * Starter clothing baked into char_player_a can share a skinned mesh with
      * the body. These exact LOD roots and material regions are cloned per
-     * character instance before their visibility is changed.
+     * character instance before their visibility is changed. Both lists are
+     * empty when the base body does not show that starter item at all.
      */
     characterBaseLayer?: {
       nodeNames: string[];

@@ -16,6 +16,7 @@ import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v49_layout21_mainland_predecessor.json";
 
 // Independently retained before geography changed, by upgrading the existing
@@ -25,8 +26,16 @@ const NEW_MAINLAND = { x: -395, z: 55 };
 const UNSUPPORTED_POSE = { x: WorldLayout.riverCenterX(-40), z: -40 };
 
 function expectResourcesPreserved(before: GameState, after: GameState): void {
+  // Compare against the same historical payload with schema-only v57/v58
+  // fields backfilled. These assertions cover the independent terrain migration,
+  // so they should not mistake those later schema defaults for lost state.
+  const expected = headSchemaDevelopmentSave({
+    schemaVersion: before.schemaVersion,
+    savedAtUtcMs: 0,
+    state: before
+  }).state;
   for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "metadata", "weather"] as const) {
-    expect(after[key], key).toEqual(before[key]);
+    expect(after[key], key).toEqual(expected[key]);
   }
   for (const key of ["money", "workCapacity", "proficiencies", "equipment", "ownedRodIds", "carriedFishCargoId", "activeBoatId", "activeMountId"] as const) {
     expect(after.player[key], key).toEqual(before.player[key]);
@@ -34,6 +43,18 @@ function expectResourcesPreserved(before: GameState, after: GameState): void {
   expect(after.world.fishingPressureByHabitat).toEqual(before.world.fishingPressureByHabitat);
   expect(after.world.lastSchoolSpawnMinute).toBe(before.world.lastSchoolSpawnMinute);
   expectMarketsPreserved(after, before);
+}
+
+function expectedStructuresAfterSunreachLayout28(
+  structures: GameState["world"]["structures"]
+): GameState["world"]["structures"] {
+  const expected = structuredClone(structures);
+  for (const structure of Object.values(expected)) {
+    if (WorldLayout.terrainPatchAt(structure.x, structure.z)?.islandId === "island.sunreach") {
+      structure.y = WorldLayout.terrainHeight(structure.x, structure.z);
+    }
+  }
+  return expected;
 }
 
 function strandBoat(save: SaveEnvelope, active: boolean): void {
@@ -78,7 +99,7 @@ describe("mainland save migration", () => {
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(migrated.state.player).toMatchObject({ x: saved.state.player.x, z: saved.state.player.z });
-    expect(migrated.state.world.structures).toEqual(saved.state.world.structures);
+    expect(migrated.state.world.structures).toEqual(expectedStructuresAfterSunreachLayout28(saved.state.world.structures));
     expect(migrated.state.boats).toEqual(saved.state.boats);
     expectResourcesPreserved(saved.state, migrated.state);
     for (const [id, market] of Object.entries(migrated.state.markets)) {
@@ -91,9 +112,8 @@ describe("mainland save migration", () => {
     expect(saved).toEqual(before);
   });
 
-  it("repairs a development slot already on the shipping schema but still on layout21 exactly once", () => {
-    const saved = legacy();
-    saved.schemaVersion = saved.state.schemaVersion = CURRENT_SCHEMA_VERSION;
+  it("repairs a head-schema development slot still on layout21 exactly once", () => {
+    const saved = headSchemaDevelopmentSave(legacy());
     const migrated = migrateSaveData(saved);
     expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(validateSaveEnvelope(migrated)).toBe(true);

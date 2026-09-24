@@ -10,8 +10,8 @@ import type { AssetId } from "../../src/render/assets/AssetCatalog";
 
 interface CharacterFixture {
   root: THREE.Group;
-  headMesh: THREE.Mesh;
-  originalHeadMaterials: THREE.Material[];
+  surfaceMesh: THREE.Mesh;
+  originalSurfaceMaterials: THREE.Material[];
 }
 
 function addLayer(
@@ -49,28 +49,23 @@ function makeCharacter(): CharacterFixture {
     node.name = name;
     root.add(node);
   }
-  const headMesh = addLayer(root, "char_player_a_Farmer_Head_LOD0", [
-    "skin_warm_01", "canvas_cream_01", "cloth_teal_01"
-  ]);
-  addLayer(root, "char_player_a_Farmer_Head_LOD1", [
-    "skin_warm_01", "canvas_cream_01", "cloth_teal_01"
-  ]);
-  addLayer(root, "char_player_a_Farmer_Body_LOD0", ["skin_warm_01", "cloth_slate_01"]);
-  addLayer(root, "char_player_a_Farmer_Body_LOD1", ["skin_warm_01", "cloth_slate_01"]);
-  addLayer(root, "char_player_a_Farmer_Feet_LOD0", ["leather_harness_01"]);
-  addLayer(root, "char_player_a_Farmer_Feet_LOD1", ["leather_harness_01"]);
+  // The adapted player carries its starter vest and boots as material
+  // regions of one skinned surface per LOD, and shows no starter hat.
+  const regions = ["char_player_a_body", "char_player_a_boots", "char_player_a_vest"];
+  const surfaceMesh = addLayer(root, "char_player_a_surface_LOD0", regions);
+  addLayer(root, "char_player_a_surface_LOD1", regions);
   return {
     root,
-    headMesh,
-    originalHeadMaterials: [...headMesh.material as THREE.Material[]]
+    surfaceMesh,
+    originalSurfaceMaterials: [...surfaceMesh.material as THREE.Material[]]
   };
 }
 
 function makeEquipmentAsset(assetId: string): THREE.Group {
   const root = new THREE.Group();
-  if (assetId === "wearable_field_hat_a") {
+  if (assetId === "wearable_field_hat_a" || assetId === "wearable_oilskin_coat_a") {
     const wearable = new THREE.Object3D();
-    wearable.name = "wearable_head_anchor";
+    wearable.name = assetId === "wearable_field_hat_a" ? "wearable_head_anchor" : "wearable_body_anchor";
     root.add(wearable);
     return root;
   }
@@ -116,7 +111,7 @@ describe("CharacterEquipmentAssembler", () => {
     });
     const loadout: CharacterVisualLoadout = {
       head: { assetId: "wearable_field_hat_a" },
-      outerwear: null,
+      outerwear: { assetId: "wearable_oilskin_coat_a" },
       feet: null,
       wateringTool: { assetId: "tool_watering_can_copper_rose_a", scale: 0.72 },
       harvestTool: { assetId: "tool_sickle_balanced_a", scale: 0.82 },
@@ -126,22 +121,29 @@ describe("CharacterEquipmentAssembler", () => {
     try {
       await assembler.sync(loadout);
       expect(settledFailures.at(-1)).toEqual(["wearable_field_hat_a"]);
-      expect(materialNamed(fixture.headMesh, "canvas_cream_01").visible).toBe(true);
+      expect(materialNamed(fixture.surfaceMesh, "char_player_a_vest").visible).toBe(false);
+      expect(materialNamed(fixture.surfaceMesh, "char_player_a_boots").visible).toBe(true);
       expect(fixture.root.getObjectByName("cosmetic_water")?.scale.x).toBeCloseTo(0.72);
 
       await vi.advanceTimersByTimeAsync(10);
       expect(attempts.get("wearable_field_hat_a")).toBe(2);
       expect(settledFailures.at(-1)).toEqual([]);
-      expect(materialNamed(fixture.headMesh, "canvas_cream_01").visible).toBe(false);
       expect(fixture.root.getObjectByName("wearable_head_anchor")).toBeDefined();
+      // The bare-headed body has no starter hat region to hide.
+      for (const name of ["char_player_a_body", "char_player_a_boots"]) {
+        expect(materialNamed(fixture.surfaceMesh, name).visible, name).toBe(true);
+      }
 
-      await assembler.sync({ ...loadout, head: null });
-      expect(materialNamed(fixture.headMesh, "canvas_cream_01").visible).toBe(true);
+      await assembler.sync({ ...loadout, head: null, outerwear: null });
+      expect(materialNamed(fixture.surfaceMesh, "char_player_a_vest").visible).toBe(true);
       expect(fixture.root.getObjectByName("wearable_head_anchor")).toBeUndefined();
+      expect(fixture.root.getObjectByName("wearable_body_anchor")).toBeUndefined();
     } finally {
       assembler.dispose();
     }
 
-    expect(fixture.headMesh.material).toEqual(fixture.originalHeadMaterials);
+    // Vest and boots share the surface; disposal must still end on the
+    // pristine material array rather than an intermediate clone.
+    expect(fixture.surfaceMesh.material).toEqual(fixture.originalSurfaceMaterials);
   });
 });

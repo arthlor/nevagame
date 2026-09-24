@@ -1,12 +1,9 @@
 ---
 name: threejs-shadow-systems
-description: "Implement stable scalable directional shadows in Three.js. Use for large worlds, cascades, cached clipmaps, texel stabilization, update budgets, and targeted invalidation. Not for screen-space ambient occlusion."
+description: Implement stable, scalable directional-shadow systems for Three.js. Use for large procedural worlds, city scenes, terrain, moving cameras, WebGPU/TSL shadow nodes, cascades, cached clipmaps, texel stabilization, update budgets, and targeted invalidation.
 ---
 
 # Shadow Systems
-
-- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. The clipmap example is WebGL2; TSL shadow nodes are optional. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Use a single shadow map only when its receiver region is genuinely bounded. For large moving views, make shadow coverage an explicit spatial hierarchy.
 
@@ -27,9 +24,7 @@ Read the
 for three light-space square levels, per-level texel snapping, containment
 cross-fades, cached coarse updates, scaled bias, and unshadowed outside weight.
 
-## Invariants and strong defaults
-
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Failure conditions
 
 - projection centers move by fractions of a texel;
 - shader containment does not match the map's committed center;
@@ -38,12 +33,6 @@ Use these checks for the affected mechanism. Preserve concrete ownership, correc
 - depth texture samples occur in divergent fragment control flow;
 - the same normal bias is used across radically different texel sizes;
 - level boundaries become visible under camera motion.
-
-## Deliverable
-
-- Inputs: world extent, camera motion, and caster classes.
-- Artifacts: level definitions, texel-snapped centers, update budget, and cross-fade evidence.
-- Acceptance: no texel crawl at rest or in motion; level seams are invisible; coarse levels invalidate on caster or terrain change.
 
 ## Routing boundary
 

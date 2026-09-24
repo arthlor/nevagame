@@ -4,11 +4,13 @@ import type { ItemStack, RecipeResult } from "../simulation/core/types";
 import type { RecipeDefinition } from "./types";
 
 const items = (...stacks: ItemStack[]): RecipeResult => ({ kind: "items", stacks });
+const light = { workTier: "light", presentationKind: "existing" } as const;
+const prepared = { workTier: "prepared", presentationKind: "existing" } as const;
 const existing = { workTier: "standard", presentationKind: "existing" } as const;
 
 export const RECIPES: Record<string, RecipeDefinition> = {
   "recipe.wheat_to_grain": {
-    ...existing,
+    ...light,
     id: "recipe.wheat_to_grain",
     name: "Mill Wheat into Ground Grain",
     stationType: "hand-mill",
@@ -18,7 +20,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["milling", "chum-prep"]
   },
   "recipe.barley_to_grain": {
-    ...existing,
+    ...light,
     id: "recipe.barley_to_grain",
     name: "Mill Barley into Ground Grain",
     stationType: "hand-mill",
@@ -28,7 +30,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["milling", "chum-prep"]
   },
   "recipe.craft_chum": {
-    ...existing,
+    ...prepared,
     id: "recipe.craft_chum",
     name: "Mix Chum Bucket",
     stationType: "workbench",
@@ -36,12 +38,12 @@ export const RECIPES: Record<string, RecipeDefinition> = {
       { itemId: "item.ground_grain", quantity: 2 },
       { itemId: "item.bait_worms", quantity: 2 }
     ],
-    result: items({ itemId: "item.chum_bucket", quantity: 1 }),
+    result: items({ itemId: "item.chum_bucket", quantity: 2 }),
     durationMinutes: 10,
     tags: ["chum", "sport-fishing"]
   },
   "recipe.craft_chum_rich": {
-    ...existing,
+    ...prepared,
     id: "recipe.craft_chum_rich",
     name: "Mix Rich Chum Blend",
     stationType: "workbench",
@@ -55,7 +57,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["chum", "sport-fishing"]
   },
   "recipe.craft_chum_deep": {
-    ...existing,
+    ...prepared,
     id: "recipe.craft_chum_deep",
     name: "Mix Sinking Deep Chum",
     stationType: "workbench",
@@ -69,7 +71,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["chum", "sport-fishing"]
   },
   "recipe.craft_lure": {
-    ...existing,
+    ...prepared,
     id: "recipe.craft_lure",
     name: "Tie Woven Lure Batch",
     stationType: "workbench",
@@ -83,7 +85,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["lure", "crafting"]
   },
   "recipe.craft_lure_simple": {
-    ...existing,
+    ...prepared,
     id: "recipe.craft_lure_simple",
     name: "Twist a Woven Lure",
     stationType: "workbench",
@@ -96,7 +98,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["lure", "crafting", "starter-tackle"]
   },
   "recipe.fish_to_fertilizer": {
-    ...existing,
+    ...prepared,
     id: "recipe.fish_to_fertilizer",
     name: "Process Fish Scraps into Fertilizer",
     stationType: "fish-table",
@@ -114,12 +116,12 @@ export const RECIPES: Record<string, RecipeDefinition> = {
       { itemId: "item.plant_matter", quantity: 4 },
       { itemId: "item.compost_starter", quantity: 1 }
     ],
-    result: items({ itemId: "item.bait_worms", quantity: 25 }),
+    result: items({ itemId: "item.bait_worms", quantity: 10 }),
     durationMinutes: 360,
     tags: ["worms", "bait-production"]
   },
   "recipe.perch_to_scraps": {
-    ...existing,
+    ...light,
     id: "recipe.perch_to_scraps",
     name: "Clean Perch into Scraps",
     stationType: "fish-table",
@@ -129,7 +131,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["fish-prep", "scraps"]
   },
   "recipe.mackerel_to_scraps": {
-    ...existing,
+    ...light,
     id: "recipe.mackerel_to_scraps",
     name: "Clean Mackerel into Scraps",
     stationType: "fish-table",
@@ -139,7 +141,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["fish-prep", "scraps"]
   },
   "recipe.carp_to_scraps": {
-    ...existing,
+    ...light,
     id: "recipe.carp_to_scraps",
     name: "Clean Carp into Scraps",
     stationType: "fish-table",
@@ -149,7 +151,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["fish-prep", "scraps"]
   },
   "recipe.sunflower_to_grain": {
-    ...existing,
+    ...light,
     id: "recipe.sunflower_to_grain",
     name: "Mill Sunflower Seed into Ground Grain",
     stationType: "hand-mill",
@@ -159,7 +161,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["milling", "chum-prep", "sunreach"]
   },
   "recipe.cure_sardine": {
-    ...existing,
+    ...prepared,
     id: "recipe.cure_sardine",
     name: "Salt-Cure Sardines",
     stationType: "fish-table",
@@ -170,7 +172,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     tags: ["fish-prep", "preserved"]
   },
   "recipe.sardine_to_scraps": {
-    ...existing,
+    ...light,
     id: "recipe.sardine_to_scraps",
     name: "Clean Sardines into Scraps",
     stationType: "fish-table",
@@ -308,7 +310,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 75,
     workTier: "masterwork",
     presentationKind: "tailoring",
-    minimumSkill: { skill: "processing", xp: 15000 },
+    minimumSkill: { skill: "processing", xp: 3000 },
     tags: ["tailoring", "equipment"]
   },
   "recipe.oilskin_coat": {
@@ -323,7 +325,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 90,
     workTier: "masterwork",
     presentationKind: "tailoring",
-    minimumSkill: { skill: "processing", xp: 30000 },
+    minimumSkill: { skill: "processing", xp: 7500 },
     tags: ["tailoring", "equipment"]
   },
   "recipe.long_spout_can": {
@@ -339,7 +341,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 90,
     workTier: "masterwork",
     presentationKind: "toolmaking",
-    minimumSkill: { skill: "processing", xp: 15000 },
+    minimumSkill: { skill: "processing", xp: 3000 },
     tags: ["toolmaking", "equipment"]
   },
   "recipe.balanced_sickle": {
@@ -355,7 +357,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     durationMinutes: 90,
     workTier: "masterwork",
     presentationKind: "toolmaking",
-    minimumSkill: { skill: "processing", xp: 30000 },
+    minimumSkill: { skill: "processing", xp: 7500 },
     tags: ["toolmaking", "equipment"]
   },
 
@@ -363,7 +365,7 @@ export const RECIPES: Record<string, RecipeDefinition> = {
   // farm/sea inputs, are eaten from the satchel, and are capped per day. They
   // are cooked at the authored farm kitchen (`struct.kitchen`).
   "recipe.cook_harvest_bowl": {
-    ...existing,
+    ...prepared,
     id: "recipe.cook_harvest_bowl",
     name: "Cook Harvest Bowl",
     stationType: "kitchen",
@@ -377,8 +379,25 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     minimumSkill: { skill: "processing", xp: 250 },
     tags: ["meal", "provisions"]
   },
-  "recipe.cook_fish_stew": {
+  // Two complete meals from two complete ingredient sets in one station job.
+  // Mastery saves station occupancy and Work, not ingredients or a second XP payout.
+  "recipe.batch_harvest_bowls": {
     ...existing,
+    id: "recipe.batch_harvest_bowls",
+    name: "Cook Harvest Bowl Batch",
+    stationType: "kitchen",
+    inputs: [
+      { itemId: "produce.potato", quantity: 4 },
+      { itemId: "produce.carrot", quantity: 4 },
+      { itemId: "item.ground_grain", quantity: 2 }
+    ],
+    result: items({ itemId: "item.meal_harvest_bowl", quantity: 2 }),
+    durationMinutes: 30,
+    minimumSkill: { skill: "processing", xp: 15_000 },
+    tags: ["meal", "provisions", "batch"]
+  },
+  "recipe.cook_fish_stew": {
+    ...prepared,
     id: "recipe.cook_fish_stew",
     name: "Simmer Coastal Fish Stew",
     stationType: "kitchen",
@@ -392,8 +411,23 @@ export const RECIPES: Record<string, RecipeDefinition> = {
     minimumSkill: { skill: "processing", xp: 750 },
     tags: ["meal", "provisions"]
   },
-  "recipe.cook_orchard_tart": {
+  "recipe.batch_fish_stews": {
     ...existing,
+    id: "recipe.batch_fish_stews",
+    name: "Simmer Coastal Stew Batch",
+    stationType: "kitchen",
+    inputs: [
+      { itemId: "fish.perch", quantity: 4 },
+      { itemId: "produce.potato", quantity: 2 },
+      { itemId: "produce.carrot", quantity: 2 }
+    ],
+    result: items({ itemId: "item.meal_fish_stew", quantity: 2 }),
+    durationMinutes: 45,
+    minimumSkill: { skill: "processing", xp: 30_000 },
+    tags: ["meal", "provisions", "batch"]
+  },
+  "recipe.cook_orchard_tart": {
+    ...prepared,
     id: "recipe.cook_orchard_tart",
     name: "Bake Orchard Tart",
     stationType: "kitchen",

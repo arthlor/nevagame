@@ -5,7 +5,7 @@ import {
   WorldLayout,
   type WorldPoint
 } from "../../world/WorldLayout";
-import { WORLD_CHART_NODES } from "../../world/WorldGameplayLocations";
+import { WORLD_CHART_NODES, type WorldChartNode } from "../../world/WorldGameplayLocations";
 import { worldPointToMapSvg, worldPointToMapSvgUnclamped, mapSvgToWorldPoint } from "../../world/WorldMapProjection";
 import { IconCoin, IconCompass, IconFish, IconSprout } from "./HudIcons";
 import { useModalAccessibility } from "../useModalAccessibility";
@@ -52,6 +52,31 @@ function nodeSupportsLens(node: MapNode, lens: MapLens): boolean {
   return true;
 }
 
+function nodeIsInArea(node: MapNode, area: "sea" | "neva" | "sunreach"): boolean {
+  if (area === "neva") return node.islandId === "island.neva";
+  if (area === "sunreach") return node.islandId === "island.sunreach";
+  return true;
+}
+
+function nodesForView(area: "sea" | "neva" | "sunreach", lens: MapLens): MapNode[] {
+  return MAP_NODES.filter((node) => nodeIsInArea(node, area) && nodeSupportsLens(node, lens));
+}
+
+function destinationForView(area: "sea" | "neva" | "sunreach", lens: MapLens, current: MapNode): MapNode {
+  const candidates = nodesForView(area, lens);
+  if (candidates.some((node) => node.id === current.id)) return current;
+  if (lens === "geography") {
+    const areaAnchor = area === "sunreach" ? "chart.sunreach_cove" : "chart.neva_harbor";
+    return candidates.find((node) => node.id === areaAnchor) ?? candidates[0] ?? current;
+  }
+  return candidates.reduce<MapNode | null>((nearest, node) => {
+    if (!nearest) return node;
+    const distance = Math.hypot(node.worldPosition.x - current.worldPosition.x, node.worldPosition.z - current.worldPosition.z);
+    const nearestDistance = Math.hypot(nearest.worldPosition.x - current.worldPosition.x, nearest.worldPosition.z - current.worldPosition.z);
+    return distance < nearestDistance ? node : nearest;
+  }, null) ?? current;
+}
+
 const MAP_LENS_ICONS: Record<MapLens, React.ReactNode> = {
   geography: <IconCompass size={18} aria-hidden="true" />,
   markets: <IconCoin size={18} aria-hidden="true" />,
@@ -69,6 +94,7 @@ const MAP_LENS_LABELS: Record<MapLens, string> = {
 interface MapNode {
   id: string;
   name: string;
+  islandId: WorldChartNode["islandId"];
   category: "farm" | "village" | "harbor" | "lighthouse" | "fishing";
   worldPosition: WorldPoint;
   marketId?: MarketId;
@@ -80,6 +106,7 @@ interface MapNode {
 const MAP_NODES: MapNode[] = WORLD_CHART_NODES.map((node) => ({
   id: node.id,
   name: node.label,
+  islandId: node.islandId,
   category: node.kind === "farm"
     ? "farm"
     : node.kind === "dock"
@@ -186,6 +213,9 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   const playerMapPosition = worldPointToMapSvg({ x: playerX, z: playerZ });
 
   const selectedNode = MAP_NODES.find((n) => n.id === selectedNodeId) ?? MAP_NODES[0];
+  const waypointDestination = activeWaypoint
+    ? MAP_NODES.find((node) => node.worldPosition.x === activeWaypoint.x && node.worldPosition.z === activeWaypoint.z)
+    : null;
   const selectedMarketInsight = selectedNode.marketId
     ? onInspectMarketDemand(selectedNode.marketId)
     : null;
@@ -198,9 +228,9 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
       ? "Road or trail"
       : "Rough ground";
 
-  const areaIncludes = (node: MapNode) => chartArea === "neva" ? node.worldPosition.x < 300
-    : chartArea === "sunreach" ? node.worldPosition.x > 1100
-    : node.worldPosition.x > 300 || node.id === "chart.neva_harbor" || node.id === "chart.neva_lighthouse";
+  const areaIncludes = (node: MapNode) => chartArea === "neva" ? node.islandId === "island.neva"
+    : chartArea === "sunreach" ? node.islandId === "island.sunreach"
+    : node.islandId !== "island.neva" || node.id === "chart.neva_harbor" || node.id === "chart.neva_lighthouse";
 
   const zoomRatio = 1000 / viewBox.width;
   const isZoomed = zoomRatio > 1.6;
@@ -221,6 +251,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   ].includes(nodeId);
 
   const isNodeVisible = (node: MapNode) => {
+    if (!nodeSupportsLens(node, activeLens)) return false;
     const { x: px, y: py } = worldPointToMapSvg(node.worldPosition);
     const inView = px >= viewBox.x - 60 && px <= viewBox.x + viewBox.width + 60 &&
                    py >= viewBox.y - 60 && py <= viewBox.y + viewBox.height + 60;
@@ -229,11 +260,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
     return isMajorSeaHub(node.id) || node.id === selectedNodeId || areaIncludes(node);
   };
 
-  const directoryNodes = chartArea === "sea"
-    ? MAP_NODES
-    : chartArea === "neva"
-      ? MAP_NODES.filter((n) => n.worldPosition.x < 300)
-      : MAP_NODES.filter((n) => n.worldPosition.x > 1100);
+  const directoryNodes = nodesForView(chartArea, activeLens);
 
   // Dynamic Compass positioning so it always remains anchored in the viewport
   const compassX = viewBox.x + viewBox.width - 85 * (viewBox.width / 1000);
@@ -249,11 +276,6 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
     ? Math.round((Math.atan2(activeWaypoint.x - playerX, -(activeWaypoint.z - playerZ)) * 180 / Math.PI + 360) % 360)
     : 0;
   const bearingCardinal = CARDINALS[Math.round(waypointBearingDeg / 45) % 8];
-  const isWaypointWater = activeWaypoint ? WorldLayout.isSailable(activeWaypoint.x, activeWaypoint.z) : false;
-  const travelTimeSeconds = Math.round(waypointDistance / (isWaypointWater ? 6.2 : 3.6));
-  const travelMinutes = Math.floor(travelTimeSeconds / 60);
-  const travelSecs = travelTimeSeconds % 60;
-  const travelTimeFormatted = travelMinutes > 0 ? `${travelMinutes}m ${travelSecs}s` : `${travelSecs}s`;
 
   // Focus and select node with automatic camera centering when zoomed
   const focusNode = (nodeId: string) => {
@@ -277,7 +299,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   // Switching preset camera bookmarks
   const switchArea = (area: "sea" | "neva" | "sunreach") => {
     setChartArea(area);
-    setSelectedNodeId(area === "sunreach" ? "chart.sunreach_cove" : "chart.neva_harbor");
+    setSelectedNodeId(destinationForView(area, activeLens, selectedNode).id);
     setViewBox(chartAreaViewBox(area));
   };
 
@@ -470,10 +492,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                 onClick={() => {
                   playUiSound("page-turn");
                   setActiveLens(lens);
-                  if (!nodeSupportsLens(selectedNode, lens)) {
-                    const destination = MAP_NODES.find((node) => nodeSupportsLens(node, lens));
-                    if (destination) setSelectedNodeId(destination.id);
-                  }
+                  setSelectedNodeId(destinationForView(chartArea, lens, selectedNode).id);
                 }}
               >
                 {MAP_LENS_ICONS[lens]}
@@ -546,7 +565,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
                         playUiSound("click");
-                        setSelectedNodeId(node.id);
+                        focusNode(node.id);
                       }
                     }}
                     role="button"
@@ -791,14 +810,14 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
               }}
             >
               <IconCompass size={14} aria-hidden="true" />
-              <span>Plot Course to Location</span>
+              <span>Plot course to {selectedNode.name}</span>
             </button>
 
             {/* Active Plotted Waypoint Card */}
             {activeWaypoint && (
               <div className="map-active-course-card">
                 <div className="map-course-header">
-                  <span className="map-course-title">Active Course Bearing</span>
+                  <span className="map-course-title">Course to {waypointDestination?.name ?? "chart point"}</span>
                   <button
                     type="button"
                     className="map-course-clear-btn"
@@ -807,6 +826,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                       setWaypoint(null);
                     }}
                     title="Clear active course"
+                    aria-label="Clear active course"
                   >
                     Clear
                   </button>
@@ -817,12 +837,8 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                     <strong>{bearingCardinal} {waypointBearingDeg}°</strong>
                   </div>
                   <div className="route-row">
-                    <span>Distance</span>
+                    <span>Direct distance</span>
                     <strong>{waypointDistance} m</strong>
-                  </div>
-                  <div className="route-row">
-                    <span>Est. Travel</span>
-                    <strong>{travelTimeFormatted} ({isWaypointWater ? "sail" : "walk"})</strong>
                   </div>
                 </div>
               </div>
@@ -833,7 +849,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                 <h4>Route</h4>
                 <div className="route-stat-card">
                   <div className="route-row">
-                    <span>Distance</span>
+                    <span>Direct distance</span>
                     <strong>{Math.round(selectedDistance)} m</strong>
                   </div>
                   <div className="route-row">
@@ -906,13 +922,13 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                   ? "Select a farm to read its soil and planting notes."
                   : activeLens === "markets"
                     ? "Select a market to see trade lanes and arbitrage."
-                    : "Click anywhere on the chart or place list to plot a course."}</span>
+                    : "Select a place, then plot its course, or click the chart to pin a point."}</span>
             </div>
 
             <div className="map-sidebar-directory">
               <div className="map-directory-header">
                 <span className="map-directory-title">
-                  {chartArea === "sea" ? "Coastal Places" : chartArea === "neva" ? "Neva Mainland Places" : "Sunreach Isle Places"}
+                  {activeLens === "markets" ? "Markets" : activeLens === "fishing" ? "Fishing places" : activeLens === "farmland" ? "Farms" : chartArea === "sea" ? "Charted places" : chartArea === "neva" ? "Neva mainland places" : "Sunreach isle places"}
                 </span>
                 <span className="map-directory-count">
                   {directoryNodes.length} charted
@@ -927,6 +943,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                       <button
                         type="button"
                         className={`map-directory-item ${isNodeSelected ? "is-selected" : ""}`}
+                        aria-pressed={isNodeSelected}
                         onClick={() => {
                           playUiSound("click");
                           focusNode(node.id);

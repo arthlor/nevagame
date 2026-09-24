@@ -53,6 +53,8 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("roadFineDelta = clamp(");
     expect(shader.fragmentShader).toContain("roadLightFleck = smoothstep(");
     expect(shader.fragmentShader).toContain("roadDarkFleck = smoothstep(");
+    expect(shader.fragmentShader).toContain("roadFineDetailStrength");
+    expect(shader.fragmentShader).toContain("roadShoulderGrassFringe * roadEdgeGrassMix");
     expect(shader.fragmentShader).toContain(
       "texture2D(roadSourceRoughnessTexture, roadFineUv, roadSourceLodBias)"
     );
@@ -91,6 +93,8 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.uniforms.roadSourceLodBias.value).toBe(0.2);
     expect(shader.uniforms.roadExternalColorStrength.value).toBe(0.72);
     expect(shader.uniforms.roadExternalRoughnessStrength.value).toBe(1);
+    expect(shader.uniforms.roadFineDetailStrength.value).toBe(0.3);
+    expect(shader.uniforms.roadEdgeGrassMix.value).toBe(0.68);
     expect(shader.fragmentShader).not.toContain("displacement");
     expect(road.material.flatShading).toBe(false);
     expect(road.material.transparent).toBe(false);

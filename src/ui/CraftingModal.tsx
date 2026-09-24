@@ -101,6 +101,7 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
               <h3>{station.job.recipeName}</h3>
               <p>{station.job.waitBriefing}</p>
               <strong>{station.job.outputName}</strong>
+              <p>Collect for +{station.job.xpReward} Processing XP</p>
             </div>
           </div>
         ) : (
@@ -151,6 +152,7 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
                   <dl className="crafting-job-facts">
                     <div><dt>Work</dt><dd>{selected.work.cost}{saved > 0 ? ` (${saved} saved)` : ""}</dd></div>
                     <div><dt>Duration</dt><dd>{selected.durationLabel}</dd></div>
+                    <div><dt>On collection</dt><dd>+{selected.xpReward} Processing XP</dd></div>
                   </dl>
                   <p className="crafting-collection-note">Collect here when ready. Make room in your storage before collecting.</p>
 

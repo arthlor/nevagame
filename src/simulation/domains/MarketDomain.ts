@@ -46,7 +46,8 @@ import type {
 import { previousRodId, ROD_PROGRESSION, rodFishingXpRequirement } from "../../content/rods";
 import { FISH_TRADE_CENTER_MARKET_ID as TRADE_CENTER_MARKET_ID, marketAcceptsFishTradePacks } from "../../content/markets";
 import { isPhysicalTradePackSpecies, qualityRank } from "./domainRules";
-import { dayOfSeason } from "../core/GameClock";
+import { dayOfSeason, formatGameDuration } from "../core/GameClock";
+import { CONTRACT_PASS_WAIT_MINUTES } from "./ContractDomain";
 import {
   buildExpeditionBoard,
   type ExpeditionBoardDto
@@ -104,6 +105,10 @@ export class MarketDomain {
     const market = state.markets[marketId];
     if (!market) return { success: false, reason: "Market not found" };
     if (this.getNearbyMarketId() !== marketId) return { success: false, reason: "You must be at this market to trade" };
+    const fish = ContentRegistry.fishSpecies.get(itemId);
+    if (fish && isPhysicalTradePackSpecies(fish)) {
+      return { success: false, reason: "Carry this fish trade pack to a village counter" };
+    }
     const commodity = market.commodities[itemId];
     if (!commodity) return { success: false, reason: "Market does not trade this item" };
     if (!InventoryManager.isValidItemStack({ itemId, quantity, quality })) {
@@ -151,8 +156,18 @@ export class MarketDomain {
     }
     const commodity = market.commodities[itemId];
     const retailItemIds = this.retailItemIds(marketId);
-    if (!commodity && !(intent === "buy" && retailItemIds.includes(itemId))) {
-      return { ...base, reason: "This stall does not trade that item" };
+    if (intent === "buy" && !retailItemIds.includes(itemId)) {
+      return { ...base, reason: "This stall does not sell that item" };
+    }
+    const fish = ContentRegistry.fishSpecies.get(itemId);
+    if (intent === "sell" && fish && isPhysicalTradePackSpecies(fish)) {
+      return { ...base, reason: "Carry this fish trade pack to a village counter" };
+    }
+    if (!commodity) {
+      return {
+        ...base,
+        reason: intent === "buy" ? "This stall has no stock of that supply" : "This stall does not trade that item"
+      };
     }
     if (!Number.isSafeInteger(quantity) || quantity <= 0) {
       return { ...base, reason: "Choose a positive whole quantity" };
@@ -162,37 +177,33 @@ export class MarketDomain {
     }
     const inventory = state.inventories[state.player.inventoryId];
     const owned = InventoryManager.getItemCount(inventory, itemId);
-    let marketQuote: CommodityMarketQuote | null = null;
+    let marketQuote: CommodityMarketQuote;
     let qualityBreakdown: CommodityQualityLineDto[] | undefined;
-    if (commodity) {
-      if (intent === "buy") {
-        marketQuote = this.quotePurchase(marketId, commodity, quantity);
-      } else {
-        // Display may ask for more than is held; the quote still walks the
-        // held lots first so the shown price matches a real partial sale.
-        const plan = this.buildSalePlan(inventory, itemId, quantity, undefined, true)!;
-        marketQuote = this.quoteSale(commodity, quantity, plan.multipliers);
-        if (plan.groups.some((group) => group.quality !== undefined)) {
-          let offset = 0;
-          qualityBreakdown = plan.groups.map((group) => {
-            const prices = marketQuote!.marginalUnitPrices.slice(offset, offset + group.quantity);
-            offset += group.quantity;
-            const subtotal = prices.reduce((sum, value) => sum + value, 0);
-            return {
-              quality: group.quality ?? null,
-              quantity: group.quantity,
-              unitPrice: group.quantity > 0 ? Math.round(subtotal / group.quantity) : 0,
-              subtotal
-            };
-          });
-        }
+    if (intent === "buy") {
+      marketQuote = this.quotePurchase(marketId, commodity, quantity);
+    } else {
+      // Display may ask for more than is held; the quote still walks the
+      // held lots first so the shown price matches a real partial sale.
+      const plan = this.buildSalePlan(inventory, itemId, quantity, undefined, true)!;
+      marketQuote = this.quoteSale(commodity, quantity, plan.multipliers);
+      if (plan.groups.some((group) => group.quality !== undefined)) {
+        let offset = 0;
+        qualityBreakdown = plan.groups.map((group) => {
+          const prices = marketQuote.marginalUnitPrices.slice(offset, offset + group.quantity);
+          offset += group.quantity;
+          const subtotal = prices.reduce((sum, value) => sum + value, 0);
+          return {
+            quality: group.quality ?? null,
+            quantity: group.quantity,
+            unitPrice: group.quantity > 0 ? Math.round(subtotal / group.quantity) : 0,
+            subtotal
+          };
+        });
       }
     }
-    const unitPrice = marketQuote?.unitPrice ?? Math.ceil(item.baseValue * MarketDomain.BUY_MARKUP);
-    const totalPrice = marketQuote?.total ?? unitPrice * quantity;
-    const demandPercent = marketQuote
-      ? Math.round(marketQuote.averageDemandModifier * 100)
-      : 100;
+    const unitPrice = marketQuote.unitPrice;
+    const totalPrice = marketQuote.total;
+    const demandPercent = Math.round(marketQuote.averageDemandModifier * 100);
     const demandLabel = demandLabelFromPercent(demandPercent);
     return {
       success: true,
@@ -202,7 +213,7 @@ export class MarketDomain {
       totalPrice,
       demandPercent,
       demandLabel,
-      available: commodity ? Math.max(0, Math.floor(commodity.localSupply)) : undefined,
+      available: Math.max(0, Math.floor(commodity.localSupply)),
       owned,
       affordable: state.player.money >= totalPrice,
       bulkProduce: MarketDomain.isBulkSellProduceItem(itemId),
@@ -382,6 +393,8 @@ export class MarketDomain {
     const sellRows = inventory.slots.flatMap((slot) => {
       const itemId = slot.itemId;
       if (!itemId || seenSellItems.has(itemId) || !market.commodities[itemId]) return [];
+      const fish = ContentRegistry.fishSpecies.get(itemId);
+      if (fish && isPhysicalTradePackSpecies(fish)) return [];
       const owned = InventoryManager.getItemCount(inventory, itemId);
       if (owned <= 0) return [];
       seenSellItems.add(itemId);
@@ -484,13 +497,33 @@ export class MarketDomain {
         // so route it through the cargo lane even though an item entry exists.
         const itemLane = item ? !physicalTradePack : false;
         const remaining = Math.max(0, contract.quantityRequired - contract.quantityFulfilled);
+        const postedMinWeightKg = contract.minWeightKg === undefined
+          ? undefined
+          : Math.ceil(contract.minWeightKg * 10) / 10;
+        const requirementLabels = [
+          ...(contract.minQuality ? [`${contract.minQuality} quality or better`] : []),
+          ...(contract.minFreshness !== undefined ? [`At least ${contract.minFreshness}% fresh`] : []),
+          ...(postedMinWeightKg !== undefined ? [`At least ${postedMinWeightKg.toFixed(1)} kg`] : [])
+        ];
+        const minutesLeft = Math.max(0, Math.ceil(contract.expiresAtMinute - state.clock.currentMinute));
+        const hoursLeft = Math.floor(minutesLeft / 60);
+        const remainingMinutePart = minutesLeft % 60;
+        const durationLabel = hoursLeft > 0
+          ? `${hoursLeft}h${remainingMinutePart > 0 ? ` ${remainingMinutePart}m` : ""}`
+          : `${remainingMinutePart}m`;
+        const deadlineLabel = minutesLeft === 0
+          ? "Due now"
+          : `Due in ${durationLabel} (game time)`;
         const ownedItems = itemLane
           ? InventoryManager.getItemCount(inventory, contract.targetItemIdOrSpecies)
           : 0;
         const deliverableItems = itemLane ? Math.min(ownedItems, remaining) : 0;
-        const matchingFish = fish
+        const reachableFish = fish
           ? accessibleFish.filter((cargo) => cargo.speciesId === contract.targetItemIdOrSpecies)
           : [];
+        const matchingFish = physicalTradePack
+          ? reachableFish.filter((cargo) => cargo.location.type === "player" && state.player.carriedFishCargoId === cargo.id)
+          : reachableFish;
         const eligibleCargoIds = matchingFish
           .filter((cargo) => contract.minQuality === undefined || qualityRank(cargo.quality) >= qualityRank(contract.minQuality))
           .filter((cargo) => contract.minFreshness === undefined || cargo.freshness >= contract.minFreshness)
@@ -502,7 +535,9 @@ export class MarketDomain {
           blockerReasons.push(`Bring ${remaining} ${item!.name}`);
         } else if (fish && eligibleCargoIds.length === 0) {
           if (matchingFish.length === 0) {
-            blockerReasons.push(`Bring ${fish.name} to the market dock`);
+            blockerReasons.push(physicalTradePack && reachableFish.length > 0
+              ? "Collect this fish trade pack and carry it to the contract counter"
+              : `Bring ${fish.name} to the market dock`);
           } else {
             if (contract.minQuality && matchingFish.every((cargo) => qualityRank(cargo.quality) < qualityRank(contract.minQuality!))) {
               blockerReasons.push(`${contract.minQuality} quality or better`);
@@ -511,7 +546,7 @@ export class MarketDomain {
               blockerReasons.push(`At least ${contract.minFreshness}% freshness`);
             }
             if (contract.minWeightKg !== undefined && matchingFish.every((cargo) => cargo.weightKg < contract.minWeightKg!)) {
-              blockerReasons.push(`At least ${contract.minWeightKg} kg`);
+              blockerReasons.push(`At least ${postedMinWeightKg!.toFixed(1)} kg`);
             }
             if (blockerReasons.length === 0) blockerReasons.push("No single fish meets every requirement");
           }
@@ -522,6 +557,11 @@ export class MarketDomain {
           targetId: contract.targetItemIdOrSpecies,
           targetName: itemLane ? item!.name : fish?.name ?? contract.targetItemIdOrSpecies,
           rewardMoney: contract.rewardMoney,
+          rewardSkillXp: { ...contract.rewardSkillXp },
+          currentCompletionFloorMoney: Math.max(contract.rewardMoney, contract.deliveredValueMoney ?? 0),
+          requirementLabels,
+          deadlineLabel,
+          passWaitLabel: formatGameDuration(CONTRACT_PASS_WAIT_MINUTES),
           quantityFulfilled: contract.quantityFulfilled,
           quantityRequired: contract.quantityRequired,
           remaining,
@@ -565,9 +605,9 @@ export class MarketDomain {
       return { success: false, reason: "Your satchel changed before the sale" };
     }
     state.player.money += plan.revenue;
+    this.awardTradingXp(plan.revenue, 0.1);
     for (const line of plan.lines) {
       recordMarketSale(market, line.itemId, line.quantity);
-      this.awardTradingXp(line.revenue, 0.1);
       events.emit("ItemSold", {
         marketId,
         itemId: line.itemId,
@@ -614,16 +654,13 @@ export class MarketDomain {
     if (starterCrop && state.player.proficiencies.farming < starterCrop.minimumFarmingXp) {
       return failure("locked", `Requires ${starterCrop.minimumFarmingXp} Farming XP`);
     }
-    const commodity = state.markets[marketId]?.commodities[itemId];
-    if (commodity) {
-      const available = Math.max(0, Math.floor(commodity.localSupply));
-      if (quantity > available) {
-        return failure("not-stocked", available <= 0 ? "Sold out" : `Only ${available} in stock`);
-      }
+    const commodity = state.markets[marketId].commodities[itemId];
+    if (!commodity) return failure("not-stocked", "That seed is not stocked here");
+    const available = Math.max(0, Math.floor(commodity.localSupply));
+    if (quantity > available) {
+      return failure("not-stocked", available <= 0 ? "Sold out" : `Only ${available} in stock`);
     }
-    const cost = commodity
-      ? this.quotePurchase(marketId, commodity, quantity).total
-      : Math.ceil(item.baseValue * MarketDomain.BUY_MARKUP) * quantity;
+    const cost = this.quotePurchase(marketId, commodity, quantity).total;
     if (state.player.money < cost) return failure("insufficient-funds", "Not enough money");
     const inventory = state.inventories[state.player.inventoryId];
     const purchase = [{ itemId, quantity }];
@@ -635,7 +672,7 @@ export class MarketDomain {
       return failure("inventory-full", "The satchel is full");
     }
     state.player.money -= cost;
-    if (commodity) recordMarketPurchase(state.markets[marketId], itemId, quantity);
+    recordMarketPurchase(state.markets[marketId], itemId, quantity);
     events.emit("SeedPurchased", { marketId, itemId, quantity, cost, minute: state.clock.currentMinute });
     return { success: true, cost };
   }
@@ -660,19 +697,13 @@ export class MarketDomain {
     }
     const item = ContentRegistry.items.get(itemId);
     if (!item) return { success: false, reason: "Market does not trade this item" };
-    // A retail supply may have no tracked commodity. The shelf quote falls back
-    // to base value in `inspectCommodity`, so the purchase must price it the same
-    // way instead of rejecting a row the board presented as buyable.
     const commodity = market.commodities[itemId];
-    if (commodity) {
-      const available = Math.max(0, Math.floor(commodity.localSupply));
-      if (quantity > available) {
-        return { success: false, reason: available <= 0 ? "Sold out" : `Only ${available} in stock` };
-      }
+    if (!commodity) return { success: false, reason: "This stall has no stock of that supply" };
+    const available = Math.max(0, Math.floor(commodity.localSupply));
+    if (quantity > available) {
+      return { success: false, reason: available <= 0 ? "Sold out" : `Only ${available} in stock` };
     }
-    const cost = commodity
-      ? this.quotePurchase(marketId, commodity, quantity).total
-      : Math.ceil(item.baseValue * MarketDomain.BUY_MARKUP) * quantity;
+    const cost = this.quotePurchase(marketId, commodity, quantity).total;
     if (state.player.money < cost) return { success: false, reason: "Not enough money" };
     const inventory = state.inventories[state.player.inventoryId];
     const purchase = [{ itemId, quantity }];
@@ -684,7 +715,7 @@ export class MarketDomain {
       return { success: false, reason: "The satchel is full" };
     }
     state.player.money -= cost;
-    if (commodity) recordMarketPurchase(market, itemId, quantity);
+    recordMarketPurchase(market, itemId, quantity);
     events.emit("ItemPurchased", { marketId, itemId, quantity, cost, minute: state.clock.currentMinute });
     return { success: true, cost };
   }
@@ -914,10 +945,10 @@ export class MarketDomain {
       delete state.fishCargo[line.cargo.id];
     }
     state.player.money += quote.revenue;
+    this.awardTradingXp(quote.revenue, 0.15);
     for (const line of lines) {
       const revenue = line.breakdown.finalPrice;
       recordMarketSale(market, line.cargo.speciesId, 1);
-      this.awardTradingXp(revenue, 0.15);
       events.emit("FishSold", {
         marketId,
         cargoId: line.cargo.id,

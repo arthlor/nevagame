@@ -23,7 +23,7 @@ import type {
   WorkCostQuote
 } from "../core/contracts";
 import { SeededRng } from "../core/Rng";
-import type { CropQuality, FarmId, GameState, PlacedCropId } from "../core/types";
+import type { CropId, CropQuality, FarmId, GameState, PlacedCropId, PlacedCropState } from "../core/types";
 import {
   advancePlacedCropGrowth,
   calculateCropQuality,
@@ -63,6 +63,13 @@ export const FARMING_ACTION_COST = {
   fertilize: 8,
   irrigate: 8
 } as const;
+export const IRRIGATION_WORK_PER_CROP = 2;
+
+export function irrigationWorkForCropCount(cropCount: number): number {
+  return cropCount > 0
+    ? FARMING_ACTION_COST.irrigate + cropCount * IRRIGATION_WORK_PER_CROP
+    : 0;
+}
 export const CROP_QUALITY_XP_MULTIPLIER: Record<CropQuality, number> = {
   common: 1,
   fine: 1.1,
@@ -197,6 +204,35 @@ function fallbackFarmRect(width: number, depth: number): FarmRect {
   return { minX: -width / 2, maxX: width / 2, minZ: -depth / 2, maxZ: depth / 2 };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function malformedPlacementResult(
+  request: unknown,
+  reasonCode: CropPlacementReasonCode,
+  reason: string
+): CropPlacementResult {
+  const payload = isRecord(request) ? request : {};
+  const farmId = typeof payload.farmId === "string" ? payload.farmId as FarmId : "" as FarmId;
+  const cropId = typeof payload.cropId === "string" ? payload.cropId as CropId : "" as CropId;
+  const x = typeof payload.x === "number" && Number.isFinite(payload.x) ? payload.x : 0;
+  const z = typeof payload.z === "number" && Number.isFinite(payload.z) ? payload.z : 0;
+  return {
+    valid: false,
+    reasonCode,
+    reason,
+    farmId,
+    cropId,
+    worldX: x,
+    worldZ: z,
+    localX: x,
+    localZ: z,
+    rotationRadians: 0,
+    footprint: { width: 0, depth: 0 }
+  };
+}
+
 export interface PlantingPositionResult {
   success: boolean;
   x?: number;
@@ -212,24 +248,46 @@ export class FarmingDomain {
 
   public validatePlacement(request: CropPlacementRequest): CropPlacementResult {
     const { state } = this.context;
-    const farm = state.farms[request.farmId];
-    const cropDef = ContentRegistry.crops.get(request.cropId);
+    const payload: unknown = request;
+    if (!isRecord(payload)) {
+      return malformedPlacementResult(payload, "invalid-position", "Choose a clear patch of soil");
+    }
+    if (typeof payload.farmId !== "string" || payload.farmId.length === 0) {
+      return malformedPlacementResult(payload, "invalid-farm", "This farm is unavailable");
+    }
+    if (typeof payload.cropId !== "string" || payload.cropId.length === 0) {
+      return malformedPlacementResult(payload, "unknown-crop", "This seed cannot be planted here");
+    }
+    if (
+      typeof payload.x !== "number" || !Number.isFinite(payload.x) ||
+      typeof payload.z !== "number" || !Number.isFinite(payload.z) ||
+      (payload.space !== undefined && payload.space !== "world" && payload.space !== "local")
+    ) {
+      return malformedPlacementResult(payload, "invalid-position", "Choose a clear patch of soil");
+    }
+    const safeRequest = payload as unknown as CropPlacementRequest;
+    const farm = Object.prototype.hasOwnProperty.call(state.farms, safeRequest.farmId)
+      ? state.farms[safeRequest.farmId]
+      : undefined;
+    const cropDef = ContentRegistry.crops.get(safeRequest.cropId);
+    if (!farm) return malformedPlacementResult(payload, "invalid-farm", "This farm is unavailable");
+    if (!cropDef) return malformedPlacementResult(payload, "unknown-crop", "This seed cannot be planted here");
     const emptyFootprint = cropDef?.footprint ?? { width: 0, depth: 0 };
-    const layout = getFarmLayout(request.farmId);
+    const layout = getFarmLayout(safeRequest.farmId);
     const boundary = layout?.farmBounds ?? (farm ? fallbackFarmRect(farm.widthMeters, farm.depthMeters) : { minX: -10, maxX: 10, minZ: -10, maxZ: 10 });
 
-    const isLocal = request.space === "local";
+    const isLocal = safeRequest.space === "local";
     const local = isLocal
-      ? { x: request.x, z: request.z }
-      : worldToFarmLocal(request.farmId, request);
+      ? { x: safeRequest.x, z: safeRequest.z }
+      : worldToFarmLocal(safeRequest.farmId, safeRequest);
     const world = isLocal
-      ? farmLocalToWorld(request.farmId, request)
-      : { x: request.x, z: request.z };
+      ? farmLocalToWorld(safeRequest.farmId, safeRequest)
+      : { x: safeRequest.x, z: safeRequest.z };
 
     const rotationRadians = deterministicCropRotation(
       state.worldSeed,
-      request.farmId,
-      request.cropId,
+      safeRequest.farmId,
+      safeRequest.cropId,
       world.x,
       world.z
     );
@@ -241,8 +299,8 @@ export class FarmingDomain {
       valid,
       reasonCode,
       reason,
-      farmId: request.farmId,
-      cropId: request.cropId,
+      farmId: safeRequest.farmId,
+      cropId: safeRequest.cropId,
       worldX: world.x,
       worldZ: world.z,
       localX: local.x,
@@ -254,20 +312,15 @@ export class FarmingDomain {
     if (state.player.activeMountId) return result(false, "mounted", "Dismount before planting");
     const handsBlocker = freeHandsBlocker(state.player);
     if (handsBlocker) return result(false, "hands-occupied", handsBlocker);
-    if (!farm) return result(false, "invalid-farm", "This farm is unavailable");
-    if (!cropDef) return result(false, "unknown-crop", "This seed cannot be planted here");
-    if (!Number.isFinite(request.x) || !Number.isFinite(request.z)) {
-      return result(false, "invalid-position", "Choose a clear patch of soil");
-    }
     if (distance2d(state.player, world) > CROP_INTERACTION_RADIUS + 3.5) {
       return result(false, "too-far", "Move closer to plant here");
     }
     if (state.player.proficiencies.farming < cropDef.minimumFarmingXp) {
       return result(false, "locked", `Requires ${cropDef.minimumFarmingXp} Farming XP`);
     }
-    const cropCapacity = WORLD_FARM_DEFINITIONS[request.farmId]?.cropCapacity;
+    const cropCapacity = WORLD_FARM_DEFINITIONS[safeRequest.farmId]?.cropCapacity;
     if (cropCapacity !== undefined && farm.placedCropIds.length >= cropCapacity) {
-      const farmLabel = WORLD_FARM_DEFINITIONS[request.farmId]?.label ?? "This farm";
+      const farmLabel = WORLD_FARM_DEFINITIONS[safeRequest.farmId]?.label ?? "This farm";
       return result(false, "farm-capacity", `${farmLabel} has room for only ${cropCapacity} crops`);
     }
     const candidate: OrientedCropFootprint = {
@@ -280,7 +333,7 @@ export class FarmingDomain {
     if (corners.some((corner) => !isPointInsideRect(corner, boundary, PLACEMENT_EPSILON))) {
       return result(false, "outside-farm", "Keep the whole crop inside the farm");
     }
-    if (layout && corners.some((corner) => !isPlantableFarmSurface(request.farmId, corner))) {
+    if (layout && corners.some((corner) => !isPlantableFarmSurface(safeRequest.farmId, corner))) {
       return result(false, "invalid-surface", "Plant on prepared farm soil");
     }
 
@@ -311,7 +364,7 @@ export class FarmingDomain {
       }
     }
     for (const farmstead of layout?.farmsteadAnchors ?? []) {
-      const anchorWorld = farmLocalToWorld(request.farmId, farmstead);
+      const anchorWorld = farmLocalToWorld(safeRequest.farmId, farmstead);
       if (circleIntersectsFootprint(anchorWorld, farmstead.clearanceRadius, worldCandidate)) {
         return result(false, "structure-clearance", "Leave access to the farmhouse and well");
       }
@@ -682,6 +735,16 @@ export class FarmingDomain {
     return { success: true, cost: IRRIGATION_COST };
   }
 
+  public quoteIrrigationWork(farmId: FarmId): (WorkCostQuote & { cropCount: number }) | null {
+    if (!this.context.state.quests.unlockedFeatureIds.includes(IRRIGATION_FEATURE_ID)) return null;
+    const cropCount = this.thirstyCrops(farmId).length;
+    if (cropCount === 0) return null;
+    return {
+      ...this.progression.quoteWorkCost(irrigationWorkForCropCount(cropCount), "farming", "farming.irrigate"),
+      cropCount
+    };
+  }
+
   public irrigate(farmId: FarmId): InteractionResult {
     const { state, events } = this.context;
     if (state.player.activeMountId) return { success: false, reason: "Dismount before tending crops" };
@@ -693,11 +756,7 @@ export class FarmingDomain {
     const farm = state.farms[farmId];
     if (!farm) return { success: false, reason: "This farm is unavailable" };
     if (!this.isNearIrrigationWell(farmId)) return { success: false, reason: "Use the farm well to water the field" };
-    const cropsToWater = farm.placedCropIds
-      .map((placedCropId) => state.crops[placedCropId])
-      .filter((crop): crop is NonNullable<typeof crop> => Boolean(
-        crop && crop.stage !== "withered" && crop.moisture < WET_MOISTURE_THRESHOLD
-      ));
+    const cropsToWater = this.thirstyCrops(farmId);
     if (cropsToWater.length === 0) {
       events.emit("FarmIrrigated", {
         farmId,
@@ -706,19 +765,30 @@ export class FarmingDomain {
       });
       return { success: true, reason: "already-wet", reasonCode: "already-wet" };
     }
-    const work = this.progression.trySpendWork(FARMING_ACTION_COST.irrigate, "farming", "Irrigating", "farming.irrigate");
+    const baseWork = irrigationWorkForCropCount(cropsToWater.length);
+    const work = this.progression.trySpendWork(baseWork, "farming", "Irrigating", "farming.irrigate");
     if (!work.success) return work;
     for (const crop of cropsToWater) {
       crop.moisture = 100;
       events.emit("CropWatered", { placedCropId: crop.id, farmId: crop.farmId, newMoisture: 100, minute: state.clock.currentMinute });
     }
-    this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.irrigate);
+    this.progression.addProficiencyXp("farming", baseWork);
     events.emit("FarmIrrigated", {
       farmId,
       cropCount: cropsToWater.length,
       minute: state.clock.currentMinute
     });
-    return { success: true };
+    return { success: true, cost: work.cost };
+  }
+
+  private thirstyCrops(farmId: FarmId): PlacedCropState[] {
+    const farm = this.context.state.farms[farmId];
+    if (!farm) return [];
+    return farm.placedCropIds
+      .map((placedCropId) => this.context.state.crops[placedCropId])
+      .filter((crop): crop is PlacedCropState => Boolean(
+        crop && crop.farmId === farmId && crop.stage !== "withered" && crop.moisture < WET_MOISTURE_THRESHOLD
+      ));
   }
 
   public inspect(placedCropId: PlacedCropId): CropInspectionDto | null {

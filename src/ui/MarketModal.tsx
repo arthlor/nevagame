@@ -1025,6 +1025,12 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             <h3 id="market-contracts-title" className="section-title">
               <IconJournal size={15} aria-hidden="true" /> Posted orders
             </h3>
+            {activeContracts.length > 0 && (
+              <>
+                <p className="contract-prog">Valuable deliveries can raise the final payout above the posted reward.</p>
+                <p className="contract-prog">Passing an untouched order takes {activeContracts[0].passWaitLabel} game time. Other deadlines and catch freshness keep moving.</p>
+              </>
+            )}
             {activeContracts.length === 0 && <p className="guild-empty-orders">No active orders to deliver at this counter.</p>}
             <div className="active-contracts-list">
               {activeContracts.map((contract) => (
@@ -1032,11 +1038,17 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   <div className="contract-mini-header">
                     <strong>Supply {contract.targetName}</strong>
                     <span className="contract-gold">
-                      <IconCoin size={12} aria-hidden="true" /> {contract.rewardMoney} G
+                      <IconCoin size={12} aria-hidden="true" /> At least {contract.currentCompletionFloorMoney} G
                     </span>
                   </div>
                   <span className="contract-prog">
                     Fulfilled: {contract.quantityFulfilled} / {contract.quantityRequired}
+                  </span>
+                  <span className="contract-prog">
+                    On completion: {contract.rewardSkillXp.xp} {contract.rewardSkillXp.skill} XP
+                  </span>
+                  <span className="contract-prog">
+                    {[...contract.requirementLabels, contract.deadlineLabel].join(" · ")}
                   </span>
                   <div className={`contract-readiness${contract.ready ? " is-ready" : " is-blocked"}`}>
                     {contract.ready ? (
@@ -1078,9 +1090,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                         className="comm-pass-btn"
                         soundCue="page-turn"
                         onClick={() => onPassContract(contract.contractId)}
-                        title="Strike this order so the board can post another"
+                        title={`Wait ${contract.passWaitLabel} of game time for a replacement notice`}
                       >
-                        Pass on this order
+                        Pass · wait {contract.passWaitLabel} game time
                       </ChromeButton>
                     )}
                   </div>

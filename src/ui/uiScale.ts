@@ -28,9 +28,9 @@ const DESKTOP_EXPLICIT_SCALES: Record<Exclude<UiScalePreference, "auto">, number
 };
 
 const MOBILE_EXPLICIT_SCALES: Record<Exclude<UiScalePreference, "auto">, number> = {
-  small: 0.70,
-  normal: 0.85,
-  large: 1.0
+  small: 0.60,
+  normal: 0.72,
+  large: 0.85
 };
 
 const AUTO_MINIMUM = 0.85;

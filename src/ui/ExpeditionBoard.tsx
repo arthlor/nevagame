@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { IconBoat, IconExpedition, IconFish, IconWarning } from "./components/HudIcons";
 import { formatWeatherLabel, WeatherIcon } from "./weatherPresentation";
 import { useModalAccessibility } from "./useModalAccessibility";
-import { ChromeButton, ChromeClose } from "./chrome/Chrome";
+import { ChromeClose } from "./chrome/Chrome";
 import { GameSheet, Meter } from "./coastal/CoastalUI";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForItem } from "./chrome/uiAtlas";
@@ -20,6 +20,7 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
   const { opportunities, readiness } = board;
   const [selectedId, setSelectedId] = useState(opportunities[0]?.id ?? "");
   const selected = opportunities.find((item) => item.id === selectedId) ?? opportunities[0] ?? null;
+  const availableSupplyKinds = readiness.supplies.filter((supply) => supply.count > 0).length;
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
@@ -46,49 +47,57 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
           <ChromeClose onClick={onClose} label="Close expedition board" />
         </header>
 
-        <div className="expedition-readiness-strip" aria-label="Current readiness">
-          <div className="expedition-readiness-vessel">
-            <div className="expedition-readiness-title">
-              <IconBoat size={18} aria-hidden="true" />
-              <span>Vessel</span>
+        <details className="expedition-readiness-disclosure">
+          <summary className="expedition-readiness-summary">
+            <strong>Trip readiness</strong>
+            <span>{readiness.vessel ? `${readiness.vessel.name} · ${readiness.vessel.hullPercent}% hull` : "No vessel"}</span>
+            <span>{formatWeatherLabel(readiness.weatherType)} · {readiness.seaLabel}</span>
+            <span>{availableSupplyKinds} {availableSupplyKinds === 1 ? "supply type" : "supply types"} available</span>
+          </summary>
+          <div className="expedition-readiness-strip" role="group" aria-label="Current readiness details">
+            <div className="expedition-readiness-vessel">
+              <div className="expedition-readiness-title">
+                <IconBoat size={18} aria-hidden="true" />
+                <span>Vessel</span>
+              </div>
+              <div className="expedition-vessel-status">
+                <strong>{readiness.vessel?.name ?? "None"}</strong>
+                {readiness.vessel && (
+                  <Meter
+                    className="expedition-hull-meter"
+                    label="Hull"
+                    value={readiness.vessel.hullCurrent}
+                    max={readiness.vessel.hullMaximum}
+                    valueText={`${readiness.vessel.hullPercent}%`}
+                    variant="hull"
+                  />
+                )}
+              </div>
             </div>
-            <div className="expedition-vessel-status">
-              <strong>{readiness.vessel?.name ?? "None"}</strong>
-              {readiness.vessel && (
-                <Meter
-                  className="expedition-hull-meter"
-                  label="Hull"
-                  value={readiness.vessel.hullCurrent}
-                  max={readiness.vessel.hullMaximum}
-                  valueText={`${readiness.vessel.hullPercent}%`}
-                  variant="hull"
-                />
-              )}
+            <div className="expedition-readiness-supplies">
+              <div className="expedition-readiness-title">
+                <IconFish size={18} aria-hidden="true" />
+                <span>Supplies</span>
+              </div>
+              <div className="expedition-supplies-grid">
+                {readiness.supplies.map(({ itemId, name, count }) => (
+                  <span key={itemId} className={`expedition-supply-pill ${count > 0 ? "is-ready" : "is-missing"}`}>
+                    <AtlasImage src={atlasForItem(itemId)} alt="" size={18} />
+                    <span>{name}</span>
+                    <strong>{count}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="expedition-readiness-weather">
+              <div className="expedition-readiness-title">
+                <WeatherIcon type={readiness.weatherType} size={18} aria-hidden="true" />
+                <span>Weather</span>
+              </div>
+              <strong className="expedition-weather-val">{formatWeatherLabel(readiness.weatherType)} · {readiness.seaLabel}</strong>
             </div>
           </div>
-          <div className="expedition-readiness-supplies">
-            <div className="expedition-readiness-title">
-              <IconFish size={18} aria-hidden="true" />
-              <span>Supplies</span>
-            </div>
-            <div className="expedition-supplies-grid">
-              {readiness.supplies.map(({ itemId, name, count }) => (
-                <span key={itemId} className={`expedition-supply-pill ${count > 0 ? "is-ready" : "is-missing"}`}>
-                  <AtlasImage src={atlasForItem(itemId)} alt="" size={18} />
-                  <span>{name}</span>
-                  <strong>{count}</strong>
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="expedition-readiness-weather">
-            <div className="expedition-readiness-title">
-              <WeatherIcon type={readiness.weatherType} size={18} aria-hidden="true" />
-              <span>Weather</span>
-            </div>
-            <strong className="expedition-weather-val">{formatWeatherLabel(readiness.weatherType)} · {readiness.seaLabel}</strong>
-          </div>
-        </div>
+        </details>
 
         <div className="expedition-board-body">
           <nav className="expedition-notice-stack" aria-label="Posted opportunities">
@@ -98,6 +107,7 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
                 type="button"
                 className={`expedition-posted-notice tone-${opportunity.tone} ${selected?.id === opportunity.id ? "is-selected" : ""}`}
                 aria-pressed={selected?.id === opportunity.id}
+                aria-controls="expedition-opportunity-details"
                 onClick={() => setSelectedId(opportunity.id)}
               >
                 <span className="expedition-notice-tone">{opportunity.tone === "steady" ? "Steady" : "Bold"}</span>
@@ -110,10 +120,10 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
             ))}
           </nav>
 
-          <section className="expedition-selected-notice" aria-live="polite">
+          <section id="expedition-opportunity-details" className="expedition-selected-notice" aria-label="Selected opportunity">
             {selected ? (
               <>
-                <div className="expedition-selected-heading">
+                <div className="expedition-selected-heading" aria-live="polite" aria-atomic="true">
                   <div>
                     <span>{selected.tone === "steady" ? "Steady opportunity" : "Bold opportunity"}</span>
                     <h3>{selected.title.replace(/^(Steady|Bold):\s*/, "")}</h3>
@@ -130,7 +140,7 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
                   {selected.deadlineLabel && <div><dt>Deadline</dt><dd>{selected.deadlineLabel}</dd></div>}
                 </dl>
                 {selected.ready ? (
-                  <p className="expedition-ready-note">Your current vessel, supplies, and conditions meet this notice.</p>
+                  <p className="expedition-ready-note">All requirements for this notice are met.</p>
                 ) : (
                   <div className="expedition-blockers">
                     <h4><IconWarning size={15} aria-hidden="true" /> Resolve in order</h4>
@@ -144,9 +154,6 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
           </section>
         </div>
 
-        <footer className="modal-footer">
-          <ChromeButton onClick={onClose}>Close board</ChromeButton>
-        </footer>
       </GameSheet>
     </div>
   );

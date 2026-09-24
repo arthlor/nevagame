@@ -94,7 +94,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(result).toMatchObject({
       success: false,
       reasonCode: "insufficient-work",
-      requiredWork: 15,
+      requiredWork: 20,
       availableWork: 14
     });
     expect(sim.state.player.workCapacity.current).toBe(14.99);

@@ -1,7 +1,8 @@
 /**
  * Authored spring and descending upper reach; coordinates and elevations are
- * metres. The upper reach steps rather than ramps: a short lip crest, an
- * explicit fall face, and a level pool shelf that hands off to the main river.
+ * metres. The upper reach steps rather than ramps: a rock spring at the
+ * headwall talus, a short steep chute to a bedrock lip crest, an explicit fall
+ * face, and a level plunge pool that hands off to the main river.
  * `fall` owns that discontinuity so reach/surface consumers do not have to
  * infer it from the knots.
  */
@@ -11,13 +12,15 @@ export const NEVA_HEADWATERS = Object.freeze({
   sourceRadiusMeters: 2.2,
   // Dry padding lets water vertices follow the same profile before shoreline clipping.
   bounds: Object.freeze({ minX: -55, maxX: -5, minZ: -158, maxZ: -110 }),
-  /** A shallow spring run spills over a bedrock lip into a level plunge pool.
-   * All optical and support consumers use these same stations. */
+  /** Water seeps from the headwall talus into a short rocky chute, spills over
+   * a high bedrock lip into a level plunge pool. All optical and support
+   * consumers use these same stations. */
   elevationKnots: Object.freeze([
-    { z: -150, elevation: 20 },
-    { z: -141, elevation: 19.65 },
-    { z: -136.5, elevation: 19 },
-    { z: -136, elevation: 19 },
+    { z: -150, elevation: 33.5 },
+    { z: -146, elevation: 32.7 },
+    { z: -141, elevation: 32.25 },
+    { z: -136.5, elevation: 32 },
+    { z: -136, elevation: 32 },
     { z: -134.5, elevation: 4.5 },
     { z: -132, elevation: 4.5 },
     { z: -128, elevation: 4.5 },
@@ -30,7 +33,7 @@ export const NEVA_HEADWATERS = Object.freeze({
     upstreamReachId: "reach.neva_headwaters",
     downstreamReachId: "reach.neva_main",
     lipZ: -136,
-    lipElevation: 19,
+    lipElevation: 32,
     landingZ: -134.5,
     landingElevation: 4.5
   }),

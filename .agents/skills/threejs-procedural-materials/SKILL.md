@@ -1,16 +1,15 @@
 ---
 name: threejs-procedural-materials
-description: "Author causal PBR and optical materials in Three.js. Use for hybrid soil/moss, model moss, wetness, lava/emissive, specular AA, atlas filtering, diffraction foil, thin-film soap, gem/diamond refraction, dispersive glass. Not for shared field design or screen-space wet glass."
+description: Author production procedural materials in Three.js. Use for hybrid texture-backed PBR soil and moss with procedural displacement and masks, upward-facing model moss accumulation, atlas filtering, specular AA, planet-space fields, terrain wetness, deformable granular sand with mass-coupled grain shading, woven cloth with GPU XPBD mechanics and yarn microstructure, simulated fur with interactive grooming and strand shading, lava and emissive surfaces, reflective wave-optical diffraction gratings, air-film-air soap bubbles with Airy interference, raytraced diamond and gem refraction with internal reflection and dispersion, image-space glass transmission with spectral dispersion and volume absorption, deforming softbody jelly materials with XPBD mechanics and refractive caustics, per-instance dissolve, authored PBR identities, derivative normals, and custom direct-light shadow modulation.
 ---
 
 # Procedural Materials
 
-- **Runtime contract.** Backend: WebGPU/TSL (`three/webgpu`, `three/tsl`) — requires a WebGPU-capable runtime. Min three: verify the installed build exposes the referenced TSL nodes (`Fn`/`If`/`Loop`). Fallback: not provided; state any GLSL port. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
-
 Build a material from surface identity and causes. Color, roughness, metalness, normal, transmission, and emission should describe the same surface—not unrelated noise textures.
 
-Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
+This skill contains exemplary examples and assets beyond descriptive guidance,
+they're worth studying, referencing, or even copying. Use them sufficiently
+when relevant and do NOT blindly skip them.
 
 ## Material graph order
 
@@ -37,11 +36,6 @@ Read the
 [procedural planet surface](../threejs-procedural-planets/examples/procedural-planet-surface/planet-system.js)
 for shared geological, climate, water, biome, roughness, and derivative-normal
 causes on a procedural planetary surface.
-
-Read the
-[analytic wave optics](../threejs-water-optics/examples/analytic-wave-optics/water-system.js)
-for coupled reflection, refraction, absorption, filtered microstructure,
-resolved crest response, and their diagnostic channels.
 
 Read the
 [lava flow surface material](examples/lava-flow-surface/lava-surface.js)
@@ -101,6 +95,37 @@ dependent aqueous index, front and rear membrane passes, analytic nearby-
 bubble reflection, volume-preserving capillary modes, buoyancy and drag,
 Taylor-Culick rupture, visible-drop aftermath, and deterministic physics gates.
 
+Read the
+[softbody jelly implementation](examples/softbody-jelly/softbody-jelly.js)
+for a deforming flower-shaped transmissive body whose tetrahedral XPBD state,
+smooth optical shell, view-ray thickness, BVH refraction, absorption, receiver
+shadow, and finite RGB caustic fields remain coupled.
+
+Read the
+[deformable sand implementation](examples/deformable-sand/deformable-sand.js)
+for a fixed-step granular heightfield whose conservative transport, impact
+particles, anisotropic mineral grains, horizon lighting, and optical-depth
+shadows share one mass-carrying state.
+
+Read the
+[simulated cloth implementation](examples/simulated-cloth/simulated-cloth.js)
+for an exact plain-weave linen material coupled to a GPU XPBD sheet with yarn
+stretch, shear locking, bending, rigid contact, self-collision, and pinching.
+The calibrated solver and cloth-map contracts are in
+[references/simulated-cloth-system.md](references/simulated-cloth-system.md).
+
+Read the
+[simulated fur implementation](examples/simulated-fur/simulated-fur.js)
+for groomed GPU strands, tapered ribbon shading, and an articulated hand whose
+capsule contacts comb the strand field. The strand, groom, and interaction
+contracts are in
+[references/simulated-fur-system.md](references/simulated-fur-system.md).
+
+Read
+[references/softbody-jelly.md](references/softbody-jelly.md) for the
+softbody coordinate contract, neo-Hookean XPBD split, damping and sleep rules,
+refractive receiver budget, material constants, limits, and diagnostics.
+
 ## Required controls
 
 - real or perceptual texture scale;
@@ -129,9 +154,7 @@ procedurally synthesized. When moss must also settle onto a model, read the
 for model-locked coverage, upward-face accumulation, displaced thickness, and
 shared moss PBR identity.
 
-## Invariants and strong defaults
-
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Failure conditions
 
 - every PBR channel samples independent noise;
 - roughness is a scalar afterthought;
@@ -145,6 +168,11 @@ Use these checks for the affected mechanism. Preserve concrete ownership, correc
 - a narrowed diffraction lobe loses energy because its density lacks sigma normalization.
 - a soap bubble is treated as a solid glass sphere or painted with a rainbow instead of using air-film-air interference;
 - a deformed soap membrane retains the undeformed sphere normal;
+- a deforming transmissive body updates its render shell, optical BVH, and receiver field from different states;
+- a finite caustic receiver lets non-zero data reach its clamped texture edge;
+- a softbody solver uses variable integration steps or an uncoupled rest-stress split that injects energy after damping;
+- granular displacement, airborne grains, settled-bed shading, and shadow fields advance from different simulation clocks;
+- sand grain sparkle is an unfiltered high-frequency lookup that aliases under grazing motion;
 
 ## Routing boundary
 

@@ -8,14 +8,9 @@ import math
 import bpy
 
 from common.geometry import (
-    add_beam,
     add_box,
-    add_cone,
     add_cylinder,
-    add_grip_marker,
-    add_ico,
     add_ring,
-    add_tapered_beam,
     add_tri_prism,
 )
 from common.authored import add_catenary_rope, add_profiled_vessel
@@ -130,93 +125,3 @@ def wearable_equipment(spec: dict, root) -> None:
         _boot_pair(root, cloth, trim, accent, True)
     else:
         raise ValueError(f"Unknown wearable equipment style {style!r}")
-
-
-def equipment_watering_can(spec: dict, root) -> None:
-    metal, dark, accent = spec["palette"][:3]
-    style = spec["parameters"]["style"]
-    long_spout = style == "long_spout"
-    add_grip_marker("tool_primary_grip", (-0.016, 0, 0), root,
-                    fingers=(0, -1, 0), contact_normal=(1, 0, 0))
-    add_cylinder("equipment_can_handle", (0, 0, 0), 0.016, 0.12, dark, root, vertices=6, bevel=0.003)
-    add_profiled_vessel("equipment_can_body", (.17, 0, 0),
-                        ((-.11, .10), (-.07, .12), (.07, .115), (.12, .074)),
-                        .01, metal, root, sides=10)
-    add_beam("equipment_can_arch_a", (0.07, 0, 0.08), (0.15, 0, 0.27), 0.016, dark, root, vertices=6)
-    add_beam("equipment_can_arch_b", (0.15, 0, 0.27), (0.27, 0, 0.08), 0.016, dark, root, vertices=6)
-    add_cylinder("equipment_can_lid", (0.17, 0, 0.13), 0.075, 0.035, accent, root, vertices=9, bevel=0.005)
-    spout_length = 0.46 if long_spout else 0.26
-    add_cone("equipment_can_spout", (0.17, -spout_length * 0.56, 0.025),
-             0.048, 0.018 if long_spout else 0.025, spout_length, metal, root,
-             vertices=9, rotation=(math.pi / 2, 0, 0))
-    rose_radius = 0.038 if long_spout else 0.075
-    add_cylinder("equipment_can_rose", (0.17, -spout_length - 0.035, 0.025),
-                 rose_radius, 0.045, accent, root, vertices=12,
-                 rotation=(math.pi / 2, 0, 0), bevel=0.006)
-    if not long_spout:
-        for index in range(7):
-            angle = index * math.tau / 7
-            add_cylinder(f"copper_rose_hole_{index}",
-                         (0.17 + math.cos(angle) * 0.038, -spout_length - 0.06,
-                          0.025 + math.sin(angle) * 0.038),
-                         0.006, 0.008, dark, root, vertices=5,
-                         rotation=(math.pi / 2, 0, 0))
-
-
-def equipment_sickle(spec: dict, root) -> None:
-    wood, metal, accent = spec["palette"][:3]
-    style = spec["parameters"]["style"]
-    broad = style == "broad"
-    add_grip_marker("tool_primary_grip", (0.05, 0, 0), root,
-                    fingers=(0, 1, 0), contact_normal=(-1, 0, 0))
-    grip = 0.17
-    add_tapered_beam("equipment_sickle_handle", (0, 0, -grip), (0, 0, 0.25),
-                     0.028 if broad else 0.025, 0.021, wood, root, vertices=7)
-    add_cylinder("equipment_sickle_ferrule", (0, 0, 0.25), 0.03, 0.05, metal, root, vertices=7, bevel=0.004)
-    points = (
-        [(0.01, 0.29), (0.18, 0.42), (0.39, 0.47), (0.58, 0.40), (0.67, 0.25), (0.57, 0.12)]
-        if broad else
-        [(0.01, 0.29), (0.14, 0.40), (0.30, 0.45), (0.46, 0.40), (0.54, 0.29), (0.48, 0.18)]
-    )
-    for index in range(len(points) - 1):
-        (x0, z0), (x1, z1) = points[index], points[index + 1]
-        span = math.hypot(x1 - x0, z1 - z0)
-        add_box(f"equipment_sickle_blade_{index}", ((x0 + x1) * .5, 0, (z0 + z1) * .5),
-                (span * 1.12, 0.012, (0.10 if broad else 0.075) - index * 0.008),
-                metal, root, rotation=(0, -math.atan2(z1 - z0, x1 - x0), 0), bevel=0.004)
-    if not broad:
-        add_cylinder("balanced_sickle_counterweight", (0, 0, -0.20), 0.045, 0.07,
-                     accent, root, vertices=8, bevel=0.008)
-
-
-def crafting_job_prop(spec: dict, root) -> None:
-    style = spec["parameters"]["style"]
-    primary, secondary, accent = spec["palette"][:3]
-    add_grip_marker("tool_primary_grip", (0.04, 0, 0), root,
-                    fingers=(0, 1, 0), contact_normal=(-1, 0, 0))
-    if style == "tailor":
-        add_cylinder("tailor_spool_core", (0, 0, 0.23), 0.055, 0.18, secondary, root, vertices=8)
-        add_cylinder("tailor_spool_thread", (0, 0, 0.23), 0.09, 0.12, primary, root, vertices=10, bevel=0.008)
-        add_ring("tailor_scissor_left", (0.16, 0, 0.27), 0.065, 0.012, accent, root,
-                 major_segments=8, minor_segments=4, rotation=(math.pi / 2, 0, 0))
-        add_ring("tailor_scissor_right", (0.27, 0, 0.27), 0.065, 0.012, accent, root,
-                 major_segments=8, minor_segments=4, rotation=(math.pi / 2, 0, 0))
-        add_beam("tailor_scissor_blade_a", (0.20, 0, 0.25), (0.42, 0, 0.42), 0.014, accent, root, vertices=5)
-        add_beam("tailor_scissor_blade_b", (0.22, 0, 0.29), (0.44, 0, 0.20), 0.014, accent, root, vertices=5)
-    elif style == "toolmaking":
-        add_tapered_beam("toolmaking_hammer_handle", (0, 0, -0.12), (0, 0, 0.42),
-                         0.027, 0.022, primary, root, vertices=7)
-        add_box("toolmaking_hammer_head", (0, 0, 0.45), (0.28, 0.11, 0.12), secondary,
-                root, bevel=0.018)
-        add_cone("toolmaking_hammer_peen", (0.19, 0, 0.45), 0.055, 0.02, 0.18,
-                 secondary, root, vertices=7, rotation=(0, math.pi / 2, 0))
-        add_ring("toolmaking_handle_band", (0, 0, 0.29), 0.035, 0.014, accent, root,
-                 major_segments=7, minor_segments=4)
-    elif style == "ready":
-        add_box("ready_parcel", (0.10, 0, 0.15), (0.38, 0.24, 0.30), primary, root, bevel=0.04)
-        add_box("ready_parcel_band_vertical", (0.10, -0.13, 0.15), (0.07, 0.025, 0.33), secondary, root, bevel=0.006)
-        add_box("ready_parcel_band_horizontal", (0.10, -0.14, 0.15), (0.40, 0.025, 0.065), secondary, root, bevel=0.006)
-        add_ico("ready_parcel_seal", (0.10, -0.165, 0.15), (0.055, 0.02, 0.055), accent,
-                root, subdivisions=1)
-    else:
-        raise ValueError(f"Unknown crafting job prop style {style!r}")

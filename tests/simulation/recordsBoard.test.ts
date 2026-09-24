@@ -43,8 +43,8 @@ describe("records board", () => {
   it("advances discovery, weight, grade and harvest records from journal truth", () => {
     const sim = new Simulation();
     const trout = ContentRegistry.fishSpecies.get("fish.trout")!;
-    const threshold = trout.weightKg.average
-      + (trout.weightKg.max - trout.weightKg.average) * RECORD_TUNING.weightRecordFraction;
+    const threshold = Math.ceil((trout.weightKg.average
+      + (trout.weightKg.max - trout.weightKg.average) * RECORD_TUNING.weightRecordFraction) * 10) / 10;
 
     sim.state.journal.fishRecords["fish.trout"] = {
       discovered: true,

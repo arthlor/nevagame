@@ -1,16 +1,15 @@
 ---
 name: threejs-procedural-vfx
-description: "Author real-time VFX in Three.js. Use for filmic lens flare, aurora curtains, WebGPU voxel fire and smoke, fluid fields, SDF collisions, sparks, plasma, trails, and holograms. Not for weather clouds or atmospheric scattering."
+description: Author production real-time VFX in Three.js. Use for filmic HDR lens-flare compositors, highlight-derived ghosts, field-angle pupil deformation, localized glare and bloom, raymarched aurora curtains, finite-footprint emissive slabs, uniform volume integration, equirectangular radiance probes, WebGPU voxel fire and smoke, coupled volumetric fluid fields, mesh-surface emitters, signed-distance fire collisions, ship-conforming reentry plasma, generated capsule wakes, instanced analytic sparks, timed dissolving debris, dense-swap effect pools, additive holographic projections, Fresnel rim shells, scanline banding, glitch displacement, swept shape-to-shape handovers, and explicit scene-relative HDR emission hierarchy.
 ---
 
 # Procedural VFX
 
-- **Runtime contract.** Backend: dual — GLSL examples plus WebGPU/TSL modules (e.g. volumetric fluid fire). Min three: verify the backend of the specific example selected. Fallback: match the project backend; do not migrate WebGL2↔WebGPU without porting the compute path. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
-
 Build effects from an event envelope, motion field, geometry representation, and shading response. Avoid independent particle emitters that happen to share a color.
 
-Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
+This skill contains exemplary examples and assets beyond descriptive guidance,
+they're worth studying, referencing, or even copying. Use them sufficiently
+when relevant and do NOT blindly skip them.
 
 ## Effect graph
 
@@ -104,12 +103,6 @@ ring and star response, localized bloom, and the complete filmic composite.
   discards, never per-shape ranges or overlapping coverage.
 - Expose spawn, simulation, overdraw, and luminance debug views.
 - Include a non-bloom baseline that remains legible.
-
-## Deliverable
-
-- Inputs: event/state source, motion field, and lifetime model.
-- Artifacts: effect graph, pool ownership, HDR emission values, and spawn/simulation/overdraw debug views.
-- Acceptance: every layer has a role; the non-bloom baseline is legible; instances are pooled, not allocated per burst.
 
 ## Routing boundary
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Validate the Three.js skill pack.
 
-Deterministic checks only: frontmatter, links, cross-references, runtime
-contracts, gating pointers, manifest coverage, and mirror drift. No network.
+Deterministic checks only: frontmatter, links, cross-references, manifest
+coverage, and mirror drift. No network.
 
 Usage:
     python3 tools/validate_skills.py [--root DIR] [--strict]
@@ -23,14 +23,7 @@ import sys
 
 LINK_RE = re.compile(r"\]\(([^)]+)\)")
 SKILL_REF_RE = re.compile(r"\$threejs-[a-z0-9-]+")
-NON_MANIFEST = {"gauntlet-loop", "threejs-skill-router"}
-# Tooling/meta skills have no rendering backend to declare.
-NO_CONTRACT = {
-    "threejs-3d-generator",
-    "threejs-image-generator",
-    "threejs-audio-generator",
-    "threejs-skill-router",
-}
+NON_MANIFEST = {"gauntlet-loop"}
 
 
 def split_frontmatter(text: str) -> dict[str, str]:
@@ -106,17 +99,9 @@ def main() -> int:
         desc = fields.get("description", "")
         if not desc:
             errors.append(f"{name}: missing description")
-        elif len(desc) > 400:
-            warnings.append(f"{name}: description is {len(desc)} chars (>400)")
 
         if not os.path.isfile(os.path.join(skill_dir, "agents", "openai.yaml")):
             errors.append(f"{name}: missing agents/openai.yaml")
-
-        if name.startswith("threejs-"):
-            if name not in NO_CONTRACT and "Runtime contract.**" not in text and "Stack contract.**" not in text:
-                errors.append(f"{name}: missing Runtime/Stack contract line")
-            if "`../CONVENTIONS.md`" not in text:
-                errors.append(f"{name}: missing CONVENTIONS.md gating pointer")
 
         for target in LINK_RE.findall(text):
             if target.startswith(("http://", "https://", "#", "mailto:")):

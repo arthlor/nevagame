@@ -5,9 +5,6 @@ import { GameSheet, Meter } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForAction } from "../chrome/uiAtlas";
 import { IconEnergy } from "./HudIcons";
-import { FARMING_ACTION_COST } from "../../simulation/domains/FarmingDomain";
-import { BASIC_FISHING_WORK_COST } from "../../simulation/domains/FishingDomain";
-import { PROCESSING_WORK_COST } from "../../simulation/domains/ProcessingDomain";
 
 export interface FarmingActionStatusProps {
   action: FarmingActionSnapshot;
@@ -30,25 +27,12 @@ export const ACTION_LABELS: Record<FarmingActionSnapshot["action"], { title: str
   dock: { title: "Docking vessel…", hint: "Securing boat to pier" }
 };
 
-/**
- * Derived from the simulation's own tables rather than restated here. The
- * duplicate copy of this map is what let the planting interaction prompt drift
- * to 10 Work while `FarmingDomain` charged 12.
- */
-export const ACTION_WORK_COSTS: Partial<Record<FarmingActionSnapshot["action"], number>> = {
-  plant: FARMING_ACTION_COST.plant,
-  water: FARMING_ACTION_COST.water,
-  harvest: FARMING_ACTION_COST.harvest,
-  unroot: FARMING_ACTION_COST.unroot,
-  fertilize: FARMING_ACTION_COST.fertilize,
-  cast: BASIC_FISHING_WORK_COST,
-  workstation: PROCESSING_WORK_COST
-};
-
 const FALLBACK_TIMING = { durationMs: 2000, commitMs: 1000 };
 
 export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action, className = "" }) => {
-  const meta = ACTION_LABELS[action.action] ?? { title: "Working…", hint: "Action in progress" };
+  const meta = action.action === "harvest" && action.workCost === 0
+    ? { title: "Clearing crop…", hint: "Removing withered crop" }
+    : ACTION_LABELS[action.action] ?? { title: "Working…", hint: "Action in progress" };
   const progress = Number.isFinite(action.progress) ? Math.max(0, Math.min(1, action.progress)) : 0;
   const percent = Math.min(100, Math.max(0, Math.round(progress * 100)));
   const isCommitted = action.committed;
@@ -57,7 +41,7 @@ export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action
   const totalSec = timing.durationMs / 1000;
   const elapsedSec = (progress * timing.durationMs) / 1000;
   const commitPercent = Math.min(100, Math.max(0, Math.round((timing.commitMs / timing.durationMs) * 100)));
-  const workCost = ACTION_WORK_COSTS[action.action];
+  const workCost = action.commitSucceeded === false ? null : action.workCost;
 
   return (
     <GameSheet

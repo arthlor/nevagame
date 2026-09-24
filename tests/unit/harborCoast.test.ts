@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OBB } from "three/examples/jsm/math/OBB.js";
 import { describe, expect, it, vi } from "vitest";
-import { WATER_SURFACE, WorldLayout } from "../../src/world/WorldLayout";
+import { WorldLayout } from "../../src/world/WorldLayout";
 import { HARBOR_BEACH_PATH, HARBOR_LANDING_PATH } from "../../src/world/HarborCoast";
 import { harborCoastCollisionProxies } from "../../src/world/HarborCoastLayout";
 import { createWorldEnvironmentLayout } from "../../src/world/WorldEnvironmentLayout";
@@ -88,35 +88,34 @@ describe("harbor coast shared support and optical fields", () => {
   });
 
   it("shares one depth/time field across quality changes and disposes its texture once", () => {
-    const water=new FacetedWater({width:12,depth:12,segmentsX:4,segmentsZ:4});
+    const water=new FacetedWater({width:12,depth:12});
     const dispose=vi.spyOn(water.depthMap,"dispose");
     for(const tier of ["low","medium","high","low","high"] as const) {
       water.setQuality(tier);
-      expect(water.mesh.material.uniforms.uWaterDepthMap).toBe(water.nearPatch.mesh.material.uniforms.uWaterDepthMap);
-      expect(water.mesh.material.uniforms.uCoastTime).toBe(water.nearPatch.mesh.material.uniforms.uCoastTime);
+      expect(water.mesh.material.uniforms.uWaterDepthMap).toBe(water.headwaterSurface.material.uniforms.uWaterDepthMap);
+      expect(water.mesh.material.uniforms.uCoastTime).toBe(water.headwaterSurface.material.uniforms.uCoastTime);
     }
     water.dispose();
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
-  it("aligns the near-water lattice with both coarse chunks at the harbor and Sunreach",()=>{
+  it("keeps the camera-centred lattice on fixed world positions at the harbor and Sunreach",()=>{
     const water=new FacetedWater();
     try{
-      const gridX=WATER_SURFACE.width/WATER_SURFACE.segmentsX;
-      const gridZ=WATER_SURFACE.depth/WATER_SURFACE.segmentsZ;
-      const originX=WATER_SURFACE.centerX-WATER_SURFACE.width*.5;
-      const originZ=WATER_SURFACE.centerZ-WATER_SURFACE.depth*.5;
       for(const [x,z] of [[132,70],[SUNREACH_ANCHORS.dockPlayer.x,SUNREACH_ANCHORS.dockPlayer.z]]){
-        water.update(17,{seaRoughness:.1,windDirectionDeg:0,windSpeed:4},new THREE.Vector3(x,0,z));
-        const mesh=water.nearPatch.mesh,positions=mesh.geometry.getAttribute("position");
-        expect(water.mesh.material.uniforms.uNearPatchCenter.value.toArray()).toEqual(
-          mesh.material.uniforms.uPatchCenter.value.toArray()
-        );
-        for(let i=0;i<positions.count;i++){
-          const gx=(positions.getX(i)+mesh.position.x-originX)/gridX;
-          const gz=(positions.getZ(i)+mesh.position.z-originZ)/gridZ;
-          expect(Math.abs(gx-Math.round(gx))).toBeLessThan(.00005);
-          expect(Math.abs(gz-Math.round(gz))).toBeLessThan(.00005);
+        const camera=new THREE.PerspectiveCamera(50,16/9,0.3,4000);
+        camera.position.set(x+6,12,z+14);
+        camera.lookAt(x,0,z);
+        camera.updateMatrixWorld(true);
+        water.update(17,{seaRoughness:.1,windDirectionDeg:0,windSpeed:4},undefined,{camera});
+        const nodes=water.lod.full.geometry.getAttribute("aNode");
+        expect(water.lod.full.geometry.instanceCount).toBeGreaterThan(0);
+        for(let i=0;i<water.lod.full.geometry.instanceCount;i++){
+          const cell=nodes.getZ(i);
+          // Every node origin sits on its own ring's world grid, so the
+          // lattice cannot swim as the camera moves.
+          expect(Math.abs(nodes.getX(i)/cell-Math.round(nodes.getX(i)/cell))).toBeLessThan(1e-6);
+          expect(Math.abs(nodes.getY(i)/cell-Math.round(nodes.getY(i)/cell))).toBeLessThan(1e-6);
         }
       }
     }finally{water.dispose();}

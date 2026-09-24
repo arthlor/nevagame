@@ -13,6 +13,7 @@ import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import { HumanoidFootSupportSolver } from "./HumanoidFootSupportSolver";
 import { resolveHumanoidRig, type HumanoidRigBinding } from "./HumanoidRig";
 import { TwoBoneConstraintSolver } from "./TwoBoneConstraintSolver";
+import { fishingReelAngularSpeed } from "../fishing/FishingRodBend";
 
 export type PlayerAnimation =
   | "idle"
@@ -356,6 +357,9 @@ export class HumanoidAnimator {
       transitionTime: 0
     }
   };
+  private readonly weightTransitions = new Map<THREE.AnimationAction, {
+    from: number; to: number; elapsed: number; duration: number;
+  }>();
   private activeBaseClip: PlayerAnimation = "idle";
   private baseStarted = false;
   private hasEvaluatedPose = false;
@@ -481,6 +485,7 @@ export class HumanoidAnimator {
    * changes. Physics and simulation remain the sole owners of player truth.
    */
   public resetTransientState(): void {
+    this.weightTransitions.clear();
     this.mixer.stopAllAction();
     for (const { object, position, quaternion, scale } of this.restTransforms) {
       object.position.copy(position); object.quaternion.copy(quaternion); object.scale.copy(scale);
@@ -516,6 +521,7 @@ export class HumanoidAnimator {
   /** Releases mixer bindings when a scene lifetime ends. */
   public dispose(): void {
     this.cancelAction();
+    this.weightTransitions.clear();
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.mixer.getRoot());
     this.actions.clear();
@@ -663,7 +669,8 @@ export class HumanoidAnimator {
       this.pendingPreviewPhase = null;
     }
     if (context.mode === "sport-fishing" && this.activeUpperClip === "reel") {
-      this.upperPlaybackScale = THREE.MathUtils.clamp((context.fishingInput?.retrievalMetersPerSecond ?? 0) * 0.8, 0.15, 1.6);
+      this.upperPlaybackScale = fishingReelAngularSpeed(context.fishingInput?.retrievalMetersPerSecond ?? 0)
+        * this.clipDuration("reel") / (Math.PI * 2);
       this.upperActions.get("reel")?.setEffectiveTimeScale(this.upperPlaybackScale);
     }
 
@@ -712,6 +719,7 @@ export class HumanoidAnimator {
     }
 
     this.restoreMixerPose();
+    this.updateWeights(dt);
     this.mixer.update(dt);
     this.captureMixerPose();
     this.hasEvaluatedPose = true;
@@ -923,7 +931,11 @@ export class HumanoidAnimator {
   private updateContactRecovery(motion: PlayerMotionSample): void {
     if (
       motion.contactEvent !== this.lastContactEvent &&
-      (motion.contactEvent === "land-soft" || motion.contactEvent === "land-hard")
+      (motion.contactEvent === "land-soft" || motion.contactEvent === "land-hard") &&
+      // Tiny terrain contact gaps are already tolerated by gait selection.
+      // Their low-impact return must not inject a full-body landing clip.
+      (motion.contactEvent === "land-hard" || motion.landingImpactStrength > 0 ||
+        this.activeBaseClip === "fall" || this.activeBaseClip === "jump_start")
     ) {
       const preferred = motion.contactEvent === "land-hard" ? "land_hard" : "land_soft";
       if (this.actions.has(preferred)) {
@@ -958,41 +970,36 @@ export class HumanoidAnimator {
       actionMap.get(next)?.setEffectiveTimeScale(scale);
       return;
     }
-    const blend = this.baseBlendSeconds(next);
+    const blend = masked !== this.activeBaseMasked
+      ? CANONICAL_RENDER_CONFIG.motion.actionBlendSeconds : this.baseBlendSeconds(next);
     const previousClip = this.activeBaseClip;
-    const previousAction = this.activeBaseAction();
-    const previousDuration = this.clipDuration(previousClip, 0);
     const preservePhase = this.shouldPreserveBasePhase(previousClip, next);
-    const previousPhase = previousDuration > 0
-      ? wrapTime(this.baseClipElapsed, previousDuration) / previousDuration
-      : 0;
+    const previousPhase = this.normalizedBasePhase();
     const nextAction = actionMap.get(next);
     if (!nextAction) throw new Error(`[HumanoidAnimator] Missing base clip ${next}`);
+    const reuse = nextAction.isScheduled() && nextAction.getEffectiveWeight() > 0
+      && !(this.restartAction && next === this.activeAction);
+    const initialWeight = reuse ? nextAction.getEffectiveWeight() : 0;
     const spec = this.specs.get(next);
-    if (nextAction) {
+    if (!reuse) {
       nextAction.reset();
       if (preservePhase) nextAction.time = previousPhase * this.clipDuration(next);
       else if (scale < 0) nextAction.time = this.clipDuration(next);
-      nextAction.clampWhenFinished = !spec?.loop;
-      nextAction.setLoop(spec?.loop ? THREE.LoopRepeat : THREE.LoopOnce, spec?.loop ? Infinity : 1);
-      nextAction.setEffectiveTimeScale(scale).play();
-      if (this.previewClip || !this.hasEvaluatedPose) {
-        if (previousAction && previousAction !== nextAction) previousAction.stop();
-        nextAction.stopFading().setEffectiveWeight(1);
-      } else if (previousAction && previousAction !== nextAction) {
-        nextAction.crossFadeFrom(previousAction, blend, false);
-      } else {
-        nextAction.fadeIn(blend);
-      }
-    } else {
-      previousAction?.fadeOut(blend);
     }
+    nextAction.clampWhenFinished = !spec?.loop;
+    nextAction.setLoop(spec?.loop ? THREE.LoopRepeat : THREE.LoopOnce, spec?.loop ? Infinity : 1);
+    nextAction.setEffectiveTimeScale(scale).setEffectiveWeight(initialWeight).play();
+    const duration = this.previewClip || !this.hasEvaluatedPose ? 0 : blend;
+    for (const map of [this.actions, this.lowerActions]) {
+      for (const action of map.values()) {
+        if (action !== nextAction && action.isScheduled()) this.fadeWeight(action, 0, duration);
+      }
+    }
+    this.fadeWeight(nextAction, 1, duration);
     this.activeBaseClip = next;
     this.baseStarted = true;
     this.activeBaseMasked = masked;
-    this.baseClipElapsed = preservePhase
-      ? previousPhase * this.clipDuration(next)
-      : scale < 0 ? this.clipDuration(next) : 0;
+    this.baseClipElapsed = nextAction.time;
     this.basePlaybackScale = scale;
   }
 
@@ -1000,34 +1007,56 @@ export class HumanoidAnimator {
     if (next === this.activeUpperClip && !(this.restartAction && next === this.activeAction)) {
       if (next) {
         this.upperPlaybackScale = this.playbackScale(next, speed, undefined, locomotionTimeScale);
-        this.upperActions.get(next)?.setEffectiveTimeScale(
-          this.upperPlaybackScale
-        );
+        this.upperActions.get(next)?.setEffectiveTimeScale(this.upperPlaybackScale);
       }
       return;
     }
-    const blend = CANONICAL_RENDER_CONFIG.motion.actionBlendSeconds;
-    if (this.activeUpperClip) {
-      const previous = this.upperActions.get(this.activeUpperClip);
-      if (this.previewClip) previous?.stop(); else previous?.fadeOut(blend);
+    const duration = this.previewClip || !this.hasEvaluatedPose ? 0
+      : CANONICAL_RENDER_CONFIG.motion.actionBlendSeconds;
+    const action = next ? this.upperActions.get(next) : undefined;
+    for (const other of this.upperActions.values()) {
+      if (other !== action && other.isScheduled()) this.fadeWeight(other, 0, duration);
     }
     this.activeUpperClip = next;
-    const preservePhase = Boolean(next && PHASE_COMPATIBLE_UPPER_CLIPS.has(next));
-    const basePhase = this.normalizedBasePhase();
-    this.upperClipElapsed = preservePhase && next ? basePhase * this.clipDuration(next) : 0;
     this.upperPlaybackScale = next ? this.playbackScale(next, speed, undefined, locomotionTimeScale) : 1;
+    this.upperClipElapsed = 0;
     if (!next) return;
-    const action = this.upperActions.get(next);
     if (!action) throw new Error(`[HumanoidAnimator] Missing upper clip ${next}`);
-    const spec = this.specs.get(next);
-    if (action) {
+    const reuse = action.isScheduled() && action.getEffectiveWeight() > 0 && !this.restartAction;
+    const initialWeight = reuse ? action.getEffectiveWeight() : 0;
+    if (!reuse) {
       action.reset();
-      if (preservePhase) action.time = this.upperClipElapsed;
-      action.clampWhenFinished = !spec?.loop;
-      action.setLoop(spec?.loop ? THREE.LoopRepeat : THREE.LoopOnce, spec?.loop ? Infinity : 1);
-      action.setEffectiveTimeScale(this.upperPlaybackScale).play();
-      if (this.previewClip || !this.hasEvaluatedPose) action.stopFading().setEffectiveWeight(1);
-      else action.fadeIn(blend);
+      if (PHASE_COMPATIBLE_UPPER_CLIPS.has(next)) action.time = this.normalizedBasePhase() * this.clipDuration(next);
+    }
+    this.upperClipElapsed = action.time;
+    const spec = this.specs.get(next);
+    action.clampWhenFinished = !spec?.loop;
+    action.setLoop(spec?.loop ? THREE.LoopRepeat : THREE.LoopOnce, spec?.loop ? Infinity : 1);
+    action.setEffectiveTimeScale(this.upperPlaybackScale).setEffectiveWeight(initialWeight).play();
+    this.fadeWeight(action, 1, duration);
+  }
+
+  private fadeWeight(action: THREE.AnimationAction, to: number, duration: number): void {
+    // Three's fadeOut starts at full weight, even when a prior fade is only
+    // half complete. Preserve the actual displayed contribution on interruption.
+    const from = action.getEffectiveWeight();
+    action.stopFading();
+    if (duration <= 0 || Math.abs(from - to) < 1e-8) {
+      this.weightTransitions.delete(action);
+      action.setEffectiveWeight(to);
+      if (to === 0) action.stop();
+    } else this.weightTransitions.set(action, { from, to, elapsed: 0, duration });
+  }
+
+  private updateWeights(dt: number): void {
+    for (const [action, fade] of this.weightTransitions) {
+      fade.elapsed = Math.min(fade.duration, fade.elapsed + dt);
+      const t = fade.elapsed / fade.duration;
+      action.setEffectiveWeight(THREE.MathUtils.lerp(fade.from, fade.to, t * t * (3 - 2 * t)));
+      if (fade.elapsed >= fade.duration) {
+        this.weightTransitions.delete(action);
+        if (fade.to === 0) action.stop();
+      }
     }
   }
 
@@ -1173,7 +1202,7 @@ export class HumanoidAnimator {
   ): void {
     const canGround =
       TERRAIN_CONTACT_BASE_CLIPS.has(this.activeBaseClip) &&
-      context.motion.isGrounded &&
+      !this.isAirborneForClip(context.motion) &&
       context.motion.slopeRadians <= THREE.MathUtils.degToRad(38) &&
       (context.mode === "on-foot" || context.mode === "farm-placement");
     let desiredPitch = 0;
@@ -1248,7 +1277,7 @@ export class HumanoidAnimator {
     this.restoreGroundContactPose();
     const enabled = CANONICAL_RENDER_CONFIG.motion.footIkEnabled &&
       this.hasGroundContactClip() &&
-      context.motion.isGrounded &&
+      !this.isAirborneForClip(context.motion) &&
       context.motion.slopeRadians <= THREE.MathUtils.degToRad(38) &&
       (context.mode === "on-foot" || context.mode === "farm-placement") &&
       !context.boatInput;
@@ -1258,24 +1287,29 @@ export class HumanoidAnimator {
     }
 
     this.root.updateWorldMatrix(true, true);
+    this.root.getWorldPosition(this.supportRootWorldPosition);
     for (const side of ["left", "right"] as const) {
       if (!this.footSupportSolver.soleWorldPosition(side, this.footWorldPosition)) continue;
+      // The sole center rises while rolling about the heel/toe. Pinning that
+      // center to the floor flattens the boot and kicks the knee every step.
+      const soleRollHeight = this.footWorldPosition.y - this.supportRootWorldPosition.y;
       const contactWindow = this.footContactSample(side);
       const contactWeight = contactWindow.weight;
       const state = this.footContactStates[side];
+      const wasLocked = state.locked;
       const inputContact = contactWeight > 0.001;
       let surface = state.locked
         ? sampleSurface(state.contact.x, state.contact.z)
         : inputContact
           ? sampleSurface(this.footWorldPosition.x, this.footWorldPosition.z)
           : undefined;
-      if (state.locked && surface) state.contact.y = surface.height;
+      if (state.locked && surface) state.contact.y = surface.height + soleRollHeight;
 
       this.updateFootContactState(
         state,
         this.footWorldPosition,
         inputContact,
-        surface?.height ?? this.footWorldPosition.y,
+        surface ? surface.height + soleRollHeight : this.footWorldPosition.y,
         contactWindow.enterAgeSeconds,
         deltaSeconds
       );
@@ -1285,11 +1319,11 @@ export class HumanoidAnimator {
         continue;
       }
 
-      if (state.locked) {
+      if (state.locked && !wasLocked) {
         surface = sampleSurface(state.contact.x, state.contact.z);
       }
       if (!surface) continue;
-      state.contact.y = surface.height;
+      state.contact.y = surface.height + soleRollHeight;
       const maxHorizontalCorrection = 0.22;
       const correctionX = THREE.MathUtils.clamp(
         state.position.x - this.footWorldPosition.x,
@@ -1323,7 +1357,7 @@ export class HumanoidAnimator {
     for (const side of ["left", "right"] as const) {
       const contact = this.groundContactTargets[side];
       if (contact.weight > 0) pelvisDrop = Math.max(pelvisDrop,
-        this.footSupportSolver.requiredPelvisDrop(side, contact.target, contact.normal, contact.weight));
+        this.footSupportSolver.requiredPelvisDrop(side, contact.target, contact.normal, contact.weight, true));
     }
     const pelvis = this.rigBinding.bones.pelvis;
     if (pelvis && pelvisDrop > 0) {
@@ -1335,7 +1369,7 @@ export class HumanoidAnimator {
     }
     for (const side of ["left", "right"] as const) {
       const contact = this.groundContactTargets[side];
-      if (contact.weight > 0) this.footSupportSolver.alignSole(side, contact.target, contact.normal, contact.weight);
+      if (contact.weight > 0) this.footSupportSolver.alignSole(side, contact.target, contact.normal, contact.weight, true);
     }
   }
 
@@ -1555,6 +1589,8 @@ export class HumanoidAnimator {
   private readonly handGripOffset = new THREE.Vector3();
   private readonly handGripScale = new THREE.Vector3();
   private readonly handGripTarget = new THREE.Vector3();
+  private readonly handShoulder = new THREE.Vector3();
+  private readonly handElbow = new THREE.Vector3();
 
   /** Constrains either palm marker to an authored world-space grip frame. */
   public alignHandGrip(side: "left" | "right", target: THREE.Vector3, worldOrientation?: THREE.Quaternion): void {
@@ -1578,8 +1614,17 @@ export class HumanoidAnimator {
         if (worldOrientation) this.handGripWorld.copy(worldOrientation);
       }
       this.handGripTarget.copy(target).sub(this.handGripOffset);
-      this.root.getWorldQuaternion(k.world);
-      k.bend.copy(arm.bendDirection).applyQuaternion(k.world);
+      // Retain the authored elbow plane. A bind-pose hemisphere hint can flip
+      // a perfectly valid working arm up through the shoulder after layering.
+      arm.upper.getWorldPosition(this.handShoulder);
+      arm.lower.getWorldPosition(this.handElbow);
+      k.direction.copy(this.handGripTarget).sub(this.handShoulder).normalize();
+      k.bend.copy(this.handElbow).sub(this.handShoulder);
+      k.bend.addScaledVector(k.direction, -k.bend.dot(k.direction));
+      if (k.bend.lengthSq() < 0.00001) {
+        this.root.getWorldQuaternion(k.world);
+        k.bend.copy(arm.bendDirection).applyQuaternion(k.world);
+      }
       this.sharedChainSolver.solve(arm.upper, arm.lower, arm.lowerTip, this.handGripTarget, k.bend);
       if (arm.hand.parent) arm.hand.parent.getWorldQuaternion(k.parent).invert();
       else k.parent.identity();

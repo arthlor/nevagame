@@ -3,6 +3,7 @@
 import type { ClockState } from "../../simulation/core/types";
 import { ASSET_IDS } from "../assets/AssetCatalog";
 import { MAINLAND_VILLAGES } from "../../world/NevaMainland";
+import { SUNREACH_TOWNSFOLK_ROUTES } from "./sunreachTownsfolk";
 
 const MAINLAND_TOWNSFOLK: readonly AmbientTownsfolkRoute[] = Object.values(MAINLAND_VILLAGES).flatMap((village, villageIndex) =>
   [-1, 1].map((side, index) => {
@@ -212,7 +213,8 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
     restFraction: 0.45,
     phase: 0.56
   },
-  ...MAINLAND_TOWNSFOLK
+  ...MAINLAND_TOWNSFOLK,
+  ...SUNREACH_TOWNSFOLK_ROUTES
 ];
 
 export interface AmbientTownsfolkPose {
@@ -283,3 +285,94 @@ export function sampleAmbientTownsfolkPose(
   const heading = Math.atan2(to.dx - from.dx, to.dz - from.dz);
   return { x: station.x + dx, z: station.z + dz, heading, walking: !resting };
 }
+
+/**
+ * Ambient animals: the dog and the cat that live in the village.
+ *
+ * They reuse `AmbientTownsfolkRoute` and `sampleAmbientTownsfolkPose` wholesale,
+ * because "drift around a station that moves with the day" is exactly the same
+ * problem whether the thing drifting is a villager or a dog. What differs is the
+ * animation: townsfolk are humanoids driven by `HumanoidAnimator`, while these
+ * are catalog fauna with their own authored clips, so they carry the clip names
+ * the runtime should play when walking, when standing and when settled for the
+ * night, and `WorldScene` drives them with a plain mixer instead.
+ *
+ * Like the townsfolk they are deliberately absent from `ContentRegistry.npcs`,
+ * carry no collision and never touch a save.
+ */
+export interface AmbientAnimalRoute extends AmbientTownsfolkRoute {
+  /** Clip played while the drift is moving. */
+  walkClip: string;
+  /** Clip played while the drift is standing still. */
+  idleClip: string;
+  /** Clip played at the night station instead of `idleClip`. */
+  restClip: string;
+  /** Metres per second the walk clip was authored for. */
+  walkReferenceSpeed: number;
+}
+
+export const AMBIENT_ANIMAL_ROUTES: readonly AmbientAnimalRoute[] = [
+  {
+    // The village dog works the square: the market frontage by day, the inn
+    // approach at dusk, curled by the well after dark. Every station and its
+    // whole drift ring sits clear of the market ring, the crossing, the
+    // building envelopes and the townsfolk stations.
+    id: "animal.village_dog",
+    assetId: ASSET_IDS.FAUNA_DOG_A,
+    walkClip: "walk",
+    idleClip: "idle",
+    restClip: "sit",
+    walkReferenceSpeed: 1.1,
+    stations: {
+      dawn: { x: 43.6, z: -61.2 },
+      day: { x: 46.4, z: -63.4 },
+      dusk: { x: 52.6, z: -57.8 },
+      // The old night station sat inside the produce market's 6 m interaction
+      // ring, so a sleeping dog would have been lying across the stall counter.
+      // The inn porch is where a village dog actually settles after dark.
+      night: { x: 57.4, z: -44.2 }
+    },
+    waypoints: [
+      { dx: 0, dz: 0 },
+      { dx: 1.6, dz: 0.5 },
+      { dx: 1.1, dz: 1.7 },
+      { dx: -0.7, dz: 1.5 },
+      { dx: -1.5, dz: 0.2 }
+    ],
+    // The largest waypoint offset, which is the bound every keep-out in the
+    // village-life test is solved against.
+    radiusMeters: 2.05,
+    // A dog covers its ring faster than a browsing villager does.
+    loopSeconds: 19,
+    restFraction: 0.34,
+    phase: 0.11
+  },
+  {
+    // The mill cat: sunning on the mill yard by day, prowling the grain sacks
+    // at dusk, asleep on the warm south side of the mill at night.
+    id: "animal.mill_cat",
+    assetId: ASSET_IDS.FAUNA_CAT_A,
+    walkClip: "walk",
+    idleClip: "idle",
+    restClip: "sleep",
+    walkReferenceSpeed: 0.9,
+    stations: {
+      dawn: { x: 58.8, z: -70.4 },
+      day: { x: 57.4, z: -69.2 },
+      dusk: { x: 59.6, z: -72.6 },
+      night: { x: 60.2, z: -74.8 }
+    },
+    waypoints: [
+      { dx: 0, dz: 0 },
+      { dx: 1.2, dz: 0.4 },
+      { dx: 0.8, dz: 1.2 },
+      { dx: -0.6, dz: 1.0 },
+      { dx: -1.1, dz: -0.2 }
+    ],
+    // As above: the bound is the largest waypoint offset, not a round number.
+    radiusMeters: 1.45,
+    loopSeconds: 27,
+    restFraction: 0.58,
+    phase: 0.63
+  }
+];

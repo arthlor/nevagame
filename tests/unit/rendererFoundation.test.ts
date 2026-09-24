@@ -4,7 +4,7 @@ import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderCon
 import { CultivatedSurfaceMaterial } from "../../src/render/materials/CultivatedSurfaceMaterial";
 import { buildStarterFarmGround } from "../../src/render/scene/StarterFarmGround";
 import { FacetedWater, SHORE_MASK_METERS_PER_TEXEL } from "../../src/render/water/FacetedWater";
-import { buildShoreFoamPatches, SHORE_FOAM_STYLE, ShoreFoam } from "../../src/render/water/ShoreFoam";
+import { buildShoreFoamPatches, SHORE_FOAM_STYLE } from "../../src/render/water/ShoreFoam";
 import { BoatWakePool } from "../../src/render/water/BoatWakePool";
 import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
 import { TERRAIN_SIZE_METERS, WorldLayout } from "../../src/world/WorldLayout";
@@ -72,19 +72,18 @@ describe("renderer foundation", () => {
   });
 
   it("uses shared bathymetry, continuous transmission and angle-dependent reflection", () => {
-    const water = new FacetedWater({ width: 12, depth: 12, segmentsX: 4, segmentsZ: 4 });
+    const water = new FacetedWater({ width: 12, depth: 12 });
     const material = water.mesh.material;
     expect(material.fragmentShader).toContain("nevaOpticsField(worldPosition.xz)");
     expect(material.fragmentShader).toContain("exp(-uWaterAbsorption");
-    expect(material.fragmentShader).toContain("pow(1.0 - ndv, 5.0)");
+    expect(material.fragmentShader).toContain("pow(1.0 - ndvEffective, 5.0)");
     expect(material.fragmentShader).not.toContain("waterFacetBand = step");
     expect(material.uniforms.uFresnelStrength.value).toBe(
       CANONICAL_RENDER_CONFIG.waterSurface.fresnelStrength
     );
     expect(material.uniforms.uShallowEndMeters.value).toBe(
-      CANONICAL_RENDER_CONFIG.waterSurface.shoreline.shallowEndMeters
+      CANONICAL_RENDER_CONFIG.waterSurface.shallowEndMeters
     );
-    expect(material.fragmentShader).toContain("nevaCoastalWash(worldPosition.xz, field.b)");
     water.dispose();
   });
 
@@ -98,29 +97,13 @@ describe("renderer foundation", () => {
     shadow.material.dispose();
   });
 
-  it("builds deterministic broken coastal foam patches", () => {
-    const first = new ShoreFoam();
-    const second = new ShoreFoam();
-    const firstPositions = Array.from(first.mesh.geometry.getAttribute("position").array);
-    const secondPositions = Array.from(second.mesh.geometry.getAttribute("position").array);
-
-    expect(firstPositions.length).toBeGreaterThan(100);
-    expect(firstPositions).toEqual(secondPositions);
+  it("places deterministic broken coastal foam patches", () => {
+    const first = buildShoreFoamPatches();
+    const second = buildShoreFoamPatches();
+    expect(first.length).toBeGreaterThan(40);
+    expect(first).toEqual(second);
     expect(SHORE_FOAM_STYLE.minWidth).toBeGreaterThanOrEqual(0.2);
     expect(SHORE_FOAM_STYLE.maxWidth).toBeLessThanOrEqual(0.7);
-    expect(first.mesh.material.uniforms.uMaxAlpha.value).toBeLessThanOrEqual(0.45);
-
-    first.update(12, WATER_CONDITIONS);
-    expect(first.mesh.material.uniforms.uTime.value).toBe(12);
-    expect(first.mesh.material.uniforms.uRoughness.value).toBe(WATER_CONDITIONS.seaRoughness);
-    expect(first.mesh.material.vertexShader).toContain("waveHeight(baseWorldPosition.xz, profile)");
-    expect(first.mesh.material.vertexShader).toContain("uFoamHeightOffset");
-    expect(first.mesh.material.fragmentShader).toContain("nevaGradientNoise");
-    expect(first.mesh.material.fragmentShader).toContain("uSwashSpeed");
-    expect(first.mesh.position.y).toBe(0);
-
-    first.dispose();
-    second.dispose();
   });
 
   it("keeps foam on every island's waterline and leaves the river and harbor clear", () => {

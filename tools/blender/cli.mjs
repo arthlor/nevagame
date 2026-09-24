@@ -40,6 +40,14 @@ import {
 } from "./pool.mjs";
 
 import {
+  authoredParameterContracts,
+  authoredProducerVersion,
+  authoredToolchainHash,
+  isAuthoredGenerator,
+  runAuthoredProducer,
+} from "../authored/pipeline/producer.mjs";
+
+import {
   optimizeAsset,
   compressImportedAsset,
   optimizeAndGenerateLods,
@@ -175,6 +183,7 @@ function readGenerationInputs(repoRoot = ROOT) {
     specHash: sha256(fs.readFileSync(path.join(repoRoot, "assets/specs/asset-catalog.json"))),
     paletteHash: sha256(fs.readFileSync(path.join(repoRoot, "art/palettes/neva.palette.json"))),
     toolchainHash: computeToolchainHash(path.join(repoRoot, "tools/blender")),
+    authoredToolchainHash: authoredToolchainHash(repoRoot),
   };
 }
 
@@ -197,7 +206,7 @@ const boolean = () => ({ kind: "boolean" });
 const repositoryFile = (extension) => ({ kind: "repositoryFile", extension });
 const nonemptyString = () => ({ kind: "nonemptyString" });
 
-const PARAMETER_CONTRACTS = Object.freeze({
+const BLENDER_PARAMETER_CONTRACTS = Object.freeze({
   coastal_palm: { height: number(4, 12), lean: number(0, 4), spread: number(2, 4.5), fronds: integer(8, 15), leafletPairs: integer(8, 20) },
   coastal_understory: { height: number(0.4, 2.5), spread: number(0.4, 2), leaves: integer(7, 24), form: choice("paddle", "split", "shrub") },
   coastal_rock: { width: number(1, 8), depth: number(1, 6), height: number(0.6, 5), shear: number(-0.3, 0.3), form: choice("cleft", "shelf", "spine") },
@@ -305,18 +314,9 @@ const PARAMETER_CONTRACTS = Object.freeze({
     porchDepth: number(0.8, 3),
     porchPlanks: integer(4, 16),
   },
-  water_well: { radius: number(0.4, 2), postHeight: number(0.8, 2.4) },
-  pumpkin_patch: { pumpkins: integer(3, 12), vineSegments: integer(3, 20), lobes: integer(3, 7), blossomCount: integer(2, 12) },
-  lobster_trap: { ribs: integer(4, 14), length: number(0.5, 3), netColumns: integer(2, 8), netRows: integer(2, 8) },
-  fishing_net_rack: { width: number(1.2, 5), depth: number(0.4, 2), height: number(1, 4), netColumns: integer(3, 12), netRows: integer(2, 10), buoys: integer(2, 8) },
   fish_drying_rack: { width: number(1.2, 5), depth: number(0.4, 2), height: number(1, 4), fishCount: integer(2, 8) },
   wood_crate: { size: number(0.3, 2), slats: integer(3, 9) },
   wood_barrel: { height: number(0.4, 2), radius: number(0.2, 1), staves: integer(8, 20) },
-  wood_fence: { length: number(1, 8), posts: integer(2, 8), rails: integer(1, 4), railSegments: integer(3, 12), hasGate: boolean() },
-  hay_bale: { length: number(0.5, 3), radius: number(0.2, 1.5), bands: integer(1, 4), fiberBands: integer(6, 20) },
-  lamp_post: { height: number(1.5, 8), armLength: number(0.2, 2) },
-  clay_oven: { width: number(0.6, 2.4), depth: number(0.6, 2.4), height: number(0.6, 2.2) },
-  worm_compost_bin: { width: number(0.5, 3), depth: number(0.5, 3), height: number(0.4, 2), slatCount: integer(2, 8), lidAngleDeg: number(0, 75), soilFillRatio: number(0.1, 0.95) },
   rowboat: { length: number(2, 8), beam: number(1, 4), ribCount: integer(5, 16), innerPlanks: integer(5, 16), gunwaleSegments: integer(5, 16) },
   fishing_skiff: { length: number(4, 16), beam: number(1.5, 6), ribCount: integer(6, 20), mastHeight: number(3, 14), outerStrakes: integer(2, 7), hullSegments: integer(7, 18), deckBoards: integer(12, 50), sailRows: integer(4, 14) },
   wheat_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 3), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), stalks: integer(0, 32) },
@@ -331,29 +331,7 @@ const PARAMETER_CONTRACTS = Object.freeze({
   apple_tree_crop: { stage: choice("seeded", "sprout", "growing", "mature", "overripe", "withered"), height: number(0.001, 5), spread: number(0.001, 3), leafLength: number(0.001, 3), leafWidth: number(0.001, 3), branches: integer(0, 32), leafCount: integer(0, 32), fruitRadius: number(0.001, 3) },
   turnip_crop: { leafCount: integer(4, 10) },
   pumpkin_crop: { lobes: integer(5, 8), leafCount: integer(3, 8) },
-  stylized_fish: {
-    species: choice(
-      "trout",
-      "catfish",
-      "pike",
-      "arowana",
-      "tuna",
-      "sturgeon",
-      "sailfish",
-      "swordfish",
-      "blue_marlin",
-      "sardine",
-      "sea_bream",
-      "amberjack"
-    ),
-    length: number(0.4, 5),
-    girth: number(0.05, 1.5),
-    finScale: number(0.3, 2),
-    bodyDepth: number(0.6, 1.8),
-    bodySegments: integer(8, 24),
-    radialSegments: integer(8, 18),
-    tailPeduncle: number(0.10, 0.42),
-  },
+
   faceted_cloud: {
     variant: choice("bank", "tower"),
     clusters: integer(3, 16),
@@ -366,55 +344,26 @@ const PARAMETER_CONTRACTS = Object.freeze({
   flower_drift: { blossomCount: integer(3, 12), height: number(0.1, 1.2), spread: number(0.1, 1.2), blossomSize: number(0.02, 0.2) },
   pebble_cluster: { count: integer(2, 50), spread: number(0.1, 4), size: number(0.02, 2) },
   path_slab: { radius: number(0.12, 0.8), height: number(0.02, 0.16), sides: integer(5, 8), chipCount: integer(0, 4) },
-  driftwood_cluster: { logCount: integer(1, 10), length: number(0.5, 5), radius: number(0.02, 0.5), angle: number(-3.14, 3.14) },
-  farm_workbench: { width: number(1, 5), depth: number(0.5, 3), topHeight: number(0.5, 2.5) },
-  produce_stall: { width: number(1, 5), depth: number(0.5, 4), roofHeight: number(1.5, 4.5) },
-  seed_pouch: {},
-  watering_can: {},
-  sickle: {},
-  crop_bundle: {},
-  harvest_basket: {},
-  workstation_scoop: {},
-  fishing_rod: { length: number(1, 4), guideCount: integer(3, 8), bendFactor: number(0, 0.4), reelSpoolRadius: number(0.02, 0.15) },
   wearable_equipment: { style: choice("field_hat", "tidewatch_cap", "harvest_apron", "oilskin_coat", "furrow_boots", "deck_boots") },
-  equipment_watering_can: { style: choice("copper_rose", "long_spout") },
-  equipment_sickle: { style: choice("broad", "balanced") },
-  crafting_job_prop: { style: choice("tailor", "toolmaking", "ready") },
-  wagon_cart: { length: number(1.5, 5), width: number(1, 3), height: number(0.8, 3) },
   draft_horse: {},
-  merchant_carriage: { bedWidth: number(1.2, 2), bedLength: number(2, 3.5), wheelRadius: number(0.4, 0.8), shaftLength: number(1.5, 3) },
   produce_crate: { size: number(0.4, 2), content: choice("pumpkins", "apples") },
   fauna_cow: { scale: number(0.5, 2), hornScale: number(0.5, 2) },
   fauna_donkey: { scale: number(0.5, 2), earLength: number(0.7, 1.4), legLength: number(0.7, 1.3) },
-  fauna_chicken: { scale: number(0.3, 1.5), combScale: number(0.5, 2) },
-  fauna_rabbit: { scale: number(0.3, 1.2), earLength: number(0.6, 1.6) },
-  fauna_gull: { scale: number(0.4, 1.4), wingSpan: number(0.6, 1.6) },
-  fauna_butterfly: { scale: number(0.12, 0.5), wingSpan: number(0.6, 1.6) },
+  dovecote: { postHeight: number(1.4, 2.8), cotePitch: number(0.7, 1.4) },
   interior_farmhouse_shell: { width: number(3, 14), depth: number(3, 12), wallHeight: number(2, 7), floorPlanks: integer(6, 30), ceilingBeams: integer(2, 10) },
-  cozy_bed: { scale: number(0.5, 2) },
   fireplace_hearth: { width: number(1, 5), depth: number(0.5, 3), height: number(1.5, 5) },
   dining_table: { width: number(1, 4), depth: number(0.5, 3) },
   rustic_chair: { scale: number(0.5, 2) },
   woven_rug: { width: number(1, 6), depth: number(1, 5) },
   cupboard_shelves: { width: number(0.8, 4), depth: number(0.3, 2), height: number(1, 4) },
-  cozy_armchair: { scale: number(0.5, 2) },
   // Fully authored family builders: silhouette is fixed by the catalog
   // dimensions and seed, so they take no tuning parameters.
   admiralty_anchor: {},
   algae_frond: {},
-  apiary_hive: {},
   beach_grass_tuft: {},
   boulder_large: {},
   broadleaf_oak: {},
-  cargo_crate_large: {},
-  cargo_sack: {},
-  fish_trade_pack: {
-    stripeToken: nonemptyString(), backToken: nonemptyString(), bellyToken: nonemptyString(), accentToken: nonemptyString(),
-    width: number(0.4, 1.4), depth: number(0.3, 1), frameHeight: number(0.5, 1.5), basketHeight: number(0.3, 1),
-    species: choice("trout", "catfish", "pike", "arowana", "tuna", "sturgeon", "sailfish", "swordfish", "blue_marlin", "sea_bream", "amberjack"),
-    length: number(0.3, 2), girth: number(0.03, 0.5), finScale: number(0.3, 2), bodyDepth: number(0.3, 2),
-    bodySegments: integer(8, 24), radialSegments: integer(8, 20), tailPeduncle: number(0.05, 0.5),
-  },
+
   crop_trade_pack: {
     stripeToken: nonemptyString(), produceToken: nonemptyString(),
     width: number(0.4, 1.4), depth: number(0.3, 1), frameHeight: number(0.5, 1.5), basketHeight: number(0.3, 1),
@@ -422,21 +371,12 @@ const PARAMETER_CONTRACTS = Object.freeze({
   },
   cattail_reeds: {},
   coastal_boulder: {},
-  coral_pillar: {},
-  coral_staghorn: {},
-  coral_table: {},
   dead_tree: {},
-  dock_lantern_post: {},
   dock_platform: {},
-  driftwood_log: {},
-  fallen_log: {},
   fence_section: {},
-  fire_pit: {},
   firewood_stack: {},
   floor_plant: {},
   gangplank: {},
-  garden_hoe: {},
-  hanging_signboard: {},
   item_apple: {},
   item_bread_loaf: {},
   item_carrot: {},
@@ -447,36 +387,39 @@ const PARAMETER_CONTRACTS = Object.freeze({
   lily_pad_cluster: {},
   maple_tree: {},
   marker_buoy: {},
-  milk_churn: {},
   mooring_post: {},
   mushroom_cluster: {},
   path_stone_round: {},
   path_stone_slab: {},
-  picnic_table: {},
   pier_railing: {},
-  potting_bench: {},
   reef_small: {},
   rock_spire: {},
   round_bush: {},
-  rustic_watering_can: {},
   sea_stack: {},
   seagrass_tuft: {},
-  smoke_plume: {},
   sunflower_stand: {},
   tall_pine: {},
   tilled_soil_tile: {},
-  trail_kiosk: {},
-  trail_signpost: {},
-  treasure_chest: {},
   vegetable_bed_tile: {},
-  water_trough: {},
   wheelbarrow: {},
-  wood_bench: {},
   wood_bookcase: {},
   wood_side_table: {},
   wood_sideboard: {},
   young_pine: {},
 });
+
+/**
+ * Authored (Three.js) generators declare their parameter contracts in
+ * tools/authored/generators/contracts.json. A name may belong to one producer only: an asset is built
+ * by Blender or by its TypeScript factory, never ambiguously by either.
+ */
+const AUTHORED_PARAMETER_CONTRACTS = Object.freeze(authoredParameterContracts(ROOT));
+const DUAL_REGISTERED_GENERATORS = Object.keys(AUTHORED_PARAMETER_CONTRACTS)
+  .filter((generator) => Object.hasOwn(BLENDER_PARAMETER_CONTRACTS, generator));
+if (DUAL_REGISTERED_GENERATORS.length) {
+  throw new Error(`Generators registered for both Blender and authored producers: ${DUAL_REGISTERED_GENERATORS.join(", ")}`);
+}
+const PARAMETER_CONTRACTS = Object.freeze({ ...BLENDER_PARAMETER_CONTRACTS, ...AUTHORED_PARAMETER_CONTRACTS });
 
 const PRIMARY_BINDING_GENERATORS = Object.freeze(
   new Set(["farmhouse", "lighthouse", "stone_bridge", "working_dock", "fish_market"]),
@@ -547,6 +490,52 @@ function validateStaticAuthoring(asset, repoRoot = ROOT, verifySourceFiles = tru
     if (!asset.requiredNodes.includes(node)) {
       throw new Error(`${asset.id}: staticAuthoring added geometry node ${node} must be required`);
     }
+  }
+  return { ...authoring, sourceFile: source };
+}
+
+/**
+ * The material contract of an imported source, whichever authoring kind owns
+ * it: static sources keep their surface bit-for-bit, skinned sources are
+ * re-posed and reweighted by their adapter but keep the same per-region
+ * palette-token and texture-preservation rules.
+ */
+function sourceMaterialAuthoring(asset) {
+  return asset.staticAuthoring ?? asset.skinnedAuthoring ?? null;
+}
+
+function validateSkinnedAuthoring(asset, repoRoot = ROOT, verifySourceFiles = true) {
+  const authoring = asset.skinnedAuthoring;
+  if (!authoring) return null;
+  if (asset.generator !== "imported_blend") {
+    throw new Error(`${asset.id}: skinnedAuthoring requires the imported_blend generator`);
+  }
+  if (asset.staticAuthoring) {
+    throw new Error(`${asset.id}: declare either staticAuthoring or skinnedAuthoring, not both`);
+  }
+  if (!asset.animationClips?.length) {
+    throw new Error(`${asset.id}: skinnedAuthoring describes a rigged source and requires animationClips`);
+  }
+  const source = validateAdmissionSourcePath(authoring.sourceFile, ".glb", repoRoot);
+  if (!fs.existsSync(path.join(repoRoot, authoring.adapter))) {
+    throw new Error(`${asset.id}: skinnedAuthoring adapter ${authoring.adapter} does not exist`);
+  }
+  if (verifySourceFiles) {
+    const resolved = resolveAdmissionSource(authoring.sourceFile, ".glb", repoRoot);
+    if (sha256(fs.readFileSync(resolved)) !== authoring.sourceSha256) {
+      throw new Error(`${asset.id}: skinnedAuthoring sourceSha256 does not match sourceFile`);
+    }
+  }
+  const tokenPolicies = new Map();
+  for (const [region, mapping] of Object.entries(authoring.materialMap)) {
+    if (!asset.palette.includes(mapping.token)) {
+      throw new Error(`${asset.id}: skinnedAuthoring maps ${region} to undeclared token ${mapping.token}`);
+    }
+    const previous = tokenPolicies.get(mapping.token);
+    if (previous && previous !== mapping.texturePolicy) {
+      throw new Error(`${asset.id}: skinnedAuthoring token ${mapping.token} mixes texture policies`);
+    }
+    tokenPolicies.set(mapping.token, mapping.texturePolicy);
   }
   return { ...authoring, sourceFile: source };
 }
@@ -932,9 +921,23 @@ function validateSourceProvenance(asset, repoRoot = ROOT, verifySourceFiles = tr
   if (provenance.provider === "quaternius" && !/^https:\/\/quaternius\.com\/packs\/[a-z0-9]+\.html$/.test(provenance.sourceUrl)) {
     throw new Error(`${asset.id}: Quaternius provenance must identify the original pack page`);
   }
-  const licenseUrl = provenance.license === "CC0-1.0"
-    ? "https://creativecommons.org/publicdomain/zero/1.0/"
-    : "https://creativecommons.org/licenses/by/3.0/";
+  // Tripo generations are private to the generating account, so there is no
+  // public model page: the model ID is the provider's generation UUID and the
+  // rights follow that account's plan under the provider terms.
+  if ((provenance.provider === "tripo") !== (provenance.license === "Tripo-Terms")) {
+    throw new Error(`${asset.id}: Tripo provenance and the Tripo-Terms license must be declared together`);
+  }
+  if (provenance.provider === "tripo" && (
+    provenance.sourceUrl !== "https://www.tripo3d.ai/"
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(provenance.modelId)
+  )) {
+    throw new Error(`${asset.id}: Tripo provenance must name the provider site and the generation UUID`);
+  }
+  const licenseUrl = {
+    "CC0-1.0": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "CC-BY-3.0": "https://creativecommons.org/licenses/by/3.0/",
+    "Tripo-Terms": "https://www.tripo3d.ai/terms",
+  }[provenance.license];
   if (provenance.licenseUrl !== licenseUrl) throw new Error(`${asset.id}: sourceProvenance license URL mismatch`);
   if (path.isAbsolute(provenance.sourceBlend)) throw new Error(`${asset.id}: sourceBlend must be repository-relative`);
   if (asset.parameters?.sourceBlend && provenance.sourceBlend !== asset.parameters.sourceBlend) {
@@ -1012,6 +1015,7 @@ function validateCatalog(stagingSelection = null) {
       throw new Error(`${asset.id}: surfaceAuthoring is procedural-only; preserve imported source normals and colors`);
     }
     validateStaticAuthoring(asset, ROOT, !sourceIds || sourceIds.has(asset.id));
+    validateSkinnedAuthoring(asset, ROOT, !sourceIds || sourceIds.has(asset.id));
     validateLodContract(asset);
     validateAnimationContract(asset);
     validateReferenceAuthoring(asset);
@@ -1434,13 +1438,14 @@ async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
   let trianglePrimitives = 0;
   let vertexColorPrimitives = 0;
   let normalPrimitives = 0;
+  const materialAuthoring = sourceMaterialAuthoring(spec);
   const preservedTextureTokens = new Set(
-    Object.values(spec.staticAuthoring?.materialMap ?? {})
+    Object.values(materialAuthoring?.materialMap ?? {})
       .filter((mapping) => mapping.texturePolicy === "preserve")
       .map((mapping) => mapping.token),
   );
-  if (spec.staticAuthoring) {
-    const expectedRegions = new Set(Object.keys(spec.staticAuthoring.materialMap));
+  if (materialAuthoring) {
+    const expectedRegions = new Set(Object.keys(materialAuthoring.materialMap));
     const actualRegions = new Set();
     for (const material of json.materials ?? []) {
       const sourceRegion = material.extras?.neva_source_material;
@@ -1454,7 +1459,7 @@ async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
       if (material.name !== sourceRegion) {
         throw new Error(`${spec.id}: ${phase} source material ${sourceRegion} has unstable name ${material.name}`);
       }
-      if (spec.staticAuthoring.materialMap[sourceRegion].token !== token) {
+      if (materialAuthoring.materialMap[sourceRegion].token !== token) {
         throw new Error(`${spec.id}: ${phase} source material ${sourceRegion} maps to the wrong palette token`);
       }
       actualRegions.add(sourceRegion);
@@ -1770,9 +1775,21 @@ function summarizeAssets(results) {
   };
 }
 
+/**
+ * Builds the selected assets into a staging run. Each cache miss is produced by its generator's
+ * producer, Blender for the legacy generators and the authored Three.js producer for the rest, into
+ * the same raw/ directory; everything after that point is identical for both. `blenderInfo` is null
+ * when the selection has no Blender generators.
+ */
 async function buildStage(context, assets, blenderInfo) {
   const started = Date.now();
-  const plans = new Map(assets.map((asset) => [asset.id, assetCachePlan(asset, context, blenderInfo)]));
+  const authoredVersion = authoredProducerVersion(ROOT);
+  const producerVersion = (asset) => {
+    if (isAuthoredGenerator(asset.generator, ROOT)) return authoredVersion;
+    if (!blenderInfo) throw new Error(`${asset.id}: Blender is required for the legacy generator ${asset.generator}`);
+    return blenderInfo.version;
+  };
+  const plans = new Map(assets.map((asset) => [asset.id, assetCachePlan(asset, context, { version: producerVersion(asset) })]));
   const cachedResults = new Map();
   const misses = [];
   for (const spec of assets) {
@@ -1783,19 +1800,28 @@ async function buildStage(context, assets, blenderInfo) {
   }
   const rawDir = path.join(context.stage, "raw");
   fs.mkdirSync(rawDir, { recursive: true });
-  const { blenderReport } = misses.length
-    ? await runDynamicBlenderPool({
-        blenderPath: blenderInfo.blender,
-        bootstrapScript: path.join(HERE, "bootstrap.py"),
-        catalogPath: CATALOG_PATH,
-        missAssets: misses,
-        outputDir: rawDir,
-        strict: context.strict,
-        concurrency: context.concurrency,
-        timeoutMs: context.timeoutMs,
-        repoRoot: ROOT,
-      })
-    : { blenderReport: { assets: [] } };
+  const blenderMisses = misses.filter((spec) => !isAuthoredGenerator(spec.generator, ROOT));
+  const authoredMisses = misses.filter((spec) => isAuthoredGenerator(spec.generator, ROOT));
+  const producedAssets = [];
+  if (blenderMisses.length) {
+    if (!blenderInfo) throw new Error("Blender is required for the selected legacy generators");
+    const { blenderReport } = await runDynamicBlenderPool({
+      blenderPath: blenderInfo.blender,
+      bootstrapScript: path.join(HERE, "bootstrap.py"),
+      catalogPath: CATALOG_PATH,
+      missAssets: blenderMisses,
+      outputDir: rawDir,
+      strict: context.strict,
+      concurrency: context.concurrency,
+      timeoutMs: context.timeoutMs,
+      repoRoot: ROOT,
+    });
+    producedAssets.push(...blenderReport.assets);
+  }
+  if (authoredMisses.length) {
+    const authoredReport = await runAuthoredProducer({ specs: authoredMisses, outputDir: rawDir, repoRoot: ROOT });
+    producedAssets.push(...authoredReport.assets);
+  }
   const optimizedDir = path.join(context.stage, "optimized");
   fs.mkdirSync(optimizedDir, { recursive: true });
   const results = [];
@@ -1820,9 +1846,9 @@ async function buildStage(context, assets, blenderInfo) {
     if (spec.generator === "imported_blend" && final.semanticHash !== rawValidation.semanticHash) {
       throw new Error(`${spec.id}: imported source compression changed decoded semantics`);
     }
-    const blenderAsset = blenderReport.assets.find((entry) => entry.id === spec.id);
-    if (!blenderAsset || blenderAsset.artContractStatus !== "passed") {
-      throw new Error(`${spec.id}: Blender did not report a passing semantic art contract`);
+    const producedAsset = producedAssets.find((entry) => entry.id === spec.id);
+    if (!producedAsset || producedAsset.artContractStatus !== "passed") {
+      throw new Error(`${spec.id}: its producer did not report a passing semantic art contract`);
     }
     results.push({
       id: spec.id,
@@ -1830,11 +1856,11 @@ async function buildStage(context, assets, blenderInfo) {
       family: spec.family,
       generator: spec.generator,
       seed: spec.seed,
-      dimensions: blenderAsset.dimensions,
-      bounds: blenderAsset.bounds,
-      paletteTokensUsed: blenderAsset.paletteTokensUsed,
-      vertexColorLoops: blenderAsset.vertexColorLoops,
-      vertexColorSpace: blenderAsset.vertexColorSpace,
+      dimensions: producedAsset.dimensions,
+      bounds: producedAsset.bounds,
+      paletteTokensUsed: producedAsset.paletteTokensUsed,
+      vertexColorLoops: producedAsset.vertexColorLoops,
+      vertexColorSpace: producedAsset.vertexColorSpace,
       requiredNodes: spec.requiredNodes,
       collision: spec.collision,
       lod: spec.lod,
@@ -1859,7 +1885,7 @@ async function buildStage(context, assets, blenderInfo) {
     });
     const result = results[results.length - 1];
     try {
-      writeAssetCache(plan, result, optimized, blenderInfo.version);
+      writeAssetCache(plan, result, optimized, producerVersion(spec));
     } catch (error) {
       console.warn(`[NEVA ART] Could not write cache for ${spec.id}: ${error.message}`);
     }
@@ -1876,7 +1902,8 @@ async function buildStage(context, assets, blenderInfo) {
       specHash: context.specHash,
       paletteHash: context.paletteHash,
       toolchainHash: context.toolchainHash,
-      blenderVersion: blenderInfo.version,
+      blenderVersion: blenderInfo?.version ?? null,
+      authoredProducerVersion: authoredVersion,
       vertexColorSpace: "linear-srgb",
       durationMs: Date.now() - started,
       aggregateBytes: results.reduce((sum, result) => sum + result.bytes, 0),
@@ -2255,7 +2282,7 @@ async function main() {
     console.log(`[NEVA ART] Skipping ${authored.length} code-authored asset(s); rebuild with npm run art:authored: ${authored.map((asset) => asset.id).join(", ")}`);
   }
   if (!buildable.length) {
-    console.log("[NEVA ART] Nothing for Blender to build in this selection");
+    console.log("[NEVA ART] Nothing to build in this selection");
     return;
   }
   if (args.strict) {
@@ -2264,7 +2291,9 @@ async function main() {
       throw new Error(`Strict generation rejected draft reference briefs: ${draftBriefs.map((asset) => asset.id).join(", ")}`);
     }
   }
-  const blenderInfo = resolveBlender();
+  // Blender is only needed when the selection still has legacy generators; authored-only runs never
+  // touch it.
+  const blenderInfo = buildable.some((asset) => !isAuthoredGenerator(asset.generator, ROOT)) ? resolveBlender() : null;
   const generationInputs = readGenerationInputs();
   if (generationInputs.specHash !== specHash) {
     throw new Error("Asset catalog changed while it was being validated; rerun from stable sources");
@@ -2352,6 +2381,8 @@ export {
   resolveAdmissionSource,
   validateSourceProvenance,
   validateStaticAuthoring,
+  validateSkinnedAuthoring,
+  sourceMaterialAuthoring,
   validateStaticSourceContract,
   validateAdmissionGlb,
   validateGlb,

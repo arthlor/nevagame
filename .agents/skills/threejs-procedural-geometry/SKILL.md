@@ -1,19 +1,18 @@
 ---
 name: threejs-procedural-geometry
-description: "Build production procedural meshes and complete hard-surface or humanoid assemblies in Three.js. Use for profile extrusion, lofts, sweeps, revolve, bevels, shell thickness, apertures, topology repair, coplanar z-fighting, non-manifold or interpenetrating geometry. Not for surface material identity or building grammars."
+description: Build well-crafted production procedural meshes in Three.js. Use for complete hard-surface assemblies and humanoid robots, profile extrusion, parameter-curve and spine lofts, pillow panels, exact polygon cuts, inset, revolve, sweep, solidify, bevels and fillets, shell thickness, direct-topology apertures, semantic mesh writers, or diagnosing primitive-built forms, coplanar flicker, loose/non-manifold geometry, detached parts, interpenetration, support, clearance, and swept-envelope defects.
 ---
 
 # Procedural Geometry
-
-- **Runtime contract.** Backend: dual — emitted `BufferGeometry`/meshes are backend-agnostic; the example material bundles use WebGPU/TSL. Min three: verify the backend of the specific example selected. Fallback: emitted geometry matches the project backend; do not migrate WebGL2↔WebGPU. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
 
 Generate geometry from a semantic contract and explicit coordinate frame.
 Treat polygon operations as the design model and triangle emission as the final
 compilation step. Do not declare an object complete until its topology,
 assembly relationships, semantic measurements, and fixed views all pass.
 
-Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
+This skill contains exemplary examples and assets beyond descriptive guidance,
+they're worth studying, referencing, or even copying. Use them sufficiently
+when relevant and do NOT blindly skip them.
 
 ## Craft loop
 
@@ -142,9 +141,7 @@ Read the
 for semantic placement compilation and material-slot instancing at building
 scale.
 
-## Invariants and strong defaults
-
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Failure conditions
 
 - same-facing coplanar triangles survive at a visible scale;
 - a loose vertex, degenerate face, open solid, non-manifold edge, detached
@@ -162,12 +159,6 @@ Use these checks for the affected mechanism. Preserve concrete ownership, correc
 - a complete humanoid is reduced to intersecting capsules and boxes;
 - mirrored hands or limbs keep inward winding;
 - high-frequency object-space material noise is emitted without footprint filtering.
-
-## Deliverable
-
-- Inputs: dimensioned contract, coordinate frame, topology intent, and material slots.
-- Artifacts: named parts, audit output, and fixed views (silhouette, wireframe, normals, grazing light).
-- Acceptance: topology, coplanar, clash, and semantic gates pass; no visible form is left as intersecting primitives.
 
 ## Routing boundary
 

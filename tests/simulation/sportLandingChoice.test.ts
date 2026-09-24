@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { Simulation } from "../../src/simulation/Simulation";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
-import { SPORT_FISHING_LANDING_WORK_REBATE } from "../../src/simulation/domains/FishingDomain";
+import { sportLandingWorkRebate } from "../../src/simulation/domains/FishingDomain";
 import { sportFishLandingXp, sportFishReleaseXp } from "../../src/simulation/economy/calculateFishXp";
 import { hookLakeTroutForTest } from "./sportFishingTestUtils";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
@@ -44,6 +44,12 @@ function expectedLandingXp(sim: Simulation): number {
 describe("sport-fishing landing choice", () => {
   beforeEach(() => ContentRegistry.initializeAndValidate());
 
+  it("limits landing Work to a share of the paid hook cost", () => {
+    expect(sportLandingWorkRebate(18)).toBe(7);
+    expect(sportLandingWorkRebate(15)).toBe(6);
+    expect(sportLandingWorkRebate(44)).toBe(12);
+  });
+
   it("holds a won fight until the angler chooses, without stowing or escaping", () => {
     const sim = new Simulation();
     hookLakeTroutForTest(sim);
@@ -76,6 +82,7 @@ describe("sport-fishing landing choice", () => {
     const schoolId = lakeSchoolId(sim);
     landForTest(sim);
     const xpBefore = sim.state.player.proficiencies.fishing;
+    const chargedWork = sim.state.sportFishing!.workCharged!;
     sim.state.player.workCapacity.current = 10;
     const workBefore = sim.state.player.workCapacity.current;
     const landed: string[] = [];
@@ -92,7 +99,7 @@ describe("sport-fishing landing choice", () => {
     expect(cargo.location.type).toBe("player");
     expect(sim.state.player.carriedFishCargoId).toBe(cargo.id);
     expect(sim.state.player.proficiencies.fishing).toBeGreaterThan(xpBefore);
-    expect(sim.state.player.workCapacity.current).toBe(workBefore + SPORT_FISHING_LANDING_WORK_REBATE);
+    expect(sim.state.player.workCapacity.current).toBe(workBefore + sportLandingWorkRebate(chargedWork));
     expect(sim.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(2);
     expect(sim.state.journal.fishRecords["fish.trout"]?.catchCount).toBe(1);
   });
@@ -116,6 +123,8 @@ describe("sport-fishing landing choice", () => {
     landForTest(sim);
     const species = ContentRegistry.fishSpecies.get("fish.trout")!;
     const fish = sim.state.sportFishing!.fish;
+    const chargedWork = sim.state.sportFishing!.workCharged!;
+    const workBefore = sim.state.player.workCapacity.current;
     const xpBefore = sim.state.player.proficiencies.fishing;
     const released: string[] = [];
     sim.events.on("SportFishReleased", (event) => released.push(event.speciesId));
@@ -132,6 +141,7 @@ describe("sport-fishing landing choice", () => {
     expect(gained).toBe(sportFishReleaseXp(species, fish.weightKg, fish.quality));
     expect(gained).toBeLessThan(landingXp);
     expect(gained).toBeGreaterThan(0);
+    expect(sim.state.player.workCapacity.current).toBe(workBefore + sportLandingWorkRebate(chargedWork));
   });
 
   it("keeps the pending choice through save and reload", () => {

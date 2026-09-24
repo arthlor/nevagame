@@ -1,7 +1,9 @@
 # BLENDER.md
 ## Neva — Lean Blender Production Rules for LLM Agents
 
-> **Role:** Operational authority for catalog-driven Blender generation, GLB validation, publication, Art Yard handoff, and runtime integration.
+> **Role:** Operational authority for catalog-driven generation, GLB validation, publication, Art Yard handoff, and runtime integration.
+>
+> **Producers:** Authored Three.js generators (`tools/authored/`, see its README) are Neva's main asset generation system. The art pipeline (`tools/blender/cli.mjs`; the folder name is historical) builds them in Node and sends them through the same validation, optimisation, cache, publication and determinism gates as the legacy Blender generators, which remain until each family is ported. Blender stays permanently only as the import adapter for donor models (`imported_blend`). The commands below are unchanged for both producers.
 >
 > **Inspection and approval:** Agents generate, integrate, and inspect affected assets in the Art Yard and actual game, correcting observed defects within the authorized scope. Use focused screenshots, motion checks or diagnostic views when they answer a visual question. Human visual approval remains a separate decision; agent inspection and mechanical success do not grant it.
 
@@ -21,15 +23,15 @@ helpers in full; do not dump the full catalog for one asset.
 
 # 1. Daily Asset Workflow
 
-Folder dumps (`@LLM`, `@tools`) do not change this routing. First files to **obey**: root `AGENTS.md`, this file, `tools/blender/README.md`, the selected catalog entry, the owning generator, the isolated sheet if present, and the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` and ArcheAge unread for generate-asset prompts even if `@LLM` attached them.
+Folder dumps (`@LLM`, `@tools`) do not change this routing. First files to **obey**: root `AGENTS.md`, this file, `tools/authored/README.md` (and `tools/blender/README.md` for a family still on Blender), the selected catalog entry, the owning generator, the isolated sheet if present, and the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` and ArcheAge unread for generate-asset prompts even if `@LLM` attached them.
 
-**Generate assets** in this repo always means: resolve or add catalog ID(s) → registered family generator → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → Art Yard link → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. Do not start `threejs-game-director` for this prompt. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend the owning family generator; do not publish a one-off GLB. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
+**Generate assets** in this repo always means: resolve or add catalog ID(s) → registered family generator (authored Three.js; port a legacy Blender family instead of extending its Python) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → Art Yard link → `Awaiting human game review`. Do not run `tools/blender/generators/generate_all.py`. The upstream graphics skills do not define asset generation. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend (or port and extend) the owning family generator; do not publish a one-off GLB. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
 
 Isolated studio sheets are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in `tools/blender/references/README.md` are graphics-only extracts from `art-reference.png`; do not copy their camera, staging, or pixels. `art/references/neva-ui-hud-on-foot.png` is the scoped gameplay-distance graphics benchmark for starter-farm terrain, worked-earth paths, meadow flowers/foliage, crop-bed presentation, and clear-day lighting; it never authorizes copying camera, UI, layout, depth of field, tilt-shift, or composition. The later grass study selected in Art Bible §7.2.4 owns continuous meadow coverage and fine-blade proportions. Catalog IDs win if a reference README drifts (`prop_wagon_cart_a`, not `vehicle_horse_cart_a`).
 
 Sculpt in passes, using focused inspection where it resolves form or readability: blockout (primary masses and negative space vs the isolated sheet) → structure (masonry, timber, shingles, openings) → sparse tertiary readable at 8 m → palette + vertex value on the existing `COLOR_0` path. Human revision remains `asset ID + observed miss + desired change`.
 
-Codex skill route for this prompt: prefer `.agents/skills/<name>/SKILL.md` over `~/.codex/skills`. After the Neva catalog, isolated sheet, and owning generator, Codex may load `.agents/skills/threejs-aaa-graphics-builder/references/checklists/procedural-model-quality.md` (and `model-recipes.md` when appearance is being designed) as critique vocabulary, then implement in the registered Blender family generator and `authored.py` — never a Three.js factory. `threejs-image-generator` may create or clean an isolated study only when the human asks for new reference art. `threejs-3d-generator` (Tripo) is a reconstruction study only when the human explicitly authorizes a provider call; never publish the downloaded GLB. `threejs-qa-release` stays a release/gold-slice tool.
+Codex skill route for this prompt: use `.agents/skills/threejs-procedural-geometry/SKILL.md` as technique guidance, then consult its `references/geometry-craft-workflow.md` and `references/geometry-quality-gates.md` only when relevant. For a broad visual pass, use `.agents/skills/threejs-skill-router/SKILL.md` and load the smallest relevant specialists. The catalog, isolated sheet and owning generator still decide Neva asset production; implement in the registered authored generator and `tools/authored/kit/`. When the family is still a legacy Blender generator, port it (faithfully where it already reads well, redesigned where it reads weakly) rather than extending the Python. This pack has no provider-generation or release agent; provider calls need explicit human authorization, and release checks follow `03`.
 
 The everyday route is:
 
@@ -181,9 +183,10 @@ artifact contract.
 
 ## Procedural skinned creatures
 
-Every fauna and fish asset except the imported cow is a procedural skinned
-creature: one continuous surface per LOD bound to an armature authored in its
-family generator, never a pile of primitives rotating on empties. Construction
+Every fauna and fish asset except the imported cow and the Tripo donkey and
+draft horse is a procedural skinned creature: one continuous surface per LOD
+bound to an armature authored in its family generator, never a pile of
+primitives rotating on empties. Construction
 lives in `common/creature.py`; primary limbs grow from shared body loops with
 `geometry.graft_limb`.
 
@@ -192,9 +195,8 @@ lives in `common/creature.py`; primary limbs grow from shared body loops with
   `_skin_parts` table, which rejects any part without declared drivers).
   Nearest-bone weighting across a whole surface lets a limb bone that passes
   through the body capture the flank. Weights are solved deterministically in
-  code; never use Blender's bone-heat solver. The chicken and donkey instead
-  author explicit weights and bake their historic pivot motion
-  (`bake_pivot_skin`).
+  code; never use Blender's bone-heat solver. The chicken instead authors
+  explicit weights and bakes its historic pivot motion (`bake_pivot_skin`).
 - **Node contract.** Every pivot empty named in `requiredNodes` stays at its
   historic location as an inert marker, because `WorldScene` resolves them by
   name. Gameplay-facing sockets and grips stay on object-animated nodes. A fish's
@@ -221,7 +223,8 @@ direct runtime downloads. Adapt them to the existing catalog identity, palette,
 dimensions/pivot, collision, LOD, budgets, and animation/socket contracts first.
 Use the registered `imported_blend` generator with exactly `sourceBlend` and
 `sourceCollection` parameters. Keep the durable derivative under
-`art/imported/poly-pizza/`, with the export collection named for its catalog ID.
+`art/imported/<provider>/` (`poly-pizza`, `tripo`), with the export collection
+named for its catalog ID.
 The importer exports only that collection through the shared Blender pipeline;
 normal selected or full generation regenerates it instead of reverting to an
 unrelated procedural model.
@@ -288,12 +291,15 @@ catalog provenance must instead hash the final durable adapted `.blend`.
 - **Humanoids — `adapt_imported_humanoid.py`:** read the selected catalog `humanoidAuthoring` contract, verify the immutable original source hash, and prepare it in a fresh background Blender process. Original glTF timestamps own source clip timing. Uniform stature scale and coordinate conversion preserve anatomy, topology, source deforming bones, bind transforms, UVs, normalized weights and selective split normals. Exact source part/material mappings select palette tokens; unmapped regions fail. Role clothing and missing peaceful Neva actions are authored around the retained source rig. Never fit a body or copy pose arrays onto the obsolete donor skeleton. The preparation writes a staged Blender library, GLB and mechanical report; the registered `imported_blend` generator remains the publication path.
 - **Humanoid comparison — `compare_humanoid_contract.mjs`:** `--asset <id> --candidate <GLB> --report <JSON>` compares the decoded candidate against that catalog entry's immutable source. It checks one uniform coordinate transform, source bind hierarchy, oriented LOD0 triangles, UVs, normals, named-joint weights, material-region mapping and palette application. It also compares retained native performance samples and original durations. Numeric limits belong to the verifier and account for Blender/glTF representation precision. Any bounded native loop-closure repair must be declared separately from preserved source motion. The preparation's all-frame deformation report covers both LODs, distinguishes actual open seams from nearby vertices on overlapping closed surfaces, and rejects evaluated apron/body triangle intersections. Garment fitting follows a cloth envelope across gaps between limbs rather than wrapping into the underlying crotch groove. Neither report certifies runtime foot planting, grips, seats or appearance.
 - **Humanoid export fidelity — `common/humanoid_export.py`:** the source preparation and registered exporter share the declared solid-palette color repair. It restores omitted later-primitive vertex colors without altering any other exported bytes, then ordinary validation and lossless optimization run. Preparation records removed source degenerate triangles explicitly; the independent comparator verifies their original area before accepting the declared omission. Unkeyed source animation properties retain the original node defaults rather than inheriting the last authored action's pose.
+- **Horse-carriage assembly:** `merchant_carriage` is authored in Three.js; its retained wheel/cargo/driver nodes now include the kingpin, footboard contacts, palm frames, deformable rein tubes and separate body/head harness meshes. `CarriagePresentation` docks the harness to the imported horse bones and bends cloned rein geometry between the authored grips and bone-parented bit sockets. `adapt_tripo_quadruped.py` bakes horse gaits at 60 samples per second with matched stance/recovery tangents; the catalog owns durations and reference speeds. Regenerate both affected catalog assets when their attachment contract changes. Hinged rigid shafts follow the horse harness on slopes. `open_horse_carriage_workshop.py` imports the published GLBs into an editable Blender review scene; it does not call a legacy generator or publish assets.
 - **Humanoid binding and review:** catalog `humanoidRig` owns semantic source names, bind-space endpoints, sole/palm frames and bend directions. Animation entries own cadence, contact intervals and simulation commit markers; generator/source evidence stays out of the browser projection. Validate each selected character and semantic determinism before publishing the validated set atomically. The generated action checklist records the evidence for every catalog action, and leaves integrated human review pending. Source, durable Blender input, generated/public GLB and cache/manifests must agree before handoff.
-- **Scoped equipment-action append — `append_equipment_actions.py`:** run only against the selected prepared player library in a fresh background Blender process and write a separate candidate plus report. The helper replaces only its named clips, fingerprints every pre-existing action and all mesh vertex/polygon counts, and fails if either changes. Inspect the candidate, update the catalog's durable-source hash only after promotion, then run selected no-publish generation, semantic determinism and normal atomic publication. A helper report is mechanical preservation evidence, not in-game animation approval.
+- **Scoped equipment-action append — `append_equipment_actions.py`:** superseded for `char_player_a`, whose every clip (including `craft_tailor`, `craft_tool` and `gear_check`) is now authored by `author_player_performances.py` below. Do not run it against the Tripo player library: its recipes target the retired Quaternius skeleton.
 - **Selected offline builds:** `generate --no-publish` and `determinism` validate the whole catalog schema and contracts, but open/hash Blender source files only for selected assets. Unfinished unrelated sources therefore cannot block an isolated equipment stage. Normal catalog validation, admission and publication still verify every source file/hash; this does not permit missing inputs in a published set.
 - **Static sources — `adapt_polypizza_static.py`:** imports only the immutable
   GLB and exact node pinned by the selected catalog `staticAuthoring` contract.
-  It applies the declared coordinate yaw and one uniform, ground-centered scale;
+  It applies the declared coordinate yaw and one uniform, ground-centered scale
+  (then an optional `pivotOffset` in runtime metres when the source's visual
+  footprint is off its bounds centre, as for an asymmetric cottage);
   LOD0 retains every source triangle, UV, split normal, smooth/hard boundary and
   source material-region identity. Solid material mappings bake exact palette
   token × declared value with no invented height/normal tint. Textured mappings
@@ -311,6 +317,77 @@ catalog provenance must instead hash the final durable adapted `.blend`.
   report is durable evidence rather than the only enforcement point. A Khronos
   warning may pass only when the immutable source emits the same approved
   source-preservation warning code; candidates may not add warning classes.
+- **Tripo captures — `prepare_tripo_source.py`:** plain Python. Tripo downloads
+  declare accessor bounds that Khronos rejects and tag every material with
+  specular/volume extensions. The helper rewrites only the GLB JSON chunk
+  (recomputed bounds, provider material extensions removed), proves every
+  binary chunk byte-identical, and records both digests in
+  `art/imported/tripo/sources/capture-report.json`. The capture, not the
+  download, is the immutable source the catalog pins. Tripo provenance uses
+  provider `tripo`, licence `Tripo-Terms` and the generation UUID as `modelId`;
+  rights follow the generating account's Tripo plan.
+- **Re-skinned provider surfaces — `skinnedAuthoring`:** the catalog contract
+  for a provider surface re-posed, re-weighted and animated on a Neva rig. It
+  pins the capture path/hash and adapter and maps each exported material region
+  to its source material and palette token with `texturePolicy: preserve`
+  (the embedded texture is retained; no `COLOR_0`). Geometry equality is not
+  claimed, so the static comparator does not apply; the surface contract's
+  all-clip edge stretch, compression and loop-seam checks on both LODs do.
+- **Tripo player — `adapt_tripo_humanoid.py`:** fits the existing player rig to
+  the capture instead of the reverse, because wearable anchors, grips,
+  `humanoidRig` semantics and every clip name those bones. The rig is
+  re-rested on the provider's bind joint centres (minimal swing per bone).
+  Weights transfer barycentrically from the previous player skin morphed into
+  the new rest, then diffuse by distance over the welded surface. Below the
+  armpit each A-pose arm is separated from the flank, hip and thigh it is
+  fused to (grown from its outer skin, stopped at faces turned back towards
+  the arm) and keeps only its own bones; `common/player_skin.py` then rebuilds
+  the crotch seam's thigh split smoothly across the midline with a pelvis
+  share, so a stride or straddle cannot tear one seam edge. The adapter still
+  bakes the previous library's performances onto the new rest, but those are
+  placeholders: the player's shipped clips come from the authoring step
+  below, which must follow any re-adaptation. After promotion, re-extract
+  `humanoidRig` legs/arms with `extract_humanoid_binding.mjs` from the
+  published GLB.
+- **Player performances — `author_player_performances.py`:** authors every
+  `char_player_a` catalog clip directly on the fitted rig, in a fresh
+  background Blender process writing a candidate library and report under
+  `output/`. The recipes live in `common/player_clips.py` (idle and the
+  walk/run gaits), `common/player_actions.py` (starts, stop, turns, air,
+  farm and craft work, carrying, fishing) and `common/player_rides.py`
+  (rowboat, skiff, donkey and their transitions); `common/player_motion.py`
+  is the pose model and solvers (legs solved onto the detached feet with heel
+  and toe pivots, arms with a consistent elbow hinge and shared forearm
+  twist, finger grips, head stabilisation). Gaits are authored at the shipped
+  traversal speeds, so their reference speeds are the stance-foot speeds.
+  The authoring helper samples at 60 Hz using subframe keys on the retained
+  30 fps timeline; gait contact windows come from the analytic stance phases
+  rather than a height threshold that can mistake a low swing for contact;
+  fishing clips key the rod and solve both hands onto it, the left on the
+  published rod's reel knob. Reel motion uses the sampled axle and a full crank
+  revolution per clip; runtime retrieval drives the same angular cadence. The
+  report compares the palm with the moving knob at each frame. Rod heading may
+  follow the fish, while the authored elevation remains available for loading
+  the blank and hook-setting. Rowboat, skiff and donkey clips fit the contacts
+  `sample_player_companions.mjs` samples from the published companions
+  (`--companions`); `--repair-skin` applies the crotch-seam repair
+  idempotently. Only actions change: surfaces, skin (unless repaired), rest
+  skeleton and sockets are fingerprinted. The report measures stance slip,
+  ground penetration, leg reach, hands entering the torso, rod-knob contact
+  and loop seams, and carries the catalog fields the recipes own;
+  `apply_player_performance_report.mjs` writes those (duration, loop,
+  reference speed, contacts, footstep events, motion source) and the
+  promoted library's digest into the catalog. Then run the normal selected
+  generation.
+- **Tripo quadrupeds — `adapt_tripo_quadruped.py`:** builds a Neva quadruped
+  rig from declared landmarks on the donkey and draft horse captures, solves
+  weights with Blender's heat solver on a welded proxy (the deterministic
+  in-code rule above covers procedural creatures only), and authors planted-hoof
+  two-bone-IK gaits whose stride follows each clip's catalog reference speed.
+  A clip's catalog hoof-step events own its touchdown phases, so the rider's
+  phase-locked mounted clips, audio and dust stay on one timeline. Rider and
+  rein sockets keep the retired donkey's transforms; oriented rein grips carry
+  the shared palm frame.
 - **Cow — `adapt_polypizza_cow.py`:** retains the reviewed donor anatomy and
   skeleton with uniform metre-space normalization, and bakes only the peaceful
   performances selected by its `SOURCE_CLIPS` mapping into the catalog's named
@@ -349,6 +426,7 @@ catalog provenance must instead hash the final durable adapted `.blend`.
 
 - A successful selected publish makes the asset available automatically.
 - `?asset=<catalog-id>` opens the selected asset directly.
+- Character animation review automatically attaches the matching fishing, farming, carry, tailoring, toolmaking and equipment-inspection props through the same socket rules as the world. Runtime-context scrubbing also seeks the reel crank, so a paused hand and handle share the same phase.
 - Orbit, distance/LOD, eye POV (1.6m), shading (lit, unlit flat albedo, wire overlay, pure wire, vertex colors, normals, LOD0, LOD1), physical dimensions/clearance/footprint, authoring sockets, skeleton rig, origin axes tripod, bounds, collision, animation scrubbing/frame-stepping, lighting, weather, ground, and water controls support focused agent inspection and human review.
 - Player context clips are previewed atomically with the required donkey, rowboat, or skiff companion and companion-inclusive bounds. Mounted gaits synchronize rider and animal phases; boarding/docking use the matching craft variant; `reel` layers over selectable on-foot, rowboat, or skiff bases. Timeline scrubbing seeks each action deterministically rather than changing mixer-global time.
 - The normal game is the final visual judge. Integrate the catalog ID through the existing loader/placement/batching path; do not create a direct loader or local asset registry.

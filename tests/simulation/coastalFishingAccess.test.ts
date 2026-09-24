@@ -4,19 +4,22 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { armLureForTest } from "./sportFishingTestUtils";
 
-const WESTERN_BEACH = Object.freeze({ x: -188, z: -60 });
+// The western shoreline from the original island layout is now inland after
+// Neva's coast envelope expanded. Keep this gameplay check on the supported
+// southwest shoreline authored by the current coast loop.
+const NEVA_SOUTHWEST_COAST = Object.freeze({ x: -184, z: 89 });
 
-function simulationAtWesternBeach(): Simulation {
+function simulationAtNevaSouthwestCoast(): Simulation {
   const simulation = new Simulation();
-  simulation.state.player.x = WESTERN_BEACH.x;
-  simulation.state.player.z = WESTERN_BEACH.z;
+  simulation.state.player.x = NEVA_SOUTHWEST_COAST.x;
+  simulation.state.player.z = NEVA_SOUTHWEST_COAST.z;
   return simulation;
 }
 
 describe("closed-coast fishing gameplay callers", () => {
-  it("lets water reading and basic casting use the newly recognized Neva shore target", () => {
-    const simulation = simulationAtWesternBeach();
-    const access = WorldLayout.fishingAccessAt(WESTERN_BEACH.x, WESTERN_BEACH.z);
+  it("lets water reading and basic casting use the supported Neva shore target", () => {
+    const simulation = simulationAtNevaSouthwestCoast();
+    const access = WorldLayout.fishingAccessAt(NEVA_SOUTHWEST_COAST.x, NEVA_SOUTHWEST_COAST.z);
     expect(access).toMatchObject({ accessible: true, habitat: "coast", reason: "coast" });
 
     const reading = simulation.inspectWaterReading();
@@ -29,8 +32,8 @@ describe("closed-coast fishing gameplay callers", () => {
   });
 
   it("supports the sport-school approach from the same dry, reachable shore", () => {
-    const simulation = simulationAtWesternBeach();
-    const access = WorldLayout.fishingAccessAt(WESTERN_BEACH.x, WESTERN_BEACH.z);
+    const simulation = simulationAtNevaSouthwestCoast();
+    const access = WorldLayout.fishingAccessAt(NEVA_SOUTHWEST_COAST.x, NEVA_SOUTHWEST_COAST.z);
     expect(access.target).not.toBeNull();
     simulation.state.player.equippedRodId = "rod.heavy_sport";
     const inventory = simulation.state.inventories[simulation.state.player.inventoryId];

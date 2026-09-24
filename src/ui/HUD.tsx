@@ -16,8 +16,8 @@ import { playUiSound } from "./audio/uiAudio";
 import { PlayerUnitFrame } from "./hud/PlayerUnitFrame";
 import { NauticalCompassAlmanac, TidebookNavigation } from "./hud/NauticalCompassAlmanac";
 import { MicroMenuPurseBar, TidebookPurse, type ActiveModal } from "./hud/MicroMenuPurseBar";
-import { SmartContextualToolbar } from "./hud/SmartContextualToolbar";
 import { SmartActionPrompt } from "./hud/SmartActionPrompt";
+import type { ContextualCropChoice } from "./hud/ContextualCropChoice";
 
 // M2 Component Imports
 import { MaritimeVesselConsole } from "./components/MaritimeVesselConsole";
@@ -33,10 +33,10 @@ export interface HUDProps {
   activeQuest?: ActiveQuestDto | null;
   activeQuests?: readonly ActiveQuestDto[];
   onFocusTrack?: (trackId: string) => void;
-  activeToolSlot?: number;
-  onSelectToolSlot?: (slot: number) => void;
-  /** Bumped when the world swapped a tool in, so the belt shows itself. */
-  toolRevealToken?: number;
+  contextualCropChoices?: readonly ContextualCropChoice[];
+  onChooseCropAction?: (choice: ContextualCropChoice) => void;
+  canStartPlanting?: boolean;
+  onStartPlanting?: () => void;
   onOpenMenu?: () => void;
   onOpenModal?: (modal: ActiveModal) => void;
   onInspectFarmForecast: () => FarmForecastDto;
@@ -68,9 +68,10 @@ export const HUD: React.FC<HUDProps> = ({
   activeQuest = null,
   activeQuests,
   onFocusTrack,
-  activeToolSlot = 1,
-  onSelectToolSlot,
-  toolRevealToken = 0,
+  contextualCropChoices = [],
+  onChooseCropAction,
+  canStartPlanting = false,
+  onStartPlanting,
   onOpenMenu,
   onOpenModal,
   onInspectFarmForecast,
@@ -118,10 +119,6 @@ export const HUD: React.FC<HUDProps> = ({
   }, [blocked, forecastEnabled]);
 
   useEffect(() => { if (blocked || !forecastEnabled) setShowForecast(false); }, [blocked, forecastEnabled]);
-
-  const handleToolClick = (slot: number) => {
-    onSelectToolSlot?.(slot);
-  };
 
   const handleToggleForecast = () => {
     if (!forecastEnabled) return;
@@ -273,7 +270,7 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       </HudCluster>
 
-      {/* Bottom-Center Cluster: Smart Labor Action Prompts & Contextual Hotbar */}
+      {/* Bottom-Center Cluster: the immediate verb and only currently useful alternatives. */}
       <HudCluster edge="bottom-center" className="hud-play-cluster guild-play-anchor">
         {!isPlacementActive && !basicFishingResultOpen && (basicFishingPhase || promptText) && (
           <footer className="guild-interaction-anchor" aria-label="Contextual interactions">
@@ -313,17 +310,29 @@ export const HUD: React.FC<HUDProps> = ({
           </footer>
         )}
 
-        {/* Smart Contextual Stance Toolbar — renders nothing when the stance
-            has no tool worth swapping, which is most of the time on foot. */}
-        {!isPlacementActive && (
-          <SmartContextualToolbar
-            stance={hud.stance}
-            hotbar={hud.contextualHotbar}
-            activeSlot={activeToolSlot}
-            onSelectSlot={handleToolClick}
-            revealToken={toolRevealToken}
-            alwaysExpanded={touchChrome}
-          />
+        {!isPlacementActive && !basicFishingPhase &&
+          ((canStartPlanting && onStartPlanting) || (contextualCropChoices.length > 0 && onChooseCropAction)) && (
+          <div className="guild-context-actions interactive" role="group" aria-label="Available actions">
+            {canStartPlanting && onStartPlanting && (
+              <button type="button" className="guild-context-action" onClick={onStartPlanting}>
+                Plant
+              </button>
+            )}
+            {contextualCropChoices.length > 0 && onChooseCropAction && (
+              <details className="guild-context-more" key={contextualCropChoices[0].cropId}>
+                <summary>Other actions</summary>
+                <div className="guild-context-more-list">
+                  {contextualCropChoices.map((choice) => (
+                    <button key={choice.action} type="button" className="guild-context-action"
+                      onClick={() => onChooseCropAction(choice)}>
+                      <span>{choice.label}</span>
+                      {choice.detail && <small>{choice.detail}</small>}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
         )}
       </HudCluster>
 

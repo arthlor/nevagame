@@ -290,26 +290,19 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
     });
   });
 
-  describe("6. Bottom-Center Tool Hotbar & Contextual Interaction Banners", () => {
-    it("renders all 5 hotbar slots with test IDs and slot numbers", () => {
+  describe("6. Bottom-Center Contextual Interaction Banners", () => {
+    it("keeps the prompt without a permanent tool rank", () => {
       const state = createInitialGameState();
       const html = renderToString(
         React.createElement(HUD, {
           state,
-          promptText: null,
-          activeToolSlot: 3
+          promptText: "[E] Harvest Wheat · 5 Work"
         })
       );
 
       expect(html).toContain("hud-play-cluster");
-      expect(html).toContain('data-testid="smart-contextual-toolbar"');
-      const buttons = html.match(/<button\b[^>]*data-testid="tool-slot-\d"[^>]*>/g) ?? [];
-      expect(buttons).toHaveLength(5);
-      for (let slot = 1; slot <= 5; slot++) {
-        const button = buttons.find((candidate) => candidate.includes(`data-testid="tool-slot-${slot}"`));
-        expect(button).toBeDefined();
-        expect(button).toContain(`aria-pressed="${slot === 3}"`);
-      }
+      expect(html).toContain('data-testid="context-prompt"');
+      expect(html).not.toContain('data-testid="smart-contextual-toolbar"');
     });
 
     it("renders contextual prompt with KeycapBadge [E] and data-testid='context-prompt'", () => {
@@ -372,8 +365,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
         React.createElement(HUD, {
           state,
           promptText: "[Space] Reel In",
-          toastMessage: "Caught Atlantic Cod!",
-          activeToolSlot: 2
+          toastMessage: "Caught Atlantic Cod!"
         })
       );
 

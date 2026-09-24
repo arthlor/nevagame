@@ -1,7 +1,8 @@
 import { nevaBaseGroundHeight } from "./NevaLandforms";
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS, oceanIsletAt, isletShoreDistance, isletTerrainHeight } from "./OceanIslets";
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
-import { MAINLAND_ROUTES, mainlandBlendAt, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandNaturalHeight, mainlandRegionAt, mainlandWaterSample, mainlandRoadBenchAt } from "./NevaMainland";
+import { sunreachRoadEarthworkScale } from "./SunreachLivingLayout";
+import { MAINLAND_ROUTES, mainlandBlendAt, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandMountainExposureAt, mainlandNaturalHeight, mainlandShoreCharacterAt, mainlandRegionAt, mainlandWaterSample, mainlandRoadBenchAt } from "./NevaMainland";
 import { isInsideLoop } from "./WorldGeometry";
 import { MAINLAND_ARCHITECTURE_PADS } from "./MainlandSettlementLayout";
 import { surfaceFieldAttributeSteps } from "../render/materials/SurfaceFieldAttributes";
@@ -1848,10 +1849,10 @@ export class WorldLayout {
         // only at an analytic point between its rows.
         - 1.8 * (1 - smoothstep(0.5, 3, Math.abs(z - NEVA_HEADWATERS.fall.landingZ))),
       thalwegOffset: THREE.MathUtils.lerp(bendThalwegOffset, 0, bridgeLock),
-      leftBankRun: THREE.MathUtils.lerp(leftBankRun, 5, headwaterBlend) + poolInfluence * 0.9,
-      rightBankRun: THREE.MathUtils.lerp(rightBankRun, 4, headwaterBlend) + poolInfluence * 0.9,
-      leftFloodplainWidth: THREE.MathUtils.lerp(leftFloodplainWidth, 8, headwaterBlend) + poolInfluence * 1.4 + upperValley * 18,
-      rightFloodplainWidth: THREE.MathUtils.lerp(rightFloodplainWidth, 6, headwaterBlend) + poolInfluence * 1.4 + upperValley * 23,
+      leftBankRun: THREE.MathUtils.lerp(leftBankRun, 3.5, headwaterBlend) + poolInfluence * 0.9,
+      rightBankRun: THREE.MathUtils.lerp(rightBankRun, 3, headwaterBlend) + poolInfluence * 0.9,
+      leftFloodplainWidth: THREE.MathUtils.lerp(leftFloodplainWidth, 8, headwaterBlend) + poolInfluence * 1.4 + upperValley * 8,
+      rightFloodplainWidth: THREE.MathUtils.lerp(rightFloodplainWidth, 6, headwaterBlend) + poolInfluence * 1.4 + upperValley * 10,
       leftErosion: THREE.MathUtils.lerp(0.16 + leftOutside * 0.84, 0.18, bridgeLock),
       rightErosion: THREE.MathUtils.lerp(0.16 + rightOutside * 0.84, 0.18, bridgeLock),
       leftDeposition: THREE.MathUtils.lerp(0.18 + rightOutside * 0.82, 0.2, bridgeLock),
@@ -2855,7 +2856,7 @@ export class WorldLayout {
       + (z - NEVA_HEADWATERS.fall.lipZ + bankRetreat) / bankGradeSpread;
     const bankSurfaceElevation = z < NEVA_HEADWATERS.endZ
       ? headwaterElevationAt(THREE.MathUtils.lerp(z + bankRetreat, bankFallStation,
-        smoothstep(-145, -139, z) * (1 - smoothstep(-129, -121, z))))
+        smoothstep(NEVA_HEADWATERS.source.z - 2, -139, z) * (1 - smoothstep(-129, -121, z))))
       : riverSection.surfaceElevation;
     const riverBankTop = Math.min(
       height,
@@ -3049,8 +3050,15 @@ export class WorldLayout {
       const bankRelease = smoothstep(0.8, riverBankRun + 10, dryDistance);
       const watershed = smoothstep(-172, -156, z) * (1 - smoothstep(-124, -116, z));
       const gradeWeight = THREE.MathUtils.lerp(smoothstep(0.8, 2.4, dryDistance), bankRelease, watershed);
-      height = THREE.MathUtils.lerp(height, trailBench.elevation,
-        trailBench.influence * gradeWeight);
+      // Full cut only on the walked strip (≤ ~3.5 m). Farther out the weight
+      // fades before it can shave the spring massif or west rim down to the
+      // route envelope, while still softening the trench shoulder.
+      const cutWeight = 1 - smoothstep(4.2, 11, trailBench.nearest);
+      height = THREE.MathUtils.lerp(
+        height,
+        trailBench.elevation,
+        trailBench.influence * gradeWeight * cutWeight
+      );
     }
 
     height = this.applyPlateau(height, x, z, 1.2, -65, -55, 17, 13.5, 9);
@@ -3168,6 +3176,8 @@ export class WorldLayout {
       return FARMHOUSE_INTERIOR_BOUNDS.floorY;
     }
     const naturalHeight = this.naturalTerrainHeight(x, z);
+    const cultivationScale = sunreachRoadEarthworkScale(x, z);
+    if (cultivationScale === 0) return naturalHeight;
     const route = this.nearestRouteDistance(x, z);
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];
     const gradingRadius = route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters;
@@ -3200,10 +3210,12 @@ export class WorldLayout {
     const desiredDelta = corridorAverage - naturalHeight;
     const cappedDelta = THREE.MathUtils.clamp(desiredDelta, -0.45, 0.45);
     const junctionBlend = routeJunctionInfluence(x, z) * 0.18;
-    return naturalHeight + cappedDelta * Math.max(lateralBlend, junctionBlend) * profile.gradingStrength;
+    return naturalHeight + cappedDelta * Math.max(lateralBlend, junctionBlend)
+      * profile.gradingStrength * cultivationScale;
   }
 
   public static roadSurfaceSample(x: number, z: number): RoadCrossSectionSample {
+    const cultivationScale = sunreachRoadEarthworkScale(x, z);
     const route = this.nearestRouteDistance(x, z);
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];
     const sample = sampleRoadCrossSection({
@@ -3215,7 +3227,8 @@ export class WorldLayout {
       distanceAlongRouteMeters: route.distanceAlongRoute
     });
     if (
-      route.distance >= route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters * 0.78
+      cultivationScale === 0
+      || route.distance >= route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters * 0.78
       || this.waterSignedDistance(x, z) > -0.2
       || this.isInterior(x, z)
       || this.isBridgeDeck(x, z)
@@ -3231,7 +3244,7 @@ export class WorldLayout {
         : 1;
     return {
       ...sample,
-      surfaceOffsetMeters: sample.surfaceOffsetMeters * bridgeGatewayBlend
+      surfaceOffsetMeters: sample.surfaceOffsetMeters * bridgeGatewayBlend * cultivationScale
     };
   }
 
@@ -3466,9 +3479,8 @@ export class WorldLayout {
 
   public static farmSoilInfluence(x: number, z: number): number {
     if (this.terrainPatchAt(x, z)?.islandId === "island.sunreach") {
-      const localX = x - SUNREACH_ANCHORS.terraceFarm.x;
-      const localZ = z - 5;
-      return clamp01(1 - smoothstep(0.82, 1.16, Math.hypot(localX / 27, localZ / 31)));
+      // Soil silhouettes follow the same rectangles that accept saved crops.
+      return 1 - sunreachRoadEarthworkScale(x, z);
     }
     const localX = x - STARTER_FARM_LAYOUT.origin.x;
     const localZ = z - STARTER_FARM_LAYOUT.origin.z;
@@ -3579,11 +3591,20 @@ export class WorldLayout {
       rockShelfProp = 0.55;
       cliffProp = 0.20;
     }
+    const mainlandWeight = mainlandBlendAt(x, z);
+    if (mainlandWeight > 0 && coastDistance > -60) {
+      // The mainland shore is sand, shelf or cliff by the same geology that
+      // shaped its profile, not by district rectangles.
+      const shore = mainlandShoreCharacterAt(x, z);
+      beachProp = THREE.MathUtils.lerp(beachProp, (1 - shore.cliff) * 0.86, mainlandWeight);
+      rockShelfProp = THREE.MathUtils.lerp(rockShelfProp, 0.14 + shore.cliff * 0.2, mainlandWeight);
+      cliffProp = THREE.MathUtils.lerp(cliffProp, shore.cliff * 0.86, mainlandWeight);
+      beachWidth = THREE.MathUtils.lerp(beachWidth, 20 - shore.cliff * 16 - shore.shelter * 8, mainlandWeight);
+    }
 
     const coastBandWidth = Math.max(22, beachWidth + 6);
     const coastBand = coastDistance <= 0 ? smoothstep(-coastBandWidth, -0.12, coastDistance) : 0;
     const slopeCliff = clamp01((0.76 - normalY) / 0.3);
-    const mainlandWeight = mainlandBlendAt(x, z);
     const mainlandBiome = mainlandBiomeWeightsAt(x, z);
     const highland = mainlandBiome.highlands;
     const marsh = mainlandBiome.reedMarsh;
@@ -3599,8 +3620,10 @@ export class WorldLayout {
     const mainlandElevation = mainlandWeight > 0 ? this.naturalTerrainHeight(x, z) : 0;
     const uplandHeath = highland * inlandBiome * groundMosaic
       * smoothstep(24, 65, mainlandElevation);
+    // Mainland rock follows the landform: crests, upper faces and scree
+    // chutes, not a fixed height band.
     const mountainExposure = Math.max(sampleNevaLandforms(x, z).exposure,
-      highland * smoothstep(28, 75, mainlandElevation));
+      mainlandWeight > 0 ? mainlandMountainExposureAt(x, z) * mainlandWeight : 0);
     const mountainCliff = mountainExposure
       * (0.18 + (1 - smoothstep(0.6, 0.92, normalY)) * 0.82)
       * (1 - Math.max(path, shoulder) * 0.94);
@@ -3750,8 +3773,9 @@ export class WorldLayout {
       route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters,
       route.distance
     )) * dryRoute;
-    const path = packedCore;
-    const shoulder = Math.max(0, shoulderOuter - packedCore * 0.72) * 0.52;
+    const cultivationScale = sunreachRoadEarthworkScale(x, z);
+    const path = packedCore * cultivationScale;
+    const shoulder = Math.max(0, shoulderOuter - packedCore * 0.72) * 0.52 * cultivationScale;
     const farm = this.farmSoilInfluence(x, z);
     const wet = this.shorelineWetness(x, z);
     const normalY = sampledNormalY ?? this.terrainNormalY(x, z);
@@ -4180,10 +4204,38 @@ export class WorldLayout {
       const dryRidgeExposure = terrainDryClimateWeight(canonicalSample)
         * (canonicalSample.drainage?.slope ?? 0)
         * CANONICAL_RENDER_CONFIG.terrainSurface.dryRidgeExposureStrength;
-      const surfaceSample = withExposedRock(canonicalSample, Math.max(headlandExposure, dryRidgeExposure));
+      // Presentation-only mountain rock: Neva and mainland highlands share the
+      // same exposure field the semantic sample already uses for mountainCliff,
+      // but terrainDryClimateWeight is Sunreach-only, so their faces never
+      // received the dry-ridge mineral read at bake time. Convert grass/meadow
+      // to cliff through withExposedRock (canonical weights stay untouched) and
+      // drive a separate dry-climate tint for ochre crests and warm stone.
+      const mainlandBakeWeight = mainlandBlendAt(x, z);
+      const mountainExposure = Math.max(
+        sampleNevaLandforms(x, z).exposure,
+        mainlandBakeWeight > 0 ? mainlandMountainExposureAt(x, z) * mainlandBakeWeight : 0
+      );
+      const mountainSlope = 1 - smoothstep(0.55, 0.9, normalY);
+      const mountainRockExposure = mountainExposure
+        * (0.28 + mountainSlope * 0.72)
+        * (1 - Math.max(canonicalSample.weights.path, canonicalSample.weights.shoulder) * 0.94)
+        * CANONICAL_RENDER_CONFIG.terrainSurface.mountainRockExposureStrength;
+      const surfaceSample = withExposedRock(
+        canonicalSample,
+        Math.max(headlandExposure, dryRidgeExposure, mountainRockExposure)
+      );
       surfaceSamples[index] = surfaceSample;
       const weights = surfaceSample.weights;
-      const dryClimate = terrainDryClimateWeight(surfaceSample);
+      const mountainDryClimate = Math.max(
+        0,
+        mountainExposure * (0.34 + mountainSlope * 0.66)
+          * (1 - surfaceSample.farmInfluence)
+          * CANONICAL_RENDER_CONFIG.terrainSurface.mountainDryClimateStrength
+      );
+      const dryClimate = Math.max(
+        terrainDryClimateWeight(surfaceSample),
+        mountainDryClimate
+      );
       indexedDryClimate[index] = Math.round(dryClimate * 255);
       const routeUnderlayWeight = weights.path + weights.shoulder;
       const vegetationShare = weights.grass + weights.meadow;

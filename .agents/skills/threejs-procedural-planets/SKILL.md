@@ -1,16 +1,15 @@
 ---
 name: threejs-procedural-planets
-description: "Author procedural planetary bodies in Three.js. Use for spherical terrain, continents, craters, biome masks, coastlines, altitude LOD, and orbit-to-close-approach detail. Not for standalone field bundles or atmosphere scattering."
+description: Author procedural planetary bodies in Three.js. Use for spherical terrain, continents, ridges, craters, biome masks, coastlines, material variation, analytic normals, altitude LOD, and bodies that must hold up from orbit through close approach.
 ---
 
 # Procedural Planets
 
-- **Runtime contract.** Backend: WebGL2 (`WebGLRenderer`) — no `three/webgpu` dependency. Min three: verify the installed `three` before adapting. Fallback: n/a. Verified: skill pack 2026-09.
-- **Scope and evidence.** Follow `../CONVENTIONS.md` and the repository task route.
-
 Build a planet as a coupled field system evaluated on a unit direction. The same geological causes must drive geometry, color, roughness, normal, atmosphere handoff, and distance filtering.
 
-Examples are references, not templates: preserve their invariants, vary what is not load-bearing, and state which example you adapted (see `../CONVENTIONS.md`).
+This skill contains exemplary examples and assets beyond descriptive guidance,
+they're worth studying, referencing, or even copying. Use them sufficiently
+when relevant and do NOT blindly skip them.
 
 ## Required build order
 
@@ -30,9 +29,7 @@ and its [shared terrain field](examples/procedural-planet-surface/terrain-field.
 for undeformed sphere coordinates, shared CPU/GLSL terrain, coupled biome and
 material causes, derivative bump, and altitude-filtered detail.
 
-## Invariants and strong defaults
-
-Use these checks for the affected mechanism. Preserve concrete ownership, correctness and reproducibility contracts; adapt stylistic and tuning defaults to the brief (`../CONVENTIONS.md`).
+## Non-negotiable constraints
 
 - Domain-warp tangentially and renormalize; do not distort the sphere radially.
 - Craters need floor, wall, rim, and optional ejecta—not dark circles.

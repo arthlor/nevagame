@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import { HumanoidAnimator, type PlayerAnimation } from "../../src/render/animation/AnimationController";
 import { HumanoidFootSupportSolver } from "../../src/render/animation/HumanoidFootSupportSolver";
@@ -11,6 +10,7 @@ import { ASSET_BY_ID, ASSET_CATALOG, type AssetId } from "../../src/render/asset
 import { alignEquipmentHands, alignMarkerHand, alignSupportFeet, applyEquipmentSocketPose, createCarryCradle, PALM_GRIP_FRAME, rowboatOarRotation } from "../../src/render/animation/CharacterEquipment";
 
 import { characterPreviewContext } from "../../src/art-yard/characterPreview";
+import { createNodeGltfLoader } from "../helpers/nodeGltfLoader";
 
 const candidateDirectory = process.env.NEVA_HUMANOID_CANDIDATE_DIR;
 const equipmentDirectory = process.env.NEVA_EQUIPMENT_CANDIDATE_DIR;
@@ -35,7 +35,7 @@ async function loadAsset(id: AssetId, character = false, published = false): Pro
     bytes = await fs.readFile(path.resolve(directory, `${id}.glb`));
   }
   await MeshoptDecoder.ready;
-  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer, "");
+  const gltf = await createNodeGltfLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer, "");
   const root = gltf.scene;
   const spec = ASSET_BY_ID.get(id)!;
   root.userData.assetId = id;
@@ -138,7 +138,7 @@ describe("real equipment palm integration", () => {
     for (const [assetId, clips] of actions) {
       const carried = assetId.startsWith("prop_crop_bundle") || assetId.startsWith("fish_");
       const payload = await loadAsset(assetId, false, carried);
-      const equipment = carried ? createCarryCradle(payload, assetId.startsWith("fish_")) : payload;
+      const equipment = carried ? createCarryCradle(payload, assetId.startsWith("fish_") ? "fish" : "bundle") : payload;
       (carried ? carrySocket : toolSocket).add(equipment);
       for (const clip of clips) {
         animator.setPreviewClip(clip);
