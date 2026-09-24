@@ -694,6 +694,49 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.village.fence-a.copy.1", { assetId: "prop_fence_wood_a", x: 35.8, z: -78.0, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
   authoredPlacement("authored.village.fence-a.copy.2", { assetId: "prop_fence_wood_a", x: 38.6, z: -78.0, rotationY: 3.1416, scale: [0.9, 0.9, 0.9] }),
   authoredPlacement("authored.village.fence-b", { assetId: "prop_fence_wood_a", x: 31.5, z: -76.0, rotationY: 1.5708, scale: [0.9, 0.9, 0.9] }),
+  // Village life (layout 30). The dovecote stands on the square's quiet
+  // north-east corner, under the first dove rings (`PIGEON_ORBITS`), so the
+  // flock has a reason to circle there; its box collider is why layout 30
+  // recovers saved poses. Washing hangs in the west cottage's back yard and two
+  // banners flank the market hall's frontage, all off the roads and the crossing.
+  authoredPlacement("authored.village.dovecote", { assetId: "building_dovecote_a", x: 47.5, z: -57.8, rotationY: 0.35, scale: [1, 1, 1], grounding: [0.67, 0.67] }),
+  authoredPlacement("authored.village.laundry-line", { assetId: "prop_laundry_line_a", x: 30.5, z: -55.5, rotationY: 0, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.banner-hall-north", { assetId: "prop_banner_cloth_a", x: 61.8, z: -51.1, rotationY: -2.05, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.banner-hall-south", { assetId: "prop_banner_cloth_a", x: 64.6, z: -56.4, rotationY: -2.05, scale: [1, 1, 1] }),
+  // Sheep paddock on the flat meadow south of the south cottage, west of the
+  // road. Post-and-rail panels, stretched to meet at the corners, close every
+  // side except one east panel: the gate to the road.
+  authoredPlacement("authored.village.paddock.fence-east-0", { assetId: "prop_fence_wood_a", x: 58.4, z: -87.7, rotationY: 1.5708, scale: [0.987, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-east-2", { assetId: "prop_fence_wood_a", x: 58.4, z: -92.1, rotationY: 1.5708, scale: [0.987, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-east-3", { assetId: "prop_fence_wood_a", x: 58.4, z: -94.3, rotationY: 1.5708, scale: [0.987, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-east-4", { assetId: "prop_fence_wood_a", x: 58.4, z: -96.5, rotationY: 1.5708, scale: [0.987, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-north-0", { assetId: "prop_fence_wood_a", x: 47.78, z: -86.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-north-1", { assetId: "prop_fence_wood_a", x: 50.14, z: -86.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-north-2", { assetId: "prop_fence_wood_a", x: 52.5, z: -86.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-north-3", { assetId: "prop_fence_wood_a", x: 54.86, z: -86.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-north-4", { assetId: "prop_fence_wood_a", x: 57.22, z: -86.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-south-0", { assetId: "prop_fence_wood_a", x: 47.78, z: -97.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-south-1", { assetId: "prop_fence_wood_a", x: 50.14, z: -97.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-south-2", { assetId: "prop_fence_wood_a", x: 52.5, z: -97.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-south-3", { assetId: "prop_fence_wood_a", x: 54.86, z: -97.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-south-4", { assetId: "prop_fence_wood_a", x: 57.22, z: -97.6, rotationY: 0, scale: [1.058, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-west-0", { assetId: "prop_fence_wood_a", x: 46.6, z: -87.7, rotationY: 1.5708, scale: [0.987, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-west-1", { assetId: "prop_fence_wood_a", x: 46.6, z: -89.9, rotationY: 1.5708, scale: [0.987, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-west-2", { assetId: "prop_fence_wood_a", x: 46.6, z: -92.1, rotationY: 1.5708, scale: [0.987, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-west-3", { assetId: "prop_fence_wood_a", x: 46.6, z: -94.3, rotationY: 1.5708, scale: [0.987, 1, 1] }),
+  authoredPlacement("authored.village.paddock.fence-west-4", { assetId: "prop_fence_wood_a", x: 46.6, z: -96.5, rotationY: 1.5708, scale: [0.987, 1, 1] }),
+  authoredPlacement("authored.village.paddock.ewe-a", { assetId: "fauna_sheep_a", x: 50.4, z: -89.6, rotationY: 0.7, scale: [1.05, 1.05, 1.05] }),
+  authoredPlacement("authored.village.paddock.ewe-b", { assetId: "fauna_sheep_a", x: 53.8, z: -92.1, rotationY: 2.4, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.paddock.ewe-c", { assetId: "fauna_sheep_a", x: 56.3, z: -88.7, rotationY: -1.9, scale: [0.95, 0.95, 0.95] }),
+  authoredPlacement("authored.village.paddock.ewe-d", { assetId: "fauna_sheep_a", x: 51.6, z: -94.9, rotationY: -0.4, scale: [1.1, 1.1, 1.1] }),
+  // River ducks on the reach nearest the village, upstream of the middle-river
+  // fishing reserve and the bridge. This reach is at sea level, so each duck
+  // floats 6 cm into the water with no land footprint.
+  authoredPlacement("authored.village.river.duck-a", { assetId: "fauna_duck_a", x: -22.35, z: -66.4, y: -0.06, rotationY: 2.9, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.river.duck-b", { assetId: "fauna_duck_a", x: -21.15, z: -65.1, y: -0.06, rotationY: 3.4, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.river.duck-c", { assetId: "fauna_duck_a", x: -14.78, z: -60.3, y: -0.06, rotationY: -2.8, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.river.duck-d", { assetId: "fauna_duck_a", x: -15.44, z: -58.8, y: -0.06, rotationY: 2.6, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.river.duck-e", { assetId: "fauna_duck_a", x: -15.62, z: -55.2, y: -0.06, rotationY: 3.1, scale: [1, 1, 1] }),
   // The village keeps four dwellings plus the market hall, all on the square
   // ring with +Z doors facing the produce stall: the relocated farmhouse (inn),
   // a second farmhouse on the southwest approach, and two cottages west and

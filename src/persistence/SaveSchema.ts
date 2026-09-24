@@ -33,7 +33,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 59;
+export const CURRENT_SCHEMA_VERSION = 60;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -148,8 +148,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 59
+    (schemaVersion >= 60
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 59
+      ? state.world.layoutRevision !== 29
       : schemaVersion >= 58
       ? state.world.layoutRevision !== 28
       : schemaVersion >= 57
