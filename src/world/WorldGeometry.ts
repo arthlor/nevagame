@@ -40,17 +40,15 @@ export function isInsideLoop(
  * winner, and ties resolve to the lowest segment index as a forward walk does.
  */
 export class LoopSegmentIndex {
-  private readonly cells = new Map<number, number[]>();
+  /** Lazily built per cell; see `cellCandidates`. */
+  private readonly candidates = new Map<number, Int32Array>();
   private readonly rows = new Map<number, number[]>();
-  private readonly stamp: Uint32Array;
-  private query = 0;
   private readonly minCellX: number;
   private readonly maxCellX: number;
   private readonly minCellZ: number;
   private readonly maxCellZ: number;
 
   constructor(readonly loop: readonly Readonly<Point2D>[], readonly cellMeters = 32) {
-    this.stamp = new Uint32Array(loop.length);
     let minCellX = Infinity, maxCellX = -Infinity, minCellZ = Infinity, maxCellZ = -Infinity;
     for (let index = 0; index < loop.length; index++) {
       const a = loop[index], b = loop[(index + 1) % loop.length];
@@ -58,11 +56,6 @@ export class LoopSegmentIndex {
       const z0 = Math.floor(Math.min(a.z, b.z) / cellMeters), z1 = Math.floor(Math.max(a.z, b.z) / cellMeters);
       minCellX = Math.min(minCellX, x0); maxCellX = Math.max(maxCellX, x1);
       minCellZ = Math.min(minCellZ, z0); maxCellZ = Math.max(maxCellZ, z1);
-      for (let cx = x0; cx <= x1; cx++) for (let cz = z0; cz <= z1; cz++) {
-        const key = this.key(cx, cz), bucket = this.cells.get(key) ?? [];
-        bucket.push(index);
-        this.cells.set(key, bucket);
-      }
       for (let row = z0; row <= z1; row++) {
         const bucket = this.rows.get(row) ?? [];
         bucket.push(index);
@@ -78,12 +71,46 @@ export class LoopSegmentIndex {
   }
 
   /**
+   * Segments that can be nearest for some point of cell (cx, cz), ascending.
+   * Distance to a segment is 1-Lipschitz and convex, so over the cell it lies
+   * within `d(centre) ± half-diagonal` and peaks at a corner. A winner, and any
+   * segment tied with it, therefore satisfies `d(centre) - half <= bound`,
+   * where `bound` is the least corner maximum over all segments. The margin
+   * absorbs floating-point rounding; extra candidates never change the answer.
+   */
+  private cellCandidates(cx: number, cz: number): Int32Array {
+    const key = this.key(cx, cz);
+    const cached = this.candidates.get(key);
+    if (cached) return cached;
+    const loop = this.loop, cell = this.cellMeters, count = loop.length;
+    const x0 = cx * cell, z0 = cz * cell, x1 = x0 + cell, z1 = z0 + cell;
+    const centerX = x0 + cell / 2, centerZ = z0 + cell / 2, half = cell * Math.SQRT1_2;
+    const centerDistance = new Float64Array(count);
+    let bound = Infinity;
+    for (let segment = 0; segment < count; segment++) {
+      const a = loop[segment], b = loop[(segment + 1) % count];
+      centerDistance[segment] = pointSegmentDistance(centerX, centerZ, a, b);
+      bound = Math.min(bound, Math.max(
+        pointSegmentDistance(x0, z0, a, b), pointSegmentDistance(x1, z0, a, b),
+        pointSegmentDistance(x0, z1, a, b), pointSegmentDistance(x1, z1, a, b)
+      ));
+    }
+    const selected: number[] = [];
+    for (let segment = 0; segment < count; segment++) {
+      if (centerDistance[segment] - half <= bound + 1e-6) selected.push(segment);
+    }
+    const list = Int32Array.from(selected);
+    this.candidates.set(key, list);
+    return list;
+  }
+
+  /**
    * Index of the segment (from vertex `i` to `i + 1`) minimising `distanceOf`,
    * which must be a point-to-segment distance for the query point.
    */
   nearest(x: number, z: number, distanceOf: (segment: number) => number): { segment: number; distance: number } {
-    const cell = this.cellMeters;
-    const gx = Math.floor(x / cell), gz = Math.floor(z / cell);
+    const gx = Math.floor(x / this.cellMeters), gz = Math.floor(z / this.cellMeters);
+    const outside = Math.max(this.minCellX - gx, gx - this.maxCellX, this.minCellZ - gz, gz - this.maxCellZ);
     let best = Infinity, bestSegment = -1;
     const consider = (segment: number): void => {
       const distance = distanceOf(segment);
@@ -92,31 +119,12 @@ export class LoopSegmentIndex {
         bestSegment = segment;
       }
     };
-    const outside = Math.max(this.minCellX - gx, gx - this.maxCellX, this.minCellZ - gz, gz - this.maxCellZ);
-    if (outside > 4) {
+    // Candidate lists cover the whole playable world; only absurdly distant
+    // queries walk the loop, which also keeps every cell key in range.
+    if (outside > 128) {
       for (let segment = 0; segment < this.loop.length; segment++) consider(segment);
-      return { segment: bestSegment, distance: best };
-    }
-    this.query = (this.query + 1) >>> 0;
-    if (this.query === 0) { this.stamp.fill(0); this.query = 1; }
-    const fx = x - gx * cell, fz = z - gz * cell;
-    const edgeGap = Math.min(fx, cell - fx, fz, cell - fz);
-    const maxRing = Math.max(gx - this.minCellX, this.maxCellX - gx, gz - this.minCellZ, this.maxCellZ - gz);
-    for (let ring = 0; ring <= maxRing; ring++) {
-      // Every unvisited segment lies wholly in cells at least this far away.
-      if (ring >= 1 && (ring - 1) * cell + edgeGap > best) break;
-      for (let cx = gx - ring; cx <= gx + ring; cx++) {
-        const edge = cx === gx - ring || cx === gx + ring;
-        for (let cz = gz - ring; cz <= gz + ring; cz += edge ? 1 : ring * 2) {
-          const bucket = this.cells.get(this.key(cx, cz));
-          if (bucket) for (const segment of bucket) {
-            if (this.stamp[segment] === this.query) continue;
-            this.stamp[segment] = this.query;
-            consider(segment);
-          }
-          if (ring === 0) break;
-        }
-      }
+    } else {
+      for (const segment of this.cellCandidates(gx, gz)) consider(segment);
     }
     return { segment: bestSegment, distance: best };
   }

@@ -25,7 +25,9 @@ describe("Neva coastline", () => {
     for (let x = -1150; x <= 450; x += 9.37) for (let z = -1050; z <= 1050; z += 8.91) points.push({ x, z });
     for (const vertex of NEVA_COAST_LOOP) points.push({ ...vertex }, { x: vertex.x + 0.25, z: vertex.z - 0.25 });
     for (let x = -896; x <= 224; x += 32) points.push({ x, z: -512 }, { x, z: 480 });
-    points.push({ x: 4000, z: -3000 }, { x: -5000, z: 0 });
+    points.push({ x: 4000, z: -3000 }, { x: -5000, z: 0 }, { x: 30000, z: -20000 });
+    // The open water east toward Sunreach, where the water field bakes most texels.
+    for (let x = 450; x <= 1700; x += 23.3) for (let z = -950; z <= 900; z += 19.7) points.push({ x, z });
     for (const { x, z } of points) {
       expect(signedDistanceToNevaCoast(x, z), `${x},${z}`).toBe(bruteSignedDistance(x, z, NEVA_COAST_LOOP));
       expect(nevaCoastIndex().contains(x, z), `${x},${z}`).toBe(isInsideLoop(x, z, NEVA_COAST_LOOP));

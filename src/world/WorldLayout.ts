@@ -3,7 +3,7 @@ import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS, oceanIsletAt, isletShoreDistanc
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { sunreachRoadEarthworkScale } from "./SunreachLivingLayout";
 import { MAINLAND_ROUTES, mainlandBlendAt, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandMountainExposureAt, mainlandNaturalHeight, mainlandShoreCharacterAt, mainlandRegionAt, mainlandWaterSample, mainlandRoadBenchAt } from "./NevaMainland";
-import { isInsideLoop } from "./WorldGeometry";
+import { isInsideLoop, pointSegmentDistance, type LoopSegmentIndex } from "./WorldGeometry";
 import { MAINLAND_ARCHITECTURE_PADS } from "./MainlandSettlementLayout";
 import { surfaceFieldAttributeSteps } from "../render/materials/SurfaceFieldAttributes";
 import { runSync, runCooperatively } from "../utils/CooperativeTask";
@@ -58,6 +58,7 @@ import {
   WORLD_TERRAIN_PATCHES,
   worldIslandDefinitions,
   signedDistanceToNevaCoast,
+  nevaCoastIndex,
   type FishingEcologyDefinition,
   type MarineSample,
   type SailingRequirement,
@@ -2062,10 +2063,16 @@ export class WorldLayout {
     return this.waterSurfaceElevation(x, z) - this.terrainBaseSurfaceHeight(x, z);
   }
 
+  /**
+   * Nearest-segment projection. With the loop's exact index the winning
+   * segment is found from its candidates instead of a full walk; the distance
+   * arithmetic and the lowest-index tie rule are identical either way.
+   */
   private static projectPointToCoastLoop(
     x: number,
     z: number,
-    loop: readonly Readonly<{ x: number; z: number }>[]
+    loop: readonly Readonly<{ x: number; z: number }>[],
+    index?: LoopSegmentIndex
   ): {
     dist: number;
     segIndex: number;
@@ -2078,7 +2085,11 @@ export class WorldLayout {
     let bestQ: WorldVec2 = { x: loop[0].x, z: loop[0].z };
     let bestTangent: WorldVec2 = { x: 1, z: 0 };
 
-    for (let i = 0; i < loop.length; i++) {
+    const nearest = index?.nearest(x, z, (segment) =>
+      pointSegmentDistance(x, z, loop[segment], loop[(segment + 1) % loop.length]));
+    const first = nearest ? Math.max(0, nearest.segment) : 0;
+    const last = nearest ? (nearest.segment < 0 ? -1 : nearest.segment) : loop.length - 1;
+    for (let i = first; i <= last; i++) {
       const a = loop[i];
       const b = loop[(i + 1) % loop.length];
       const dx = b.x - a.x;
@@ -2102,7 +2113,8 @@ export class WorldLayout {
     let nx = -bestTangent.z;
     let nz = bestTangent.x;
     const probeDist = 0.2;
-    const probeInside = isInsideLoop(bestQ.x + probeDist * nx, bestQ.z + probeDist * nz, loop);
+    const probeX = bestQ.x + probeDist * nx, probeZ = bestQ.z + probeDist * nz;
+    const probeInside = index ? index.contains(probeX, probeZ) : isInsideLoop(probeX, probeZ, loop);
     if (probeInside) {
       nx = -nx;
       nz = -nz;
@@ -2119,12 +2131,12 @@ export class WorldLayout {
 
   /** Coherent projection of a world position onto the nearest authoritative shoreline (W03). */
   public static shoreProjectionAt(x: number, z: number): ShoreProjection {
-    const nevaProj = this.projectPointToCoastLoop(x, z, NEVA_COAST_LOOP);
+    const nevaProj = this.projectPointToCoastLoop(x, z, NEVA_COAST_LOOP, nevaCoastIndex());
     const sunreachProj = this.projectPointToCoastLoop(x, z, SUNREACH_COAST_LOOP);
 
     let bestProj = nevaProj;
     let bestIslandId: WorldIslandId = "island.neva";
-    let bestInside = isInsideLoop(x, z, NEVA_COAST_LOOP);
+    let bestInside = nevaCoastIndex().contains(x, z);
 
     if (sunreachProj.dist < bestProj.dist) {
       bestProj = sunreachProj;
