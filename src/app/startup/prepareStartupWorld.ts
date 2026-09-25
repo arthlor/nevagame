@@ -3,6 +3,7 @@ import { WorldScene } from "../../render/scene/WorldScene";
 import { AssetLoader } from "../../render/loaders/AssetLoader";
 import { degradedSurfaceResources } from "../../render/materials/ExternalSurfaceTextures";
 import { PhysicsWorld } from "../../physics/PhysicsWorld";
+import { prefetchEnvironmentLayoutBake } from "../../world/loadEnvironmentLayoutBake";
 import { StartupTimeoutError } from "../StartupLoading";
 import type { StartupCoordinator } from "../StartupCoordinator";
 import type { StartupState } from "../StartupState";
@@ -24,6 +25,8 @@ export async function prepareStartupWorld({ attempt, state, scene, onState }: St
   // Rapier's WASM compiles while the world prepares; physics creation below awaits the same load.
   PhysicsWorld.loadRuntime().catch(() => undefined);
   onState({ phase: "layout", message: "Preparing the coast", subMessage: "Preparing paths and places" });
+  // The layout stage waits on the baked layout, so its download starts before the model transfers.
+  prefetchEnvironmentLayoutBake(state.worldSeed, attempt.signal);
   // The largest required models (landmarks, the player, the cast) do not depend on the generated
   // layout, so their transfers run while it is generated. Failures surface in the asset stage,
   // which requests the same IDs again.

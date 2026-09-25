@@ -15,6 +15,7 @@ vi.mock("../../src/render/loaders/AssetLoader", () => ({
   AssetLoader: { preload: vi.fn() }
 }));
 vi.mock("../../src/render/materials/ExternalSurfaceTextures", () => ({ degradedSurfaceResources: [] }));
+vi.mock("../../src/world/loadEnvironmentLayoutBake", () => ({ prefetchEnvironmentLayoutBake: vi.fn() }));
 vi.mock("../../src/physics/PhysicsWorld", () => ({
   PhysicsWorld: {
     loadRuntime: vi.fn(async () => ({})),
@@ -29,10 +30,11 @@ function deferred() {
 }
 
 describe("startup world preparation", () => {
-  it("warms physics and starts layout-independent transfers while the layout is prepared", async () => {
+  it("warms physics and starts the layout bake, then layout-independent transfers, while the layout is prepared", async () => {
     const { AssetLoader } = await import("../../src/render/loaders/AssetLoader");
     const { WorldScene } = await import("../../src/render/scene/WorldScene");
     const { PhysicsWorld } = await import("../../src/physics/PhysicsWorld");
+    const { prefetchEnvironmentLayoutBake } = await import("../../src/world/loadEnvironmentLayoutBake");
     const { prepareStartupWorld } = await import("../../src/app/startup/prepareStartupWorld");
     const layout = deferred();
     vi.mocked(AssetLoader.preload).mockReset().mockImplementation(async () => undefined);
@@ -51,6 +53,9 @@ describe("startup world preparation", () => {
     expect(AssetLoader.preload).toHaveBeenCalledOnce();
     expect(vi.mocked(AssetLoader.preload).mock.calls[0][0]).toEqual(earlyAssetIds);
     expect(vi.mocked(AssetLoader.preload).mock.calls[0][3]).toBe(attempt.signal);
+    expect(prefetchEnvironmentLayoutBake).toHaveBeenCalledWith(42, attempt.signal);
+    expect(vi.mocked(prefetchEnvironmentLayoutBake).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(AssetLoader.preload).mock.invocationCallOrder[0]);
 
     layout.resolve();
     await work;
