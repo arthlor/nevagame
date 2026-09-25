@@ -16,7 +16,7 @@ that the evidence covers the changed inputs and the gate being claimed.
 | Architecture, state and migrations (P0/P2) | `01` §5–§7; `src/persistence/SaveSchema.ts`, `SaveMigrations.ts`; retained fixtures | Only `01` §6.1 owns migration history. A source/type inspection is not a save/reload test. |
 | Gameplay/content (P3–P11/P13) | `02`; `src/content/` and `ContentRegistry`; `content:validate` | Registry validation establishes content consistency, not player comprehension, balance or continuous traversal. |
 | Visual direction (P0.5/P0.75) | `04`; `tests/visual/reference/approved-baselines.json` | The registry records accepted bridge/farm/harbor/coast human scope. It does not approve later changed scenes or close render/strict/determinism gates. |
-| Published asset state and technical certification | `generated/reports/asset_budget_report.json` and generated/public manifests; `BLENDER.md` §2/§6 | Published state is distinct from run-local rejected candidates. Read the current report; no copied asset count or debt list here. |
+| Published asset state and technical certification | `generated/reports/asset_budget_report.json` and generated/public manifests; `ASSET_PRODUCTION.md` §2/§6 | Published state is distinct from run-local rejected candidates. Read the current report; no copied asset count or debt list here. |
 | Product loop (P12) | `03` §18 and `02` §19; retained product record below | A human quest-ending playthrough was recorded. Automated continuous save/reload and release browser coverage remain independent evidence. |
 | HUD, world, physics and audio changes (P1/P14) | Their owning documents and source; retained focused records below | Each source/unit/browser/listening result applies only to its stated scenario. Current integrated visual/mix approval is a separate claim. |
 | Performance/browser/release (P15/P16) | `03` §21/§22; §4 validation matrix; isolated production reports | DEV diagnostics, distribution size, software rendering, hardware timing and full-loop browser acceptance prove different things. A release claim needs the required matching-input records. |
@@ -617,7 +617,7 @@ Canonical Markdown currently in `LLM/` (do not list deleted files):
 - `LLM/06_AUDIO_AND_MUSIC_DESIGN_MASTER.md`
 - `LLM/LLM_AGENT_ART_PIPELINE_INSTRUCTIONS.md`
 - `LLM/ARCHEAGE_FARMING_SYSTEM.md`
-- `LLM/BLENDER.md`
+- `LLM/ASSET_PRODUCTION.md` (renamed from `LLM/BLENDER.md` when the Blender pipeline was removed)
 - `LLM/LAYOUT_EDITOR.md`
 - `LLM/IMPLEMENTATION_STATUS_CHECKLIST.md`
 

@@ -78,7 +78,7 @@ function inputManifest() {
     "tools/vite",
     "tools/layout-editor",
     "tools/art",
-    "tools/blender/asset_budgets.json",
+    "tools/art/asset_budgets.json",
     "index.html",
     "package.json",
     "package-lock.json",

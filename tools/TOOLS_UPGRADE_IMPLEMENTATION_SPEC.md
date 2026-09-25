@@ -1,7 +1,8 @@
 # Neva Tools Architecture & Implementation Specification (v2.0)
 
-> **Document Status:** Authoritative Engineering Blueprint & Reference Implementation Guide  
-> **Target Subsystems:** `tools/blender`, `tools/art`, `tools/art-yard`, `tools/layout-editor`, `tools/ui`, `tools/audio`, `tools/vite`, `tests/e2e`  
+> **Document Status:** Historical engineering blueprint and reference implementation guide. It is not a project authority: root `AGENTS.md` routes work, and the code it names owns current behaviour.  
+> **Superseded parts:** The Blender pipeline this blueprint targeted was retired. The worker pool (§2.2, `tools/blender/pool.mjs`) and the Blender version term in the cache hash (§2.1) no longer exist; the art pipeline is Node only (`tools/art/cli.mjs`, `tools/art/cache.mjs`, `tools/art/optimize.mjs`), its cache keys on the producer version, authored sources and, for authored GLBs, source bytes, and `LLM/ASSET_PRODUCTION.md` owns its operation. Code blocks naming `tools/blender/` are kept as the historical design record.  
+> **Target Subsystems:** `tools/art`, `tools/authored`, `tools/art-yard`, `tools/layout-editor`, `tools/ui`, `tools/audio`, `tools/vite`, `tests/e2e`  
 > **Core Objective:** Provide a hardened, deterministic, incremental, and high-velocity developer infrastructure for 3D procedural generation, lossless AST-based level editing, extruded texture atlases, category-normalized Web Audio, and pixel-exact WebGL regression testing.
 
 ---
@@ -120,7 +121,9 @@ export function isAssetCurrent(cacheDir: string, assetId: string, sourceHash: st
 
 ---
 
-### 2.2 Dynamic Work-Stealing Blender Worker Pool (`tools/blender/pool.mjs`)
+### 2.2 Dynamic Work-Stealing Blender Worker Pool (`tools/blender/pool.mjs`) — retired
+
+> Retired with the Blender pipeline. Authored generators build in-process in Node; nothing spawns Blender.
 
 #### Architecture Contract
 - **Work-Stealing Queue**: Assets are pulled from a shared concurrent FIFO queue, preventing slow complex assets (e.g. multi-story buildings) from bottlenecking static chunks.

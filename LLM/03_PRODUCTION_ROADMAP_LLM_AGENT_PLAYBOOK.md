@@ -64,8 +64,8 @@ independent technical or release gates remain open.
 | UI styling/presentation | Diff and affected layout/interaction states in the browser or the user's requested live review; focused semantic check when useful | Input, focus, responsive or DTO changes require their affected interaction checks; screenshots do not prove callbacks |
 | Gameplay/formula/content | Focused domain/content tests and direct typecheck; exercise changed callers and realistic failure/atomicity cases | Browser for changed player interaction; connected-loop playtest for a new mechanic or material balance change |
 | Save/schema/topology | §25: retained fixtures, migration/reload/idempotence and backup preservation, affected domain tests, typecheck | Continuous gameplay save/reload when the changed path crosses UI/world state |
-| Routine selected asset | `BLENDER.md` §1 selected generation/publication, integration and focused inspection of changed appearance/motion; brief only when changed; typecheck only for runtime TS edits | Capture additional views or motion when an observed defect or uncertainty warrants it. Human visual approval remains separate; no routine strict, double-generation, numeric scoring or full-suite gate |
-| Shared generator/helper | `BLENDER.md` §2 affected-family generation, builder coverage where applicable, determinism and publication | Revisit affected gold slices when the visual contract materially changes |
+| Routine selected asset | `ASSET_PRODUCTION.md` §1 selected generation/publication, integration and focused inspection of changed appearance/motion; brief only when changed; typecheck only for runtime TS edits | Capture additional views or motion when an observed defect or uncertainty warrants it. Human visual approval remains separate; no routine strict, double-generation, numeric scoring or full-suite gate |
+| Shared generator/kit/pipeline | `ASSET_PRODUCTION.md` §2 affected-family generation, kit/pipeline tests (`authoredKit`, `authoredPipeline`, `authoredGlb`, `npm run art:test`) where applicable, determinism and publication | Revisit affected gold slices when the visual contract materially changes |
 | Renderer/material/world performance | Relevant shader/config/geometry checks, affected gameplay-camera scenes and matching-quality production profiling | Tier fallbacks, memory, loading and affected traversal; frozen `world:acceptance` when world composition/topology is the task |
 | Audio | Manifest/source checks and focused lifecycle/trigger tests; actual listening for audible changes | Startup, suspend/resume, loop stop/cancel, repeated-cue load and mix under representative play |
 | DEV layout editor | `LAYOUT_EDITOR.md` checks for affected kinds, input and write targets | Add gameplay/save/physics checks only when their contracts change |
@@ -91,7 +91,7 @@ This is a command reference, not a requirement to run every line per task.
 `npx eslint <affected-paths>` checks selected code; `npx vite build` builds the
 current adapters without the `prebuild` regeneration hook. Asset CLI commands
 require explicit `--asset`, `--family` or authorized release `--all` selectors;
-publication and `art:sync` are mutations. `BLENDER.md` owns their full sequence.
+publication and `art:sync` are mutations. `ASSET_PRODUCTION.md` owns their full sequence.
 
 **Performance lanes.** `npm run art:benchmark` uses the DEV Playwright setup
 (`playwright.art.config.ts`, excluded from `test:e2e` with the budget and visual
@@ -159,13 +159,13 @@ Build and approve, in this order unless a human explicitly changes it:
 3. **Harbor:** dock, rowboat, fish-market/warehouse language, rope/nets/crates, ocean water.
 4. **Coast/lighthouse:** cliffs, dark rocks, graphic foam, atmospheric perspective, sunset variant.
 
-The first accepted slice must demonstrate final-or-near-final geometry language, ground/route/cover/shore agreement, palette/material vocabulary, renderer baseline, water/vegetation direction, scale, and gameplay-distance readability. **Do not mass-produce props, buildings, vegetation families, or zones before the human visual-gold decision is accepted.** Gold-slice heroes with isolated sheets must have those files on disk under `tools/blender/references/isolated/` and identity-defining layout bound into catalog `parameters` (no silent generator defaults for primary structure). `tests/visual/reference/approved-baselines.json` owns recorded baseline images and human decisions. Preserve their scope; `IMPLEMENTATION_STATUS_CHECKLIST.md` owns historical evidence and open gates. Re-review affected slices when their renderer, material, terrain, route or reference contract materially changes.
+The first accepted slice must demonstrate final-or-near-final geometry language, ground/route/cover/shore agreement, palette/material vocabulary, renderer baseline, water/vegetation direction, scale, and gameplay-distance readability. **Do not mass-produce props, buildings, vegetation families, or zones before the human visual-gold decision is accepted.** Gold-slice heroes with isolated sheets must have those files on disk under `tools/art/references/isolated/` and identity-defining layout bound into catalog `parameters` (no silent generator defaults for primary structure). `tests/visual/reference/approved-baselines.json` owns recorded baseline images and human decisions. Preserve their scope; `IMPLEMENTATION_STATUS_CHECKLIST.md` owns historical evidence and open gates. Re-review affected slices when their renderer, material, terrain, route or reference contract materially changes.
 
 **Visual Gold Decision:** human review of the bridge, farm, harbor and coast from the gameplay camera. Per-asset target floors are advisory for this visual decision; production minimums, hard maximums, material/node/palette contracts and runtime validation still apply.
 
 **Technical Render Gate:** validate the published set and measure the affected scenes against their machine-owned budgets. Keep DEV `art:benchmark` diagnostics and production `test:budget`/world evidence labeled separately (§4); an unbatched DEV failure does not establish a production pass or failure. Gate status belongs in the checklist.
 
-**Technical-Art Certification:** strict generation, published-set validation, semantic determinism and reproducible render evidence follow `BLENDER.md` §2. Strict generation currently rejects below-target assets; the generated published report owns the debt. Reassessing an asset target requires a deliberate catalog change and supporting visual/performance evidence, never filler geometry or an undocumented gate waiver.
+**Technical-Art Certification:** strict generation, published-set validation, semantic determinism and reproducible render evidence follow `ASSET_PRODUCTION.md` §2. Strict generation currently rejects below-target assets; the generated published report owns the debt. Reassessing an asset target requires a deliberate catalog change and supporting visual/performance evidence, never filler geometry or an undocumented gate waiver.
 
 # 7. P1 — Walkable World
 
@@ -423,14 +423,14 @@ Lead with changed behavior and why it matters, then give only relevant evidence:
 - Save/migration impact for gameplay or persistence work.
 - Material gaps: browser, human game review, performance, publication or release.
 
-Routine selected-asset reports use the compact `BLENDER.md` handoff, including
+Routine selected-asset reports use the compact `ASSET_PRODUCTION.md` handoff, including
 asset IDs, runtime integration, mechanical publication status, save impact,
 `Docs updated:` and `Awaiting human game review`. No empty screenshot field or
 mandatory full-suite checklist. Never claim success without relevant evidence.
 
 # 31. Reusable Agent Prompts
 
-**Asset generation:** apply root `AGENTS.md`'s generate-asset contract and `BLENDER.md`'s selected production/handoff sequence. Folder attachments and external skills do not broaden the route or authorize provider calls.
+**Asset generation:** apply root `AGENTS.md`'s generate-asset contract and `ASSET_PRODUCTION.md`'s selected production/handoff sequence. Folder attachments and external skills do not broaden the route or authorize provider calls.
 
 **Coding agent:** use scoped task-class reading; preserve no-combat, simulation authority, deterministic RNG, versioned persistence, finite inventory, physical fish cargo, farming/fishing interdependence, DOM text UI, GLB runtime assets, and capability progression. Routine assets follow the lean gate and await human game review; broader coding work runs its proportional validation gate.
 

@@ -13,7 +13,7 @@ can need substantial verification; a large prose edit can need only a diff and
 reference check. “Premium”, “polish” and “AAA” describe quality intent, not a
 release request or a requirement to load every phase.
 
-In Neva, `03` §4 defines verification and `BLENDER.md` defines asset production.
+In Neva, `03` §4 defines verification and `ASSET_PRODUCTION.md` defines asset production.
 Read the owning sections and selected technical references completely; load
 another skill only for an affected mechanism. Use existing checks and diagnostics
 before adding a harness. Broaden for changed inputs, failures or unresolved risk.

@@ -68,7 +68,6 @@ interface Manifest {
   specHash: string;
   paletteHash: string;
   toolchainHash: string;
-  blenderVersion: string;
   vertexColorSpace: string;
   assets: ManifestAsset[];
 }

@@ -345,7 +345,7 @@ describe("real equipment palm integration", () => {
 
 
 it("fits the geometry-derived carry cradle to every source character", async () => {
-  for (const asset of ASSET_CATALOG.filter(asset => asset.family === "character")) {
+  for (const asset of ASSET_CATALOG.filter(asset => asset.family === "character" && asset.humanoidRig)) {
     const root = await loadAsset(asset.id, true);
     const animator = new HumanoidAnimator(root);
     let socket: THREE.Object3D | undefined;

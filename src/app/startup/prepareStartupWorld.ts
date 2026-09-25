@@ -21,15 +21,23 @@ interface StartupWorldOptions {
 
 /** Prepares the required asset set, scene and collision world for the entry commit. */
 export async function prepareStartupWorld({ attempt, state, scene, onState }: StartupWorldOptions): Promise<PhysicsWorld> {
+  // Rapier's WASM compiles while the world prepares; physics creation below awaits the same load.
+  PhysicsWorld.loadRuntime().catch(() => undefined);
   onState({ phase: "layout", message: "Preparing the coast", subMessage: "Preparing paths and places" });
+  // The largest required models (landmarks, the player, the cast) do not depend on the generated
+  // layout, so their transfers run while it is generated. Failures surface in the asset stage,
+  // which requests the same IDs again.
+  const earlyTransfers = AssetLoader.preload(
+    WorldScene.layoutIndependentStartupAssetIds(state), undefined, 6, attempt.signal
+  );
+  earlyTransfers.catch(() => undefined);
   const assetIds = await attempt.stage(
     () => WorldScene.prepareStartupAssetIds(state, attempt.signal),
     WORLD_STARTUP_TIMEOUT_MS,
     new StartupTimeoutError("world-startup-timeout", "Island preparation timed out"),
     () => onState({ slow: true })
   );
-  const directModels = WorldScene.startupDirectModels();
-  const totalAssets = assetIds.length + directModels.length;
+  const totalAssets = assetIds.length;
   onState({
     phase: "assets",
     loadedAssets: 0,
@@ -49,9 +57,6 @@ export async function prepareStartupWorld({ attempt, state, scene, onState }: St
         });
       };
       await AssetLoader.preload(assetIds, progress => updateProgress(progress.completed), 6,
-        attempt.signal, reportProgress);
-      await AssetLoader.preloadDirect(directModels,
-        progress => updateProgress(assetIds.length + progress.completed), 3,
         attempt.signal, reportProgress);
     },
     ASSET_PROGRESS_STALL_TIMEOUT_MS,

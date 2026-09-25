@@ -1,7 +1,7 @@
 # LAYOUT_EDITOR.md
 ## Neva — In-Game Layout / Placement Editor
 
-> **Role:** Operational owner for the DEV-only in-game layout editor (the Place / F2 tool). It places and moves **already published GLBs** in the world. It is not the Blender catalog pipeline, Art Yard, or a `GameplayMode`.
+> **Role:** Operational owner for the DEV-only in-game layout editor (the Place / F2 tool). It places and moves **already published GLBs** in the world. It is not the catalog art pipeline, Art Yard, or a `GameplayMode`.
 >
 > **Authority:** `01` still owns architecture invariants. This file owns how the editor is used, which files it may write, and how the client, Vite plugin, and live session stay aligned. Root `AGENTS.md` owns routing and conflict resolution.
 
@@ -17,7 +17,7 @@ It is **not**:
 
 - a `GameplayMode` or `GameAction`
 - simulation-owned save state (`layoutRevision` is not bumped by a drop)
-- a GLB generator (that remains catalog → Blender → `art:generate`)
+- a GLB generator (that remains catalog → registered generator or committed authored GLB → `art:generate`)
 - a license to invent weapons, combat, or extra HUD dashboards
 
 Simulation still owns canonical gameplay. A drop writes **layout source**. The same session also debug-relocates a few interact/sim poses so you can keep playing without a refresh. A drop does not migrate other saves. Before promoting a layout edit that changes reachability, collision, saved structure coordinates or canonical topology, apply the `01` §6/§6.1 preservation and migration protocol; a successful editor commit is not that proof.

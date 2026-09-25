@@ -4,8 +4,9 @@
  *
  * Bundles `tools/authored/export-entry.ts` with esbuild, runs it in a headless Chromium page (the
  * factories need a DOM 2D canvas for their textures), and writes one GLB per authored model into
- * `art/authored/<model>/export/`. That offline GLB is the `sourceGlb` a `prebuilt_glb` catalog entry
- * publishes to `public/assets/models/`.
+ * `art/authored/<model>/export/`. That committed GLB is the `sourceGlb` of the model's
+ * `authored_glb` catalog entry; publishing runs the art pipeline (`tools/art/cli.mjs generate`),
+ * which optimises, validates and atomically publishes it with the manifest.
  *
  * This path is only for the photo-reconstructed buildings, whose factories paint canvas textures.
  * Every other authored asset is a registered generator in `tools/authored/generators/` and is built
@@ -15,17 +16,18 @@
  * textures asynchronously and only the order of the image bufferViews varies. `--verify` builds each
  * target twice and asserts the semantic digest (hierarchy, geometry, and the texture set) matches.
  *
- * This is the repo's one deliberate non-Blender production path; see tools/authored/README.md.
+ * The only step that needs a browser is the canvas painting; see tools/authored/README.md.
  * Usage:
- *   node tools/authored/export.mjs                       # all authored models (builds + publishes)
+ *   node tools/authored/export.mjs                       # all authored models (builds, then publishes via art:generate)
  *   node tools/authored/export.mjs --verify              # rebuild twice and check determinism
  *   node tools/authored/export.mjs --no-publish          # offline source only
  *   node tools/authored/export.mjs --raw                 # skip the palette re-skin
  *   node tools/authored/export.mjs --no-lod              # skip the LOD1 decimation
  *   node tools/authored/export.mjs building_wooden_outhouse_a
  */
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,7 +36,7 @@ import { chromium } from "playwright";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const ENTRY = path.join(ROOT, "tools/authored/export-entry.ts");
-const PUBLISH_DIR = path.join(ROOT, "public/assets/models");
+const ART_CLI = path.join(ROOT, "tools/art/cli.mjs");
 const GLB_MAGIC = 0x46546c67;
 const CHUNK_JSON = 0x4e4f534a;
 const CHUNK_BIN = 0x004e4942;
@@ -202,6 +204,7 @@ async function main() {
   const targets = only.length ? MODELS.filter((model) => only.includes(model.id)) : MODELS;
 
   const code = await bundleEntry();
+  const exported = [];
   // Software 2D canvas only: GPU-accelerated canvas rasterizes the factories' procedural textures
   // with driver-dependent antialiasing, which would make the pixels themselves differ run to run.
   const browser = await chromium.launch({
@@ -234,14 +237,19 @@ async function main() {
       await mkdir(path.dirname(outputPath), { recursive: true });
       await writeFile(outputPath, bytes);
       console.info(`[authored] ${model.id} -> ${model.output} (${bytes.byteLength} bytes)`);
-      if (publish) {
-        await mkdir(PUBLISH_DIR, { recursive: true });
-        await copyFile(outputPath, path.join(PUBLISH_DIR, path.basename(model.output)));
-        console.info(`[authored] ${model.id} -> public/assets/models/${path.basename(model.output)}`);
-      }
+      exported.push(model.id);
     }
   } finally {
     await browser.close();
+  }
+  if (publish && exported.length && !process.exitCode) {
+    // Publication belongs to the art pipeline: Meshopt optimisation, Khronos and catalog validation,
+    // the published manifest and rollback-capable atomic promotion. Never copy an export by hand.
+    const result = spawnSync(process.execPath, [ART_CLI, "generate", ...exported.flatMap((id) => ["--asset", id])], {
+      cwd: ROOT,
+      stdio: "inherit"
+    });
+    if (result.status !== 0) throw new Error(`Art pipeline publication failed for ${exported.join(", ")}`);
   }
 }
 

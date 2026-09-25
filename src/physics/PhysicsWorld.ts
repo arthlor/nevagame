@@ -438,9 +438,28 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.sceneQueriesDirty = false;
   }
 
+  private static runtime: Promise<typeof RAPIER> | null = null;
+
+  /**
+   * Downloads and compiles Rapier once. Startup calls this while the world is still being prepared
+   * so the WASM compile overlaps scenery work; a failed load is forgotten so a retry fetches again.
+   */
+  public static loadRuntime(): Promise<typeof RAPIER> {
+    if (!PhysicsWorld.runtime) {
+      const loading = import("@dimforge/rapier3d-compat").then(async ({ default: rapier }) => {
+        await rapier.init();
+        return rapier;
+      });
+      PhysicsWorld.runtime = loading;
+      loading.catch(() => {
+        if (PhysicsWorld.runtime === loading) PhysicsWorld.runtime = null;
+      });
+    }
+    return PhysicsWorld.runtime;
+  }
+
   public static async create(staticCollision: readonly StaticCollisionProxy[] = []): Promise<PhysicsWorld> {
-    const { default: rapier } = await import("@dimforge/rapier3d-compat");
-    await rapier.init();
+    const rapier = await PhysicsWorld.loadRuntime();
     return new PhysicsWorld(rapier, staticCollision);
   }
 

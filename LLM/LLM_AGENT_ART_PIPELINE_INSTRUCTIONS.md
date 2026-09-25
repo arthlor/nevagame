@@ -1,6 +1,6 @@
 # LLM Agent Art Pipeline & Rendering Instructions
 
-> **Role:** Mandatory implementation guide for new/shared generators, renderer/material work, and release/gold-slice art gates. Routine existing-asset tasks follow the lean route in `BLENDER.md` and read only directly relevant sections here when needed. `04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md` owns **what the game looks like**; this file owns **how agents produce it reliably**.
+> **Role:** Mandatory implementation guide for new/shared generators, renderer/material work, and release/gold-slice art gates. Routine existing-asset tasks follow the lean route in `ASSET_PRODUCTION.md` and read only directly relevant sections here when needed. `04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md` owns **what the game looks like**; this file owns **how agents produce it reliably**.
 
 # 0. Architecture Boundary
 
@@ -15,7 +15,7 @@ Use TypeScript, Vite, Three.js (WebGL2 baseline; WebGPU/TSL allowed where justif
 # 1. Hybrid Art Production Pipeline
 
 Use two production paths for authored 3D:
-1. **Static prefabs:** catalog/schema + registered family generators → GLB/glTF 2.0 → Khronos validate → glTF Transform/Meshopt → atomic publish → runtime. The main producer is the **authored Three.js generator** system (`tools/authored/`: TypeScript factories on the shared kit, built in Node by the pipeline; see its README). Legacy Blender Python family generators (shared `common/authored.py` construction) keep building the families not yet ported; port a family rather than extending its Python. Blender remains permanently only as the import adapter for donor models (`imported_blend`).
+1. **Static prefabs:** catalog/schema + registered family generators → GLB/glTF 2.0 → Khronos validate → glTF Transform/Meshopt → atomic publish → runtime. The main producer is the **authored Three.js generator** system (`tools/authored/`: TypeScript factories on the shared kit, built in Node by the pipeline; see its README). The second producer is the **authored GLB** (`authored_glb`): a committed source GLB such as an explicitly requested Tripo generation, published through the same gates. Families built by the retired Blender generators are frozen: validated, never rebuilt, and ported into the authored system before they change. There is no Blender or Python step.
 2. **Dynamic/procedural runtime systems:** Three.js TS builders + shared `PaletteMaterials` for smooth water, crop growth visuals, seasonal tint, dynamic fish, debug proxies.
 
 Ground supporting maps are not a third prefab pipeline. They are renderer presentation textures owned by `ExternalSurfaceTextures` + `VisualRenderConfig` (section 6.2). Do not register them as catalog IDs, run `art:generate` for them, or treat `public/assets/textures/terrain/` as a filename-list authority.
@@ -28,15 +28,14 @@ Project boundaries:
 assets/specs/asset-catalog.{json,schema.json}  generated-asset contract
   optional referenceAuthoring                  evidence-to-generator contract, not a second spec
 art/palettes/neva.palette.json                 semantic palette contract
-tools/blender/cli.mjs                          public art CLI (both producers)
+tools/art/cli.mjs                              public art CLI (Node only; authored + authored_glb)
+tools/art/{cache,glb,optimize,surface_contract}.mjs
+                                                cache, GLB normalization, packaging, decoded surface checks
+tools/art/legacy-generators.json               recorded parameter contracts of frozen families
+art/imported/, art/authored/*/export/          committed authored GLB sources
 tools/authored/generators/                     authored Three.js generators + registry/contracts
 tools/authored/kit/                            shared authored construction kit
 tools/authored/pipeline/                       authored producer (Node) + live Art Yard build
-tools/blender/bootstrap.py                     headless Blender orchestration (legacy + imports)
-tools/blender/generators/*.py                  legacy Blender family generators (to port)
-tools/blender/common/authored.py               reusable authored construction grammar
-tools/blender/common/{geometry,materials,pipeline}.py
-                                                primitives/material/export validation
 tools/art/codegen.mjs                              typed ID/family-map generation
 generated/.staging/                            run-local candidates and backups
 generated/glb/                                 last published optimized GLBs
@@ -52,7 +51,7 @@ tools/vite/artYardPlugin.ts                     published yard + DEV stage route
 src/art-yard/ + tools/art-yard/viewer.html      interactive asset review surface
 tests/visual/candidates/                        unapproved gameplay-camera captures
 ```
-Game consumes optimized assets; art tools produce them. Do not couple Blender generation to gameplay logic.
+Game consumes optimized assets; art tools produce them. Do not couple asset generation to gameplay logic.
 
 # 2. Geometry & Shading Implementation Rules
 
@@ -64,21 +63,21 @@ All output MUST follow `04` Global Visual Grammar. Pipeline-specific rules:
 - smooth/selectively smoothed: traversable grass/soil/path terrain where regular mesh topology would otherwise dominate; macro landforms and semantic material regions retain the stylized read;
 - flat/faceted: cliffs, terrain cuts, exposed banks, hero landforms, rocks, mountains and structural decoration (water is smooth; `04` §8);
 - authored normal interpolation: characters/creatures, trunks/stems, shaped produce, cloud masses and rounded tools/vessels/ropes/hull curves; vegetation crown lobes and broad leaf folds may deliberately use planar faces to retain the low-poly form required by `04` §9;
-- the opt-in `foliage` surface mode (`set_surface_normals`) is for thin rooted blades. It smooths like `rounded`, then bends each smoothing group toward the asset's up axis only as far as every face's winding allows, so a grass blade shades like the meadow rather than as a grey or black shard and a root cap keeps its own normal. `grass_clump` uses it; planar and rounded output is unchanged;
+- the `foliage` surface mode is for thin rooted blades. It smooths like `rounded`, then bends each smoothing group toward the asset's up axis only as far as every face's winding allows, so a grass blade shades like the meadow rather than as a grey or black shard and a root cap keeps its own normal. The frozen `grass_clump` output carries it, and a port must reproduce it; planar and rounded output is unchanged;
 - hard edges: planks, roofs, doors, blocks, crates, docks, fences, beams, stairs.
 Never rely on default smoothing.
 
-Procedural catalog entries may opt into `surfaceAuthoring: { normalPolicy: "authored", facetColors: "rest_face" }`. This is a build-time contract, rejected for `imported_blend`; the runtime catalog projection, IDs, pivots, collision, sockets, animation timings and LOD interfaces remain unchanged. `common/geometry.py` tags planar or rounded surfaces before joins. Generators may also tag broad construction regions with the shared value zones (`sunTop`, `weatherSide`, `groundContact`, `patch`, `wear`) via `set_face_value_zone`; the optional `surfaceAuthoring.valueZones` object overrides the shared multipliers per asset within its bounded schema range. Finalization after LOD generation computes angle-weighted custom corner normals across connected rounded faces, stopping at marked sharp edges, planar boundaries and the helper's crease limit. Material boundaries alone do not split normal groups. Object-animation authors retain the original basis before keying; the bake and bounds validation resolve that rest hierarchy without changing the evaluated pose. Private construction tags are removed before export; source custom normals on imports are preserved.
+Procedural catalog entries may opt into `surfaceAuthoring: { normalPolicy: "authored", facetColors: "rest_face" }`. This is a build-time contract, rejected for `authored_glb` (a source GLB owns its normals and colours); the runtime catalog projection, IDs, pivots, collision, sockets, animation timings and LOD interfaces remain unchanged. It means: planar and rounded surfaces are tagged before joins; broad construction regions may carry the shared value zones (`sunTop`, `weatherSide`, `groundContact`, `patch`, `wear`), whose multipliers the optional `surfaceAuthoring.valueZones` object overrides per asset within its bounded schema range; after LOD construction, angle-weighted corner normals are computed across connected rounded faces, stopping at sharp edges, planar boundaries and a crease limit, and material boundaries alone do not split normal groups; the facet colour bake resolves the rest hierarchy, so animated parts do not carry restarted lighting ramps. The frozen families' GLBs carry the retired Blender implementation of this bake. An authored generator that declares the contract produces the same result with the kit (`shade`/`tone` value masks inside the `COLOR_0` contract, explicit flat or smooth normals), and `surface_contract.mjs` enforces the decoded result on every built and published asset that declares it: one constant colour per facet and no averaged normal opposing its triangle's winding.
 
-Organic junctions use shared boundary loops (`graft_limb`) or deliberately matched attachments before skin binding. `join_meshes`/`join_creature_surface` are packaging operations, not continuity tests. Keep separately constructed boards, horns, clothing, handles, leaf blades and hardware separate. Reuse lofts, limb tubes, profile sweeps, conforming shells and profiled vessels, and chamfer structural hard-surface meshes after construction; make rims, hulls, blades and roof edges thick enough to read, with actual working openings. Existing species profiles, crop stages, wind attributes, mounted contacts and clip timing remain owned by their catalog/generator contracts.
+Organic junctions use shared boundary loops or deliberately matched attachments before skin binding (the kit's lofts bury a limb's root station in the body). Joining meshes is a packaging operation, not a continuity test. Keep separately constructed boards, horns, clothing, handles, leaf blades and hardware separate. Reuse lofts, limb tubes, profile sweeps, conforming shells and profiled vessels, and chamfer structural hard-surface meshes after construction; make rims, hulls, blades and roof edges thick enough to read, with actual working openings. Existing species profiles, crop stages, wind attributes, mounted contacts and clip timing remain owned by their catalog/generator contracts.
 
 Tube and blade cross-sections transport their frames through bends instead of switching reference axes. Branch rings retain the opening's polar angles and use fitted collars; closed leaf caps must have consistent outward winding on both sides of a frond. Strongly folded polygons split into their actual planes before normal-group evaluation while retaining one original authored face color. The decoded procedural surface gate rejects averaged corner normals that oppose a triangle's winding, including secondary material primitives and reduced levels.
 
-Palette-only procedural surfaces discard unused automatic primitive/bevel UV layers before export. Their small floating-point variations have no appearance role and must not create vertex seams or destabilize semantic determinism. Materials with other node types retain their UVs, and source-preserving imports bypass this surface finish entirely.
+Palette-only procedural surfaces export no unused UV layers. Stray UVs have no appearance role and must not create vertex seams or destabilize semantic determinism. Textured authored GLBs keep their `TEXCOORD_0` and bypass this surface finish entirely.
 
 Runtime crop batches retain exported normals when merging palette regions and use those normals in their shared wind material; they must not replace them with derivative flat shading. Authored planar corners remain sharp in the normal attribute. This preserves one instanced batch per crop stage and the existing wind and lifecycle behavior. `tests/unit/cropAuthoredSurface.test.ts` checks the published stage GLBs through that runtime batching path.
 
-`art:test-builders` covers winding, manifold connected grafts, material-boundary normal continuity, intentional sharp edges, rest-space face colors and bounds under active animation, normalized reduced skin weights and deterministic builder output. `surface_contract.mjs`, called by the normal CLI validator, checks every decoded material primitive in raw and optimized GLBs, including skin weights before Three.js can normalize them. It also samples exported skin deformation and loop endpoints on all LODs after reduction. Animated imports without a humanoid fidelity contract receive those final deformation checks while retaining their source color policy; this closes the cow adapter's gap between source parity before cleanup and the exported reduced surface. Native humanoids retain their dedicated fidelity verifier. These checks do not certify appearance. Selected no-publish generation, semantic determinism and validated publication use the existing CLI; membership comes from the active catalog and registry. Preserve static instancing declarations and rigid-part batching, and measure the production cost of skinned surfaces under matching scene conditions.
+`tests/unit/authoredKit.test.ts` covers kit winding, normals, markers and determinism, and `tests/unit/authoredPipeline.test.ts` every authored asset's art contract and byte-for-byte determinism. `surface_contract.mjs`, called by the normal CLI validator, checks every decoded material primitive in raw and optimized GLBs, including skin weights before Three.js can normalize them. It also samples exported skin deformation and loop endpoints on all LODs after reduction. Animated authored GLBs (the adapted characters and animals) receive those final deformation checks while retaining their source color policy; `npm run art:test` covers the checker. These checks do not certify appearance. Selected no-publish generation, semantic determinism and validated publication use the existing CLI; membership comes from the active catalog and registry. Preserve static instancing declarations and rigid-part batching, and measure the production cost of skinned surfaces under matching scene conditions.
 
 # 3. World Scale & Modular Standards
 
@@ -115,7 +114,7 @@ canvas_cream_01 / rope_hemp_01 / foam_warm_01 / emissive_lantern_01
 ```
 Variation comes mainly from geometry, vertex colors, palette/hue shifts, roughness, lighting/AO, controlled semantic fields/masks—not unrelated materials. Terrain, road, shore, farm, and cover consumers must derive from the same authored world-layout semantics rather than maintaining visually similar but independent masks.
 
-Vertex colors are first-class. For the opt-in `rest_face` bake, multiply the linear palette RGB by `0.91 + 0.07 * dot(faceNormal, assetUp)`, using the authored face normal in the asset's rest space, and write one identical value to every corner of that face. Broad authored value zones are the only sanctioned way to carry wear, weather, moss/ground or patch value changes beyond that base: a tagged face multiplies the base by its zone's bounded multiplier (shared defaults and the closed zone vocabulary live in `tools/blender/common/geometry.py`; per-asset overrides are schema-bounded `surfaceAuthoring.valueZones`). Zone tagging survives joins, is removed before export, and must stay broad — one zone per construction region, never grain, noise or per-triangle variation, and it may not cross a palette-token boundary or create a normal seam. The finalizer runs after joins and LOD construction and before export. It replaces per-component height/key-direction gradients, so moving parts do not carry separate restarted lighting ramps. Keep authored material regions broad and purposeful; do not create a normal seam or extra material just to change a face's value. Export through the shared `COLOR_0` path for every material primitive, including Blender's secondary material slots. Semantic terrain/supporting-map fields and preserved imported-source colors retain their existing owners. **Never uncontrolled random RGB.**
+Vertex colors are first-class. For the opt-in `rest_face` bake, multiply the linear palette RGB by `0.91 + 0.07 * dot(faceNormal, assetUp)`, using the authored face normal in the asset's rest space, and write one identical value to every corner of that face. Broad authored value zones are the only sanctioned way to carry wear, weather, moss/ground or patch value changes beyond that base: a tagged face multiplies the base by its zone's bounded multiplier (the closed zone vocabulary, its bounds and the shared default multipliers live in the catalog schema's `surfaceAuthoring.valueZones`, which also bounds per-asset overrides). Zone tagging survives joins, is removed before export, and must stay broad — one zone per construction region, never grain, noise or per-triangle variation, and it may not cross a palette-token boundary or create a normal seam. The finalizer runs after joins and LOD construction and before export. It replaces per-component height/key-direction gradients, so moving parts do not carry separate restarted lighting ramps. Keep authored material regions broad and purposeful; do not create a normal seam or extra material just to change a face's value. Export through the shared `COLOR_0` path for every material primitive, including secondary material primitives. Semantic terrain/supporting-map fields and preserved imported-source colors retain their existing owners. **Never uncontrolled random RGB.**
 
 Textures support, never define, style. Use for subtle roughness, stylized masks, AO/lightmaps, decals/signs/markings, and the ground supporting-map contract in section 6.2. Normal targets follow `04`: **128–256 tiny, 256–512 normal, 512–1024 hero, 2048 rare/shared exception**. Any broader 1K–2K architecture allowance is a ceiling, not the default. Avoid photogrammetry/photo bark-rock-grass as final albedo, noisy terrain, excessive resolution, high-frequency normals/micro scratches/scans. Processed CC0 supporting maps are allowed only as the Art Bible's low-frequency tiler: local reduced derivatives, world-space sampled, palette-remapped, and owned by `VisualRenderConfig` plus `ExternalSurfaceTextures`.
 
@@ -308,30 +307,26 @@ Do not:
 
 # 7. Procedural Generator Library
 
-`tools/blender/generators/registry.py` is the only generator-name dispatch table. Family composition lives in the owning family module (`architecture.py`, `vegetation.py`, `boats.py`, and so on). Extend an appropriate family module and register one stable name; do not create an alternate entrypoint or filename list. Same catalog seed + parameters + generator code MUST reproduce the same semantic output.
+`tools/authored/generators/registry.ts` is the only generator-name dispatch table, with one parameter contract per name in `contracts.json`. Family composition lives in the owning family folder (`fauna/`, `props/`, `tools/`, `buildings/`, `fish/`, and so on). Extend an appropriate family and register one stable name; do not create an alternate entrypoint or filename list. Same catalog seed + parameters + generator code MUST reproduce the same semantic output. Families whose Blender generators were retired are frozen (`tools/art/legacy-generators.json` records their parameter contracts): their published GLBs stay validated, and changing one means porting the family into the registry (`tools/authored/README.md`).
 
-Explicitly requested external assets may be adapted into durable offline
-Blender derivatives through the registered `imported_blend` generator. This is
-the same catalog/validation/publication pipeline, not a direct-download runtime
-lane. `BLENDER.md` owns the source-collection and selected-admission workflow;
-the catalog schema owns build-time `sourceProvenance`. Its digest identifies the
-adapted Blender source bytes, which participate in per-asset cache invalidation.
-When an adapter depends on a provider-source capture rather than a directly
-readable glTF, the optional all-or-none capture fields pin its repository path,
-digest, structural audit and license evidence; catalog validation verifies the
-four files as one provenance bundle.
-Imported skins retain authored bind data and motion through lossless
-compression-only packaging with decoded semantic parity, never generic
+Explicitly requested external assets and other GLB-authored models enter through
+the `authored_glb` producer: a committed source GLB (`parameters.sourceGlb`)
+with a declared `textureMaxSize`. This is the same catalog/validation/publication
+pipeline, not a direct-download runtime lane. `ASSET_PRODUCTION.md` §3.2 owns the
+workflow; the catalog schema owns build-time `sourceProvenance`, whose digest
+identifies the provenance source file. The source GLB bytes participate in
+per-asset cache invalidation. When provenance depends on a provider-source
+capture rather than a directly readable glTF, the optional all-or-none capture
+fields pin its repository path, digest, structural audit and license evidence;
+catalog validation verifies the four files as one provenance bundle.
+Skinned or animated sources retain authored bind data and motion through
+lossless compression-only packaging with decoded semantic parity, never generic
 quantization or hierarchy-changing transforms. Existing palette, silhouette,
-LOD, animation, collision and production budgets still apply.
-Imported static LOD0 surfaces likewise retain source topology, UVs, exported
-normals, smoothing boundaries and one material identity per provider region.
-Their build-time `staticAuthoring` contract pins the original and owns a uniform
-scale/yaw plus explicit per-region solid or texture-preservation policy.
+LOD, animation, collision and production budgets still apply. Normalization
+repairs only declared accessor bounds, provider material extensions and
+over-cap textures; it never rewrites geometry, UVs, normals or skins.
 
-`tools/blender/common/authored.py` is below that registry boundary. It provides reusable deliberate construction systems currently consumed by architecture, prop and boat generators: staggered box/cylindrical masonry, shingle rows, plank fields, lattices, segmented rope lines, arch rings, root flares, fasteners, timber-frame bays, mullioned openings, frame-and-panel construction, peg joints, hinge straps, and banded tapered towers. `common/geometry.py` supplies the primitive vocabulary those systems build on, including arbitrary closed-profile sweeps (`add_swept_profile`) and the structural chamfer (`chamfer_authored`). Reuse or extend it when several assets need the same visual construction language. Do not register its helpers, call them directly from the CLI, let them own palette/budget/file metadata, or treat “authored” as permission for unseeded one-off geometry. Any helper control exposed to an asset remains an explicit catalog `parameters` key and must reproduce from the same catalog seed.
-
-Vegetation also shares `add_tree_buttresses`, `add_canopy_lobe` and `add_conifer_tier` in that module. These construct tapered root shoulders, seeded faceted leaf masses and closed irregular conifer tiers. Existing family generators own species composition and catalog parameters; lower-resolution forms preserve the same primary gesture. Builder tests cover closed outward-facing shells and deterministic vertex positions. The vegetation workshop builds editable scenes through the same registered generators and is an inspection artifact, not an alternate exporter.
+`tools/authored/kit/` is below that registry boundary. It provides the reusable deliberate construction systems generators share: superellipse and profiled lofts, boxes with chamfers and tapered ends, closed cloth panels and rings, conforming patches and discs, identity-rest rigs and skin binding, cyclic gait tracks and posing solvers, authored LOD levels, collision and palm-frame grip markers, palette-token materials with linear `COLOR_0`, and the seeded RNG. `generators/props/parts.ts` holds shared prop parts (rope and catenaries, hewn timber, burlap sacks, spoked wheels, knotted nets, produce). Reuse or extend them when several assets need the same visual construction language. Do not register kit helpers, call them directly from the CLI, let them own palette/budget/file metadata, or treat “authored” as permission for unseeded one-off geometry. Any helper control exposed to an asset remains an explicit catalog `parameters` key and must reproduce from the same catalog seed. `tests/unit/authoredKit.test.ts` and `tests/unit/authoredPipeline.test.ts` cover kit construction, the registry/contract match, every authored asset's art contract and byte-for-byte determinism.
 
 # 8. Machine-Readable Asset Specs
 
@@ -371,7 +366,7 @@ Every generated asset MUST be one entry in `assets/specs/asset-catalog.json`, va
 The numeric values in this shape-only example mirror the current `tree_oak_b`
 entry for readability; they are illustrative and must never be copied to a
 different asset. The catalog entry is authoritative.
-The schema is closed (`additionalProperties: false`): extend the schema deliberately before adding a new contract field. Unknown palette tokens, duplicate/unsafe IDs or filenames, missing roots, or invalid min ≤ target ≤ max ordering fail before Blender starts.
+The schema is closed (`additionalProperties: false`): extend the schema deliberately before adding a new contract field. Unknown palette tokens, duplicate/unsafe IDs or filenames, missing roots, or invalid min ≤ target ≤ max ordering fail before any producer runs.
 
 ## 8.1 Reference-Guided Authoring Contract
 
@@ -388,38 +383,40 @@ Use the optional catalog `referenceAuthoring` object when an asset is derived fr
 
 Run `npm run art:brief -- --asset ID` when the selected brief changes. The command validates local `repo://` evidence, HTTPS sources, hierarchy/cycles, feature links, parameter bindings and review coverage, then prints a deterministic brief/hash. Missing `repo://` files fail closed; `ready` does not excuse absent evidence. Do not read or print unrelated asset briefs. `draft` means usable for exploration but not strict acceptance; `ready` means the authoring contract is complete, not that the asset is visually approved.
 
-Blender family generators consume catalog `parameters` only. They must not parse `referenceAuthoring` JSON. The brief binds identity-defining layout into those parameter keys; the registered generator reads the keys.
+Registered generators consume catalog `parameters` only. They must not parse `referenceAuthoring` JSON. The brief binds identity-defining layout into those parameter keys; the registered generator reads the keys.
 
 Reference admission is visual judgment, not a brittle background-color heuristic. Preserve the original evidence. If segmentation, transparency, or a clean isolated concept makes the subject easier to read, record the normalized derivative as another study and do not let it silently replace the original. A generated rear/side study is an inference: record hidden-surface confidence so the human can inspect continuity through Art Yard/game controls.
 
-Translate accepted hierarchy and parameters into the existing registered Blender family generator and shared helpers. Do not ship direct TypeScript reconstruction factories, source-image-dependent runtime geometry, a second palette/material/lighting system, a separate per-asset spec tree, or a direct exporter. Runtime-dynamic systems continue to follow the explicit Three.js path in section 1; static reference-authored assets remain staged, validated, optimized GLBs.
+Translate accepted hierarchy and parameters into the registered authored generator and the shared kit, porting a frozen family first. Do not ship unregistered reconstruction factories, source-image-dependent runtime geometry, a second palette/material/lighting system, a separate per-asset spec tree, or a direct exporter. Runtime-dynamic systems continue to follow the explicit Three.js path in section 1; static reference-authored assets remain staged, validated, optimized GLBs.
 
 Reference-authoring and source-provenance data are build-time only. The Vite virtual catalog module projects loader/placement, collision, LOD, rig/socket, and animation-contract fields directly from the canonical JSON without creating a checked-in second catalog; source URIs, authoring prose, generator parameters and budgets must be absent from the production browser bundle.
 
 `npm run art:codegen` derives `src/render/assets/AssetCatalog.generated.ts` from the canonical catalog. It owns typed `ASSET_IDS`, family names, and family maps only; it is generated and must never be hand-edited. `npm run art:codegen:check` fails when the adapter is stale. The Vite runtime plugin may refresh codegen during development, while production consumes only the runtime projection.
 
-Generated-asset budgets are centralized with their dimensions, palette, pivot, collision, instancing, LOD, and required-node contracts in `assets/specs/asset-catalog.json`; scene envelopes remain in `tools/blender/asset_budgets.json`. Every generated candidate reports triangle count, material groups, mesh/node count, file size, target status, bounds and required-node coverage in its run-local stage. Atomic publication promotes the combined quality state to `generated/reports/asset_budget_report.json`; a rejected candidate does not replace it. Normal generation rejects assets outside production minimum/hard maximum or material/pivot/spec contracts and reports below-target assets. `npm run art:generate:strict` retains its existing semantics and additionally rejects every below-target asset; it is the technical-art/release certification gate, separate from P0.75 visual-gold acceptance. Do not satisfy a floor or target by blind subdivision: additional geometry must improve silhouette, planes, thickness, deformation, or gameplay-camera readability.
+Generated-asset budgets are centralized with their dimensions, palette, pivot, collision, instancing, LOD, and required-node contracts in `assets/specs/asset-catalog.json`; scene envelopes remain in `tools/art/asset_budgets.json`. Every generated candidate reports triangle count, material groups, mesh/node count, file size, target status, bounds and required-node coverage in its run-local stage. Atomic publication promotes the combined quality state to `generated/reports/asset_budget_report.json`; a rejected candidate does not replace it. Normal generation rejects assets outside production minimum/hard maximum or material/pivot/spec contracts and reports below-target assets. `npm run art:generate:strict` retains its existing semantics and additionally rejects every below-target asset; it is the technical-art/release certification gate, separate from P0.75 visual-gold acceptance. Do not satisfy a floor or target by blind subdivision: additional geometry must improve silhouette, planes, thickness, deformation, or gameplay-camera readability.
 
 Implemented command contract:
 ```bash
 npm run art:codegen
 npm run art:codegen:check
-npm run art:brief -- --asset tree_oak_a
-npm run art:generate -- --asset tree_oak_a
-npm run art:generate -- --family architecture --no-publish
+npm run art:brief -- --asset prop_water_well_a
+npm run art:generate -- --asset prop_water_well_a
+npm run art:generate -- --family prop --no-publish
 npm run art:generate -- --all
 npm run art:sync -- --all
 npm run art:generate:strict -- --all
 npm run art:validate -- --all
-npm run art:determinism -- --asset tree_oak_a
+npm run art:determinism -- --asset prop_water_well_a
+npm run art:list -- --family character
+npm run art:test
 npm run art:benchmark
 npm run art:benchmark:extended
 ```
-Every catalog command requires `--asset`, `--family`, or explicit release `--all`; a bare command fails. Repeated `--asset`/`--family` selectors form a union. `--no-publish` keeps both published directories unchanged. `--strict` belongs only to `generate`. `art:sync -- --all` refreshes published manifest provenance and derived measurements against existing GLBs; it does not regenerate or reauthor them.
+Every catalog command requires `--asset`, `--family`, or explicit release `--all`; a bare command fails. Repeated `--asset`/`--family` selectors form a union. `--no-publish` keeps both published directories unchanged. `--strict` belongs only to `generate`. `art:sync -- --all` refreshes published manifest provenance and derived measurements against existing GLBs; it does not regenerate or reauthor them. `generate` and `determinism` build only authored and `authored_glb` assets: naming a frozen asset fails, and a family or `--all` selection skips frozen members, which `validate` and `sync` still cover.
 
-`generate` uses a unique `generated/.staging/run-*` directory, computes a per-asset input/toolchain hash, revalidates a matching optimized GLB from `generated/.cache/art/` when available, and invokes Blender only for cache misses. Cache artifacts are acceleration state: they are validated before reuse, never published, and report `inputHash`/`cacheHit`. A catalog/spec/palette/generator/helper/dependency/Blender-version change invalidates the affected asset. Shared-generator/release `art:determinism` bypasses the cache; routine asset work does not double-generate. Only the three newest successful staging runs are retained.
+`generate` uses a unique `generated/.staging/run-*` directory, computes a per-asset input/toolchain hash, revalidates a matching optimized GLB from `generated/.cache/art/` when available, and builds only cache misses (authored generators in Node; authored GLBs from their committed source). Cache artifacts are acceleration state: they are validated before reuse, never published, and report `inputHash`/`cacheHit`. A catalog/spec/palette/generator/kit/pipeline-file/producer-version change, or a changed authored-GLB source, invalidates the affected asset. Shared-generator/release `art:determinism` bypasses the cache; routine asset work does not double-generate. Only the three newest successful staging runs are retained.
 
-After cache selection or generation, the CLI validates Blender scene contracts, validates raw GLBs, applies dedupe/join/prune/weld/Meshopt for procedural families (lossless compression-only for `imported_blend`), validates optimized GLBs, then promotes selected GLBs plus manifests in one rollback-capable transaction. The selected `admit` command instead validates an existing adapted export without running Blender or changing its bytes; `BLENDER.md` owns that scoped workflow. Partial runs merge their selected results into the published manifest and preserve other assets; only a full-catalog publish may remove files owned by the previous manifest that no longer exist in the catalog. Published truth is `generated/reports/asset-manifest.json` plus `public/assets/models/asset-manifest.json`. Determinism and benchmarks do not publish or replace that truth.
+After cache selection or generation, the CLI validates the producer's art contract and the raw GLB, applies dedupe/join/prune/weld/Meshopt for generator output and static authored GLBs (lossless compression-only with decoded parity for skinned or animated authored GLBs; source bytes for an authored GLB already carrying Meshopt), validates optimized GLBs, then promotes selected GLBs plus manifests in one rollback-capable transaction. `ASSET_PRODUCTION.md` §3.2 owns authored-GLB normalization and admission. Partial runs merge their selected results into the tracked published manifest and preserve other assets; only a full-catalog publish may remove files owned by the previous manifest that no longer exist in the catalog. Published truth is `generated/reports/asset-manifest.json` plus `public/assets/models/asset-manifest.json`. Determinism and benchmarks do not publish or replace that truth.
 
 # 9. World Generation & Composition
 
@@ -464,15 +461,13 @@ Repeated environment assets MUST be evaluated for batching/instancing; any stati
 
 Rapier is for gameplay-relevant physics: player capsule, NPC collision if present, triggers, doors, boats, rigid gameplay props, raycasts/moving obstacles. Do **not** create complex bodies for every flower/crop/plank/rock/small prop. Use simple primitives/proxies; collision need not match render mesh.
 
-Rigged character production remains catalog-driven. `humanoidAuthoring` pins immutable licensed originals, source hashes, uniform target scale and explicit role adaptations. Preparation preserves source topology, anatomy, deforming bones, rest transforms, normalized weights, UVs, material-region boundaries and custom split normals; donor-body fitting and reduced replacement rigs are prohibited. A source clip's glTF timestamps own its timing, regardless of intermediate Blender scene frame rate. Preserve suitable peaceful performances and author missing Neva actions on the retained rig. Catalog `humanoidRig` supplies semantic bones and bind-space contact calibration; catalog clips own loop behavior, reference speed, contact intervals and commit markers. Only runtime-required binding and clip fields enter the browser projection.
+Rigged character production remains catalog-driven. The rigged humanoids (the player and the adapted `_a` cast) and the adapted animals are retained derivatives of licensed originals, committed as `authored_glb` sources under `art/imported/<provider>/adapted/`; the retired Blender adapters prepared them. Any replacement derivative keeps the same standard: preserve source topology, anatomy, deforming bones, rest transforms, normalized weights, UVs, material-region boundaries and custom split normals; donor-body fitting and reduced replacement rigs are prohibited. A source clip's glTF timestamps own its timing. Preserve suitable peaceful performances and author missing Neva actions on the retained rig. Catalog `humanoidRig` supplies semantic bones and bind-space contact calibration; catalog clips own loop behavior, reference speed, contact intervals and commit markers. Only runtime-required binding and clip fields enter the browser projection. Static provider figures (the Tripo townsfolk) declare no rig or clips.
 
-The registered `imported_blend` generator consumes the durable prepared Blender library. Imported derivatives use lossless compression, not welding or normal reconstruction that changes source seams. Validate source preservation, each action's timing and skin deformation in both LODs, and semantic determinism before atomic publication. A generated per-character action checklist records origin, timing, contacts, equipment and verification evidence; structure-only or donor-array equality cannot certify source fidelity or motion.
+Skinned or animated authored GLBs use lossless compression, not welding or normal reconstruction that changes source seams. The pipeline validates each clip's catalog timing and nodes, skin deformation and loop seams in both LODs, and semantic determinism before atomic publication. Source fidelity against the original is the derivative author's evidence to supply; structure-only or donor-array equality cannot certify source fidelity or motion.
 
-The registered equipment families are authored by `tools/blender/generators/equipment.py`; clothing, hand tools, fishing rods and workstation presentation props remain separate catalog assets even when they share deterministic construction helpers. Catalog dimensions, palette tokens, socket intent, required nodes and budgets own each export. Runtime attachment metadata lives with the gameplay equipment definition and is resolved by the shared `CharacterEquipmentAssembler`; it may hide a named starter garment or attach a catalog GLB, but it must clone loader results per consumer and cannot mutate a cached character scene. The world avatar and Character preview therefore assemble the same assets without turning Three.js node visibility into gameplay ownership.
+The equipment assets come from the authored tool, rod and workstation-prop generators and the frozen `wearable_equipment` family; clothing, hand tools, fishing rods and workstation presentation props remain separate catalog assets even when they share deterministic construction helpers. Catalog dimensions, palette tokens, socket intent, required nodes and budgets own each export. Runtime attachment metadata lives with the gameplay equipment definition and is resolved by the shared `CharacterEquipmentAssembler`; it may hide a named starter garment or attach a catalog GLB, but it must clone loader results per consumer and cannot mutate a cached character scene. The world avatar and Character preview therefore assemble the same assets without turning Three.js node visibility into gameplay ownership.
 
-Solid-color source regions receive their explicit palette mapping once. The registered imported exporter normalizes the validated active attribute name to `COLOR_0`, preventing Blender's later-material white substitution for static, fauna and humanoid derivatives; the humanoid-only byte repair remains a final invariant check. Texture-preserving static regions keep their original base/normal maps and carry no palette-colored `COLOR_0` multiplier. Native sparse animation channels retain the original glTF node defaults, including unkeyed fingers and wrists. Source cleanup must identify and measure any removed degenerate triangles, and the independent comparison rejects removal of visible geometry.
-
-Blender may serialize an imported texture node with explicit sampler filters even when the immutable source omitted them. The registered static export correction restores the source texture-info and sampler state while proving the embedded image and geometry chunks unchanged. Both static LODs require the preserved base map and `TEXCOORD_0`. Solid emissive source regions write the same token × region value to `COLOR_0` and `emissiveFactor`, with the palette's emissive strength; vertex color alone cannot tint glTF emission. The decoded static source comparator runs for generated, cached, admitted and published artifacts rather than remaining a manual review-only command.
+Solid-color source regions carry their explicit palette mapping once: a material named for a declared palette token and the linear token colour in `COLOR_0`, which the authored-GLB validator requires of every untextured primitive. Texture-preserving regions keep their original base/normal maps and `TEXCOORD_0` and carry no palette-colored `COLOR_0` multiplier; normalization only resamples an image above the asset's `textureMaxSize` (to WebP) and otherwise keeps texture, sampler, geometry and skin bytes. Native sparse animation channels retain the original glTF node defaults, including unkeyed fingers and wrists. Solid emissive source regions write the same token × region value to `COLOR_0` and `emissiveFactor`, with the palette's emissive strength; vertex color alone cannot tint glTF emission.
 
 Runtime uses one clip clock and the shared semantic humanoid/contact path. Fixed-length limb solving supports independently parented feet, clamps unreachable endpoints and preserves authored orientation while aligning established contact. It never changes simulation position or canonical gameplay outcomes. Equipment stays owned by its authored object hierarchy (for example an oar by its boat/oarlock); character hands follow grip markers after the mixer pose. Required equipment grips must resolve their exported anatomical palm-frame metadata; missing markers or frames fail explicitly instead of silently using legacy axes. Mounted hold clips follow the donkey's physical rein endpoints after saddle and sole placement; attachment reach keeps those hand constraints released.
 
@@ -482,15 +477,15 @@ The first humanoid pose after construction or a full presentation reset evaluate
 
 Authored grasp profiles curl the source finger phalanges with thumb opposition while preserving the original metacarpals and native performances. Palm contact positions derive from source knuckles and convert physical offsets through the actual bind transform, including source rigs with scaled parents. Preparation reports record each action's grasp profile; actual exported-character tests measure tool, cargo, boat and rein contacts independently of the authoring report.
 
-Added role garments must fit the source's interior surface as well as its silhouette edges. Sample the torso and legs across the garment panel, preserve clearance, and transfer source surface weights rather than assigning an entire span from one nearby vertex. Catalog `humanoidAuthoring.apronClearanceProfile` owns any local tailoring allowance for a source jacket hem; its bind-space measurements remain authoring-only. Check the evaluated garment against the original body across its action library and both LODs; finite transforms and intact seams alone cannot detect a body piercing an apron. Preserve a small garment's topology when simplification breaks that clearance. Fix the added garment without altering the preserved source anatomy.
+Added role garments must fit the source's interior surface as well as its silhouette edges. Sample the torso and legs across the garment panel, preserve clearance, and transfer source surface weights rather than assigning an entire span from one nearby vertex. Any local tailoring allowance for a source jacket hem is an authoring measurement of that derivative, not a runtime field. Check the evaluated garment against the original body across its action library and both LODs; finite transforms and intact seams alone cannot detect a body piercing an apron. Preserve a small garment's topology when simplification breaks that clearance. Fix the added garment without altering the preserved source anatomy.
 
-Catalog `humanoidAuthoring.hairStyle` owns optional tied-hair additions and their explicit palette tokens. Anchor these details to the retained hair surface and bind them to the source head; preserve the original hair and face geometry. Check attachment, outward normals and visibility from side and rear views. These are small rigid styling details, with no added hair simulation or runtime authoring fields.
+Optional tied-hair additions use explicit palette tokens. Anchor these details to the retained hair surface and bind them to the source head; preserve the original hair and face geometry. Check attachment, outward normals and visibility from side and rear views. These are small rigid styling details, with no added hair simulation or runtime authoring fields.
 
 Rod bending and reel presentation consume the full encounter elapsed time through a stable damped-spring step; throttled updates and zero-time pause must preserve the same tip and grip pose. The reel stays rigid while its secondary grip follows the handle. These are presentation dynamics only, and cannot change fishing outcomes or save state.
 
 # 11. Optimization & LOD
 
-The procedural post-export baseline uses glTF Transform and Meshopt, followed by Khronos revalidation and generated/public hash parity; `tools/blender/optimize.mjs` owns the exact transform sequence. Imported Blender derivatives use its lossless compression-only path. Catalog entries may declare generated `lodLevels`: each level has a required named root, switch distance, and measured triangle-ratio envelope relative to LOD0. Blender consolidates only within a level; raw/optimized validation budgets LOD0, records packaged triangles and per-level ratios, and runtime converts the named roots into `THREE.LOD`. Static batching preserves catalog switch distances through per-instance level tracking in production and normal DEV play; active F2 editing restores the retained unmerged prefabs for picking. Skinned, morph-target and dynamic meshes remain excluded from static batching. KTX2/BasisU and broader distance culling remain permitted extensions when a current asset/scene requires them. Ground supporting maps currently use local WebP through `ExternalSurfaceTextures`; that path does not by itself prove KTX2 integration. Runtime chunk streaming is not implemented; do not describe it as shipped or add it to the current world contract without a separate architecture decision.
+The procedural post-export baseline uses glTF Transform and Meshopt, followed by Khronos revalidation and generated/public hash parity; `tools/art/optimize.mjs` owns the exact transform sequence. Skinned or animated authored GLBs use its lossless compression-only path, and an authored GLB that already carries Meshopt keeps its geometry bytes. Catalog entries may declare generated `lodLevels`: each level has a required named root, switch distance, and measured triangle-ratio envelope relative to LOD0. Generators consolidate only within a level; raw/optimized validation budgets LOD0, records packaged triangles and per-level ratios, and runtime converts the named roots into `THREE.LOD`. Static batching preserves catalog switch distances through per-instance level tracking in production and normal DEV play; active F2 editing restores the retained unmerged prefabs for picking. Skinned, morph-target and dynamic meshes remain excluded from static batching. KTX2/BasisU and broader distance culling remain permitted extensions when a current asset/scene requires them. Ground supporting maps currently use local WebP through `ExternalSurfaceTextures`; that path does not by itself prove KTX2 integration. Runtime chunk streaming is not implemented; do not describe it as shipped or add it to the current world contract without a separate architecture decision.
 
 Do not optimize away art direction: hero silhouette/faceting can matter more than a few hundred triangles.
 
@@ -517,7 +512,7 @@ Production terrain/road culling is implemented by `src/render/scene/spatialSurfa
 
 Ground-cover frustum submission is separate from its stable distance/density selection. `GroundCoverRenderer` bounds the entire source assembly plus shader wind displacement, retains each placement's phase during compaction, and releases instance buffers during disposal. Verify opposite camera headings and edge-intersecting/wind-displaced clumps without changing selected membership. The ground-cover color and GTAO passes use the same main-camera subset; this non-shadow-casting layer is not culled against the sun camera.
 
-Approve assets from the actual gameplay camera, never only close Blender renders. Inspect silhouette, color separation, prop/path/interaction/shadow readability, overlap. Tiny invisible details are generally unnecessary. Character assets additionally require an in-world style-lock check beside approved environment materials before large NPC production.
+Approve assets from the actual gameplay camera, never only close studio renders. Inspect silhouette, color separation, prop/path/interaction/shadow readability, overlap. Tiny invisible details are generally unnecessary. Character assets additionally require an in-world style-lock check beside approved environment materials before large NPC production.
 
 # 13. Deterministic Visual QA — Regression vs Style Match
 
@@ -536,7 +531,7 @@ tests/visual/candidates/
 ```
 `npm run art:benchmark` captures the fixed gameplay-camera views and reports
 errors, upper-budget checks and measurements under `tests/visual/candidates/`.
-`tests/e2e/art-pipeline.spec.ts` and `tools/blender/asset_budgets.json` own its
+`tests/e2e/art-pipeline.spec.ts` and `tools/art/asset_budgets.json` own its
 views and limits; `art:benchmark:extended` adds the configured diagnostic views.
 The baseline registry owns approved comparisons and human decisions. Capture
 is evidence for review, not authorization to replace an approved baseline.
@@ -548,7 +543,7 @@ uses `test:budget`, and frozen world comparisons
 use §13.3. `03` §4 owns which task needs each lane. Routine asset work uses focused inspection rather than this full capture set; additional task-specific harbor evidence remains required by `04` §8.1.
 
 
-The Art Yard is the asset-review surface; `tools/vite/artYardPlugin.ts` serves it during DEV and emits published views/data in production. `BLENDER.md` §5 owns its route contract. It uses the same `AssetLoader`, runtime catalog, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` as the game and supports direct `?asset=<catalog-id>` links plus orbit, distance/LOD, triangle counts, wireframe, collision, animation, lighting, fog/storm, ground, and water diagnostics. Character playback uses real elapsed time, respects catalog one-shot/loop settings, and offers raw-clip inspection alongside the shared production controller/contact context. Normal diagnostics show exported split normals rather than forcing flat shading. Mounted player clips are reviewed as a synchronized rider-and-mount pair so saddle contact, gait phase, and counter-motion remain visible in context. Candidate-stage endpoints are DEV-only. The human performs visual approval in the actual integrated game.
+The Art Yard is the asset-review surface; `tools/vite/artYardPlugin.ts` serves it during DEV and emits published views/data in production. `ASSET_PRODUCTION.md` §5 owns its route contract. It uses the same `AssetLoader`, runtime catalog, `VisualRenderConfig`, `PaletteMaterials`, and `LightingRig` as the game and supports direct `?asset=<catalog-id>` links plus orbit, distance/LOD, triangle counts, wireframe, collision, animation, lighting, fog/storm, ground, and water diagnostics. Character playback uses real elapsed time, respects catalog one-shot/loop settings, and offers raw-clip inspection alongside the shared production controller/contact context. Normal diagnostics show exported split normals rather than forcing flat shading. Mounted player clips are reviewed as a synchronized rider-and-mount pair so saddle contact, gait phase, and counter-motion remain visible in context. Candidate-stage endpoints are DEV-only. The human performs visual approval in the actual integrated game.
 
 ## 13.1 Regression QA — Game vs Approved Game
 Same scene/state/camera/resolution/config only. Where available compare screenshot diff, SSIM, LPIPS, histogram/luminance, palette distribution and silhouette/edge metrics. These detect unintended change; they do not define artistic quality. Intentional accepted changes update benchmarks only after review.
@@ -583,7 +578,7 @@ The harness runs a deterministic SwiftShader lane and a real Chrome hardware lan
 Routine asset work uses one agent and no parallel visual-review agents. The human is the art director. Specialized agents are reserved for explicitly requested new/shared systems or release investigations.
 
 Every relevant agent MUST:
-1. follow the task-class read route in `BLENDER.md`;
+1. follow the task-class read route in `ASSET_PRODUCTION.md`;
 2. read the selected reference-authoring contract and rerun its brief only when changed;
 3. preserve visual vocabulary;
 4. prefer reusable systems over hacks;
@@ -625,7 +620,7 @@ after the visual direction is established.
 # 18. Definition of Done — Asset
 
 This is a contract checklist across mechanical readiness and eventual human
-acceptance. `BLENDER.md` supplies the task-specific commands; routine agents
+acceptance. `ASSET_PRODUCTION.md` supplies the task-specific commands; routine agents
 complete mechanical integration and focused inspection, then hand off `Awaiting human game review`.
 Do not treat visual checklist items as an instruction to start an agent scoring
 loop or require release gates for one asset.
@@ -673,10 +668,10 @@ CLIENT: TypeScript, Vite, Three.js/WebGL2 (+ WebGPU/TSL when justified),
 InstancedMesh/BatchedMesh, GLTFLoader, MeshoptDecoder, optional KTX2Loader when implemented, Rapier,
 optional Miniplex/bitECS, React DOM, Zustand
 
-ART: catalog/schema + Blender Python family generators; Geometry Nodes/UV/bakes only when deliberately added; semantic COLOR_0 + GLB export; ground supporting maps via ExternalSurfaceTextures + VisualRenderConfig (section 6.2)
+ART: catalog/schema + authored Three.js generators (Node) + committed authored GLB sources; frozen legacy GLBs until ported; semantic COLOR_0 + GLB export; ground supporting maps via ExternalSurfaceTextures + VisualRenderConfig (section 6.2)
 OPTIMIZATION: implemented gltf-transform + Meshopt; KTX2/BasisU preferred for GLB-embedded textures; supporting maps currently local WebP
 WORLD: validated JSON/TS schemas + seeded authored layout + prefabs + district/POI composition + authored overrides; no runtime chunk streaming
-QA: AJV schema checks + Blender validation + Khronos glTF validation + semantic determinism + Vitest + Playwright candidates + human style review
+QA: AJV schema checks + producer art contracts + Khronos glTF validation + decoded surface contract + semantic determinism + Vitest + Playwright candidates + human style review
 ```
 
 Highest-priority rule: preserve the approved visual identity unless doing so makes the game unacceptably slow, unstable, or unmaintainable. Target is not realism; it is one coherent skilled-art-team look across the whole game.

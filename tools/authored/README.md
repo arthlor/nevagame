@@ -1,16 +1,18 @@
 # Authored assets (Three.js generators)
 
 This is Neva's **main asset generation system**. Catalog assets are authored as TypeScript
-generators on a shared Three.js kit, built in Node by the art pipeline, and published through the
-same validation, optimisation, cache, manifest and determinism gates as every other catalog GLB.
+generators on a shared Three.js kit, built in Node by the art pipeline (`tools/art/cli.mjs`), and
+published through the same validation, optimisation, cache, manifest and determinism gates as every
+other catalog GLB.
 
-Blender (`tools/blender/generators/`) is the legacy producer. Its families are being ported here one
-at a time; until a family is ported, the pipeline keeps building it with Blender. Blender stays
-permanently only as the **import adapter** for donor models (`imported_blend`: the nine adapted
-characters and the adapted cow), which Three.js cannot read or retarget well.
+The only other producer is the **authored GLB** (`generator: "authored_glb"`): a committed source
+GLB such as a Tripo generation, an adapted donor model, or one of the canvas-textured buildings below
+(`LLM/ASSET_PRODUCTION.md` §3.2). The Blender producer was retired: families it built that are not yet
+ported are **frozen** (`tools/art/legacy-generators.json`). Their published GLBs are validated but
+never rebuilt; port the family here to change one.
 
 ```bash
-npm run art:generate -- --asset fauna_dog_a       # build, validate, optimise, publish (no Blender needed)
+npm run art:generate -- --asset fauna_dog_a       # build, validate, optimise, publish
 npm run art:determinism -- --asset fauna_dog_a    # build twice, compare semantic hashes
 npm run art:validate -- --all                     # revalidate every published asset
 ```
@@ -42,33 +44,33 @@ tools/authored/
     build.ts             buildAuthoredModel (browser-safe; also used by the Art Yard)
     node-entry.ts        semantic art contract + GLB export (bundled for Node)
     producer.mjs         the pipeline hook: bundles node-entry, writes raw GLBs, reports
-  export.mjs, export-entry.ts, <building>/   legacy route for the photo-reconstructed buildings
+  export.mjs, export-entry.ts, <building>/   canvas-textured buildings, exported as authored GLB sources
 ```
 
 ## How the pipeline builds an authored asset
 
-`tools/blender/cli.mjs` (the art pipeline CLI; the folder name is historical) splits each run's
-cache misses by producer. Assets whose `generator` is in `contracts.json` go to
-`pipeline/producer.mjs`; the rest go to the Blender pool. Blender is only resolved when the selection
-still contains a legacy generator.
+`tools/art/cli.mjs` (the art pipeline CLI) splits each run's cache misses by producer. Assets whose
+`generator` is in `contracts.json` go to `pipeline/producer.mjs`; `authored_glb` assets go to the
+authored-GLB producer; frozen assets are never built.
 
 The authored producer bundles `pipeline/node-entry.ts` with esbuild (cached under
 `generated/.cache/authored/`, keyed by the hash of the authored sources), then for each asset:
 
 1. builds the scene with the registered generator (`GeneratorContext` carries the catalog spec, its
    `seed` and `parameters`);
-2. enforces the **semantic art contract**, the same checks Blender's `common/pipeline.py` makes:
+2. enforces the **semantic art contract** (the checks the retired Blender pipeline made, now owned
+   here):
    required nodes present and unique, no degenerate triangles, every material a declared palette
    token, `COLOR_0` carrying its token colour, material and triangle budgets, LOD ownership and
    ratios, rest-pose dimensions within 0.25–1.35x the catalog, ground pivot, and every declared clip
    present with its catalog duration and animating only existing nodes;
 3. exports the raw GLB with `GLTFExporter` into the stage's `raw/` directory and reports dimensions,
-   bounds, palette tokens and colour loops in the Blender report's shape.
+   bounds, palette tokens and colour loops in the pipeline's report shape.
 
 From there both producers share everything: Khronos validation of the raw and optimised files,
-glTF-Transform/Meshopt optimisation, the per-asset cache (authored assets hash the authored sources,
-not the Blender tree), atomic publication to `generated/glb/` and `public/assets/models/`, the
-published manifest, and `art:determinism`.
+glTF-Transform/Meshopt optimisation, the per-asset cache (authored assets hash the authored sources),
+atomic publication to `generated/glb/` and `public/assets/models/`, the published manifest, and
+`art:determinism`.
 
 ## Writing a generator
 
@@ -81,8 +83,8 @@ published manifest, and `art:determinism`.
    `mulberry32(context.seed)` for any randomness.
 3. Register it in `generators/registry.ts` and give it a contract in `generators/contracts.json`, in
    the CLI's rule format (`{ "kind": "number", "min": 0.8, "max": 1.2 }`, `integer`, `choice`,
-   `tuple3`, `boolean`). A name may belong to one producer only; the CLI refuses a name Blender also
-   registers.
+   `tuple3`, `boolean`). A name may belong to one producer only; the CLI refuses a name that is also
+   a frozen legacy family.
 4. Iterate in the Art Yard with `&live=1`, then `npm run art:generate -- --asset <id>`, then inspect in
    the Art Yard (published) and the game.
 
@@ -137,18 +139,20 @@ published manifest, and `art:determinism`.
   (`tokenMaterial`); the colour is baked into linear `COLOR_0`. That is the pipeline's contract for
   every published GLB and what lets assets share runtime materials.
 
-## Porting a Blender family
+## Porting a frozen family
 
 Port family by family. Where the existing asset reads well, port it faithfully; where it reads
-weakly, redesign it to the village-life standard, with a before/after review of the pair.
+weakly, redesign it to the village-life standard, with a before/after review of the pair. The Python
+generators were deleted; the frozen published GLB, its catalog entry and its recorded parameter
+contract are the reference (the retired source remains in git history before the Blender removal).
 
-1. Read the Python generator, the catalog entries, and every runtime consumer (`WorldScene`, ambient
-   routes, presentation code) that resolves nodes or clips by name.
+1. Read the catalog entries, the frozen family's contract in `tools/art/legacy-generators.json`, the
+   published GLB in the Art Yard (nodes, sockets, clips, LODs, collision), and every runtime consumer
+   (`WorldScene`, ambient routes, presentation code) that resolves nodes or clips by name.
 2. Write the TypeScript generator under the same generator name, keeping every required node, pivot,
    socket, clip name and duration, LOD level and collision marker the runtime relies on.
-3. Move the name: delete it from `tools/blender/generators/registry.py` and the Blender
-   `PARAMETER_CONTRACTS` in `cli.mjs`, add it to `registry.ts` and `contracts.json`, and delete the
-   Python function.
+3. Move the name: delete it from `tools/art/legacy-generators.json` and add it to `registry.ts` and
+   `contracts.json` (starting from the recorded parameter contract).
 4. `npm run art:generate` the family, compare old and new in the Art Yard and the game, and update
    catalog dimensions and budgets from the producer report.
 
@@ -174,26 +178,28 @@ weakly, redesign it to the village-life standard, with a before/after review of 
 | Harbour | `dock_lantern_post`, `hanging_signboard`, `cargo_sack`, `cargo_crate_large`, `treasure_chest` (`props/harbour.ts`) | authored (redesigned) |
 | Camp and trail | `smoke_plume`, `clay_oven`, `fire_pit`, `trail_kiosk`, `trail_signpost` (`props/camp.ts`) | authored (redesigned) |
 | Reef | `coral_pillar`, `coral_staghorn`, `coral_table` (`props/reef.ts`) | authored (redesigned) |
-| Crop trade packs | `crop_trade_pack` | Blender (legacy, to port) |
-| Wearables | `wearable_equipment` (fit groundwork in `generators/wearables/`: the player body sampled by `scripts/extract-player-body.mjs`, weight transfer and a body envelope; not yet registered) | Blender (legacy, to port) |
-| Everything else | ~95 generators | Blender (legacy, to port) |
-| Donor imports | `imported_blend` | Blender (permanent) |
-| Photo-reconstructed buildings | `prebuilt_glb` | legacy authored route (below) |
+| Crop trade packs | `crop_trade_pack` | frozen (to port) |
+| Wearables | `wearable_equipment` (fit groundwork in `generators/wearables/`: the player body sampled by `scripts/extract-player-body.mjs`, weight transfer and a body envelope; not yet registered) | frozen (to port) |
+| Everything else | the other families in `tools/art/legacy-generators.json` | frozen (to port) |
+| Tripo and adapted donor models | `authored_glb` (committed sources under `art/imported/`) | authored GLB |
+| Photo-reconstructed buildings | `authored_glb` (exports under `art/authored/<model>/export/`) | authored GLB (below) |
 
-## Photo-reconstructed buildings (legacy `prebuilt_glb` route)
+## Photo-reconstructed buildings (canvas-textured exports)
 
-Five buildings were reconstructed from reference photos as measurable, code-only Three.js factories
-that paint canvas textures, so they still build through the older headless-Chromium route:
+Six buildings were reconstructed from reference photos as measurable, code-only Three.js factories
+that paint canvas textures, so their export runs in headless Chromium:
 
 ```bash
-npm run art:authored                         # rebuild every building (also publishes)
+npm run art:authored                         # rebuild every building, then publish via art:generate
 npm run art:authored -- building_wooden_outhouse_a   # rebuild one
-npm run art:authored -- --no-publish         # offline source only
+npm run art:authored -- --no-publish         # committed source only
 ```
 
-Each run writes one GLB into `art/authored/<model>/export/` (the offline source, committed) and
-copies it to `public/assets/models/`. Runtime never reads the `export/` directory. These will move to
-registered generators once their canvas textures are baked into palette colours at build time.
+Each run writes one GLB into `art/authored/<model>/export/` (the committed source) and then runs
+`tools/art/cli.mjs generate` for the exported IDs, which optimises (Meshopt), validates and
+atomically publishes them with the manifest. Runtime never reads the `export/` directory. These will
+move to registered generators once their canvas textures are baked into palette colours at build
+time.
 
 ### Editing
 
@@ -208,12 +214,10 @@ registered generators once their canvas textures are baked into palette colours 
 
 ### Catalog integration
 
-Each building has a normal catalog entry with `generator: "prebuilt_glb"` and `parameters.sourceGlb`
-pointing at the offline export. They appear in Art Yard like any other asset, but stay **outside the
-published manifest**: `validatePublishedManifest`, `syncPublishedManifest`, `validatePublished`, and
-the `generate`/`determinism` build set all skip `prebuilt_glb`. The catalog still requires a valid
-generator contract, palette tokens and a budget, which `npm run art:codegen` / CI's
-`art:codegen:check` enforce. `art:validate` does not run on them.
+Each building has a normal catalog entry with `generator: "authored_glb"`, `parameters.sourceGlb`
+pointing at the committed export and a `textureMaxSize`. They are ordinary published assets: in the
+manifest, covered by `art:validate`, `art:sync`, `generate` and `determinism`, with the palette,
+budget, node and LOD contracts of any other asset.
 
 ### Adaptation
 

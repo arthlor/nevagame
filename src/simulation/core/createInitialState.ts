@@ -52,7 +52,10 @@ function initialWeather(worldSeed: number): GameState["weather"] {
 }
 
 
-export function createInitialGameState(worldSeed: number = 42891): GameState {
+/** Every new game's world seed; the production build bakes this seed's environment layout. */
+export const NEW_GAME_WORLD_SEED = 42891;
+
+export function createInitialGameState(worldSeed: number = NEW_GAME_WORLD_SEED): GameState {
   ContentRegistry.initializeAndValidate();
   const starterDonkey = createStarterDonkeyState();
 

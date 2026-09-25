@@ -13,7 +13,7 @@ import {
   DEFAULT_OPTIMIZE_CONFIG,
   createNodeIO,
   ensureMeshoptReady,
-} from "../../tools/blender/optimize.mjs";
+} from "../../tools/art/optimize.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 

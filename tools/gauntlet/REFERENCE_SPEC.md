@@ -81,7 +81,7 @@ contact and garment fit — not on density.
 ## The loop
 
 ```
-node tools/blender/cli.mjs generate --asset <id>
+node tools/art/cli.mjs generate --asset <id>
 node tools/gauntlet/capture-turnaround.mjs --assets <id> --out output/gauntlet/current
 ```
 Then look at `output/gauntlet/current/<id>-SHEET.png` beside the reference.

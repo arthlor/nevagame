@@ -49,10 +49,11 @@ import { createWateringCanModel } from "./tools/createWateringCanModel";
 /**
  * Authored generators by catalog `generator` name.
  *
- * A catalog asset whose generator is listed here is built by this TypeScript factory instead of
- * Blender. Its parameter contract lives beside this file in `contracts.json` (plain JSON, so the
- * Node pipeline can validate the catalog without compiling TypeScript); a unit test keeps the two in
- * step, and the pipeline refuses a name that Blender also registers.
+ * A catalog asset whose generator is listed here is built by this TypeScript factory. Its parameter
+ * contract lives beside this file in `contracts.json` (plain JSON, so the Node pipeline can validate
+ * the catalog without compiling TypeScript); a unit test keeps the two in step, and the pipeline
+ * refuses a name that is also a frozen legacy family (`tools/art/legacy-generators.json`) or
+ * `authored_glb`. Porting a legacy family moves its name from that file to here.
  */
 export const AUTHORED_GENERATORS: Readonly<Record<string, AuthoredGenerator>> = {
   coastal_rock: createStoneModel,

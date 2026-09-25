@@ -31,12 +31,15 @@ import {
   validateLodContract,
   validateReferenceAuthoring,
   validatePublishedManifest
-} from "../../tools/blender/cli.mjs";
-import type { CatalogAsset } from "../../tools/blender/cli.mjs";
+} from "../../tools/art/cli.mjs";
+import type { CatalogAsset } from "../../tools/art/cli.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const hash = (filename: string) =>
   crypto.createHash("sha256").update(fs.readFileSync(filename)).digest("hex");
+/** The tracked published manifest; `generated/` is an untracked mirror absent from a fresh checkout. */
+const PUBLIC_MANIFEST = path.join(ROOT, "public/assets/models/asset-manifest.json");
+const GENERATED_MANIFEST = path.join(ROOT, "generated/reports/asset-manifest.json");
 
 describe("Neva art catalog", () => {
   it("validates the schema, palette references, and complete runtime manifest", () => {
@@ -89,22 +92,22 @@ describe("Neva art catalog", () => {
     if (!character?.animationClips) throw new Error("char_player_a requires an animation contract");
     expect(validateAnimationContract(character)).toBe(true);
 
-    const generatedManifest = JSON.parse(
-      fs.readFileSync(path.join(ROOT, "generated/reports/asset-manifest.json"), "utf8")
-    ) as { assets: Array<{ id: string; animationClips?: CatalogAsset["animationClips"] }> };
-    const publicManifest = JSON.parse(
-      fs.readFileSync(path.join(ROOT, "public/assets/models/asset-manifest.json"), "utf8")
-    ) as typeof generatedManifest;
-    const generatedCharacter = generatedManifest.assets.find((asset) => asset.id === "char_player_a");
+    const publicManifest = JSON.parse(fs.readFileSync(PUBLIC_MANIFEST, "utf8")) as {
+      assets: Array<{ id: string; animationClips?: CatalogAsset["animationClips"] }>;
+    };
     const publicCharacter = publicManifest.assets.find((asset) => asset.id === "char_player_a");
+    if (fs.existsSync(GENERATED_MANIFEST)) {
+      const generatedManifest = JSON.parse(fs.readFileSync(GENERATED_MANIFEST, "utf8")) as typeof publicManifest;
+      const generatedCharacter = generatedManifest.assets.find((asset) => asset.id === "char_player_a");
+      expect(publicCharacter?.animationClips).toEqual(generatedCharacter?.animationClips);
+    }
     const expectedClips = [
       ...character.animationClips,
       ...(character.additionalAnimationClips ?? [])
     ];
-    expect(generatedCharacter?.animationClips).toHaveLength(expectedClips.length);
-    expect(publicCharacter?.animationClips).toEqual(generatedCharacter?.animationClips);
+    expect(publicCharacter?.animationClips).toHaveLength(expectedClips.length);
     for (const clip of expectedClips) {
-      const packaged = generatedCharacter?.animationClips?.find((candidate) => candidate.name === clip.name);
+      const packaged = publicCharacter?.animationClips?.find((candidate) => candidate.name === clip.name);
       expect(packaged?.loop).toBe(clip.loop);
       expect(packaged?.referenceSpeedMetersPerSecond ?? null)
         .toBe(clip.referenceSpeedMetersPerSecond ?? null);
@@ -260,19 +263,30 @@ describe("Neva art catalog", () => {
       .toBe(true);
   });
 
-  it("has no static Blender preview command or implementation", () => {
+  it("has no Blender or Python asset pipeline to fall back to", () => {
     const packageJson = JSON.parse(
       fs.readFileSync(path.join(ROOT, "package.json"), "utf8")
     ) as { scripts: Record<string, string> };
-    const cliSource = fs.readFileSync(path.join(ROOT, "tools/blender/cli.mjs"), "utf8");
-    const removedCommand = ["art", "preview"].join(":");
-    const removedResolver = ["resolve", "Preview", "Source"].join("");
-    const removedScript = ["pre", "view.py"].join("");
-
-    expect(packageJson.scripts[removedCommand]).toBeUndefined();
-    expect(cliSource).not.toContain('args.command === "preview"');
-    expect(cliSource).not.toContain(removedResolver);
-    expect(fs.existsSync(path.join(ROOT, "tools/blender", removedScript))).toBe(false);
+    // The retired pipeline must not return piecemeal: no folder, no Python sources under tools/,
+    // no script that shells out to Blender or Python, and no subprocess in the art CLI.
+    expect(fs.existsSync(path.join(ROOT, "tools/blender"))).toBe(false);
+    const pythonSources: string[] = [];
+    const visit = (directory: string) => {
+      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        const filename = path.join(directory, entry.name);
+        if (entry.isDirectory()) visit(filename);
+        else if (entry.name.endsWith(".py")) pythonSources.push(path.relative(ROOT, filename));
+      }
+    };
+    visit(path.join(ROOT, "tools"));
+    expect(pythonSources).toEqual([]);
+    for (const [name, command] of Object.entries(packageJson.scripts)) {
+      expect(command, name).not.toMatch(/\bblender\b|\bpython3?\b|\.py\b/i);
+    }
+    const cliSource = fs.readFileSync(path.join(ROOT, "tools/art/cli.mjs"), "utf8");
+    expect(cliSource).not.toContain("node:child_process");
+    expect(cliSource).not.toMatch(/BLENDER_BIN|--python/);
+    expect(packageJson.scripts[["art", "test-builders"].join(":")]).toBeUndefined();
   });
 
   it("rejects incomplete, unknown, and out-of-range generator parameters", () => {
@@ -310,8 +324,9 @@ describe("Neva art catalog", () => {
     });
     const markdown = referenceBriefMarkdown(oak);
     expect(markdown).toContain("# Reference authoring brief: tree_oak_a");
-    expect(markdown).toContain(`catalog -> ${oak.generator} -> validated Blender GLB -> atomic runtime publication`);
-    expect(markdown).toContain("Direct TypeScript factories");
+    // tree_oak_a's family generator was retired with Blender, so its brief names the frozen route.
+    expect(markdown).toContain(`catalog -> frozen published GLB (retired ${oak.generator} generator;`);
+    expect(markdown).toContain("Direct runtime factories");
     expect(referenceBriefMarkdown(oak)).toBe(markdown);
 
     const invalidBinding = structuredClone(oak);
@@ -353,26 +368,23 @@ describe("Neva art catalog", () => {
     fs.rmSync(directory, { recursive: true, force: true });
   });
 
-  it("keeps generated and public copies byte-identical", () => {
-    const manifest = JSON.parse(
-      fs.readFileSync(path.join(ROOT, "generated/reports/asset-manifest.json"), "utf8")
-    ) as { assets: Array<{ file: string; fileHash: string }> };
-    // Code-authored `prebuilt_glb` assets are published by tools/authored, not the Blender manifest.
+  it("publishes every catalog asset with its manifest hash, and mirrors generated copies byte-identically", () => {
+    const manifest = JSON.parse(fs.readFileSync(PUBLIC_MANIFEST, "utf8")) as {
+      assets: Array<{ id: string; file: string; fileHash: string }>;
+    };
     const { catalog } = validateCatalog();
-    const blenderAssets = catalog.assets.filter((asset) => asset.generator !== "prebuilt_glb");
-    expect(blenderAssets.length).toBeGreaterThan(0);
-    expect(manifest.assets).toHaveLength(blenderAssets.length);
+    expect(manifest.assets).toHaveLength(catalog.assets.length);
     for (const asset of manifest.assets) {
-      const generated = path.join(ROOT, "generated/glb", asset.file);
       const published = path.join(ROOT, "public/assets/models", asset.file);
-      expect(hash(generated)).toBe(asset.fileHash);
-      expect(hash(published)).toBe(asset.fileHash);
+      expect(hash(published), asset.id).toBe(asset.fileHash);
+      const generated = path.join(ROOT, "generated/glb", asset.file);
+      if (fs.existsSync(generated)) expect(hash(generated), asset.id).toBe(asset.fileHash);
     }
   });
 
   it("rejects manifests from a different catalog revision", () => {
     const { catalog, palette, specHash } = validateCatalog();
-    const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "generated/reports/asset-manifest.json"), "utf8"));
+    const manifest = JSON.parse(fs.readFileSync(PUBLIC_MANIFEST, "utf8"));
     const staleManifest = {
       ...manifest,
       specHash: crypto.createHash("sha256").update("stale-catalog-revision").digest("hex")
@@ -397,9 +409,7 @@ describe("Neva art catalog", () => {
       .createHash("sha256")
       .update(fs.readFileSync(path.join(ROOT, "art/palettes/neva.palette.json")))
       .digest("hex");
-    const manifest = JSON.parse(
-      fs.readFileSync(path.join(ROOT, "generated/reports/asset-manifest.json"), "utf8")
-    );
+    const manifest = JSON.parse(fs.readFileSync(PUBLIC_MANIFEST, "utf8"));
     const fish = catalog.assets.find((asset) => asset.id === "fish_trout_a");
     if (!fish) throw new Error("fish_trout_a is required by the catalog fixture");
     const legacy = {

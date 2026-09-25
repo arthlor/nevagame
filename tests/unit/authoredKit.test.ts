@@ -119,7 +119,7 @@ describe("authored kit surfaces", () => {
 });
 
 describe("authored kit rigs and markers", () => {
-  it("names collision markers the way the runtime and the Blender generators do", () => {
+  it("names collision markers the way the runtime and the frozen legacy assets do", () => {
     const parent = new THREE.Group();
     const spec = {
       id: "prop_test_a", collision: "box",
@@ -134,7 +134,7 @@ describe("authored kit rigs and markers", () => {
     expect(() => addCollisionMarkers({ ...spec, collision: "none" }, parent)).toThrow("nonblocking");
   });
 
-  it("tags a typed point marker the way Blender's add_marker does", () => {
+  it("tags a typed point marker the way the frozen legacy assets' markers are tagged", () => {
     const marker = addMarker("rod_line_exit", [0, 2.2, 0.05], "line_exit", new THREE.Group());
     expect(marker.position.toArray()).toEqual([0, 2.2, 0.05]);
     expect(marker.userData.neva_marker).toBe("line_exit");

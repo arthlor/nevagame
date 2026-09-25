@@ -1931,6 +1931,26 @@ export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmen
   return layout;
 }
 
+/**
+ * Adopts a layout generated ahead of time (the production build's bake) as this session's layout
+ * for its seed, so later reads skip generation. A layout already generated in this session wins,
+ * keeping every consumer on one set of placement objects. Returns whether the bake was adopted.
+ */
+export function adoptPreparedEnvironmentLayout(
+  worldSeed: number,
+  prepared: Pick<WorldEnvironmentLayout, "staticPlacements" | "groundCoverPlacements">
+): boolean {
+  const cacheKey = `${WORLD_LAYOUT_V5.revision}:${worldSeed}:all-islands`;
+  if (ENVIRONMENT_LAYOUT_CACHE.has(cacheKey) || STATIC_PLACEMENTS_CACHE.has(cacheKey)) return false;
+  STATIC_PLACEMENTS_CACHE.set(cacheKey, prepared.staticPlacements);
+  ENVIRONMENT_LAYOUT_CACHE.set(cacheKey, {
+    worldSeed,
+    staticPlacements: prepared.staticPlacements,
+    groundCoverPlacements: prepared.groundCoverPlacements
+  });
+  return true;
+}
+
 /** Startup prepares the lazy cover once, without blocking a browser task. */
 export async function prepareWorldEnvironmentLayout(worldSeed: number, signal?: AbortSignal): Promise<WorldEnvironmentLayout> {
   const cacheKey = `${WORLD_LAYOUT_V5.revision}:${worldSeed}:all-islands`;

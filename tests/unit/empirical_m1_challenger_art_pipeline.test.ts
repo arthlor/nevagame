@@ -9,23 +9,18 @@ import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 import {
   ART_CACHE_VERSION,
   computeAssetInputHash,
-  generatorModuleFor,
   readAssetCache,
   writeAssetCache,
-  getCacheManifest,
-  saveCacheManifest,
   sha256,
   stableStringify,
-} from "../../tools/blender/cache.mjs";
-
-import { BlenderWorkerPool } from "../../tools/blender/pool.mjs";
+} from "../../tools/art/cache.mjs";
 
 import {
   optimizeAsset,
   optimizeAndGenerateLods,
   mayJoinStaticNode,
   ensureMeshoptReady,
-} from "../../tools/blender/optimize.mjs";
+} from "../../tools/art/optimize.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 
@@ -132,16 +127,6 @@ describe("Challenger 1 Empirical Suite: Subsystem 1 (Art Pipeline & Caching)", (
         parameters: restParams,
       };
       expect(computeAssetInputHash(modifiedSpec4, basePalette, "4.2.0", {}, ROOT)).not.toBe(baseHash);
-    });
-
-    it("handles registry generator mapping and errors on unregistered generators", () => {
-      expect(generatorModuleFor("props", ROOT)).toBe("props.py");
-      expect(generatorModuleFor("imported_blend", ROOT)).toBe("imported.py");
-      expect(generatorModuleFor("rowboat", ROOT)).toBe("boats.py");
-
-      expect(() => generatorModuleFor("completely_unknown_generator_xyz_999", ROOT)).toThrow(
-        /no registered generator module was found/
-      );
     });
 
     it("validates readAssetCache against corrupted, mismatched, or failed contract records", async () => {
@@ -278,26 +263,6 @@ describe("Challenger 1 Empirical Suite: Subsystem 1 (Art Pipeline & Caching)", (
       fs.rmSync(tempDir, { recursive: true, force: true });
     });
 
-    it("handles corrupted manifest.json gracefully and recovers default manifest", () => {
-      const tempCacheDir = fs.mkdtempSync(path.join(os.tmpdir(), "neva-manifest-corrupt-"));
-      const manifestPath = path.join(tempCacheDir, "manifest.json");
-
-      // Corrupted manifest
-      fs.writeFileSync(manifestPath, "NOT_JSON_DATA!@#$");
-      const loaded = getCacheManifest(tempCacheDir);
-      expect(loaded).toEqual({ version: 1, entries: {} });
-
-      // Save valid manifest
-      saveCacheManifest(tempCacheDir, {
-        version: 1,
-        entries: { prop_1: { hash: "abc", file: "prop_1.glb", mtimeMs: 123 } },
-      });
-      const recovered = getCacheManifest(tempCacheDir);
-      expect(recovered.entries.prop_1.hash).toBe("abc");
-
-      fs.rmSync(tempCacheDir, { recursive: true, force: true });
-    });
-
     it("verifies full collision avoidance across ID, family, seed, and generator changes", () => {
       const hashes = new Set<string>();
       const variations = [
@@ -315,250 +280,6 @@ describe("Challenger 1 Empirical Suite: Subsystem 1 (Art Pipeline & Caching)", (
         hashes.add(h);
       }
       expect(hashes.size).toBe(variations.length);
-    });
-  });
-
-  // =========================================================================
-  // 2. WORKER POOL EMPIRICAL CHALLENGES
-  // =========================================================================
-  describe("2. pool.mjs Empirical Invariants, Watchdogs & Concurrency", () => {
-    function createMockBlenderWrapper(dir: string, nodeWorkerScript: string): string {
-      const wrapperPath = path.join(dir, "mock_blender.sh");
-      const wrapperContent = `#!/bin/sh
-while [ $# -gt 0 ]; do
-  if [ "$1" = "--python" ]; then
-    shift
-    SCRIPT="$1"
-    shift
-    if [ "$1" = "--" ]; then
-      shift
-    fi
-    exec "${process.execPath}" "$SCRIPT" "$@"
-  fi
-  shift
-done
-exec "${process.execPath}" "${nodeWorkerScript}" "$@"
-`;
-      fs.writeFileSync(wrapperPath, wrapperContent, { mode: 0o755 });
-      return wrapperPath;
-    }
-
-    it("handles heavy queue with worker recycling and concurrency 4", async () => {
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "neva-pool-heavy-"));
-      const mockScript = path.join(tempDir, "mock_worker_fast.mjs");
-
-      fs.writeFileSync(
-        mockScript,
-        `
-        import fs from "node:fs";
-        const args = process.argv.slice(2);
-        const reportIdx = args.indexOf("--report");
-        const assetIdx = args.indexOf("--asset");
-        const reportPath = args[reportIdx + 1];
-        const assetId = args[assetIdx + 1];
-
-        const report = {
-          version: 1,
-          assets: [{ id: assetId, status: "passed", file: assetId + ".glb" }]
-        };
-        fs.writeFileSync(reportPath, JSON.stringify(report), "utf8");
-        process.exit(0);
-      `
-      );
-
-      const mockBlender = createMockBlenderWrapper(tempDir, mockScript);
-      const assets = Array.from({ length: 20 }, (_, i) => ({ id: `asset_heavy_${i}` }));
-
-      const pool = new BlenderWorkerPool({ concurrency: 4, timeoutMs: 5000, recycleJobLimit: 3 });
-      try {
-        const outcome = await pool.runTasks({
-          blenderPath: mockBlender,
-          bootstrapScript: mockScript,
-          catalogPath: "dummy.json",
-          assets,
-          outputDir: tempDir,
-        });
-
-        expect(outcome.results).toHaveLength(20);
-        expect(outcome.blenderReport.assets).toHaveLength(20);
-      } finally {
-        pool.dispose();
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    });
-
-    it("respects worker concurrency bounds and distributes work across FIFO queue", async () => {
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "neva-pool-concurrency-"));
-      const mockScript = path.join(tempDir, "mock_worker.mjs");
-
-      // Mock node worker script that writes a report and simulates work
-      fs.writeFileSync(
-        mockScript,
-        `
-        import fs from "node:fs";
-        const args = process.argv.slice(2);
-        const reportIdx = args.indexOf("--report");
-        const assetIdx = args.indexOf("--asset");
-        const reportPath = args[reportIdx + 1];
-        const assetId = args[assetIdx + 1];
-
-        // Simulate work delay
-        await new Promise(r => setTimeout(r, 60));
-
-        const report = {
-          version: 1,
-          assets: [{ id: assetId, status: "passed", file: assetId + ".glb" }]
-        };
-        fs.writeFileSync(reportPath, JSON.stringify(report), "utf8");
-        process.exit(0);
-      `
-      );
-
-      const mockBlender = createMockBlenderWrapper(tempDir, mockScript);
-      const assets = Array.from({ length: 6 }, (_, i) => ({ id: `asset_${i}` }));
-      const progressEvents: any[] = [];
-
-      const pool = new BlenderWorkerPool({ concurrency: 2, timeoutMs: 5000 });
-      try {
-        const start = Date.now();
-        const outcome = await pool.runTasks({
-          blenderPath: mockBlender,
-          bootstrapScript: mockScript,
-          catalogPath: "dummy_catalog.json",
-          assets,
-          outputDir: tempDir,
-          onProgress: (p) => progressEvents.push(p),
-        });
-
-        const elapsed = Date.now() - start;
-        expect(outcome.results).toHaveLength(6);
-        expect(outcome.blenderReport.assets).toHaveLength(6);
-        expect(progressEvents).toHaveLength(6);
-        expect(progressEvents[5].completed).toBe(6);
-        expect(progressEvents[5].total).toBe(6);
-        // With concurrency 2 and 6 tasks of ~60ms, total elapsed should be at least ~100ms
-        expect(elapsed).toBeGreaterThanOrEqual(100);
-      } finally {
-        pool.dispose();
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    });
-
-    it("triggers watchdog timer on hanging tasks, terminates process, and reports timeout", async () => {
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "neva-pool-timeout-"));
-      const hangingScript = path.join(tempDir, "hanging_worker.mjs");
-
-      fs.writeFileSync(
-        hangingScript,
-        `
-        // Never exits and ignores simple signals
-        setInterval(() => {}, 1000);
-      `
-      );
-
-      const mockBlender = createMockBlenderWrapper(tempDir, hangingScript);
-      const pool = new BlenderWorkerPool({ concurrency: 1, timeoutMs: 250 });
-
-      try {
-        await expect(
-          pool.runTasks({
-            blenderPath: mockBlender,
-            bootstrapScript: hangingScript,
-            catalogPath: "dummy.json",
-            assets: [{ id: "hung_asset" }],
-            outputDir: tempDir,
-          })
-        ).rejects.toThrow(/Timeout \(250ms\) executing Blender for asset "hung_asset"/);
-      } finally {
-        pool.dispose();
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    });
-
-    it("isolates process errors: executing subsequent queue items when an earlier task fails", async () => {
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "neva-pool-isolation-"));
-      const script = path.join(tempDir, "flaky_worker.mjs");
-
-      fs.writeFileSync(
-        script,
-        `
-        import fs from "node:fs";
-        const args = process.argv.slice(2);
-        const reportIdx = args.indexOf("--report");
-        const assetIdx = args.indexOf("--asset");
-        const reportPath = args[reportIdx + 1];
-        const assetId = args[assetIdx + 1];
-
-        if (assetId.startsWith("fail_")) {
-          process.stderr.write("Fatal error in asset: " + assetId + "\\n");
-          process.exit(1);
-        }
-
-        const report = {
-          version: 1,
-          assets: [{ id: assetId, status: "passed" }]
-        };
-        fs.writeFileSync(reportPath, JSON.stringify(report), "utf8");
-        process.exit(0);
-      `
-      );
-
-      const mockBlender = createMockBlenderWrapper(tempDir, script);
-      const assets = [
-        { id: "pass_1" },
-        { id: "fail_1" },
-        { id: "pass_2" },
-        { id: "fail_2" },
-        { id: "pass_3" },
-      ];
-
-      const pool = new BlenderWorkerPool({ concurrency: 1, timeoutMs: 3000 });
-
-      try {
-        let caughtError: any = null;
-        try {
-          await pool.runTasks({
-            blenderPath: mockBlender,
-            bootstrapScript: script,
-            catalogPath: "dummy.json",
-            assets,
-            outputDir: tempDir,
-          });
-        } catch (err) {
-          caughtError = err;
-        }
-
-        expect(caughtError).not.toBeNull();
-        expect(caughtError.message).toMatch(/Blender dynamic worker pool failed for 2 \/ 5 asset\(s\)/);
-        expect(caughtError.errors).toHaveLength(2);
-        expect(caughtError.errors[0].assetId).toBe("fail_1");
-        expect(caughtError.errors[1].assetId).toBe("fail_2");
-        expect(caughtError.results).toHaveLength(3); // pass_1, pass_2, pass_3 still succeeded!
-      } finally {
-        pool.dispose();
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    });
-
-    it("cleans up scratch directories and active processes when terminateAll is called", () => {
-      const pool = new BlenderWorkerPool({ concurrency: 2 });
-      const tempScratch1 = path.join(os.tmpdir(), `pool-scratch-1-${Date.now()}`);
-      const tempScratch2 = path.join(os.tmpdir(), `pool-scratch-2-${Date.now()}`);
-      fs.mkdirSync(tempScratch1, { recursive: true });
-      fs.mkdirSync(tempScratch2, { recursive: true });
-
-      pool.scratchDirs.add(tempScratch1);
-      pool.scratchDirs.add(tempScratch2);
-
-      expect(fs.existsSync(tempScratch1)).toBe(true);
-      expect(fs.existsSync(tempScratch2)).toBe(true);
-
-      pool.terminateAll();
-
-      expect(fs.existsSync(tempScratch1)).toBe(false);
-      expect(fs.existsSync(tempScratch2)).toBe(false);
-      expect(pool.scratchDirs.size).toBe(0);
-      expect(pool.aborted).toBe(true);
     });
   });
 
@@ -584,7 +305,7 @@ exec "${process.execPath}" "${nodeWorkerScript}" "$@"
       expect(mayJoinStaticNode(nodeNamed("rowboat_hull"), { generator: "rowboat" })).toBe(true);
 
       // Characters and rigs
-      expect(mayJoinStaticNode(nodeNamed("spine"), { family: "character", generator: "imported_blend" })).toBe(false);
+      expect(mayJoinStaticNode(nodeNamed("spine"), { family: "character", generator: "authored_glb" })).toBe(false);
       expect(mayJoinStaticNode(nodeNamed("head"), { family: "character", generator: "npc_character" })).toBe(false);
 
       // Collision proxies

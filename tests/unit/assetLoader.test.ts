@@ -5,9 +5,10 @@ import { ASSET_BY_ID, ASSET_CATALOG, ASSET_IDS } from "../../src/render/assets/A
 import { AssetLoader, cloneSkinnedModel, configureRuntimeLod } from "../../src/render/loaders/AssetLoader";
 
 type ParsedGltf = { scene: THREE.Group; animations: THREE.AnimationClip[] };
-type DirectLoaderInternals = {
+type LoaderInternals = {
   templateConsumers: Map<string, number>;
   modelCache: Map<string, THREE.Group>;
+  loadingPromises: Map<string, Promise<THREE.Group>>;
   loader: {
     parse: (
       bytes: ArrayBuffer,
@@ -147,23 +148,20 @@ describe("generated asset LOD runtime", () => {
   });
 });
 
-describe("standalone NPC asset loading", () => {
-  it("deduplicates startup transfers, reports progress, and returns owned cached clones", async () => {
-    const spec = {
-      id: "test_direct_npc_asset",
-      modelPath: "/assets/models/test_direct_npc_asset.glb",
-      scale: 1.7
-    };
+describe("catalog NPC asset loading", () => {
+  // Tripo NPCs are catalog assets; startup begins their transfers during the layout stage and the
+  // later scenery preload joins the same in-flight request.
+  const assetId = ASSET_IDS.CHAR_NPC_TOMAS_B;
+
+  it("deduplicates overlapping startup preloads, reports progress, and returns owned cached clones", async () => {
     const root = new THREE.Group();
     const collision = new THREE.Group();
     collision.name = "COL_body";
     root.add(collision);
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
-    collision.add(mesh);
+    collision.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial()));
 
-    const internals = AssetLoader as unknown as DirectLoaderInternals;
-    const loader = internals.loader;
-    const parse = vi.spyOn(loader, "parse").mockImplementation((_bytes, _path, onLoad) => {
+    const internals = AssetLoader as unknown as LoaderInternals;
+    const parse = vi.spyOn(internals.loader, "parse").mockImplementation((_bytes, _path, onLoad) => {
       onLoad({ scene: root, animations: [] });
     });
     const fetch = vi.fn(async () => ({
@@ -172,48 +170,51 @@ describe("standalone NPC asset loading", () => {
       arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer
     } as Response));
     vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("window", { location: { href: "http://localhost/" } });
     const progress: Array<{ assetId: string; completed: number; total: number }> = [];
 
     try {
-      await AssetLoader.preloadDirect([spec, spec], entry => progress.push(entry));
-      const clone = await AssetLoader.loadDirectModel(spec);
+      const early = AssetLoader.preload([assetId]);
+      await AssetLoader.preload([assetId, assetId], entry => progress.push(entry));
+      await early;
+      const clone = await AssetLoader.loadModel(assetId);
 
       expect(fetch).toHaveBeenCalledOnce();
       expect(parse).toHaveBeenCalledOnce();
-      expect(progress).toEqual([{ assetId: spec.id, completed: 1, total: 1 }]);
-      expect(clone.userData.assetId).toBe(spec.id);
-      expect(clone.scale.x).toBeCloseTo(spec.scale);
+      expect(progress).toEqual([{ assetId, completed: 1, total: 1 }]);
+      expect(clone.userData.assetId).toBe(assetId);
       expect(AssetLoader.collisionNodeNames(clone)).toEqual(["COL_body"]);
       expect(clone.getObjectByName("COL_body")?.visible).toBe(false);
-      expect(internals.templateConsumers.get(spec.id)).toBe(1);
+      expect(internals.templateConsumers.get(assetId)).toBe(1);
 
       AssetLoader.releaseModel(clone);
       AssetLoader.releaseModel(clone);
-      expect(internals.templateConsumers.get(spec.id)).toBe(0);
+      expect(internals.templateConsumers.get(assetId)).toBe(0);
     } finally {
-      AssetLoader.invalidateCache(spec.id as never);
+      AssetLoader.invalidateCache(assetId);
+      internals.templateConsumers.delete(assetId);
       parse.mockRestore();
       vi.unstubAllGlobals();
     }
   });
 
-  it("cancels an in-flight direct transfer without caching its model", async () => {
-    const spec = {
-      id: "test_direct_npc_abort",
-      modelPath: "/assets/models/test_direct_npc_abort.glb"
-    };
+  it("cancels an in-flight transfer without caching its model", async () => {
     const fetch = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
       init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
     }));
-    const internals = AssetLoader as unknown as Pick<DirectLoaderInternals, "modelCache">;
+    const internals = AssetLoader as unknown as Pick<LoaderInternals, "modelCache" | "loadingPromises">;
     vi.stubGlobal("fetch", fetch);
     const controller = new AbortController();
-    const loading = AssetLoader.preloadDirect([spec], undefined, 1, controller.signal);
+    const loading = AssetLoader.preload([assetId], undefined, 1, controller.signal);
 
-    controller.abort();
-    await expect(loading).rejects.toThrow();
-    expect(fetch).toHaveBeenCalledOnce();
-    expect(internals.modelCache.has(spec.id)).toBe(false);
-    vi.unstubAllGlobals();
+    try {
+      controller.abort();
+      await expect(loading).rejects.toThrow();
+      expect(fetch).toHaveBeenCalledOnce();
+      expect(internals.modelCache.has(assetId)).toBe(false);
+      expect(internals.loadingPromises.has(assetId)).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

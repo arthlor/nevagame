@@ -55,3 +55,9 @@ declare module "virtual:neva-runtime-asset-catalog" {
   }>;
   export default assets;
 }
+
+declare module "virtual:neva-environment-layout-bakes" {
+  /** Baked environment layouts shipped by a production build; empty in development and tests. */
+  const bakes: ReadonlyArray<{ worldSeed: number; layoutRevision: number; url: string }>;
+  export default bakes;
+}

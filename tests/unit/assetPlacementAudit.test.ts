@@ -148,34 +148,28 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     }
   });
 
-  it("keeps generated and public manifest/GLB parity for every Blender-generated asset", () => {
-    const generated = JSON.parse(
-      fs.readFileSync(path.join(ROOT, "generated/reports/asset-manifest.json"), "utf8")
-    ) as { assets: Array<{ id: string; file: string }> };
+  it("publishes every catalog asset through the manifest, with generated/public parity when mirrored", () => {
     const published = JSON.parse(
       fs.readFileSync(path.join(ROOT, "public/assets/models/asset-manifest.json"), "utf8")
-    ) as typeof generated;
-    // The runtime catalog deliberately drops authoring fields, so read the source catalog for the
-    // generator that decides which pipeline publishes each asset.
+    ) as { assets: Array<{ id: string; file: string; fileHash: string }> };
+    // The runtime catalog deliberately drops authoring fields, so read the source catalog.
     const catalog = JSON.parse(
       fs.readFileSync(path.join(ROOT, "assets/specs/asset-catalog.json"), "utf8")
     ) as { assets: Array<{ id: string; file: string; generator: string }> };
-    // Code-authored `prebuilt_glb` assets are published by tools/authored, not the Blender manifest.
-    const blenderAssets = catalog.assets.filter((asset) => asset.generator !== "prebuilt_glb");
-    expect(blenderAssets.length).toBeGreaterThan(0);
-    expect(generated.assets).toHaveLength(blenderAssets.length);
-    expect(published.assets).toHaveLength(blenderAssets.length);
-    expect(generated.assets.map((asset) => asset.id).sort()).toEqual(published.assets.map((asset) => asset.id).sort());
-    for (const asset of generated.assets) {
-      expect(fs.existsSync(path.join(ROOT, "generated/glb", asset.file)), asset.id).toBe(true);
+    // Every producer (authored generators, authored GLBs, frozen legacy families) publishes through
+    // the one manifest; nothing ships beside it.
+    expect(published.assets.map((asset) => asset.id).sort()).toEqual(catalog.assets.map((asset) => asset.id).sort());
+    for (const asset of catalog.assets) {
+      const entry = published.assets.find((candidate) => candidate.id === asset.id);
+      expect(entry?.file, asset.id).toBe(asset.file);
       expect(fs.existsSync(path.join(ROOT, "public/assets/models", asset.file)), asset.id).toBe(true);
-      expect(published.assets.find((candidate) => candidate.id === asset.id)?.file).toBe(asset.file);
     }
-    // Authored assets stay outside the manifest but must still publish a runtime file.
-    const authoredAssets = catalog.assets.filter((asset) => asset.generator === "prebuilt_glb");
-    expect(authoredAssets.length).toBeGreaterThan(0);
-    for (const asset of authoredAssets) {
-      expect(fs.existsSync(path.join(ROOT, "public/assets/models", asset.file)), asset.id).toBe(true);
+    // `generated/` is an untracked mirror of the last publish; compare it only where it exists.
+    const generatedManifestPath = path.join(ROOT, "generated/reports/asset-manifest.json");
+    if (fs.existsSync(generatedManifestPath)) {
+      const generated = JSON.parse(fs.readFileSync(generatedManifestPath, "utf8")) as typeof published;
+      expect(generated.assets.map((asset) => [asset.id, asset.fileHash]).sort())
+        .toEqual(published.assets.map((asset) => [asset.id, asset.fileHash]).sort());
     }
   });
 

@@ -132,8 +132,8 @@ describe("starter donkey asset and placement contract", () => {
     const manifestAsset = publishedManifest.assets.find((asset) => asset.id === "fauna_donkey_a");
     expect(manifestAsset).toBeDefined();
     expect(manifestAsset).toMatchObject({
-      // The Tripo donkey is re-rigged offline and published from its adapted library.
-      generator: "imported_blend",
+      // The Tripo donkey ships from its committed adapted derivative.
+      generator: "authored_glb",
       collision: "none",
       lod: "hero",
       artContractStatus: "passed"

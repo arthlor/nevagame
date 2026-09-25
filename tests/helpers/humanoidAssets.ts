@@ -9,7 +9,13 @@ import type { CharacterAnimationContext } from "../../src/render/animation/Anima
 import type { PlayerMotionSample } from "../../src/simulation/core/PhysicsAdapter";
 import { createNodeGltfLoader } from "./nodeGltfLoader";
 
-export const CHARACTER_ASSET_IDS = ASSET_CATALOG.filter((asset) => asset.family === "character").map((asset) => asset.id);
+/**
+ * Characters that carry the catalog humanoid contract (rig, sockets, clips, `humanoidRig`). Tripo
+ * NPC models in the character family animate from their own embedded clips and are excluded.
+ */
+export const CHARACTER_ASSET_IDS = ASSET_CATALOG
+  .filter((asset) => asset.family === "character" && asset.humanoidRig)
+  .map((asset) => asset.id);
 const loaded = new Map<AssetId, Promise<GLTF>>();
 
 /** The production GLTFLoader and Meshopt decoder (textures skipped), with isolated bones per test. */

@@ -7,7 +7,7 @@
       "id": "building_thatched_cottage_a",
       "file": "building_thatched_cottage_a.glb",
       "family": "architecture",
-      "generator": "prebuilt_glb",
+      "generator": "authored_glb",
       "seed": 20260914,
       "dimensions": {
         "width": 5.848,
@@ -74,14 +74,15 @@
         }
       ],
       "parameters": {
-        "sourceGlb": "art/authored/thatched-cottage/export/building_thatched_cottage_a.glb"
+        "sourceGlb": "art/authored/thatched-cottage/export/building_thatched_cottage_a.glb",
+        "textureMaxSize": 1024
       }
     },
     {
       "id": "building_wooden_outhouse_a",
       "file": "building_wooden_outhouse_a.glb",
       "family": "architecture",
-      "generator": "prebuilt_glb",
+      "generator": "authored_glb",
       "seed": 20260915,
       "dimensions": {
         "width": 4.576,
@@ -133,14 +134,15 @@
       ],
       "readDistanceMeters": 15,
       "parameters": {
-        "sourceGlb": "art/authored/wooden-outhouse/export/building_wooden_outhouse_a.glb"
+        "sourceGlb": "art/authored/wooden-outhouse/export/building_wooden_outhouse_a.glb",
+        "textureMaxSize": 1024
       }
     },
     {
       "id": "building_medieval_timber_cottage_a",
       "file": "building_medieval_timber_cottage_a.glb",
       "family": "architecture",
-      "generator": "prebuilt_glb",
+      "generator": "authored_glb",
       "seed": 20260916,
       "dimensions": {
         "width": 10.931,
@@ -220,14 +222,15 @@
         }
       ],
       "parameters": {
-        "sourceGlb": "art/authored/medieval-cottage/export/building_medieval_timber_cottage_a.glb"
+        "sourceGlb": "art/authored/medieval-cottage/export/building_medieval_timber_cottage_a.glb",
+        "textureMaxSize": 1024
       }
     },
     {
       "id": "building_medieval_market_stall_a",
       "file": "building_medieval_market_stall_a.glb",
       "family": "architecture",
-      "generator": "prebuilt_glb",
+      "generator": "authored_glb",
       "seed": 20260916,
       "dimensions": {
         "width": 5.745,
@@ -299,14 +302,15 @@
         }
       ],
       "parameters": {
-        "sourceGlb": "art/authored/medieval-market-stall/export/building_medieval_market_stall_a.glb"
+        "sourceGlb": "art/authored/medieval-market-stall/export/building_medieval_market_stall_a.glb",
+        "textureMaxSize": 1024
       }
     },
     {
       "id": "building_sunreach_cove_market_a",
       "file": "building_sunreach_cove_market_a.glb",
       "family": "architecture",
-      "generator": "prebuilt_glb",
+      "generator": "authored_glb",
       "seed": 20260925,
       "dimensions": {
         "width": 5.681,
@@ -379,7 +383,8 @@
         }
       ],
       "parameters": {
-        "sourceGlb": "art/authored/sunreach-market-stall/export/building_sunreach_cove_market_a.glb"
+        "sourceGlb": "art/authored/sunreach-market-stall/export/building_sunreach_cove_market_a.glb",
+        "textureMaxSize": 1024
       }
     },
     {
@@ -455,7 +460,7 @@
           {
             "id": "oak_structure_trial",
             "kind": "structural_study",
-            "uri": "repo://tools/blender/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
+            "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -752,7 +757,7 @@
           {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
+            "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -998,7 +1003,7 @@
           {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
+            "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -1244,7 +1249,7 @@
           {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
+            "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -1477,7 +1482,7 @@
           {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
+            "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -1711,7 +1716,7 @@
           {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
+            "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -6183,7 +6188,7 @@
           {
             "id": "farmhouse_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "uri": "repo://tools/art/references/isolated/farmhouse_isolated_1787316809657.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -6551,7 +6556,7 @@
           {
             "id": "lighthouse_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/lighthouse_isolated_1787316830782.jpg",
+            "uri": "repo://tools/art/references/isolated/lighthouse_isolated_1787316830782.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -7273,7 +7278,7 @@
           {
             "id": "stone_bridge_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/stone_bridge_isolated_1787316868575.jpg",
+            "uri": "repo://tools/art/references/isolated/stone_bridge_isolated_1787316868575.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -7653,7 +7658,7 @@
           {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/dock_market_isolated_1787316936665.jpg",
+            "uri": "repo://tools/art/references/isolated/dock_market_isolated_1787316936665.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -7925,7 +7930,7 @@
           {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/dock_market_isolated_1787316936665.jpg",
+            "uri": "repo://tools/art/references/isolated/dock_market_isolated_1787316936665.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -8242,7 +8247,7 @@
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farm_props_isolated_1787316987928.jpg",
+            "uri": "repo://tools/art/references/isolated/farm_props_isolated_1787316987928.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -8474,7 +8479,7 @@
           {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/dock_market_isolated_1787316936665.jpg",
+            "uri": "repo://tools/art/references/isolated/dock_market_isolated_1787316936665.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -8880,7 +8885,7 @@
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farm_props_isolated_1787316987928.jpg",
+            "uri": "repo://tools/art/references/isolated/farm_props_isolated_1787316987928.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -9387,7 +9392,7 @@
           {
             "id": "horse_cart_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/horse_cart_isolated_1787316962157.jpg",
+            "uri": "repo://tools/art/references/isolated/horse_cart_isolated_1787316962157.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -9661,7 +9666,7 @@
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farm_props_isolated_1787316987928.jpg",
+            "uri": "repo://tools/art/references/isolated/farm_props_isolated_1787316987928.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -9879,7 +9884,7 @@
           {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/dock_market_isolated_1787316936665.jpg",
+            "uri": "repo://tools/art/references/isolated/dock_market_isolated_1787316936665.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -11109,7 +11114,7 @@
           {
             "id": "fishing_boat_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/fishing_boat_isolated_1787316891823.jpg",
+            "uri": "repo://tools/art/references/isolated/fishing_boat_isolated_1787316891823.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -11386,7 +11391,7 @@
           {
             "id": "fishing_boat_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/fishing_boat_isolated_1787316891823.jpg",
+            "uri": "repo://tools/art/references/isolated/fishing_boat_isolated_1787316891823.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -14023,7 +14028,7 @@
       "id": "char_player_a",
       "file": "char_player_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 0.743478,
@@ -15289,8 +15294,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/char_player_a.blend",
-        "sourceCollection": "char_player_a"
+        "sourceGlb": "art/imported/tripo/adapted/char_player_a.glb",
+        "textureMaxSize": 1024
       },
       "lodLevels": [
         {
@@ -15313,34 +15318,9 @@
         "author": "MoonGaze Developer (generated with Tripo AI)",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/char_player_a.blend",
+        "sourceFile": "art/imported/tripo/char_player_a.blend",
         "sourceSha256": "6d12c7d4956f6d0e2d2eaec56ad8ace3c5f7516e9983c8f13a6f1ebb32b029fd",
-        "attribution": "Adventurer player character generated by the Neva project owner with Tripo AI (generation 10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Textured surface re-skinned onto the Neva player rig by tools/blender/adapt_tripo_humanoid.py. Eyes transferred from local char_npc_tomas_b by tools/blender/transfer_tomas_eyes.py; remaining texture, geometry, rig and authored performances retained."
-      },
-      "skinnedAuthoring": {
-        "sourceFile": "art/imported/tripo/sources/main-character.glb",
-        "sourceSha256": "6d370e47ba1511743a7c972820ac334a2f19261e3e81d3e75e954559faa35bb7",
-        "adapter": "tools/blender/adapt_tripo_humanoid.py",
-        "materialMap": {
-          "char_player_a_body": {
-            "sourceMaterial": "Material_tripo_node_10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae",
-            "token": "skin_warm_01",
-            "value": 1,
-            "texturePolicy": "preserve"
-          },
-          "char_player_a_vest": {
-            "sourceMaterial": "Material_tripo_node_10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae",
-            "token": "cloth_slate_01",
-            "value": 1,
-            "texturePolicy": "preserve"
-          },
-          "char_player_a_boots": {
-            "sourceMaterial": "Material_tripo_node_10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae",
-            "token": "leather_harness_01",
-            "value": 1,
-            "texturePolicy": "preserve"
-          }
-        }
+        "attribution": "Adventurer player character generated by the Neva project owner with Tripo AI (generation 10bf2209-5b8c-4cb1-a75c-a9af8a7e6dae); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Textured surface re-skinned onto the Neva player rig by the retired Blender script adapt_tripo_humanoid.py. Eyes transferred from local char_npc_tomas_b by the retired Blender script transfer_tomas_eyes.py; remaining texture, geometry, rig and authored performances retained."
       },
       "humanoidRig": {
         "bones": {
@@ -15440,7 +15420,7 @@
       "id": "char_npc_elspeth_a",
       "file": "char_npc_elspeth_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 831,
       "dimensions": {
         "width": 1.9,
@@ -15670,8 +15650,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/poly-pizza/char_npc_elspeth_a.blend",
-        "sourceCollection": "char_npc_elspeth_a"
+        "sourceGlb": "art/imported/poly-pizza/adapted/char_npc_elspeth_a.glb",
+        "textureMaxSize": 1024
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -15774,22 +15754,22 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "sourceBlend",
+            "parameter": "sourceGlb",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
+            "purpose": "Pins the frozen adapted derivative of the source-preserving prepared rig, surface, weights and actions, exported before the Blender adapters were retired."
           },
           {
-            "parameter": "sourceCollection",
+            "parameter": "textureMaxSize",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Loads the catalog-owned collection into shared validation and export."
+            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -15822,33 +15802,6 @@
           "triangleRatioMax": 0.52
         }
       ],
-      "humanoidAuthoring": {
-        "sourceFile": "art/imported/poly-pizza/sources/animated_woman.glb",
-        "sourceSha256": "a2212729826b718e59e698211ed3951c22459b48733b1ee6a24fac0abf74dca8",
-        "heightMeters": 1.88,
-        "role": "gardener",
-        "materialMap": {
-          "Casual_Body/White": "cloth_olive_01",
-          "Casual_Body/Skin": "skin_light_01",
-          "Casual_Feet/Skin": "skin_light_01",
-          "Casual_Feet/Grey": "leather_harness_01",
-          "Casual_Head/Skin": "skin_light_01",
-          "Casual_Head/Hair_Blond": "hair_silver_01",
-          "Casual_Head/Hair_Brown": "hair_silver_01",
-          "Casual_Head/Brown": "wood_dark_01",
-          "Casual_Legs/Orange": "cloth_slate_01"
-        },
-        "accessoryPalette": [
-          "canvas_cream_01",
-          "hair_silver_01",
-          "cloth_olive_01"
-        ],
-        "hairStyle": {
-          "style": "half_up_bun",
-          "hairToken": "hair_silver_01",
-          "tieToken": "cloth_olive_01"
-        }
-      },
       "sourceProvenance": {
         "provider": "poly-pizza",
         "modelId": "qJ2gsTUBHL",
@@ -15856,7 +15809,7 @@
         "author": "Quaternius",
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceBlend": "art/imported/poly-pizza/char_npc_elspeth_a.blend",
+        "sourceFile": "art/imported/poly-pizza/char_npc_elspeth_a.blend",
         "sourceSha256": "6822ebb9f2bb0f75c07b9b308cc8dec4d2f23938d00801d80f70ddb242b5ab2f",
         "attribution": "animated_woman by Quaternius, https://poly.pizza/m/qJ2gsTUBHL. CC0-1.0. Original source shape, rig and native timing retained."
       },
@@ -15958,7 +15911,7 @@
       "id": "char_npc_barnaby_a",
       "file": "char_npc_barnaby_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 832,
       "dimensions": {
         "width": 1.9,
@@ -16188,8 +16141,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/poly-pizza/char_npc_barnaby_a.blend",
-        "sourceCollection": "char_npc_barnaby_a"
+        "sourceGlb": "art/imported/poly-pizza/adapted/char_npc_barnaby_a.glb",
+        "textureMaxSize": 1024
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -16292,22 +16245,22 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "sourceBlend",
+            "parameter": "sourceGlb",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
+            "purpose": "Pins the frozen adapted derivative of the source-preserving prepared rig, surface, weights and actions, exported before the Blender adapters were retired."
           },
           {
-            "parameter": "sourceCollection",
+            "parameter": "textureMaxSize",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Loads the catalog-owned collection into shared validation and export."
+            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -16340,52 +16293,6 @@
           "triangleRatioMax": 0.52
         }
       ],
-      "humanoidAuthoring": {
-        "sourceFile": "art/imported/poly-pizza/sources/worker.gltf",
-        "sourceSha256": "e49f8ec0f8a7de72dd26b1c01e6413c9a87a9116eeee21f9364ccd36bc286335",
-        "heightMeters": 1.98,
-        "role": "handyman",
-        "headSourceFile": "art/imported/poly-pizza/sources/casual_2.gltf",
-        "materialMap": {
-          "Worker_Body/Skin": "skin_warm_01",
-          "Worker_Body/Worker_Yellow": "cloth_ochre_01",
-          "Worker_Body/Worker_Vest": "cloth_ochre_01",
-          "Worker_Body/LightBrown": "cloth_ochre_01",
-          "Worker_Feet/Grey": "leather_harness_01",
-          "Worker_Feet/Black": "leather_harness_01",
-          "Casual2_Head/Skin": "skin_warm_01",
-          "Casual2_Head/Skin_Darker": "skin_warm_01",
-          "Casual2_Head/Eyebrows": "wood_dark_01",
-          "Casual2_Head/Hair": "hair_brown_01",
-          "Casual2_Head/Eye": "wood_dark_01",
-          "Worker_Legs/Brown": "cloth_slate_01",
-          "Worker_Legs/Brown2": "cloth_slate_01"
-        },
-        "headSourceSha256": "55c654d09a2a5ff6e3bd6158d4a1b462f181cd6f1e12a0f5e9d959f9c3abc438",
-        "accessoryPalette": [
-          "canvas_cream_01",
-          "cloth_ochre_01",
-          "leather_harness_01"
-        ],
-        "apronClearanceProfile": [
-          {
-            "heightMeters": 0.96,
-            "additionalForwardMeters": 0
-          },
-          {
-            "heightMeters": 1.03,
-            "additionalForwardMeters": 0.025
-          },
-          {
-            "heightMeters": 1.12,
-            "additionalForwardMeters": 0.025
-          },
-          {
-            "heightMeters": 1.19,
-            "additionalForwardMeters": 0
-          }
-        ]
-      },
       "sourceProvenance": {
         "provider": "quaternius",
         "modelId": "ultimate-modular-men-worker",
@@ -16393,7 +16300,7 @@
         "author": "Quaternius",
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceBlend": "art/imported/poly-pizza/char_npc_barnaby_a.blend",
+        "sourceFile": "art/imported/poly-pizza/char_npc_barnaby_a.blend",
         "sourceSha256": "a1700d6a10ab5b0e87fa547d34a932ab81aabfb6e84439d48c85e3a4daee0828",
         "attribution": "worker by Quaternius, https://quaternius.com/packs/ultimatemodularcharacters.html. CC0-1.0. Original source shape, rig and native timing retained."
       },
@@ -16495,7 +16402,7 @@
       "id": "char_npc_silas_a",
       "file": "char_npc_silas_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 833,
       "dimensions": {
         "width": 1.9,
@@ -16725,8 +16632,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/poly-pizza/char_npc_silas_a.blend",
-        "sourceCollection": "char_npc_silas_a"
+        "sourceGlb": "art/imported/poly-pizza/adapted/char_npc_silas_a.glb",
+        "textureMaxSize": 1024
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -16829,22 +16736,22 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "sourceBlend",
+            "parameter": "sourceGlb",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
+            "purpose": "Pins the frozen adapted derivative of the source-preserving prepared rig, surface, weights and actions, exported before the Blender adapters were retired."
           },
           {
-            "parameter": "sourceCollection",
+            "parameter": "textureMaxSize",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Loads the catalog-owned collection into shared validation and export."
+            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -16877,34 +16784,6 @@
           "triangleRatioMax": 0.52
         }
       ],
-      "humanoidAuthoring": {
-        "sourceFile": "art/imported/poly-pizza/sources/adventurer.gltf",
-        "sourceSha256": "21f7a61afb6bd6cef6961490c367594e3c2fc01ec1f041662131172ce763063e",
-        "heightMeters": 1.95,
-        "role": "dockmaster",
-        "omitParts": [
-          "Backpack"
-        ],
-        "materialMap": {
-          "Adventurer_Body/Skin": "skin_warm_01",
-          "Adventurer_Body/Green": "cloth_slate_01",
-          "Adventurer_Body/LightGreen": "cloth_slate_01",
-          "Adventurer_Feet/Grey": "leather_harness_01",
-          "Adventurer_Feet/Black": "leather_harness_01",
-          "Adventurer_Head/Skin": "skin_warm_01",
-          "Adventurer_Head/Eyebrows": "wood_dark_01",
-          "Adventurer_Head/Hair": "hair_silver_01",
-          "Adventurer_Head/Eye": "wood_dark_01",
-          "Adventurer_Legs/Brown": "cloth_olive_01",
-          "Adventurer_Legs/Brown2": "cloth_olive_01"
-        },
-        "accessoryPalette": [
-          "hair_silver_01",
-          "cloth_slate_01",
-          "canvas_cream_01",
-          "leather_harness_01"
-        ]
-      },
       "sourceProvenance": {
         "provider": "quaternius",
         "modelId": "ultimate-modular-men-adventurer",
@@ -16912,7 +16791,7 @@
         "author": "Quaternius",
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceBlend": "art/imported/poly-pizza/char_npc_silas_a.blend",
+        "sourceFile": "art/imported/poly-pizza/char_npc_silas_a.blend",
         "sourceSha256": "52a9ae4f3c7cf9d3eecf069260a62e973c635d447fa46527d82703a0d249d74a",
         "attribution": "adventurer by Quaternius, https://quaternius.com/packs/ultimatemodularcharacters.html. CC0-1.0. Original source shape, rig and native timing retained."
       },
@@ -17014,7 +16893,7 @@
       "id": "char_npc_maeve_a",
       "file": "char_npc_maeve_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 834,
       "dimensions": {
         "width": 1.9,
@@ -17244,8 +17123,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/poly-pizza/char_npc_maeve_a.blend",
-        "sourceCollection": "char_npc_maeve_a"
+        "sourceGlb": "art/imported/poly-pizza/adapted/char_npc_maeve_a.glb",
+        "textureMaxSize": 1024
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -17348,22 +17227,22 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "sourceBlend",
+            "parameter": "sourceGlb",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
+            "purpose": "Pins the frozen adapted derivative of the source-preserving prepared rig, surface, weights and actions, exported before the Blender adapters were retired."
           },
           {
-            "parameter": "sourceCollection",
+            "parameter": "textureMaxSize",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Loads the catalog-owned collection into shared validation and export."
+            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -17396,33 +17275,6 @@
           "triangleRatioMax": 0.52
         }
       ],
-      "humanoidAuthoring": {
-        "sourceFile": "art/imported/poly-pizza/sources/animated_woman.glb",
-        "sourceSha256": "a2212729826b718e59e698211ed3951c22459b48733b1ee6a24fac0abf74dca8",
-        "heightMeters": 1.94,
-        "role": "market_keeper",
-        "materialMap": {
-          "Casual_Body/White": "cloth_teal_01",
-          "Casual_Body/Skin": "skin_light_01",
-          "Casual_Feet/Skin": "skin_light_01",
-          "Casual_Feet/Grey": "leather_harness_01",
-          "Casual_Head/Skin": "skin_light_01",
-          "Casual_Head/Hair_Blond": "hair_brown_01",
-          "Casual_Head/Hair_Brown": "hair_brown_01",
-          "Casual_Head/Brown": "wood_dark_01",
-          "Casual_Legs/Orange": "cloth_slate_01"
-        },
-        "accessoryPalette": [
-          "cloth_teal_01",
-          "hair_brown_01",
-          "canvas_cream_01"
-        ],
-        "hairStyle": {
-          "style": "half_up_bun",
-          "hairToken": "hair_brown_01",
-          "tieToken": "cloth_teal_01"
-        }
-      },
       "sourceProvenance": {
         "provider": "poly-pizza",
         "modelId": "qJ2gsTUBHL",
@@ -17430,7 +17282,7 @@
         "author": "Quaternius",
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceBlend": "art/imported/poly-pizza/char_npc_maeve_a.blend",
+        "sourceFile": "art/imported/poly-pizza/char_npc_maeve_a.blend",
         "sourceSha256": "ead764fdd4a64d4adc3689fe09b701aa158d77f7a1132023b4d948de65daccf7",
         "attribution": "animated_woman by Quaternius, https://poly.pizza/m/qJ2gsTUBHL. CC0-1.0. Original source shape, rig and native timing retained."
       },
@@ -17532,7 +17384,7 @@
       "id": "fauna_cow_a",
       "file": "fauna_cow_a.glb",
       "family": "prop",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 823,
       "dimensions": {
         "width": 1.2,
@@ -17585,8 +17437,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/poly-pizza/fauna_cow_a.blend",
-        "sourceCollection": "fauna_cow_a"
+        "sourceGlb": "art/imported/poly-pizza/adapted/fauna_cow_a.glb",
+        "textureMaxSize": 1024
       },
       "collisionPrimitives": [
         {
@@ -17716,22 +17568,22 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "sourceBlend",
+            "parameter": "sourceGlb",
             "componentIds": [
               "body",
               "head",
               "legs"
             ],
-            "purpose": "Pins the curated palette-normalized rig, surfaces, grounded LODs and peaceful animation loops."
+            "purpose": "Pins the frozen adapted derivative of the curated palette-normalized rig, surfaces, grounded LODs and peaceful animation loops, exported before the Blender adapters were retired."
           },
           {
-            "parameter": "sourceCollection",
+            "parameter": "textureMaxSize",
             "componentIds": [
               "body",
               "head",
               "legs"
             ],
-            "purpose": "Loads only the admitted cow collection through the shared scene validator and exporter."
+            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -17771,7 +17623,7 @@
         "author": "Quaternius",
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceBlend": "art/imported/poly-pizza/fauna_cow_a.blend",
+        "sourceFile": "art/imported/poly-pizza/fauna_cow_a.blend",
         "sourceSha256": "776216d22f53886baa18c695760d3373db40dae3febc631c558c9be1cbee8939",
         "sourceCapture": "art/imported/poly-pizza/sources/cow.blend",
         "sourceCaptureSha256": "9b604e146dd1fae44e401859d8fd927c1c792026d924edccd4a1c537c4310370",
@@ -17784,7 +17636,7 @@
       "id": "fauna_donkey_a",
       "file": "fauna_donkey_a.glb",
       "family": "prop",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 839,
       "dimensions": {
         "width": 0.743039,
@@ -17903,8 +17755,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/fauna_donkey_a.blend",
-        "sourceCollection": "fauna_donkey_a"
+        "sourceGlb": "art/imported/tripo/adapted/fauna_donkey_a.glb",
+        "textureMaxSize": 1024
       },
       "lodLevels": [
         {
@@ -17927,22 +17779,9 @@
         "author": "MoonGaze Developer (generated with Tripo AI)",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/fauna_donkey_a.blend",
+        "sourceFile": "art/imported/tripo/fauna_donkey_a.blend",
         "sourceSha256": "6fc7288addf4d026b33b6a885d16817bdae8dedaaa6d6e2a1002911bb2fda448",
-        "attribution": "Donkey generated by the Neva project owner with Tripo AI (generation 90479647-0322-4144-a84e-a9871e7ccb87); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Textured surface retained; Neva rig, weights and clips authored by tools/blender/adapt_tripo_quadruped.py."
-      },
-      "skinnedAuthoring": {
-        "sourceFile": "art/imported/tripo/sources/donkey.glb",
-        "sourceSha256": "8f7bcecbab4496ea33ec91022ef4c491263c41205439ab87bf48e18f97d5ccbb",
-        "adapter": "tools/blender/adapt_tripo_quadruped.py",
-        "materialMap": {
-          "fauna_donkey_a_hide": {
-            "sourceMaterial": "Material_tripo_90479647_0322_4144_a84e_a9871e7ccb87",
-            "token": "animal_hide_white_01",
-            "value": 0.8,
-            "texturePolicy": "preserve"
-          }
-        }
+        "attribution": "Donkey generated by the Neva project owner with Tripo AI (generation 90479647-0322-4144-a84e-a9871e7ccb87); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Textured surface retained; Neva rig, weights and clips authored by the retired Blender script adapt_tripo_quadruped.py."
       }
     },
     {
@@ -18020,7 +17859,7 @@
           {
             "id": "farm_animals_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farm_animals_isolated_1787317082748.jpg",
+            "uri": "repo://tools/art/references/isolated/farm_animals_isolated_1787317082748.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -19146,7 +18985,7 @@
           {
             "id": "farmhouse_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "uri": "repo://tools/art/references/isolated/farmhouse_isolated_1787316809657.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -19841,7 +19680,7 @@
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farm_props_isolated_1787316987928.jpg",
+            "uri": "repo://tools/art/references/isolated/farm_props_isolated_1787316987928.jpg",
             "use": [
               "silhouette",
               "structure",
@@ -21554,7 +21393,7 @@
           {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/dock_market_isolated_1787316936665.jpg",
+            "uri": "repo://tools/art/references/isolated/dock_market_isolated_1787316936665.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -21835,7 +21674,7 @@
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farm_props_isolated_1787316987928.jpg",
+            "uri": "repo://tools/art/references/isolated/farm_props_isolated_1787316987928.jpg",
             "use": [
               "silhouette",
               "structure",
@@ -22229,7 +22068,7 @@
           {
             "id": "farmhouse_isolated",
             "kind": "visual_reference",
-            "uri": "repo://tools/blender/references/isolated/farmhouse_isolated_1787316809657.jpg",
+            "uri": "repo://tools/art/references/isolated/farmhouse_isolated_1787316809657.jpg",
             "use": [
               "silhouette",
               "proportion",
@@ -23130,7 +22969,7 @@
       "id": "house_cottage_a",
       "file": "house_cottage_a.glb",
       "family": "architecture",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 421,
       "dimensions": {
         "width": 8.2,
@@ -23166,8 +23005,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/poly-pizza/house_cottage_a.blend",
-        "sourceCollection": "house_cottage_a"
+        "sourceGlb": "art/imported/poly-pizza/adapted/house_cottage_a.glb",
+        "textureMaxSize": 1024
       },
       "collisionPrimitives": [
         {
@@ -23321,24 +23160,24 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "sourceBlend",
+            "parameter": "sourceGlb",
             "componentIds": [
               "plinth",
               "frame",
               "roof",
               "openings"
             ],
-            "purpose": "Pins the adapted geometry, palette, footprint, LODs and marker placement."
+            "purpose": "Pins the frozen adapted derivative of the adapted geometry, palette, footprint, LODs and marker placement, exported before the Blender adapters were retired."
           },
           {
-            "parameter": "sourceCollection",
+            "parameter": "textureMaxSize",
             "componentIds": [
               "plinth",
               "frame",
               "roof",
               "openings"
             ],
-            "purpose": "Loads only the catalog-owned collection through shared validation and export."
+            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -23358,67 +23197,6 @@
           "gameplay_read_distance"
         ]
       },
-      "staticAuthoring": {
-        "sourceFile": "art/imported/poly-pizza/sources/fantasy_house.glb",
-        "sourceSha256": "39b9d7d4c85e170f64d066a3f762ab88689a614c270e95c52927908fb52fa36a",
-        "sourceNode": "House_2",
-        "scaleReference": {
-          "axis": "width",
-          "meters": 8.2
-        },
-        "yawDegrees": -90,
-        "materialMap": {
-          "Stone_Dark": {
-            "token": "stone_warm_01",
-            "value": 0.8,
-            "texturePolicy": "none"
-          },
-          "Wood": {
-            "token": "wood_honey_01",
-            "value": 0.79,
-            "texturePolicy": "none"
-          },
-          "Beige": {
-            "token": "plaster_cream_01",
-            "value": 0.96,
-            "texturePolicy": "none"
-          },
-          "Wood_Light": {
-            "token": "wood_honey_01",
-            "value": 0.98,
-            "texturePolicy": "none"
-          },
-          "Windows": {
-            "token": "emissive_window_01",
-            "value": 0.94,
-            "texturePolicy": "none"
-          },
-          "RoofTiles": {
-            "token": "roof_terracotta_01",
-            "value": 0.94,
-            "texturePolicy": "none"
-          },
-          "Wood_Side": {
-            "token": "wood_honey_01",
-            "value": 0.91,
-            "texturePolicy": "none"
-          },
-          "Stone": {
-            "token": "stone_warm_01",
-            "value": 0.87,
-            "texturePolicy": "none"
-          },
-          "Stone_Light": {
-            "token": "stone_warm_01",
-            "value": 0.96,
-            "texturePolicy": "none"
-          }
-        },
-        "addedGeometryNodes": [
-          "house_cottage_a_LOD0_lantern_surface",
-          "house_cottage_a_LOD1_lantern_surface"
-        ]
-      },
       "sourceProvenance": {
         "provider": "poly-pizza",
         "modelId": "dcPho4SUA3",
@@ -23426,7 +23204,7 @@
         "author": "Quaternius",
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceBlend": "art/imported/poly-pizza/house_cottage_a.blend",
+        "sourceFile": "art/imported/poly-pizza/house_cottage_a.blend",
         "sourceSha256": "9100bb4f40912a7c407163c6c2cb0035ead35a80a13f0753122bd831576ec15c",
         "attribution": "\"Fantasy House\" by Quaternius, https://poly.pizza/m/dcPho4SUA3. Licence at https://creativecommons.org/publicdomain/zero/1.0/"
       }
@@ -24470,7 +24248,7 @@
       "id": "char_npc_tomas_a",
       "file": "char_npc_tomas_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 1631,
       "dimensions": {
         "width": 1.9,
@@ -24700,8 +24478,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/poly-pizza/char_npc_tomas_a.blend",
-        "sourceCollection": "char_npc_tomas_a"
+        "sourceGlb": "art/imported/poly-pizza/adapted/char_npc_tomas_a.glb",
+        "textureMaxSize": 1024
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -24804,22 +24582,22 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "sourceBlend",
+            "parameter": "sourceGlb",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
+            "purpose": "Pins the frozen adapted derivative of the source-preserving prepared rig, surface, weights and actions, exported before the Blender adapters were retired."
           },
           {
-            "parameter": "sourceCollection",
+            "parameter": "textureMaxSize",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Loads the catalog-owned collection into shared validation and export."
+            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -24852,29 +24630,6 @@
           "triangleRatioMax": 0.52
         }
       ],
-      "humanoidAuthoring": {
-        "sourceFile": "art/imported/poly-pizza/sources/casual_2.gltf",
-        "sourceSha256": "55c654d09a2a5ff6e3bd6158d4a1b462f181cd6f1e12a0f5e9d959f9c3abc438",
-        "heightMeters": 1.94,
-        "role": "merchant",
-        "materialMap": {
-          "Casual2_Body/Skin": "skin_warm_01",
-          "Casual2_Body/LightBrown": "cloth_rust_01",
-          "Casual2_Feet/Red_Dark": "leather_harness_01",
-          "Casual2_Feet/White": "canvas_cream_01",
-          "Casual2_Head/Skin": "skin_warm_01",
-          "Casual2_Head/Skin_Darker": "skin_warm_01",
-          "Casual2_Head/Eyebrows": "wood_dark_01",
-          "Casual2_Head/Hair": "hair_brown_01",
-          "Casual2_Head/Eye": "wood_dark_01",
-          "Casual2_Legs/LightBlue": "cloth_slate_01"
-        },
-        "accessoryPalette": [
-          "cloth_rust_01",
-          "canvas_cream_01",
-          "leather_harness_01"
-        ]
-      },
       "sourceProvenance": {
         "provider": "quaternius",
         "modelId": "ultimate-modular-men-casual_2",
@@ -24882,7 +24637,7 @@
         "author": "Quaternius",
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceBlend": "art/imported/poly-pizza/char_npc_tomas_a.blend",
+        "sourceFile": "art/imported/poly-pizza/char_npc_tomas_a.blend",
         "sourceSha256": "1bd4424ef7655af5157b13cb191129ff587630cbc8ad7f1ea989ca7812b7e66f",
         "attribution": "casual_2 by Quaternius, https://quaternius.com/packs/ultimatemodularcharacters.html. CC0-1.0. Original source shape, rig and native timing retained."
       },
@@ -24984,7 +24739,7 @@
       "id": "char_npc_ines_a",
       "file": "char_npc_ines_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 1632,
       "dimensions": {
         "width": 1.9,
@@ -25214,8 +24969,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/poly-pizza/char_npc_ines_a.blend",
-        "sourceCollection": "char_npc_ines_a"
+        "sourceGlb": "art/imported/poly-pizza/adapted/char_npc_ines_a.glb",
+        "textureMaxSize": 1024
       },
       "referenceAuthoring": {
         "status": "ready",
@@ -25329,22 +25084,22 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "sourceBlend",
+            "parameter": "sourceGlb",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Pins the source-preserving prepared rig, surface, weights and actions."
+            "purpose": "Pins the frozen adapted derivative of the source-preserving prepared rig, surface, weights and actions, exported before the Blender adapters were retired."
           },
           {
-            "parameter": "sourceCollection",
+            "parameter": "textureMaxSize",
             "componentIds": [
               "body",
               "workwear",
               "face"
             ],
-            "purpose": "Loads the catalog-owned collection into shared validation and export."
+            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -25383,31 +25138,9 @@
         "author": "Quaternius",
         "license": "CC0-1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceBlend": "art/imported/poly-pizza/char_npc_ines_a.blend",
+        "sourceFile": "art/imported/poly-pizza/char_npc_ines_a.blend",
         "sourceSha256": "0108cf4002839a1b5c2d2e307d5fd073f2fe4822eb03a456091d2426f2de1a4a",
         "attribution": "animated_woman by Quaternius, https://poly.pizza/m/qJ2gsTUBHL. CC0-1.0. Original source shape, rig and native timing retained."
-      },
-      "humanoidAuthoring": {
-        "sourceFile": "art/imported/poly-pizza/sources/animated_woman.glb",
-        "sourceSha256": "a2212729826b718e59e698211ed3951c22459b48733b1ee6a24fac0abf74dca8",
-        "heightMeters": 1.9,
-        "role": "grower",
-        "materialMap": {
-          "Casual_Body/White": "cloth_olive_01",
-          "Casual_Body/Skin": "skin_light_01",
-          "Casual_Feet/Skin": "skin_light_01",
-          "Casual_Feet/Grey": "leather_harness_01",
-          "Casual_Head/Skin": "skin_light_01",
-          "Casual_Head/Hair_Blond": "hair_brown_01",
-          "Casual_Head/Hair_Brown": "hair_brown_01",
-          "Casual_Head/Brown": "wood_dark_01",
-          "Casual_Legs/Orange": "cloth_slate_01"
-        },
-        "accessoryPalette": [
-          "cloth_olive_01",
-          "canvas_cream_01",
-          "leather_harness_01"
-        ]
       },
       "humanoidRig": {
         "bones": {
@@ -25501,6 +25234,294 @@
           "left": "char_npc_ines_a_hand_socket_left",
           "right": "char_npc_ines_a_hand_socket_right"
         }
+      }
+    },
+    {
+      "id": "char_npc_barnaby_b",
+      "file": "char_npc_barnaby_b.glb",
+      "family": "character",
+      "generator": "authored_glb",
+      "seed": 9101,
+      "dimensions": {
+        "width": 0.757,
+        "depth": 0.215,
+        "height": 1.0
+      },
+      "palette": [],
+      "budget": {
+        "trianglesMin": 8704,
+        "trianglesTarget": 9672,
+        "trianglesMax": 10640,
+        "materialsMax": 1
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "Armature",
+      "requiredNodes": [
+        "Armature"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceGlb": "art/imported/tripo/sources/barnaby.glb",
+        "textureMaxSize": 1024
+      }
+    },
+    {
+      "id": "char_npc_elspeth_b",
+      "file": "char_npc_elspeth_b.glb",
+      "family": "character",
+      "generator": "authored_glb",
+      "seed": 9102,
+      "dimensions": {
+        "width": 0.754,
+        "depth": 0.378,
+        "height": 1.0
+      },
+      "palette": [],
+      "budget": {
+        "trianglesMin": 8668,
+        "trianglesTarget": 9632,
+        "trianglesMax": 10596,
+        "materialsMax": 1
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "Armature",
+      "requiredNodes": [
+        "Armature"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceGlb": "art/imported/tripo/sources/elspeth.glb",
+        "textureMaxSize": 1024
+      }
+    },
+    {
+      "id": "char_npc_silas_b",
+      "file": "char_npc_silas_b.glb",
+      "family": "character",
+      "generator": "authored_glb",
+      "seed": 9103,
+      "dimensions": {
+        "width": 0.76,
+        "depth": 0.267,
+        "height": 1.0
+      },
+      "palette": [],
+      "budget": {
+        "trianglesMin": 8737,
+        "trianglesTarget": 9708,
+        "trianglesMax": 10679,
+        "materialsMax": 1
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "Armature",
+      "requiredNodes": [
+        "Armature"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceGlb": "art/imported/tripo/sources/silas.glb",
+        "textureMaxSize": 1024
+      }
+    },
+    {
+      "id": "char_npc_maeve_b",
+      "file": "char_npc_maeve_b.glb",
+      "family": "character",
+      "generator": "authored_glb",
+      "seed": 9104,
+      "dimensions": {
+        "width": 0.756,
+        "depth": 0.376,
+        "height": 1.0
+      },
+      "palette": [],
+      "budget": {
+        "trianglesMin": 8303,
+        "trianglesTarget": 9226,
+        "trianglesMax": 10149,
+        "materialsMax": 1
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "Armature",
+      "requiredNodes": [
+        "Armature"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceGlb": "art/imported/tripo/sources/maeve-tripo-original.glb",
+        "textureMaxSize": 1024
+      }
+    },
+    {
+      "id": "char_npc_tomas_b",
+      "file": "char_npc_tomas_b.glb",
+      "family": "character",
+      "generator": "authored_glb",
+      "seed": 9105,
+      "dimensions": {
+        "width": 0.764,
+        "depth": 0.233,
+        "height": 1.0
+      },
+      "palette": [],
+      "budget": {
+        "trianglesMin": 8958,
+        "trianglesTarget": 9954,
+        "trianglesMax": 10950,
+        "materialsMax": 1
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "Armature",
+      "requiredNodes": [
+        "Armature"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceGlb": "art/imported/tripo/sources/tomas.glb",
+        "textureMaxSize": 1024
+      }
+    },
+    {
+      "id": "char_npc_ines_b",
+      "file": "char_npc_ines_b.glb",
+      "family": "character",
+      "generator": "authored_glb",
+      "seed": 9106,
+      "dimensions": {
+        "width": 0.753,
+        "depth": 0.288,
+        "height": 1.0
+      },
+      "palette": [],
+      "budget": {
+        "trianglesMin": 8612,
+        "trianglesTarget": 9569,
+        "trianglesMax": 10526,
+        "materialsMax": 1
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "Armature",
+      "requiredNodes": [
+        "Armature"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceGlb": "art/imported/tripo/sources/ines.glb",
+        "textureMaxSize": 1024
+      }
+    },
+    {
+      "id": "char_npc_rowan_b",
+      "file": "char_npc_rowan_b.glb",
+      "family": "character",
+      "generator": "authored_glb",
+      "seed": 9107,
+      "dimensions": {
+        "width": 0.782,
+        "depth": 0.211,
+        "height": 1.0
+      },
+      "palette": [],
+      "budget": {
+        "trianglesMin": 9333,
+        "trianglesTarget": 10370,
+        "trianglesMax": 11408,
+        "materialsMax": 1
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "Armature",
+      "requiredNodes": [
+        "Armature"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceGlb": "art/imported/tripo/sources/rowan.glb",
+        "textureMaxSize": 1024
+      }
+    },
+    {
+      "id": "char_npc_mara_b",
+      "file": "char_npc_mara_b.glb",
+      "family": "character",
+      "generator": "authored_glb",
+      "seed": 9108,
+      "dimensions": {
+        "width": 0.752,
+        "depth": 0.293,
+        "height": 1.0
+      },
+      "palette": [],
+      "budget": {
+        "trianglesMin": 9311,
+        "trianglesTarget": 10346,
+        "trianglesMax": 11381,
+        "materialsMax": 1
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "Armature",
+      "requiredNodes": [
+        "Armature"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceGlb": "art/imported/tripo/sources/mara.glb",
+        "textureMaxSize": 1024
+      }
+    },
+    {
+      "id": "char_npc_ada_b",
+      "file": "char_npc_ada_b.glb",
+      "family": "character",
+      "generator": "authored_glb",
+      "seed": 9109,
+      "dimensions": {
+        "width": 0.753,
+        "depth": 0.295,
+        "height": 1.0
+      },
+      "palette": [],
+      "budget": {
+        "trianglesMin": 9006,
+        "trianglesTarget": 10007,
+        "trianglesMax": 11008,
+        "materialsMax": 1
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "Armature",
+      "requiredNodes": [
+        "Armature"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceGlb": "art/imported/tripo/sources/ada.glb",
+        "textureMaxSize": 1024
       }
     },
     {
@@ -28472,7 +28493,7 @@
       "id": "building_fish_market_coastal_a",
       "file": "building_fish_market_coastal_a.glb",
       "family": "architecture",
-      "generator": "prebuilt_glb",
+      "generator": "authored_glb",
       "seed": 20260916,
       "dimensions": {
         "width": 6.889,
@@ -28484,9 +28505,12 @@
         "foliage_sage_01",
         "foliage_shadow_01",
         "metal_dark_01",
+        "metal_iron_01",
         "plaster_cream_01",
         "plaster_warm_01",
+        "soil_dry_01",
         "stone_cool_01",
+        "wood_dark_01",
         "wood_weathered_01"
       ],
       "budget": {
@@ -28537,7 +28561,8 @@
         }
       ],
       "parameters": {
-        "sourceGlb": "art/authored/fish-market-shop/export/building_fish_market_coastal_a.glb"
+        "sourceGlb": "art/authored/fish-market-shop/export/building_fish_market_coastal_a.glb",
+        "textureMaxSize": 1024
       }
     },
     {
@@ -34053,7 +34078,7 @@
       "id": "fauna_horse_draft_a",
       "file": "fauna_horse_draft_a.glb",
       "family": "prop",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 8916,
       "dimensions": {
         "width": 0.976795,
@@ -34086,8 +34111,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/fauna_horse_draft_a.blend",
-        "sourceCollection": "fauna_horse_draft_a"
+        "sourceGlb": "art/imported/tripo/adapted/fauna_horse_draft_a.glb",
+        "textureMaxSize": 1024
       },
       "animationClips": [
         {
@@ -34129,22 +34154,9 @@
         "author": "MoonGaze Developer (generated with Tripo AI)",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/fauna_horse_draft_a.blend",
+        "sourceFile": "art/imported/tripo/fauna_horse_draft_a.blend",
         "sourceSha256": "a2d1619c98b1918887ca7b60ea03131d9de4135571fa705554b56f0cef871b6b",
-        "attribution": "Draft horse generated by the Neva project owner with Tripo AI (generation e82cb762-8a39-47ab-b353-a0bc522bef03); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Textured surface retained; Neva rig, weights and clips authored by tools/blender/adapt_tripo_quadruped.py."
-      },
-      "skinnedAuthoring": {
-        "sourceFile": "art/imported/tripo/sources/horse.glb",
-        "sourceSha256": "263f620c48b54d4fbd2b262472fb83d69728c6328b84a9fd95f505317c86a43d",
-        "adapter": "tools/blender/adapt_tripo_quadruped.py",
-        "materialMap": {
-          "fauna_horse_draft_a_hide": {
-            "sourceMaterial": "e82cb762_8a39_47ab_b353_a0bc522bef03",
-            "token": "animal_hide_white_01",
-            "value": 0.8,
-            "texturePolicy": "preserve"
-          }
-        }
+        "attribution": "Draft horse generated by the Neva project owner with Tripo AI (generation e82cb762-8a39-47ab-b353-a0bc522bef03); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Textured surface retained; Neva rig, weights and clips authored by the retired Blender script adapt_tripo_quadruped.py."
       }
     },
     {
@@ -34781,7 +34793,7 @@
       "id": "house_cottage_b",
       "file": "house_cottage_b.glb",
       "family": "architecture",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 20260922,
       "dimensions": {
         "width": 7.815271,
@@ -34825,8 +34837,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/house_cottage_b.blend",
-        "sourceCollection": "house_cottage_b"
+        "sourceGlb": "art/imported/tripo/adapted/house_cottage_b.glb",
+        "textureMaxSize": 1024
       },
       "lodLevels": [
         {
@@ -34849,40 +34861,16 @@
         "author": "MoonGaze Developer (generated with Tripo AI)",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/house_cottage_b.blend",
+        "sourceFile": "art/imported/tripo/house_cottage_b.blend",
         "sourceSha256": "3f1f6d30f1bbf2611b9e90b709f6705fdd1a7b3bcb7f9b07e6f1d1c9c490edfb",
         "attribution": "Timber-framed cottage generated by the Neva project owner with Tripo AI (generation d8b6604a-7fe5-4178-970b-bb80a6846af2); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Original textured surface retained except the catalog-declared detached grass sheets removed at the project owner's request."
-      },
-      "staticAuthoring": {
-        "sourceFile": "art/imported/tripo/sources/cottage-new.glb",
-        "sourceSha256": "84da27d98628790ac294a896ed027f8c8c797ff064d067d7ed3458106ec7e416",
-        "sourceNode": "d8b6604a_7fe5_4178_970b_bb80a6846af2",
-        "scaleReference": {
-          "axis": "height",
-          "meters": 7.8
-        },
-        "yawDegrees": 0,
-        "removedSourceTriangles": {
-          "d8b6604a_7fe5_4178_970b_bb80a6846af2": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 20, 21, 22, 23, 306, 307, 308, 309, 314, 315, 322, 1139, 1140, 1141, 1142, 1143, 1144, 1173, 1174, 2163, 2164, 2165, 2166]
-        },
-        "pivotOffset": {
-          "x": 1.52,
-          "z": 0.08
-        },
-        "materialMap": {
-          "d8b6604a_7fe5_4178_970b_bb80a6846af2": {
-            "token": "plaster_cream_01",
-            "value": 0.8,
-            "texturePolicy": "preserve"
-          }
-        }
       }
     },
     {
       "id": "prop_galleon_a",
       "file": "prop_galleon_a.glb",
       "family": "prop",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 20260923,
       "dimensions": {
         "width": 8.931119,
@@ -34926,8 +34914,8 @@
       ],
       "readDistanceMeters": 80,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/prop_galleon_a.blend",
-        "sourceCollection": "prop_galleon_a"
+        "sourceGlb": "art/imported/tripo/adapted/prop_galleon_a.glb",
+        "textureMaxSize": 1024
       },
       "lodLevels": [
         {
@@ -34950,30 +34938,9 @@
         "author": "MoonGaze Developer (generated with Tripo AI)",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/prop_galleon_a.blend",
+        "sourceFile": "art/imported/tripo/prop_galleon_a.blend",
         "sourceSha256": "4c6a1e68e77020877038cc4035a9112086d9435aa92a910ba4cd83d9c4c438b2",
         "attribution": "Three-masted galleon generated by the Neva project owner with Tripo AI (generation adff0389-7b98-41fc-b5ef-53e15c96f894); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Original textured surface retained."
-      },
-      "staticAuthoring": {
-        "sourceFile": "art/imported/tripo/sources/ship.glb",
-        "sourceSha256": "be95fe8e3f04527aada5112e1c4062553803223b49769866ac7f8f1687b88a02",
-        "sourceNode": "adff0389_7b98_41fc_b5ef_53e15c96f894",
-        "scaleReference": {
-          "axis": "depth",
-          "meters": 22
-        },
-        "yawDegrees": -90,
-        "pivotOffset": {
-          "x": 0,
-          "z": -0.885
-        },
-        "materialMap": {
-          "Material_adff0389_7b98_41fc_b5ef_53e15c96f894": {
-            "token": "wood_honey_01",
-            "value": 0.8,
-            "texturePolicy": "preserve"
-          }
-        }
       }
     },
     {

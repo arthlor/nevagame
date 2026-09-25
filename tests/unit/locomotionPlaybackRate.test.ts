@@ -15,7 +15,7 @@ const SLOPE_GAIT_BOUNDS = { minimum: 0.78, maximum: 1.14 };
  * On flat ground — where the player spends nearly all of their time — the
  * player's gaits play at exactly their authored cadence: the walk and run are
  * authored on the player's own 0.87 m legs at the shipped 2.0 and 5.2 m/s
- * (`tools/blender/common/player_clips.py`), so their catalog reference speeds
+ * (frozen in the published char_player_a derivative), so their catalog reference speeds
  * are the tuning speeds. A speed change must re-author the stride.
  */
 const MAX_FLAT_PLAYBACK = 1;

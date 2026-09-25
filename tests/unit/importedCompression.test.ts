@@ -5,7 +5,7 @@ import { Document } from "@gltf-transform/core";
 // @ts-expect-error gltf-validator has no bundled type declarations
 import { validateBytes } from "gltf-validator";
 import { describe, expect, it } from "vitest";
-import { compressImportedAsset, createNodeIO, ensureMeshoptReady } from "../../tools/blender/optimize.mjs";
+import { compressImportedAsset, createNodeIO, ensureMeshoptReady } from "../../tools/art/optimize.mjs";
 
 async function fixture() {
   await ensureMeshoptReady();
@@ -33,7 +33,7 @@ async function fixture() {
   return createNodeIO().writeBinary(document);
 }
 
-describe("adapted Blender lossless compression", () => {
+describe("lossless Meshopt packaging for skinned authored GLBs", () => {
   it("preserves exact decoded accessor values, triangle order, animation and sockets", async () => {
     const original = await fixture();
     const packed = await compressImportedAsset(original);

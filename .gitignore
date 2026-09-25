@@ -27,12 +27,7 @@ tmp-*.js
 .cursor/
 hudcurrent/
 
-# Blender autosave backups
+# Blender autosave backups of the archived .blend libraries under art/
 *.blend1
 *.blend2
 
-# Quaternius Universal Animation Library (CC0). Only the glTF variants under
-# anim/Unreal-Godot/ are build inputs — the catalog's `animationSource` and
-# tools/blender/cli.mjs reference UAL1_Standard.glb. The 47 MB Unity FBX pair
-# is unused by this pipeline.
-anim/Unity/

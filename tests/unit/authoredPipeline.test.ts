@@ -20,13 +20,17 @@ describe("authored generator registry", () => {
     expect(Object.keys(contracts).sort()).toEqual(Object.keys(AUTHORED_GENERATORS).sort());
   });
 
-  it("never registers a generator name with Blender as well", () => {
-    // Each catalog generator has exactly one producer; the CLI refuses a dual registration at load,
-    // and the Python registry must not quietly keep an old implementation of the same name.
-    const registry = fs.readFileSync(path.join(ROOT, "tools/blender/generators/registry.py"), "utf8");
-    const blenderNames = new Set([...registry.matchAll(/^\s+"([a-z0-9_]+)":/gm)].map((match) => match[1]));
-    expect(blenderNames.size).toBeGreaterThan(50);
-    for (const name of Object.keys(AUTHORED_GENERATORS)) expect(blenderNames.has(name), name).toBe(false);
+  it("never registers a generator name as a frozen legacy family or authored GLB as well", () => {
+    // Each catalog generator has exactly one producer; the CLI refuses a dual registration at load.
+    // Porting a legacy family moves its name out of legacy-generators.json into the registry.
+    const legacy = JSON.parse(
+      fs.readFileSync(path.join(ROOT, "tools/art/legacy-generators.json"), "utf8")
+    ) as Record<string, unknown>;
+    expect(Object.keys(legacy).length).toBeGreaterThan(50);
+    for (const name of Object.keys(AUTHORED_GENERATORS)) {
+      expect(Object.hasOwn(legacy, name), name).toBe(false);
+      expect(name).not.toBe("authored_glb");
+    }
   });
 
   it("has catalog assets for every authored generator", () => {

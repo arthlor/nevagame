@@ -23,7 +23,7 @@ import { MAINLAND_VILLAGES } from "../../src/world/NevaMainland";
 
 const highSceneBudget = (
   JSON.parse(
-    fs.readFileSync(path.resolve(process.cwd(), "tools/blender/asset_budgets.json"), "utf8")
+    fs.readFileSync(path.resolve(process.cwd(), "tools/art/asset_budgets.json"), "utf8")
   ) as {
     sceneProfiles: {
       high: {

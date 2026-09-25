@@ -56,7 +56,7 @@ contracts.
 
 ## Neva adaptation
 
-- Root `AGENTS.md` owns scope and precedence; `04` owns appearance, `VisualRenderConfig` owns renderer values, and `BLENDER.md` plus `tools/authored/README.md` own asset production.
+- Root `AGENTS.md` owns scope and precedence; `04` owns appearance, `VisualRenderConfig` owns renderer values, and `ASSET_PRODUCTION.md` plus `tools/authored/README.md` own asset production.
 - Keep Neva's warm, faceted coastal identity. Adapt technical mechanisms and parameters; do not adopt unrelated example aesthetics or migrate the renderer because an example uses another backend.
 - Use only the validation that applies to the changed mechanism and the project task matrix. A skill checklist does not authorize an unrelated system rewrite, new quality tier, diagnostic UI, or capture harness.
 - This pack has no gameplay, UI, provider-generation, or release agent. Use Neva's existing owners and workflows for those tasks.

@@ -3,7 +3,7 @@ import * as THREE from "three";
 import type { CatalogAssetSpec, V3 } from "./types";
 
 /**
- * Collision markers, the same contract the Blender generators emitted: one empty node per catalog
+ * Collision markers, the same contract the frozen legacy assets carry: one empty node per catalog
  * `collisionPrimitives` box, named `COL_<id>` for the first and `COL_<id>_<primitive id>` after,
  * placed at the box centre and turned by its yaw. The runtime reads the box extents from the catalog
  * and hides every `COL_` node; the markers only have to exist where the catalog says.
@@ -31,7 +31,7 @@ export const PALM_GRIP_FRAME = "palm-y-fingers-z-contact-v1";
 /**
  * A hand-contact marker: an empty whose local +Y runs along the fingers and whose local +Z points
  * from the palm into the held material, tagged with the palm-frame contract so `CharacterEquipment`
- * accepts it. Arguments are glTF-space: the tool's own axes, not Blender's.
+ * accepts it. Arguments are glTF-space: the tool's own axes (Y up, +Z forward).
  */
 export function addGripMarker(
   name: string, position: V3, fingers: V3, contact: V3, parent: THREE.Object3D
@@ -53,7 +53,7 @@ export function addGripMarker(
 }
 
 /**
- * A typed point marker (Blender's `add_marker`): an empty tagged `neva_marker = type`, such as a
+ * A typed point marker: an empty tagged `neva_marker = type`, such as a
  * rod's `line_exit`, read by position alone.
  */
 export function addMarker(name: string, position: V3, type: string, parent: THREE.Object3D): THREE.Object3D {

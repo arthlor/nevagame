@@ -54,7 +54,7 @@ import {
   uniquePracticalLightSourceNames
 } from "../lighting/practicalLightBudget";
 import { FacetedWater } from "../water/FacetedWater";
-import { AssetLoader, type DirectAssetSpec } from "../loaders/AssetLoader";
+import { AssetLoader } from "../loaders/AssetLoader";
 import { Simulation } from "../../simulation/Simulation";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
@@ -123,6 +123,7 @@ import {
   type EnvironmentAssetPlacement,
   type WorldEnvironmentLayout
 } from "../../world/WorldEnvironmentLayout";
+import { loadEnvironmentLayoutBake } from "../../world/loadEnvironmentLayoutBake";
 import {
   HumanoidAnimator,
   type BoatAnimationInput,
@@ -1213,29 +1214,30 @@ export class WorldScene {
   public static async prepareStartupAssetIds(
     state: Readonly<Pick<GameState, "worldSeed" | "crops" | "boats">>, signal?: AbortSignal
   ): Promise<readonly AssetId[]> {
+    // A production build ships the new-game world's layout; other seeds generate it here.
+    await loadEnvironmentLayoutBake(state.worldSeed, signal);
     await prepareWorldEnvironmentLayout(state.worldSeed, signal);
     return this.startupAssetIds(state);
   }
 
-  /** Assets required by the blocking world boot; progression assets remain lazy. */
-  public static startupAssetIds(
-    state: Readonly<Pick<GameState, "worldSeed" | "crops" | "boats">>
+  /**
+   * Required boot assets that do not depend on the generated environment layout: landmarks, the
+   * farm, the player, the cast and the saved crops and boats. They include the largest models, so
+   * startup begins their transfers while the layout is still being generated.
+   */
+  public static layoutIndependentStartupAssetIds(
+    state: Readonly<Pick<GameState, "crops" | "boats">>
   ): readonly AssetId[] {
-    const worldSeed = state.worldSeed;
-    const layout = createWorldEnvironmentLayout(worldSeed);
-    this.preparedStartupLayouts.set(worldSeed, layout);
     const assetIds = new Set<AssetId>([
       ...Object.values(STATIC_LANDMARK_ASSETS),
       ...Object.values(STATIC_FARM_PROP_ASSETS),
       ASSET_IDS.CHAR_PLAYER_A,
       ...FARMHOUSE_INTERIOR_PROPS.map((placement) => placement.assetId),
-      ...layout.staticPlacements.map((placement) => placement.assetId as AssetId),
-      ...layout.groundCoverPlacements.map((placement) => placement.assetId as AssetId),
       ASSET_IDS.FAUNA_GULL_A,
       ASSET_IDS.FAUNA_BUTTERFLY_A
     ]);
     for (const npc of ContentRegistry.npcs.values()) {
-      if (!this.CUSTOM_AUTHORED_NPCS[npc.id]) assetIds.add(npc.assetId as AssetId);
+      assetIds.add(this.TRIPO_NPC_MODELS[npc.id]?.assetId ?? npc.assetId as AssetId);
     }
     for (const crop of Object.values(state.crops)) {
       const assetId = cropStageAsset(crop.cropId, crop.stage);
@@ -1245,9 +1247,18 @@ export class WorldScene {
     return [...assetIds];
   }
 
-  /** New authored NPCs are required arrival assets and join normal boot progress. */
-  public static startupDirectModels(): readonly DirectAssetSpec[] {
-    return Object.values(this.CUSTOM_AUTHORED_NPCS);
+  /** Assets required by the blocking world boot; progression assets remain lazy. */
+  public static startupAssetIds(
+    state: Readonly<Pick<GameState, "worldSeed" | "crops" | "boats">>
+  ): readonly AssetId[] {
+    const worldSeed = state.worldSeed;
+    const layout = createWorldEnvironmentLayout(worldSeed);
+    this.preparedStartupLayouts.set(worldSeed, layout);
+    return [...new Set<AssetId>([
+      ...this.layoutIndependentStartupAssetIds(state),
+      ...layout.staticPlacements.map((placement) => placement.assetId as AssetId),
+      ...layout.groundCoverPlacements.map((placement) => placement.assetId as AssetId)
+    ])];
   }
 
   private async populateEnvironment(layout: WorldEnvironmentLayout): Promise<void> {
@@ -2674,56 +2685,25 @@ export class WorldScene {
     }
   }
 
-  private static readonly CUSTOM_AUTHORED_NPCS: Readonly<Record<string, DirectAssetSpec>> = {
-    "npc.barnaby": {
-      modelPath: "/assets/models/char_npc_barnaby_b.glb",
-      id: "char_npc_barnaby_b",
-      scale: 2.0
-    },
-    "npc.elspeth": {
-      modelPath: "/assets/models/char_npc_elspeth_b.glb",
-      id: "char_npc_elspeth_b",
-      scale: 1.95
-    },
-    "npc.silas": {
-      modelPath: "/assets/models/char_npc_silas_b.glb",
-      id: "char_npc_silas_b",
-      scale: 1.90
-    },
-    "npc.maeve": {
-      modelPath: "/assets/models/char_npc_maeve_b.glb",
-      id: "char_npc_maeve_b",
-      scale: 1.88
-    },
-    "npc.tomas": {
-      modelPath: "/assets/models/char_npc_tomas_b.glb",
-      id: "char_npc_tomas_b",
-      scale: 1.95
-    },
-    "npc.ines": {
-      modelPath: "/assets/models/char_npc_ines_b.glb",
-      id: "char_npc_ines_b",
-      scale: 1.95
-    },
-    "npc.rowan": {
-      modelPath: "/assets/models/char_npc_rowan_b.glb",
-      id: "char_npc_rowan_b",
-      scale: 2.0
-    },
-    "npc.mara": {
-      modelPath: "/assets/models/char_npc_mara_b.glb",
-      id: "char_npc_mara_b",
-      scale: 1.90
-    },
-    "npc.ada": {
-      modelPath: "/assets/models/char_npc_ada_b.glb",
-      id: "char_npc_ada_b",
-      scale: 1.88
-    }
+  /**
+   * The cast's Tripo-authored models (`authored_glb` catalog assets). Their GLBs are normalized to
+   * 1 m, so presentation scales each to the character's height and animates it from its own
+   * embedded clips; the same scale applies wherever background townsfolk reuse a model.
+   */
+  private static readonly TRIPO_NPC_MODELS: Readonly<Record<string, { assetId: AssetId; scale: number }>> = {
+    "npc.barnaby": { assetId: ASSET_IDS.CHAR_NPC_BARNABY_B, scale: 2.0 },
+    "npc.elspeth": { assetId: ASSET_IDS.CHAR_NPC_ELSPETH_B, scale: 1.95 },
+    "npc.silas": { assetId: ASSET_IDS.CHAR_NPC_SILAS_B, scale: 1.90 },
+    "npc.maeve": { assetId: ASSET_IDS.CHAR_NPC_MAEVE_B, scale: 1.88 },
+    "npc.tomas": { assetId: ASSET_IDS.CHAR_NPC_TOMAS_B, scale: 1.95 },
+    "npc.ines": { assetId: ASSET_IDS.CHAR_NPC_INES_B, scale: 1.95 },
+    "npc.rowan": { assetId: ASSET_IDS.CHAR_NPC_ROWAN_B, scale: 2.0 },
+    "npc.mara": { assetId: ASSET_IDS.CHAR_NPC_MARA_B, scale: 1.90 },
+    "npc.ada": { assetId: ASSET_IDS.CHAR_NPC_ADA_B, scale: 1.88 }
   };
 
-  private static directModelForId(assetId: string): DirectAssetSpec | undefined {
-    return Object.values(this.CUSTOM_AUTHORED_NPCS).find((spec) => spec.id === assetId);
+  private static tripoModelScale(assetId: string): number | undefined {
+    return Object.values(this.TRIPO_NPC_MODELS).find((spec) => spec.assetId === assetId)?.scale;
   }
 
   private async loadNpcPresentations(): Promise<void> {
@@ -2735,11 +2715,12 @@ export class WorldScene {
         const assetId = npc.assetId as AssetId;
         let presentationAssetId = assetId as string;
 
-        const custom = WorldScene.CUSTOM_AUTHORED_NPCS[npc.id];
-        if (custom) {
-          model = await AssetLoader.loadDirectModel(custom, this.startupSignal);
+        const tripo = WorldScene.TRIPO_NPC_MODELS[npc.id];
+        if (tripo) {
+          model = await this.loadModel(tripo.assetId);
+          model.scale.setScalar(tripo.scale);
           animator = new AuthoredNpcAnimator(model, npc.id);
-          presentationAssetId = custom.id;
+          presentationAssetId = tripo.assetId;
         } else {
           model = await this.loadModel(assetId);
           animator = new HumanoidAnimator(model);
@@ -4196,11 +4177,10 @@ export class WorldScene {
       let model: THREE.Group | undefined;
       let animator: NpcAnimatorContract | undefined;
       try {
-        const direct = WorldScene.directModelForId(route.assetId);
-        model = direct
-          ? await AssetLoader.loadDirectModel(direct, this.startupSignal)
-          : await this.loadModel(route.assetId as AssetId);
-        animator = direct
+        const tripoScale = WorldScene.tripoModelScale(route.assetId);
+        model = await this.loadModel(route.assetId as AssetId);
+        if (tripoScale !== undefined) model.scale.setScalar(tripoScale);
+        animator = tripoScale !== undefined
           ? new AuthoredNpcAnimator(model, route.id)
           : new HumanoidAnimator(model);
         model.userData.dynamicPresentation = true;

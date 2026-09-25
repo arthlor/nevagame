@@ -50,6 +50,9 @@ jobs:
       - name: Unit and simulation tests
         run: npx vitest run
 
+      - name: Art pipeline surface-contract tests
+        run: npm run art:test
+
       - name: Build
         run: npx vite build
 

@@ -59,15 +59,15 @@
             "normalPolicy": { "const": "authored" },
             "facetColors": { "const": "rest_face" },
             "valueZones": {
-              "description": "Optional bounded overrides for the broad authored value-zone multipliers applied by the rest-face bake; omitted zones keep the shared defaults owned by tools/blender/common/geometry.py.",
+              "description": "Optional bounded overrides for the broad authored value-zone multipliers applied by the rest-face bake; an omitted zone uses its property's shared default.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "sunTop": { "type": "number", "minimum": 0.8, "maximum": 1.1 },
-                "weatherSide": { "type": "number", "minimum": 0.8, "maximum": 1.1 },
-                "groundContact": { "type": "number", "minimum": 0.8, "maximum": 1.1 },
-                "patch": { "type": "number", "minimum": 0.8, "maximum": 1.1 },
-                "wear": { "type": "number", "minimum": 0.8, "maximum": 1.1 }
+                "sunTop": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 1.05 },
+                "weatherSide": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 0.94 },
+                "groundContact": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 0.9 },
+                "patch": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 1.03 },
+                "wear": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 0.92 }
               }
             }
           }
@@ -127,7 +127,6 @@
         },
         "palette": {
           "type": "array",
-          "minItems": 1,
           "uniqueItems": true,
           "items": {
             "type": "string",
@@ -259,37 +258,11 @@
         "sourceProvenance": {
           "$ref": "#/$defs/sourceProvenance"
         },
-        "staticAuthoring": {
-          "$ref": "#/$defs/staticAuthoring"
-        },
-        "skinnedAuthoring": {
-          "$ref": "#/$defs/skinnedAuthoring"
-        },
         "humanoidRig": {
           "$ref": "#/$defs/humanoidRig"
-        },
-        "humanoidAuthoring": {
-          "$ref": "#/$defs/humanoidAuthoring"
         }
       },
       "allOf": [
-        {
-          "if": {
-            "properties": {
-              "generator": {
-                "const": "imported_blend"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "sourceProvenance": true
-            },
-            "required": [
-              "sourceProvenance"
-            ]
-          }
-        },
         {
           "if": {
             "properties": {
@@ -346,8 +319,49 @@
         {
           "if": {
             "properties": {
+              "generator": {
+                "not": {
+                  "const": "authored_glb"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "palette": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "not": {
+                  "const": "character"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rigNode": false,
+              "socketNodes": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
               "family": {
                 "const": "character"
+              },
+              "generator": {
+                "not": {
+                  "const": "authored_glb"
+                }
               }
             }
           },
@@ -362,12 +376,29 @@
               "socketNodes",
               "animationClips"
             ]
-          },
-          "else": {
+          }
+        },
+        {
+          "if": {
             "properties": {
-              "rigNode": false,
-              "socketNodes": false
-            }
+              "family": {
+                "const": "character"
+              },
+              "animationClips": true
+            },
+            "required": [
+              "animationClips"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rigNode": true,
+              "socketNodes": true
+            },
+            "required": [
+              "rigNode",
+              "socketNodes"
+            ]
           }
         }
       ]
@@ -375,7 +406,7 @@
     "sourceProvenance": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Build-time provenance for an adapted source; sourceSha256 hashes sourceBlend, not the provider download.",
+      "description": "Build-time licence and origin evidence for a provider-derived asset; sourceSha256 hashes sourceFile (the adapted library or committed source), not the provider download.",
       "dependentRequired": {
         "sourceCapture": [
           "sourceCaptureSha256",
@@ -405,7 +436,7 @@
         "author",
         "license",
         "licenseUrl",
-        "sourceBlend",
+        "sourceFile",
         "sourceSha256",
         "attribution"
       ],
@@ -446,11 +477,11 @@
           "maxLength": 200,
           "pattern": "^https://(creativecommons\\.org/|www\\.tripo3d\\.ai/terms$)"
         },
-        "sourceBlend": {
+        "sourceFile": {
           "type": "string",
-          "minLength": 7,
+          "minLength": 6,
           "maxLength": 500,
-          "pattern": "\\.blend$"
+          "pattern": "\\.(blend|glb)$"
         },
         "sourceSha256": {
           "type": "string",
@@ -1459,293 +1490,6 @@
             }
           }
         }
-      }
-    },
-    "staticAuthoring": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Offline source-preservation contract for catalog-adapted static assets. This metadata is excluded from the runtime catalog projection.",
-      "required": [
-        "sourceFile",
-        "sourceSha256",
-        "sourceNode",
-        "scaleReference",
-        "yawDegrees",
-        "materialMap"
-      ],
-      "properties": {
-        "sourceFile": {
-          "type": "string",
-          "pattern": "^art/imported/.*\\.glb$"
-        },
-        "sourceSha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        },
-        "sourceNode": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 160
-        },
-        "scaleReference": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "axis",
-            "meters"
-          ],
-          "properties": {
-            "axis": {
-              "enum": [
-                "width",
-                "depth",
-                "height"
-              ]
-            },
-            "meters": {
-              "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 100
-            }
-          }
-        },
-        "yawDegrees": {
-          "type": "number",
-          "minimum": -360,
-          "maximum": 360
-        },
-        "pivotOffset": {
-          "type": "object",
-          "additionalProperties": false,
-          "description": "Optional horizontal shift, in adapted runtime metres (+X right, +Z forward), subtracted after uniform ground-centering so the pivot sits under the asset's own footprint rather than the centre of a source that carries off-centre yard dressing. The surface itself is unchanged.",
-          "required": [
-            "x",
-            "z"
-          ],
-          "properties": {
-            "x": {
-              "type": "number",
-              "minimum": -20,
-              "maximum": 20
-            },
-            "z": {
-              "type": "number",
-              "minimum": -20,
-              "maximum": 20
-            }
-          }
-        },
-        "materialMap": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "token",
-              "value",
-              "texturePolicy"
-            ],
-            "properties": {
-              "token": {
-                "type": "string",
-                "pattern": "^[a-z][a-z0-9_]*$"
-              },
-              "value": {
-                "type": "number",
-                "minimum": 0.7,
-                "maximum": 1.04
-              },
-              "texturePolicy": {
-                "enum": [
-                  "none",
-                  "preserve"
-                ]
-              }
-            }
-          }
-        },
-        "removedSourceTriangles": {
-          "type": "object",
-          "minProperties": 1,
-          "description": "Explicit user-requested deletions, indexed within each immutable source material region triangle stream. Original bounds still own normalization; all retained triangles remain fidelity-checked.",
-          "additionalProperties": {
-            "type": "array",
-            "minItems": 1,
-            "uniqueItems": true,
-            "items": { "type": "integer", "minimum": 0 }
-          }
-        },
-        "addedGeometryNodes": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
-          }
-        }
-      }
-    },
-    "skinnedAuthoring": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Offline contract for an explicitly requested provider mesh that a Blender import adapter rigs, weights and animates around its textured source surface. The adapter may re-pose, reweight and split the surface into named regions, so LOD0 is not compared to source geometry the way staticAuthoring is; this pins the immutable source bytes and each adapted region's palette token and texture policy. Excluded from the runtime catalog projection.",
-      "required": [
-        "sourceFile",
-        "sourceSha256",
-        "adapter",
-        "materialMap"
-      ],
-      "properties": {
-        "sourceFile": {
-          "type": "string",
-          "pattern": "^art/imported/.*\\.glb$"
-        },
-        "sourceSha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        },
-        "adapter": {
-          "type": "string",
-          "pattern": "^tools/blender/adapt_[a-z0-9_]+\\.py$"
-        },
-        "materialMap": {
-          "type": "object",
-          "minProperties": 1,
-          "description": "Adapted region material name -> the source material whose texture it keeps, its palette token and texture policy.",
-          "propertyNames": {
-            "pattern": "^[a-z][a-z0-9_]*$"
-          },
-          "additionalProperties": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "sourceMaterial",
-              "token",
-              "value",
-              "texturePolicy"
-            ],
-            "properties": {
-              "sourceMaterial": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 160
-              },
-              "token": {
-                "type": "string",
-                "pattern": "^[a-z][a-z0-9_]*$"
-              },
-              "value": {
-                "type": "number",
-                "minimum": 0.7,
-                "maximum": 1.04
-              },
-              "texturePolicy": {
-                "enum": [
-                  "preserve"
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    "humanoidAuthoring": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "sourceFile",
-        "sourceSha256",
-        "heightMeters",
-        "role",
-        "materialMap"
-      ],
-      "properties": {
-        "sourceFile": {
-          "type": "string",
-          "pattern": "^art/imported/.*\\.(gltf|glb)$"
-        },
-        "sourceSha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        },
-        "heightMeters": {
-          "type": "number",
-          "minimum": 1.5,
-          "maximum": 2.3
-        },
-        "role": {
-          "enum": [
-            "farmer",
-            "grower",
-            "gardener",
-            "handyman",
-            "dockmaster",
-            "merchant",
-            "market_keeper"
-          ]
-        },
-        "headSourceFile": {
-          "type": "string",
-          "pattern": "^art/imported/.*\\.(gltf|glb)$"
-        },
-        "omitParts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-        "materialMap": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9_]*$"
-          }
-        },
-        "headSourceSha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        },
-        "accessoryPalette": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9_]*$"
-          }
-        },
-        "apronClearanceProfile": {
-          "description": "Offline accessory clearance measured in normalized model metres; heights must be strictly increasing.",
-          "type": "array",
-          "minItems": 2,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["heightMeters", "additionalForwardMeters"],
-            "properties": {
-              "heightMeters": {"type": "number", "minimum": 0},
-              "additionalForwardMeters": {"type": "number", "minimum": 0, "maximum": 0.05}
-            }
-          }
-        },
-        "hairStyle": {
-          "description": "Offline head-bound additions preserve the original source hair and face.",
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["style", "hairToken", "tieToken"],
-          "properties": {
-            "style": {"const": "half_up_bun"},
-            "hairToken": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-            "tieToken": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
-          }
-        }
-      },
-      "dependentRequired": {
-        "headSourceFile": [
-          "headSourceSha256"
-        ]
       }
     }
   }

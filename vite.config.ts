@@ -8,6 +8,7 @@ import { runtimeAssetCatalogPlugin } from "./tools/vite/runtimeAssetCatalogPlugi
 import { artYardPlugin } from "./tools/vite/artYardPlugin";
 import { layoutEditorPlugin } from "./tools/vite/layoutEditorPlugin";
 import { productionArtifactsPlugin } from "./tools/vite/productionArtifactsPlugin";
+import { environmentLayoutBakePlugin } from "./tools/vite/environmentLayoutBakePlugin";
 
 /** Serve `/assets/audio/*.mp3` from disk so ingest during a running Vite session is audible. */
 function runtimeAudioPlugin(rootDirectory: string): Plugin {
@@ -39,6 +40,7 @@ export default defineConfig({
     productionArtifactsPlugin(),
     runtimeAudioPlugin(__dirname),
     runtimeAssetCatalogPlugin(__dirname),
+    environmentLayoutBakePlugin(__dirname),
     artYardPlugin(__dirname),
     layoutEditorPlugin(__dirname),
     react()

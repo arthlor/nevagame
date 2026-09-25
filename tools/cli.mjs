@@ -15,7 +15,7 @@ const HELP = `Neva developer tools
 Usage: npm run tools -- <command> [action] [...args]
 
 Commands:
-  art <action>              Route to the catalog Blender CLI
+  art <action>              Route to the catalog art CLI (tools/art/cli.mjs)
   layout dev [...args]      Start the local F2/?place editor server
   ui <atlas|check|codegen|publish|slice>
   audio <normalize|check|plan|ingest>
@@ -51,7 +51,7 @@ async function routeArt(args) {
   if (!args.length) throw new Error("art requires an action such as generate, validate, or benchmark");
   if (args[0] === "benchmark") return run(NPM, ["run", "art:benchmark", "--", ...args.slice(1)]);
   if (args[0] === "benchmark-extended") return run(NPM, ["run", "art:benchmark:extended", "--", ...args.slice(1)]);
-  return run(NODE, [path.join(ROOT, "tools/blender/cli.mjs"), ...args]);
+  return run(NODE, [path.join(ROOT, "tools/art/cli.mjs"), ...args]);
 }
 
 function routeUi(action, args) {

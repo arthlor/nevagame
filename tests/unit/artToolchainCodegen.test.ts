@@ -7,7 +7,7 @@ import {
   computeAssetInputHash,
   computeAssetToolchainHash,
   validateCatalog
-} from "../../tools/blender/cli.mjs";
+} from "../../tools/art/cli.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 
@@ -27,10 +27,12 @@ describe("Neva generated art toolchain", () => {
     const fish = catalog.assets.find((asset) => asset.id === "fish_trout_a");
     if (!oak || !fish) throw new Error("Hash fixtures are missing from the catalog");
 
-    const base = computeAssetInputHash(oak, palette, "Blender 4.3.3");
-    const changed = structuredClone(oak);
+    const base = computeAssetInputHash(fish, palette, "authored-three@0.174.0");
+    const changed = structuredClone(fish);
     changed.seed += 1;
-    expect(computeAssetInputHash(changed, palette, "Blender 4.3.3")).not.toBe(base);
+    expect(computeAssetInputHash(changed, palette, "authored-three@0.174.0")).not.toBe(base);
+    // tree_oak_a is a frozen legacy asset and fish_trout_a an authored generator; only the latter
+    // hashes the authored kit and generators.
     expect(computeAssetToolchainHash(oak)).not.toBe(computeAssetToolchainHash(fish));
   });
 });

@@ -1,0 +1,1516 @@
+{
+  "admiralty_anchor": {},
+  "algae_frond": {},
+  "apple_tree": {
+    "height": {
+      "kind": "number",
+      "min": 2.5,
+      "max": 7
+    },
+    "spread": {
+      "kind": "number",
+      "min": 1,
+      "max": 4
+    },
+    "canopyClusters": {
+      "kind": "integer",
+      "min": 6,
+      "max": 20
+    },
+    "fruitCount": {
+      "kind": "integer",
+      "min": 6,
+      "max": 30
+    },
+    "branchCount": {
+      "kind": "integer",
+      "min": 3,
+      "max": 8
+    },
+    "rootCount": {
+      "kind": "integer",
+      "min": 3,
+      "max": 8
+    }
+  },
+  "apple_tree_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 5
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafLength": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafWidth": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "branches": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    },
+    "leafCount": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    },
+    "fruitRadius": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    }
+  },
+  "barley_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafLength": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafWidth": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "stalks": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    }
+  },
+  "beach_grass_tuft": {},
+  "broadleaf_oak": {},
+  "bush": {
+    "clusters": {
+      "kind": "integer",
+      "min": 3,
+      "max": 10
+    },
+    "flowerCount": {
+      "kind": "integer",
+      "min": 0,
+      "max": 20
+    },
+    "leafTips": {
+      "kind": "integer",
+      "min": 0,
+      "max": 16
+    }
+  },
+  "carrot_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafLength": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafWidth": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "plants": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    }
+  },
+  "cattail_reeds": {},
+  "coastal_hut": {
+    "width": {
+      "kind": "number",
+      "min": 3,
+      "max": 6
+    },
+    "depth": {
+      "kind": "number",
+      "min": 2.5,
+      "max": 5
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 2,
+      "max": 3.2
+    },
+    "roofPitch": {
+      "kind": "number",
+      "min": 16,
+      "max": 36
+    },
+    "form": {
+      "kind": "choice",
+      "values": [
+        "shelter",
+        "store"
+      ]
+    }
+  },
+  "coastal_palm": {
+    "height": {
+      "kind": "number",
+      "min": 4,
+      "max": 12
+    },
+    "lean": {
+      "kind": "number",
+      "min": 0,
+      "max": 4
+    },
+    "spread": {
+      "kind": "number",
+      "min": 2,
+      "max": 4.5
+    },
+    "fronds": {
+      "kind": "integer",
+      "min": 8,
+      "max": 15
+    },
+    "leafletPairs": {
+      "kind": "integer",
+      "min": 8,
+      "max": 20
+    }
+  },
+  "coastal_understory": {
+    "height": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 2.5
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 2
+    },
+    "leaves": {
+      "kind": "integer",
+      "min": 7,
+      "max": 24
+    },
+    "form": {
+      "kind": "choice",
+      "values": [
+        "paddle",
+        "split",
+        "shrub"
+      ]
+    }
+  },
+  "corn_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafLength": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafWidth": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "stalks": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    }
+  },
+  "crop_trade_pack": {
+    "stripeToken": {
+      "kind": "nonemptyString"
+    },
+    "produceToken": {
+      "kind": "nonemptyString"
+    },
+    "width": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 1.4
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 1
+    },
+    "frameHeight": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 1.5
+    },
+    "basketHeight": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 1
+    },
+    "commodity": {
+      "kind": "choice",
+      "values": [
+        "wheat",
+        "barley",
+        "corn",
+        "tomato",
+        "potato",
+        "carrot",
+        "flax",
+        "apple",
+        "olive"
+      ]
+    }
+  },
+  "cupboard_shelves": {
+    "width": {
+      "kind": "number",
+      "min": 0.8,
+      "max": 4
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 2
+    },
+    "height": {
+      "kind": "number",
+      "min": 1,
+      "max": 4
+    }
+  },
+  "dead_tree": {},
+  "dining_table": {
+    "width": {
+      "kind": "number",
+      "min": 1,
+      "max": 4
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 3
+    }
+  },
+  "dock_platform": {},
+  "dovecote": {
+    "postHeight": {
+      "kind": "number",
+      "min": 1.4,
+      "max": 2.8
+    },
+    "cotePitch": {
+      "kind": "number",
+      "min": 0.7,
+      "max": 1.4
+    }
+  },
+  "faceted_cloud": {
+    "variant": {
+      "kind": "choice",
+      "values": [
+        "bank",
+        "tower"
+      ]
+    },
+    "clusters": {
+      "kind": "integer",
+      "min": 3,
+      "max": 16
+    },
+    "width": {
+      "kind": "number",
+      "min": 2,
+      "max": 16
+    },
+    "depth": {
+      "kind": "number",
+      "min": 1,
+      "max": 14
+    },
+    "height": {
+      "kind": "number",
+      "min": 1,
+      "max": 16
+    }
+  },
+  "farmhouse": {
+    "width": {
+      "kind": "number",
+      "min": 3,
+      "max": 14
+    },
+    "depth": {
+      "kind": "number",
+      "min": 3,
+      "max": 12
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 2,
+      "max": 7
+    },
+    "roofPitchDeg": {
+      "kind": "number",
+      "min": 20,
+      "max": 55
+    },
+    "masonryCourses": {
+      "kind": "integer",
+      "min": 2,
+      "max": 10
+    },
+    "masonryBlocks": {
+      "kind": "integer",
+      "min": 3,
+      "max": 12
+    },
+    "shingleRows": {
+      "kind": "integer",
+      "min": 3,
+      "max": 12
+    },
+    "shingleColumns": {
+      "kind": "integer",
+      "min": 4,
+      "max": 14
+    },
+    "crossGableWidth": {
+      "kind": "number",
+      "min": 1.5,
+      "max": 6
+    },
+    "porchDepth": {
+      "kind": "number",
+      "min": 0.8,
+      "max": 3
+    },
+    "porchPlanks": {
+      "kind": "integer",
+      "min": 4,
+      "max": 16
+    },
+    "chimneyOffsetX": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 6
+    },
+    "chimneyHeight": {
+      "kind": "number",
+      "min": 3,
+      "max": 12
+    }
+  },
+  "fence_section": {},
+  "fireplace_hearth": {
+    "width": {
+      "kind": "number",
+      "min": 1,
+      "max": 5
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 3
+    },
+    "height": {
+      "kind": "number",
+      "min": 1.5,
+      "max": 5
+    }
+  },
+  "firewood_stack": {},
+  "fish_drying_rack": {
+    "width": {
+      "kind": "number",
+      "min": 1.2,
+      "max": 5
+    },
+    "depth": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 2
+    },
+    "height": {
+      "kind": "number",
+      "min": 1,
+      "max": 4
+    },
+    "fishCount": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    }
+  },
+  "fish_market": {
+    "width": {
+      "kind": "number",
+      "min": 3,
+      "max": 16
+    },
+    "depth": {
+      "kind": "number",
+      "min": 3,
+      "max": 12
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 2,
+      "max": 7
+    },
+    "roofPitchDeg": {
+      "kind": "number",
+      "min": 20,
+      "max": 55
+    },
+    "masonryCourses": {
+      "kind": "integer",
+      "min": 2,
+      "max": 10
+    },
+    "masonryBlocks": {
+      "kind": "integer",
+      "min": 3,
+      "max": 14
+    },
+    "shingleRows": {
+      "kind": "integer",
+      "min": 3,
+      "max": 12
+    },
+    "shingleColumns": {
+      "kind": "integer",
+      "min": 4,
+      "max": 14
+    },
+    "porchDepth": {
+      "kind": "number",
+      "min": 0.8,
+      "max": 3
+    },
+    "porchPlanks": {
+      "kind": "integer",
+      "min": 4,
+      "max": 16
+    }
+  },
+  "fishing_skiff": {
+    "length": {
+      "kind": "number",
+      "min": 4,
+      "max": 16
+    },
+    "beam": {
+      "kind": "number",
+      "min": 1.5,
+      "max": 6
+    },
+    "ribCount": {
+      "kind": "integer",
+      "min": 6,
+      "max": 20
+    },
+    "mastHeight": {
+      "kind": "number",
+      "min": 3,
+      "max": 14
+    },
+    "outerStrakes": {
+      "kind": "integer",
+      "min": 2,
+      "max": 7
+    },
+    "hullSegments": {
+      "kind": "integer",
+      "min": 7,
+      "max": 18
+    },
+    "deckBoards": {
+      "kind": "integer",
+      "min": 12,
+      "max": 50
+    },
+    "sailRows": {
+      "kind": "integer",
+      "min": 4,
+      "max": 14
+    }
+  },
+  "flax_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafLength": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafWidth": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "stems": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    }
+  },
+  "floor_plant": {},
+  "flower_drift": {
+    "blossomCount": {
+      "kind": "integer",
+      "min": 3,
+      "max": 12
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 1.2
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 1.2
+    },
+    "blossomSize": {
+      "kind": "number",
+      "min": 0.02,
+      "max": 0.2
+    }
+  },
+  "gangplank": {},
+  "grass_clump": {
+    "bladeCount": {
+      "kind": "integer",
+      "min": 4,
+      "max": 50
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 3
+    },
+    "bladeWidth": {
+      "kind": "number",
+      "min": 0.01,
+      "max": 0.5
+    }
+  },
+  "interior_farmhouse_shell": {
+    "width": {
+      "kind": "number",
+      "min": 3,
+      "max": 14
+    },
+    "depth": {
+      "kind": "number",
+      "min": 3,
+      "max": 12
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 2,
+      "max": 7
+    },
+    "floorPlanks": {
+      "kind": "integer",
+      "min": 6,
+      "max": 30
+    },
+    "ceilingBeams": {
+      "kind": "integer",
+      "min": 2,
+      "max": 10
+    }
+  },
+  "item_apple": {},
+  "item_bread_loaf": {},
+  "item_carrot": {},
+  "item_coin_pouch": {},
+  "item_compass": {},
+  "item_corn_cob": {},
+  "item_pie": {},
+  "kelp_clump": {
+    "fronds": {
+      "kind": "integer",
+      "min": 3,
+      "max": 16
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 2
+    },
+    "stalkRadius": {
+      "kind": "number",
+      "min": 0.01,
+      "max": 0.12
+    },
+    "bladeWidth": {
+      "kind": "number",
+      "min": 0.05,
+      "max": 0.8
+    }
+  },
+  "lighthouse": {
+    "height": {
+      "kind": "number",
+      "min": 6,
+      "max": 24
+    },
+    "baseRadius": {
+      "kind": "number",
+      "min": 1,
+      "max": 5
+    },
+    "sides": {
+      "kind": "integer",
+      "min": 8,
+      "max": 16
+    },
+    "masonryCourses": {
+      "kind": "integer",
+      "min": 2,
+      "max": 12
+    },
+    "masonryBlocks": {
+      "kind": "integer",
+      "min": 6,
+      "max": 24
+    },
+    "bandCount": {
+      "kind": "integer",
+      "min": 4,
+      "max": 12
+    },
+    "cottageWidth": {
+      "kind": "number",
+      "min": 1.5,
+      "max": 5
+    }
+  },
+  "lily_pad_cluster": {},
+  "log_bridge": {
+    "length": {
+      "kind": "number",
+      "min": 2,
+      "max": 12
+    },
+    "width": {
+      "kind": "number",
+      "min": 1,
+      "max": 4
+    },
+    "deckPlanks": {
+      "kind": "integer",
+      "min": 4,
+      "max": 20
+    },
+    "railPosts": {
+      "kind": "integer",
+      "min": 2,
+      "max": 12
+    }
+  },
+  "maple_tree": {},
+  "marker_buoy": {},
+  "mooring_post": {},
+  "mushroom_cluster": {},
+  "oak_tree": {
+    "height": {
+      "kind": "number",
+      "min": 3,
+      "max": 10
+    },
+    "spread": {
+      "kind": "number",
+      "min": 1,
+      "max": 5
+    },
+    "canopyClusters": {
+      "kind": "integer",
+      "min": 6,
+      "max": 24
+    },
+    "lean": {
+      "kind": "number",
+      "min": -0.4,
+      "max": 0.4
+    },
+    "branchCount": {
+      "kind": "integer",
+      "min": 4,
+      "max": 10
+    },
+    "rootCount": {
+      "kind": "integer",
+      "min": 4,
+      "max": 10
+    }
+  },
+  "olive_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 5
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafLength": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafWidth": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "branches": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    },
+    "leafCount": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    },
+    "fruitRadius": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    }
+  },
+  "olive_tree": {
+    "height": {
+      "kind": "number",
+      "min": 3,
+      "max": 8
+    },
+    "spread": {
+      "kind": "number",
+      "min": 1,
+      "max": 4
+    },
+    "canopyClusters": {
+      "kind": "integer",
+      "min": 6,
+      "max": 24
+    },
+    "lean": {
+      "kind": "number",
+      "min": -0.4,
+      "max": 0.4
+    },
+    "branchCount": {
+      "kind": "integer",
+      "min": 4,
+      "max": 10
+    },
+    "rootCount": {
+      "kind": "integer",
+      "min": 4,
+      "max": 10
+    },
+    "fruitCount": {
+      "kind": "integer",
+      "min": 0,
+      "max": 30
+    }
+  },
+  "path_slab": {
+    "radius": {
+      "kind": "number",
+      "min": 0.12,
+      "max": 0.8
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.02,
+      "max": 0.16
+    },
+    "sides": {
+      "kind": "integer",
+      "min": 5,
+      "max": 8
+    },
+    "chipCount": {
+      "kind": "integer",
+      "min": 0,
+      "max": 4
+    }
+  },
+  "path_stone_round": {},
+  "path_stone_slab": {},
+  "pier_railing": {},
+  "pine_tree": {
+    "height": {
+      "kind": "number",
+      "min": 4,
+      "max": 12
+    },
+    "spread": {
+      "kind": "number",
+      "min": 1,
+      "max": 4
+    },
+    "tiers": {
+      "kind": "integer",
+      "min": 5,
+      "max": 12
+    },
+    "lean": {
+      "kind": "number",
+      "min": -0.4,
+      "max": 0.4
+    },
+    "branchesPerTier": {
+      "kind": "integer",
+      "min": 3,
+      "max": 8
+    },
+    "rootCount": {
+      "kind": "integer",
+      "min": 3,
+      "max": 8
+    }
+  },
+  "potato_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "stems": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    }
+  },
+  "produce_crate": {
+    "size": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 2
+    },
+    "content": {
+      "kind": "choice",
+      "values": [
+        "pumpkins",
+        "apples"
+      ]
+    }
+  },
+  "pumpkin_crop": {
+    "lobes": {
+      "kind": "integer",
+      "min": 5,
+      "max": 8
+    },
+    "leafCount": {
+      "kind": "integer",
+      "min": 3,
+      "max": 8
+    }
+  },
+  "rowboat": {
+    "length": {
+      "kind": "number",
+      "min": 2,
+      "max": 8
+    },
+    "beam": {
+      "kind": "number",
+      "min": 1,
+      "max": 4
+    },
+    "ribCount": {
+      "kind": "integer",
+      "min": 5,
+      "max": 16
+    },
+    "innerPlanks": {
+      "kind": "integer",
+      "min": 5,
+      "max": 16
+    },
+    "gunwaleSegments": {
+      "kind": "integer",
+      "min": 5,
+      "max": 16
+    }
+  },
+  "rustic_chair": {
+    "scale": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 2
+    }
+  },
+  "seagrass_tuft": {},
+  "stone_bridge": {
+    "length": {
+      "kind": "number",
+      "min": 5,
+      "max": 30
+    },
+    "width": {
+      "kind": "number",
+      "min": 2,
+      "max": 8
+    },
+    "archCount": {
+      "kind": "integer",
+      "min": 1,
+      "max": 4
+    },
+    "masonryCourses": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    },
+    "railPosts": {
+      "kind": "integer",
+      "min": 5,
+      "max": 16
+    }
+  },
+  "sunflower_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafLength": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafWidth": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafCount": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    }
+  },
+  "sunflower_stand": {},
+  "tall_pine": {},
+  "tilled_soil_tile": {},
+  "tomato_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafLength": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "fruitRadius": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "plants": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    }
+  },
+  "turnip_crop": {
+    "leafCount": {
+      "kind": "integer",
+      "min": 4,
+      "max": 10
+    }
+  },
+  "vegetable_bed_tile": {},
+  "village_building": {
+    "width": {
+      "kind": "number",
+      "min": 1.4,
+      "max": 16
+    },
+    "depth": {
+      "kind": "number",
+      "min": 1.4,
+      "max": 14
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 1.6,
+      "max": 7
+    },
+    "roofPitchDeg": {
+      "kind": "number",
+      "min": 20,
+      "max": 55
+    },
+    "foundationHeight": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 1.4
+    },
+    "roofOverhang": {
+      "kind": "number",
+      "min": 0.15,
+      "max": 1.2
+    },
+    "roofCourses": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    },
+    "shingleRows": {
+      "kind": "integer",
+      "min": 3,
+      "max": 12
+    },
+    "shingleColumns": {
+      "kind": "integer",
+      "min": 4,
+      "max": 14
+    },
+    "masonryCourses": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    },
+    "masonryBlocks": {
+      "kind": "integer",
+      "min": 3,
+      "max": 12
+    },
+    "porchDepth": {
+      "kind": "number",
+      "min": 0,
+      "max": 2.8
+    },
+    "porchPlanks": {
+      "kind": "integer",
+      "min": 0,
+      "max": 16
+    },
+    "wingOffset": {
+      "kind": "number",
+      "min": -4,
+      "max": 4
+    },
+    "wingWidth": {
+      "kind": "number",
+      "min": 0,
+      "max": 8
+    },
+    "wingDepth": {
+      "kind": "number",
+      "min": 0,
+      "max": 7
+    },
+    "chimneyOffsetX": {
+      "kind": "number",
+      "min": -6,
+      "max": 6
+    },
+    "chimneyHeight": {
+      "kind": "number",
+      "min": 0,
+      "max": 4
+    },
+    "plinthScale": {
+      "kind": "number",
+      "min": 0.8,
+      "max": 1.5
+    },
+    "porchWidthRatio": {
+      "kind": "number",
+      "min": 0.2,
+      "max": 1.2
+    },
+    "doorWidth": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 2.8
+    },
+    "doorHeight": {
+      "kind": "number",
+      "min": 1.2,
+      "max": 3.2
+    },
+    "roofForm": {
+      "kind": "choice",
+      "values": [
+        "front-gable",
+        "side-gable",
+        "lean-to",
+        "offset-gable",
+        "tall-gable"
+      ]
+    },
+    "openingLayout": {
+      "kind": "choice",
+      "values": [
+        "cottage-front",
+        "cottage-side",
+        "cottage-garden",
+        "inn-veranda",
+        "market-arcade",
+        "barn-loft",
+        "shed-tools",
+        "outhouse-vent"
+      ]
+    },
+    "variant": {
+      "kind": "choice",
+      "values": [
+        "cottage-a",
+        "cottage-b",
+        "cottage-c",
+        "inn",
+        "inn-b",
+        "market-hall",
+        "market-hall-b",
+        "barn",
+        "barn-b",
+        "shed",
+        "shed-b",
+        "kitchen",
+        "outhouse",
+        "outhouse-b"
+      ]
+    }
+  },
+  "wearable_equipment": {
+    "style": {
+      "kind": "choice",
+      "values": [
+        "field_hat",
+        "tidewatch_cap",
+        "harvest_apron",
+        "oilskin_coat",
+        "furrow_boots",
+        "deck_boots"
+      ]
+    }
+  },
+  "wheat_crop": {
+    "stage": {
+      "kind": "choice",
+      "values": [
+        "seeded",
+        "sprout",
+        "growing",
+        "mature",
+        "overripe",
+        "withered"
+      ]
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafLength": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "leafWidth": {
+      "kind": "number",
+      "min": 0.001,
+      "max": 3
+    },
+    "stalks": {
+      "kind": "integer",
+      "min": 0,
+      "max": 32
+    }
+  },
+  "wheelbarrow": {},
+  "wildflower_clump": {
+    "stemCount": {
+      "kind": "integer",
+      "min": 2,
+      "max": 30
+    },
+    "height": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 3
+    },
+    "spread": {
+      "kind": "number",
+      "min": 0.1,
+      "max": 3
+    },
+    "petals": {
+      "kind": "integer",
+      "min": 3,
+      "max": 12
+    }
+  },
+  "windmill": {
+    "height": {
+      "kind": "number",
+      "min": 4,
+      "max": 16
+    },
+    "baseRadius": {
+      "kind": "number",
+      "min": 1,
+      "max": 5
+    },
+    "sides": {
+      "kind": "integer",
+      "min": 8,
+      "max": 16
+    }
+  },
+  "wood_barrel": {
+    "height": {
+      "kind": "number",
+      "min": 0.4,
+      "max": 2
+    },
+    "radius": {
+      "kind": "number",
+      "min": 0.2,
+      "max": 1
+    },
+    "staves": {
+      "kind": "integer",
+      "min": 8,
+      "max": 20
+    }
+  },
+  "wood_bookcase": {},
+  "wood_crate": {
+    "size": {
+      "kind": "number",
+      "min": 0.3,
+      "max": 2
+    },
+    "slats": {
+      "kind": "integer",
+      "min": 3,
+      "max": 9
+    }
+  },
+  "wood_side_table": {},
+  "wood_sideboard": {},
+  "working_dock": {
+    "length": {
+      "kind": "number",
+      "min": 3,
+      "max": 20
+    },
+    "width": {
+      "kind": "number",
+      "min": 2,
+      "max": 10
+    },
+    "canopy": {
+      "kind": "boolean"
+    },
+    "deckPlanks": {
+      "kind": "integer",
+      "min": 4,
+      "max": 40
+    },
+    "pileRows": {
+      "kind": "integer",
+      "min": 2,
+      "max": 8
+    }
+  },
+  "woven_rug": {
+    "width": {
+      "kind": "number",
+      "min": 1,
+      "max": 6
+    },
+    "depth": {
+      "kind": "number",
+      "min": 1,
+      "max": 5
+    }
+  },
+  "young_pine": {}
+}

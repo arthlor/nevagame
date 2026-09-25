@@ -24,10 +24,11 @@ describe("actual exported humanoid geometry, bindings and actions", () => {
     const spec = ASSET_BY_ID.get(id)!;
     const nodes = new Map(doc.getRoot().listNodes().map((node) => [node.getName(), node]));
     const authoring = rawCatalog.assets.find((entry: { id: string }) => entry.id === id);
-    expect(authoring.generator).toBe("imported_blend");
-    // Poly Pizza humanoids retain their source skin (humanoidAuthoring); the
-    // Tripo player is re-skinned onto the Neva rig (skinnedAuthoring).
-    expect((authoring.humanoidAuthoring ?? authoring.skinnedAuthoring).sourceSha256).toMatch(/^[a-f0-9]{64}$/);
+    // Adapted humanoids ship from their committed derivative, frozen when the
+    // Blender adapters were retired; provenance still pins the adapted library.
+    expect(authoring.generator).toBe("authored_glb");
+    expect(authoring.parameters.sourceGlb).toMatch(/^art\/imported\/[a-z-]+\/adapted\/[a-z0-9_]+\.glb$/);
+    expect(authoring.sourceProvenance.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(spec.humanoidRig).toBeTruthy();
     for (const [semantic, name] of Object.entries(spec.humanoidRig!.bones)) {
       expect(nodes.has(name), `${id}/${semantic}: ${name}`).toBe(true);
@@ -111,10 +112,10 @@ describe("actual exported humanoid geometry, bindings and actions", () => {
     }
     expect(vertices).toBeGreaterThan(1000);
     expect(smoothedCorners, `${id} must retain selective source smoothing`).toBeGreaterThan(100);
-    const skinned = rawCatalog.assets.find((entry: { id: string }) => entry.id === id).skinnedAuthoring;
-    if (skinned) {
-      // Texture-preserving regions are named for the catalog material map.
-      expect([...materials].sort()).toEqual(Object.keys(skinned.materialMap).sort());
+    if (id === "char_player_a") {
+      // The re-skinned Tripo player keeps its three named texture-preserving
+      // regions; equipment hides the vest and boots regions by these names.
+      expect([...materials].sort()).toEqual(["char_player_a_body", "char_player_a_boots", "char_player_a_vest"]);
     } else {
       expect(materials.size).toBeGreaterThanOrEqual(4);
       expect([...materials].some((name) => name.startsWith("skin_"))).toBe(true);

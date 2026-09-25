@@ -2,11 +2,10 @@
  * Node-side producer for authored generators.
  *
  * `producer.mjs` bundles this module for Node and calls `buildAuthoredAsset` for every catalog asset
- * whose generator is in the authored registry. It plays the part Blender plays for the legacy
- * generators: build the scene, enforce the semantic art contract (the same checks
- * `tools/blender/common/pipeline.py` makes), export a raw GLB, and report the metrics the stage
- * report and manifest record. Optimisation, Khronos validation, caching and publication happen
- * afterwards in `tools/blender/cli.mjs`, identically for both producers.
+ * whose generator is in the authored registry: build the scene, enforce the semantic art contract
+ * (the checks the retired Blender pipeline made, now owned here), export a raw GLB, and report the
+ * metrics the stage report and manifest record. Optimisation, Khronos validation, caching and
+ * publication happen afterwards in `tools/art/cli.mjs`, identically for every producer.
  */
 import * as THREE from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
@@ -34,7 +33,7 @@ export interface AuthoredAssetReport {
   vertexColorLoops: number;
   vertexColorSpace: "linear-srgb";
   artContractStatus: "passed";
-  /** Rest-pose bounds in the Blender report convention: X right, Y back (-glTF Z), Z up. */
+  /** Rest-pose bounds in the producer report convention: X right, Y back (-glTF Z), Z up. */
   bounds: { min: [number, number, number]; max: [number, number, number] };
   /** [width, depth, height] in metres. */
   dimensions: [number, number, number];
@@ -65,7 +64,7 @@ function fail(spec: CatalogAssetSpec, message: string): never {
   throw new Error(`${spec.id}: ${message}`);
 }
 
-/** The semantic art contract, mirroring `tools/blender/common/pipeline.py`. */
+/** The semantic art contract every authored generator must satisfy before export. */
 function checkArtContract(spec: CatalogAssetSpec, model: AuthoredModel): Omit<AuthoredAssetReport, "fileSizeBytes"> {
   const { root, clips } = model;
   const names = new Map<string, number>();

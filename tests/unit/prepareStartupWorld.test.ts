@@ -3,20 +3,23 @@ import type { GameState } from "../../src/simulation/core/types";
 import type { WorldScene } from "../../src/render/scene/WorldScene";
 import { StartupCoordinator } from "../../src/app/StartupCoordinator";
 
-const assetIds = ["asset.one"];
-const directModels = [{ id: "char_npc_barnaby_b", modelPath: "/assets/models/char_npc_barnaby_b.glb" }];
+const earlyAssetIds = ["char_npc_barnaby_b"];
+const assetIds = ["asset.one", "char_npc_barnaby_b"];
 vi.mock("../../src/render/scene/WorldScene", () => ({
   WorldScene: {
-    prepareStartupAssetIds: vi.fn(async () => assetIds),
-    startupDirectModels: vi.fn(() => directModels)
+    layoutIndependentStartupAssetIds: vi.fn(() => earlyAssetIds),
+    prepareStartupAssetIds: vi.fn()
   }
 }));
 vi.mock("../../src/render/loaders/AssetLoader", () => ({
-  AssetLoader: { preload: vi.fn(), preloadDirect: vi.fn() }
+  AssetLoader: { preload: vi.fn() }
 }));
 vi.mock("../../src/render/materials/ExternalSurfaceTextures", () => ({ degradedSurfaceResources: [] }));
 vi.mock("../../src/physics/PhysicsWorld", () => ({
-  PhysicsWorld: { create: vi.fn(async () => ({ dispose: vi.fn() })) }
+  PhysicsWorld: {
+    loadRuntime: vi.fn(async () => ({})),
+    create: vi.fn(async () => ({ dispose: vi.fn() }))
+  }
 }));
 
 function deferred() {
@@ -26,13 +29,44 @@ function deferred() {
 }
 
 describe("startup world preparation", () => {
+  it("warms physics and starts layout-independent transfers while the layout is prepared", async () => {
+    const { AssetLoader } = await import("../../src/render/loaders/AssetLoader");
+    const { WorldScene } = await import("../../src/render/scene/WorldScene");
+    const { PhysicsWorld } = await import("../../src/physics/PhysicsWorld");
+    const { prepareStartupWorld } = await import("../../src/app/startup/prepareStartupWorld");
+    const layout = deferred();
+    vi.mocked(AssetLoader.preload).mockReset().mockImplementation(async () => undefined);
+    vi.mocked(WorldScene.prepareStartupAssetIds).mockReset()
+      .mockImplementation(async () => { await layout.promise; return assetIds as never; });
+    const scene = {
+      prepareGeometry: vi.fn(async () => undefined),
+      ready: vi.fn(async () => undefined),
+      staticCollisionProxies: vi.fn(() => [])
+    } as unknown as WorldScene;
+    const attempt = new StartupCoordinator();
+    const work = prepareStartupWorld({ attempt, state: { worldSeed: 42 } as GameState, scene, onState: vi.fn() });
+
+    await vi.waitFor(() => expect(WorldScene.prepareStartupAssetIds).toHaveBeenCalledOnce());
+    expect(PhysicsWorld.loadRuntime).toHaveBeenCalled();
+    expect(AssetLoader.preload).toHaveBeenCalledOnce();
+    expect(vi.mocked(AssetLoader.preload).mock.calls[0][0]).toEqual(earlyAssetIds);
+    expect(vi.mocked(AssetLoader.preload).mock.calls[0][3]).toBe(attempt.signal);
+
+    layout.resolve();
+    await work;
+    // The scenery stage requests the full set again, joining the early transfers already in flight.
+    expect(AssetLoader.preload).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(AssetLoader.preload).mock.calls[1][0]).toEqual(assetIds);
+  });
+
   it("finishes required scenery before geometry and population", async () => {
     const { AssetLoader } = await import("../../src/render/loaders/AssetLoader");
+    const { WorldScene } = await import("../../src/render/scene/WorldScene");
     const { prepareStartupWorld } = await import("../../src/app/startup/prepareStartupWorld");
     const scenery = deferred();
     const geometry = deferred();
-    vi.mocked(AssetLoader.preload).mockImplementation(() => scenery.promise);
-    vi.mocked(AssetLoader.preloadDirect).mockImplementation(() => scenery.promise);
+    vi.mocked(WorldScene.prepareStartupAssetIds).mockReset().mockImplementation(async () => assetIds as never);
+    vi.mocked(AssetLoader.preload).mockReset().mockImplementation(() => scenery.promise);
     const scene = {
       prepareGeometry: vi.fn(() => geometry.promise),
       ready: vi.fn(async () => undefined),
@@ -42,13 +76,12 @@ describe("startup world preparation", () => {
     const attempt = new StartupCoordinator();
     const work = prepareStartupWorld({ attempt, state: { worldSeed: 42 } as GameState, scene, onState });
 
-    await vi.waitFor(() => expect(AssetLoader.preload).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(AssetLoader.preload).toHaveBeenCalledTimes(2));
     expect(scene.prepareGeometry).not.toHaveBeenCalled();
     expect(scene.ready).not.toHaveBeenCalled();
 
     scenery.resolve();
     await vi.waitFor(() => expect(scene.prepareGeometry).toHaveBeenCalledOnce());
-    expect(AssetLoader.preloadDirect).toHaveBeenCalledOnce();
     expect(scene.ready).not.toHaveBeenCalled();
     geometry.resolve();
     await work;

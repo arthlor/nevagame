@@ -1,11 +1,11 @@
 /**
  * The authored (Three.js) producer for the art pipeline.
  *
- * `tools/blender/cli.mjs` calls `runAuthoredProducer` for every selected asset whose generator is an
- * authored generator, alongside the Blender pool for the legacy generators. It writes one raw GLB per
- * asset into the stage's `raw/` directory and returns per-asset reports in the Blender report's
- * shape, so everything downstream (Khronos and contract validation, optimisation, cache,
- * publication, manifest, determinism) treats both producers the same way.
+ * `tools/art/cli.mjs` calls `runAuthoredProducer` for every selected asset whose generator is an
+ * authored generator, alongside the authored-GLB producer for committed source GLBs. It writes one
+ * raw GLB per asset into the stage's `raw/` directory and returns per-asset reports in the shared
+ * producer report shape, so everything downstream (Khronos and contract validation, optimisation,
+ * cache, publication, manifest, determinism) treats both producers the same way.
  *
  * The TypeScript is bundled for Node with esbuild on first use into `generated/.cache/authored/`,
  * keyed by the hash of the authored sources, so repeated runs reuse the bundle.
@@ -94,7 +94,7 @@ export async function loadAuthoredProducer(repoRoot = DEFAULT_ROOT) {
 
 /**
  * Builds the given catalog specs into `outputDir/<file>` and returns `{ assets: [report, ...] }`.
- * A failing art contract throws with the asset id, like a failing Blender generator does.
+ * A failing art contract throws with the asset id.
  */
 export async function runAuthoredProducer({ specs, outputDir, repoRoot = DEFAULT_ROOT }) {
   const producer = await loadAuthoredProducer(repoRoot);

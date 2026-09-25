@@ -1195,9 +1195,12 @@ function setupAnimationStudio(model: THREE.Group): void {
   animationSection.style.display = "block";
   noAnimMsg.style.display = "none";
   animationMixer = new THREE.AnimationMixer(model);
-  animationModeSelect.disabled = currentSpec?.family !== "character";
-  contextPlayerPelvis = currentSpec?.family === "character" ? resolveHumanoidRig(model).bones.pelvis ?? null : null;
-  runtimeAnimator = currentSpec?.family === "character" ? new HumanoidAnimator(model) : null;
+  // Runtime humanoid review needs the catalog rig contract; an authored-GLB character without one
+  // (a Tripo NPC animated by its own embedded clips) plays those clips directly.
+  const contractedHumanoid = isContractedHumanoid(currentSpec);
+  animationModeSelect.disabled = !contractedHumanoid;
+  contextPlayerPelvis = contractedHumanoid ? resolveHumanoidRig(model).bones.pelvis ?? null : null;
+  runtimeAnimator = contractedHumanoid ? new HumanoidAnimator(model) : null;
 
   clipSelect.replaceChildren(
     ...clips.map((clip) => {
@@ -1426,11 +1429,15 @@ function syncContextPreviewTime(normalizedTime: number): void {
   }
 }
 
+function isContractedHumanoid(spec: typeof currentSpec): boolean {
+  return spec?.family === "character" && Boolean(spec.humanoidRig);
+}
+
 async function updateContextPreview(name: string): Promise<void> {
   const spec = animationContextPreviewSpec(name);
   const player = currentModel;
   animationContextSelect.disabled = !usesRuntimePreview() || !fishingClipUsesRod(name);
-  if (!usesRuntimePreview() || !spec || !player || currentSpec?.family !== "character") {
+  if (!usesRuntimePreview() || !spec || !player || !isContractedHumanoid(currentSpec)) {
     if (contextPreviewRoot) clearContextPreview();
     return;
   }

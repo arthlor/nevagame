@@ -993,9 +993,9 @@ playback is `resolvedSpeed / clip.referenceSpeed` and is deliberately
 **unbounded**: the clip advancing at exactly ground speed is what keeps feet
 planted, so a clamp would introduce the sliding a clamp is usually reached for.
 The player's `walk` and `run` (and the `carry_*` layers phase-locked to them)
-are authored on the player's own 0.87 m legs at exactly those speeds
-(`tools/blender/common/player_clips.py`, a quick 150 steps/min walk and a
-200 steps/min sprint), so their catalog reference speeds equal the tuning and
+are authored on the player's own 0.87 m legs at exactly those speeds (a
+quick 150 steps/min walk and a 200 steps/min sprint, baked into the committed
+`char_player_a` derivative), so their catalog reference speeds equal the tuning and
 flat-ground playback is 1.0; slopes and carried loads slow the cadence, down to
 0.47x for the heaviest load up the steepest bank. These figures are pinned by
 `tests/unit/locomotionPlaybackRate.test.ts`, so a speed change has to re-author
@@ -1003,14 +1003,14 @@ the stride rather than silently over-crank it.
 
 Riding must beat walking at every tier, so `MOUNT_TUNING` moved with it: 2.3 /
 5.8 / 7.5 m/s for walk, trot and gallop. Mount clips are *derived* from those
-numbers — `tools/blender/adapt_tripo_quadruped.py` bakes each gait's planted
-hoof stride from the catalog reference speed and duration, with touchdowns at
-the clip's catalog hoof-step events — so changing mount tuning always means
-editing `fauna_donkey_a`'s clip reference speeds and regenerating it. The
-rider's own `mounted_walk` / `mounted_trot` / `mounted_gallop` clips on
+numbers — each gait's planted hoof stride was baked from the catalog reference
+speed and duration, with touchdowns at the clip's catalog hoof-step events, into
+the committed `fauna_donkey_a` derivative — so changing mount tuning always
+means re-authoring those gaits in a new derivative and updating
+`fauna_donkey_a`'s clip reference speeds before regenerating it. The rider's
+own `mounted_walk` / `mounted_trot` / `mounted_gallop` clips on
 `char_player_a` share the donkey's durations and the same three speeds and are
-re-authored with `tools/blender/author_player_performances.py` in the same
-change, or the rider bobs out of step with the animal. Mounted playback is exactly 1.0.
+re-authored in the same change, or the rider bobs out of step with the animal. Mounted playback is exactly 1.0.
 
 `slopeGaitScale()` uses the horizontal component of the upward support normal as downhill: movement against the height gradient gains the bounded downhill response, movement along it receives the uphill penalty, and contour travel is neutral. `PhysicsAdapter` reports signed tangential acceleration from resolved movement, so braking is negative and constant-speed turning is not forward acceleration. This motion evidence is transient presentation input, not additional saved traversal state.
 

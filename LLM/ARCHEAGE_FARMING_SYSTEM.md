@@ -116,4 +116,4 @@ Farming interactions may use a short cast/progress bar. Movement/ESC/environment
 
 # 6. Implementation Rule
 
-Use this file to preserve **interaction feel, spatial farming inspiration, and future adaptation ideas**. For actual Neva state, formulas, values, inventory, growth, Work Capacity, save behavior, and MVP scope, `01`/`02` win. For visuals, `04`/Art Pipeline/`BLENDER.md` win; generated crop identities and stage assets belong in the single catalog, never in this adaptation guide.
+Use this file to preserve **interaction feel, spatial farming inspiration, and future adaptation ideas**. For actual Neva state, formulas, values, inventory, growth, Work Capacity, save behavior, and MVP scope, `01`/`02` win. For visuals, `04`/Art Pipeline/`ASSET_PRODUCTION.md` win; generated crop identities and stage assets belong in the single catalog, never in this adaptation guide.

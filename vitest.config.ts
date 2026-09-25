@@ -2,9 +2,10 @@ import { defineConfig } from "vitest/config";
 import path from "path";
 
 import { runtimeAssetCatalogPlugin } from "./tools/vite/runtimeAssetCatalogPlugin";
+import { environmentLayoutBakePlugin } from "./tools/vite/environmentLayoutBakePlugin";
 
 export default defineConfig({
-  plugins: [runtimeAssetCatalogPlugin(__dirname)],
+  plugins: [runtimeAssetCatalogPlugin(__dirname), environmentLayoutBakePlugin(__dirname)],
   test: {
     globals: true,
     environment: "node",
