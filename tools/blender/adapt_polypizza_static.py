@@ -355,6 +355,35 @@ def _reduced_mesh(obj, scene, target_ratio: float) -> bpy.types.Mesh:
     return result
 
 
+def _remove_declared_triangles(mesh, authoring):
+    """Remove only catalog-listed source faces, retaining original normalization."""
+    declarations = authoring.get("removedSourceTriangles", {})
+    if not declarations:
+        return 0
+    counters = {}
+    removed = set()
+    for face in mesh.polygons:
+        region = mesh.materials[face.material_index].name
+        index = counters.get(region, 0)
+        if len(face.vertices) != 3:
+            raise ValueError("Declared source removals require triangle source polygons")
+        counters[region] = index + 1
+        if index in declarations.get(region, []):
+            removed.add(face.index)
+    if len(removed) != sum(len(v) for v in declarations.values()):
+        raise ValueError("Declared source removal does not resolve exactly")
+    normals = [tuple(mesh.corner_normals[i].vector) for f in mesh.polygons if f.index not in removed for i in f.loop_indices]
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bm.faces.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[bm.faces[i] for i in sorted(removed)], context='FACES_ONLY')
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.normals_split_custom_set(normals)
+    mesh.update()
+    return len(removed)
+
+
 def _markers(collection, root, spec, lantern_location=None):
     for index, primitive in enumerate(spec.get("collisionPrimitives", [])):
         cx, cy, cz = primitive["center"]
@@ -489,6 +518,7 @@ def adapt(args) -> dict:
     original_triangles = _triangles(mesh)
     normalization = _normalize(mesh, authoring)
     normalization["sourceYawDegrees"] = math.degrees(yaw)
+    removed_triangles = _remove_declared_triangles(mesh, authoring)
     normalized_surface = _validate_source_surface(mesh)
     lantern_location = _entry_lantern_location(mesh, spec) if authoring.get("addedGeometryNodes") else None
     mapping, token_policies = _remap_materials(mesh, spec)
@@ -550,6 +580,7 @@ def adapt(args) -> dict:
         "sourceSha256": digest, "sourceVariant": variant,
         "license": provenance["license"], "attribution": provenance["attribution"],
         "sourceTriangles": original_triangles, "normalization": normalization,
+        "removedSourceTriangles": removed_triangles,
         "sourceSurfaceBeforeTransform": source_surface,
         "sourceSurfaceAfterTransform": normalized_surface,
         "materialRemap": mapping, "metrics": metrics,

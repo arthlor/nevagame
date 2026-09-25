@@ -1,0 +1,96 @@
+/* Loaded by index.html before JavaScript: both opening surfaces use one frame. */
+@layer neva-opening {
+  html, body { margin: 0; background: #192b29; }
+  #neva-boot-shell { position: fixed; inset: 0; z-index: 10000; overflow: hidden; }
+  .neva-opening { --opening-serif: Georgia, 'Times New Roman', serif; }
+  .neva-opening .start-screen__backdrop,
+  .neva-opening .start-screen__shade {
+    position: absolute !important; inset: 0 !important; pointer-events: none !important;
+  }
+  .neva-opening .start-screen__backdrop {
+    background: #192b29 url('/assets/ui/neva-title-background.webp') center / cover !important;
+    transform: none !important;
+  }
+  .neva-opening .start-screen__shade {
+    background: linear-gradient(90deg,rgba(8,22,24,.88),rgba(10,25,26,.7) 26%,rgba(10,25,26,.22) 62%,rgba(10,25,26,.08)) !important;
+  }
+  .neva-opening .start-screen__content {
+    position: relative !important; z-index: 2 !important; display: flex !important;
+    flex-direction: column !important; align-items: stretch !important; justify-content: center !important;
+    width: min(420px,calc(100vw - 64px)) !important; height: 100dvh !important; min-height: 0 !important;
+    margin: 0 0 0 clamp(38px,7vw,116px) !important; padding: 28px 0 !important;
+    box-sizing: border-box !important; text-align: left !important;
+  }
+  .neva-opening .start-screen__brand-lockup { display: flex !important; flex-direction: column !important; align-items: flex-start !important; }
+  .neva-opening .start-screen__brand-lockup h1 {
+    order: 1 !important; margin: 0 !important; color: #fffaf0 !important;
+    font: 600 clamp(55px,6vw,82px)/.95 var(--opening-serif) !important;
+    letter-spacing: .035em !important; text-transform: uppercase !important;
+    text-shadow: 0 3px 18px rgba(1,11,14,.5) !important;
+  }
+  .neva-opening .start-screen__brand-rule {
+    order: 2 !important; display: block !important; width: 88px !important; height: 2px !important;
+    margin: 14px 0 10px !important; box-shadow: none !important;
+    background: linear-gradient(90deg,#c9a75e,#8a6a2a 70%,transparent) !important;
+  }
+  .neva-opening .start-screen__tagline {
+    order: 3 !important; margin: 0 !important; color: #e9c983 !important;
+    font: italic 500 clamp(17px,1.55vw,21px)/1.25 var(--opening-serif) !important;
+    letter-spacing: 0 !important; text-shadow: 0 2px 8px rgba(0,0,0,.7) !important;
+  }
+  .neva-opening .start-screen__state { width: 100% !important; min-height: 0 !important; margin: 24px 0 0 !important; }
+  .neva-opening .start-screen__tray {
+    width: 100% !important; min-height: 310px !important; padding: 22px 24px !important;
+    display: flex !important; flex-direction: column !important; gap: 12px !important;
+    box-sizing: border-box !important;
+    background: linear-gradient(180deg,rgba(26,22,17,.97),rgba(16,14,11,.98)),url('/assets/ui/atlas/parchment-grain.png') center / 192px !important;
+    border: 18px solid #231f18 !important;
+    border-image: url('/assets/ui/atlas/guildcraft-panel.png') 38 / 18px / 0 stretch !important;
+    border-radius: 0 !important;
+    box-shadow: 0 20px 50px rgba(0,0,0,.85),inset 0 0 20px rgba(0,0,0,.6) !important;
+  }
+  .neva-opening .start-screen__loading {
+    display: flex !important; flex: 1 !important; flex-direction: column !important;
+    justify-content: center !important; gap: 12px !important; padding: 0 !important;
+  }
+  .neva-opening .start-screen__progress-label {
+    color: #f5da96 !important; font: 600 17px/1.2 var(--opening-serif) !important;
+    letter-spacing: .02em !important; text-shadow: 0 1px 3px rgba(0,0,0,.9) !important;
+  }
+  .neva-opening .start-screen__meter {
+    position: relative !important; width: 100% !important; height: 9px !important; margin: 0 !important;
+    background: rgba(10,8,6,.9) !important; border: 1px solid rgba(165,139,73,.55) !important;
+    border-radius: 4px !important; box-shadow: inset 0 2px 4px rgba(0,0,0,.85) !important;
+    box-sizing: border-box !important; overflow: hidden !important;
+  }
+  .neva-opening .start-screen__meter-fill {
+    display: block !important; height: 100% !important;
+    background: linear-gradient(90deg,#8a6a2a,#c9a75e 50%,#f5da96) !important;
+    border-radius: 3px !important; box-shadow: 0 0 10px rgba(245,218,150,.6) !important;
+  }
+  .neva-opening .is-indeterminate .start-screen__meter-fill { width: 38% !important; animation: opening-load 2.2s ease-in-out infinite alternate !important; }
+  @keyframes opening-load { from { transform: translateX(0); opacity: .65; } to { transform: translateX(163%); opacity: 1; } }
+  .neva-opening .start-screen__loading-detail {
+    display: flex; justify-content: space-between; gap: 12px;
+    color: #bbae91; font: 12px/1.4 var(--opening-serif); font-variant-numeric: tabular-nums;
+  }
+  #neva-boot-shell button {
+    min-height: 44px; padding: 10px 18px; color: #fff9ea; background: #4f3d19;
+    border: 1px solid #d4af37; font: 600 16px var(--opening-serif); cursor: pointer;
+  }
+  #neva-boot-portrait { display: none; }
+  @media (max-height: 540px) {
+    .neva-opening .start-screen__content { width: min(360px,calc(100vw - 32px)) !important; margin-left: max(16px,env(safe-area-inset-left)) !important; padding: max(10px,env(safe-area-inset-top)) 0 max(10px,env(safe-area-inset-bottom)) !important; }
+    .neva-opening .start-screen__brand-lockup h1 { font-size: clamp(38px,11dvh,52px) !important; }
+    .neva-opening .start-screen__brand-rule { margin: 7px 0 6px !important; }
+    .neva-opening .start-screen__tagline { font-size: 15px !important; }
+    .neva-opening .start-screen__state { margin-top: 12px !important; }
+    .neva-opening .start-screen__tray { min-height: 252px !important; padding: 11px 14px !important; gap: 6px !important; }
+  }
+  @media (orientation: portrait) and (pointer: coarse), (orientation: portrait) and (hover: none) {
+    #neva-boot-continue { display: none !important; }
+    #neva-boot-portrait { display: grid; place-content: center; position: relative; height: 100dvh; color: #fff1d3; text-align: center; font-family: var(--opening-serif); }
+    #neva-boot-portrait h1 { font-size: clamp(28px,9vw,48px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .neva-opening .is-indeterminate .start-screen__meter-fill { animation: none !important; } }
+}

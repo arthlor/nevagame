@@ -138,6 +138,16 @@ function testFrame(): LightingFrame {
     exposure: 1,
     ambientDaylight: 1,
     stormStrength: 0,
+    twilight: 0,
+    sunGlowColor: new THREE.Color(0, 0, 0),
+    sunGlow: 0,
+    antiTwilightColor: new THREE.Color("#f2c89c"),
+    antiTwilight: 0,
+    cloudSunColor: new THREE.Color("#ffffff"),
+    sunScatterColor: new THREE.Color(0, 0, 0),
+    sunAureoleColor: new THREE.Color("#ffffff"),
+    valleyMist: 0,
+    lightningSeed: 0,
   };
 }
 

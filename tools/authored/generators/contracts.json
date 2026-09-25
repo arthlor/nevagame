@@ -638,5 +638,21 @@
       "min": 1.5,
       "max": 3
     }
-  }
+  },
+  "mine_adit": {},
+  "ice_house": {},
+  "salt_pans": {},
+  "timber_stack": {},
+  "timber_sawbuck": {},
+  "culvert_headwall": {},
+  "coastal_rock": {"width":{"kind":"number","min":1,"max":8},"depth":{"kind":"number","min":1,"max":6},"height":{"kind":"number","min":0.6,"max":5},"shear":{"kind":"number","min":-0.3,"max":0.3},"form":{"kind":"choice","values":["cleft","shelf","spine"]}},
+  "faceted_rock": {"scale":{"kind":"tuple3","min":0.1,"max":8},"profile":{"kind":"choice","values":["inland","coastal","field"]},"silhouette":{"kind":"choice","values":["cluster","spine","shelf","stack","cleft"]},"tilt":{"kind":"number","min":-0.4,"max":0.4},"clusterCount":{"kind":"integer","min":1,"max":3},"fractureCount":{"kind":"integer","min":1,"max":8}},
+  "pebble_cluster": {"count":{"kind":"integer","min":2,"max":50},"spread":{"kind":"number","min":0.1,"max":4},"size":{"kind":"number","min":0.02,"max":2}},
+  "boulder_large": {},
+  "coastal_boulder": {},
+  "reef_small": {},
+  "rock_spire": {},
+  "sea_stack": {},
+  "round_bush": {},
+  "reeds": {"stalks":{"kind":"integer","min":5,"max":30},"height":{"kind":"number","min":0.5,"max":3},"bladeCount":{"kind":"integer","min":2,"max":16}}
 }

@@ -209,7 +209,6 @@ const nonemptyString = () => ({ kind: "nonemptyString" });
 const BLENDER_PARAMETER_CONTRACTS = Object.freeze({
   coastal_palm: { height: number(4, 12), lean: number(0, 4), spread: number(2, 4.5), fronds: integer(8, 15), leafletPairs: integer(8, 20) },
   coastal_understory: { height: number(0.4, 2.5), spread: number(0.4, 2), leaves: integer(7, 24), form: choice("paddle", "split", "shrub") },
-  coastal_rock: { width: number(1, 8), depth: number(1, 6), height: number(0.6, 5), shear: number(-0.3, 0.3), form: choice("cleft", "shelf", "spine") },
   coastal_hut: { width: number(3, 6), depth: number(2.5, 5), wallHeight: number(2, 3.2), roofPitch: number(16, 36), form: choice("shelter", "store") },
   imported_blend: { sourceBlend: repositoryFile(".blend"), sourceCollection: nonemptyString() },
   // Code-authored assets: the source GLB is built by tools/authored/export.mjs from the editable
@@ -220,16 +219,7 @@ const BLENDER_PARAMETER_CONTRACTS = Object.freeze({
   pine_tree: { height: number(4, 12), spread: number(1, 4), tiers: integer(5, 12), lean: number(-0.4, 0.4), branchesPerTier: integer(3, 8), rootCount: integer(3, 8) },
   apple_tree: { height: number(2.5, 7), spread: number(1, 4), canopyClusters: integer(6, 20), fruitCount: integer(6, 30), branchCount: integer(3, 8), rootCount: integer(3, 8) },
   bush: { clusters: integer(3, 10), flowerCount: integer(0, 20), leafTips: integer(0, 16) },
-  reeds: { stalks: integer(5, 30), height: number(0.5, 3), bladeCount: integer(2, 16) },
   kelp_clump: { fronds: integer(3, 16), height: number(0.4, 3), spread: number(0.1, 2), stalkRadius: number(0.01, 0.12), bladeWidth: number(0.05, 0.8) },
-  faceted_rock: {
-    scale: tuple3(0.1, 8),
-    profile: choice("inland", "coastal", "field"),
-    silhouette: choice("cluster", "spine", "shelf", "stack", "cleft"),
-    tilt: number(-0.4, 0.4),
-    clusterCount: integer(1, 3),
-    fractureCount: integer(1, 8),
-  },
   farmhouse: {
     width: number(3, 14),
     depth: number(3, 12),
@@ -342,7 +332,6 @@ const BLENDER_PARAMETER_CONTRACTS = Object.freeze({
   grass_clump: { bladeCount: integer(4, 50), height: number(0.1, 3), spread: number(0.1, 3), bladeWidth: number(0.01, 0.5) },
   wildflower_clump: { stemCount: integer(2, 30), height: number(0.1, 3), spread: number(0.1, 3), petals: integer(3, 12) },
   flower_drift: { blossomCount: integer(3, 12), height: number(0.1, 1.2), spread: number(0.1, 1.2), blossomSize: number(0.02, 0.2) },
-  pebble_cluster: { count: integer(2, 50), spread: number(0.1, 4), size: number(0.02, 2) },
   path_slab: { radius: number(0.12, 0.8), height: number(0.02, 0.16), sides: integer(5, 8), chipCount: integer(0, 4) },
   wearable_equipment: { style: choice("field_hat", "tidewatch_cap", "harvest_apron", "oilskin_coat", "furrow_boots", "deck_boots") },
   draft_horse: {},
@@ -361,7 +350,6 @@ const BLENDER_PARAMETER_CONTRACTS = Object.freeze({
   admiralty_anchor: {},
   algae_frond: {},
   beach_grass_tuft: {},
-  boulder_large: {},
   broadleaf_oak: {},
 
   crop_trade_pack: {
@@ -370,7 +358,6 @@ const BLENDER_PARAMETER_CONTRACTS = Object.freeze({
     commodity: choice("wheat", "barley", "corn", "tomato", "potato", "carrot", "flax", "apple", "olive"),
   },
   cattail_reeds: {},
-  coastal_boulder: {},
   dead_tree: {},
   dock_platform: {},
   fence_section: {},
@@ -392,10 +379,6 @@ const BLENDER_PARAMETER_CONTRACTS = Object.freeze({
   path_stone_round: {},
   path_stone_slab: {},
   pier_railing: {},
-  reef_small: {},
-  rock_spire: {},
-  round_bush: {},
-  sea_stack: {},
   seagrass_tuft: {},
   sunflower_stand: {},
   tall_pine: {},

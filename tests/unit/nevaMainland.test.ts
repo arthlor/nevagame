@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MAINLAND_ROUTES, MAINLAND_VILLAGES, MAINLAND_RIVER } from "../../src/world/NevaMainland";
+import { MAINLAND_LAKE, MAINLAND_ROUTES, MAINLAND_VILLAGES, MAINLAND_RIVER, mainlandBrookRoadCrossings } from "../../src/world/NevaMainland";
+import { drainageStripe } from "../../src/world/ProceduralNoise";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { BOAT_MOORINGS, WORLD_SAILING_ROUTES, requiredBoatTypeForMarket } from "../../src/world/WorldMoorings";
 import { waterSpatialProfile } from "../../src/render/water/WaterSurface";
@@ -80,5 +81,76 @@ describe("Neva cove mainland", () => {
       expect(["lake", "river"]).toContain(WorldLayout.fishingHabitatAt(point.x, point.z));
       expect(waterSpatialProfile(point.x, point.z).region).toBe("river");
     }
+  });
+
+  /**
+   * A terrain step shows as a height change across a line far larger than the
+   * change just beside it. Natural slopes, gullies and banks change smoothly;
+   * the tolerance ignores sub-0.4 m seams, which are not what these lines guard.
+   */
+  function worstStep(points: readonly (readonly [number, number, number, number])[]): string[] {
+    const h = (x: number, z: number) => WorldLayout.naturalTerrainHeight(x, z);
+    const steps: string[] = [];
+    // A culvert headwall deliberately holds the road deck above the brook's floor.
+    const culverts = mainlandBrookRoadCrossings();
+    for (const [x, z, nx, nz] of points) {
+      if (culverts.some(crossing => Math.hypot(crossing.point.x - x, crossing.point.z - z) < crossing.route.widthMeters * 0.5 + 4)) continue;
+      const at = (offset: number) => h(x + nx * offset, z + nz * offset);
+      const across = Math.abs(at(0.25) - at(-0.25));
+      const beside = Math.max(Math.abs(at(1.25) - at(0.75)), Math.abs(at(-0.75) - at(-1.25)));
+      if (across > beside * 1.5 + 0.4) steps.push(`${x.toFixed(1)},${z.toFixed(1)}: ${across.toFixed(2)} m`);
+    }
+    return steps;
+  }
+
+  it("carves the freshwater valley without straight or ring-shaped terrain steps", () => {
+    // Layout29 stopped the valley at a fixed query box (10 m step along
+    // z = -285, 5.6 m along x = -705) and cut the lake's bays off at one radius.
+    const lines: [number, number, number, number][] = [];
+    for (let x = -705; x <= -395; x += 1.5) lines.push([x, -285, 0, 1]);
+    for (let z = -285; z <= 350; z += 1.5) lines.push([-705, z, 1, 0]);
+    for (const scale of [1.6, 1.9, 2.2, 2.5, 2.8]) {
+      for (let angle = 0; angle < Math.PI * 2; angle += 0.02) {
+        const c = Math.cos(angle), s = Math.sin(angle);
+        lines.push([MAINLAND_LAKE.center.x + c * MAINLAND_LAKE.radiusX * scale,
+          MAINLAND_LAKE.center.z + s * MAINLAND_LAKE.radiusZ * scale, c, s]);
+      }
+    }
+    expect(worstStep(lines)).toEqual([]);
+  });
+
+  it("draws mountain gullies without phase-vortex pits", () => {
+    // Where the stripe's waves cancel, its phase used to wind through every
+    // value within a metre, carving round pits and pimples into the flanks.
+    let largest = 0;
+    for (let x = -700; x < -100; x += 0.5) {
+      for (let z = -640; z < -400; z += 7.3) {
+        const here = drainageStripe(x, z, 0, 1, 120, 0x61a3), next = drainageStripe(x + 0.5, z, 0, 1, 120, 0x61a3);
+        largest = Math.max(largest, Math.abs(here - next));
+      }
+    }
+    // A clean stripe of 120 m spacing changes by at most 2 * pi / 120 per metre.
+    expect(largest).toBeLessThan(0.08);
+  });
+
+  it("shelves the sheltered cove onto a shallow floor without seams", () => {
+    const depth = (x: number, z: number) => -WorldLayout.naturalTerrainHeight(x, z);
+    // The inner cove shelves onto a sediment floor well above the open seabed.
+    for (const [x, z] of [[-380, 250], [-330, 300], [-420, 200], [-300, 380]] as const) {
+      expect(WorldLayout.isWater(x, z), `${x},${z}`).toBe(true);
+      expect(depth(x, z), `${x},${z}`).toBeGreaterThan(4);
+      expect(depth(x, z), `${x},${z}`).toBeLessThan(12);
+    }
+    // The seabed has no creases: its grade changes gradually everywhere in the
+    // cove, including along the lines equidistant from two shores.
+    const creases: string[] = [];
+    for (let x = -470; x <= -262; x += 3) {
+      for (let z = 130; z <= 400; z += 3) {
+        if (!WorldLayout.isWater(x, z) || !WorldLayout.isWater(x + 2, z) || !WorldLayout.isWater(x - 2, z)) continue;
+        const curvature = Math.abs(depth(x + 2, z) - 2 * depth(x, z) + depth(x - 2, z));
+        if (curvature > 0.06) creases.push(`${x},${z}: ${curvature.toFixed(3)}`);
+      }
+    }
+    expect(creases).toEqual([]);
   });
 });

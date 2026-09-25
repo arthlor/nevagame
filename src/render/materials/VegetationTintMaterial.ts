@@ -269,21 +269,24 @@ export function coastalVegetationDepthMaterial(source: THREE.Material): THREE.Me
  * Coastal depth variants use the same exported weights and shared weather signal.
  * Existing vegetation retains its established shadow treatment.
  */
+function updateWindUniforms(material: THREE.Material, signal: Readonly<WeatherMotionSignal>, timeSeconds: number, strength: number): void {
+  const shader = material.userData.nevaVegetationWindShader as
+    | { uniforms: Record<string, { value: unknown }> }
+    | undefined;
+  if (!shader) return;
+  shader.uniforms.nevaWindTime!.value = timeSeconds;
+  (shader.uniforms.nevaWindDir!.value as THREE.Vector2).set(signal.directionX, signal.directionZ);
+  shader.uniforms.nevaWindStrength!.value = strength;
+}
+
 export function updateVegetationWind(
   signal: Readonly<WeatherMotionSignal>,
   timeSeconds: number,
   motionScale: number
 ): void {
   const strength = groundCoverWindStrength(signal) * motionScale;
-  for (const material of [...variantCache.values(), ...depthCache.values()]) {
-    const shader = material.userData.nevaVegetationWindShader as
-      | { uniforms: Record<string, { value: unknown }> }
-      | undefined;
-    if (!shader) continue;
-    shader.uniforms.nevaWindTime!.value = timeSeconds;
-    (shader.uniforms.nevaWindDir!.value as THREE.Vector2).set(signal.directionX, signal.directionZ);
-    shader.uniforms.nevaWindStrength!.value = strength;
-  }
+  for (const material of variantCache.values()) updateWindUniforms(material, signal, timeSeconds, strength);
+  for (const material of depthCache.values()) updateWindUniforms(material, signal, timeSeconds, strength);
 }
 
 /** Test/teardown hook: drops the shared variants and their GPU programs. */

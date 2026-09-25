@@ -35,9 +35,11 @@ describe("procedural mainland layout29 recovery", () => {
     expect(saved.schemaVersion).toBe(58);
     expect(saved.state.world.layoutRevision).toBe(28);
     expect(validateSaveEnvelope(saved)).toBe(true);
-    saved.state.world.layoutRevision = 29;
+    saved.state.world.layoutRevision = WORLD_LAYOUT_REVISION;
     expect(validateSaveEnvelope(saved)).toBe(false);
+    // Layout 30 (v60) follows this step; both run for a layout28 save.
     expect(PROCEDURAL_MAINLAND_LAYOUT_REVISION).toBe(29);
+    expect(CURRENT_SCHEMA_VERSION).toBeGreaterThanOrEqual(59);
   });
 
   it.each([false, true])("keeps a supported road pose in place and re-grounds it, mounted=%s", mounted => {

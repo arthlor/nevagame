@@ -83,6 +83,11 @@ describe("weather sky", () => {
     const sky = new AtmosphereSky("high");
     sky.update(calm, state.weather, state.worldSeed, flashTime, true);
     expect(sky.diagnostics().lightning).toBe(0);
+    expect(sky.diagnostics().bolt).toBe(0);
+    sky.update(deriveLightingFrame(state, flashTime), state.weather, state.worldSeed, flashTime + 0.001, false);
+    expect(sky.diagnostics().bolt).toBeGreaterThan(0);
+    sky.update(deriveLightingFrame(state, 0), state.weather, state.worldSeed, flashTime + 0.002, false);
+    expect(sky.diagnostics().bolt).toBe(0);
     sky.dispose();
   });
 });

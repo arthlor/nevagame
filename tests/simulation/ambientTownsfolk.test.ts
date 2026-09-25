@@ -32,6 +32,11 @@ describe("ambient townsfolk", () => {
     }
   });
 
+  it("uses the current NPC model set for every background resident", () => {
+    expect(AMBIENT_TOWNSFOLK_ROUTES.length).toBeGreaterThan(0);
+    expect(AMBIENT_TOWNSFOLK_ROUTES.every((route) => route.assetId.endsWith("_b"))).toBe(true);
+  });
+
   it("keeps every step of every route on supported walkable ground", () => {
     for (const hour of PHASES) {
       const timeOfDay = new GameClock({ currentMinute: hour * 60 }).getState().timeOfDay;
@@ -126,5 +131,15 @@ describe("ambient townsfolk", () => {
       expect(poses.some((pose) => !pose.walking), route.id).toBe(true);
       void clock;
     }
+  });
+
+  it("uses a readable walking pace instead of stretching steps across the whole cycle", () => {
+    const route = AMBIENT_TOWNSFOLK_ROUTES.find((entry) => entry.id === "townsfolk.market_shopper")!;
+    const clock = { timeOfDay: "day" } as Parameters<typeof sampleAmbientTownsfolkPose>[1];
+    const first = sampleAmbientTownsfolkPose(route, clock, 0.3);
+    const second = sampleAmbientTownsfolkPose(route, clock, 0.4);
+    expect(first.walking).toBe(true);
+    expect(second.walking).toBe(true);
+    expect(Math.hypot(second.x - first.x, second.z - first.z) / 0.1).toBeCloseTo(0.95, 2);
   });
 });

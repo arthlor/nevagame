@@ -3,7 +3,7 @@ import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS, oceanIsletAt, isletShoreDistanc
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { sunreachRoadEarthworkScale } from "./SunreachLivingLayout";
 import { MAINLAND_ROUTES, mainlandBlendAt, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandMountainExposureAt, mainlandNaturalHeight, mainlandShoreCharacterAt, mainlandRegionAt, mainlandWaterSample, mainlandRoadBenchAt } from "./NevaMainland";
-import { isInsideLoop, pointSegmentDistance, type LoopSegmentIndex } from "./WorldGeometry";
+import { isInsideLoop, type LoopSegmentIndex } from "./WorldGeometry";
 import { MAINLAND_ARCHITECTURE_PADS } from "./MainlandSettlementLayout";
 import { surfaceFieldAttributeSteps } from "../render/materials/SurfaceFieldAttributes";
 import { runSync, runCooperatively } from "../utils/CooperativeTask";
@@ -41,6 +41,8 @@ import {
 import { roadTerrainConformitySteps } from "./RoadTerrainConformity";
 import { FARMHOUSE_INTERIOR_BOUNDS, FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
 import { NEVA_FOOTHILL_TRAILS, nevaTrailBenchAt, sampleNevaLandforms } from "./NevaLandforms";
+import { mainlandBrookAt } from "./MainlandBrooks";
+import { mainlandWorkSiteWearAt } from "./MainlandWorkSites";
 import { NEVA_HEADWATERS, headwaterElevationAt, headwaterSpringInfluence, isInHeadwaterBounds } from "./NevaHeadwaters";
 import { getProcessingStationRuntimeRotationY } from "./ProcessingStationApproach";
 import {
@@ -51,6 +53,7 @@ import {
 import {
   FISHING_ECOLOGY_DEFINITIONS,
   NEVA_COAST_LOOP,
+  nevaCoastIndex,
   OPEN_CHANNEL_REQUIREMENT,
   SUNREACH_ANCHORS,
   SUNREACH_COAST_LOOP,
@@ -58,7 +61,6 @@ import {
   WORLD_TERRAIN_PATCHES,
   worldIslandDefinitions,
   signedDistanceToNevaCoast,
-  nevaCoastIndex,
   type FishingEcologyDefinition,
   type MarineSample,
   type SailingRequirement,
@@ -2063,11 +2065,6 @@ export class WorldLayout {
     return this.waterSurfaceElevation(x, z) - this.terrainBaseSurfaceHeight(x, z);
   }
 
-  /**
-   * Nearest-segment projection. With the loop's exact index the winning
-   * segment is found from its candidates instead of a full walk; the distance
-   * arithmetic and the lowest-index tie rule are identical either way.
-   */
   private static projectPointToCoastLoop(
     x: number,
     z: number,
@@ -2085,11 +2082,7 @@ export class WorldLayout {
     let bestQ: WorldVec2 = { x: loop[0].x, z: loop[0].z };
     let bestTangent: WorldVec2 = { x: 1, z: 0 };
 
-    const nearest = index?.nearest(x, z, (segment) =>
-      pointSegmentDistance(x, z, loop[segment], loop[(segment + 1) % loop.length]));
-    const first = nearest ? Math.max(0, nearest.segment) : 0;
-    const last = nearest ? (nearest.segment < 0 ? -1 : nearest.segment) : loop.length - 1;
-    for (let i = first; i <= last; i++) {
+    const project = (i: number): { d: number; qx: number; qz: number; dx: number; dz: number } => {
       const a = loop[i];
       const b = loop[(i + 1) % loop.length];
       const dx = b.x - a.x;
@@ -2100,13 +2093,24 @@ export class WorldLayout {
         : 0;
       const qx = a.x + t * dx;
       const qz = a.z + t * dz;
-      const d = Math.hypot(x - qx, z - qz);
-      if (d < bestDist) {
-        bestDist = d;
-        bestSegIndex = i;
-        bestQ = { x: qx, z: qz };
-        const len = Math.max(0.0001, Math.hypot(dx, dz));
-        bestTangent = { x: dx / len, z: dz / len };
+      return { d: Math.hypot(x - qx, z - qz), qx, qz, dx, dz };
+    };
+    const adopt = (i: number, candidate: ReturnType<typeof project>): void => {
+      bestDist = candidate.d;
+      bestSegIndex = i;
+      bestQ = { x: candidate.qx, z: candidate.qz };
+      const len = Math.max(0.0001, Math.hypot(candidate.dx, candidate.dz));
+      bestTangent = { x: candidate.dx / len, z: candidate.dz / len };
+    };
+    if (index) {
+      // The exact index visits a candidate set that provably holds the winner
+      // and breaks ties toward the lowest segment, as the forward walk does.
+      const nearest = index.nearest(x, z, (i) => project(i).d);
+      if (nearest.segment >= 0) adopt(nearest.segment, project(nearest.segment));
+    } else {
+      for (let i = 0; i < loop.length; i++) {
+        const candidate = project(i);
+        if (candidate.d < bestDist) adopt(i, candidate);
       }
     }
 
@@ -3403,7 +3407,33 @@ export class WorldLayout {
           }
         }
       }
-      candidates = [...keys];
+      // A range key describes a small rectangle of query points. Distance to
+      // any segment is 1-Lipschitz, so center distance +/- half-diagonal bounds
+      // every query in that rectangle. Discard only segments that cannot win
+      // anywhere in it; retain original ordering for exact junction ties.
+      const lowX = Math.max(minCellX * ROUTE_INDEX_CELL_SIZE_METERS + ROUTE_INDEX_PADDING_METERS,
+        maxCellX * ROUTE_INDEX_CELL_SIZE_METERS - ROUTE_INDEX_PADDING_METERS);
+      const highX = Math.min((minCellX + 1) * ROUTE_INDEX_CELL_SIZE_METERS + ROUTE_INDEX_PADDING_METERS,
+        (maxCellX + 1) * ROUTE_INDEX_CELL_SIZE_METERS - ROUTE_INDEX_PADDING_METERS);
+      const lowZ = Math.max(minCellZ * ROUTE_INDEX_CELL_SIZE_METERS + ROUTE_INDEX_PADDING_METERS,
+        maxCellZ * ROUTE_INDEX_CELL_SIZE_METERS - ROUTE_INDEX_PADDING_METERS);
+      const highZ = Math.min((minCellZ + 1) * ROUTE_INDEX_CELL_SIZE_METERS + ROUTE_INDEX_PADDING_METERS,
+        (maxCellZ + 1) * ROUTE_INDEX_CELL_SIZE_METERS - ROUTE_INDEX_PADDING_METERS);
+      const centerX = (lowX + highX) * 0.5, centerZ = (lowZ + highZ) * 0.5;
+      const radius = Math.hypot(highX - lowX, highZ - lowZ) * 0.5;
+      const distances: number[] = [];
+      let upper = Infinity;
+      for (const packed of keys) {
+        const routeIndex = Math.floor(packed / 10000);
+        const segment = routes[routeIndex].segments[packed - routeIndex * 10000];
+        const progress = clamp01(((centerX - segment.start.x) * segment.dx
+          + (centerZ - segment.start.z) * segment.dz) / segment.lengthSquared);
+        const distance = Math.hypot(centerX - (segment.start.x + segment.dx * progress),
+          centerZ - (segment.start.z + segment.dz * progress));
+        distances.push(distance);
+        upper = Math.min(upper, distance + radius);
+      }
+      candidates = [...keys].filter((_, index) => distances[index] - radius <= upper + 1e-9);
       if (ROUTE_CANDIDATE_CACHE.size >= 4096) ROUTE_CANDIDATE_CACHE.clear();
       ROUTE_CANDIDATE_CACHE.set(rangeKey, candidates);
     }
@@ -3647,6 +3677,12 @@ export class WorldLayout {
     // cannot hold soil in this world any more than it can in the field.
     const steepRock = (1 - smoothstep(0.45, 0.72, normalY))
       * (1 - Math.max(path, shoulder) * 0.94);
+    // Mainland work sites wear their ground.
+    const workWear = mainlandWeight > 0 ? mainlandWorkSiteWearAt(x, z) : 0;
+    // Mainland brooks run on washed gravel between damp banks.
+    const brook = mainlandWeight > 0 ? mainlandBrookAt(x, z, 4) : null;
+    const brookBed = brook ? 1 - smoothstep(brook.halfWidth - 0.15, brook.halfWidth + 0.45, brook.distance) : 0;
+    const brookBank = brook ? 1 - smoothstep(brook.halfWidth + 0.4, brook.halfWidth + 3.4, brook.distance) : 0;
     const cliff = clamp01(
       coastBand * cliffProp * (0.28 + slopeCliff * 0.92)
       + coastBand * rockShelfProp * slopeCliff * 0.48
@@ -3654,7 +3690,7 @@ export class WorldLayout {
       + uplandHeath * 0.24
       + springStone
       + steepRock
-    ) * (1 - estuary * 0.76);
+    ) * (1 - estuary * 0.76) * (1 - brookBed);
     const siltShelf = estuary
       * Math.max(river.lowerBank, river.floodplain)
       * (0.35 + river.deposition * 0.65)
@@ -3668,18 +3704,20 @@ export class WorldLayout {
       + Math.sin(x * 0.036 - z * 0.027) * 0.23
       + Math.sin((x + z) * 0.014 + 1.4) * 0.17
     );
-    const drySoil = Math.max(farm * (1 - wet * 0.35), forestLitter * 0.64, uplandHeath * 0.28);
+    const drySoil = Math.max(farm * (1 - wet * 0.35), forestLitter * 0.64, uplandHeath * 0.28,
+      workWear * 0.82);
     const dampSoil = Math.max(
       farm * wet * 0.55,
       riverFringe * (0.48 + river.deposition * 0.28),
       siltShelf * 0.82,
       marshPeat * 0.8,
       forestLitter * (0.2 + wet * 0.35),
-      mainlandWaterSample(x, z).wetness * 0.55 * (1 - path)
+      mainlandWaterSample(x, z).wetness * 0.55 * (1 - path),
+      brookBank * 0.62 * (1 - path)
     );
     const riverbed = waterDistance > 0
       ? 0.82 + estuary * 0.12 + river.channel * 0.04 + river.erosion * 0.02
-      : 0;
+      : brookBed * 0.9 * (1 - path);
     // Plunge-basin bedrock: a scoured basin floor reads as dark rock, not
     // pale bed. The pale basin shows every heightfield facet through clear
     // shallow water as hard-edged rectangles; deep rock cures it and is
@@ -3995,8 +4033,8 @@ export class WorldLayout {
     return pathCollisionGeometryCache.clone();
   }
 
-  public static async buildPathGeometryAsync(signal?: AbortSignal): Promise<THREE.BufferGeometry> {
-    pathGeometryTemplateCache ??= await runCooperatively(this.pathGeometryTemplateSteps(), signal);
+  public static async buildPathGeometryAsync(signal?: AbortSignal, onProgress?: () => void): Promise<THREE.BufferGeometry> {
+    pathGeometryTemplateCache ??= await runCooperatively(this.pathGeometryTemplateSteps(), signal, onProgress);
     return pathGeometryTemplateCache.clone();
   }
 
@@ -4134,8 +4172,10 @@ export class WorldLayout {
     return runSync(this.terrainGeometrySteps(patchId));
   }
 
-  public static buildTerrainGeometryAsync(patchId: WorldTerrainPatchDefinition["id"], signal?: AbortSignal): Promise<THREE.BufferGeometry> {
-    return runCooperatively(this.terrainGeometrySteps(patchId), signal);
+  public static buildTerrainGeometryAsync(
+    patchId: WorldTerrainPatchDefinition["id"], signal?: AbortSignal, onProgress?: () => void
+  ): Promise<THREE.BufferGeometry> {
+    return runCooperatively(this.terrainGeometrySteps(patchId), signal, onProgress);
   }
 
   private static *terrainGeometrySteps(

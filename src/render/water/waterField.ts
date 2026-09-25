@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { WATER_SURFACE, WorldLayout } from "../../world/WorldLayout";
 import type { ShoreProjection } from "../../world/WorldGeographyTypes";
-import { waterSpatialProfile, type WaterSpatialProfile, type WaterSpatialQueries } from "./waterProfile";
+import { createWaterSpatialProfile, waterSpatialProfile, type WaterSpatialProfile, type WaterSpatialQueries } from "./waterProfile";
 
 /**
  * The baked water field: one lattice, two encodings, one owner.
@@ -152,6 +152,8 @@ export class WaterFieldStore {
   public readonly profile: Uint8Array;
   public readonly depth: Uint16Array;
   private readonly ready: Uint8Array;
+  private readonly profileScratch = createWaterSpatialProfile();
+  private readonly profileOptions = { bankDilationMeters: WATER_FIELD_BANK_DILATION_METERS };
   private readyCount = 0;
   private static canonicalStore: WaterFieldStore | null = null;
 
@@ -198,7 +200,7 @@ export class WaterFieldStore {
     const x = this.texelX(column);
     const z = this.texelZ(row);
     const queries: WaterSpatialQueries = { marine: WorldLayout.marineSampleAt(x, z) };
-    const profile = waterSpatialProfile(x, z, queries, { bankDilationMeters: WATER_FIELD_BANK_DILATION_METERS });
+    const profile = waterSpatialProfile(x, z, queries, this.profileOptions, this.profileScratch);
     writeWaterProfileTexel(this.profile, index * 4, profile);
     writeWaterDepthTexel(this.depth, index * 4, x, z, queries.marine.signedShoreDistance, queries.shore);
     this.ready[index] = 1;

@@ -453,6 +453,23 @@ export class CropInstanceRenderer {
   private initialSyncDone = false;
   private readonly moistureBatch: TemplateBatch;
   private cropSignature = Number.NaN;
+  private readonly cropSnapshots: Array<{
+    id: string;
+    cropId: string;
+    stage: CropStage;
+    farmId: string;
+    x: number;
+    z: number;
+    rotationRadians: number;
+    effectiveGrowthMinutes: number;
+    moistureBand: ReturnType<typeof cropMoistureBand>;
+  }> = [];
+  private cropSnapshotRevision = 0;
+  private lastIsFarmGisMode = false;
+  private readonly requiredAssetIds = new Set<AssetId>();
+  private assetStatusCropSignature = Number.NaN;
+  private assetStatusTemplateRevision = -1;
+  private cachedAssetStatusSignature = "";
   private highlightedId: string | null = null;
   private presentationTime = 0;
   private reducedFeedbackMotion = false;
@@ -580,18 +597,25 @@ export class CropInstanceRenderer {
    * Used by the world reconciliation gate, so a changed stage (or a newly added
    * decorative crop) triggers `ensureAssets` without scanning every frame.
    */
-  public assetStatusSignature(state: Readonly<GameState>): string {
+  public assetStatusSignature(): string {
+    if (this.assetStatusCropSignature === this.cropSignature
+      && this.assetStatusTemplateRevision === this.templateRevision) {
+      return this.cachedAssetStatusSignature;
+    }
     let expected = 0;
     let loaded = 0;
-    const seen = new Set<AssetId>();
-    for (const crop of [...Object.values(state.crops), ...this.staticCrops]) {
-      const assetId = CROP_STAGE_ASSETS[crop.cropId]?.[crop.stage];
-      if (!assetId || seen.has(assetId)) continue;
-      seen.add(assetId);
+    const missing: AssetId[] = [];
+    for (const assetId of this.requiredAssetIds) {
       expected += 1;
       if (this.templates.has(assetId)) loaded += 1;
+      else missing.push(assetId);
     }
-    return `${loaded}/${expected}`;
+    // Missing IDs matter: two different stage assets can have the same
+    // loaded/expected count while the newly required model is still absent.
+    this.cachedAssetStatusSignature = `${loaded}/${expected}:${missing.join(",")}`;
+    this.assetStatusCropSignature = this.cropSignature;
+    this.assetStatusTemplateRevision = this.templateRevision;
+    return this.cachedAssetStatusSignature;
   }
 
   private async ensureTemplate(assetId: AssetId): Promise<void> {
@@ -749,6 +773,13 @@ export class CropInstanceRenderer {
       // not rebuild every crop's placement, tint and wind attributes.
       if (transientActive || this.transientAppliedIds.size > 0) this.updateTransientPresentation();
       return;
+    }
+    if (signature !== this.cropSignature) {
+      this.requiredAssetIds.clear();
+      for (const crop of renderCrops) {
+        const assetId = CROP_STAGE_ASSETS[crop.cropId]?.[crop.stage];
+        if (assetId) this.requiredAssetIds.add(assetId);
+      }
     }
     this.cropSignature = signature;
     this.renderedTemplateRevision = this.templateRevision;
@@ -942,15 +973,31 @@ export class CropInstanceRenderer {
   }
 
   private computeCropSignature(crops: readonly PlacedCropState[], isFarmGisMode: boolean = false): number {
-    let hash = (crops.length ^ (isFarmGisMode ? 0x5a5a5a5a : 0x811c9dc5)) >>> 0;
-    for (const crop of crops) {
-      const values = `${crop.id}|${crop.cropId}|${crop.stage}|${crop.farmId}|${crop.x}|${crop.z}|${crop.rotationRadians}|${crop.effectiveGrowthMinutes}|${cropMoistureBand(crop.moisture)}`;
-      for (let index = 0; index < values.length; index += 1) {
-        hash ^= values.charCodeAt(index);
-        hash = Math.imul(hash, 0x01000193);
+    let changed = crops.length !== this.cropSnapshots.length || isFarmGisMode !== this.lastIsFarmGisMode;
+    for (let index = 0; index < crops.length; index += 1) {
+      const crop = crops[index]!;
+      const moistureBand = cropMoistureBand(crop.moisture);
+      const cached = this.cropSnapshots[index];
+      if (!cached || cached.id !== crop.id || cached.cropId !== crop.cropId
+        || cached.stage !== crop.stage || cached.farmId !== crop.farmId
+        || cached.x !== crop.x || cached.z !== crop.z
+        || cached.rotationRadians !== crop.rotationRadians
+        || cached.effectiveGrowthMinutes !== crop.effectiveGrowthMinutes
+        || cached.moistureBand !== moistureBand) {
+        changed = true;
+        this.cropSnapshots[index] = {
+          id: crop.id, cropId: crop.cropId, stage: crop.stage, farmId: crop.farmId,
+          x: crop.x, z: crop.z, rotationRadians: crop.rotationRadians,
+          effectiveGrowthMinutes: crop.effectiveGrowthMinutes, moistureBand
+        };
       }
     }
-    return hash >>> 0;
+    this.cropSnapshots.length = crops.length;
+    if (changed) {
+      this.lastIsFarmGisMode = isFarmGisMode;
+      this.cropSnapshotRevision += 1;
+    }
+    return this.cropSnapshotRevision;
   }
 
   private updateBatch(

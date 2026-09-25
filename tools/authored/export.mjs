@@ -59,6 +59,10 @@ const MODELS = [
   {
     id: "building_fish_market_coastal_a",
     output: "art/authored/fish-market-shop/export/building_fish_market_coastal_a.glb"
+  },
+  {
+    id: "building_sunreach_cove_market_a",
+    output: "art/authored/sunreach-market-stall/export/building_sunreach_cove_market_a.glb"
   }
 ];
 

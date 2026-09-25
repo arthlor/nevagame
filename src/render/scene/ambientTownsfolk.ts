@@ -11,7 +11,7 @@ const MAINLAND_TOWNSFOLK: readonly AmbientTownsfolkRoute[] = Object.values(MAINL
     const z = village.market.z - (side < 0 ? 7 : 8);
     return {
       id: `townsfolk.${village.id}.${side < 0 ? "yard-worker" : "neighbour"}`,
-      assetId: side < 0 ? ASSET_IDS.CHAR_NPC_TOMAS_A : ASSET_IDS.CHAR_NPC_ELSPETH_A,
+      assetId: side < 0 ? "char_npc_tomas_b" : "char_npc_elspeth_b",
       stations: {
         dawn: { x: x - 0.3, z: z + 0.4 }, day: { x, z },
         dusk: { x: x + 0.4, z: z - 0.2 }, night: { x: x - 0.4, z: z - 0.3 }
@@ -57,9 +57,9 @@ export interface AmbientTownsfolkRoute {
    */
   waypoints: readonly { dx: number; dz: number }[];
   radiusMeters: number;
-  /** Seconds for one full loop of the drift. Deliberately slow and unhurried. */
+  /** Seconds for one full walk-and-rest cycle. */
   loopSeconds: number;
-  /** Fraction of the loop spent standing still rather than walking. */
+  /** Minimum fraction spent standing; spare time goes to rest, not slow-motion walking. */
   restFraction: number;
   /** Phase offset so the villagers are never in step with one another. */
   phase: number;
@@ -79,7 +79,7 @@ export interface AmbientTownsfolkRoute {
 export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
   {
     id: "townsfolk.market_shopper",
-    assetId: ASSET_IDS.CHAR_NPC_MAEVE_A,
+    assetId: "char_npc_maeve_b",
     stations: {
       dawn: { x: 49.5, z: -69.5 },
       day: { x: 48.8, z: -70.5 },
@@ -102,7 +102,7 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
   },
   {
     id: "townsfolk.inn_regular",
-    assetId: ASSET_IDS.CHAR_NPC_BARNABY_A,
+    assetId: "char_npc_barnaby_b",
     stations: {
       dawn: { x: 61.3, z: -45.5 },
       day: { x: 61.9, z: -45.5 },
@@ -125,7 +125,7 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
   },
   {
     id: "townsfolk.dock_hand",
-    assetId: ASSET_IDS.CHAR_NPC_SILAS_A,
+    assetId: "char_npc_silas_b",
     stations: {
       dawn: { x: 66.4, z: 51.6 },
       day: { x: 65.8, z: 51.6 },
@@ -147,7 +147,7 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
   },
   {
     id: "townsfolk.well_keeper",
-    assetId: ASSET_IDS.CHAR_NPC_ELSPETH_A,
+    assetId: "char_npc_elspeth_b",
     stations: {
       // Southwest of the village well: the compact square packs the well
       // inside the market's 6 m interaction ring, so tending the well itself
@@ -173,7 +173,7 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
   },
   {
     id: "townsfolk.gardener",
-    assetId: ASSET_IDS.CHAR_NPC_INES_A,
+    assetId: "char_npc_ines_b",
     stations: {
       dawn: { x: 46.6, z: -74.3 },
       day: { x: 46.0, z: -75.0 },
@@ -194,7 +194,7 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
   },
   {
     id: "townsfolk.mill_hand",
-    assetId: ASSET_IDS.CHAR_NPC_TOMAS_A,
+    assetId: "char_npc_tomas_b",
     stations: {
       dawn: { x: 61.4, z: -66.6 },
       day: { x: 62.0, z: -67.0 },
@@ -224,17 +224,13 @@ export interface AmbientTownsfolkPose {
   walking: boolean;
 }
 
-/** Smoothstep: ease out of a stop and back into one across a leg. */
-function easedProgress(t: number): number {
-  const clamped = Math.min(1, Math.max(0, t));
-  return clamped * clamped * (3 - 2 * clamped);
-}
+const AMBIENT_WALK_SPEED_METERS_PER_SECOND = 0.95;
 
 /**
  * Where one villager stands at a given moment. Pure and clock-derived: the
  * same seconds always produce the same pose, so nothing here needs saving.
  *
- * The drift walks an eased closed ring around the station and then rests,
+ * The drift walks a closed ring around the station and then rests,
  * which reads as someone browsing or waiting rather than patrolling a circle.
  */
 export function sampleAmbientTownsfolkPose(
@@ -247,11 +243,6 @@ export function sampleAmbientTownsfolkPose(
   if (motionScale <= 0) {
     return { x: station.x, z: station.z, heading: 0, walking: false };
   }
-  const cycle = ((seconds * motionScale) / route.loopSeconds + route.phase) % 1;
-  const resting = cycle >= 1 - route.restFraction;
-  // Walk across the moving arc, then stand still for the rest of the loop.
-  const travel = resting ? 1 : cycle / Math.max(1e-6, 1 - route.restFraction);
-
   const waypoints = route.waypoints;
   const count = waypoints.length;
   if (count === 0) {
@@ -263,6 +254,16 @@ export function sampleAmbientTownsfolkPose(
     const to = waypoints[(index + 1) % count];
     totalLength += Math.hypot(to.dx - from.dx, to.dz - from.dz);
   }
+  const cycle = ((seconds * motionScale) / route.loopSeconds + route.phase) % 1;
+  const walkFraction = Math.min(
+    1 - route.restFraction,
+    totalLength / AMBIENT_WALK_SPEED_METERS_PER_SECOND / route.loopSeconds
+  );
+  const resting = cycle >= walkFraction;
+  // Traverse the ring at a readable gait, then use any spare cycle time for
+  // rest. Constant speed through corners prevents a fresh footfall at every
+  // short waypoint edge.
+  const travel = resting ? 1 : cycle / Math.max(1e-6, walkFraction);
   let target = travel * totalLength;
   let segmentIndex = 0;
   let localT = 0;
@@ -279,9 +280,8 @@ export function sampleAmbientTownsfolkPose(
   }
   const from = waypoints[segmentIndex];
   const to = waypoints[(segmentIndex + 1) % count];
-  const t = easedProgress(localT);
-  const dx = from.dx + (to.dx - from.dx) * t;
-  const dz = from.dz + (to.dz - from.dz) * t;
+  const dx = from.dx + (to.dx - from.dx) * localT;
+  const dz = from.dz + (to.dz - from.dz) * localT;
   const heading = Math.atan2(to.dx - from.dx, to.dz - from.dz);
   return { x: station.x + dx, z: station.z + dz, heading, walking: !resting };
 }

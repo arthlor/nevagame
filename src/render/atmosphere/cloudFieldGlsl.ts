@@ -33,6 +33,10 @@ float cloudDensity(vec3 position, bool detail) {
   // clouds; a separate height-varying body prevents each group becoming a slab.
   float profile = smoothstep(0.0, 0.12, height) * (1.0 - smoothstep(0.60, 1.0, height));
   float threshold = mix(0.72, 0.23, uWeather.x);
+  // Exact empty-space skip: billow adds at most (1 - 0.42) * 0.30 and detail
+  // only subtracts, so below this bound the density is zero whatever the two
+  // body noises return. Clear skies skip most of the march's noise work.
+  if (weather + 0.174 - (1.0 - profile) * 0.30 <= threshold) return 0.0;
   vec3 bodyPoint = vec3(advected / uCloudLayer.z, height * 1.8) + uSeed;
   float billow = noise3(bodyPoint * 1.7 + 31.4);
   float shape = weather + (billow - 0.42) * 0.30 - (1.0 - profile) * 0.30;

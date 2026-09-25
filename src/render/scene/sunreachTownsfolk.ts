@@ -1,4 +1,3 @@
-import { ASSET_IDS } from "../assets/AssetCatalog.generated";
 import { SUNREACH_LIFE_STATIONS } from "../../world/SunreachLivingLayout";
 import type { AmbientTownsfolkRoute } from "./ambientTownsfolk";
 
@@ -9,12 +8,12 @@ import type { AmbientTownsfolkRoute } from "./ambientTownsfolk";
  * change cannot teleport someone through a building or across the island.
  */
 export const SUNREACH_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
-  { id: "net-mender", point: SUNREACH_LIFE_STATIONS.netMender, assetId: ASSET_IDS.CHAR_NPC_TOMAS_A, seconds: 19, rest: 0.48 },
-  { id: "fish-sorter", point: SUNREACH_LIFE_STATIONS.fishSorter, assetId: ASSET_IDS.CHAR_NPC_SILAS_A, seconds: 18, rest: 0.44 },
-  { id: "market-neighbour", point: SUNREACH_LIFE_STATIONS.marketNeighbour, assetId: ASSET_IDS.CHAR_NPC_MAEVE_A, seconds: 22, rest: 0.52 },
-  { id: "terrace-hand", point: SUNREACH_LIFE_STATIONS.terraceHand, assetId: ASSET_IDS.CHAR_NPC_INES_A, seconds: 20, rest: 0.50 },
-  { id: "olive-keeper", point: SUNREACH_LIFE_STATIONS.oliveKeeper, assetId: ASSET_IDS.CHAR_NPC_ELSPETH_A, seconds: 23, rest: 0.54 },
-  { id: "shore-walker", point: SUNREACH_LIFE_STATIONS.shoreWalker, assetId: ASSET_IDS.CHAR_NPC_BARNABY_A, seconds: 18, rest: 0.40 }
+  { id: "net-mender", point: SUNREACH_LIFE_STATIONS.netMender, assetId: "char_npc_tomas_b", seconds: 19, rest: 0.48 },
+  { id: "fish-sorter", point: SUNREACH_LIFE_STATIONS.fishSorter, assetId: "char_npc_silas_b", seconds: 18, rest: 0.44 },
+  { id: "market-neighbour", point: SUNREACH_LIFE_STATIONS.marketNeighbour, assetId: "char_npc_maeve_b", seconds: 22, rest: 0.52 },
+  { id: "terrace-hand", point: SUNREACH_LIFE_STATIONS.terraceHand, assetId: "char_npc_ines_b", seconds: 20, rest: 0.50 },
+  { id: "olive-keeper", point: SUNREACH_LIFE_STATIONS.oliveKeeper, assetId: "char_npc_elspeth_b", seconds: 23, rest: 0.54 },
+  { id: "shore-walker", point: SUNREACH_LIFE_STATIONS.shoreWalker, assetId: "char_npc_barnaby_b", seconds: 18, rest: 0.40 }
 ].map((resident, index) => ({
   id: `townsfolk.sunreach.${resident.id}`,
   assetId: resident.assetId,

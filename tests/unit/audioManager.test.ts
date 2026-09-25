@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AudioManager } from "../../src/audio/AudioManager";
+import type { WorldAudioDto } from "../../src/simulation/presentation/WorldAudioPresentation";
 
 type LoopVoice = {
   source: { stop: ReturnType<typeof vi.fn>; disconnect: () => void };
@@ -14,6 +15,8 @@ type AudioHarness = {
   context: { state: AudioContextState; currentTime: number; close: () => Promise<void> } | null;
   loops: Map<string, LoopVoice>;
   actionLoops: Map<string, unknown>;
+  worldAudio?: WorldAudioDto;
+  syncBeds: () => void;
 };
 
 function fakeVoice(): LoopVoice {
@@ -35,6 +38,29 @@ function harnessOf(manager: AudioManager): AudioHarness {
 }
 
 describe("AudioManager.setActionLoop", () => {
+  it("stops every obsolete ambience loop when the desired bed becomes empty", () => {
+    vi.stubGlobal("document", { visibilityState: "visible" });
+    try {
+      const manager = new AudioManager();
+      const harness = harnessOf(manager);
+      const market = fakeVoice();
+      const insects = fakeVoice();
+      harness.context = { state: "running", currentTime: 1, close: () => Promise.resolve() };
+      harness.worldAudio = { bed: "farm", music: "theme", layers: {} };
+      harness.loops.set("ambience-market", market);
+      harness.loops.set("ambience-insects", insects);
+
+      harness.syncBeds();
+
+      expect(harness.loops.size).toBe(0);
+      expect(market.source.stop).toHaveBeenCalled();
+      expect(insects.source.stop).toHaveBeenCalled();
+      manager.dispose();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("stops a reel/row loop when disabled even if AudioContext is suspended", () => {
     const manager = new AudioManager();
     const harness = harnessOf(manager);

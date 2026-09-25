@@ -1,3 +1,4 @@
+import { createStoneModel, createRoundBushModel, createReedsModel } from "./environment/stoneAndFoliage";
 import { createMerchantCarriageModel } from "./props/createMerchantCarriageModel";
 import type { AuthoredGenerator } from "../kit";
 import { createFarmKitchenModel } from "./buildings/createFarmKitchenModel";
@@ -32,6 +33,9 @@ import { createCozyArmchairModel, createCozyBedModel, createPicnicTableModel, cr
 import { createApiaryHiveModel, createGardenHoeModel, createPottingBenchModel, createRusticWateringCanModel } from "./props/garden";
 import { createCargoCrateLargeModel, createCargoSackModel, createDockLanternModel, createHangingSignboardModel, createTreasureChestModel } from "./props/harbour";
 import { createCoralPillarModel, createCoralStaghornModel, createCoralTableModel } from "./props/reef";
+import { createIceHouseModel, createMineAditModel, createSaltPansModel, createTimberStackModel } from "./props/industry";
+import { createTimberSawbuckModel } from "./props/createTimberSawbuckModel";
+import { createCulvertHeadwallModel } from "./props/roadworks";
 import { createDriftwoodClusterModel, createDriftwoodLogModel, createFallenLogModel } from "./props/shore";
 import { createCraftingJobPropModel } from "./tools/createCraftingJobPropModel";
 import { createCropBundleModel } from "./tools/createCropBundleModel";
@@ -51,6 +55,16 @@ import { createWateringCanModel } from "./tools/createWateringCanModel";
  * step, and the pipeline refuses a name that Blender also registers.
  */
 export const AUTHORED_GENERATORS: Readonly<Record<string, AuthoredGenerator>> = {
+  coastal_rock: createStoneModel,
+  faceted_rock: createStoneModel,
+  pebble_cluster: createStoneModel,
+  boulder_large: createStoneModel,
+  coastal_boulder: createStoneModel,
+  reef_small: createStoneModel,
+  rock_spire: createStoneModel,
+  sea_stack: createStoneModel,
+  round_bush: createRoundBushModel,
+  reeds: createReedsModel,
   merchant_carriage: createMerchantCarriageModel,
   fauna_dog: createDogModel,
   fauna_cat: createCatModel,
@@ -112,5 +126,11 @@ export const AUTHORED_GENERATORS: Readonly<Record<string, AuthoredGenerator>> = 
   coral_pillar: createCoralPillarModel,
   coral_staghorn: createCoralStaghornModel,
   coral_table: createCoralTableModel,
-  fish_trade_pack: createFishTradePackModel
+  fish_trade_pack: createFishTradePackModel,
+  mine_adit: createMineAditModel,
+  ice_house: createIceHouseModel,
+  salt_pans: createSaltPansModel,
+  timber_stack: createTimberStackModel,
+  timber_sawbuck: createTimberSawbuckModel,
+  culvert_headwall: createCulvertHeadwallModel
 };

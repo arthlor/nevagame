@@ -40,7 +40,23 @@ export interface AssetPreloadProgress {
   total: number;
 }
 
-export function configureRuntimeLod(root: THREE.Group, spec: RuntimeAssetSpec): THREE.LOD | null {
+/** Standalone models owned by the calling presentation system. */
+export interface DirectAssetSpec {
+  id: string;
+  modelPath: string;
+  scale?: number;
+}
+
+export interface DirectAssetPreloadProgress {
+  assetId: string;
+  completed: number;
+  total: number;
+}
+
+export function configureRuntimeLod(
+  root: THREE.Group,
+  spec: Pick<RuntimeAssetSpec, "id" | "lodLevels">
+): THREE.LOD | null {
   if (!spec.lodLevels?.length) return null;
 
   const levels = spec.lodLevels.map((level) => {
@@ -81,7 +97,7 @@ export function configureRuntimeLod(root: THREE.Group, spec: RuntimeAssetSpec): 
 export function prepareAssetTemplate(
   root: THREE.Group,
   animations: THREE.AnimationClip[],
-  spec: RuntimeAssetSpec
+  spec: Pick<RuntimeAssetSpec, "id" | "lodLevels">
 ): THREE.Group {
   const collisionNodes: string[] = [];
   let hasSkinnedMeshes = false;
@@ -160,6 +176,9 @@ export class AssetLoader {
   private static loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   private static modelCache: Map<AssetId, THREE.Group> = new Map();
   private static loadingPromises: Map<AssetId, Promise<THREE.Group>> = new Map();
+  private static directLoadingPromises: Map<AssetId, Promise<THREE.Group>> = new Map();
+  private static directLoadControllers: Map<AssetId, AbortController> = new Map();
+  private static directModelSources: Map<AssetId, string> = new Map();
   /** Approximate retained geometry bytes per cached template. */
   private static templateBytes: Map<AssetId, number> = new Map();
   private static templateConsumers: Map<AssetId, number> = new Map();
@@ -224,6 +243,61 @@ export class AssetLoader {
     cloned.userData.runtimeLodLevels = source.userData.runtimeLodLevels;
     cloned.userData.runtimeLodFallback = source.userData.runtimeLodFallback;
     return cloned;
+  }
+
+  private static async readResponseBytes(
+    response: Response,
+    signal?: AbortSignal,
+    onTransfer?: () => void
+  ): Promise<ArrayBuffer> {
+    if (!response.body) {
+      const bytes = await response.arrayBuffer();
+      signal?.throwIfAborted();
+      onTransfer?.();
+      return bytes;
+    }
+
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        signal?.throwIfAborted();
+        if (done) break;
+        chunks.push(value);
+        size += value.byteLength;
+        onTransfer?.();
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    signal?.throwIfAborted();
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes.buffer;
+  }
+
+  private static async waitForAbortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (!signal) return promise;
+    signal.throwIfAborted();
+    return new Promise<T>((resolve, reject) => {
+      const cleanup = (): void => signal.removeEventListener("abort", onAbort);
+      const onAbort = (): void => {
+        cleanup();
+        reject(signal.reason ?? new DOMException("The operation was aborted", "AbortError"));
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      promise.then(
+        value => { cleanup(); resolve(value); },
+        error => { cleanup(); reject(error); }
+      );
+    });
   }
 
   public static async loadCached(assetId: AssetId, onTransfer?: () => void, signal?: AbortSignal): Promise<THREE.Group> {
@@ -302,6 +376,138 @@ export class AssetLoader {
     return clone;
   }
 
+  private static async loadDirectTemplate(
+    spec: DirectAssetSpec,
+    signal?: AbortSignal,
+    onTransfer?: () => void
+  ): Promise<THREE.Group> {
+    const key = spec.id as AssetId;
+    signal?.throwIfAborted();
+    if (ASSET_BY_ID.has(key)) {
+      throw new Error(`[AssetLoader] ${spec.id} is catalog-owned and must use loadModel`);
+    }
+    const knownPath = this.directModelSources.get(key);
+    if (knownPath && knownPath !== spec.modelPath) {
+      throw new Error(`[AssetLoader] Direct model id ${spec.id} was requested from two different paths`);
+    }
+    this.directModelSources.set(key, spec.modelPath);
+
+    const cached = this.modelCache.get(key);
+    if (cached) {
+      this.templateLastUse.set(key, performance.now());
+      return cached;
+    }
+
+    let pending = this.directLoadingPromises.get(key);
+    if (!pending) {
+      const controller = new AbortController();
+      const abortFromCaller = (): void => controller.abort(signal?.reason);
+      if (signal) {
+        if (signal.aborted) throw signal.reason;
+        signal.addEventListener("abort", abortFromCaller, { once: true });
+      }
+      const loadPromise = new Promise<THREE.Group>((resolve, reject) => {
+        const fail = (error: unknown): void => {
+          if (this.directLoadingPromises.get(key) === loadPromise) this.directLoadingPromises.delete(key);
+          if (this.directLoadControllers.get(key) === controller) this.directLoadControllers.delete(key);
+          reject(new Error(`[AssetLoader] Failed to load direct model ${spec.id} from ${spec.modelPath}`, { cause: error }));
+        };
+        const decode = (bytes: ArrayBuffer): void => this.loader.parse(
+          bytes,
+          new URL(".", new URL(spec.modelPath, typeof window !== "undefined" ? window.location.href : "http://localhost/")).href,
+          (gltf) => {
+            try {
+              if (this.directLoadingPromises.get(key) !== loadPromise) {
+                throw new DOMException("The direct model load was invalidated", "AbortError");
+              }
+              signal?.throwIfAborted();
+              const root = gltf.scene;
+              prepareAssetTemplate(root, gltf.animations, { id: key, lodLevels: [] });
+              this.modelCache.set(key, root);
+              this.templateBytes.set(key, this.estimateGeometryBytes(root));
+              this.templateLastUse.set(key, performance.now());
+              this.templateConsumers.set(key, 0);
+              this.enforceTemplateBudget();
+              if (this.directLoadingPromises.get(key) === loadPromise) this.directLoadingPromises.delete(key);
+              if (this.directLoadControllers.get(key) === controller) this.directLoadControllers.delete(key);
+              resolve(root);
+            } catch (error) {
+              fail(error);
+            }
+          },
+          fail
+        );
+
+        void (async () => {
+          try {
+            const response = await fetch(spec.modelPath, { signal: controller.signal });
+            if (!response.ok) {
+              throw new Error(`Scenery request failed (${response.status})`);
+            }
+            decode(await this.readResponseBytes(response, controller.signal, onTransfer));
+          } catch (error) {
+            fail(error);
+          }
+        })();
+      });
+      pending = loadPromise;
+      this.directLoadingPromises.set(key, loadPromise);
+      this.directLoadControllers.set(key, controller);
+      void loadPromise.then(
+        () => signal?.removeEventListener("abort", abortFromCaller),
+        () => signal?.removeEventListener("abort", abortFromCaller)
+      );
+    }
+
+    const template = await this.waitForAbortable(pending, signal);
+    signal?.throwIfAborted();
+    return template;
+  }
+
+  /** Loads and caches repository-owned standalone GLBs without creating a live clone. */
+  public static async preloadDirect(
+    specs: readonly DirectAssetSpec[],
+    onProgress?: (progress: DirectAssetPreloadProgress) => void,
+    concurrency = 3,
+    signal?: AbortSignal,
+    onTransfer?: () => void
+  ): Promise<void> {
+    const uniqueSpecs = [...new Map(specs.map((spec) => [spec.id, spec])).values()];
+    const total = uniqueSpecs.length;
+    let completed = 0;
+    let cursor = 0;
+    const worker = async (): Promise<void> => {
+      while (cursor < total) {
+        signal?.throwIfAborted();
+        const spec = uniqueSpecs[cursor++];
+        await this.loadDirectTemplate(spec, signal, onTransfer);
+        signal?.throwIfAborted();
+        onProgress?.({ assetId: spec.id, completed: ++completed, total });
+      }
+    };
+    const workerCount = Math.min(Math.max(1, Math.floor(concurrency)), total);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  }
+
+  /** Loads a standalone GLB and returns an independently owned clone. */
+  public static async loadDirectModel(
+    spec: DirectAssetSpec,
+    signal?: AbortSignal,
+    onTransfer?: () => void
+  ): Promise<THREE.Group> {
+    const scale = spec.scale ?? 1;
+    if (!Number.isFinite(scale) || scale <= 0) {
+      throw new Error(`[AssetLoader] Direct model ${spec.id} must have a positive finite scale`);
+    }
+    const template = await this.loadDirectTemplate(spec, signal, onTransfer);
+    const clone = this.cloneModel(template);
+    if (scale !== 1) clone.scale.setScalar(scale);
+    this.templateConsumers.set(spec.id as AssetId, (this.templateConsumers.get(spec.id as AssetId) ?? 0) + 1);
+    this.templateLastUse.set(spec.id as AssetId, performance.now());
+    this.enforceTemplateBudget();
+    return clone;
+  }
+
   /**
    * Drops one live clone's ownership of its cached template. Call this when a
    * presentation object is despawned; idempotent per object, and it never
@@ -312,7 +518,9 @@ export class AssetLoader {
     const assetId = model.userData.assetId as AssetId | undefined;
     if (!assetId || this.releasedModels.has(model)) return;
     this.releasedModels.add(model);
-    this.templateConsumers.set(assetId, Math.max(0, (this.templateConsumers.get(assetId) ?? 1) - 1));
+    const consumers = Math.max(0, (this.templateConsumers.get(assetId) ?? 1) - 1);
+    this.templateConsumers.set(assetId, consumers);
+    if (consumers === 0) this.enforceTemplateBudget();
   }
 
   public static cacheStats(): AssetCacheStats {
@@ -368,6 +576,10 @@ export class AssetLoader {
 
   /** Purges in-memory cached model and in-flight loading promise for the specified asset. */
   public static invalidateCache(assetId: AssetId): void {
+    this.directLoadControllers.get(assetId)?.abort(new DOMException("Asset cache invalidated", "AbortError"));
+    this.directLoadControllers.delete(assetId);
+    this.directLoadingPromises.delete(assetId);
+    this.directModelSources.delete(assetId);
     this.modelCache.delete(assetId);
     this.loadingPromises.delete(assetId);
     // Bookkeeping only: live clones and hot-swap callers may still reference the

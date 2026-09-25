@@ -21,6 +21,7 @@ import {
   type MainlandRoutePlan
 } from "../../src/world/NevaMainland";
 import { MAINLAND_ARCHITECTURE_PADS } from "../../src/world/MainlandSettlementLayout";
+import { mainlandWorkSiteClearanceAt } from "../../src/world/MainlandWorkSites";
 import { WorldLayout } from "../../src/world/WorldLayout";
 
 type Point = { x: number; z: number };
@@ -48,7 +49,7 @@ const MAX_KNOT_SPACING_METERS = 64;
 
 interface Leg { from: Point; to: Point; kind: Kind }
 
-/** Road half-width per class, matching `route()`; buildings keep this plus a verge clear. */
+/** Road half-width per class, matching `route()`; buildings and work sites keep this plus a verge clear. */
 const HALF_WIDTH_METERS: Readonly<Record<Kind, number>> = { arterial: 2.3, lane: 2.1, trail: 1.4 };
 const BUILDING_VERGE_METERS = 1.8;
 
@@ -167,8 +168,9 @@ function routeLeg(leg: Leg): Point[] {
     if (wet[i] < 0) {
       const x = worldX(i), z = worldZ(i);
       const margin = release(x, z) < ENDPOINT_WATER_RELEASE_METERS ? 0.5 : WATER_MARGIN_METERS;
+      const clearance = HALF_WIDTH_METERS[leg.kind] + BUILDING_VERGE_METERS;
       wet[i] = WorldLayout.waterSignedDistance(x, z) > -margin
-        || buildingDistance(x, z) < HALF_WIDTH_METERS[leg.kind] + BUILDING_VERGE_METERS ? 1 : 0;
+        || buildingDistance(x, z) < clearance || mainlandWorkSiteClearanceAt(x, z) < clearance ? 1 : 0;
     }
     return wet[i] === 1;
   };

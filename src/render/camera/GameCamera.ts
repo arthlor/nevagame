@@ -231,7 +231,7 @@ export class GameCamera {
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
   constructor(aspectRatio: number = 16 / 9) {
-    this.camera = new THREE.PerspectiveCamera(ON_FOOT_PROFILE.fovDegrees, aspectRatio, 0.12, 900);
+    this.camera = new THREE.PerspectiveCamera(ON_FOOT_PROFILE.fovDegrees, aspectRatio, 0.12, 4000);
     this.camera.position.set(0, 7, -11.8);
     this.currentLookAt.set(0, 1.1, 2.2);
   }

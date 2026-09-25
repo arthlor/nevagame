@@ -18,6 +18,21 @@ afterEach(() => {
 });
 
 describe("gameplay audio adapters", () => {
+  it("plays the ice cue once for a newly iced pack and preserves the paused snapshot", () => {
+    const unsubscribe = bindDomainAudio(new EventBus(), () => position);
+    const playOneShot = vi.spyOn(gameAudio, "playOneShot").mockImplementation(() => {});
+
+    syncWorldAudio({ ...worldInput, icedCargoIds: ["cargo_a"] });
+    syncWorldAudio({ ...worldInput, icedCargoIds: ["cargo_a"] });
+    syncWorldAudio({ ...worldInput, icedCargoIds: ["cargo_a", "cargo_b"] });
+    syncWorldAudio({ ...worldInput, icedCargoIds: ["cargo_a", "cargo_b"] });
+    syncWorldAudio({ ...worldInput, icedCargoIds: ["cargo_a", "cargo_b", "cargo_c"], paused: true });
+    syncWorldAudio({ ...worldInput, icedCargoIds: ["cargo_a", "cargo_b", "cargo_c"] });
+
+    expect(playOneShot).toHaveBeenCalledExactlyOnceWith("ice-shovel");
+    unsubscribe();
+  });
+
   it("plays the exhaustion cue once when sprint exhaustion begins", () => {
     const playOneShot = vi.spyOn(gameAudio, "playOneShot").mockImplementation(() => {});
 

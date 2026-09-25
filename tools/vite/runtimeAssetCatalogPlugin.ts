@@ -87,7 +87,8 @@ export function runtimeAssetCatalogPlugin(rootDirectory: string): Plugin {
           catalog.assets?.flatMap((asset) => typeof asset.file === "string" ? [asset.file] : [])
         );
         const filename = (stageMatch?.[2] ?? publicMatch?.[1])!;
-        if (!allowed.has(filename)) {
+        const published = path.resolve(rootDirectory, "public/assets/models", filename);
+        if (!allowed.has(filename) && !fs.existsSync(published)) {
           response.statusCode = 404;
           response.end("Unknown catalog asset");
           return;
@@ -95,7 +96,6 @@ export function runtimeAssetCatalogPlugin(rootDirectory: string): Plugin {
         const staged = stageMatch
           ? path.resolve(rootDirectory, "generated/.staging", stageMatch[1]!, "optimized", filename)
           : null;
-        const published = path.resolve(rootDirectory, "public/assets/models", filename);
         const source = staged && fs.existsSync(staged) ? staged : published;
         if (!fs.existsSync(source)) {
           response.statusCode = 404;

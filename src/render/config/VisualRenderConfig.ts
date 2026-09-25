@@ -72,6 +72,18 @@ export interface VisualRenderConfig {
     /** Solar height at which the key has fully set, below the horizon so the
      * warm low-sun key survives the last minutes on either side of it. */
     daylightZeroSolarHeight: number;
+    /**
+     * The ember at the centre of the golden band: `horizonColorHex` offset in
+     * HSL, reached only while the sun is within `solarWidth` of the horizon.
+     * The golden band owns the broad low-sun window; this is its deepest note.
+     */
+    ember: { hueOffset: number; saturationLift: number; lightnessOffset: number; solarWidth: number };
+    /**
+     * Extra key strength across the golden band. A grazing sun lights open
+     * ground at a shallow angle, so without it the warm key reads only on
+     * walls and the land falls back to the fill colour.
+     */
+    goldenKeyLift: number;
   };
   moon: {
     colorHex: string;
@@ -104,6 +116,30 @@ export interface VisualRenderConfig {
      * daylight, so labeled dawn/dusk start above night rather than matching it.
      */
     dawnDuskEdgeAmbient: number;
+    /**
+     * Clear twilight has its own sky rather than the pale overcast one: a
+     * deeper, cooler zenith offset in HSL from the clear-day zenith. The warm
+     * low-sun colour then belongs to the sunward horizon, not the whole dome.
+     */
+    twilightZenith: { hueOffset: number; saturationLift: number; lightnessOffset: number };
+    /** Anti-solar rose band above the horizon at clear twilight, offset from `horizon_warm_01`. */
+    antiTwilight: { hueOffset: number; saturationLift: number; lightnessOffset: number };
+    /** Clear twilight pulls the hemisphere sky colour toward that cooler zenith, so shade reads cool. */
+    twilightCoolFillMix: number;
+    /** …and the hemisphere ground colour toward the low-sun colour: the bounce off sunlit ground. */
+    twilightWarmBounceMix: number;
+    /** Hue offset carrying the night sky, horizon and fill from sea teal toward moonlit blue. */
+    nightHueOffset: number;
+    /**
+     * Clear golden hour, while the sun is still up. The skylight really does
+     * fall as the sun lowers, and a grazing key reaches open ground weakly, so
+     * a full-strength fill left the land blue-grey. Fill and the uniform warm
+     * horizon ring are scaled down (the sunward glow carries the brightness)
+     * and exposure lifts a little to hold the midtones.
+     */
+    twilightFillScale: number;
+    twilightHorizonScale: number;
+    twilightExposureLift: number;
   };
   twilight: {
     /** Extends the dawn/dusk ambient ramp beyond label boundaries without a hard edge. */
@@ -147,6 +183,68 @@ export interface VisualRenderConfig {
       nearFadeStartMeters: number;
       nearFadeEndMeters: number;
       boundaryFadeStart: number;
+      /**
+       * Forward scattering toward the sun along every sightline: haze glows in
+       * the key's colour when looking toward a low sun and stays cool away
+       * from it. A multiple of the key colour, faded with the visible sun.
+       */
+      sunScatter: number;
+      /** Width of that forward lobe: higher hugs the sun. */
+      sunScatterPower: number;
+      /**
+       * Morning valley mist, added to the low-lying layer on clear and cloudy
+       * mornings only. It rises from `dawnMistMinutes[0]`, peaks at `[1]` and
+       * has burnt off by `[2]` (clock minutes).
+       */
+      dawnMistDensity: number;
+      dawnMistMinutes: readonly [number, number, number];
+    };
+    /**
+     * Directional terms composed in `atmosphereSkyShader`, and therefore in the
+     * water's reflection probe as well. Every strength scales the frame's own
+     * colours, so they follow time of day and weather without a second palette.
+     */
+    sky: {
+      /** Radiance of the sunward horizon glow (the key colour squared); the twilight envelope sets its reach. */
+      sunwardGlow: number;
+      /** Vertical concentration of that glow; higher hugs the horizon. */
+      sunwardGlowFalloff: number;
+      /** Anti-solar rose band above the horizon at clear twilight. */
+      antiTwilightBand: number;
+      /** Luminous haze line along the horizon at every hour. */
+      horizonBand: number;
+      /** Broad forward-scattering aureole around the sun. */
+      aureole: number;
+      /** Sun-disc radiance high in the sky and at the horizon, where extinction reddens and dims it. */
+      sunDiscIntensity: number;
+      sunDiscHorizonIntensity: number;
+      /** Soft glow around the moon. */
+      moonHalo: number;
+      /** Forward-scattered rim on sunward cloud edges. */
+      cloudSilverLining: number;
+      /** How much darker cloud bases are than sunlit tops while the sun is high. */
+      cloudBaseShade: number;
+      /** Rose afterglow on clouds while the sun sits just below the horizon. */
+      cloudAfterglow: number;
+      /**
+       * Warm light on cloud bases across the golden band, strongest toward
+       * the sun. The deck sits far lower than real cloud, so a low sun would
+       * otherwise never reach its underside the way a sunset sky shows it.
+       */
+      cloudTwilightGlow: number;
+    };
+    /**
+     * The visible storm bolt, composed over the clouds in the storm flash's
+     * direction and drawn only while a strike is lit. Reduced motion
+     * suppresses the strike, and with it the bolt.
+     */
+    lightningBolt: {
+      distanceMeters: number;
+      /** Angular core width of the channel. */
+      widthRadians: number;
+      /** Angular zig-zag amplitude of the channel. */
+      jitterRadians: number;
+      intensity: number;
     };
     sunDiscRadiusRadians: number;
     moonDiscRadiusRadians: number;
@@ -612,6 +710,32 @@ export interface VisualRenderConfig {
         };
       };
     };
+    /**
+     * Mainland brooks (`BrookSurface.ts`): a thin ribbon of running water on
+     * each traced course, over the gravel bed `MainlandBrooks` cuts. Detail
+     * scrolls downstream faster on steeper reaches, which break into foam.
+     */
+    brooks: {
+      /** Knot spacing of the ribbon along its course. */
+      spacingMeters: number;
+      /** The ribbon's soft edge runs this far past the water's width. */
+      edgeOverlapMeters: number;
+      /** Opacity eases in from the source and out into the water a brook joins. */
+      sourceFadeMeters: number;
+      mouthFadeMeters: number;
+      confluenceFadeMeters: number;
+      flowMetersPerSecond: number;
+      /** Extra flow speed per unit of bed grade. */
+      gradeFlowGain: number;
+      rippleScaleMeters: number;
+      rippleStrength: number;
+      rapidsGradeStart: number;
+      rapidsGradeFull: number;
+      rapidsFoamStrength: number;
+      edgeFoamStrength: number;
+      opacity: number;
+      roughness: number;
+    };
     quality: Record<QualityTier, WaterSurfaceTierQuality>;
   };
   practicalLights: {
@@ -648,6 +772,8 @@ export interface VisualRenderConfig {
     resolutionScale: number;
     movingRefreshFrames: number;
     settledRefreshFrames: number;
+    maxDistance: number;
+    fadeDistance: number;
   };
   weather: {
     stormFogNear: number;
@@ -915,7 +1041,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     // was there, but nothing was left to cast it. Full strength now arrives just
     // above the horizon and the falloff finishes below it.
     daylightFullSolarHeight: 0.07,
-    daylightZeroSolarHeight: -0.1
+    daylightZeroSolarHeight: -0.1,
+    // Gold alone read as pale amber once ACES rolled it off; the last minutes
+    // either side of the horizon carry a deeper, redder ember.
+    ember: { hueOffset: -0.018, saturationLift: 0.12, lightnessOffset: -0.05, solarWidth: 0.09 },
+    goldenKeyLift: 0.35
   },
   moon: {
     colorHex: PALETTE_HEX.sky_pale_01,
@@ -948,7 +1078,18 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     twilightFillLift: 0.3,
     twilightZenithHorizonMix: 0.28,
     twilightExposureHold: 0.4,
-    dawnDuskEdgeAmbient: 0.46
+    dawnDuskEdgeAmbient: 0.46,
+    // Clear golden hour used to drop back to the pale overcast dome, which
+    // tone-mapped to a milky beige sky and a grey-olive world. It now keeps a
+    // deeper cool zenith, and the warm colour moves to the sunward horizon.
+    twilightZenith: { hueOffset: 0.02, saturationLift: -0.06, lightnessOffset: -0.4 },
+    antiTwilight: { hueOffset: -0.045, saturationLift: 0.08, lightnessOffset: -0.24 },
+    twilightCoolFillMix: 0.5,
+    twilightWarmBounceMix: 0.55,
+    nightHueOffset: 0.045,
+    twilightFillScale: 0.62,
+    twilightHorizonScale: 0.3,
+    twilightExposureLift: 0.08
   },
   twilight: {
     ambientShoulderMinutes: 90,
@@ -985,7 +1126,31 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       mistHeightMeters: 12,
       nearFadeStartMeters: 12,
       nearFadeEndMeters: 32,
-      boundaryFadeStart: 0.72
+      boundaryFadeStart: 0.35,
+      sunScatter: 0.55,
+      sunScatterPower: 5,
+      dawnMistDensity: 0.006,
+      dawnMistMinutes: [270, 390, 560]
+    },
+    sky: {
+      sunwardGlow: 1.3,
+      sunwardGlowFalloff: 5.5,
+      antiTwilightBand: 0.55,
+      horizonBand: 0.1,
+      aureole: 0.16,
+      sunDiscIntensity: 5,
+      sunDiscHorizonIntensity: 1.6,
+      moonHalo: 0.12,
+      cloudSilverLining: 0.9,
+      cloudBaseShade: 0.45,
+      cloudAfterglow: 0.8,
+      cloudTwilightGlow: 0.55
+    },
+    lightningBolt: {
+      distanceMeters: 900,
+      widthRadians: 0.0022,
+      jitterRadians: 0.018,
+      intensity: 14
     },
     sunDiscRadiusRadians: 0.009,
     moonDiscRadiusRadians: 0.013,
@@ -1401,6 +1566,23 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
         }
       }
     },
+    brooks: {
+      spacingMeters: 1.5,
+      edgeOverlapMeters: 0.1,
+      sourceFadeMeters: 4,
+      mouthFadeMeters: 5,
+      confluenceFadeMeters: 2.5,
+      flowMetersPerSecond: 0.9,
+      gradeFlowGain: 3.2,
+      rippleScaleMeters: 0.9,
+      rippleStrength: 0.34,
+      rapidsGradeStart: 0.12,
+      rapidsGradeFull: 0.45,
+      rapidsFoamStrength: 0.55,
+      edgeFoamStrength: 0.22,
+      opacity: 0.78,
+      roughness: 0.14
+    },
     quality: {
       low: {
         reflection: "skyGradient",
@@ -1449,7 +1631,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     denoiseSamples: 4,
     resolutionScale: 0.6,
     movingRefreshFrames: 2,
-    settledRefreshFrames: 4
+    settledRefreshFrames: 4,
+    maxDistance: 55,
+    fadeDistance: 32
   },
   weather: {
     stormFogNear: 28,

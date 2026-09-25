@@ -307,6 +307,11 @@ catalog provenance must instead hash the final durable adapted `.blend`.
   Declared accessory nodes such as the cottage lantern remain separate from the
   source surface. LOD1 may simplify source geometry while preserving data layers;
   it never replaces leaf cards or rebuilds all normals as flat.
+  Explicit user-requested component removal is declared as `removedSourceTriangles`,
+  indexed within each immutable source material's triangle stream. Normalization
+  uses the original bounds before removal; the comparator checks every retained
+  triangle and rejects undeclared deletions or additions. The cottage's detached
+  ground sheets use this exception; its source capture remains unchanged.
 - **Static comparison — `compare_static_source_contract.mjs`:** `--asset <id>
   --candidate <GLB> --report <JSON>` compares decoded LOD0 geometry, UVs,
   normals, uniform transform, source material regions and the per-region solid
@@ -333,6 +338,12 @@ catalog provenance must instead hash the final durable adapted `.blend`.
   (the embedded texture is retained; no `COLOR_0`). Geometry equality is not
   claimed, so the static comparator does not apply; the surface contract's
   all-clip edge stretch, compression and loop-seam checks on both LODs do.
+  The player eye revision is authored by `transfer_tomas_eyes.py`: it projects the
+  local Tomas donor's painted eyes into the existing player UV texture, packs the
+  modified image, and retains the player mesh, rig and actions. The original
+  capture stays pinned; the revised Blender library hash and attribution identify
+  the intentional texture edit. Regeneration of the humanoid adaptation requires
+  reapplying this eye pass before catalog publication.
 - **Tripo player — `adapt_tripo_humanoid.py`:** fits the existing player rig to
   the capture instead of the reverse, because wearable anchors, grips,
   `humanoidRig` semantics and every clip name those bones. The rig is

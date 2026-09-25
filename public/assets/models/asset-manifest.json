@@ -1,30 +1,30 @@
 {
   "version": 2,
-  "generatedAt": "2026-09-23T11:00:20.313Z",
-  "specHash": "8b7815f72117295dfcb8cd2dd7930c58ad8cbe13da06434e7b01b0ac5daae4f5",
+  "generatedAt": "2026-09-25T08:11:21.480Z",
+  "specHash": "b8e980ed3a63e91d6d44d4a7546fe527531f2d2290364a624c95ef15761ae16c",
   "paletteHash": "75afa4dc77fb1109ae8872e6d009f6853b2d4a7ea745bff76d64461900d3ba4f",
-  "toolchainHash": "1943655147e1dc917f64caed89c145bf24ba12cba440ffaca852ecbd0e7d7ca7",
+  "toolchainHash": "2032887189f2efbf6c2908773e235f2e170192ab0b7b10b2be6e7498928cbd57",
   "blenderVersion": null,
   "authoredProducerVersion": "authored-three@0.174.0",
   "vertexColorSpace": "linear-srgb",
-  "durationMs": 871,
-  "aggregateBytes": 42463928,
+  "durationMs": 223,
+  "aggregateBytes": 53850784,
   "summary": {
-    "assetCount": 296,
+    "assetCount": 302,
     "referenceReady": 93,
     "referenceDraft": 0,
-    "onTarget": 196,
-    "belowTarget": 100,
-    "triangles": 709480,
-    "packagedTriangles": 877556,
-    "productionMinimumTriangles": 187986,
-    "qualityTargetTriangles": 675736,
-    "hardMaximumTriangles": 1319590,
-    "fileSizeBytes": 42463928,
-    "trianglePrimitives": 1614,
-    "nodes": 6063,
+    "onTarget": 201,
+    "belowTarget": 101,
+    "triangles": 722950,
+    "packagedTriangles": 891012,
+    "productionMinimumTriangles": 194372,
+    "qualityTargetTriangles": 689007,
+    "hardMaximumTriangles": 1339316,
+    "fileSizeBytes": 53850784,
+    "trianglePrimitives": 1652,
+    "nodes": 6082,
     "cacheHits": 2,
-    "cacheMisses": 294,
+    "cacheMisses": 300,
     "artContractPassed": true
   },
   "assets": [
@@ -746,7 +746,7 @@
       ],
       "bytes": 146904,
       "fileHash": "bbe242dbcf9b2a93eb78b5294e924e2fe8f4ecd6bd3daf2898db6099000feb61",
-      "semanticHash": "2bce03b08159c0ba2e25c9401e1fbb23c48c53c05e6137f33f37c71e8264a7e8",
+      "semanticHash": "23a94262082de73e011ab50dd6d878227f7287e65f99142237e56946dc831eec",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -854,6 +854,79 @@
         "skinVertices": 0,
         "deformation": []
       }
+    },
+    {
+      "id": "building_ice_house_a",
+      "file": "building_ice_house_a.glb",
+      "family": "architecture",
+      "generator": "ice_house",
+      "seed": 612,
+      "dimensions": [
+        4.960894346237183,
+        7.367777585983276,
+        3.094416676554829
+      ],
+      "bounds": {
+        "min": [
+          -2.6105849742889404,
+          -4.170000076293945,
+          -0.004936753306537867
+        ],
+        "max": [
+          2.350309371948242,
+          3.197777509689331,
+          3.089479923248291
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_olive_01",
+        "grass_yellow_01",
+        "metal_iron_01",
+        "roof_turf_01",
+        "sky_pale_01",
+        "stone_cool_01",
+        "stone_warm_01",
+        "wood_dark_01"
+      ],
+      "vertexColorLoops": 3750,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_ice_house_a_root",
+        "COL_building_ice_house_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 40,
+      "durationMs": 207,
+      "inputHash": "d3ddb54a5bec95fa0f4126b64e6aac8bbc99536aefbbd03f0e5728b51c3ba794",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 375,
+        "trianglesTarget": 1250,
+        "trianglesMax": 2000,
+        "materialsMax": 8
+      },
+      "warnings": [],
+      "nodes": 3,
+      "meshes": 1,
+      "triangles": 1250,
+      "packagedTriangles": 1250,
+      "lodLevels": [],
+      "materials": 8,
+      "trianglePrimitives": 8,
+      "vertexColorPrimitives": 8,
+      "normalPrimitives": 8,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 34856,
+      "fileHash": "8a2b8679cf8a2de8d4e47efeecea9103e582763ce8261b28a32704636184164f",
+      "semanticHash": "c2c6bc49c62498db27975265a51bee90e5a9f59b653f193d0327fcb750ea4fb3",
+      "qualityStatus": "on_target",
+      "animationClips": []
     },
     {
       "id": "building_lighthouse_a",
@@ -1032,7 +1105,7 @@
       ],
       "bytes": 63332,
       "fileHash": "7d1ff2cfea3dc8f59ab9a3aafb6d3f9a175d8169b066910565f6ecbd53dbb751",
-      "semanticHash": "71caa2285fda4cf8724ddc981f7d8acdd318c22c0145ca11f9e59d41c534558b",
+      "semanticHash": "0fa5d452cd37cf861399db79ff7a36c113172e81e4b6e5c36d6a3e647422f518",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -2319,9 +2392,9 @@
       "collision": "none",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 24941,
-      "inputHash": "dd70d364de5fa2c287b87b317f0ff190a0940fd470f991d36a10747b50901440",
-      "cacheHit": false,
+      "durationMs": 47,
+      "inputHash": "9ae938a27fd2cdc4bba2a957c531d99360c55def5a2930c5296ab8394dc509eb",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 8734,
@@ -2356,9 +2429,9 @@
       "extensions": [
         "EXT_meshopt_compression"
       ],
-      "bytes": 7205560,
-      "fileHash": "d01e5fba7d78be42360f6364a03b404880ec7c3cd13bf363c8f4c7257a02f0e5",
-      "semanticHash": "6be5f1205a013bec9bf72ff598310db1084e79cddbb21135e9108871f51fd9e2",
+      "bytes": 18346728,
+      "fileHash": "06d941df446deb15af9ae0051d9d49e226e5398a104241ae405ccc65bb006c64",
+      "semanticHash": "f34d08be3c1e596bc53a326ec75cf4208de42269971617127cda7fc49fbaed48",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -8263,7 +8336,7 @@
       ],
       "bytes": 11780,
       "fileHash": "546957086cbeeacf5b5a4b51b8ea3f6148ff42449beefef24cb1bc466c59ff5b",
-      "semanticHash": "ddeaa1e262e44ead2b0f095ed9abf2076030c01e3dfd16e461b4628e70298f8a",
+      "semanticHash": "4d33820204dfb1e3374946149dbeefe1b6cd68b39d208849229a71fc34eab12b",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -8345,7 +8418,7 @@
       ],
       "bytes": 34104,
       "fileHash": "ce1e459f50d99a5d885694ec0ead95c50004a847caaeb22025106d3082ad22e2",
-      "semanticHash": "e02b784b282d04de23cabe3e7525916cef60731943c440f8c2c42631ddbd9fb3",
+      "semanticHash": "7565b7245e5c1bc767794ec25415661c3fc4aa60f247f06dff7dc5e78e70b139",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -8456,7 +8529,7 @@
       ],
       "bytes": 24844,
       "fileHash": "ce9f9d4be27288747708167478f71bcc47e7072e32cc0cae42925136dc353a05",
-      "semanticHash": "6ea806b543da6b86faefbadb43a5e4860cf155695881b3dbf9e0de9e463df36e",
+      "semanticHash": "e5263991510b50f50e869180584eb624e855c6b209f106d7a35740d2f59c2a5d",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -8715,7 +8788,7 @@
       ],
       "bytes": 33872,
       "fileHash": "888cc27546ce22c3ce95091ab3dc0ea0ab377787217ced9bbace8c885e123b0f",
-      "semanticHash": "c5c6f6955d540f7bfbbbfdf1e1aaf2668cac08ec3b59fdeff0746c22de50516b",
+      "semanticHash": "4da9293684db5637cbe2dd030fb6c9de99ce9ab4ec9a1d979bab8d6d12396b50",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -9081,7 +9154,7 @@
       ],
       "bytes": 23532,
       "fileHash": "6ad0d368979f977df8de10d8c1357eea9ad0f9709410762ab15427e81c6fb94b",
-      "semanticHash": "6bb3d442c530ed1408249ce99098b559fceccb29324fb8ea6491f7afd9fe0652",
+      "semanticHash": "bf50d30d30b974ee8ea075e10d8cc95c9dd1dbfcc0b238d75230aac1489ebd49",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -9192,7 +9265,7 @@
       ],
       "bytes": 20180,
       "fileHash": "1828a19364c4455e46cb84c15fe133648e921b31af1508d8929093fea7c5fd04",
-      "semanticHash": "8ccd97fb1e40175eb6a6e971798e79035df8cac6b8501bae19d1b11b7e37f53d",
+      "semanticHash": "842abb421e688bc92d8653da72ca492fbd0b0ad718eb1654473a0d5f07f56bb8",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -9428,7 +9501,7 @@
       ],
       "bytes": 16880,
       "fileHash": "2195bf2d6e0df8f2304126eecc48a8699d78015060e6a8bb018d0f12f8ad26f4",
-      "semanticHash": "3ba03fc847bee393ec873a2e33bc6da58e451a2c80fbb615a3e6b41713bdf565",
+      "semanticHash": "dbf39dd47c0239d2e60faf7fe3debaa9792db039bf064b391b4d5cb8a1e3ca65",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -9527,7 +9600,7 @@
       ],
       "bytes": 24152,
       "fileHash": "bb0e94d1414c102c6938b4b56658f8eaf4f600d78ae18f45e7a666fcb832d666",
-      "semanticHash": "1275f0e219fa7485a189618811eb48560bd3b1ee0d900e90a70b50d05a6c31d7",
+      "semanticHash": "f56dd9b4f636a3cbe4b210440fb17b4c9557ad4bf0733617780c6fc899d5bc1a",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -9628,7 +9701,7 @@
       ],
       "bytes": 28532,
       "fileHash": "2dc83024f73f92328fbcef7cf1334b79bde1bea5c127aec9932571e5eca0afd7",
-      "semanticHash": "de9a2ccb57e7b265ec096fa5f7662147391df9437bc8b6c09c51edc4f60d123f",
+      "semanticHash": "bb3f8a72d7ef9a038acbf29b3c7d22a2502e7ea02ffab2885d667aaecec249c2",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -9729,7 +9802,7 @@
       ],
       "bytes": 68612,
       "fileHash": "5fa51b9ae087fc0b8b89e9f41bd049df0c055b7f5f1dbe996db9e35feda54469",
-      "semanticHash": "344f208e9c002e5ce611d280b12fa5e990cfc0714c164f03c8790a88e4ed9e38",
+      "semanticHash": "b9af1248cb6865812fe85ecf01a916290397dddcd2781b2dc00b3f84978663d5",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -9842,7 +9915,7 @@
       ],
       "bytes": 68736,
       "fileHash": "e10f74a868b84372734c37129803410a2f001ab48eab1f1e9475d2aaf08e696e",
-      "semanticHash": "3198c8fa71d30a3753318bfa8d9abd9a84dea9305448aea8e48bd24d1dc18824",
+      "semanticHash": "429260d51c24d3f6219ca6c421fc488168dd860682127c8e70206dcb152b97ca",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -9953,7 +10026,7 @@
       ],
       "bytes": 68740,
       "fileHash": "56e4985660bb52a8a52a4ec33d0925c94c047b4b141f0d03c8cf6a751c2eef60",
-      "semanticHash": "4992502ecbf479e1e127fe289286bc65a4536e57c3aff65acc659701d7e6caa7",
+      "semanticHash": "1e8f683789a7e1a8e09106cd995e659967f3f08cded22215489b137c791d7164",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -10066,7 +10139,7 @@
       ],
       "bytes": 67768,
       "fileHash": "3f67f9be65d30c092bb19bdb3ed111666e23b9979e777db9082b675ac0e7d175",
-      "semanticHash": "5e9e0224fd5f37ed964f883e261c28b88e796e9ab2ab6e279c35353daa77e358",
+      "semanticHash": "2dc02a2b558073594a22b146446a2c140567c55376e3d1f2222fd1a255cd627d",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -10177,7 +10250,7 @@
       ],
       "bytes": 68604,
       "fileHash": "3a6c6d91b3fdbc263c505f2a847e7f0f408f98b06f251ddfcf2b8b9dea8c9414",
-      "semanticHash": "30a94f8e162e37d497ca2d4ab8916dda97ae1b429dedbd16c00a660a59294104",
+      "semanticHash": "0124f0a7ef361fa36518f8b67a0ac6dceb3b7bf4e9f96ba0e5209ad7bb7015ec",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -10288,7 +10361,7 @@
       ],
       "bytes": 75112,
       "fileHash": "cec1e416a4743750644db0d6ea4843714fc0f868fa0812ffd67c72afeb8904eb",
-      "semanticHash": "950ed403b3d80e49fd3fb30a2520880031841ccb4e63c58da6afacf875c8f1f9",
+      "semanticHash": "3b603973e634d6dc7567de3f4946ecd6199e13028c54c8eb4ac77f9df60a9275",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -10401,7 +10474,7 @@
       ],
       "bytes": 61928,
       "fileHash": "5c240baf98289dc71df9ab6907a90a722134fb52cb37ea9208482a27fc1f9905",
-      "semanticHash": "fbaae2887bdb5b206a89cdf7b00da9d6ee56a82f13d730763fea3d08ecc4f51b",
+      "semanticHash": "c0860ae6881eab7e91e0b58d3b9b47c94523a92fc997cff95b240fc7f5b0c8dc",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -10512,7 +10585,7 @@
       ],
       "bytes": 67240,
       "fileHash": "5db20ec4281c9e8719602a61598773acb353b1b2c6a1f1f546d9dbc731c43820",
-      "semanticHash": "38c1c4e76866628508a635a27db37d20a8e269f784b2a4ce8b9075b80cc1be1a",
+      "semanticHash": "dfce0439187a6cdaece10b20b02f90d31b0c5a750c4b9954451a6e3ee663a049",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -10625,7 +10698,7 @@
       ],
       "bytes": 65688,
       "fileHash": "74b28f8be298bc13168e78fabe05737df704efd890cdae72dc84412188a6fcc3",
-      "semanticHash": "65878846903aed179e014786a2a65e22c6aea15a7eb498085eabc65d9127fb15",
+      "semanticHash": "09521cbb1440c40243cefd2ca5d60447ebb540751f841d63608e6e218836b1bc",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -10736,7 +10809,7 @@
       ],
       "bytes": 58716,
       "fileHash": "82cfa73889be3960af78d2dec7d13f3fc92e8244003e1c74618c0b49fbcefa12",
-      "semanticHash": "5aa87e9648458a7ec863cddb061fef382b0b7b0e7c7381ec42329fb66cd3d5a3",
+      "semanticHash": "42b0bd38f5abace2da97b92c2c9a5adc01b2cfe6660ccab7ef6fc3eb6a8f24a1",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -10847,7 +10920,7 @@
       ],
       "bytes": 68508,
       "fileHash": "a29dc873ce3f94b0aadd0728271ba6ca9a25ceb46c72e6066eda3e7d3362fcda",
-      "semanticHash": "9540dcd717deb8abed69e9511d6e6942cd5d1cd1ad5943e5e78dcbcc4952c591",
+      "semanticHash": "9eaa2cd9428142464e6563fe73f5ad6591acbf47906f5bcf7f160cc3f3505ea0",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -10960,7 +11033,7 @@
       ],
       "bytes": 80288,
       "fileHash": "15f1bb832d528c46971f199e3f8febd1a731599d4472f4b4d4466bba242b81af",
-      "semanticHash": "88e632bdde283ad9fc377f7fe80f414aac2a0f969ef920090848c335d4e37d87",
+      "semanticHash": "2cd6c34a193a7ec89b7538db451056d9dee0ead3086b1216385b2eacd5fa8fe7",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -13281,8 +13354,8 @@
       "collision": "box",
       "lod": "medium",
       "readDistanceMeters": 30,
-      "durationMs": 2,
-      "inputHash": "ce7d4dfa868447c8133a41729a4b8757b3feb8ae41f8e3b7152bde95ddc52e7e",
+      "durationMs": 7,
+      "inputHash": "3d394849745151bb5302e58f4935140daf60129c7ff6257c5930c06b805fe958",
       "cacheHit": true,
       "budget": {
         "trianglesMin": 7000,
@@ -13290,23 +13363,25 @@
         "trianglesMax": 8200,
         "materialsMax": 2
       },
-      "warnings": [],
+      "warnings": [
+        "7754 triangles are below quality target 7791"
+      ],
       "nodes": 6,
       "meshes": 2,
-      "triangles": 7791,
-      "packagedTriangles": 10751,
+      "triangles": 7754,
+      "packagedTriangles": 10700,
       "lodLevels": [
         {
           "node": "house_cottage_b_LOD0",
           "distanceMeters": 0,
-          "triangles": 7791,
+          "triangles": 7754,
           "ratio": 1
         },
         {
           "node": "house_cottage_b_LOD1",
           "distanceMeters": 48,
-          "triangles": 2960,
-          "ratio": 0.3799255551277115
+          "triangles": 2946,
+          "ratio": 0.37993293783853493
         }
       ],
       "materials": 1,
@@ -13318,10 +13393,10 @@
       "extensions": [
         "EXT_meshopt_compression"
       ],
-      "bytes": 3271792,
-      "fileHash": "c0ee1728483a16673c83cd6595cbe1a101f05addd53c8d7eba2bd381ae66bb55",
-      "semanticHash": "9f6d79a40fc6624ac4ce686acfabfe8cd0bdb22ddadf42f53c001797808824d0",
-      "qualityStatus": "on_target",
+      "bytes": 3269532,
+      "fileHash": "df941253661c8fb5f52165e09af91d7bda367159145d507b76130165a7b73926",
+      "semanticHash": "37343ab3b35c76b18f4117b8752ede02acfaa99af61540a3a27b52f8614f6ea3",
+      "qualityStatus": "below_target",
       "animationClips": [],
       "staticSourceContract": {
         "passed": true,
@@ -13329,7 +13404,7 @@
         "sourceRegionCount": 1,
         "candidateRegionCount": 1,
         "uniformScale": 7.819089574155654,
-        "maximumPositionErrorMeters": 4.191685700760672e-7,
+        "maximumPositionErrorMeters": 3.785288811286591e-7,
         "maximumNormalErrorDegrees": 0.7731839146276233,
         "maximumUvError": 0
       },
@@ -14179,7 +14254,7 @@
       ],
       "bytes": 13944,
       "fileHash": "a734610cfb0c9a8e9698c91e4d97a920ed935f98c82f876b0d3cd128b2491b45",
-      "semanticHash": "cfc56f106d79bcc3e0179fa493d60da9bdf038b7cd33a467711b1ea9a80e0742",
+      "semanticHash": "5398272048989fb6473d875b2258a450208d5151b97380a1cbfb0b83a8a80e96",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -14248,7 +14323,7 @@
       ],
       "bytes": 20408,
       "fileHash": "289611a57296bb5a2077157892e276f0eb02e8354478a1459f2fd242abdde121",
-      "semanticHash": "220dbf2770a5360bbc222896415046212c23ca4590c53882cac0b48f8d69c8f8",
+      "semanticHash": "480d8bf99d7d69d5e02152f5fce6518db50847908595f2567e5ac04bd9ab91ba",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -14393,7 +14468,7 @@
       ],
       "bytes": 31828,
       "fileHash": "1607457e73cba8e765686f584bf296d90a265544ed313cc140230afcd9b61c4d",
-      "semanticHash": "3a2178354dabd86104cf48a2e13c0dfbd36adc9f9aed1fa42dbc90c79e4da3d0",
+      "semanticHash": "1f1ad21380baa6a50c611ba5f973e3c7249ed6960de331583145d08762a242ae",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -14463,7 +14538,7 @@
       ],
       "bytes": 16740,
       "fileHash": "4d2c8a0917469a89b6c0fe37bd6bc97fd4d1555767afe340da91233b407374fe",
-      "semanticHash": "81975ca2e864a78c8a47854944c5c07838eb0c6eff8fa2595b79e7891c35f11e",
+      "semanticHash": "57b04b99251bf755d09ef5dc35c5cd8eef4b80541cd2f8ff3b3bb7d344e66cc5",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -14531,7 +14606,7 @@
       ],
       "bytes": 10076,
       "fileHash": "d09170d8362f7a617876ff947ed029700d88a2ae7d77dd5a9c3683e3c620a077",
-      "semanticHash": "dee5a34215f34c8777283c10b7d78e054234f32c4191f09d576186a8a2b06a75",
+      "semanticHash": "c49e6fb29f797b0b6072267e6525da681200aec4f2dd0a867e76929dc208a232",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -14674,7 +14749,7 @@
       ],
       "bytes": 27952,
       "fileHash": "3b4a05f7e25270b65c01e9fca66ef5b93c20671fa675d3dc3c68f39c8b98b817",
-      "semanticHash": "29201cabe06a5622e7e60649c992b4547d2405ffd9f27472bf4d6b2c80b695fc",
+      "semanticHash": "b422d2371a8b2389118aa2916557af673b480a50db65143069ce038c05060608",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -14743,7 +14818,7 @@
       ],
       "bytes": 7376,
       "fileHash": "e1f32535b459e9702a2de620fa87fe67a062308a6cc342404c33d3b16d6cb854",
-      "semanticHash": "2e1d7ae7f90014f49a6bc53b07d10ca20db1f17682c5bbbcff821d8fe9b2737f",
+      "semanticHash": "ef08e145f0b796982949a2e4d0a4e500589f786e22e9a8aae381e7b9afc6be4f",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -14895,7 +14970,7 @@
       ],
       "bytes": 32656,
       "fileHash": "31676b221a6328a97a1141568a4463eb903ce9a5d9c5355c9501585b508cf9e0",
-      "semanticHash": "66f8963ac1ea6e2d870ffc2ba53a88cd4f1469313b836b3419f3fda4bf9fad14",
+      "semanticHash": "ade716f7d8e4c7d10802c2a8fa3797d2844ca0d0d649fe06e0a747bdbc64b034",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -14965,7 +15040,7 @@
       ],
       "bytes": 16564,
       "fileHash": "3c12a5c7f1b75ade77cae358693344e72313f27c3995b8374802f38104009c92",
-      "semanticHash": "8709c16cbfa50612db75f4e4a7173883edf5fcf889e63f5544cfe3b1c50df1d6",
+      "semanticHash": "88b7cee59532243043e768ac6782f0a267e14f4f2e30694cb2d6c767e69316a2",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -15032,7 +15107,7 @@
       ],
       "bytes": 13640,
       "fileHash": "465f24212e583c4fc28e7a724511293c0437e62f8841df62c1757eeb194cf974",
-      "semanticHash": "5c3307029755e9adbeb4cca18b5b888faeac96a144f71548dd5fd22438f9c35c",
+      "semanticHash": "332196e75d115ca4ba1f2bd196d888b382c95d3a1089c5a2d79583cead0103ce",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -15102,7 +15177,7 @@
       ],
       "bytes": 18384,
       "fileHash": "0b331b2f71f92c50264d284fe4259eb434973aa14da8e0b04b44c068c571a12d",
-      "semanticHash": "5fadc3334de61a8d231fdd095b85580f39ef9820b1b241effba1b97788f31217",
+      "semanticHash": "25b26ed4ef41ae4c9fc208408645a888dc0170d80770b07c5da47d807a7f5b45",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -15172,7 +15247,7 @@
       ],
       "bytes": 11840,
       "fileHash": "f1531350effddb37f217ade5aa37d6b6c6948daabc941ec2ec520b10d52b9922",
-      "semanticHash": "f8165977e09b996b228a38c2ca7a26a43de1911a35c7c889ab086d83b559c731",
+      "semanticHash": "9e75e1131dd214d64e0c8ebe2c8329a1b29a52bf3bd4c5b4d2a03f578551f9df",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -15242,7 +15317,7 @@
       ],
       "bytes": 16656,
       "fileHash": "819a401e2f45355907061e0c836dc761c0b7ae5c392b35da280b60b42182c760",
-      "semanticHash": "90ee1de162d1f2092046a9241fb7ba89523b6df1cfc72abcc7330f0a51807260",
+      "semanticHash": "e45ad2eb59f65a4aa055d4e256103a85b4dadb85b0ffd13f7327cc55d7fe5b15",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -15310,7 +15385,7 @@
       ],
       "bytes": 13100,
       "fileHash": "81eaab73bc860a31197222e0c1c1ca16e6985155928ffce52ed8ad9c0eafa2cf",
-      "semanticHash": "1548a441c737ae3e39cc7d168d46de0da17d24c331611328df86946834cfde3d",
+      "semanticHash": "ff385c4c59d74cac5861ada9296d1bd4b47bf2a2e7c021b4f3f26fd8a7076e7b",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -15451,7 +15526,77 @@
       ],
       "bytes": 18780,
       "fileHash": "a9f1bad4bdddabddd2848059e70bcbe1ec23381ead9a9f0a54c809d46061ea94",
-      "semanticHash": "a2b4add7381037bd79e6d012776505995918163fcc5fa81d33290b38f31c3712",
+      "semanticHash": "f9f2861ef9816b0b038de788587c3b25790f617f327a8a8d9cd950ba384466e4",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "prop_culvert_headwall_a",
+      "file": "prop_culvert_headwall_a.glb",
+      "family": "prop",
+      "generator": "culvert_headwall",
+      "seed": 615,
+      "dimensions": [
+        4.819456577301025,
+        1.75,
+        1.3450000332668424
+      ],
+      "bounds": {
+        "min": [
+          -2.4097282886505127,
+          -1.100000023841858,
+          -0.004999999888241291
+        ],
+        "max": [
+          2.4097282886505127,
+          0.6499999761581421,
+          1.340000033378601
+        ]
+      },
+      "paletteTokensUsed": [
+        "rock_coastal_dark_01",
+        "soil_shadow_01",
+        "stone_coastal_warm_01",
+        "stone_cool_01",
+        "stone_moss_01"
+      ],
+      "vertexColorLoops": 4908,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "prop_culvert_headwall_a_root",
+        "COL_prop_culvert_headwall_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 30,
+      "durationMs": 190,
+      "inputHash": "87615356502ba8a87b31e65b629827330db7a887c36b0d146c9279b1280d8b37",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 420,
+        "trianglesTarget": 1400,
+        "trianglesMax": 2240,
+        "materialsMax": 5
+      },
+      "warnings": [],
+      "nodes": 3,
+      "meshes": 1,
+      "triangles": 1636,
+      "packagedTriangles": 1636,
+      "lodLevels": [],
+      "materials": 4,
+      "trianglePrimitives": 4,
+      "vertexColorPrimitives": 4,
+      "normalPrimitives": 4,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 29480,
+      "fileHash": "588fbc779c81940aa1f0eb0cf9ffe278cda2f204395363206d5de8f0cc26f565",
+      "semanticHash": "d3c0d57594fcecb942af01472a8d25089ddbda1bbf198b956f18f95830ff9b28",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -15600,7 +15745,7 @@
       ],
       "bytes": 13632,
       "fileHash": "cbaf8aeef501468a64853647ecc8905efe2ba8c0f56c2a63f88c289598ad8035",
-      "semanticHash": "d8a554c3b0bb663ae844e0868d09d2c2836396bc9d601b958fc79ec1d5432f72",
+      "semanticHash": "87497287885c542c03666bc7f0beec3d562ecea4f43080f55990bc514f545655",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -15749,7 +15894,7 @@
       ],
       "bytes": 7436,
       "fileHash": "9650ff4d7eb2ff05d3ff994e3ccd4250ddf56210449db54182ba151eadde1eb8",
-      "semanticHash": "74ddcdf5addcc30962a2dd1aa59d85116ebacfabb3a6ee7e5af6156b0083cb9d",
+      "semanticHash": "9d54cd926c741188616573046f07b43a783acea0431a2735df89295701161c65",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -15825,7 +15970,7 @@
       ],
       "bytes": 6336,
       "fileHash": "66f5ac2f460505b6980bdac09baca6dbddd6861332ffbdb373a2b8cf9591a99d",
-      "semanticHash": "1f42883c0fb8ede54fba7917330f0d51cca61177d1eff2abeff106c69eb56981",
+      "semanticHash": "ce95011b36840ab0a26db6ea3c5d894185564c1497024190831ffc04756c7181",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -15899,7 +16044,7 @@
       ],
       "bytes": 7372,
       "fileHash": "71a612b776132a59a49c943f15db3ef3cee7b9ee50d58c72e5d7029dda0440cf",
-      "semanticHash": "bc2ab3abd4e62aeebd6171815881f780979bd822645829812deb0ce48c57c740",
+      "semanticHash": "9059fc4729de3235bbfc077c645e783a52265e47111859e997c75c2863f35071",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -15966,7 +16111,7 @@
       ],
       "bytes": 9912,
       "fileHash": "ff724e24da17360a898351fdf16ed02073281c14462ded8a6006bba7d9c193eb",
-      "semanticHash": "9e0ecb8191f6c43514bb43b19570e2d733428e8bc853a143fe64d33d78abf432",
+      "semanticHash": "b8ff223343a53ed664dd88c0e179aecd7e21af8a6add30d256389881a46bad81",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -16036,7 +16181,7 @@
       ],
       "bytes": 15948,
       "fileHash": "69332ed7d10da8683bf5806bc27dcfdb86e2723616e308ba02bb35ac718b6a11",
-      "semanticHash": "5ee312380a5c1642d00c7f8b093213deb67c13e8ee8237af51c6c5a48e7d63a9",
+      "semanticHash": "e2f11154d2ce346c7db443731ce593f77eeaf5248d6db3b290ccf7096497426c",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -16110,7 +16255,7 @@
       ],
       "bytes": 9548,
       "fileHash": "14381091524b9629ce4aedda89055a0dd10f56e69fed40da0c13fcd01f4a63dd",
-      "semanticHash": "6ae53ffd755ca99edb82e902f3049f6b8cb12b893a0b70ac1c1454ecb94bd8b2",
+      "semanticHash": "a7a59cf648b32c39dce6588914f6a02999ce57ef2bb2fa09e71a79a3b25e3d89",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -16187,7 +16332,7 @@
       ],
       "bytes": 27620,
       "fileHash": "2759f95c055c6d534e5de2fdd992f5fd80b447dcc56e141e624f6a6c5e3cb0d5",
-      "semanticHash": "6682ae63e0f334cb1cd8605bcd5283513417ded010e2ea7eea62adcb8f35540c",
+      "semanticHash": "0181652f20802ad311628fa9d719d36eb92c3aa74e07185f094ba5a4ac3e91b2",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -16328,7 +16473,7 @@
       ],
       "bytes": 10452,
       "fileHash": "0ef915058424c142668547e48e293dcf8e58edd2895f5a0313ef8b024b251163",
-      "semanticHash": "1a488a403b311a0886b75ef20f2b6a4399aacaa5006fa3811456e7bcedee0d92",
+      "semanticHash": "96076ce92da1ce6e9337ecc956600a723ceb747e55769017142b4098a669633b",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -16399,7 +16544,7 @@
       ],
       "bytes": 15312,
       "fileHash": "afcc8b8a482f17510d71f969b2762fef8bf81a2b9e8b65a05d9d46a80e7f0169",
-      "semanticHash": "31a1cbc50a7a4cc5d4ff36d8c4dea502eedfdbffdaa5922c2a2a727c6ffd5bda",
+      "semanticHash": "58843591d0e5888aa7cce09d2fa1f9bbaf55660c5aa0ed6eb15d3f7b3b12d06b",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -16695,7 +16840,7 @@
       ],
       "bytes": 70996,
       "fileHash": "6d03f8f84226a070d7f236e7cb7f0ce55c71a2ae50db8904293265e62b4368e0",
-      "semanticHash": "9ec8c47f7a5778e940cea623de926e49906dffa02301878d33a9ad6ab8b05e41",
+      "semanticHash": "de338aa36f53da2e1a1d1bf689f55a371cc381d36e1c96f0af521d4b1264dd6c",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -16815,7 +16960,7 @@
       "readDistanceMeters": 80,
       "durationMs": 1,
       "inputHash": "48dcb98f22caa44003c9ac5e7295aebe8de00ebf1c672a46f699aa30cf183ea9",
-      "cacheHit": true,
+      "cacheHit": false,
       "budget": {
         "trianglesMin": 7000,
         "trianglesTarget": 7867,
@@ -17010,7 +17155,7 @@
       ],
       "bytes": 7012,
       "fileHash": "f8c98a29a0ddc00fd889e20a3e88bb25be4a19a9757180eff8ecdf0cf04ffe71",
-      "semanticHash": "65b0bec58663d4de00a8e66deb56134f7567fde3400d862dda8cef7bf221275c",
+      "semanticHash": "31aa1da0e5be5baab59135731fab228f179e49017f550d2b615ed094afa6a6ba",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -17077,7 +17222,7 @@
       ],
       "bytes": 33784,
       "fileHash": "c4d70a161d708ec5f19f37af5dd5d0ba827ad1bd6b4ddb7561443e5d6b22d3ae",
-      "semanticHash": "01e8838aa90f22880343dd7e63b88bf817ca2bee8a5ec41315f12ee0f58e6913",
+      "semanticHash": "740acd638187d1d0b090ebefa669a2bbb5a748dc75fbda00660b4a0b499f80b0",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -17154,7 +17299,7 @@
       ],
       "bytes": 46272,
       "fileHash": "5210669ebd46ea089b5c2bb61d213a2303667c593ffdee911c9ded5ea8c32e8a",
-      "semanticHash": "5e9bd6785d620a09a3edb24dfc709fd839ec52064fdd88350cdb6260bc11693b",
+      "semanticHash": "0aaf3bf414790281b6b0a33eb53b54378286ad76d6c235bed7da367400dafd4f",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -17224,7 +17369,7 @@
       ],
       "bytes": 14788,
       "fileHash": "77b4836aba2fe7a65c2d22cd7fb38fdce1a264c2328126cab88144fc8aed8440",
-      "semanticHash": "d2028d163007b8008035eb0f59c9181fd32f32921bfd5dac18cdd588045919b5",
+      "semanticHash": "2dede2aaa3cfea7c5ded1d07d9db1ca1f23be4b304f9f76ef6e223a8b734352f",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -17297,7 +17442,7 @@
       ],
       "bytes": 35724,
       "fileHash": "2ec98ffe58055bb4078c466d15e78c47ea3419c1f2e1d167a8149e41d84c4cb1",
-      "semanticHash": "84682f771ea76ace1e2ef38a6c6aacca610f1c92d058dea12863ee8a42495aed",
+      "semanticHash": "5cbb1d8a1a28915eb30e57c4ceff45aa73c57faf8e3438c0bd1cd30f7b50727f",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -17374,7 +17519,7 @@
       ],
       "bytes": 39280,
       "fileHash": "54a2b37d88e9d5fd429d646ee546ad433bcef39e7a22f06a92d7232780eb3e28",
-      "semanticHash": "63364c16d438fc771a1e3888ff7599f0366dc792e5b2831989e5c978bbbcd435",
+      "semanticHash": "d4386d45047df3dc3874e4cd8f340f34e43d9e3793efc7dfa0ddd3b217ced5e0",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -17535,7 +17680,7 @@
       ],
       "bytes": 103412,
       "fileHash": "0fb0dda847a4db66c6a999b2ab18e63153dc8be692e4e114843eb5f20c1b9596",
-      "semanticHash": "6bcb0480804892c7f8db93e8f7c7b55665222c384b0a2f527baba694b371ad74",
+      "semanticHash": "b05d61b6ec06bbe9ca1086d192a4d50b14dc710d9532f4372fd0f95334ad8ad0",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -17650,7 +17795,81 @@
       ],
       "bytes": 11784,
       "fileHash": "3871549bddcecd3e7f7a6b944602ca24e255724ef56c96db7f8a8fc431924973",
-      "semanticHash": "67de792eb6c2ca66e9de65d9a16c41905fa07a915df8d21e7a762d32d1d8198d",
+      "semanticHash": "35dfaab66464c66b5b0c6074f1c2f44f0796f7935bdc68ce20a33e258509d4b4",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
+      "id": "prop_mine_adit_a",
+      "file": "prop_mine_adit_a.glb",
+      "family": "prop",
+      "generator": "mine_adit",
+      "seed": 611,
+      "dimensions": [
+        7.566530704498291,
+        7.490605592727661,
+        3.8644757121801376
+      ],
+      "bounds": {
+        "min": [
+          -4.470909118652344,
+          -3.549999952316284,
+          -0.054288849234580994
+        ],
+        "max": [
+          3.0956215858459473,
+          3.940605640411377,
+          3.8101868629455566
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "emissive_lantern_01",
+        "metal_iron_01",
+        "rock_coastal_dark_01",
+        "soil_shadow_01",
+        "stone_cool_01",
+        "wood_dark_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 5406,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "prop_mine_adit_a_root",
+        "COL_prop_mine_adit_a"
+      ],
+      "collision": "compound",
+      "lod": "small",
+      "readDistanceMeters": 40,
+      "durationMs": 781,
+      "inputHash": "1681884a3de4a8e969f11574668168cb078fd421bd8c20f6a667c1fe92d03b58",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 540,
+        "trianglesTarget": 1802,
+        "trianglesMax": 2880,
+        "materialsMax": 8
+      },
+      "warnings": [],
+      "nodes": 4,
+      "meshes": 1,
+      "triangles": 1802,
+      "packagedTriangles": 1802,
+      "lodLevels": [],
+      "materials": 8,
+      "trianglePrimitives": 8,
+      "vertexColorPrimitives": 8,
+      "normalPrimitives": 8,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_materials_emissive_strength",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 39544,
+      "fileHash": "cc6f9c6d1ee254be5448f61a0c5ace1aa2ea07f49a5c313fc2789f2587177f37",
+      "semanticHash": "736ecd1336fba6246a58836f5236a62fe78f457fe5b62f76678a74e517dc2380",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -18104,7 +18323,7 @@
       ],
       "bytes": 13940,
       "fileHash": "030046bf74333c71f9b68c1968a4161f820f2308e78a0df8e4e31effbe2fe572",
-      "semanticHash": "0ed09fd637f38e72ce6e6be96ef8016b75ce51e0982bb1f7bbf81533fb367ccd",
+      "semanticHash": "49bca64f214374e865e8bfaa830d980b8f7120e3130a6d1518c15da26d60c672",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -18247,7 +18466,7 @@
       ],
       "bytes": 30404,
       "fileHash": "f126a951feb62b3860f6a37294b0f747f900bce6ebf18fbee86ad6aea15fd10c",
-      "semanticHash": "2134a8230d19df430810e1eaea622f33b3b3e2cc007e2c3030c9bb8facce74f9",
+      "semanticHash": "19806d76c816342787060d6c70068b35d0d4297a1e05c16a4c4f95c1dabec4c2",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -18400,7 +18619,7 @@
       ],
       "bytes": 84776,
       "fileHash": "621a987245d8c0edba1ae6e20ed54257a815e63d0a9b03611bd22d3737bb4020",
-      "semanticHash": "f3d85587fdc2975e856edb0a502d57402f7f051653d6409d628b916e7f1bfb87",
+      "semanticHash": "0bfb01dfcf50f26b27bcfd274220eda372f4ec9c975e2d9b33097e5325cdbd97",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -18468,7 +18687,7 @@
       ],
       "bytes": 81716,
       "fileHash": "c91fddbf3b7f3d278b31122c687efd077f4e28222d21c6eee2ee283c75a139c3",
-      "semanticHash": "a08dc47e5aeb2676a8484173d00cbee6b8b4980e66bfdd424bd52fad296ca0c7",
+      "semanticHash": "d3f70c63c2958e228d4311269fcb18d965a55d310e5ac3e327c63b67f18ce282",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -18546,6 +18765,78 @@
         "skinVertices": 0,
         "deformation": []
       }
+    },
+    {
+      "id": "prop_salt_pans_a",
+      "file": "prop_salt_pans_a.glb",
+      "family": "prop",
+      "generator": "salt_pans",
+      "seed": 613,
+      "dimensions": [
+        9.643581867218018,
+        4.239999771118164,
+        1.0180000066757202
+      ],
+      "bounds": {
+        "min": [
+          -3.7100000381469727,
+          -2.119999885559082,
+          0
+        ],
+        "max": [
+          5.933581829071045,
+          2.119999885559082,
+          1.0180000066757202
+        ]
+      },
+      "paletteTokensUsed": [
+        "burlap_grain_01",
+        "canvas_cream_01",
+        "foam_warm_01",
+        "soil_warm_01",
+        "water_shallow_01",
+        "wood_dark_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 4200,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "prop_salt_pans_a_root",
+        "COL_prop_salt_pans_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 30,
+      "durationMs": 716,
+      "inputHash": "c3460a038d3742a21e46fcfd478f0ea2d2680a50aed8b0e304a7ff55a9d751c7",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 420,
+        "trianglesTarget": 1400,
+        "trianglesMax": 2240,
+        "materialsMax": 7
+      },
+      "warnings": [],
+      "nodes": 3,
+      "meshes": 1,
+      "triangles": 1400,
+      "packagedTriangles": 1400,
+      "lodLevels": [],
+      "materials": 7,
+      "trianglePrimitives": 7,
+      "vertexColorPrimitives": 7,
+      "normalPrimitives": 7,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 28488,
+      "fileHash": "671af2669f33915ed3635358228f983df845946cd230bcab298c0631add2dcdc",
+      "semanticHash": "3c2a7c68d91832768d4743ec139e9381107d651093371fbbfb453824a933137b",
+      "qualityStatus": "on_target",
+      "animationClips": []
     },
     {
       "id": "prop_side_table_wood_a",
@@ -18760,7 +19051,7 @@
       ],
       "bytes": 14820,
       "fileHash": "58d4e207bf5aabae08a6ddbd2645cb998ff49b135542167332cf32fd3f3497f3",
-      "semanticHash": "d5d5a1b15327566ed32d0eeddf23232a41f3727a3ef321809661a61c2dd0efdd",
+      "semanticHash": "e4218bff01551988b171253e3610196619edf89b9bb39b92ec6e1cb8ecdb8b0b",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -18830,7 +19121,7 @@
       ],
       "bytes": 18880,
       "fileHash": "9504b0693d322e65b247dd0a3f708db7300c81ee96059a7a5cf14269e9155b6a",
-      "semanticHash": "24b55c8f33816a1c4b346100e7170d36888103eb881f6183cc4989e94c1fdf79",
+      "semanticHash": "9d36d2c153d39705f969c54aa9659449e03fdc79b6187d70076a7ead13afadaf",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -18897,7 +19188,7 @@
       ],
       "bytes": 15616,
       "fileHash": "606ae4642ad714adbf7e4a799191c711b0c297f8d9ec342c827e394a02e79a8b",
-      "semanticHash": "777b52573da60f9d0f1c0edaaba2430d36a5e0f276846c421e693627b558ec3f",
+      "semanticHash": "d7246f4d614fffaf8e2aaf33e7a4f3ad6152c47454ac4c3fc21f1172025e462a",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -19051,6 +19342,76 @@
         "skinVertices": 0,
         "deformation": []
       }
+    },
+    {
+      "id": "prop_timber_stack_a",
+      "file": "prop_timber_stack_a.glb",
+      "family": "prop",
+      "generator": "timber_stack",
+      "seed": 614,
+      "dimensions": [
+        6.265349864959717,
+        2.7669553756713867,
+        1.3281567096710205
+      ],
+      "bounds": {
+        "min": [
+          -3.4153499603271484,
+          -1.4669554233551025,
+          0
+        ],
+        "max": [
+          2.8499999046325684,
+          1.2999999523162842,
+          1.3281567096710205
+        ]
+      },
+      "paletteTokensUsed": [
+        "metal_iron_01",
+        "wood_dark_01",
+        "wood_honey_01",
+        "wood_warm_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 6312,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "prop_timber_stack_a_root",
+        "COL_prop_timber_stack_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 30,
+      "durationMs": 45,
+      "inputHash": "c4d14b6260200e5197693fe1c7b977068a0e633cd9001180469e286147417416",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 631,
+        "trianglesTarget": 2104,
+        "trianglesMax": 3366,
+        "materialsMax": 5
+      },
+      "warnings": [],
+      "nodes": 3,
+      "meshes": 1,
+      "triangles": 2104,
+      "packagedTriangles": 2104,
+      "lodLevels": [],
+      "materials": 5,
+      "trianglePrimitives": 5,
+      "vertexColorPrimitives": 5,
+      "normalPrimitives": 5,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 33828,
+      "fileHash": "ca6ea584ea935317823db59dcc5480110804eb60a9bba9b718173ff82d41f52f",
+      "semanticHash": "cea1549e22f380716fed18c4f58393485c850f30748dc505a3c1bbfe070210d5",
+      "qualityStatus": "on_target",
+      "animationClips": []
     },
     {
       "id": "prop_tool_shed_a",
@@ -19230,7 +19591,7 @@
       ],
       "bytes": 159520,
       "fileHash": "24fec114dcaec9c92b0372088f8d8668c2d7a6712c72fa38c1b25c3e30b1fcac",
-      "semanticHash": "23c28314b7954185e97b78bfacade68406a283ac691f2a712016b7bc4e34647e",
+      "semanticHash": "d5145790163505ae25d946bb30076216c3918b084014f4f5820f90c4883697f8",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -19431,7 +19792,7 @@
       ],
       "bytes": 159760,
       "fileHash": "516b68bb4f97385dc0734b44a9bc162cddac065bd1d3c2e081528446e0c59d2a",
-      "semanticHash": "22cd7e10ff3e9eeb711137285ab22aafc4323c20e86cc891d88abbe45ee4f811",
+      "semanticHash": "ae9d43c31f57de031cc1d013bbae230dd1dd313cfc23b95bc79c253b8ec7bb5b",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -19629,7 +19990,7 @@
       ],
       "bytes": 161768,
       "fileHash": "295efae29fc66795943e83b527d3ce2d0162340ae05318a52280ca6f6539f175",
-      "semanticHash": "4c317e2d9c533420c2b9afbfc62ec488f8a61eccb900150f1914b4690276e4a4",
+      "semanticHash": "1069f1413fa663071c974b8e0d2eb609ee89cacce08997fda30bb056e64ff8a0",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -19830,7 +20191,7 @@
       ],
       "bytes": 159228,
       "fileHash": "efae4e3249ef743913780a20468e8e58e0c9426e53dc53584f9c0be0c6d685ce",
-      "semanticHash": "0067a5122b2b07cb05c9d0cae69d690e364d17a620a1b0e1289d8421960db81d",
+      "semanticHash": "db90d859a1501724da9d6b679ab601198985ec3477e0ba35e9b7541032392060",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -20234,7 +20595,7 @@
       ],
       "bytes": 130676,
       "fileHash": "0455a209f652a279d2a883f550a21c8b640fc5726548d9bc2599eb6d3a4d561a",
-      "semanticHash": "61facc207d5663bba9a73f7f0523f6abc5f41c3428631db4a924ccf657255b64",
+      "semanticHash": "e86fbbeb0acdd21eaed22075746b97f1b10388b9a06dff5d50ca7205ed0841ba",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -20433,7 +20794,7 @@
       ],
       "bytes": 173544,
       "fileHash": "4ca82e484650f51d31483cf711226b41fbae1dbd67580dc87145b0b5b346396e",
-      "semanticHash": "fc2992f200fab4e760522bd778033e3f0e6739ef9797896e7c6dead9863326ee",
+      "semanticHash": "6cb30fbffd2b5eb5b198e559dff4305dea9868ab9797050ab1cdced95a9441c6",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -20524,7 +20885,7 @@
       ],
       "bytes": 158164,
       "fileHash": "4572747966b6166912e65e0aee3b7132147d50ae030b6ab2063eceda254bb688",
-      "semanticHash": "71efdd62488c07217f43f74a13977026b512437064f734f0e091a24f20f546cc",
+      "semanticHash": "c5cd9c315d0f1fc03c48639bf5029d7d4eabf014508d9cea63ce68ed9225785f",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -20621,7 +20982,7 @@
       ],
       "bytes": 153868,
       "fileHash": "b9ba00a91fbd56abd935f96a8a451eaef361e46d55fd867a366c8c02018cf394",
-      "semanticHash": "9c50584b8c936de6f9bcebee3227d2daa3afe29e14b1a2d7c332955f32fbe6ca",
+      "semanticHash": "2c68a318581d9d20301160b798a633f3817cd2b30a8e6c313463e07896ad54de",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -20718,7 +21079,7 @@
       ],
       "bytes": 143704,
       "fileHash": "514e400830bc9dc3dfb9e5e8bfcb2a8524d2dd5708b1c023b4d60cf8485d5758",
-      "semanticHash": "c5548d4c6b1a402bcee26b67fedde515f8a0f06013b2361548bbbff5c413d1cd",
+      "semanticHash": "853a0546869dae686db32710958b94c46c0d8936b82d5ba145e12be7ec7812cb",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -20920,7 +21281,7 @@
       ],
       "bytes": 160496,
       "fileHash": "cedbba1a37e6c45b7f156fe0513d7de85cb8ca5a24da04dddcfd52bdee4601cb",
-      "semanticHash": "bff1f0ca6699ee884afcf841f560e702a3c7e95c9442bf951c55859413813999",
+      "semanticHash": "c9b7cfa8f2437547bb8d5eee5ac2035cc4c2a9829f4674dace541ed0c104dd76",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -21019,7 +21380,7 @@
       ],
       "bytes": 160312,
       "fileHash": "c48a65897dcdd572ebaea280d97a673a0f8e4d8acaf9766d48bb793d1f026294",
-      "semanticHash": "8b17d475519e1bd97f169762e15b07ad89eb96b421f9139936f87fb9c1a04021",
+      "semanticHash": "a019c3132a04bfeade6244774095a9f1c7aeb44572f647e9394d2a5f714bd316",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -21188,7 +21549,7 @@
       ],
       "bytes": 24756,
       "fileHash": "b9ef731ded8d0b75ff66fd84bb5fec575bd74281b7e1ead41d6c330dfe11a013",
-      "semanticHash": "35980d5d292f5e69c481acf9142f0c2abf5fe857a97135182e8e6ed62e8d73b4",
+      "semanticHash": "aa7e467cad1dba76fffbebed616127ecebf212e34d9e25478faf7821595350a9",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -21256,7 +21617,7 @@
       ],
       "bytes": 27084,
       "fileHash": "450f14fe354d1d36b7d5755415d014086169b07a6c8f1282f13dea91b0138312",
-      "semanticHash": "0349d7c67c86c4a4f271f14dcda16a82c83b64ffe51c0d9752c04ce1cd1d97d8",
+      "semanticHash": "a9f04c947634310e70c4d2516336e7672693fd84577ef4115add3593eff1197c",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -21410,7 +21771,7 @@
       ],
       "bytes": 57604,
       "fileHash": "1b1ab061a318a2f69fad3f719af0d038e4873e61aaf1217b03bec076087eeeff",
-      "semanticHash": "fcd30bf158ee71dc615fc10cdf3ad3e0e4ce23dfca78d4269dd247c9628b9837",
+      "semanticHash": "7063bb062c07e79c0bc34e2e8bc4c2b8eb9b9d1d7b2b363759c4c08bdb079e25",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -21478,7 +21839,7 @@
       ],
       "bytes": 12988,
       "fileHash": "87a7603084bea3449127179b060ec22889078722a0179035fb89bad0c0dec02e",
-      "semanticHash": "6ad7ffbb45560c02fe465fe1e2358eacffb9a62af566691a3bf8b79d5dd651e2",
+      "semanticHash": "4964b5a4139faa21d53c9554fdf76e31fe95273a28f64c21d8c225fc2c1b9b66",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -21558,7 +21919,7 @@
       ],
       "bytes": 45260,
       "fileHash": "f4bb8474863fb08acdd7e17bb5ee322fffc734509c2ba4dc1d30641cb4c9b133",
-      "semanticHash": "969eb31a2e5ae55e3093ecdd583c0c4a0d4fa3c9dfa295d98f9ed3fd4a0630e5",
+      "semanticHash": "07aa05055dc80f4ec6b56f5d4d615a77f23c3f4fd45993d3e92d148bacb6c3fa",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -21625,7 +21986,7 @@
       ],
       "bytes": 9072,
       "fileHash": "be71c55f177b121cb7e1047ecf7673ada755ee688e86a14c1c352fc1a338dc5f",
-      "semanticHash": "7574d785bca1cb36dbfcab7f5f628620aeb6c7e6fd50cae76ad639b65b8c6005",
+      "semanticHash": "f526071956cbf8f0e7d19b25a907f6b455450e2f6250676a9158044ba8ea668c",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -21779,7 +22140,7 @@
       ],
       "bytes": 37812,
       "fileHash": "7dee363df1e967a8978b09be51c01319664e747025afdddcacf466ae009ff63b",
-      "semanticHash": "8608976b45c1542b78483a44448d9cf94ef6e20e5f00a9d523be30f53c60f7d2",
+      "semanticHash": "b735f26f1a090241775ea41447a85f88a44d5e946f8641b68e6719b13c1484e9",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -23219,6 +23580,77 @@
       }
     },
     {
+      "id": "station_timber_sawbuck_a",
+      "file": "station_timber_sawbuck_a.glb",
+      "family": "prop",
+      "generator": "timber_sawbuck",
+      "seed": 812,
+      "dimensions": [
+        6.440000057220459,
+        3.9285045862197876,
+        1.2835753057152033
+      ],
+      "bounds": {
+        "min": [
+          -3.615000009536743,
+          -1.6758679151535034,
+          -0.009999999776482582
+        ],
+        "max": [
+          2.825000047683716,
+          2.252636671066284,
+          1.2735753059387207
+        ]
+      },
+      "paletteTokensUsed": [
+        "metal_dark_01",
+        "metal_iron_01",
+        "wood_dark_01",
+        "wood_honey_01",
+        "wood_warm_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": 15945,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "station_timber_sawbuck_a_root",
+        "COL_station_timber_sawbuck_a"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 35,
+      "durationMs": 110,
+      "inputHash": "c43591b651dfade860afed28d528e7036aa6cc874add07a96e4cd3b57060b22a",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 4000,
+        "trianglesTarget": 5315,
+        "trianglesMax": 7000,
+        "materialsMax": 6
+      },
+      "warnings": [],
+      "nodes": 3,
+      "meshes": 1,
+      "triangles": 5315,
+      "packagedTriangles": 5315,
+      "lodLevels": [],
+      "materials": 6,
+      "trianglePrimitives": 6,
+      "vertexColorPrimitives": 6,
+      "normalPrimitives": 6,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 81752,
+      "fileHash": "4849d5782b07f23a1059fc78e1a36872dfc77f80050a84062f1187e053e5a44d",
+      "semanticHash": "6850d9cc3499d0bfe3f6ab3406d843ad260908c3149edb8c5424a4269866cee9",
+      "qualityStatus": "on_target",
+      "animationClips": []
+    },
+    {
       "id": "tool_fishing_rod_a",
       "file": "tool_fishing_rod_a.glb",
       "family": "prop",
@@ -23301,7 +23733,7 @@
       ],
       "bytes": 34376,
       "fileHash": "19043bb277f1139379ad0f9cc97f2147a670a836c70a1a3d1397948d8d465119",
-      "semanticHash": "23631831937f461ab776c353fbec4c0676a3b5e153258d0a812d3828953f031e",
+      "semanticHash": "311ca2efb6634bfc8e31daf179c0af941527d46fa7d7edd956c3b0e4e4b3a873",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -23378,7 +23810,7 @@
       ],
       "bytes": 41172,
       "fileHash": "b2027d06f1270da2b8867a078c9e873fa2abd39f8ce6683f525c075ebbc6fe70",
-      "semanticHash": "04283598cd58eef5e2e1397373c1536711a5facdd7fd0378ca522c66ff099a1a",
+      "semanticHash": "8240351a64959689702eeba4f162ecbf57c2c024c078d5c5feb7971e2226bc40",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -23455,7 +23887,7 @@
       ],
       "bytes": 54084,
       "fileHash": "9a77d472969c41710f59a2eb6adcf83f15625db06549926d15fe41d5ef79c9f6",
-      "semanticHash": "9af1afe6f640853f1ef3af1cabb36d9f095681c9c49a7e99c02faf586767528e",
+      "semanticHash": "afd30634cb54092769bc9c34e06159521804a28cb4d2949b57ae689b0910e957",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -23532,7 +23964,7 @@
       ],
       "bytes": 41096,
       "fileHash": "eb2d5d4412746e3f54d159639ead6e8a28b1e3fec05e26529b6479b2fe7786f9",
-      "semanticHash": "3948558db40c35597a50c803b466d44b6066d2f7ead70c288b328f05496bad1a",
+      "semanticHash": "95974f18521a0a314fc328eeacf43a717f97c10cef86ddb14c57a0aed9681c1c",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -23609,7 +24041,7 @@
       ],
       "bytes": 43032,
       "fileHash": "ba24c79131a9b0fc1919f6a17f90db4315bd68dfe6549700bf492aef5764bdde",
-      "semanticHash": "8aeecb301df6dafc2789d8614020900356c15638545e23430242d896f11ac7d7",
+      "semanticHash": "af61eb58f82518230b6818cf19d5a5a6c8631aa4ab8e6fb164cff882d7d3851a",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -23677,7 +24109,7 @@
       ],
       "bytes": 6692,
       "fileHash": "65f38eb747618289c523e2ce237982811647e13653c5c3f763424d43606828eb",
-      "semanticHash": "caaa0cc9410aed8568e8116351e8e2c6cb3a2be586bba1a6f8b502eea1b382d7",
+      "semanticHash": "ad4491a2d755dd7a9273ecf66181133dc4c0eb6dbc05e65da47c506d868f4950",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -23744,7 +24176,7 @@
       ],
       "bytes": 9068,
       "fileHash": "a9e335eb3b4af77967ce162db4c123ee28bd62e109347a77f788fa27437c57ab",
-      "semanticHash": "75dabc44818230d7c720e565e2fec88879b4919b35f3bd4f446e740c9e44a54c",
+      "semanticHash": "20977d14f03bebaa4fe35ff797e1bae515bdef90a2fea7a46784e1d835c2a751",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -23812,7 +24244,7 @@
       ],
       "bytes": 12696,
       "fileHash": "69d2cad507b94aaaad7bdbcf9ef407302020fb7e7725329f9605c789bd9944f2",
-      "semanticHash": "cdc0c01400dd12776846123dc2e32ec4a7aa7e0373c8944fd9d678a7f302a0c6",
+      "semanticHash": "2ccd8234f484e0d81c16791466efad43c3827e9baeda3a28c9abad4aac242f3b",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -23882,7 +24314,7 @@
       ],
       "bytes": 15168,
       "fileHash": "7990d09dbc783003ebfbc9df26c6baa9668cf2f7c88a5a6423fc3726e2ea05a0",
-      "semanticHash": "725422502549e5a06ce7a6b90221a93d9e42b5e59706b10aa3cf5af9ef32b66a",
+      "semanticHash": "6375e919577c9ab4d4fe74d1dce4f8d0720ad562e21061177739bc134b8aacf7",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -23952,7 +24384,7 @@
       ],
       "bytes": 14440,
       "fileHash": "dcdbde414a1da3ecc894f5733e4a97d2c2dad97de766a3b767ab789401ae5863",
-      "semanticHash": "812337b6bfc9781a5b6d09981bf44ebd6cd7ebee59aa7a23fe2a3195aa21cabf",
+      "semanticHash": "b9e38c9f13033d2faba27d63b21720e4b8a2782a20180b217994eff21adee823",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -24020,7 +24452,7 @@
       ],
       "bytes": 14584,
       "fileHash": "11aceef58693c942912145926e463e9a0dde9bba35a7811eabe9dcaed5c6511f",
-      "semanticHash": "61fc4ae60f8219744d17a82f43ce690ebced32744b2e16fd6abab2cde4f01c1c",
+      "semanticHash": "706272b209399a86921a499859fd5d3965c0f3c36eb79b95621bc1ca58bb0c4b",
       "qualityStatus": "on_target",
       "animationClips": []
     },
@@ -24090,7 +24522,7 @@
       ],
       "bytes": 14352,
       "fileHash": "4aedc1378764ac687c91a9f655c625a0090e12632404dc4e13afef5eb179749f",
-      "semanticHash": "5fb69e2e0870ae3e1eb9f031486c856cd1e17f2f841b529990921af86c1deb90",
+      "semanticHash": "914dbdfd6443b9ad8297f0192201214e5fd9952f795f9adb8c5172cd7b8a8508",
       "qualityStatus": "below_target",
       "animationClips": []
     },
@@ -24157,7 +24589,7 @@
       ],
       "bytes": 11276,
       "fileHash": "40afa6377eac80aaf2047a4b1ad10288622d83611332224e970ebcc23d3e01af",
-      "semanticHash": "2fc6b0bef4237a45f3387060d962ace5409b82640db85ccaaa362dec262408d7",
+      "semanticHash": "9a36eea728a7ae359c8eaae0ab096511ce28ae6952e2d4f5395da4f5f3b21f86",
       "qualityStatus": "on_target",
       "animationClips": []
     },

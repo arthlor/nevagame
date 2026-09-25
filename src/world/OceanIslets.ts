@@ -1,5 +1,5 @@
 import type { WorldIslandDefinition, WorldIslandId } from "./WorldIslands";
-import { isInsideLoop, pointSegmentDistance } from "./WorldGeometry";
+import { LoopSegmentIndex } from "./WorldGeometry";
 
 /** Sparse, authored detours. Their open southern approaches never cross the shipping lane. */
 export const OCEAN_ISLETS = [
@@ -33,15 +33,15 @@ export const OCEAN_ISLAND_DEFINITIONS = Object.fromEntries(OCEAN_ISLETS.map((isl
   return [islet.id, definition];
 })) as Record<OceanIsletId, WorldIslandDefinition>;
 
+const shoreIndices = new Map(OCEAN_ISLETS.map(islet => [islet.id,
+  new LoopSegmentIndex(OCEAN_ISLAND_DEFINITIONS[islet.id].coastLoop, 8)]));
+
 export function oceanIsletForId(id: WorldIslandId | undefined | null): OceanIslet | undefined {
   return OCEAN_ISLETS.find((islet) => islet.id === id);
 }
 
 export function isletShoreDistance(islet: OceanIslet, x: number, z: number): number {
-  const loop = OCEAN_ISLAND_DEFINITIONS[islet.id].coastLoop;
-  let distance = Infinity;
-  for (let i = 0; i < loop.length; i++) distance = Math.min(distance, pointSegmentDistance(x, z, loop[i], loop[(i + 1) % loop.length]));
-  return isInsideLoop(x, z, loop) ? -distance : distance;
+  return shoreIndices.get(islet.id)!.signedDistance(x, z);
 }
 
 export function oceanIsletAt(x: number, z: number): OceanIslet | undefined {

@@ -5,7 +5,7 @@ import { migrateContractSettlement57 } from "./migrateContractSettlement57";
 import { migrateProcessingWorkTiers58 } from "./migrateProcessingWorkTiers58";
 import { migrateSunreachLayout28 } from "./migrateSunreachLayout28";
 import { migrateProceduralMainland59 } from "./migrateProceduralMainland59";
-import { migrateVillageLife60 } from "./migrateVillageLife60";
+import { migrateCoveShore60 } from "./migrateCoveShore60";
 import { createStarterCarriageState, STARTER_CARRIAGE_ID } from "../simulation/mounts/Carriage";
 import { migrateOceanLayout20, translateLegacyOceanPositions } from "./migrateOceanLayout20";
 import { migrateTerrainLayout14 } from "./migrateTerrainLayout14";
@@ -1474,7 +1474,7 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   58: (state: unknown) => migrateProcessingWorkTiers58(state as GameState),
   // Layout 28 has no schema step of its own; bring the save up to it first.
   59: (state: unknown) => migrateProceduralMainland59(advanceLayoutRevision(state, 28) as GameState),
-  60: (state: unknown) => migrateVillageLife60(advanceLayoutRevision(state, 29) as GameState)
+  60: (state: unknown) => migrateCoveShore60(advanceLayoutRevision(state, 29) as GameState)
 };
 
 
@@ -1507,7 +1507,7 @@ function advanceLayoutRevision(state: unknown, target: number): unknown {
   if (due(27)) state = migrateHeadwaterSpring55(state as GameState);
   if (due(28)) state = migrateSunreachLayout28(state as GameState);
   if (due(29)) state = migrateProceduralMainland59(state as GameState);
-  if (due(30)) state = migrateVillageLife60(state as GameState);
+  if (due(30)) state = migrateCoveShore60(state as GameState);
   return state;
 }
 

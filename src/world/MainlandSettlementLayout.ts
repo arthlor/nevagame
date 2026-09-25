@@ -1,4 +1,5 @@
 import { MAINLAND_VILLAGES } from "./NevaMainland";
+import { mainlandWorkSiteClearanceAt } from "./MainlandWorkSites";
 import type { WorldArchitecturePad } from "./WorldLayout";
 
 /** Shared building footprints: terrain, cover, collision review and rendering read one layout. */
@@ -56,5 +57,6 @@ export function mainlandSettlementClearanceAt(x: number, z: number): number {
     distance = Math.min(distance,
       Math.hypot(Math.max(0, outsideX), Math.max(0, outsideZ)) + Math.min(0, Math.max(outsideX, outsideZ)));
   }
-  return distance;
+  // Work sites keep a two-metre working margin round their footprint.
+  return Math.min(distance, mainlandWorkSiteClearanceAt(x, z) - 2);
 }

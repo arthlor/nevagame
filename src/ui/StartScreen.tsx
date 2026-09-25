@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { FC, KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { StartupState } from "../app/StartupState";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
@@ -86,6 +86,22 @@ const formatSavedDate = (savedAtUtcMs: number, now: number = Date.now()): string
   }
 };
 
+const PREPARATION_STEP: Record<StartupState["phase"], number> = {
+  waiting: 1, save: 1, layout: 1, assets: 2, world: 3,
+  physics: 4, presentation: 5, commit: 6, complete: 6
+};
+
+/** Wall-clock feedback, not a prediction of remaining work. */
+const LoadingElapsed: FC = () => {
+  const [startedAt] = useState(() => performance.now());
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setSeconds(Math.floor((performance.now() - startedAt) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [startedAt]);
+  return <span aria-live="off">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")} elapsed</span>;
+};
+
 export const StartScreen: FC<StartScreenProps> = ({
   startup,
   onStart,
@@ -113,6 +129,7 @@ export const StartScreen: FC<StartScreenProps> = ({
   const withoutSavingCancelRef = useRef<HTMLButtonElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
   const pwa = usePwaInstall();
+  const introSkipRef = useRef<HTMLButtonElement>(null);
 
   const dialogOpen = optionsOpen || newGameConfirmationOpen || withoutSavingConfirmationOpen;
   const isLoading = startup.status === "loading" || startup.status === "revealing";
@@ -123,6 +140,16 @@ export const StartScreen: FC<StartScreenProps> = ({
   const progressMax = Math.max(1, startup.totalAssets);
   const progressPercent = Math.max(0, Math.min(100, (loadedAssets / progressMax) * 100));
   const savedDate = startup.saveSummary ? formatSavedDate(startup.saveSummary.savedAtUtcMs) : null;
+
+  // Keep the first-paint shell until the menu (or a recovery state) is committed.
+  // Removing it before paint avoids two translucent title screens overlapping.
+  useLayoutEffect(() => {
+    if (!isCheckingSave) document.getElementById("neva-boot-shell")?.remove();
+  }, [isCheckingSave]);
+
+  useEffect(() => {
+    if (startup.status === "intro") introSkipRef.current?.focus();
+  }, [startup.status]);
 
   // The install invitation belongs to the lobby: it greets handheld players
   // once on the title screen and never interrupts a dialog or gameplay. The
@@ -279,19 +306,22 @@ export const StartScreen: FC<StartScreenProps> = ({
             : "Begin";
 
   const primaryDisabled = isLoading || isCheckingSave;
-  const showUtilities = startup.status === "title" || startup.status === "error";
+  const showUtilities = showPwaInstallUtility || startup.status === "error";
 
   return (
     <main
-      className={`start-screen start-screen--${startup.status} interactive`}
+      className={`start-screen neva-opening start-screen--${startup.status} interactive`}
       aria-labelledby="start-screen-title"
       aria-describedby="start-screen-description"
       aria-busy={isLoading || isCheckingSave}
+      {...((mobileOrientationBlocked || isCheckingSave) ? { inert: "" } : {})}
+      aria-hidden={mobileOrientationBlocked || isCheckingSave || undefined}
     >
       <div className="start-screen__backdrop" aria-hidden="true" />
       <div className="start-screen__shade" aria-hidden="true" />
 
-      {startup.status !== "title" && startup.status !== "error" && (
+      {startup.introKind === "new" && ["world", "physics", "presentation", "commit", "complete"].includes(startup.phase)
+        && startup.status !== "error" && (
         <IntroVideo
           ref={introVideoRef}
           active={startup.status === "intro"}
@@ -318,22 +348,23 @@ export const StartScreen: FC<StartScreenProps> = ({
               <span className="start-screen__utility-label">Install app</span>
             </button>
           )}
-          <button
-            type="button"
-            className="start-screen__utility-button"
-            data-testid="startup-options-button"
-            aria-label="Options"
-            aria-controls="start-screen-options"
-            aria-expanded={optionsOpen}
-            onClick={() => {
-              rememberFocus();
-              playUiSound("open");
-              setOptionsOpen(true);
-            }}
-          >
-            <AtlasImage src={UI_MENU.compass} alt="" size={22} aria-hidden="true" />
-            <span className="start-screen__utility-label">Options</span>
-          </button>
+          {startup.status === "error" && (
+            <button
+              type="button"
+              className="start-screen__utility-button"
+              aria-label="Options"
+              aria-controls="start-screen-options"
+              aria-expanded={optionsOpen}
+              onClick={() => {
+                rememberFocus();
+                playUiSound("open");
+                setOptionsOpen(true);
+              }}
+            >
+              <AtlasImage src={UI_MENU.compass} alt="" size={22} aria-hidden="true" />
+              <span className="start-screen__utility-label">Options</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -348,13 +379,14 @@ export const StartScreen: FC<StartScreenProps> = ({
         {startup.status === "intro" ? (
           <button
             type="button"
+            ref={introSkipRef}
             className="start-screen__intro-skip"
             data-testid="startup-intro-skip"
             onClick={() => {
               if (!introVideoRef.current?.skip()) onSkipIntro?.();
             }}
           >
-            {startup.introKind === "continue" ? "Continue" : "Begin"} · press any key or tap
+            Skip intro · Esc
           </button>
         ) : startup.status === "error" ? (
           <div
@@ -395,10 +427,10 @@ export const StartScreen: FC<StartScreenProps> = ({
           <div className="start-screen__state">
             <GameSheet className="start-screen__tray" tone="ghost">
               {isLoading ? (
-                <div className="start-screen__loading" aria-live="polite">
+                <div className="start-screen__loading">
                   <div className="start-screen__progress-heading">
-                    <span className="start-screen__progress-label">
-                      {startup.message}
+                    <span className="start-screen__progress-label" role="status">
+                      {startup.phase === "world" ? startup.subMessage ?? startup.message : startup.message}
                     </span>
                     {hasMeasuredProgress && (
                       <span className="start-screen__progress-count">
@@ -406,7 +438,13 @@ export const StartScreen: FC<StartScreenProps> = ({
                       </span>
                     )}
                   </div>
-                  {startup.slow && <p>Still loading. This is taking longer than usual.</p>}
+
+                  {startup.slow && (
+                    <p className="start-screen__slow-notice">
+                      Still preparing…
+                    </p>
+                  )}
+
                   <div className={`start-screen__meter${hasMeasuredProgress ? "" : " is-indeterminate"}`}>
                     <span
                       className="start-screen__meter-fill"
@@ -419,8 +457,12 @@ export const StartScreen: FC<StartScreenProps> = ({
                       value={hasMeasuredProgress ? loadedAssets : undefined}
                       max={progressMax}
                       aria-label="Preparing the Neva Land world"
-                      aria-valuetext={hasMeasuredProgress ? `${startup.loadedAssets} of ${startup.totalAssets}` : "Starting"}
+                      aria-valuetext={hasMeasuredProgress ? `${startup.loadedAssets} of ${startup.totalAssets} scenery assets` : startup.message}
                     />
+                  </div>
+                  <div className="start-screen__loading-detail">
+                    <span>Step {PREPARATION_STEP[startup.phase]} of 6</span>
+                    <LoadingElapsed />
                   </div>
                 </div>
               ) : isTitle && startup.saveStatus === "corrupt" ? (
@@ -435,30 +477,31 @@ export const StartScreen: FC<StartScreenProps> = ({
                 <p className="start-screen__save-warning" role="status">
                   Save storage is unavailable. You can play, but this session won’t be saved.
                 </p>
-              ) : isCheckingSave ? (
-                <p className="start-screen__ready-note" aria-live="polite">
-                  Reading your harbor log…
-                </p>
               ) : null}
 
-              {isTitle && startup.saveStatus === "available" && startup.saveSummary && (
-                <div className="start-screen__save-scroll-card" aria-label="Saved game summary">
-                  <div className="save-scroll-header">
-                    <AtlasImage src={UI_MENU.journal} size={20} alt="" />
-                    <strong>Welcome back</strong>
-                  </div>
-                  <div className="save-scroll-details">
-                    {/* dayCount is the absolute day since the save began; the day *within*
-                        the season is what "Day N of Spring" claims to show. */}
-                    <span>Day {dayOfSeason(startup.saveSummary.dayCount)} of {titleCase(startup.saveSummary.season)}</span>
-                    <span className="save-scroll-sep">·</span>
-                    <span>{REGION_LABELS[startup.saveSummary.regionId] ?? "The coast"}</span>
-                    {savedDate && <span className="save-scroll-date">Saved {savedDate}</span>}
+              {isCheckingSave && (
+                <div className="start-screen__loading" role="status">
+                  <span className="start-screen__progress-label">Opening the coast…</span>
+                  <div className="start-screen__meter is-indeterminate" aria-hidden="true">
+                    <span className="start-screen__meter-fill" />
                   </div>
                 </div>
               )}
 
-              {isTitle && (
+              {isTitle && startup.saveStatus === "available" && startup.saveSummary && (
+                <div className="start-screen__save-scroll-card" aria-label="Saved game summary">
+                  <div className="save-scroll-details">
+                    {/* dayCount is the absolute day since the save began; the day *within*
+                        the season is what "Day N of Spring" claims to show. */}
+                    <span className="save-scroll-tag">Day {dayOfSeason(startup.saveSummary.dayCount)} of {titleCase(startup.saveSummary.season)}</span>
+                    <span className="save-scroll-sep">·</span>
+                    <span className="save-scroll-location">{REGION_LABELS[startup.saveSummary.regionId] ?? "The coast"}</span>
+                    {savedDate && <span className="save-scroll-date">Recorded {savedDate}</span>}
+                  </div>
+                </div>
+              )}
+
+              {isTitle && !isCheckingSave && (
                 <div className="start-screen__actions start-screen__menu">
                   <ChromeButton
                     variant="gold"
@@ -481,6 +524,21 @@ export const StartScreen: FC<StartScreenProps> = ({
                       Start a new game
                     </ChromeButton>
                   )}
+                  <button
+                    type="button"
+                    className="start-screen__options-action"
+                    data-testid="startup-options-button"
+                    aria-controls="start-screen-options"
+                    aria-expanded={optionsOpen}
+                    onClick={() => {
+                      rememberFocus();
+                      playUiSound("open");
+                      setOptionsOpen(true);
+                    }}
+                  >
+                    <AtlasImage src={UI_MENU.compass} alt="" size={18} aria-hidden="true" />
+                    <span>Options</span>
+                  </button>
                 </div>
               )}
             </GameSheet>

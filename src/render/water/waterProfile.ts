@@ -41,9 +41,9 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
   return amount * amount * (3 - 2 * amount);
 }
 
-function normalizedDirection(x: number, z: number): THREE.Vector2 {
+function normalizedDirection(x: number, z: number, out = new THREE.Vector2()): THREE.Vector2 {
   const length = Math.hypot(x, z);
-  return length > 0.0001 ? new THREE.Vector2(x / length, z / length) : new THREE.Vector2(0, -1);
+  return length > 0.0001 ? out.set(x / length, z / length) : out.set(0, -1);
 }
 
 function dominantRegion(weights: WaterRegionWeights): WaterRegion {
@@ -61,6 +61,17 @@ export interface WaterSpatialProfileOptions {
   bankDilationMeters?: number;
 }
 
+/** Reusable output for the profile/depth texture bake. Callers retain copies if needed. */
+export function createWaterSpatialProfile(): WaterSpatialProfile {
+  return {
+    region: "sea",
+    weights: { river: 0, sea: 1, ocean: 0 },
+    signedWaterDistance: 0,
+    coastDistance: 0,
+    localDirection: new THREE.Vector2(0, -1)
+  };
+}
+
 /**
  * Canonical, render-only regional classification with soft estuary and
  * offshore transitions. This is the expensive analytic query: runtime wave
@@ -68,7 +79,8 @@ export interface WaterSpatialProfileOptions {
  * CPU and the GPU see the same quantised values.
  */
 export function waterSpatialProfile(
-  x: number, z: number, queries?: WaterSpatialQueries, options: WaterSpatialProfileOptions = {}
+  x: number, z: number, queries?: WaterSpatialQueries, options: WaterSpatialProfileOptions = {},
+  out?: WaterSpatialProfile
 ): WaterSpatialProfile {
   const dilation = Math.max(0, options.bankDilationMeters ?? 0);
   const marine = queries?.marine ?? WorldLayout.marineSampleAt(x, z);
@@ -103,7 +115,10 @@ export function waterSpatialProfile(
     1
   );
   const sea = Math.max(0, 1 - river - ocean);
-  const weights = { river, sea, ocean };
+  const weights = out?.weights ?? { river, sea, ocean };
+  weights.river = river;
+  weights.sea = sea;
+  weights.ocean = ocean;
 
   const sampleDistance = 1.25;
   const riverTangent = mainlandWater.signedDistance > -4
@@ -132,9 +147,16 @@ export function waterSpatialProfile(
   }
   const localDirection = normalizedDirection(
     riverTangent.x * river + coastalDirection.x * sea + marineDir.x * ocean,
-    riverTangent.y * river + coastalDirection.y * sea + marineDir.y * ocean
+    riverTangent.y * river + coastalDirection.y * sea + marineDir.y * ocean,
+    out?.localDirection
   );
 
+  if (out) {
+    out.region = dominantRegion(weights);
+    out.signedWaterDistance = marine.signedShoreDistance;
+    out.coastDistance = marine.signedShoreDistance;
+    return out;
+  }
   return {
     region: dominantRegion(weights),
     weights,

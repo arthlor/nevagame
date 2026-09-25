@@ -72,14 +72,6 @@ async function boot(): Promise<void> {
     const { GameApp } = await import("./app/GameApp");
     const app = new GameApp(canvas, uiContainer);
     await app.start();
-    // Crossfade the mirrored boot shell instead of cutting it: the title
-    // composition is already on screen, so only the interactive tray fades in.
-    requestAnimationFrame(() => {
-      const shell = document.getElementById("neva-boot-shell");
-      if (!shell) return;
-      shell.classList.add("is-leaving");
-      window.setTimeout(() => shell.remove(), 400);
-    });
   } catch (error) {
     showFatalBootOverlay(error);
   }

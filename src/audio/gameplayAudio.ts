@@ -33,8 +33,17 @@ export const syncWorldAudio = (input: {
   gameAudio.setWorldContext(presentation.bed, input.weather, presentation);
   gameAudio.setActionLoop("windmill", !input.paused && Boolean(input.windmill), input.windmill?.position, input.windmill?.gain ?? 0);
   if (input.icedCargoIds) {
-    if (!input.paused && lastIcedCargoIds && input.icedCargoIds.some((id) => !lastIcedCargoIds!.has(id))) gameAudio.playOneShot("ice-shovel");
-    lastIcedCargoIds = new Set(input.icedCargoIds);
+    const next = spareIcedCargoIds;
+    next.clear();
+    let newlyIced = false;
+    for (const id of input.icedCargoIds) {
+      if (hasIcedCargoSnapshot && !lastIcedCargoIds.has(id)) newlyIced = true;
+      next.add(id);
+    }
+    if (!input.paused && newlyIced) gameAudio.playOneShot("ice-shovel");
+    spareIcedCargoIds = lastIcedCargoIds;
+    lastIcedCargoIds = next;
+    hasIcedCargoSnapshot = true;
   }
   const boatMoving = Boolean(input.boat && !input.boat.wrecked && Math.abs(input.boat.throttle) > 0.12);
   const isSkiff = Boolean(input.boat?.isSkiff);
@@ -78,7 +87,9 @@ export const syncWorldAudio = (input: {
 };
 
 const lastPlayed = new Map<string, number>();
-let lastIcedCargoIds: Set<string> | null = null;
+let lastIcedCargoIds = new Set<string>();
+let spareIcedCargoIds = new Set<string>();
+let hasIcedCargoSnapshot = false;
 let lastSportInstance: string | null = null;
 let lastSurfaceCrossings = 0;
 let lastSprintExhausted: boolean | null = null;
@@ -92,7 +103,9 @@ const playCooled = (cueId: Parameters<typeof gameAudio.playOneShot>[0], cooldown
 };
 
 export const bindDomainAudio = (events: EventBus, getPosition: () => AudioPosition | undefined): () => void => {
-  lastIcedCargoIds = null;
+  lastIcedCargoIds.clear();
+  spareIcedCargoIds.clear();
+  hasIcedCargoSnapshot = false;
   const play = (cueId: Parameters<typeof gameAudio.playOneShot>[0]): void => {
     gameAudio.playOneShot(cueId, getPosition());
   };

@@ -54,7 +54,7 @@ import {
   uniquePracticalLightSourceNames
 } from "../lighting/practicalLightBudget";
 import { FacetedWater } from "../water/FacetedWater";
-import { AssetLoader } from "../loaders/AssetLoader";
+import { AssetLoader, type DirectAssetSpec } from "../loaders/AssetLoader";
 import { Simulation } from "../../simulation/Simulation";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
@@ -131,6 +131,10 @@ import {
   type CharacterMotionFrame,
   type PlayerAnimation
 } from "../animation/AnimationController";
+import {
+  AuthoredNpcAnimator,
+  type NpcAnimatorContract
+} from "../animation/AuthoredNpcAnimator";
 import {
   CharacterEquipmentAssembler,
   characterVisualLoadoutFromState
@@ -245,6 +249,7 @@ export interface WorldRenderDiagnostics {
 }
 
 import { BoatWakePool } from "../water/BoatWakePool";
+import { createBrookSurface } from "../water/BrookSurface";
 import { CropInstanceRenderer, cropStageAsset } from "./CropInstanceRenderer";
 import {
   createContactShadowMesh,
@@ -316,7 +321,7 @@ interface NpcPresentation {
   assetId: string;
   anchor: { x: number; z: number; rotationY: number };
   model: THREE.Group;
-  animator: HumanoidAnimator;
+  animator: NpcAnimatorContract;
   initialRotationY: number;
   detailReduced: boolean;
   lastPresentationUpdateSeconds: number;
@@ -329,7 +334,7 @@ interface NpcPresentation {
 interface AmbientTownsfolkPresentation {
   route: AmbientTownsfolkRoute;
   model: THREE.Group;
-  animator: HumanoidAnimator;
+  animator: NpcAnimatorContract;
   motionFrame: CharacterMotionFrame | null;
   lastAnimationContext: CharacterAnimationContext | null;
   pendingAnimationSeconds: number;
@@ -812,7 +817,6 @@ export class WorldScene {
     WORLD_LAYOUT_V5.anchors.playerSpawn.z
   );
   private readonly visibilityLodCamera = new THREE.PerspectiveCamera();
-  private activeCamera?: THREE.Camera;
   private lastPresentationTime = 0;
   private hasPresentationTimestamp = false;
   private characterElapsedSeconds = 0;
@@ -858,6 +862,7 @@ export class WorldScene {
    * when it is unchanged the settled world skips the scan entirely.
    */
   private lastReconciliationSignature: string | null = null;
+  private readonly reconciliationParts: string[] = [];
   private immediateSyncCalls = 0;
   private reconciliationRuns = 0;
   private reconciliationSkips = 0;
@@ -931,6 +936,7 @@ export class WorldScene {
   private questWaypointVisible = false;
   private questWaypointElapsedSeconds = 0;
   private readyPromise: Promise<void> | null = null;
+  private geometryPromise: Promise<void> | null = null;
 
   private readyWorldSeed: number | null = null;
   private staticCollisionProxyList: StaticCollisionProxy[] = [];
@@ -1142,13 +1148,15 @@ export class WorldScene {
     this.setQuality(this.qualityTier);
   }
 
-  private async initializeWorldGeometry(): Promise<void> {
+  private async initializeWorldGeometry(onProgress?: () => void): Promise<void> {
     await Promise.all([
       this.terrainSurfaceMaterial.loadExternalTextures(),
       this.roadSurfaceMaterial.loadExternalTextures()
     ]);
     await this.initializeWater();
-    await this.buildWorldTerrain();
+    onProgress?.();
+    await this.buildWorldTerrain(onProgress);
+    onProgress?.();
     await yieldToTask(this.startupSignal);
     this.checkAlive();
     this.buildPlacementPreview();
@@ -1156,9 +1164,27 @@ export class WorldScene {
     await yieldToTask(this.startupSignal);
     this.checkAlive();
     this.buildRouteDetails();
+    // Brooks lie on the rendered terrain grid, so they follow the terrain.
+    this.scene.add(createBrookSurface(this.water.uniforms.uTime as THREE.IUniform<number>));
     await yieldToTask(this.startupSignal);
     this.checkAlive();
     this.buildFishingPresentation();
+  }
+
+  /** Builds procedural terrain, water and route presentation without prefab GLBs. */
+  public prepareGeometry(worldSeed: number, signal?: AbortSignal, onProgress?: () => void): Promise<void> {
+    if (this.readyWorldSeed !== null && this.readyWorldSeed !== worldSeed) {
+      throw new Error(
+        `[WorldScene] Already initialized for world seed ${this.readyWorldSeed}; cannot reinitialize for ${worldSeed}`
+      );
+    }
+    this.checkAlive();
+    if (!this.geometryPromise) {
+      this.readyWorldSeed = worldSeed;
+      this.startupSignal = signal;
+      this.geometryPromise = this.initializeWorldGeometry(onProgress);
+    }
+    return this.geometryPromise;
   }
 
   public ready(worldSeed: number, signal?: AbortSignal): Promise<void> {
@@ -1169,10 +1195,9 @@ export class WorldScene {
     }
     this.checkAlive();
     if (!this.readyPromise) {
-      this.readyWorldSeed = worldSeed;
-      this.startupSignal = signal;
       this.readyPromise = (async () => {
-        await this.initializeWorldGeometry();
+        await this.prepareGeometry(worldSeed, signal);
+        this.checkAlive();
         const layout = WorldScene.preparedStartupLayouts.get(worldSeed)
           ?? createWorldEnvironmentLayout(worldSeed);
         WorldScene.preparedStartupLayouts.delete(worldSeed);
@@ -1207,15 +1232,22 @@ export class WorldScene {
       ...layout.staticPlacements.map((placement) => placement.assetId as AssetId),
       ...layout.groundCoverPlacements.map((placement) => placement.assetId as AssetId),
       ASSET_IDS.FAUNA_GULL_A,
-      ASSET_IDS.FAUNA_BUTTERFLY_A,
-      ...Array.from(ContentRegistry.npcs.values(), (npc) => npc.assetId as AssetId)
+      ASSET_IDS.FAUNA_BUTTERFLY_A
     ]);
+    for (const npc of ContentRegistry.npcs.values()) {
+      if (!this.CUSTOM_AUTHORED_NPCS[npc.id]) assetIds.add(npc.assetId as AssetId);
+    }
     for (const crop of Object.values(state.crops)) {
       const assetId = cropStageAsset(crop.cropId, crop.stage);
       if (assetId) assetIds.add(assetId);
     }
     for (const boat of Object.values(state.boats)) assetIds.add(boatAssetId(boat.boatTypeId));
     return [...assetIds];
+  }
+
+  /** New authored NPCs are required arrival assets and join normal boot progress. */
+  public static startupDirectModels(): readonly DirectAssetSpec[] {
+    return Object.values(this.CUSTOM_AUTHORED_NPCS);
   }
 
   private async populateEnvironment(layout: WorldEnvironmentLayout): Promise<void> {
@@ -1279,10 +1311,11 @@ export class WorldScene {
   }
 
   /** Builds the selectively smoothed terrain and its shared physical-road surface. */
-  private async buildWorldTerrain(): Promise<void> {
+  private async buildWorldTerrain(onProgress?: () => void): Promise<void> {
     for (const patch of WorldLayout.terrainPatches()) {
-      const layoutGeometry = await WorldLayout.buildTerrainGeometryAsync(patch.id, this.startupSignal);
+      const layoutGeometry = await WorldLayout.buildTerrainGeometryAsync(patch.id, this.startupSignal, onProgress);
       this.checkAlive();
+      onProgress?.();
       // Copied before production batching disposes the source geometry.
       this.meadowField.addTerrainPatch(patch, layoutGeometry);
       const layoutTerrain = import.meta.env.DEV
@@ -1334,8 +1367,9 @@ export class WorldScene {
     // 17-strip transverse resolution. A narrow alpha-tested polygon edge owns
     // the visible merge; the coarse terrain grid remains a green underlay.
     await yieldToTask(this.startupSignal);
-    const pathGeometry = await WorldLayout.buildPathGeometryAsync(this.startupSignal);
+    const pathGeometry = await WorldLayout.buildPathGeometryAsync(this.startupSignal, onProgress);
     this.checkAlive();
+    onProgress?.();
     // The carpet follows the road's broad coverage edge at meadow-mask
     // resolution, then excludes building pads and the farmhouse interior.
     await this.meadowField.stampRoadCoverage(pathGeometry, this.startupSignal);
@@ -2640,12 +2674,77 @@ export class WorldScene {
     }
   }
 
+  private static readonly CUSTOM_AUTHORED_NPCS: Readonly<Record<string, DirectAssetSpec>> = {
+    "npc.barnaby": {
+      modelPath: "/assets/models/char_npc_barnaby_b.glb",
+      id: "char_npc_barnaby_b",
+      scale: 2.0
+    },
+    "npc.elspeth": {
+      modelPath: "/assets/models/char_npc_elspeth_b.glb",
+      id: "char_npc_elspeth_b",
+      scale: 1.95
+    },
+    "npc.silas": {
+      modelPath: "/assets/models/char_npc_silas_b.glb",
+      id: "char_npc_silas_b",
+      scale: 1.90
+    },
+    "npc.maeve": {
+      modelPath: "/assets/models/char_npc_maeve_b.glb",
+      id: "char_npc_maeve_b",
+      scale: 1.88
+    },
+    "npc.tomas": {
+      modelPath: "/assets/models/char_npc_tomas_b.glb",
+      id: "char_npc_tomas_b",
+      scale: 1.95
+    },
+    "npc.ines": {
+      modelPath: "/assets/models/char_npc_ines_b.glb",
+      id: "char_npc_ines_b",
+      scale: 1.95
+    },
+    "npc.rowan": {
+      modelPath: "/assets/models/char_npc_rowan_b.glb",
+      id: "char_npc_rowan_b",
+      scale: 2.0
+    },
+    "npc.mara": {
+      modelPath: "/assets/models/char_npc_mara_b.glb",
+      id: "char_npc_mara_b",
+      scale: 1.90
+    },
+    "npc.ada": {
+      modelPath: "/assets/models/char_npc_ada_b.glb",
+      id: "char_npc_ada_b",
+      scale: 1.88
+    }
+  };
+
+  private static directModelForId(assetId: string): DirectAssetSpec | undefined {
+    return Object.values(this.CUSTOM_AUTHORED_NPCS).find((spec) => spec.id === assetId);
+  }
+
   private async loadNpcPresentations(): Promise<void> {
     const npcs = Array.from(ContentRegistry.npcs.values());
     for (const npc of npcs) {
+      let model: THREE.Group | undefined;
+      let animator: NpcAnimatorContract | undefined;
       try {
         const assetId = npc.assetId as AssetId;
-        const model = await this.loadModel(assetId);
+        let presentationAssetId = assetId as string;
+
+        const custom = WorldScene.CUSTOM_AUTHORED_NPCS[npc.id];
+        if (custom) {
+          model = await AssetLoader.loadDirectModel(custom, this.startupSignal);
+          animator = new AuthoredNpcAnimator(model, npc.id);
+          presentationAssetId = custom.id;
+        } else {
+          model = await this.loadModel(assetId);
+          animator = new HumanoidAnimator(model);
+        }
+
         const y = WorldLayout.traversalSurfaceHeight(npc.anchor.x, npc.anchor.z);
         model.position.set(npc.anchor.x, y, npc.anchor.z);
         model.rotation.y = npc.anchor.rotationY;
@@ -2660,11 +2759,10 @@ export class WorldScene {
           model.add(shadowMesh);
         }
 
-        const animator = new HumanoidAnimator(model);
         this.environmentGroup.add(model);
         this.npcPresentations.set(npc.id, {
           id: npc.id,
-          assetId,
+          assetId: presentationAssetId,
           anchor: { ...npc.anchor },
           model,
           animator,
@@ -2677,9 +2775,43 @@ export class WorldScene {
           lastAnimationContext: null
         });
       } catch (err) {
+        animator?.dispose();
+        if (model) {
+          model.removeFromParent();
+          AssetLoader.releaseModel(model);
+        }
         console.warn(`[WorldScene] Failed to load NPC ${npc.id} (${npc.assetId}):`, err);
       }
     }
+  }
+
+  public debugNpcs(): ReadonlyArray<Record<string, unknown>> {
+    const list: Record<string, unknown>[] = [];
+    for (const [id, npc] of this.npcPresentations) {
+      const worldPos = new THREE.Vector3();
+      npc.model.getWorldPosition(worldPos);
+      let meshCount = 0;
+      let visibleMeshes = 0;
+      npc.model.traverse(c => {
+        if ((c as THREE.Mesh).isMesh) {
+          meshCount++;
+          if (c.visible) visibleMeshes++;
+        }
+      });
+      list.push({
+        id,
+        assetId: npc.assetId,
+        clip: npc.animator.activeClipName?.() ?? null,
+        pos: [npc.model.position.x, npc.model.position.y, npc.model.position.z],
+        worldPos: [worldPos.x, worldPos.y, worldPos.z],
+        visible: npc.model.visible,
+        parent: npc.model.parent ? (npc.model.parent.name || "parent") : null,
+        meshCount,
+        visibleMeshes,
+        scale: [npc.model.scale.x, npc.model.scale.y, npc.model.scale.z]
+      });
+    }
+    return list;
   }
 
   public setDialogueNpc(npcId: string | null): void {
@@ -4061,18 +4193,31 @@ export class WorldScene {
     // Background villagers. Deliberately not tagged for the layout editor and
     // never registered as NPCs, so nothing can interact with them.
     for (const route of AMBIENT_TOWNSFOLK_ROUTES) {
+      let model: THREE.Group | undefined;
+      let animator: NpcAnimatorContract | undefined;
       try {
-        const model = await this.loadModel(route.assetId as AssetId);
+        const direct = WorldScene.directModelForId(route.assetId);
+        model = direct
+          ? await AssetLoader.loadDirectModel(direct, this.startupSignal)
+          : await this.loadModel(route.assetId as AssetId);
+        animator = direct
+          ? new AuthoredNpcAnimator(model, route.id)
+          : new HumanoidAnimator(model);
         model.userData.dynamicPresentation = true;
         model.position.set(route.stations.day.x, WorldLayout.traversalSurfaceHeight(
           route.stations.day.x, route.stations.day.z
         ), route.stations.day.z);
         this.environmentGroup.add(model);
         this.ambientTownsfolk.push({
-          route, model, animator: new HumanoidAnimator(model),
+          route, model, animator,
           motionFrame: null, lastAnimationContext: null, pendingAnimationSeconds: 0
         });
       } catch (error) {
+        animator?.dispose();
+        if (model) {
+          model.removeFromParent();
+          AssetLoader.releaseModel(model);
+        }
         console.warn(`[WorldScene] Failed to load townsfolk ${route.id}:`, error);
       }
     }
@@ -4433,7 +4578,7 @@ export class WorldScene {
       timeSeconds,
       waterConditions,
       this.visibilityAnchor,
-      { reducedMotion: this.prefersReducedMotion, camera: this.activeCamera ?? this.visibilityLodCamera }
+      { reducedMotion: this.prefersReducedMotion }
     );
     this.boatWakes.update(timeSeconds);
     this.farmVfx.update(timeSeconds);
@@ -4842,8 +4987,10 @@ export class WorldScene {
       const previousX = npc.model.position.x;
       const previousZ = npc.model.position.z;
       const beatSpec = npcStationBeatAt(npc.id, state.clock);
+      const holdBeat = isDialogueTarget || npc.lastAnimationContext?.talking === true
+        || npc.animator.wantsStationPause?.() === true;
       const beatSample = advanceNpcStationBeat(
-        beatSpec, npc.beat, npcFrameDelta, isDialogueTarget,
+        beatSpec, npc.beat, npcFrameDelta, holdBeat,
         (offsetX, offsetZ) => {
           const x = npc.anchor.x + offsetX;
           const z = npc.anchor.z + offsetZ;
@@ -4926,7 +5073,12 @@ export class WorldScene {
         const animationDelta = npc.pendingAnimationSeconds;
         npcAnimationDelta = animationDelta;
         npc.pendingAnimationSeconds = 0;
-        npc.motionFrame = npc.animator.update(animationDelta, context, this.prefersReducedMotion);
+        npc.motionFrame = npc.animator.update(animationDelta, context, this.prefersReducedMotion, {
+          timeOfDay: state.clock.timeOfDay,
+          nearPlayer: distSq <= 6 * 6,
+          reactionKind: socialReaction.kind,
+          reactionAttention: socialReaction.attention
+        });
         // Talking always faces the player; otherwise the head turns to
         // acknowledge someone who walks up. A committed nearby event can carry
         // that attention farther for a moment, then it settles back.
@@ -5277,6 +5429,7 @@ export class WorldScene {
     let lineCurve = 0;
     let surfaceStrength = 0.22;
     let lineVisible = true;
+    let sportSurfaceHeight: number | null = null;
 
     if (basic) {
       if (this.lastBasicFishingPhase === "charging-cast" && basic.phase !== "charging-cast") {
@@ -5335,7 +5488,8 @@ export class WorldScene {
       const presentation = this.sportFishingPresentation;
       endpointX = presentation.endpointX;
       endpointZ = presentation.endpointZ;
-      endpointY = this.water.height(endpointX, endpointZ, timeSeconds) - presentation.depthMeters;
+      sportSurfaceHeight = this.water.height(endpointX, endpointZ, timeSeconds);
+      endpointY = sportSurfaceHeight - presentation.depthMeters;
       const newlyHooked = this.lastFishingInstanceId !== sport.fish.instanceId;
       this.sportFishingCameraHint = {
         lookHint: { x: endpointX, y: endpointY, z: endpointZ },
@@ -5395,7 +5549,7 @@ export class WorldScene {
     }
 
     if (rodProp?.visible && this.playerAnimation) alignEquipmentHands(this.playerAnimation, rodProp);
-    const waterHeight = this.water.height(endpointX, endpointZ, timeSeconds);
+    const waterHeight = sportSurfaceHeight ?? this.water.height(endpointX, endpointZ, timeSeconds);
     if (sport) {
       const presentation = this.sportFishingPresentation;
       const sameFish = this.lastFishingInstanceId === sport.fish.instanceId;
@@ -6102,19 +6256,25 @@ export class WorldScene {
    */
   private computeReconciliationSignature(sim: Simulation): string {
     const state = sim.getState();
-    const parts: string[] = [
+    const parts = this.reconciliationParts;
+    parts.length = 0;
+    const equipped = state.player.equipment.equipped;
+    parts.push(
       this.playerMesh ? "player" : "player-missing",
       this.playerEquipmentAssembler
-        ? JSON.stringify(characterVisualLoadoutFromState(state))
+        // The registry mapping is static; equipment and rod IDs are the
+        // complete mutable inputs to characterVisualLoadoutFromState.
+        ? `equipment:${equipped.head}:${equipped.outerwear}:${equipped.feet}:${equipped["watering-tool"]}:${equipped["harvest-tool"]}:${state.player.equippedRodId}`
         : "equipment-missing",
       state.player.carriedFishCargoId ?? "carry-none",
       this.carriedFishPresentation?.cargoId ?? "carry-model-none",
       state.sportFishing?.fish.speciesId ?? "no-sport-fish",
       this.hookedFishAssetId ?? "hooked-none",
       this.skiffMooringPreview ? "skiff-preview" : this.ownedSkiffMeshReady(state) ? "skiff-owned" : "skiff-missing",
-      this.cropInstances.assetStatusSignature(state)
-    ];
-    for (const boat of Object.values(state.boats)) {
+      this.cropInstances.assetStatusSignature()
+    );
+    for (const boatId in state.boats) {
+      const boat = state.boats[boatId]!;
       parts.push(`boat:${boat.id}:${boat.boatTypeId}:${this.boatMeshes.has(boat.id) ? "mesh" : "missing"}:${boat.fishCargoSlotIds.join(",")}`);
     }
     const carriage = state.mounts[STARTER_CARRIAGE_ID];
@@ -6124,7 +6284,7 @@ export class WorldScene {
     for (const cargoId of this.boatFishPacks.keys()) parts.push(`boat-pack:${cargoId}`);
     for (const cargoId of this.carriagePacks.keys()) parts.push(`carriage-pack:${cargoId}`);
     for (const cargoId of this.groundFishPacks.keys()) parts.push(`ground-pack:${cargoId}`);
-    for (const schoolId of Object.keys(state.world.activeSchools)) {
+    for (const schoolId in state.world.activeSchools) {
       parts.push(`school:${schoolId}:${this.schoolEffects.has(schoolId) ? "yes" : "missing"}`);
     }
     return parts.join("|");
@@ -6177,7 +6337,6 @@ export class WorldScene {
     const record = this.phaseRecorder;
     let mark = record ? performance.now() : 0;
     const worldUpdateStart = mark;
-    this.activeCamera = camera;
     updateVegetationObstruction(camera, this.playerMesh?.getWorldPosition(this.tempCharacterWorldPosition) ?? null);
     this.water?.updateCamera(camera);
     this.hasRenderedFrame = true;
@@ -6397,11 +6556,13 @@ export class WorldScene {
     for (const npc of this.npcPresentations.values()) {
       npc.animator.dispose();
       npc.model.removeFromParent();
+      AssetLoader.releaseModel(npc.model);
     }
     this.npcPresentations.clear();
     for (const person of this.ambientTownsfolk) {
       person.animator.dispose();
       person.model.removeFromParent();
+      AssetLoader.releaseModel(person.model);
     }
     this.ambientTownsfolk.length = 0;
     for (const animal of this.ambientAnimals) {

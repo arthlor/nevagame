@@ -7,6 +7,7 @@ import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderCon
 import {
   advanceWrappedMinute,
   clockWindowAmbient,
+  dawnMistEnvelope,
   deriveCelestialDirections,
   deriveLightingFrame,
   LightingRig,
@@ -327,5 +328,109 @@ describe("LightingRig", () => {
     expect(noFlash.lightning).toBe(0);
     expect(flashA.skyTopColor.getHex()).not.toBe(stormBetweenStrikes.skyTopColor.getHex());
     expect(flashA.fogColor.getHex()).not.toBe(stormBetweenStrikes.fogColor.getHex());
+  });
+
+  describe("golden hour and twilight", () => {
+    const frameAt = (minute: number, weather: "clear" | "cloudy" | "light-rain" | "storm" = "clear") => {
+      const state = createInitialGameState(42);
+      applyWeatherProfile(state.weather, weather);
+      state.clock.currentMinute = minute;
+      return deriveLightingFrame(state, 0);
+    };
+    const hsl = (color: THREE.Color) => color.getHSL({ h: 0, s: 0, l: 0 });
+    const warmth = (color: THREE.Color) => color.r / Math.max(0.0001, color.b);
+
+    it("keeps a deeper, cooler clear zenith at golden hour instead of the pale overcast dome", () => {
+      const clear = frameAt(17 * 60 + 40);
+      const cloudy = frameAt(17 * 60 + 40, "cloudy");
+      expect(hsl(clear.skyTopColor).l).toBeLessThan(hsl(cloudy.skyTopColor).l);
+      expect(hsl(clear.skyTopColor).s).toBeGreaterThan(hsl(cloudy.skyTopColor).s);
+      expect(clear.skyTopColor.b).toBeGreaterThan(clear.skyTopColor.r);
+      // The warm colour belongs to the horizon, not the whole dome.
+      expect(warmth(clear.skyHorizonColor)).toBeGreaterThan(warmth(clear.skyTopColor));
+    });
+
+    it("pairs a warm key with cool shade and a warm ground bounce at clear golden hour", () => {
+      const noon = frameAt(12 * 60);
+      const golden = frameAt(17 * 60 + 40);
+      expect(warmth(golden.sunColor)).toBeGreaterThan(warmth(noon.sunColor));
+      expect(warmth(golden.skyFillColor)).toBeLessThan(warmth(golden.sunColor));
+      expect(warmth(golden.groundFillColor)).toBeGreaterThan(warmth(golden.skyFillColor));
+      expect(warmth(golden.groundFillColor)).toBeGreaterThan(warmth(noon.groundFillColor));
+    });
+
+    it("deepens the key into an ember only in the last minutes around the horizon", () => {
+      const lateAfternoon = frameAt(17 * 60);
+      const horizon = frameAt(17 * 60 + 58);
+      expect(warmth(horizon.sunColor)).toBeGreaterThan(warmth(lateAfternoon.sunColor));
+    });
+
+    it("lifts the grazing key without changing noon, sunrise or sunset", () => {
+      const sun = CANONICAL_RENDER_CONFIG.sun;
+      const lift = sun.goldenKeyLift;
+      const minutes = [12 * 60, 17 * 60 + 40, 6 * 60, 18 * 60];
+      const lifted = minutes.map((minute) => frameAt(minute).sunIntensity);
+      let unlifted: number[];
+      try {
+        sun.goldenKeyLift = 0;
+        unlifted = minutes.map((minute) => frameAt(minute).sunIntensity);
+      } finally {
+        sun.goldenKeyLift = lift;
+      }
+      expect(lifted[0]).toBe(unlifted[0]);
+      expect(frameAt(17 * 60 + 40).sunDirection.y).toBeGreaterThan(0.04);
+      expect(lifted[1]).toBeGreaterThan(unlifted[1] * 1.1);
+      expect(lifted[1]).toBeLessThanOrEqual(unlifted[1] * (1 + lift) + 1e-9);
+      expect(lifted[2]).toBe(unlifted[2]);
+      expect(lifted[3]).toBe(unlifted[3]);
+    });
+
+    it("confines the sunward glow, rose band and afterglow to the low sun and clear skies", () => {
+      const noon = frameAt(12 * 60);
+      expect(noon.sunGlow).toBe(0);
+      expect(noon.antiTwilight).toBe(0);
+      const clear = frameAt(17 * 60 + 55);
+      const cloudy = frameAt(17 * 60 + 55, "cloudy");
+      const storm = frameAt(17 * 60 + 55, "storm");
+      const glow = (frame: ReturnType<typeof frameAt>) => frame.sunGlow;
+      expect(glow(clear)).toBeGreaterThan(glow(cloudy));
+      expect(glow(storm)).toBe(0);
+      expect(clear.antiTwilight).toBeGreaterThan(0);
+      expect(cloudy.antiTwilight).toBeLessThan(clear.antiTwilight);
+      // After sunset the clouds' key turns rose while the land's key has gone.
+      const afterglow = frameAt(18 * 60 + 12);
+      expect(afterglow.sunDirection.y).toBeLessThan(0);
+      expect(afterglow.cloudSunColor.getHex()).not.toBe(afterglow.sunColor.getHex());
+      expect(frameAt(16 * 60).cloudSunColor.getHex()).toBe(frameAt(16 * 60).sunColor.getHex());
+    });
+
+    it("gathers valley mist on clear and cloudy mornings only", () => {
+      const [start, peak, end] = CANONICAL_RENDER_CONFIG.atmosphere.aerialPerspective.dawnMistMinutes;
+      expect(dawnMistEnvelope(start)).toBe(0);
+      expect(dawnMistEnvelope(peak)).toBeCloseTo(1, 6);
+      expect(dawnMistEnvelope(end)).toBe(0);
+      expect(dawnMistEnvelope(12 * 60)).toBe(0);
+      expect(dawnMistEnvelope(0)).toBe(0);
+      expect(frameAt(peak).valleyMist).toBeCloseTo(1, 6);
+      expect(frameAt(peak, "cloudy").valleyMist).toBeGreaterThan(0.9);
+      expect(frameAt(peak, "light-rain").valleyMist).toBeLessThan(frameAt(peak).valleyMist);
+      expect(frameAt(peak, "storm").valleyMist).toBe(0);
+    });
+
+    it("keeps the moonlit night bluer than the sea-teal it is derived from", () => {
+      const night = frameAt(0);
+      const teal = new THREE.Color(PALETTE_HEX.water_deep_01);
+      expect(hsl(night.skyTopColor).h).toBeGreaterThan(hsl(teal).h);
+      expect(night.skyTopColor.b).toBeGreaterThan(night.skyTopColor.g);
+    });
+
+    it("shapes each storm strike with its own deterministic seed", () => {
+      const state = createInitialGameState(42);
+      applyWeatherProfile(state.weather, "storm");
+      const cycle = CANONICAL_RENDER_CONFIG.weather.lightningCycleSeconds;
+      const first = deriveLightingFrame(state, 1).lightningSeed;
+      expect(deriveLightingFrame(state, 2).lightningSeed).toBe(first);
+      expect(deriveLightingFrame(state, 1 + cycle).lightningSeed).not.toBe(first);
+    });
   });
 });

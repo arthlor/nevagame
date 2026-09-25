@@ -1,5 +1,7 @@
-import { MAINLAND_BOUNDS, MAINLAND_VILLAGES, mainlandBiomeAt, mainlandBlendAt } from "./NevaMainland";
+import { MAINLAND_BROOK_CULVERT_FACE_METERS, mainlandBrookAt } from "./MainlandBrooks";
+import { MAINLAND_BOUNDS, MAINLAND_VILLAGES, mainlandBiomeAt, mainlandBlendAt, mainlandBrookRoadCrossings } from "./NevaMainland";
 import { MAINLAND_SETTLEMENT_BUILDINGS, mainlandSettlementClearanceAt } from "./MainlandSettlementLayout";
+import { MAINLAND_WORK_SITES, mainlandWorkSitePoint } from "./MainlandWorkSites";
 import { WorldLayout } from "./WorldLayout";
 import type { EnvironmentAssetPlacement, GroundCoverPlacement } from "./WorldEnvironmentLayout";
 import { sampleWorldComposition, type WorldCompositionSample, type CompositionCategory } from "./WorldCompositionField";
@@ -118,7 +120,69 @@ export function mainlandSettlementPlacements(): EnvironmentAssetPlacement[] {
       }
     }
   }
-  return [...placements, ...details, ...mainlandRouteLandmarks()];
+  return [...placements, ...details, ...mainlandWorkSitePlacements(), ...mainlandRouteLandmarks(), ...mainlandCulvertPlacements()];
+}
+
+/** Coping top of `prop_culvert_headwall_a` above its floor, before any height scale. */
+const CULVERT_HEADWALL_HEIGHT_METERS = 1.34;
+const CULVERT_HEADWALL_WIDTH_SCALE = 1.3;
+
+/**
+ * Where a road crosses a brook, the water passes under it in a culvert: a
+ * stone headwall stands at each side of the road deck, parallel to the road,
+ * on the brook's floor, and tall enough to hold the road's edge. The brook
+ * carve stops at the same line (`MAINLAND_BROOK_CULVERT_FACE_METERS`).
+ */
+function mainlandCulvertPlacements(): EnvironmentAssetPlacement[] {
+  const placements: EnvironmentAssetPlacement[] = [];
+  for (const crossing of mainlandBrookRoadCrossings()) {
+    const { point, brook, road, route } = crossing;
+    // Road normal, and how squarely the brook meets the road.
+    const normal = { x: -road.z, z: road.x };
+    const square = Math.max(0.35, Math.abs(brook.x * normal.x + brook.z * normal.z));
+    const offset = (route.widthMeters * 0.5 + MAINLAND_BROOK_CULVERT_FACE_METERS) / square;
+    for (const side of [-1, 1] as const) {
+      const x = point.x + brook.x * offset * side, z = point.z + brook.z * offset * side;
+      const facing = Math.sign(normal.x * brook.x * side + normal.z * brook.z * side) || 1;
+      const floor = mainlandBrookAt(x, z, 3);
+      if (!floor) continue;
+      const lift = crossing.roadElevation + 0.06 - floor.bed;
+      placements.push({
+        ...authored(`culvert.${crossing.brookId}.${route.id}.${side < 0 ? "upstream" : "downstream"}`,
+          "prop_culvert_headwall_a", x, z, Math.atan2(normal.x * facing, normal.z * facing)),
+        y: floor.bed + 0.04,
+        // Wide enough that the wing walls reach the channel's banks.
+        scale: [CULVERT_HEADWALL_WIDTH_SCALE, Math.max(0.7, Math.min(2.2, lift / CULVERT_HEADWALL_HEIGHT_METERS)), 1]
+      });
+    }
+  }
+  return placements;
+}
+
+/**
+ * The adit, ice house, salt pans and timber yard that supply the villages'
+ * goods, with the everyday props that dress their working ground. A level
+ * site keeps the footprint-stability check; a companion that no longer finds
+ * dry, open, gentle ground is left out rather than floated or buried.
+ */
+function mainlandWorkSitePlacements(): EnvironmentAssetPlacement[] {
+  const placements: EnvironmentAssetPlacement[] = [];
+  for (const site of MAINLAND_WORK_SITES) {
+    const [minX, maxX, minZ, maxZ] = site.footprint;
+    placements.push({
+      ...authored(`worksite.${site.id}`, site.assetId, site.center.x, site.center.z, site.rotationY),
+      ...(site.level ? { grounding: [(maxX - minX) * 0.4, (maxZ - minZ) * 0.4] as [number, number] } : {})
+    });
+    for (const companion of site.companions) {
+      const point = mainlandWorkSitePoint(site, companion.local[0], companion.local[1]);
+      const road = WorldLayout.nearestRouteDistance(point.x, point.z);
+      if (WorldLayout.isWater(point.x, point.z) || road.distance < road.halfWidth + road.shoulderWidthMeters + 1.6
+        || WorldLayout.terrainNormalY(point.x, point.z) < 0.9) continue;
+      placements.push(authored(`worksite.${site.id}.${companion.key}`, companion.assetId, point.x, point.z,
+        site.rotationY + companion.rotationY));
+    }
+  }
+  return placements;
 }
 
 /** Working traces occur at useful stopping intervals, each as a small coherent group. */

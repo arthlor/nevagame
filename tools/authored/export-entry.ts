@@ -27,13 +27,15 @@ import { createMedievalMarketStallModel } from "./medieval-market-stall/createMe
 import { createThatchedCottageModel } from "./thatched-cottage/createThatchedCottageModel";
 import { createWoodenOuthouseModel } from "./wooden-outhouse/createWoodenOuthouseModel";
 import { createFishMarketShopModel } from "./fish-market-shop/createFishMarketShopModel";
+import { createSunreachMarketStallModel } from "./sunreach-market-stall/createSunreachMarketStallModel";
 
 const FACTORIES: Readonly<Record<string, () => THREE.Group>> = {
   building_thatched_cottage_a: createThatchedCottageModel,
   building_wooden_outhouse_a: createWoodenOuthouseModel,
   building_medieval_timber_cottage_a: createMedievalCottageModel,
   building_medieval_market_stall_a: createMedievalMarketStallModel,
-  building_fish_market_coastal_a: createFishMarketShopModel
+  building_fish_market_coastal_a: createFishMarketShopModel,
+  building_sunreach_cove_market_a: createSunreachMarketStallModel
 };
 
 interface PaletteTokenSpec {
@@ -82,7 +84,8 @@ const LOD_PLANS: Readonly<Record<string, ReadonlyArray<{ ratio: number; distance
   // 47k triangles: one level, like the thatched cottage, keeps mid-distance cost down without the
   // hero cottage's three-level plan.
   building_medieval_market_stall_a: [{ ratio: 0.35, distance: 40 }],
-  building_fish_market_coastal_a: [{ ratio: 0.35, distance: 40 }]
+  building_fish_market_coastal_a: [{ ratio: 0.35, distance: 40 }],
+  building_sunreach_cove_market_a: [{ ratio: 0.35, distance: 40 }]
 };
 
 /**
@@ -97,6 +100,7 @@ const LOT_NODES: Readonly<Record<string, readonly string[]>> = {
   // Ground dressing and the sign boom overhang the building; the collider stays the building itself
   // so the player can walk up to the stall counter and the door.
   building_medieval_market_stall_a: ["props-group", "trade-sign-group"],
+  building_sunreach_cove_market_a: ["props-group", "trade-sign-group"],
   building_fish_market_coastal_a: [
     "Ground fish crate__pivot",
     "Barrel 1 (coopered oak)__pivot",

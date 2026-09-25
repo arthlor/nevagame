@@ -21,6 +21,7 @@ export interface StartupState {
   loadedAssets: number;
   totalAssets: number;
   message: string;
+  subMessage?: string;
   errorMessage: string | null;
   errorDetail: string | null;
   errorCode: StartupErrorCode | null;
@@ -31,6 +32,8 @@ export interface StartupState {
   slow?: boolean;
   /** Which entry the intro belongs to, so its hint can address the player. */
   introKind?: "new" | "continue";
+  /** Entry intent is independent of whether reduced motion omits the film. */
+  arrivalKind?: "new" | "returning";
   degradedResources?: readonly string[];
   recovery?: "reload" | "save";
 }
@@ -41,6 +44,7 @@ export const createStartupState = (totalAssets: number): StartupState => ({
   loadedAssets: 0,
   totalAssets,
   message: "A quiet coast is waiting.",
+  subMessage: "Surveying coastal charts & headlands",
   errorMessage: null,
   errorDetail: null,
   errorCode: null,

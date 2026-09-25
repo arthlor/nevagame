@@ -9,6 +9,7 @@ import {
 import { SUNREACH_ANCHORS, type WorldBiomeId, type WorldIslandId } from "./WorldIslands";
 import { sampleNevaLandforms } from "./NevaLandforms";
 import { NEVA_HEADWATERS, headwaterSpringInfluence } from "./NevaHeadwaters";
+import { mainlandBrookAt } from "./MainlandBrooks";
 import { MAINLAND_VILLAGES, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandBlendAt, mainlandWaterSample } from "./NevaMainland";
 import { mainlandSettlementClearanceAt } from "./MainlandSettlementLayout";
 
@@ -389,13 +390,19 @@ function mainlandCompositionSample(worldSeed: number, x: number, z: number): Wor
   const meadow = clamp01((biome.temperate * 0.95 + biome.pineForest * 0.36
     + biome.reedMarsh * 0.48 + biome.highlands * 0.26) * (0.55 + meso * 0.45)
     * (1 - woodland * 0.45));
-  const riparian = Math.max(water.wetness, biome.reedMarsh * (1 - smoothstep(2, 7, height)));
+  // A brook keeps its channel open and greens a narrow strip of its banks.
+  // Mountain brooks run fast over gravel, so they grow bank cover and
+  // shrubs, not the reed beds of the marsh and the slow lowland water.
+  const brook = mainlandBrookAt(x, z);
+  const brookChannel = brook ? 1 - smoothstep(brook.halfWidth + 0.3, brook.halfWidth + 1.8, brook.distance) : 0;
+  const brookMargin = brook ? 1 - smoothstep(brook.halfWidth + 0.5, brook.halfWidth + 8, brook.distance) : 0;
+  const riparian = Math.max(water.wetness, biome.reedMarsh * (1 - smoothstep(2, 7, height)), brookMargin * 0.6);
   const habitat = {
     woodland, meadow, orchard: orchard * (1 - biome.reedMarsh), "working-edge": village,
     riparian, exposed: biome.highlands * (1 - treeline * 0.65), "dry-scrub": 0,
     terrace: 0, "olive-grove": 0, "dry-wash": 0, "exposed-ridge": 0, "reef-edge": 0
   };
-  const clear = 1 - Math.max(routeClearance, architectureClearance, villageOpening, harbor);
+  const clear = 1 - Math.max(routeClearance, architectureClearance, villageOpening, harbor, brookChannel);
   const dampMargin = signedShore < -0.25 ? 1 - smoothstep(5, 19, -signedShore) : 0;
   return {
     islandId: "island.neva", biomeId,

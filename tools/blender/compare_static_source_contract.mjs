@@ -566,6 +566,14 @@ export function compareStaticDocuments(source, candidate, spec, palette) {
   const candidateNode = oneNode(candidate, `${spec.id}_LOD0_surface`, "Candidate");
   const declared = declaredSourceTransform(sourceNode, spec.staticAuthoring);
   const sourceRegions = trianglesByRegion(sourceNode, declared.outerMatrix, true);
+  for (const [region, indices] of Object.entries(spec.staticAuthoring.removedSourceTriangles ?? {})) {
+    const rows = sourceRegions.get(region);
+    if (!rows || new Set(indices).size !== indices.length || indices.some((i) => !Number.isInteger(i) || i < 0 || i >= rows.length)) {
+      throw new Error(`Invalid declared triangle removal in ${region}`);
+    }
+    const removed = new Set(indices);
+    sourceRegions.set(region, rows.filter((_, index) => !removed.has(index)));
+  }
   const candidateRegions = trianglesByRegion(candidateNode, new Matrix4(), false);
   const expectedRegions = new Set(Object.keys(spec.staticAuthoring.materialMap));
   const sourceRegionNames = new Set(sourceRegions.keys());

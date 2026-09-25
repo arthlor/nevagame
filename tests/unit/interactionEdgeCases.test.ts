@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { GameApp } from "../../src/app/GameApp";
 import {
   InteractionTargetResolver,
   type ResolvedInteractionTarget
 } from "../../src/app/InteractionTargetResolver";
 import { ModeController } from "../../src/app/ModeController";
 import { ModalStack } from "../../src/app/ModalStack";
+import { Simulation } from "../../src/simulation/Simulation";
+import type { PlacedCropState } from "../../src/simulation/core/types";
 
 const makeTarget = (
   id: string,
@@ -30,6 +33,36 @@ const defaultContext = {
 };
 
 describe("Interaction & Modal Routing Edge Cases", () => {
+  it("does not inspect a crop outside every equipment-adjusted interaction reach", () => {
+    const sim = new Simulation();
+    const crop: PlacedCropState = {
+      id: "far_crop",
+      farmId: "farm.starter_garden",
+      cropId: "crop.wheat",
+      stage: "seeded",
+      x: 3,
+      z: 3,
+      rotationRadians: 0,
+      effectiveGrowthMinutes: 0,
+      plantedAtMinute: 0,
+      lastUpdatedMinute: 0,
+      moisture: 70,
+      health: 100,
+      averageMoistureAccum: 70,
+      moistureSampleCount: 1
+    };
+    sim.state.crops[crop.id] = crop;
+    sim.state.player.x = 10_000;
+    sim.state.player.z = 10_000;
+    const inspect = vi.spyOn(sim, "inspectCrop");
+    const resolve = (GameApp.prototype as unknown as {
+      resolveCropTarget: (this: { sim: Simulation }, cropId: string) => unknown;
+    }).resolveCropTarget;
+
+    expect(resolve.call({ sim }, crop.id)).toBeNull();
+    expect(inspect).not.toHaveBeenCalled();
+  });
+
   it("resolves ties deterministically using stable ID sorting", () => {
     const resolver = new InteractionTargetResolver();
     const targetA = makeTarget("crop_alpha", 1, 1);

@@ -1,8 +1,9 @@
 import { nevaBaseGroundHeight, sampleNevaLandforms } from "./NevaLandforms";
 import { nevaCoveShelterAt, nevaHeadlandAt } from "./NevaCoastField";
 import { drainageStripe, fractalNoise, gradientNoise, gullyProfile } from "./ProceduralNoise";
+import { MAINLAND_BROOK_CULVERT_FACE_METERS, mainlandBrookCarvedHeight, mainlandBrookCourses } from "./MainlandBrooks";
 import { MAINLAND_ROUTED_LEGS } from "./MainlandRoutes.generated";
-import { MAINLAND_BOUNDS, signedDistanceToNevaCoast } from "./WorldIslands";
+import { MAINLAND_BOUNDS, nevaCoastIndex, signedDistanceToNevaCoast } from "./WorldIslands";
 import type { WorldPoint, WorldRoute } from "./WorldLayout";
 
 export { MAINLAND_BOUNDS };
@@ -123,6 +124,10 @@ const CAP_CURVATURE = FLANK_EXPONENT * Math.pow(1 - CREST_CAP, FLANK_EXPONENT - 
 const CAP_PEAK = Math.pow(1 - CREST_CAP, FLANK_EXPONENT) + CAP_CURVATURE * CREST_CAP * CREST_CAP;
 const LEE_WIDTH_GAIN = 0.5;
 const CREST_SPACING_METERS = 18;
+/** Relief difference over which crest segments hand crest and flank to one another. */
+const RANGE_BLEND_METERS = 0.75;
+/** Distance from a crest line over which that segment's downslope direction fades in. */
+const CREST_DIRECTION_FADE_METERS = 16;
 
 function rangeProfile(s: number): number {
   if (s >= 1) return 0;
@@ -226,7 +231,25 @@ function rangeAt(x: number, z: number): RangeSample {
   const candidates = RANGE_CELLS.get(`${Math.floor(x / RANGE_CELL_METERS)}:${Math.floor(z / RANGE_CELL_METERS)}`);
   if (!candidates) return sample;
   const spineBest = [0, 0, 0];
-  let owner = -1, downX = 0, downZ = 0;
+  let owner = -1;
+  // Crest height and flank position come from a soft-max over the crest
+  // segments that reach this point, weighted by how close each segment's
+  // relief comes to the highest. The weights are continuous, so two
+  // non-adjacent segments of one spine that tie blend instead of handing the
+  // sample to whichever wins (that stepped the gully depth along the tie
+  // line), while a lower segment along the ridge barely moves the flank of a
+  // crest line and the gullies stay masked there. Sums are rescaled whenever
+  // the maximum rises.
+  //
+  // The downslope direction needs a much softer blend: the gully stripes
+  // turn a fast change of direction into cliffs, and across a col or the
+  // inside of a bend the nearest crest switches from one arm to the other.
+  // A sixth-power relief weight spreads that turn across the flank. A
+  // segment's direction flips on its own crest line, so it fades in over the
+  // first metres off that line; where a crest falls steeply and the flank of
+  // the higher crest covers the lower, water on the lower crest follows the
+  // ridge instead of swinging from side to side.
+  let top = -Infinity, total = 0, crestSum = 0, flankSum = 0, downX = 0, downZ = 0;
   for (const segment of candidates) {
     if (x < segment.minX || x > segment.maxX || z < segment.minZ || z > segment.maxZ) continue;
     const { a, b } = segment;
@@ -242,19 +265,27 @@ function rangeAt(x: number, z: number): RangeSample {
     if (s >= 1) continue;
     const relief = elevation * rangeProfile(s);
     spineBest[segment.spineIndex] = Math.max(spineBest[segment.spineIndex], relief);
-    if (distance > 0.0001) {
-      // Neighbouring crest segments own adjacent wedges of a flank. A sharp
-      // sixth-power weight blends their directions across each wedge border, so
-      // the gully pattern bends with the crest instead of shearing along a seam.
-      const squared = relief * relief, weight = squared * squared * squared;
-      downX += dx / distance * weight;
-      downZ += dz / distance * weight;
+    const outX = distance > 0.0001 ? dx / distance : 0, outZ = distance > 0.0001 ? dz / distance : 0;
+    const squared = relief * relief;
+    const directionWeight = squared * squared * squared * mainlandSmoothstep(0, CREST_DIRECTION_FADE_METERS, distance);
+    downX += outX * directionWeight;
+    downZ += outZ * directionWeight;
+    if (relief > top) {
+      const rescale = Math.exp((top - relief) / RANGE_BLEND_METERS);
+      total *= rescale; crestSum *= rescale; flankSum *= rescale;
+      top = relief;
     }
+    const weight = Math.exp((relief - top) / RANGE_BLEND_METERS);
+    total += weight;
+    crestSum += elevation * weight;
+    flankSum += s * weight;
     if (relief <= sample.relief) continue;
     sample.relief = relief;
-    sample.crest = elevation;
-    sample.flank = s;
     owner = segment.spineIndex;
+  }
+  if (total > 0) {
+    sample.crest = crestSum / total;
+    sample.flank = flankSum / total;
   }
   const downLength = Math.hypot(downX, downZ);
   if (downLength > 1e-9) {
@@ -322,6 +353,16 @@ export const MAINLAND_LAKE = {
 } as const;
 const LAKE_SHORE_SALT = 0x61a7;
 
+/**
+ * Furthest the freshwater valley reaches from its water, in the field's own
+ * units (see `computeLandform`): the start of the carve, its capped width and
+ * the width noise. Beyond it the ground keeps its own form.
+ */
+const VALLEY_WIDTH_MAX_METERS = 130;
+const VALLEY_REACH_LIMIT_METERS = 12 + VALLEY_WIDTH_MAX_METERS + 22;
+/** The shore noise of the lake fades out over this band of its normalized radius. */
+const LAKE_SHORE_NOISE_FADE = [0.9, 1.5] as const;
+
 // The existing query's finite longitudinal window is indexed without changing
 // candidate order or its exact boundary. All metadata is immutable geography.
 const RIVER_QUERY_ROW_METERS = 32;
@@ -333,15 +374,41 @@ const RIVER_SEGMENTS = MAINLAND_RIVER.slice(1).map((b, index) => {
     minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x),
     minZ: Math.min(a.z, b.z), maxZ: Math.max(a.z, b.z) };
 });
+const RIVER_MAX_WIDTH = Math.max(...RIVER_SEGMENTS.map(segment => segment.width));
+/**
+ * Rows hold every segment whose middle lies within the valley's reach plus
+ * half a segment, so the river field is exact wherever the valley can reach.
+ * A shorter window cut the carve off in a straight line past the river's ends.
+ */
+const RIVER_QUERY_WINDOW_METERS = VALLEY_REACH_LIMIT_METERS + RIVER_MAX_WIDTH + 8;
 const RIVER_QUERY_ROWS = new Map<number, typeof RIVER_SEGMENTS>();
 for (const segment of RIVER_SEGMENTS) {
-  for (let row = Math.floor((segment.middleZ - 105.000001) / RIVER_QUERY_ROW_METERS);
-    row <= Math.floor((segment.middleZ + 105.000001) / RIVER_QUERY_ROW_METERS); row++) {
+  for (let row = Math.floor((segment.middleZ - RIVER_QUERY_WINDOW_METERS - 0.000001) / RIVER_QUERY_ROW_METERS);
+    row <= Math.floor((segment.middleZ + RIVER_QUERY_WINDOW_METERS + 0.000001) / RIVER_QUERY_ROW_METERS); row++) {
     const candidates = RIVER_QUERY_ROWS.get(row) ?? [];
     candidates.push(segment);
     RIVER_QUERY_ROWS.set(row, candidates);
   }
 }
+
+/**
+ * Everything the valley can reach. Lake distance is measured in lake-radius
+ * units along x, so its reach stretches with the ellipse along z. Outside the
+ * box every freshwater body is further than the valley reaches, which is the
+ * only reason the query may stop early; the old fixed box cut the valley off
+ * in straight terrain steps north and west of the lake.
+ */
+const LAKE_REACH_SCALE = 1 + (VALLEY_REACH_LIMIT_METERS + 7) / MAINLAND_LAKE.radiusX;
+const FRESHWATER_QUERY_BOUNDS = {
+  minX: Math.min(MAINLAND_LAKE.center.x - MAINLAND_LAKE.radiusX * LAKE_REACH_SCALE,
+    ...RIVER_SEGMENTS.map(segment => segment.minX - segment.width - VALLEY_REACH_LIMIT_METERS)),
+  maxX: Math.max(MAINLAND_LAKE.center.x + MAINLAND_LAKE.radiusX * LAKE_REACH_SCALE,
+    ...RIVER_SEGMENTS.map(segment => segment.maxX + segment.width + VALLEY_REACH_LIMIT_METERS)),
+  minZ: Math.min(MAINLAND_LAKE.center.z - MAINLAND_LAKE.radiusZ * LAKE_REACH_SCALE,
+    ...RIVER_SEGMENTS.map(segment => segment.minZ - segment.width - VALLEY_REACH_LIMIT_METERS)),
+  maxZ: Math.max(MAINLAND_LAKE.center.z + MAINLAND_LAKE.radiusZ * LAKE_REACH_SCALE,
+    ...RIVER_SEGMENTS.map(segment => segment.maxZ + segment.width + VALLEY_REACH_LIMIT_METERS))
+} as const;
 
 export interface MainlandWaterSample {
   /** Positive inside freshwater; independent of the ocean coast union. */
@@ -353,7 +420,8 @@ export interface MainlandWaterSample {
 }
 
 export function mainlandWaterSample(x: number, z: number): MainlandWaterSample {
-  if (x < -705 || x > -395 || z < -285 || z > 350) {
+  if (x < FRESHWATER_QUERY_BOUNDS.minX || x > FRESHWATER_QUERY_BOUNDS.maxX
+    || z < FRESHWATER_QUERY_BOUNDS.minZ || z > FRESHWATER_QUERY_BOUNDS.maxZ) {
     return { signedDistance: -1000, habitat: "river", wetness: 0, direction: { x: 0, z: 1 } };
   }
   // Keep the established western fishing bank; the lake opens into its eastern wooded basin.
@@ -361,13 +429,16 @@ export function mainlandWaterSample(x: number, z: number): MainlandWaterSample {
     (z - MAINLAND_LAKE.center.z) / MAINLAND_LAKE.radiusZ);
   // Small bays and points break the ellipse everywhere except that bank.
   const bank = mainlandSmoothstep(10, 34, Math.hypot(x - MAINLAND_LAKE.fishingBank.x, z - MAINLAND_LAKE.fishingBank.z));
+  // The bays fade out with distance; cutting them off at a fixed radius drew a
+  // ring-shaped step through the valley around the lake.
+  const shoreNoise = 1 - mainlandSmoothstep(LAKE_SHORE_NOISE_FADE[0], LAKE_SHORE_NOISE_FADE[1], 1 - lake);
   const lakeDistance = lake * MAINLAND_LAKE.radiusX
-    + (lake > -1.2 ? fractalNoise(x, z, 64, 2, LAKE_SHORE_SALT) * 7 * bank : 0);
+    + (shoreNoise > 0 ? fractalNoise(x, z, 64, 2, LAKE_SHORE_SALT) * 7 * bank * shoreNoise : 0);
   let river = -1000;
   let direction: WorldPoint = { x: 0, z: 1 };
   const candidates = RIVER_QUERY_ROWS.get(Math.floor(z / RIVER_QUERY_ROW_METERS));
   if (candidates) for (const segment of candidates) {
-    if (Math.abs(z - segment.middleZ) > 105) continue;
+    if (Math.abs(z - segment.middleZ) > RIVER_QUERY_WINDOW_METERS) continue;
     // An axis-aligned lower bound can reject a segment which cannot improve
     // the current winner; the margin keeps floating-point boundary ties exact.
     const reach = segment.width - river + 0.000001;
@@ -469,7 +540,10 @@ function computeLandform(x: number, z: number, shoreDistance: number, withTerrac
   const freshwater = mainlandWaterSample(x, z);
   // The valley widens and narrows with the spurs it cuts through, and opens
   // out where it is cut deep so its sides stay soil-covered slopes.
-  const valleyReach = 12 + Math.max(52, (height - 2) * 4.5) + fractalNoise(x, z, 180, 2, VALLEY_SALT) * 22;
+  // The width is capped: a valley cut through high ground stays a valley and
+  // never lowers the ranges beyond it.
+  const valleyReach = 12 + Math.min(VALLEY_WIDTH_MAX_METERS, Math.max(52, (height - 2) * 4.5))
+    + fractalNoise(x, z, 180, 2, VALLEY_SALT) * 22;
   const valley = 1 - mainlandSmoothstep(12, valleyReach, -freshwater.signedDistance);
   if (valley > 0) {
     const bank = freshwater.signedDistance > 0 ? -Math.min(3.4, freshwater.signedDistance * 0.36)
@@ -525,15 +599,123 @@ export interface MainlandCoastCharacter {
  * High ground and hard-rock headlands meet the sea as cliffs; low ground,
  * soft embayments, river mouths and the sheltered cove keep beaches.
  */
-function mainlandCoastCharacterAt(x: number, z: number, landHeight: number, valley = 0): MainlandCoastCharacter {
+function mainlandCoastCharacterAt(
+  x: number, z: number, landHeight: number, valley = 0, reliefWeight = 1
+): MainlandCoastCharacter {
   const shelter = nevaCoveShelterAt(x, z);
-  const relief = mainlandSmoothstep(5, 24, landHeight);
+  const relief = mainlandSmoothstep(5, 24, landHeight) * reliefWeight;
   const cliff = clamp01(relief * 0.8 + nevaHeadlandAt(x, z) * 0.85 - 0.08) * (1 - shelter) * (1 - valley);
   return { cliff, shelter };
 }
 
-/** Offshore distance at which even the shallowest shelf has reached the open seabed. */
-const COAST_PROFILE_REACH_METERS = 18 / 0.075;
+/** Open seabed depth, and the shallower sediment floor of the sheltered cove. */
+const OPEN_SEABED_DEPTH_METERS = 18;
+const COVE_SEABED_DEPTH_METERS = 10;
+/** Near-shore seabed grade: a beach shelf, steepened toward a cliff's toe. */
+const SHELF_GRADE = 0.075;
+const CLIFF_SHELF_GRADE = 0.2;
+/**
+ * Offshore band over which the land's own relief stops shaping the seabed.
+ * Past it the landform is never sampled, which keeps open water cheap.
+ */
+const SEABED_LANDFORM_FADE_METERS = [160, 240] as const;
+const SEABED_UNDULATION_SALT = 0x5eab;
+
+/** Ring radius, as a share of the exact shore distance, over which the seabed averages it. */
+const SEABED_DISTANCE_BLUR = 0.4;
+/**
+ * Offshore band over which the averaging hands back to the exact distance.
+ * Beyond it the floor is deep enough that a fold no longer shows in the water,
+ * and open ocean skips the extra distance queries.
+ */
+const SEABED_BLUR_FADE_METERS = [240, 320] as const;
+const SEABED_RING = Array.from({ length: 6 }, (_, i) => [Math.cos(i * Math.PI / 3), Math.sin(i * Math.PI / 3)] as const);
+
+/** Lattice over which the ring-averaged shore distance is cached and interpolated. */
+const SEABED_BLUR_CELL_METERS = 8;
+const SEABED_BLUR_TILE_CELLS = 8;
+const SEABED_BLUR_TILE_NODES = SEABED_BLUR_TILE_CELLS + 1;
+const seabedBlurTiles = new Map<number, Float64Array>();
+
+/**
+ * Ring-averaged shore distance at one lattice node. On land and within the
+ * first metre of water it is the exact signed distance. Every ring point lies
+ * at least 0.6 of the distance from the shore, so it is open water and the
+ * unsigned distance skips the inside test.
+ */
+function seabedRingDistance(x: number, z: number): number {
+  const exact = signedDistanceToNevaCoast(x, z);
+  const radius = exact * SEABED_DISTANCE_BLUR;
+  if (radius < 0.5) return exact;
+  const coast = nevaCoastIndex();
+  let total = 0;
+  for (const [cx, cz] of SEABED_RING) total += coast.distance(x + cx * radius, z + cz * radius);
+  return total / SEABED_RING.length;
+}
+
+function seabedBlurTile(tileX: number, tileZ: number): Float64Array {
+  const key = (tileX + 32768) * 65536 + (tileZ + 32768);
+  let tile = seabedBlurTiles.get(key);
+  if (!tile) {
+    tile = new Float64Array(SEABED_BLUR_TILE_NODES * SEABED_BLUR_TILE_NODES);
+    for (let j = 0; j < SEABED_BLUR_TILE_NODES; j++) {
+      for (let i = 0; i < SEABED_BLUR_TILE_NODES; i++) {
+        tile[j * SEABED_BLUR_TILE_NODES + i] = seabedRingDistance(
+          (tileX * SEABED_BLUR_TILE_CELLS + i) * SEABED_BLUR_CELL_METERS,
+          (tileZ * SEABED_BLUR_TILE_CELLS + j) * SEABED_BLUR_CELL_METERS);
+      }
+    }
+    seabedBlurTiles.set(key, tile);
+  }
+  return tile;
+}
+
+/**
+ * Shore distance softened for the seabed. The exact distance folds along the
+ * lines equidistant from two stretches of coast, and any depth read from it
+ * creases there. Averaging it over a ring that grows with the distance rounds
+ * those folds; the ring never reaches the shore, a straight shore averages to
+ * itself, and the waterline stays exact. The average is smooth, so it is
+ * evaluated once per lattice node (a pure function of the node, cached per
+ * tile) and interpolated between nodes.
+ */
+function seabedShoreDistance(x: number, z: number, shoreDistance: number): number {
+  const radius = shoreDistance * SEABED_DISTANCE_BLUR;
+  const blend = mainlandSmoothstep(0.5, 2, radius)
+    * (1 - mainlandSmoothstep(SEABED_BLUR_FADE_METERS[0], SEABED_BLUR_FADE_METERS[1], shoreDistance));
+  if (blend <= 0) return shoreDistance;
+  const gx = x / SEABED_BLUR_CELL_METERS, gz = z / SEABED_BLUR_CELL_METERS;
+  const ix = Math.floor(gx), iz = Math.floor(gz), fx = gx - ix, fz = gz - iz;
+  const tileX = Math.floor(ix / SEABED_BLUR_TILE_CELLS), tileZ = Math.floor(iz / SEABED_BLUR_TILE_CELLS);
+  const tile = seabedBlurTile(tileX, tileZ);
+  const i = ix - tileX * SEABED_BLUR_TILE_CELLS, j = iz - tileZ * SEABED_BLUR_TILE_CELLS;
+  const at = (di: number, dj: number) => tile[(j + dj) * SEABED_BLUR_TILE_NODES + i + di];
+  const averaged = (at(0, 0) * (1 - fx) + at(1, 0) * fx) * (1 - fz) + (at(0, 1) * (1 - fx) + at(1, 1) * fx) * fz;
+  return shoreDistance + (averaged - shoreDistance) * blend;
+}
+
+/**
+ * Seabed depth below the sea datum. The shelf leaves the shore at its beach or
+ * cliff grade and eases onto the floor, so depth never creases along the lines
+ * equidistant from two stretches of coast; a linear ramp to a fixed floor drew
+ * those lines as straight seams across the water. Broad sand waves and hollows
+ * keep the floor from reading as a flat plate.
+ */
+function mainlandSeabedDepth(x: number, z: number, exactShoreDistance: number): number {
+  const shoreDistance = seabedShoreDistance(x, z, exactShoreDistance);
+  const landformWeight = 1 - mainlandSmoothstep(SEABED_LANDFORM_FADE_METERS[0], SEABED_LANDFORM_FADE_METERS[1], shoreDistance);
+  let landHeight = 0, valley = 0;
+  if (landformWeight > 0) {
+    const landform = mainlandLandformAt(x, z, shoreDistance);
+    landHeight = landform.height;
+    valley = landform.valley * landformWeight;
+  }
+  const coast = mainlandCoastCharacterAt(x, z, landHeight, valley, landformWeight);
+  const floor = OPEN_SEABED_DEPTH_METERS + (COVE_SEABED_DEPTH_METERS - OPEN_SEABED_DEPTH_METERS) * coast.shelter;
+  const grade = SHELF_GRADE + coast.cliff * CLIFF_SHELF_GRADE;
+  const depth = floor * (1 - Math.exp(-shoreDistance * grade / floor));
+  return depth * (1 + fractalNoise(x, z, 150, 2, SEABED_UNDULATION_SALT) * 0.14 * mainlandSmoothstep(20, 90, shoreDistance));
+}
 
 /**
  * Landform shaped by its shore: cliff coasts drop to deeper water behind a
@@ -541,14 +723,9 @@ const COAST_PROFILE_REACH_METERS = 18 / 0.075;
  * benches are optional so route planning can grade against the ground first.
  */
 function mainlandShoreShapedHeight(x: number, z: number, shoreDistance: number, withRoadBench: boolean): number {
-  // Open water beyond every shelf skips the coastal character entirely.
-  if (shoreDistance > COAST_PROFILE_REACH_METERS) return -18;
+  if (shoreDistance > 0) return -mainlandSeabedDepth(x, z, shoreDistance);
   const landform = mainlandLandformAt(x, z, shoreDistance);
   const coast = mainlandCoastCharacterAt(x, z, landform.height, landform.valley);
-  if (shoreDistance > 0) {
-    // Cliffs drop to deeper water; beaches run out over a shallow shelf.
-    return -Math.min(18, shoreDistance * (0.075 + coast.cliff * 0.2));
-  }
   let height = landform.height;
   if (withRoadBench) {
     const bench = mainlandRoadBenchAt(x, z);
@@ -723,6 +900,86 @@ export function mainlandRoadBenchAt(x: number, z: number): { elevation: number; 
   return { elevation: totalWeight > 0 ? elevationSum / totalWeight : 0, influence };
 }
 
+/** Road deck edge band past the half-width, ending behind a culvert headwall's face. */
+const ROAD_DECK_MARGIN_METERS = [MAINLAND_BROOK_CULVERT_FACE_METERS - 0.6, MAINLAND_BROOK_CULVERT_FACE_METERS - 0.1] as const;
+
+/** Share of a road's running surface at a point: 1 on the deck, 0 just behind a culvert headwall's face. */
+export function mainlandRoadDeckAt(x: number, z: number): number {
+  let deck = 0;
+  const candidates = ROAD_BENCH_CELLS.get(`${Math.floor(x / ROAD_BENCH_CELL)}:${Math.floor(z / ROAD_BENCH_CELL)}`) ?? [];
+  for (const segment of candidates) {
+    if (x < segment.minX || x > segment.maxX || z < segment.minZ || z > segment.maxZ) continue;
+    const distance = segmentDistance(x, z, segment.a, segment.b);
+    deck = Math.max(deck, 1 - mainlandSmoothstep(segment.halfWidth + ROAD_DECK_MARGIN_METERS[0],
+      segment.halfWidth + ROAD_DECK_MARGIN_METERS[1], distance));
+  }
+  return deck;
+}
+
+/** Where a road crosses a brook: the crossing point, both directions and the road's graded elevation. */
+export interface MainlandBrookRoadCrossing {
+  brookId: string;
+  route: GradedRoute;
+  point: WorldPoint;
+  /** Unit downstream direction of the brook and unit direction of the road. */
+  brook: WorldPoint;
+  road: WorldPoint;
+  roadElevation: number;
+}
+
+let brookRoadCrossings: readonly MainlandBrookRoadCrossing[] | null = null;
+
+/** Every crossing of a brook course with a mainland road centre line. */
+export function mainlandBrookRoadCrossings(): readonly MainlandBrookRoadCrossing[] {
+  brookRoadCrossings ??= brookCoursesCrossingRoads(mainlandBrookCourses());
+  return brookRoadCrossings;
+}
+
+/**
+ * Crossings of the given brook courses with the mainland roads. The brook
+ * tracer grades its beds with these, so a brook always passes under a road.
+ */
+export function brookCoursesCrossingRoads(
+  courses: readonly { id: string; knots: readonly (readonly number[])[] }[]
+): MainlandBrookRoadCrossing[] {
+  const crossings: MainlandBrookRoadCrossing[] = [];
+  for (const course of courses) {
+    for (let i = 1; i < course.knots.length; i++) {
+      const [ax, az] = course.knots[i - 1], [bx, bz] = course.knots[i];
+      for (const road of MAINLAND_ROUTES) {
+        for (let j = 1; j < road.points.length; j++) {
+          const c = road.points[j - 1], d = road.points[j];
+          const rx = bx - ax, rz = bz - az, sx = d.x - c.x, sz = d.z - c.z;
+          const denominator = rx * sz - rz * sx;
+          if (Math.abs(denominator) < 1e-9) continue;
+          const t = ((c.x - ax) * sz - (c.z - az) * sx) / denominator;
+          const u = ((c.x - ax) * rz - (c.z - az) * rx) / denominator;
+          if (t < 0 || t >= 1 || u < 0 || u >= 1) continue;
+          const brookLength = Math.hypot(rx, rz), roadLength = Math.hypot(sx, sz);
+          crossings.push({
+            brookId: course.id, route: road,
+            point: { x: ax + rx * t, z: az + rz * t },
+            brook: { x: rx / brookLength, z: rz / brookLength },
+            road: { x: sx / roadLength, z: sz / roadLength },
+            roadElevation: road.elevations[j - 1] + (road.elevations[j] - road.elevations[j - 1]) * u
+          });
+        }
+      }
+    }
+  }
+  return crossings;
+}
+
+/**
+ * Finished mainland ground: shore-shaped, benched under the roads, and cut by
+ * the brooks, which pass under a road deck through a culvert.
+ */
 export function mainlandNaturalHeight(x: number, z: number, shoreDistance: number): number {
-  return mainlandShoreShapedHeight(x, z, shoreDistance, true);
+  const shaped = mainlandShoreShapedHeight(x, z, shoreDistance, true);
+  return shoreDistance > 0 ? shaped : mainlandBrookCarvedHeight(x, z, shaped, mainlandRoadDeckAt);
+}
+
+/** The finished ground before the brooks cut it: shore-shaped and benched under the roads. */
+export function mainlandGroundBeforeBrooksAt(x: number, z: number): number {
+  return mainlandShoreShapedHeight(x, z, signedDistanceToNevaCoast(x, z), true);
 }

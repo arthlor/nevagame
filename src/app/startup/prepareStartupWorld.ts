@@ -21,39 +21,75 @@ interface StartupWorldOptions {
 
 /** Prepares the required asset set, scene and collision world for the entry commit. */
 export async function prepareStartupWorld({ attempt, state, scene, onState }: StartupWorldOptions): Promise<PhysicsWorld> {
-  onState({ phase: "layout", message: "Preparing the coast" });
+  onState({ phase: "layout", message: "Preparing the coast", subMessage: "Preparing paths and places" });
   const assetIds = await attempt.stage(
     () => WorldScene.prepareStartupAssetIds(state, attempt.signal),
     WORLD_STARTUP_TIMEOUT_MS,
-    new StartupTimeoutError("world-startup-timeout", "Island preparation timed out")
+    new StartupTimeoutError("world-startup-timeout", "Island preparation timed out"),
+    () => onState({ slow: true })
   );
-  onState({ phase: "assets", loadedAssets: 0, totalAssets: assetIds.length, message: "Loading scenery" });
+  const directModels = WorldScene.startupDirectModels();
+  const totalAssets = assetIds.length + directModels.length;
+  onState({
+    phase: "assets",
+    loadedAssets: 0,
+    totalAssets,
+    message: "Loading scenery",
+    subMessage: `Gathering coastal scenery (0 of ${totalAssets})`
+  });
   await attempt.stage(
-    reportProgress => AssetLoader.preload(assetIds, progress => {
-      if (attempt.signal.aborted) return;
-      reportProgress();
-      onState({
-        loadedAssets: progress.completed,
-        totalAssets: progress.total,
-        progress: { kind: "measured", completed: progress.completed, total: progress.total }
-      });
-    }, 6, attempt.signal, reportProgress),
+    async reportProgress => {
+      const updateProgress = (completed: number): void => {
+        if (attempt.signal.aborted) return;
+        onState({
+          loadedAssets: completed,
+          totalAssets,
+          progress: { kind: "measured", completed, total: totalAssets },
+          subMessage: `Gathering coastal scenery (${completed} of ${totalAssets})`
+        });
+      };
+      await AssetLoader.preload(assetIds, progress => updateProgress(progress.completed), 6,
+        attempt.signal, reportProgress);
+      await AssetLoader.preloadDirect(directModels,
+        progress => updateProgress(assetIds.length + progress.completed), 3,
+        attempt.signal, reportProgress);
+    },
     ASSET_PROGRESS_STALL_TIMEOUT_MS,
     new StartupTimeoutError("asset-loading-stalled", "Scenery download stopped making progress"),
     () => onState({ slow: true })
   );
-  onState({ phase: "world", message: "Preparing the coast" });
+  attempt.check();
+  performance.mark("neva.startup.scenery-ready");
+  // This is also the earliest point where the optional new-game film may
+  // buffer without competing with required scenery transfers.
+  onState({ phase: "world", message: "Preparing the coast", subMessage: "Preparing land and water" });
+  await attempt.stage(
+    progress => scene.prepareGeometry(state.worldSeed, attempt.signal, progress),
+    WORLD_STARTUP_TIMEOUT_MS,
+    new StartupTimeoutError("world-startup-timeout", "World preparation timed out"),
+    () => onState({ slow: true })
+  );
+  performance.mark("neva.startup.geometry-ready");
+  attempt.check();
+  onState({ phase: "world", message: "Preparing the coast", subMessage: "Placing farms, villages, and coastal scenery" });
   await attempt.stage(
     () => scene.ready(state.worldSeed, attempt.signal),
     WORLD_STARTUP_TIMEOUT_MS,
-    new StartupTimeoutError("world-startup-timeout", "World preparation timed out")
+    new StartupTimeoutError("world-startup-timeout", "World preparation timed out"),
+    () => onState({ slow: true })
   );
-  onState({ phase: "physics", message: "Preparing your arrival", degradedResources: [...degradedSurfaceResources] });
+  performance.mark("neva.startup.population-ready");
+  onState({
+    phase: "physics",
+    message: "Preparing your arrival",
+    subMessage: "Checking the paths",
+    degradedResources: [...degradedSurfaceResources]
+  });
   const physics = await attempt.stage(
     () => PhysicsWorld.create(scene.staticCollisionProxies()),
     PHYSICS_STARTUP_TIMEOUT_MS,
     new StartupTimeoutError("physics-startup-timeout", "Path preparation timed out"),
-    undefined,
+    () => onState({ slow: true }),
     late => late.dispose()
   );
   attempt.check();

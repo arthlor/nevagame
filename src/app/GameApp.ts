@@ -33,7 +33,7 @@ import {
   LURE_ITEM_ID,
   nextAccessibleChumItemId
 } from "../simulation/fishing/FishingSupplies";
-import { IndexedDbSaveRepository, type LoadGameResult } from "../persistence/IndexedDbSaveRepository";
+import { IndexedDbSaveRepository, type SaveInspection } from "../persistence/IndexedDbSaveRepository";
 import {
   CropQuality,
   EquipmentId,
@@ -71,7 +71,7 @@ import type { ChronicleFilter, NoticeCategory } from "../ui/notifications";
 import { bindUiHoverAudio, playNoticeSound } from "../ui/audio/uiAudio";
 
 const SALE_BATCH_WINDOW_MS = 600;
-/** Real-time cadence of the periodic autosave, and of its retries after a failure. */
+/** Periodic autosaves, including retries, stay on a one-minute cadence. */
 const AUTOSAVE_INTERVAL_MS = 60_000;
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import {
@@ -108,7 +108,9 @@ import {
 } from "./StartupLoading";
 
 import { StartupCoordinator } from "./StartupCoordinator";
+import { StartupOwnership } from "./StartupOwnership";
 import { prepareStartupWorld, WORLD_STARTUP_TIMEOUT_MS } from "./startup/prepareStartupWorld";
+import { commitStartupSave } from "./startup/commitStartupSave";
 import { applyDebugStartScenario, DEBUG_START_SCENARIOS, type DebugStartScenario } from "./startup/DebugStartScenario";
 import { yieldToTask } from "../utils/CooperativeTask";
 
@@ -266,6 +268,7 @@ export interface NevaDebugApi {
   teleportActiveBoat: (x: number, z: number) => void;
   moveToNpc: (npcId: string) => boolean;
   moveToStation: (stationId: string) => boolean;
+  npcs?: () => unknown;
   /** Read-only camera projection used by the Chrome input acceptance harness. */
   projectWorldPoint: (x: number, z: number) => { x: number; y: number; visible: boolean };
   snapshot: () => NevaDebugSnapshot;
@@ -752,14 +755,10 @@ export class GameApp {
   /** Session origin; a telemetry reset starts a new session from here. */
   private telemetryStartedAtMs = performance.now();
   private lastAutosaveMs: number = 0;
-  /**
-   * When the periodic cadence last asked for a save, successful or not. A
-   * failed save leaves `lastAutosaveMs` behind, and gating on it alone
-   * re-requested a full save every frame while storage kept refusing.
-   */
+  /** Last periodic request, including a refused write, so failure cannot retry each frame. */
   private lastPeriodicAutosaveRequestMs: number = Number.NEGATIVE_INFINITY;
-  /** One warning per run of failed autosaves; cleared by the next success. */
-  private autosaveFailureNotified: boolean = false;
+  /** One warning per failed-save streak; cleared by the next successful save. */
+  private autosaveFailureNotified = false;
   private physicsAccumulatorSeconds: number = 0;
   /**
    * Monotonic count of fixed movement steps actually delivered. The accumulator
@@ -789,7 +788,7 @@ export class GameApp {
     ? captureRenderMode(new URLSearchParams(window.location.search))
     : "final";
   private persistenceDisabled: boolean = false;
-  private startupAttempt?: StartupCoordinator;
+  private readonly startupOwnership = new StartupOwnership();
   private saveDecision?: (retry: boolean) => void;
   private bootReady: boolean = false;
   private renderReadyFramesRemaining: number = 0;
@@ -1208,7 +1207,7 @@ export class GameApp {
     } else {
       // This is a save-slot inspection only. It does not instantiate the
       // loaded Simulation, request GLBs, create physics, or advance time.
-      void this.preflightSave();
+      void this.inspectTitleSave();
     }
     this.onResize();
     this.syncOverlayState();
@@ -1225,20 +1224,20 @@ export class GameApp {
   }
 
   public beginLoading(userInitiated = false, intent: StartupIntent = "continue"): void {
-    if (this.startupPromise || this.startupState.status !== "title") return;
+    if (this.startupPromise || this.startupState.status !== "title" || this.mobileOrientationBlocked) return;
+    const attempt = this.startupOwnership.beginEntry(this.startupState.status);
+    if (!attempt) return;
 
     performance.mark("neva.startup.begin");
     this.startupIntent = intent;
     this.durableWritesEnabled = false;
     this.inputRouter.interrupt();
-    const attempt = this.startupAttempt = new StartupCoordinator();
     this.bootReady = false;
     this.startupState = {
       ...this.startupState,
       status: "loading",
       phase: "save",
       loadedAssets: 0,
-      message: "Reading your harbor log",
       errorMessage: null,
       errorDetail: null,
       errorCode: null,
@@ -1255,30 +1254,27 @@ export class GameApp {
     }
 
     this.startupPromise = this.prepareRuntime(attempt).catch((error: unknown) => {
-      this.handleStartupFailure(error);
+      if (this.isRunning && this.startupOwnership.isCurrentEntry(attempt)) this.handleStartupFailure(error);
     });
   }
 
-  private async preflightSave(signal?: AbortSignal): Promise<LoadGameResult> {
+  private async inspectSave(signal?: AbortSignal): Promise<SaveInspection> {
     try {
-      const inspection = await this.saveRepo.inspectGame(signal);
-      if (this.isRunning && !signal?.aborted) {
-        this.updateStartupState({
-          saveStatus: inspection.result.status === "loaded" ? "available" : inspection.result.status,
-          saveSummary: inspection.summary
-        });
-      }
-      return inspection.result;
+      return await this.saveRepo.inspectGame(signal);
     } catch (error) {
-      console.error("[GameApp] Save preflight failed:", error);
-      if (this.isRunning && !signal?.aborted) {
-        this.updateStartupState({
-          saveStatus: "unavailable",
-          saveSummary: null
-        });
-      }
-      return { status: "unavailable" };
+      if (!signal?.aborted) console.error("[GameApp] Save inspection failed:", error);
+      return { result: { status: "unavailable" }, summary: null };
     }
+  }
+
+  private async inspectTitleSave(): Promise<void> {
+    const { revision, signal } = this.startupOwnership.beginTitleRead();
+    const inspection = await this.inspectSave(signal);
+    if (!this.isRunning || !this.startupOwnership.ownsTitleRead(revision, this.startupState.status)) return;
+    this.updateStartupState({
+      saveStatus: inspection.result.status === "loaded" ? "available" : inspection.result.status,
+      saveSummary: inspection.summary
+    });
   }
 
   private async prepareRuntime(attempt: StartupCoordinator): Promise<void> {
@@ -1293,49 +1289,45 @@ export class GameApp {
       ? debugStartParameter as DebugStartScenario
       : null;
 
-    this.updateStartupState({ phase: "layout", message: "Preparing the coast" });
-    await attempt.stage(() => WorldLayout.prepareTraversal(attempt.signal), WORLD_STARTUP_TIMEOUT_MS,
-      new StartupTimeoutError("world-startup-timeout", "Island preparation timed out"));
-    this.sim = new Simulation(undefined, {
-      actionTimingScale: this.actionTimingScale,
-      allowDebugCommands: import.meta.env.DEV
-    });
-    this.attachSimulationFeedback();
-    this.updateStartupState({ phase: "save", message: "Reading your save" });
-    const saveResult = this.persistenceDisabled
-      ? { status: "empty" } as const
-      : await this.preflightSave(attempt.signal);
+    const shouldInspectSave = !this.persistenceDisabled && this.startupIntent === "continue";
+    this.updateStartupState({ phase: "layout", message: "Preparing the coast", subMessage: "Preparing paths and places" });
+    const [ , inspection ] = await Promise.all([
+      attempt.stage(() => WorldLayout.prepareTraversal(attempt.signal), WORLD_STARTUP_TIMEOUT_MS,
+        new StartupTimeoutError("world-startup-timeout", "Island preparation timed out"),
+        () => this.updateStartupState({ slow: true })),
+      shouldInspectSave ? this.inspectSave(attempt.signal) : Promise.resolve({
+        result: { status: "empty" } as const, summary: null
+      })
+    ]);
     attempt.check();
+    const saveResult = inspection.result;
     const shouldStartNewGame = this.startupIntent === "new-game";
     const shouldPlayWithoutSaving = this.startupIntent === "without-saving";
     let notifyArrival = () => {};
     const shouldCommitSave = !this.persistenceDisabled && !shouldPlayWithoutSaving;
-
-    if (benchmark.goldTestId) {
-      this.sim = new Simulation(createInitialGameState(benchmark.worldSeed), {
-        actionTimingScale: this.actionTimingScale,
-        allowDebugCommands: import.meta.env.DEV
-      });
-      this.attachSimulationFeedback();
-      this.modeController.restoreFromState(this.sim.state);
-      this.inputRouter.setMode(this.mode);
-    }
 
     // A Continue action consumes the already-inspected, migrated, validated
     // envelope. New Game never constructs from it and never writes over it
     // until the new world has finished loading and is ready to play.
     const resumedExistingSave = !this.persistenceDisabled && !shouldStartNewGame
       && !shouldPlayWithoutSaving && saveResult.status === "loaded";
+    const playNewGameOpening = !resumedExistingSave && !debugStart && !benchmarkPreset && !benchmark.goldTestId
+      && !this.worldAcceptance && !query.has("debug")
+      && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.updateStartupState({ introKind: playNewGameOpening ? "new" : undefined,
+      arrivalKind: resumedExistingSave ? "returning" : "new" });
+    const candidate = resumedExistingSave
+      ? structuredClone(saveResult.envelope.state)
+      : benchmark.goldTestId ? createInitialGameState(benchmark.worldSeed) : undefined;
+    const awaySummary = resumedExistingSave && candidate ? applyOfflineProgression(candidate, Date.now()) : null;
+    // Construct only the state we will use: Continue previously built and
+    // reconciled an entire throwaway new game before constructing the save.
+    this.sim = new Simulation(candidate, {
+      actionTimingScale: this.actionTimingScale,
+      allowDebugCommands: import.meta.env.DEV
+    });
+    this.attachSimulationFeedback();
     if (resumedExistingSave) {
-      const candidate = structuredClone(saveResult.envelope.state);
-      const awaySummary = applyOfflineProgression(candidate, Date.now());
-      this.sim = new Simulation(candidate, {
-        actionTimingScale: this.actionTimingScale,
-        allowDebugCommands: import.meta.env.DEV
-      });
-      this.attachSimulationFeedback();
-
-
       // Restore the gameplay mode from the canonical simulation state: offline
       // progression and constructor reconciliation may have changed the fields
       // `modeFromState` reads, so the pre-offline envelope is a stale source.
@@ -1343,7 +1335,7 @@ export class GameApp {
       this.inputRouter.setMode(this.mode);
       this.sim.clock.setPaused(false);
       this.syncOverlayState();
-      notifyArrival = () => this.notifyAwaySummary(awaySummary);
+      notifyArrival = () => { if (awaySummary) this.notifyAwaySummary(awaySummary); };
 
       console.info("[GameApp] Loaded existing game save from IndexedDB.");
     } else if (this.persistenceDisabled || shouldPlayWithoutSaving) {
@@ -1356,6 +1348,7 @@ export class GameApp {
     } else if (saveResult.status === "empty") {
       this.durableWritesEnabled = false;
     } else {
+      this.updateStartupState({ phase: "save", message: "Reading your harbor log" });
       throw new Error("Your save could not be read. Reload to choose a recovery option.");
     }
 
@@ -1420,7 +1413,9 @@ export class GameApp {
       attempt,
       state: this.sim.state,
       scene: this.worldScene,
-      onState: update => this.updateStartupState(update)
+      onState: update => {
+        if (this.startupOwnership.ownsEntry(attempt)) this.updateStartupState(update);
+      }
     });
     this.playerPresentation.reset(this.sim.state.player, undefined, "load");
     this.boatPresentation.reset(this.sim.state.boats);
@@ -1430,7 +1425,11 @@ export class GameApp {
       this.collisionDebugView = new CollisionDebugView(this.worldScene.scene, this.canvasContainer);
     }
     this.assetCoverage = getAssetCoverageSummary(this.sim.state.worldSeed);
-    this.updateStartupState({ phase: "presentation", message: "Preparing your arrival" });
+    this.updateStartupState({
+      phase: "presentation",
+      message: "Preparing your arrival",
+      subMessage: "Preparing the first view"
+    });
     await attempt.stage(async () => {
       const time = this.benchmarkPresentationTimeSeconds ?? 0;
       await this.worldScene.syncWithSimulation(this.sim, time);
@@ -1456,39 +1455,42 @@ export class GameApp {
     }, 30_000, new StartupTimeoutError("presentation-startup-timeout", "Arrival preparation timed out"));
 
     if (shouldCommitSave) {
-      this.updateStartupState({ phase: "commit", message: "Saving your harbor log" });
-      while (!await this.saveRepo.saveGame(this.sim.state, attempt.signal)) {
-        attempt.check();
-        this.updateStartupState({ status: "error", recovery: "save", errorCode: "save-failed", errorPhase: "commit",
-          errorMessage: "Your world is ready, but your harbor log could not be saved." });
-        const retry = await new Promise<boolean>((resolve, reject) => {
+      this.updateStartupState({
+        phase: "commit",
+        message: "Saving your harbor log",
+        subMessage: "Keeping your place on the coast"
+      });
+      this.durableWritesEnabled = await commitStartupSave(
+        attempt,
+        () => this.saveRepo.saveGame(this.sim.state, attempt.signal),
+        () => new Promise<boolean>((resolve, reject) => {
           const abort = () => { this.saveDecision = undefined; reject(attempt.signal.reason); };
           attempt.signal.addEventListener("abort", abort, { once: true });
           this.saveDecision = choice => { attempt.signal.removeEventListener("abort", abort); this.saveDecision = undefined; resolve(choice); };
-        });
-        if (!retry) break;
-        this.updateStartupState({ status: "loading", errorMessage: null });
-      }
-      this.durableWritesEnabled = this.startupState.status !== "error";
-      // The entry commit is a save: the periodic cadence starts from it, not
-      // from the title screen, so a long load does not re-save on reveal.
+        }),
+        update => this.updateStartupState(update)
+      );
+      // The entry commit is itself a save. Start the periodic cadence here so
+      // slow startup cannot trigger another save on the first gameplay frame.
       if (this.durableWritesEnabled) this.lastAutosaveMs = performance.now();
     }
     attempt.check();
+    performance.mark("neva.startup.technical-ready");
     syncWorldAudio({ clock: this.sim.state.clock, position: this.sim.state.player, mode: this.mode, weather: this.sim.state.weather.type,
       sprintExhausted: this.sim.state.player.traversal.sprintExhausted, paused: false });
     gameAudio.startAmbience();
-    if (!debugStart && !this.benchmarkView && !this.worldAcceptance && !query.has("debug")
-      && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (playNewGameOpening) {
+      // Install the completion owner before React can publish a media result.
+      const intro = this.awaitIntro(attempt);
       this.updateStartupState({ status: "intro", phase: "complete", message: "",
-        introKind: resumedExistingSave ? "continue" : "new" });
+        introKind: "new" });
       // The film owns the output; the prepared world's music and ambience wait
       // muted underneath it instead of scoring over the narration.
       gameAudio.setCinematicHold(true);
       try {
-        const played = await this.awaitIntro(attempt);
+        const played = await intro;
         attempt.check();
-        if (!played && (shouldStartNewGame || shouldPlayWithoutSaving || saveResult.status === "empty")) {
+        if (!played) {
           await playOpeningCamera(this.gameCamera.camera, ART_VIEW_PRESETS["farm-mountains"],
             () => this.worldScene.render(this.gameCamera.camera, 0), attempt.signal, (skip) => { this.openingSkip = skip; });
           attempt.check();
@@ -1560,9 +1562,11 @@ export class GameApp {
 
   private handleStartupFailure(error: unknown): void {
     if (!this.isRunning) return;
-    this.startupAttempt?.cancel(error);
+    this.startupOwnership.cancel(error);
     this.durableWritesEnabled = false;
     this.worldScene.dispose();
+    this.physicsWorld?.dispose();
+    this.physicsWorld = null;
     this.bootReady = false;
     window.__NEVA_RENDER_READY = false;
     this.renderReadyFramesRemaining = 0;
@@ -2756,19 +2760,30 @@ export class GameApp {
 
   private resolveCropTarget(
     cropId: string,
-    requestedAction?: ContextualCropChoice["action"]
+    requestedAction?: ContextualCropChoice["action"],
+    reaches?: Readonly<{ water: number; harvest: number; inspect: number }>
   ): ResolvedInteractionTarget | null {
     const crop = this.sim.state.crops[cropId];
     if (!crop) return null;
-    const inspection = this.sim.inspectCrop(cropId);
-    if (!inspection) return null;
     const world = farmLocalToWorld(crop.farmId, crop);
     const player = this.sim.state.player;
-    const distanceMeters = Math.hypot(player.x - world.x, player.z - world.z);
-    const withinWaterReach = distanceMeters <= this.sim.cropInteractionReachMeters("water");
-    const withinHarvestReach = distanceMeters <= this.sim.cropInteractionReachMeters("harvest");
-    const withinInspectReach = distanceMeters <= this.sim.cropInteractionReachMeters("inspect");
+    const cropReaches = reaches ?? {
+      water: this.sim.cropInteractionReachMeters("water"),
+      harvest: this.sim.cropInteractionReachMeters("harvest"),
+      inspect: this.sim.cropInteractionReachMeters("inspect")
+    };
+    const dx = player.x - world.x;
+    const dz = player.z - world.z;
+    const distanceSquared = dx * dx + dz * dz;
+    const maxReach = Math.max(cropReaches.water, cropReaches.harvest, cropReaches.inspect);
+    if (distanceSquared > maxReach * maxReach) return null;
+    const distanceMeters = Math.sqrt(distanceSquared);
+    const withinWaterReach = distanceMeters <= cropReaches.water;
+    const withinHarvestReach = distanceMeters <= cropReaches.harvest;
+    const withinInspectReach = distanceMeters <= cropReaches.inspect;
     if (!withinWaterReach && !withinHarvestReach && !withinInspectReach) return null;
+    const inspection = this.sim.inspectCrop(cropId);
+    if (!inspection) return null;
 
     const farm = this.sim.state.farms[crop.farmId];
     const inventory = this.sim.state.inventories[this.sim.state.player.inventoryId];
@@ -2933,9 +2948,16 @@ export class GameApp {
       }
     }
 
-    for (const crop of Object.values(this.sim.state.crops)) {
-      const candidate = this.resolveCropTarget(crop.id);
-      if (candidate) candidates.push(candidate);
+    if (this.mode === "on-foot") {
+      const cropReaches = {
+        water: this.sim.cropInteractionReachMeters("water"),
+        harvest: this.sim.cropInteractionReachMeters("harvest"),
+        inspect: this.sim.cropInteractionReachMeters("inspect")
+      };
+      for (const cropId in this.sim.state.crops) {
+        const candidate = this.resolveCropTarget(cropId, undefined, cropReaches);
+        if (candidate) candidates.push(candidate);
+      }
     }
 
     const stationDefinitions = Object.values(WORLD_STATION_DEFINITIONS).map((station) => ({
@@ -3218,28 +3240,32 @@ export class GameApp {
       // Silas repairs hulls at the harbor pier for the damaged share of the
       // catalog fee. The quote is simulation-owned, so the prompt cannot advertise a repair
       // the command refuses.
-      for (const boat of Object.values(this.sim.state.boats)) {
-        const definition = ContentRegistry.boats.get(boat.boatTypeId);
-        if (!definition) continue;
-        const quote = this.sim.query({
-          type: "boat.get-repair-quote",
-          boatId: boat.id
-        }) as RepairQuoteDto;
-        if (!quote.inReach || boat.durability >= definition.durabilityMax) continue;
-        candidates.push({
-          id: `boat:${boat.id}:repair`,
-          entityId: boat.id,
-          kind: "dock",
-          action: "repair",
-          distanceMeters: Math.hypot(p.x - boat.x, p.z - boat.z),
-          priority: 0,
-          worldPosition: { x: boat.x, y: boat.y, z: boat.z },
-          modes: ["on-foot"],
-          requiresLineOfSight: false,
-          prompt: quote.ok
-            ? `[E] Repair ${definition.name} · ${quote.cost} G`
-            : `Repair ${definition.name} · ${quote.cost} G · ${quote.reason ?? "not now"}`
-        });
+      const silas = npcAnchorAt("npc.silas", this.sim.state.clock, this.sim.state.quests);
+      if (Math.hypot(p.x - silas.x, p.z - silas.z) <= NPC_TALK_RADIUS) {
+        for (const boat of Object.values(this.sim.state.boats)) {
+          if (!boat.isDocked) continue;
+          const definition = ContentRegistry.boats.get(boat.boatTypeId);
+          if (!definition || boat.durability >= definition.durabilityMax) continue;
+          const quote = this.sim.query({
+            type: "boat.get-repair-quote",
+            boatId: boat.id
+          }) as RepairQuoteDto;
+          if (!quote.inReach) continue;
+          candidates.push({
+            id: `boat:${boat.id}:repair`,
+            entityId: boat.id,
+            kind: "dock",
+            action: "repair",
+            distanceMeters: Math.hypot(p.x - boat.x, p.z - boat.z),
+            priority: 0,
+            worldPosition: { x: boat.x, y: boat.y, z: boat.z },
+            modes: ["on-foot"],
+            requiresLineOfSight: false,
+            prompt: quote.ok
+              ? `[E] Repair ${definition.name} · ${quote.cost} G`
+              : `Repair ${definition.name} · ${quote.cost} G · ${quote.reason ?? "not now"}`
+          });
+        }
       }
     }
 
@@ -4010,6 +4036,7 @@ export class GameApp {
           }
         });
       },
+      npcs: () => this.worldScene.debugNpcs(),
       moveToNpc: (npcId) => {
         const npc = ContentRegistry.npcs.get(npcId);
         if (!npc) return false;
@@ -4901,7 +4928,10 @@ export class GameApp {
     }
     try {
       const ok = await this.saveRepo.saveGame(this.sim.state);
-      if (ok) this.lastAutosaveMs = performance.now();
+      if (ok) {
+        this.lastAutosaveMs = performance.now();
+        this.autosaveFailureNotified = false;
+      }
       this.setToast(ok ? "Saved" : "Save failed");
     } catch (error) {
       console.error("[GameApp] Save failed", error);
@@ -4952,6 +4982,8 @@ export class GameApp {
 
   private requestAutosave(): void {
     if (!this.isRunning || !this.bootReady || this.persistenceDisabled || !this.durableWritesEnabled) return;
+    if (this.autosaveFailureNotified
+      && performance.now() - this.lastPeriodicAutosaveRequestMs < AUTOSAVE_INTERVAL_MS) return;
     this.autosaveRequested = true;
     if (this.autosaveInFlight) return;
     if (this.autosaveFlushQueued) return;
@@ -4964,14 +4996,15 @@ export class GameApp {
   }
 
   /**
-   * Periodic autosave on a fixed cadence measured from the last success or the
-   * last periodic attempt, whichever is later, so a store that keeps refusing
-   * is retried once per interval rather than on every frame.
+   * Periodic cadence is measured from the later of the last success and the
+   * last periodic attempt. A failed store therefore retries once per interval.
    */
   private requestPeriodicAutosave(nowMs: number): void {
     if (nowMs - Math.max(this.lastAutosaveMs, this.lastPeriodicAutosaveRequestMs) < AUTOSAVE_INTERVAL_MS) return;
-    this.lastPeriodicAutosaveRequestMs = nowMs;
+    // Check and queue against the previous attempt before advancing the retry
+    // anchor; event-driven requests use this same anchor to respect failures.
     this.requestAutosave();
+    this.lastPeriodicAutosaveRequestMs = nowMs;
   }
 
   private async flushAutosave(): Promise<void> {
@@ -4979,13 +5012,25 @@ export class GameApp {
     try {
       while (this.autosaveRequested) {
         this.autosaveRequested = false;
-        const saved = await this.saveRepo.saveGame(this.sim.state);
+        let saved = false;
+        try {
+          saved = await this.saveRepo.saveGame(this.sim.state);
+        } catch (error) {
+          console.error("[GameApp] Autosave failed", error);
+        }
         if (saved) {
           this.lastAutosaveMs = performance.now();
           this.autosaveFailureNotified = false;
-        } else if (!this.autosaveFailureNotified) {
-          this.autosaveFailureNotified = true;
-          this.notify("Autosave failed — recent progress is not saved yet. Retrying.", "warning", 6000);
+        } else {
+          this.lastPeriodicAutosaveRequestMs = performance.now();
+          // Requests that arrived during a failed write are coalesced into the
+          // next scheduled retry instead of causing an immediate write loop.
+          this.autosaveRequested = false;
+          if (!this.autosaveFailureNotified) {
+            this.autosaveFailureNotified = true;
+            this.notify("Autosave failed — recent progress is not saved yet. Retrying.", "warning", 6000);
+          }
+          break;
         }
       }
     } finally {
@@ -5681,7 +5726,7 @@ export class GameApp {
   }
 
   public dispose(): void {
-    this.startupAttempt?.cancel();
+    this.startupOwnership.cancel();
     for (const dispose of this.simulationFeedbackDisposers) dispose();
     this.simulationFeedbackDisposers = [];
     // Release the global audio singleton (context, loops, window listeners);

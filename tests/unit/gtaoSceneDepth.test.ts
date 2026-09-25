@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bindGtaoSceneDepth } from "../../src/render/pipeline/RendererPipeline";
+import { bindGtaoSceneDepth, configureGtaoDistanceLimits } from "../../src/render/pipeline/RendererPipeline";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -81,6 +81,33 @@ describe("GTAO scene-depth reuse", () => {
     } finally {
       target.dispose();
       invalid.dispose();
+    }
+  });
+
+  it("configures distance limits, smooth fade, and sky-tap rejection to prevent horizon artifacts", () => {
+    const pass = new GTAOPass(new THREE.Scene(), new THREE.PerspectiveCamera(), 192, 108);
+    try {
+      configureGtaoDistanceLimits(pass, { maxDistance: 55, fadeDistance: 32 });
+
+      expect(pass.gtaoMaterial.uniforms.uGtaoMaxDistance.value).toBe(55);
+      expect(pass.gtaoMaterial.uniforms.uGtaoFadeDistance.value).toBe(32);
+      expect(pass.gtaoMaterial.fragmentShader).toContain("uniform float uGtaoMaxDistance;");
+      expect(pass.gtaoMaterial.fragmentShader).toContain("if (viewPos.z < -uGtaoMaxDistance)");
+      expect(pass.gtaoMaterial.fragmentShader).toContain("sampleSceneUvDepth.z < 0.99999");
+      expect(pass.gtaoMaterial.fragmentShader).toContain("smoothstep(uGtaoFadeDistance, uGtaoMaxDistance, -viewPos.z)");
+
+      expect(pass.pdMaterial.uniforms.uGtaoMaxDistance.value).toBe(55);
+      expect(pass.pdMaterial.fragmentShader).toContain("uniform float uGtaoMaxDistance;");
+      expect(pass.pdMaterial.fragmentShader).toContain("if (sampleDepth >= 0.99999) return;");
+      expect(pass.pdMaterial.fragmentShader).toContain("if (viewPos.z < -uGtaoMaxDistance)");
+
+      // Re-configuring updates uniforms cleanly without corrupting the shader
+      configureGtaoDistanceLimits(pass, { maxDistance: 60, fadeDistance: 40 });
+      expect(pass.gtaoMaterial.uniforms.uGtaoMaxDistance.value).toBe(60);
+      expect(pass.gtaoMaterial.uniforms.uGtaoFadeDistance.value).toBe(40);
+      expect(pass.pdMaterial.uniforms.uGtaoMaxDistance.value).toBe(60);
+    } finally {
+      pass.dispose();
     }
   });
 });

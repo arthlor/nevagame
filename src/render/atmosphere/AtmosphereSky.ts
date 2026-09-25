@@ -10,6 +10,8 @@ export interface AtmosphereSkyDiagnostics {
   coverage: number;
   storm: number;
   lightning: number;
+  /** Visible bolt strength; zero between strikes and under reduced motion. */
+  bolt: number;
   windOffset: readonly [number, number];
   primarySteps: number;
   lightSteps: number;
@@ -66,6 +68,17 @@ export class AtmosphereSky {
         uSunDirection: { value: new THREE.Vector3() }, uSunColor: { value: new THREE.Color() },
         uMoonDirection: { value: new THREE.Vector3() }, uMoonColor: { value: new THREE.Color() },
         uLightningDirection: { value: new THREE.Vector3() },
+        uLightningColor: { value: new THREE.Color() },
+        uSunGlow: { value: new THREE.Vector4() },
+        uAntiTwilight: { value: new THREE.Vector4() },
+        uAureole: { value: new THREE.Vector4() },
+        uSkyShape: { value: new THREE.Vector4() },
+        uCloudSun: { value: new THREE.Color() },
+        uCloudShape: { value: new THREE.Vector4(config.sky.cloudSilverLining, config.sky.cloudBaseShade, 0, 0) },
+        uBolt: { value: new THREE.Vector4() },
+        uBoltShape: { value: new THREE.Vector3(
+          config.lightningBolt.distanceMeters, config.lightningBolt.widthRadians, config.lightningBolt.jitterRadians
+        ) },
         uCloudOffset: { value: new THREE.Vector2() },
         uDiscRadius: { value: new THREE.Vector2(config.sunDiscRadiusRadians, config.moonDiscRadiusRadians) },
         uCloudLayer: { value: new THREE.Vector4(config.cloudBaseMeters, config.cloudHeightMeters, config.cloudScaleMeters, config.cloudExtinction) },
@@ -171,7 +184,33 @@ export class AtmosphereSky {
     u.uSunDirection.value.copy(frame.sunDirection); u.uSunColor.value.copy(frame.sunColor);
     u.uMoonDirection.value.copy(frame.moonDirection); u.uMoonColor.value.copy(frame.moonColor);
     u.uLightningDirection.value.copy(frame.lightningDirection);
+    u.uLightningColor.value.copy(frame.lightningColor);
     u.uSkyState.value.set(frame.ambientDaylight, frame.sunVisibility, frame.moonVisibility, frame.starVisibility);
+    const sky = config.sky;
+    const glow = frame.sunGlowColor;
+    (u.uSunGlow.value as THREE.Vector4).set(glow.r, glow.g, glow.b, frame.sunGlow);
+    const anti = frame.antiTwilightColor;
+    (u.uAntiTwilight.value as THREE.Vector4).set(anti.r, anti.g, anti.b, frame.antiTwilight);
+    const aureole = frame.sunAureoleColor;
+    (u.uAureole.value as THREE.Vector4).set(aureole.r, aureole.g, aureole.b, sky.aureole);
+    // Extinction dims the disc toward the horizon; the key colour reddens it.
+    const discScale = THREE.MathUtils.lerp(
+      sky.sunDiscHorizonIntensity, sky.sunDiscIntensity, THREE.MathUtils.smoothstep(frame.sunDirection.y, 0, 0.3)
+    );
+    (u.uSkyShape.value as THREE.Vector4).set(sky.sunwardGlowFalloff, sky.horizonBand, sky.moonHalo, discScale);
+    u.uCloudSun.value.copy(frame.cloudSunColor);
+    const cloudGlow = sky.cloudTwilightGlow * frame.twilight
+      * (1 - frame.stormStrength) * (1 - weather.cloudCover * 0.5) * frame.ambientDaylight;
+    (u.uCloudShape.value as THREE.Vector4).set(sky.cloudSilverLining, sky.cloudBaseShade, frame.twilight, cloudGlow);
+    const bolt = config.lightningBolt;
+    const boltHeading = Math.hypot(frame.lightningDirection.x, frame.lightningDirection.z) || 1;
+    (u.uBolt.value as THREE.Vector4).set(
+      frame.lightningDirection.x / boltHeading,
+      frame.lightningDirection.z / boltHeading,
+      frame.lightningSeed,
+      reducedMotion ? 0 : frame.lightning * bolt.intensity
+    );
+    (u.uBoltShape.value as THREE.Vector3).set(bolt.distanceMeters, bolt.widthRadians, bolt.jitterRadians);
     this.lastTime = time;
     this.lastSeed = worldSeed;
   }
@@ -189,6 +228,7 @@ export class AtmosphereSky {
     return {
       mode: quality.primarySteps > 0 ? "volume" : "layered",
       coverage: weather.x, storm: weather.y, lightning: weather.z,
+      bolt: (this.material.uniforms.uBolt.value as THREE.Vector4).w,
       windOffset: [offset.x, offset.y], primarySteps: quality.primarySteps,
       lightSteps: quality.lightSteps, layerSteps: quality.layerSteps, history: "none"
     };

@@ -90,6 +90,7 @@ export interface CatalogAsset {
       texturePolicy: "none" | "preserve";
     }>;
     addedGeometryNodes?: string[];
+    removedSourceTriangles?: Record<string, number[]>;
   };
   skinnedAuthoring?: {
     sourceFile: string;

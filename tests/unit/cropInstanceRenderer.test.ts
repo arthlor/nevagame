@@ -182,6 +182,87 @@ describe("CropInstanceRenderer 3D furrow mounds and visual changes", () => {
     }
   });
 
+  it("invalidates required assets when an existing crop changes stage in place", async () => {
+    const source = new THREE.Group();
+    source.add(new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 1, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0xd79a3a })
+    ));
+    const loadModel = vi.spyOn(AssetLoader, "loadModel").mockResolvedValue(source);
+
+    try {
+      const renderer = new CropInstanceRenderer();
+      const state = new Simulation().getState() as unknown as MutableGameState;
+      const crop: PlacedCropState = {
+        id: "crop_asset_stage",
+        farmId: "farm.starter_garden",
+        cropId: "crop.wheat",
+        stage: "seeded",
+        x: 3,
+        z: 3,
+        rotationRadians: 0,
+        effectiveGrowthMinutes: 0,
+        plantedAtMinute: 0,
+        lastUpdatedMinute: 0,
+        moisture: 70,
+        health: 100,
+        averageMoistureAccum: 70,
+        moistureSampleCount: 1
+      };
+      state.crops = { [crop.id]: crop };
+      state.farms["farm.starter_garden"].placedCropIds = [crop.id];
+
+      renderer.sync(state, 1);
+      expect(renderer.assetStatusSignature()).toContain(ASSET_IDS.CROP_WHEAT_SEEDED);
+      await renderer.ensureAssets(state);
+      expect(renderer.assetStatusSignature()).toBe("1/1:");
+
+      crop.stage = "sprout";
+      renderer.sync(state, 2);
+      expect(renderer.assetStatusSignature()).toContain(ASSET_IDS.CROP_WHEAT_SPROUT);
+      await renderer.ensureAssets(state);
+      expect(renderer.assetStatusSignature()).toBe("1/1:");
+      renderer.dispose();
+    } finally {
+      loadModel.mockRestore();
+    }
+  });
+
+  it("skips a crop rebuild for an equivalent replacement and detects an in-place edit", () => {
+    const renderer = new CropInstanceRenderer();
+    const state = new Simulation().getState() as unknown as MutableGameState;
+    const crop: PlacedCropState = {
+      id: "crop_snapshot",
+      farmId: "farm.starter_garden",
+      cropId: "crop.wheat",
+      stage: "seeded",
+      x: 3,
+      z: 3,
+      rotationRadians: 0,
+      effectiveGrowthMinutes: 0,
+      plantedAtMinute: 0,
+      lastUpdatedMinute: 0,
+      moisture: 70,
+      health: 100,
+      averageMoistureAccum: 70,
+      moistureSampleCount: 1
+    };
+    state.crops = { [crop.id]: crop };
+    renderer.sync(state, 1);
+
+    const moistureMesh = renderer.group.getObjectByName("crop_disturbed_soil_instances") as THREE.InstancedMesh;
+    const setMatrixAt = vi.spyOn(moistureMesh, "setMatrixAt");
+    const replacement = { ...crop };
+    state.crops = { [crop.id]: replacement };
+    renderer.sync(state, 2);
+    expect(setMatrixAt).not.toHaveBeenCalled();
+
+    replacement.x += 1;
+    renderer.sync(state, 3);
+    expect(setMatrixAt).toHaveBeenCalled();
+    renderer.dispose();
+  });
+
   it("applies two-tone moisture response (warm dry/normal earth vs deep dark damp earth)", () => {
     const renderer = new CropInstanceRenderer();
     const state = new Simulation().getState() as unknown as MutableGameState;
@@ -453,7 +534,7 @@ describe("CropInstanceRenderer 3D furrow mounds and visual changes", () => {
 
       // Growth still changes simulation-dependent appearance: a changed
       // effective growth must go through the full rebuild.
-      state.crops[first.id] = { ...first, effectiveGrowthMinutes: 240 };
+      first.effectiveGrowthMinutes = 240;
       renderer.sync(state, 1.2);
       expect(renderer.presentationWorkStats().slotWrites).toBe(afterInitialSync.slotWrites + 2);
 

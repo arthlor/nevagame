@@ -54,6 +54,68 @@ interface ComposerRuntimeInternals {
   renderTarget2: THREE.WebGLRenderTarget;
 }
 
+export function configureGtaoDistanceLimits(
+  pass: GTAOPass,
+  config: Pick<typeof CANONICAL_RENDER_CONFIG.gtao, "maxDistance" | "fadeDistance">
+): void {
+  // 1. Patch gtaoMaterial to early-out past maxDistance, fade smoothly, and reject sky taps
+  let gtaoFrag = pass.gtaoMaterial.fragmentShader;
+  if (!gtaoFrag.includes("uGtaoMaxDistance")) {
+    gtaoFrag = "uniform float uGtaoMaxDistance;\nuniform float uGtaoFadeDistance;\n" + gtaoFrag;
+    gtaoFrag = gtaoFrag.replace(
+      "vec3 viewPos = getViewPosition(vUv, depth);",
+      "vec3 viewPos = getViewPosition(vUv, depth);\n\t\t\tif (viewPos.z < -uGtaoMaxDistance) {\n\t\t\t\tdiscard;\n\t\t\t\treturn;\n\t\t\t}"
+    );
+    gtaoFrag = gtaoFrag.replaceAll(
+      "if (abs(viewDelta.z) < thickness) {",
+      "if (sampleSceneUvDepth.z < 0.99999 && abs(viewDelta.z) < thickness) {"
+    );
+    gtaoFrag = gtaoFrag.replace(
+      "ao = pow(ao, scale);",
+      "ao = mix(ao, 1.0, smoothstep(uGtaoFadeDistance, uGtaoMaxDistance, -viewPos.z));\n\t\t\tao = pow(ao, scale);"
+    );
+    pass.gtaoMaterial.fragmentShader = gtaoFrag;
+    pass.gtaoMaterial.uniforms.uGtaoMaxDistance = { value: config.maxDistance };
+    pass.gtaoMaterial.uniforms.uGtaoFadeDistance = { value: config.fadeDistance };
+    pass.gtaoMaterial.needsUpdate = true;
+  } else if (pass.gtaoMaterial.uniforms.uGtaoMaxDistance) {
+    pass.gtaoMaterial.uniforms.uGtaoMaxDistance.value = config.maxDistance;
+    pass.gtaoMaterial.uniforms.uGtaoFadeDistance.value = config.fadeDistance;
+  }
+
+  // 2. Patch pdMaterial to discard sky fragments and distant fragments before normal computation
+  let pdFrag = pass.pdMaterial.fragmentShader;
+  if (!pdFrag.includes("uGtaoMaxDistance")) {
+    pdFrag = "uniform float uGtaoMaxDistance;\n" + pdFrag;
+    pdFrag = pdFrag.replace(
+      "vec3 sampleNormal = getViewNormal(sampleUv);",
+      "if (sampleDepth >= 0.99999) return;\n\t\t\tvec3 sampleNormal = getViewNormal(sampleUv);"
+    );
+    const regex = /float depth = getDepth\(vUv\.xy\);[\s\S]*?if \((depth == 1\. \|\| dot\(viewNormal, viewNormal\) == 0\.)\) \{\s*discard;\s*return;\s*\}/;
+    const replacement = `float depth = getDepth(vUv.xy);
+\t\t\tif (depth >= 0.99999) {
+\t\t\t\tdiscard;
+\t\t\t\treturn;
+\t\t\t}
+\t\t\tvec3 viewPos = getViewPosition(vUv, depth);
+\t\t\tif (viewPos.z < -uGtaoMaxDistance) {
+\t\t\t\tdiscard;
+\t\t\t\treturn;
+\t\t\t}
+\t\t\tvec3 viewNormal = getViewNormal(vUv);
+\t\t\tif (dot(viewNormal, viewNormal) == 0.) {
+\t\t\t\tdiscard;
+\t\t\t\treturn;
+\t\t\t}`;
+    pdFrag = pdFrag.replace(regex, replacement);
+    pass.pdMaterial.fragmentShader = pdFrag;
+    pass.pdMaterial.uniforms.uGtaoMaxDistance = { value: config.maxDistance };
+    pass.pdMaterial.needsUpdate = true;
+  } else if (pass.pdMaterial.uniforms.uGtaoMaxDistance) {
+    pass.pdMaterial.uniforms.uGtaoMaxDistance.value = config.maxDistance;
+  }
+}
+
 export function bindGtaoSceneDepth(pass: GTAOPass, source: THREE.WebGLRenderTarget): void {
   if (!source.depthTexture) throw new Error("GTAO requires the current scene depth texture");
   const normalModeChanged = pass.gtaoMaterial.defines.NORMAL_VECTOR_TYPE !== 0;
@@ -382,6 +444,7 @@ export class RendererPipeline {
       screenSpaceRadius: false
     });
     gtaoPass.updatePdMaterial({ samples: config.denoiseSamples, radius: 6, rings: 2 });
+    configureGtaoDistanceLimits(gtaoPass, config);
     // GTAOPass retains its denoised target but normally rebuilds it every
     // frame. Reuse that target while still compositing the current diffuse
     // frame, so motion never freezes when AO refreshes are skipped.

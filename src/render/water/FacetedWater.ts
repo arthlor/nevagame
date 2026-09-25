@@ -15,7 +15,7 @@ import {
   WaterSurface,
   type WaterConditions
 } from "./WaterSurface";
-import { waterSpatialProfile } from "./waterProfile";
+import { createWaterSpatialProfile, waterSpatialProfile } from "./waterProfile";
 import {
   createWaterDepthTexture,
   createWaterProfileTexture,
@@ -66,13 +66,15 @@ export function* waterProfileMapSteps(
   bounds: THREE.Vector4, width: number, height: number
 ): Generator<void, THREE.DataTexture, void> {
   const data = new Uint8Array(width * height * 4);
+  const profile = createWaterSpatialProfile();
+  const profileOptions = { bankDilationMeters: WATER_FIELD_BANK_DILATION_METERS };
   for (let row = 0; row < height; row += 1) {
     for (let column = 0; column < width; column += 1) {
       if (column % 32 === 0) yield;
       const x = bounds.x + (column / (width - 1)) * bounds.z;
       const z = bounds.y + (row / (height - 1)) * bounds.w;
       writeWaterProfileTexel(data, (row * width + column) * 4,
-        waterSpatialProfile(x, z, undefined, { bankDilationMeters: WATER_FIELD_BANK_DILATION_METERS }));
+        waterSpatialProfile(x, z, undefined, profileOptions, profile));
     }
   }
   return createWaterProfileTexture(data, width, height);
@@ -493,10 +495,10 @@ export class FacetedWater {
         uniforms: { ...this.uniforms, uLodMorph: { value: [] as THREE.Vector2[] } }
       }),
       {
-        minX: bounds.x,
-        minZ: bounds.y,
-        maxX: bounds.x + bounds.z,
-        maxZ: bounds.y + bounds.w
+        minX: Math.min(-4096, bounds.x),
+        minZ: Math.min(-4096, bounds.y),
+        maxX: Math.max(4096, bounds.x + bounds.z),
+        maxZ: Math.max(4096, bounds.y + bounds.w)
       }
     );
     this.lod.full.material.uniforms.uLodMorph.value = this.lod.ranges.morph;

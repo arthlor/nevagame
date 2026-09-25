@@ -3,6 +3,7 @@ import { Vector4 } from "three";
 import { createWaterProfileMap, waterFieldMapsSteps } from "../../src/render/water/FacetedWater";
 import { createWaterDepthMap } from "../../src/render/water/CoastalOptics";
 import { runCooperatively, runSync } from "../../src/utils/CooperativeTask";
+import { createWaterSpatialProfile, waterSpatialProfile } from "../../src/render/water/waterProfile";
 import { WorldLayout, WORLD_LAYOUT_V5, SHORE_TREATMENT_TABLE } from "../../src/world/WorldLayout";
 import { NEVA_COAST_LOOP, SUNREACH_COAST_LOOP } from "../../src/world/WorldIslands";
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "../../src/world/OceanIslets";
@@ -30,6 +31,21 @@ function unindexedContact(x: number, z: number): number {
 }
 
 describe("shared water field preparation", () => {
+  it("reuses the profile output without changing its sampled values", () => {
+    const scratch = createWaterSpatialProfile();
+    for (const [x, z] of [[65, 92], [-48, -112], [720, 260]] as const) {
+      const expected = waterSpatialProfile(x, z);
+      const actual = waterSpatialProfile(x, z, undefined, {}, scratch);
+      expect(actual).toBe(scratch);
+      expect(actual.region).toBe(expected.region);
+      expect(actual.weights).toEqual(expected.weights);
+      expect(actual.signedWaterDistance).toBe(expected.signedWaterDistance);
+      expect(actual.coastDistance).toBe(expected.coastDistance);
+      expect(actual.localDirection.x).toBe(expected.localDirection.x);
+      expect(actual.localDirection.y).toBe(expected.localDirection.y);
+    }
+  });
+
   it.each([
     { name: "mainland, islands and ocean", bounds: new Vector4(-1100, -1050, 2900, 2100), width: 49, height: 37 },
     { name: "elevated source, fall and pool", bounds: new Vector4(-44, -158, 28, 40), width: 19, height: 25 }

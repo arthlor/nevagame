@@ -102,7 +102,9 @@ export function fractalNoise(
  * Drainage-aligned stripe noise ("phacelle" noise). Each jittered cell emits a
  * plane wave whose crests run along `downslope`; the weighted complex sum keeps
  * a unit amplitude and blends phases continuously, so valleys and spurs follow
- * the slope without shearing coordinates around a distant origin.
+ * the slope without shearing coordinates around a distant origin. Where the
+ * waves cancel the amplitude eases to zero, so a phase vortex leaves a smooth
+ * neutral patch instead of a pit.
  *
  * Returns the stripe value in [-1, 1]; -1 is a gully floor, +1 a spur crest.
  */
@@ -123,7 +125,7 @@ export function drainageStripe(
   // exceed that or the field steps at cell borders.
   const radius = cell * 1.2, radiusSquared = radius * radius;
   const angular = (Math.PI * 2) / spacingMeters;
-  let cosine = 0, sine = 0;
+  let cosine = 0, sine = 0, total = 0;
   for (let oz = -1; oz <= 1; oz++) {
     for (let ox = -1; ox <= 1; ox++) {
       const cx = gx + ox, cz = gz + oz;
@@ -139,10 +141,20 @@ export function drainageStripe(
         + latticeUnit(cx, cz, salt ^ 0x5bd1e995) * Math.PI * 2;
       cosine += Math.cos(phase) * weight;
       sine += Math.sin(phase) * weight;
+      total += weight;
     }
   }
-  return cosine / Math.sqrt(cosine * cosine + sine * sine + 1e-9);
+  const magnitude = Math.sqrt(cosine * cosine + sine * sine);
+  // Where the waves cancel, the phase winds through every value within a few
+  // metres (a phase vortex) and carved a pit or pimple into the flank. The
+  // stripe fades to the neutral contour there instead.
+  const coherence = total > 0 ? Math.min(1, magnitude / (total * STRIPE_COHERENCE_FLOOR)) : 0;
+  const fade = coherence * coherence * (3 - 2 * coherence);
+  return magnitude > 1e-12 ? cosine / magnitude * fade : 0;
 }
+
+/** Relative wave-sum magnitude below which a stripe fades toward neutral. */
+const STRIPE_COHERENCE_FLOOR = 0.3;
 
 /**
  * Converts a stripe value into an eroded cross-section: V-shaped gully floors

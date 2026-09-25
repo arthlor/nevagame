@@ -5,6 +5,7 @@ export const ASSET_IDS = {
   BUILDING_WOODEN_OUTHOUSE_A: "building_wooden_outhouse_a",
   BUILDING_MEDIEVAL_TIMBER_COTTAGE_A: "building_medieval_timber_cottage_a",
   BUILDING_MEDIEVAL_MARKET_STALL_A: "building_medieval_market_stall_a",
+  BUILDING_SUNREACH_COVE_MARKET_A: "building_sunreach_cove_market_a",
   TREE_OAK_A: "tree_oak_a",
   TREE_OAK_B: "tree_oak_b",
   TREE_OAK_C: "tree_oak_c",
@@ -302,6 +303,12 @@ export const ASSET_IDS = {
   PROP_BANNER_CLOTH_A: "prop_banner_cloth_a",
   HOUSE_COTTAGE_B: "house_cottage_b",
   PROP_GALLEON_A: "prop_galleon_a",
+  PROP_MINE_ADIT_A: "prop_mine_adit_a",
+  BUILDING_ICE_HOUSE_A: "building_ice_house_a",
+  PROP_SALT_PANS_A: "prop_salt_pans_a",
+  PROP_TIMBER_STACK_A: "prop_timber_stack_a",
+  PROP_CULVERT_HEADWALL_A: "prop_culvert_headwall_a",
+  STATION_TIMBER_SAWBUCK_A: "station_timber_sawbuck_a",
 } as const;
 
 export type AssetId = (typeof ASSET_IDS)[keyof typeof ASSET_IDS];
@@ -315,6 +322,7 @@ export const ASSET_IDS_BY_FAMILY = {
     ASSET_IDS.BUILDING_WOODEN_OUTHOUSE_A,
     ASSET_IDS.BUILDING_MEDIEVAL_TIMBER_COTTAGE_A,
     ASSET_IDS.BUILDING_MEDIEVAL_MARKET_STALL_A,
+    ASSET_IDS.BUILDING_SUNREACH_COVE_MARKET_A,
     ASSET_IDS.HOUSE_FARMHOUSE_A,
     ASSET_IDS.BUILDING_LIGHTHOUSE_A,
     ASSET_IDS.BUILDING_WINDMILL_A,
@@ -334,6 +342,7 @@ export const ASSET_IDS_BY_FAMILY = {
     ASSET_IDS.BUILDING_FISH_MARKET_COASTAL_A,
     ASSET_IDS.BUILDING_DOVECOTE_A,
     ASSET_IDS.HOUSE_COTTAGE_B,
+    ASSET_IDS.BUILDING_ICE_HOUSE_A,
   ],
   "boat": [
     ASSET_IDS.BOAT_ROWBOAT_A,
@@ -566,6 +575,11 @@ export const ASSET_IDS_BY_FAMILY = {
     ASSET_IDS.PROP_LAUNDRY_LINE_A,
     ASSET_IDS.PROP_BANNER_CLOTH_A,
     ASSET_IDS.PROP_GALLEON_A,
+    ASSET_IDS.PROP_MINE_ADIT_A,
+    ASSET_IDS.PROP_SALT_PANS_A,
+    ASSET_IDS.PROP_TIMBER_STACK_A,
+    ASSET_IDS.PROP_CULVERT_HEADWALL_A,
+    ASSET_IDS.STATION_TIMBER_SAWBUCK_A,
   ],
   "rock": [
     ASSET_IDS.ROCK_BOULDER_A,

@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import baseline from "../../tools/world/neva-layout29-working-preservation.json";
+import baseline from "../../tools/world/neva-layout30-working-preservation.json";
+import beforeCove from "../../tools/world/neva-layout29-working-preservation.json";
+import layout29MainlandRoutes from "../fixtures/neva_layout29_mainland_routes.json";
 import layout28MainlandRoutes from "../fixtures/neva_layout28_mainland_routes.json";
 import beforeRoad from "../../tools/world/neva-layout25-working-preservation.json";
 import previousRoad from "../fixtures/neva_layout25_coastal_road.json";
@@ -24,6 +26,10 @@ describe("starter island terrain preservation", () => {
     routes,
     routeHash: createHash("sha256").update(JSON.stringify(routes)).digest("hex")
   });
+  /** Layout 29 routed mainland roads, re-routed in layout 30 over the reshaped cove and valley. */
+  const restoreLayout29MainlandRoutes = (snapshot: ReturnType<typeof captureTerrainPreservation>) =>
+    withRoutes(snapshot, snapshot.routes.map(route =>
+      (layout29MainlandRoutes as WorldRoute[]).find(previous => previous.id === route.id) ?? route));
   /** Layout 28 hand-knotted mainland roads, replaced in layout 29 by routed legs. */
   const restoreLayout28MainlandRoutes = (snapshot: ReturnType<typeof captureTerrainPreservation>) =>
     withRoutes(snapshot, snapshot.routes.map(route =>
@@ -158,6 +164,13 @@ describe("starter island terrain preservation", () => {
     for (const anchor of beforeMainland.anchors) {
       if (anchor.id === "struct.kitchen") continue;
       expect(historical.anchors.find((currentAnchor) => currentAnchor.id === anchor.id), anchor.id).toEqual(anchor);
+    }
+  });
+
+  it("changes only the re-routed mainland roads and their market crowns across the layout30 cove reshape", () => {
+    const restored = withMarketHeightsFrom(restoreLayout29MainlandRoutes(current), beforeCove);
+    for (const [field, matches] of Object.entries(compareTerrainPreservation(restored, beforeCove).workingChecks)) {
+      expect(matches, field).toBe(true);
     }
   });
 

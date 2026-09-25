@@ -172,6 +172,7 @@ export class AudioManager {
   private readonly musicRouting = new WorldMusicRouting();
   private readonly actionLoopGains = new Map<AudioCueId, number>();
   private readonly loopGainTargets = new Map<AudioCueId, number>();
+  private readonly desiredBedCueSet = new Set<AudioCueId>();
 
   setWorldContext(bedId: AudioBedId, weatherId: string, presentation?: WorldAudioDto): void {
     this.worldAudio = presentation;
@@ -446,24 +447,30 @@ export class AudioManager {
     return loading;
   }
 
-  private desiredBedCues(): AudioCueId[] {
-    const region = this.worldAudio
-      ? (Object.entries(this.worldAudio.layers).filter(([, gain]) => gain > 0).map(([id]) => id) as AudioCueId[])
-      : beds[this.bedId] ?? beds.farm;
-    const weather = weatherLoops[this.weatherId] ?? [];
-    return [...new Set([...region, ...weather])];
+  private desiredBedCues(): ReadonlySet<AudioCueId> {
+    const desired = this.desiredBedCueSet;
+    desired.clear();
+    if (this.worldAudio) {
+      for (const [id, gain] of Object.entries(this.worldAudio.layers)) {
+        if (gain > 0) desired.add(id as AudioCueId);
+      }
+    } else {
+      for (const cueId of beds[this.bedId] ?? beds.farm) desired.add(cueId);
+    }
+    for (const cueId of weatherLoops[this.weatherId] ?? []) desired.add(cueId);
+    return desired;
   }
 
   private syncBeds(): void {
     if (!this.context || this.context.state !== "running" || document.visibilityState === "hidden") {
       return;
     }
-    const desired = new Set(this.desiredBedCues());
+    const desired = this.desiredBedCues();
     // Invalidate pending decoded starts as well as live voices on a region change.
     for (const cueId of this.loopStartGenerations.keys()) {
       if (!desired.has(cueId) && !this.actionLoops.has(cueId) && cues[cueId]?.bus !== "music") this.stopLoopCue(cueId);
     }
-    for (const cueId of [...this.loops.keys()]) {
+    for (const cueId of this.loops.keys()) {
       if (this.actionLoops.has(cueId) || desired.has(cueId) || cues[cueId]?.bus === "music") {
         continue;
       }

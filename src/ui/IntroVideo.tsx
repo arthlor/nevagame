@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { audioSettings } from "../audio/AudioSettings";
+import { startIntroPlayback } from "./introPlayback";
 
 export interface IntroVideoHandle {
   /** Skips the cinematic. Returns false when it is not currently playing. */
@@ -16,12 +17,11 @@ export interface IntroVideoProps {
 
 const INTRO_VIDEO_SRC = "/assets/video/intro.mp4";
 const INTRO_POSTER_SRC = "/assets/video/intro-poster.webp";
-/** A cinematic that cannot start within this window must not hold up entry. */
-const START_GRACE_MS = 20_000;
 
 /**
  * Presentation-only entry cinematic. The element stays mounted while the world
- * loads so the film buffers in parallel; playback is best-effort with sound,
+ * loads after required scenery transfers so it buffers during world population;
+ * playback is best-effort with sound,
  * falls back to muted autoplay, and never gates startup on its own failure.
  */
 export const IntroVideo = forwardRef<IntroVideoHandle, IntroVideoProps>(function IntroVideo(
@@ -30,7 +30,6 @@ export const IntroVideo = forwardRef<IntroVideoHandle, IntroVideoProps>(function
 ): ReactElement {
   const videoRef = useRef<HTMLVideoElement>(null);
   const activeRef = useRef(false);
-  const finishedRef = useRef(false);
   const onFinishedRef = useRef(onFinished);
   onFinishedRef.current = onFinished;
   const finishRef = useRef<(played: boolean) => void>(() => undefined);
@@ -45,11 +44,6 @@ export const IntroVideo = forwardRef<IntroVideoHandle, IntroVideoProps>(function
     }
   }), []);
 
-  // Buffer while the world loads so entry is not delayed by the download.
-  useEffect(() => {
-    videoRef.current?.load();
-  }, []);
-
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -59,7 +53,6 @@ export const IntroVideo = forwardRef<IntroVideoHandle, IntroVideoProps>(function
       return;
     }
 
-    finishedRef.current = false;
     activeRef.current = true;
     setShowing(true);
     setSoundBlocked(false);
@@ -71,76 +64,34 @@ export const IntroVideo = forwardRef<IntroVideoHandle, IntroVideoProps>(function
     applyVolume();
     const unsubscribeVolume = audioSettings.subscribe(applyVolume);
 
-    const finish = (played: boolean): void => {
-      if (finishedRef.current) return;
-      finishedRef.current = true;
+    const playback = startIntroPlayback(video, played => {
       activeRef.current = false;
-      video.pause();
       setShowing(false);
       onFinishedRef.current(played);
-    };
-    finishRef.current = finish;
+    }, () => setSoundBlocked(true));
+    finishRef.current = () => playback.skip();
 
-    const ended = (): void => finish(true);
-    const failed = (): void => finish(false);
     const skip = (event: Event): void => {
       const target = event.target;
-      if (target instanceof Element && target.closest(".intro-video__sound")) return;
-      finish(true);
+      // Keep native button activation and Tab navigation usable, including
+      // enabling sound, without leaking a skip gesture into the game.
+      if (target instanceof Element && target.closest("button")
+        && !(event instanceof KeyboardEvent && event.key === "Escape")) return;
+      if (event instanceof KeyboardEvent && !["Escape", "Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      playback.skip();
     };
-
-    let started = false;
-    const graceTimer = window.setTimeout(() => {
-      if (!started) finish(false);
-    }, START_GRACE_MS);
-
-    const beginPlayback = async (): Promise<void> => {
-      // A failure that landed while the film was buffering surfaces here
-      // instead of through an `error` event the listener could still catch.
-      if (video.error) {
-        finish(false);
-        return;
-      }
-      try {
-        video.currentTime = 0;
-      } catch {
-        // A seek before metadata is best-effort; playback starts at zero anyway.
-      }
-      try {
-        video.muted = false;
-        await video.play();
-      } catch {
-        if (finishedRef.current) return;
-        try {
-          video.muted = true;
-          setSoundBlocked(true);
-          await video.play();
-        } catch {
-          finish(false);
-          return;
-        }
-      }
-      if (finishedRef.current) return;
-      started = true;
-    };
-
     window.addEventListener("keydown", skip, true);
-    window.addEventListener("pointerdown", skip, true);
-    window.addEventListener("wheel", skip, { capture: true, passive: false });
-    video.addEventListener("ended", ended);
-    video.addEventListener("error", failed);
-    void beginPlayback();
+    video.addEventListener("pointerdown", skip);
 
     return () => {
-      window.clearTimeout(graceTimer);
       unsubscribeVolume();
       window.removeEventListener("keydown", skip, true);
-      window.removeEventListener("pointerdown", skip, true);
-      window.removeEventListener("wheel", skip, true);
-      video.removeEventListener("ended", ended);
-      video.removeEventListener("error", failed);
+      video.removeEventListener("pointerdown", skip);
       activeRef.current = false;
-      if (!finishedRef.current) video.pause();
+      finishRef.current = () => undefined;
+      playback.dispose();
     };
   }, [active]);
 

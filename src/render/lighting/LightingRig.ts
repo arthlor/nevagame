@@ -41,32 +41,83 @@ export interface LightingFrame {
   /** Max of solar daylight and the clock dawn/dusk ramp. Fill, sky, and practicals use this. */
   ambientDaylight: number;
   stormStrength: number;
+  /** Horizon proximity of the sun (the golden-band envelope). */
+  twilight: number;
+  /** Sunward horizon radiance at twilight, and how strongly it holds the horizon. */
+  sunGlowColor: THREE.Color;
+  sunGlow: number;
+  /** Anti-solar rose band colour and its strength (clear twilight only). */
+  antiTwilightColor: THREE.Color;
+  antiTwilight: number;
+  /** Key colour the clouds see: the sun's, rose-tinted in the afterglow below the horizon. */
+  cloudSunColor: THREE.Color;
+  /** Forward-scattered haze radiance toward the sun. */
+  sunScatterColor: THREE.Color;
+  /** Visible sun colour behind cloud cover: the sky's aureole around the disc. */
+  sunAureoleColor: THREE.Color;
+  /** Morning valley-mist share, 0–1. */
+  valleyMist: number;
+  /** Per-strike seed that shapes the visible storm bolt. */
+  lightningSeed: number;
 }
 
-const SKY_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.skyFill.skyColorHex);
-const SKY_CLEAR_DAY = SKY_DAY.clone().offsetHSL(
-  CANONICAL_RENDER_CONFIG.skyFill.clearDayHueOffset,
-  CANONICAL_RENDER_CONFIG.skyFill.clearDaySaturationLift,
-  CANONICAL_RENDER_CONFIG.skyFill.clearDayLightnessOffset
-);
-const SKY_NIGHT = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.36);
-const HORIZON_DAY = new THREE.Color(PALETTE_HEX.horizon_warm_01);
-const HORIZON_CLEAR_DAY = HORIZON_DAY.clone().lerp(
-  SKY_CLEAR_DAY,
-  CANONICAL_RENDER_CONFIG.skyFill.clearDayHorizonBlueMix
-);
-const HORIZON_NIGHT = new THREE.Color(PALETTE_HEX.water_deep_01).multiplyScalar(0.52);
-const GROUND_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.skyFill.groundColorHex);
-const SKY_FILL_NIGHT = new THREE.Color(
-  CANONICAL_RENDER_CONFIG.skyFill.nightSkyColorHex
-).multiplyScalar(CANONICAL_RENDER_CONFIG.skyFill.nightSkyColorStrength);
-const GROUND_NIGHT = new THREE.Color(
-  CANONICAL_RENDER_CONFIG.skyFill.nightGroundColorHex
-).multiplyScalar(CANONICAL_RENDER_CONFIG.skyFill.nightGroundColorStrength);
-const STORM_SKY = new THREE.Color(PALETTE_HEX.rock_coastal_dark_01);
-const STORM_HORIZON = new THREE.Color(PALETTE_HEX.stone_cool_01);
-const SUN_DAY = new THREE.Color(CANONICAL_RENDER_CONFIG.sun.colorHex);
-const SUN_GOLDEN = new THREE.Color(CANONICAL_RENDER_CONFIG.sun.horizonColorHex);
+/**
+ * Every sky and fill colour, derived from palette tokens plus the HSL offsets
+ * in `VisualRenderConfig`. Resolved per frame into reused colours, so the
+ * config stays the one live owner of these values.
+ */
+const palette = {
+  skyDay: new THREE.Color(),
+  skyClearDay: new THREE.Color(),
+  skyNight: new THREE.Color(),
+  horizonDay: new THREE.Color(),
+  horizonClearDay: new THREE.Color(),
+  horizonNight: new THREE.Color(),
+  groundDay: new THREE.Color(),
+  skyFillNight: new THREE.Color(),
+  groundNight: new THREE.Color(),
+  stormSky: new THREE.Color(),
+  stormHorizon: new THREE.Color(),
+  sunDay: new THREE.Color(),
+  sunGolden: new THREE.Color(),
+  sunEmber: new THREE.Color(),
+  twilightZenith: new THREE.Color(),
+  twilightFill: new THREE.Color(),
+  antiTwilight: new THREE.Color()
+};
+
+function resolveSkyPalette(): typeof palette {
+  const config = CANONICAL_RENDER_CONFIG;
+  const fill = config.skyFill;
+  palette.skyDay.set(fill.skyColorHex);
+  palette.skyClearDay.copy(palette.skyDay).offsetHSL(
+    fill.clearDayHueOffset,
+    fill.clearDaySaturationLift,
+    fill.clearDayLightnessOffset
+  );
+  palette.skyNight.set(PALETTE_HEX.water_deep_01).offsetHSL(fill.nightHueOffset, 0, 0).multiplyScalar(0.36);
+  palette.horizonDay.set(PALETTE_HEX.horizon_warm_01);
+  palette.horizonClearDay.copy(palette.horizonDay).lerp(palette.skyClearDay, fill.clearDayHorizonBlueMix);
+  palette.horizonNight.set(PALETTE_HEX.water_deep_01).offsetHSL(fill.nightHueOffset, 0, 0).multiplyScalar(0.52);
+  palette.groundDay.set(fill.groundColorHex);
+  palette.skyFillNight.set(fill.nightSkyColorHex).offsetHSL(fill.nightHueOffset, 0, 0)
+    .multiplyScalar(fill.nightSkyColorStrength);
+  palette.groundNight.set(fill.nightGroundColorHex).multiplyScalar(fill.nightGroundColorStrength);
+  palette.stormSky.set(PALETTE_HEX.rock_coastal_dark_01);
+  palette.stormHorizon.set(PALETTE_HEX.stone_cool_01);
+  palette.sunDay.set(config.sun.colorHex);
+  palette.sunGolden.set(config.sun.horizonColorHex);
+  const ember = config.sun.ember;
+  palette.sunEmber.copy(palette.sunGolden).offsetHSL(ember.hueOffset, ember.saturationLift, ember.lightnessOffset);
+  const zenith = fill.twilightZenith;
+  palette.twilightZenith.copy(palette.skyClearDay).offsetHSL(zenith.hueOffset, zenith.saturationLift, zenith.lightnessOffset);
+  // Shade keeps the twilight hue at the daytime fill's value, so the fill
+  // cools without dimming.
+  palette.twilightFill.copy(palette.skyClearDay).offsetHSL(zenith.hueOffset, zenith.saturationLift, 0);
+  const anti = fill.antiTwilight;
+  palette.antiTwilight.copy(palette.horizonDay).offsetHSL(anti.hueOffset, anti.saturationLift, anti.lightnessOffset);
+  return palette;
+}
 
 function createLightingFrame(): LightingFrame {
   return {
@@ -94,8 +145,34 @@ function createLightingFrame(): LightingFrame {
     lightningColor: new THREE.Color(),
     exposure: 1,
     ambientDaylight: 0,
-    stormStrength: 0
+    stormStrength: 0,
+    twilight: 0,
+    sunGlowColor: new THREE.Color(),
+    sunGlow: 0,
+    antiTwilightColor: new THREE.Color(),
+    antiTwilight: 0,
+    cloudSunColor: new THREE.Color(),
+    sunScatterColor: new THREE.Color(),
+    sunAureoleColor: new THREE.Color(),
+    valleyMist: 0,
+    lightningSeed: 0
   };
+}
+
+/**
+ * Morning valley-mist envelope: rises from the first configured minute,
+ * peaks at the second and has burnt off by the third.
+ */
+export function dawnMistEnvelope(
+  minuteOfDay: number,
+  minutes: readonly [number, number, number] = CANONICAL_RENDER_CONFIG.atmosphere.aerialPerspective.dawnMistMinutes
+): number {
+  const minute = ((minuteOfDay % 1440) + 1440) % 1440;
+  const [start, peak, end] = minutes;
+  if (minute <= start || minute >= end) return 0;
+  return minute < peak
+    ? smooth01((minute - start) / Math.max(1, peak - start))
+    : 1 - smooth01((minute - peak) / Math.max(1, end - peak));
 }
 
 function clamp01(value: number): number {
@@ -248,6 +325,13 @@ export function deriveLightingFrame(
 ): LightingFrame {
   const frame = target ?? createLightingFrame();
   const config = CANONICAL_RENDER_CONFIG;
+  const {
+    skyDay: SKY_DAY, skyClearDay: SKY_CLEAR_DAY, skyNight: SKY_NIGHT, horizonDay: HORIZON_DAY,
+    horizonClearDay: HORIZON_CLEAR_DAY, horizonNight: HORIZON_NIGHT, groundDay: GROUND_DAY,
+    skyFillNight: SKY_FILL_NIGHT, groundNight: GROUND_NIGHT, stormSky: STORM_SKY,
+    stormHorizon: STORM_HORIZON, sunDay: SUN_DAY, sunGolden: SUN_GOLDEN, sunEmber: SUN_EMBER,
+    twilightZenith: TWILIGHT_ZENITH, twilightFill: TWILIGHT_FILL, antiTwilight: ANTI_TWILIGHT
+  } = resolveSkyPalette();
   const clockMinute = presentedMinuteOfDay ?? state.clock.currentMinute;
   const minuteOfDay = ((clockMinute % 1440) + 1440) % 1440;
   const { sunDirection, moonDirection } = deriveCelestialDirections(
@@ -264,6 +348,8 @@ export function deriveLightingFrame(
   // envelope owns both the warm sky band and the golden-hour key colour, so the
   // two can never disagree about when the sun is low.
   const twilight = 1 - smooth01(Math.abs(solarHeight) / config.twilight.solarWidth);
+  // The deepest note of that band, only in the last minutes either side of it.
+  const ember = 1 - smooth01(Math.abs(solarHeight) / config.sun.ember.solarWidth);
   const clockAmbient = clockWindowAmbient(minuteOfDay, config.skyFill.dawnDuskEdgeAmbient);
   const ambientDaylight = Math.max(daylight, clockAmbient);
   const twilightExposure = smooth01(
@@ -273,7 +359,10 @@ export function deriveLightingFrame(
   const storm = clamp01(appearance?.storm ?? (state.weather.type === "storm" ? 1 : 0));
   const cloudCover = clamp01(state.weather.cloudCover);
   const visibility = clamp01(state.weather.visibility);
-  const clearDaylight = (appearance?.clear ?? (state.weather.type === "clear" ? 1 : 0)) * daylight * (1 - twilight);
+  const clear = clamp01(appearance?.clear ?? (state.weather.type === "clear" ? 1 : 0));
+  const clearDaylight = clear * daylight * (1 - twilight);
+  // Clear twilight keeps a sky of its own instead of the pale overcast dome.
+  const clearTwilight = clear * twilight * ambientDaylight;
   const lightning = !reducedMotion ? storm * lightningEnvelope(state.worldSeed, timeSeconds) : 0;
   const lightningCycle = Math.floor(timeSeconds / config.weather.lightningCycleSeconds);
   const lightningAngle = hash01(state.worldSeed + lightningCycle * 19.31) * Math.PI * 2;
@@ -297,42 +386,58 @@ export function deriveLightingFrame(
   const moonWeather = THREE.MathUtils.lerp(
     THREE.MathUtils.lerp(1, config.moon.cloudAttenuationFloor, cloudCover), config.moon.stormAttenuation, storm
   );
-  const sunIntensity = config.sun.intensity * daylight * sunWeather;
+  // A grazing sun lights open ground at a shallow angle; lift the key across
+  // the golden band while it is still above the horizon, so the warm light
+  // reaches the land and not only the walls. Sunrise and sunset themselves are
+  // unchanged, which keeps dawn/dusk ordering against noon intact.
+  const goldenKeyLift = 1 + config.sun.goldenKeyLift * twilight * smooth01(solarHeight / 0.04);
+  const sunIntensity = config.sun.intensity * daylight * sunWeather * goldenKeyLift;
   const moonIntensity =
     config.moon.intensity
     * smooth01((-solarHeight + config.twilight.moonHoldSolarHeight) / config.twilight.moonFadeWidth)
     * moonWeather;
+  // Clear golden hour while the sun is still up: see `skyFill.twilightFillScale`.
+  const goldenHour = clearTwilight * daylight;
   const skyFillIntensity =
     THREE.MathUtils.lerp(
       config.skyFill.nightIntensity,
       config.skyFill.intensity,
       ambientDaylight
     ) * THREE.MathUtils.lerp(0.68, 1, visibility)
+    * THREE.MathUtils.lerp(1, config.skyFill.twilightFillScale, goldenHour)
     + twilight * config.skyFill.twilightFillLift * (1 - ambientDaylight)
     + lightning * 0.48;
 
   // Anchored on the day key and pulled toward gold by horizon proximity, so
   // noon is bit-identical to the approved daylight baseline and only the low-sun
-  // window changes colour.
-  const sunColor = frame.sunColor.copy(SUN_DAY).lerp(SUN_GOLDEN, twilight);
+  // window changes colour. The ember is the last minutes either side.
+  const sunColor = frame.sunColor.copy(SUN_DAY).lerp(SUN_GOLDEN, twilight).lerp(SUN_EMBER, ember);
   const moonColor = frame.moonColor.set(config.moon.colorHex);
   const skyFillColor = frame.skyFillColor.copy(SKY_FILL_NIGHT).lerp(SKY_DAY, ambientDaylight);
+  // Overcast twilight keeps its warm-grey dome; clear twilight gets the
+  // deeper zenith below and leaves warmth to the sunward horizon.
   const skyTopColor = frame.skyTopColor.copy(SKY_NIGHT)
     .lerp(SKY_DAY, ambientDaylight)
-    .lerp(HORIZON_DAY, twilight * config.skyFill.twilightZenithHorizonMix);
+    .lerp(HORIZON_DAY, twilight * config.skyFill.twilightZenithHorizonMix * (1 - clear));
   const horizonStrength = clamp01(ambientDaylight * 0.76 + twilight * 0.72);
   const skyHorizonColor = frame.skyHorizonColor.copy(HORIZON_NIGHT)
     .lerp(HORIZON_DAY, horizonStrength)
-    .lerp(skyTopColor, ambientDaylight * 0.22);
+    .lerp(skyTopColor, ambientDaylight * 0.22 * (1 - clearTwilight));
   const groundFillColor = frame.groundFillColor.copy(GROUND_NIGHT).lerp(GROUND_DAY, ambientDaylight);
   // Clear weather has its own clean-sky radiance instead of inheriting the
   // pale overcast color used by cloudy and rainy states. Keep this coupled to
   // the same daylight envelope, sun direction, fog, and hemisphere fill.
   skyTopColor.lerp(SKY_CLEAR_DAY, clearDaylight);
   skyHorizonColor.lerp(HORIZON_CLEAR_DAY, clearDaylight);
+  skyTopColor.lerp(TWILIGHT_ZENITH, clearTwilight);
+  skyHorizonColor.multiplyScalar(THREE.MathUtils.lerp(1, config.skyFill.twilightHorizonScale, clearTwilight));
   // Cooler hemisphere fill on clear days so ground shade carries summer sky,
-  // not the pale overcast ambient of cloudy weather.
+  // not the pale overcast ambient of cloudy weather. At clear twilight the
+  // shade takes the cooler twilight hue while sunlit ground bounces the key's
+  // warmth back up: warm light, cool shade.
   skyFillColor.lerp(SKY_CLEAR_DAY, clearDaylight * 0.42);
+  skyFillColor.lerp(TWILIGHT_FILL, clearTwilight * config.skyFill.twilightCoolFillMix);
+  groundFillColor.lerp(sunColor, clearTwilight * daylight * config.skyFill.twilightWarmBounceMix);
   if (storm) {
     skyFillColor.lerp(STORM_SKY, 0.22 * storm);
     skyTopColor.lerp(STORM_SKY, 0.56 * storm);
@@ -346,9 +451,14 @@ export function deriveLightingFrame(
     groundFillColor.lerp(lightningColor, lightning * 0.18);
   }
 
+  // Clear twilight haze sits nearer the warm horizon than the deep zenith.
   const fogColor = frame.fogColor.copy(skyTopColor).lerp(
     skyHorizonColor,
-    THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.42, 0.24, clearDaylight), 0.3, storm)
+    THREE.MathUtils.lerp(
+      THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.42, 0.24, clearDaylight), 0.85, clearTwilight),
+      0.3,
+      storm
+    )
   );
   const fogNear = THREE.MathUtils.lerp(
     THREE.MathUtils.lerp(config.fog.near, config.fog.clearDayNear, clearDaylight), config.weather.stormFogNear, storm
@@ -375,6 +485,33 @@ export function deriveLightingFrame(
   const moonVisibility =
     smooth01((-solarHeight + 0.025) / 0.1) * THREE.MathUtils.lerp(1, 0.3, cloudCover);
 
+  // Directional sky and haze terms that follow the low sun. Cloud and storm
+  // fade them, so overcast twilight keeps its soft grey.
+  const skyClarity = (1 - storm) * THREE.MathUtils.lerp(1, 0.35, cloudCover);
+  const skyShape = config.atmosphere.sky;
+  // Sunward horizon light has crossed twice the air the key has, so it takes
+  // the key colour squared: a deeper amber that tone mapping cannot wash out.
+  const sunGlowColor = frame.sunGlowColor.copy(sunColor).multiply(sunColor).multiplyScalar(skyShape.sunwardGlow);
+  const sunGlow = twilight * smooth01((solarHeight + 0.2) / 0.16) * skyClarity;
+  const antiTwilightColor = frame.antiTwilightColor.copy(ANTI_TWILIGHT);
+  const antiTwilight = clearTwilight * (1 - smooth01(Math.abs(solarHeight) / 0.16)) * skyShape.antiTwilightBand;
+  // Clouds keep catching the sun from below for a while after it has set.
+  const belowHorizon = -solarHeight;
+  const afterglow = smooth01(belowHorizon / 0.04) * (1 - smooth01((belowHorizon - 0.06) / 0.12));
+  const cloudSunColor = frame.cloudSunColor.copy(sunColor)
+    .lerp(ANTI_TWILIGHT, afterglow * skyShape.cloudAfterglow);
+  const sunScatterColor = frame.sunScatterColor.copy(sunColor).multiplyScalar(
+    config.atmosphere.aerialPerspective.sunScatter
+      * smooth01((solarHeight + 0.05) / 0.1)
+      * skyClarity
+      * THREE.MathUtils.lerp(0.55, 1, twilight)
+  );
+  const sunAureoleColor = frame.sunAureoleColor.copy(sunColor)
+    .multiplyScalar(sunVisibility * (1 - cloudCover * 0.65));
+  const valleyMist = dawnMistEnvelope(minuteOfDay)
+    * (1 - storm)
+    * (1 - clamp01(state.weather.precipitation * 3));
+
   Object.assign(frame, {
     sunDirection,
     moonDirection,
@@ -398,9 +535,20 @@ export function deriveLightingFrame(
     lightning,
     lightningDirection,
     lightningColor,
-    exposure: THREE.MathUtils.lerp(config.nightExposure, config.exposure, twilightExposure),
+    exposure: THREE.MathUtils.lerp(config.nightExposure, config.exposure, twilightExposure)
+      + config.skyFill.twilightExposureLift * goldenHour,
     ambientDaylight,
-    stormStrength: storm
+    stormStrength: storm,
+    twilight,
+    sunGlowColor,
+    sunGlow,
+    antiTwilightColor,
+    antiTwilight,
+    cloudSunColor,
+    sunScatterColor,
+    sunAureoleColor,
+    valleyMist,
+    lightningSeed: hash01(state.worldSeed * 0.37 + lightningCycle * 7.13)
   });
   return frame;
 }

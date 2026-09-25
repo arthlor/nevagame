@@ -13465,11 +13465,18 @@
   max-width: min(440px, calc(100vw - 20px)) !important;
 }
 
+#ui-container[data-ui="guildcraft"][data-mobile-device="true"] .start-screen__options {
+  max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - max(10px, env(safe-area-inset-bottom))) !important;
+}
+
 #ui-container[data-mobile-device="true"] .start-screen__options-layout {
   grid-template-columns: minmax(0, 1fr) !important;
   min-height: 0 !important;
   gap: 12px !important;
   padding: 14px !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
 }
 
 #ui-container[data-mobile-device="true"] .start-screen__options-pages {
@@ -13876,3 +13883,217 @@
 }
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .map-lens-btn,
 #ui-container[data-ui="guildcraft"][data-mobile-device="true"] .map-lens-btn.is-active { min-width: 44px; }
+
+/* Opening controls; first-paint geometry and the Guildcraft frame live in opening.css. */
+@layer neva-ui {
+  .intro-video.is-active { pointer-events: auto; }
+  #ui-container .start-screen--intro .start-screen__content { pointer-events: none; }
+  #ui-container .start-screen--intro .start-screen__intro-skip {
+    position: fixed;
+    right: max(24px, env(safe-area-inset-right));
+    bottom: max(20px, env(safe-area-inset-bottom));
+    min-height: 44px;
+    pointer-events: auto;
+  }
+  #ui-container .start-screen__intro-skip:focus-visible,
+  .intro-video__sound:focus-visible {
+    outline: 2px solid var(--guild-gold-bright, #f5da96);
+    outline-offset: 4px;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__save-scroll-card {
+    margin: 0 0 4px !important;
+    padding: 0 0 14px !important;
+    background: none !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(165, 139, 73, 0.24) !important;
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .save-scroll-details {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font: 500 13px/1.3 var(--font-sans) !important;
+    color: var(--guild-ivory) !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .save-scroll-tag {
+    background: rgba(165, 139, 73, 0.18) !important;
+    border: 1px solid rgba(165, 139, 73, 0.38) !important;
+    border-radius: 3px !important;
+    padding: 1px 7px !important;
+    color: var(--guild-gold-bright) !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .save-scroll-location {
+    color: var(--guild-ivory) !important;
+    font-weight: 500 !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .save-scroll-sep {
+    color: var(--guild-muted) !important;
+    opacity: 0.6 !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .save-scroll-date {
+    display: block !important;
+    width: 100% !important;
+    margin-top: 2px !important;
+    font: 400 12px/1.2 var(--font-sans) !important;
+    color: var(--guild-muted) !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__menu {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-block: auto !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__button,
+  #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__secondary-button,
+  #ui-container[data-ui="guildcraft"] .start-screen__options-action {
+    width: 100% !important;
+    min-height: 44px !important;
+    border-radius: 3px !important;
+    box-sizing: border-box !important;
+    font: 600 16px/1.2 var(--font-serif) !important;
+    letter-spacing: 0.025em !important;
+    cursor: pointer !important;
+    transition: all 140ms ease !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__button {
+    background: linear-gradient(180deg, #745b2b 0%, #4f3d19 50%, #30240d 100%) !important;
+    border: 1.5px solid #d4af37 !important;
+    color: #fff9ea !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 238, 185, 0.45),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+      0 4px 10px rgba(0, 0, 0, 0.55) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95) !important;
+    justify-content: center !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__button:hover:not(:disabled) {
+    background: linear-gradient(180deg, #8a6c33 0%, #634b20 50%, #3d2d11 100%) !important;
+    border-color: #ffd875 !important;
+    color: #ffffff !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 245, 200, 0.6),
+      0 0 14px rgba(212, 175, 55, 0.5),
+      0 4px 14px rgba(0, 0, 0, 0.65) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__button:active:not(:disabled) {
+    transform: translateY(1px) !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.65), 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__button:disabled {
+    opacity: 0.65 !important;
+    cursor: default !important;
+    filter: grayscale(0.3) !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__secondary-button {
+    background: linear-gradient(180deg, rgba(40, 34, 26, 0.95) 0%, rgba(22, 18, 14, 0.98) 100%) !important;
+    border: 1px solid rgba(165, 139, 73, 0.45) !important;
+    color: var(--guild-ivory) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 3px 8px rgba(0, 0, 0, 0.4) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85) !important;
+    justify-content: center !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__secondary-button:hover {
+    background: linear-gradient(180deg, rgba(55, 46, 35, 0.98) 0%, rgba(32, 26, 19, 0.99) 100%) !important;
+    border-color: var(--guild-gold) !important;
+    color: #ffffff !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      0 0 10px rgba(165, 139, 73, 0.35),
+      0 3px 10px rgba(0, 0, 0, 0.5) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__options-action {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+    background: rgba(18, 15, 12, 0.6) !important;
+    border: 1px solid rgba(165, 139, 73, 0.3) !important;
+    color: var(--guild-muted) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__options-action:hover {
+    background: rgba(36, 30, 22, 0.8) !important;
+    border-color: var(--guild-gold) !important;
+    color: var(--guild-ivory) !important;
+    box-shadow: 0 0 8px rgba(165, 139, 73, 0.25) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__menu :is(button, .chrome-button):focus-visible {
+    outline: 3px solid #f5d17d !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Loading status and measured asset count. */
+
+  #ui-container[data-ui="guildcraft"] .start-screen__progress-heading {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__progress-count {
+    font: 600 12px/1.2 var(--font-sans) !important;
+    color: var(--guild-gold-bright) !important;
+    background: rgba(165, 139, 73, 0.15) !important;
+    border: 1px solid rgba(165, 139, 73, 0.35) !important;
+    padding: 3px 8px !important;
+    border-radius: 3px !important;
+    white-space: nowrap !important;
+  }
+
+  #ui-container[data-ui="guildcraft"] .start-screen__slow-notice {
+    margin: 2px 0 0 0 !important;
+    font: italic 12px/1.3 var(--font-serif) !important;
+    color: #e4c478 !important;
+  }
+
+  @media (max-height: 540px) {
+
+    #ui-container[data-ui="guildcraft"] .start-screen__save-scroll-card { padding-bottom: 6px !important; }
+    #ui-container[data-ui="guildcraft"] .save-scroll-date { margin-top: 0 !important; }
+    #ui-container[data-ui="guildcraft"] .start-screen__menu { gap: 4px !important; }
+    #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__button,
+    #ui-container[data-ui="guildcraft"] .start-screen__menu .start-screen__secondary-button,
+    #ui-container[data-ui="guildcraft"] .start-screen__options-action { min-height: 40px !important; padding: 6px 11px !important; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+
+    #ui-container[data-ui="guildcraft"] .start-screen__pulse-dot,
+      #ui-container[data-ui="guildcraft"] .start-screen__menu :is(button, .chrome-button),
+    #ui-container[data-ui="guildcraft"] .start-screen__options-action { transition: none !important; }
+  }
+}

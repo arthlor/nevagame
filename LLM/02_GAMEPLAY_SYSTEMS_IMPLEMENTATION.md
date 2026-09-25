@@ -103,9 +103,19 @@ predicates and content reachability validated at registry startup.
 The mainland extends that cast with Rowan, Pinewatch's timberwright and trader;
 Mara, Reedhaven's reedkeeper and landing steward; and Ada, Highridge's
 provisioner. Their registry-owned stations, recognition and village commissions
-use the existing talk and quest contracts. They reuse shipped character assets
-and have bounded local presentation movement; they add no saved NPC or
+use the existing talk and quest contracts. They use character assets and have
+bounded local presentation movement; they add no saved NPC or
 relationship state.
+
+Named NPCs keep their clock- and quest-derived talk station while local
+presentation walks and authored gestures play around it. The scene owns world
+travel; substantial horizontal source clip root travel is removed at playback
+so a walking skeleton cannot leave its station or snap back at a loop seam. A
+calm station action finishes before the next local walk; greetings and
+farewells belong to a conversation, while celebration belongs to a committed
+world event. Clips
+that need an actual seat or tool wait for matching world context. These cues
+are transient and never alter talk reach, quests, or saved state.
 
 The player remains the connective tissue. Never assign a name, gender, voice,
 occupation, or family trauma that the current player-facing design has not
@@ -233,7 +243,9 @@ hook iterates. Their character models are `collision: "none"` and they live in
 `environmentGroup` rather than `staticPrefabGroup`, so they carry no physics;
 they are not tagged for the layout editor; and nothing about them is written to
 a save. The day phase selects a station; a paused-aware presentation clock drives
-the deterministic walk-and-rest loop. Distant figures stop animation work, and
+the deterministic walk-and-rest loop. The route crosses its short waypoints at
+a walking cadence and spends spare cycle time resting, rather than stretching
+each step across the whole loop. Distant figures stop animation work, and
 reduced motion keeps their presence without the walking loop.
 
 Stations and drift radii were solved against the full keep-out set — market and

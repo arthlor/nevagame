@@ -1,6 +1,7 @@
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import type { WorldDrainageSample, WorldRegionId } from "./WorldIslands";
-import { isInsideLoop, pointSegmentDistance, SUNREACH_ANCHORS, SUNREACH_COAST_LOOP } from "./WorldIslands";
+import { pointSegmentDistance, SUNREACH_ANCHORS, SUNREACH_COAST_LOOP } from "./WorldIslands";
+import { LoopSegmentIndex } from "./WorldGeometry";
 import type { WorldPoint, WorldRoute } from "./WorldLayout";
 import { SUNREACH_FARM_LAYOUT } from "./FarmLayout";
 import { createTerraceProfile } from "./TerraceProfile";
@@ -27,16 +28,11 @@ function distanceToPolyline(x: number, z: number, points: readonly Readonly<Worl
   return distance;
 }
 
-/** Positive in water, negative on Sunreach dry land. */
+const sunreachCoastIndex = new LoopSegmentIndex(SUNREACH_COAST_LOOP);
+
+/** Positive in water, negative on Sunreach dry land; exact indexed projection. */
 export function signedDistanceToSunreachCoast(x: number, z: number): number {
-  let distance = Number.POSITIVE_INFINITY;
-  for (let index = 0; index < SUNREACH_COAST_LOOP.length; index++) {
-    distance = Math.min(
-      distance,
-      pointSegmentDistance(x, z, SUNREACH_COAST_LOOP[index], SUNREACH_COAST_LOOP[(index + 1) % SUNREACH_COAST_LOOP.length])
-    );
-  }
-  return isInsideLoop(x, z, SUNREACH_COAST_LOOP) ? -distance : distance;
+  return sunreachCoastIndex.signedDistance(x, z);
 }
 
 export const SUNREACH_WASH_PATH = [

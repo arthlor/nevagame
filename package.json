@@ -19,6 +19,7 @@
     "test:e2e": "playwright test",
     "world:acceptance": "node tools/world/acceptance.mjs",
     "world:route-roads": "vite-node tools/world/route-mainland-roads.ts",
+    "world:trace-brooks": "vite-node tools/world/trace-mainland-brooks.ts",
     "art:codegen": "node tools/art/codegen.mjs",
     "art:codegen:check": "node tools/art/codegen.mjs --check",
     "art:authored": "node tools/authored/export.mjs",

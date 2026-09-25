@@ -1261,7 +1261,7 @@ const SUNREACH_AUTHORED_PLACEMENTS: readonly EnvironmentAssetPlacement[] = [
     origin: "authored",
     islandId: "island.sunreach",
     biomeId: "biome.sunreach_warm_dry",
-    assetId: "building_market_stall_a",
+    assetId: "building_sunreach_cove_market_a",
     x: 373 + SUNREACH_OFFSET_X,
     z: 56,
     rotationY: -Math.PI * 0.5,

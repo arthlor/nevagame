@@ -1,4 +1,5 @@
 import { CLOUD_FIELD_GLSL } from "./cloudFieldGlsl";
+import { SKY_RADIANCE_GLSL } from "./skyRadianceGlsl";
 
 /** Linear-radiance sky. The display material/OutputPass owns tone mapping. */
 export const ATMOSPHERE_SKY_FRAGMENT = /* glsl */ `
@@ -12,16 +13,37 @@ uniform vec3 uSunColor;
 uniform vec3 uMoonDirection;
 uniform vec3 uMoonColor;
 uniform vec3 uLightningDirection;
+uniform vec3 uLightningColor;
 uniform vec2 uDiscRadius;
 uniform vec4 uSkyState;
 uniform float uMaxDistance;
 uniform float uHaze;
 uniform float uVolumeBlend;
+// Twilight glow and anti-solar band (a = strength), aureole (a = broad lobe).
+uniform vec4 uSunGlow;
+uniform vec4 uAntiTwilight;
+uniform vec4 uAureole;
+// Glow falloff, horizon band, moon halo, sun-disc radiance scale.
+uniform vec4 uSkyShape;
+// Cloud key colour (afterglow-tinted); silver lining, base shade, twilight,
+// sunward base glow.
+uniform vec3 uCloudSun;
+uniform vec4 uCloudShape;
+// Storm bolt: azimuth (xy), per-strike seed, strength; distance, width, jitter.
+uniform vec4 uBolt;
+uniform vec3 uBoltShape;
 varying vec2 vUv;
 
 ${CLOUD_FIELD_GLSL}
+${SKY_RADIANCE_GLSL}
+// Per-pixel share of the view that faces the sun's azimuth, set before marching.
+float cloudSunward = 0.5;
 vec3 cloudLight(vec3 position, vec3 ray, float density, bool volume) {
-  float opticalDepth = density * uCloudLayer.y * 0.48;
+  float height = clamp((position.y - uCloudLayer.x) / uCloudLayer.y, 0.0, 1.0);
+  // A high sun lights the deck from above, so bases carry more of its depth
+  // than tops; a low sun lights it from the side and the bias fades out.
+  float overhead = clamp(uSunDirection.y * 2.2, 0.0, 1.0);
+  float opticalDepth = density * uCloudLayer.y * (0.48 + uCloudShape.y * overhead * (0.55 - height));
   #if SKY_VOLUME == 1
     if (volume) {
       opticalDepth = 0.0;
@@ -32,13 +54,62 @@ vec3 cloudLight(vec3 position, vec3 ray, float density, bool volume) {
     }
   #endif
   float sunlight = exp(-opticalDepth * uCloudLayer.w);
-  float forward = pow(max(0.0, dot(ray, uSunDirection)), 12.0);
+  float toSun = max(0.0, dot(ray, uSunDirection));
+  float toSun4 = toSun * toSun;
+  toSun4 *= toSun4;
+  float forward = toSun4 * toSun4 * toSun4;
+  // Thin, sunward edges scatter a bright rim: the silver lining.
+  float silver = forward * forward * forward * uCloudShape.x * exp(-density * 3.0);
   float daylight = uSkyState.x;
-  vec3 ambient = mix(uMoonColor * 0.055, mix(uHorizon, vec3(1.0), 0.55) * 0.48, daylight);
-  vec3 direct = uSunColor * daylight * (0.62 + forward * 0.65) * sunlight;
-  vec3 radiance = (ambient + direct) * mix(1.0, 0.72, uWeather.y);
+  // Tops see the zenith, bases the horizon and the land below. By day the
+  // deck is whitened; at twilight it keeps the sky's own colours.
+  float whiten = mix(0.5, 0.12, uCloudShape.z);
+  vec3 skyAmbient = mix(mix(uHorizon, vec3(1.0), whiten) * 0.9, mix(uZenith, vec3(1.0), whiten + 0.1), height);
+  vec3 ambient = mix(uMoonColor * 0.055, skyAmbient * 0.48, daylight);
+  vec3 direct = uCloudSun * daylight * (0.62 + forward * 0.65 + silver) * sunlight;
+  vec3 underGlow = uCloudSun * uCloudShape.w * (1.0 - height) * (0.3 + 0.7 * cloudSunward * cloudSunward);
+  vec3 radiance = (ambient + direct + underGlow) * mix(1.0, 0.72, uWeather.y);
   float flash = pow(max(0.0, dot(ray, uLightningDirection)), 14.0) * uWeather.z;
-  return radiance + uMoonColor * flash * 2.0;
+  return radiance + uLightningColor * flash * 2.0;
+}
+
+float boltHash(float value) {
+  return fract(sin(value * 91.3458 + uBolt.z * 47.453) * 43758.5453);
+}
+
+// Zig-zag channel from the ground (t = 0) to the cloud base (t = 1), in angle
+// about the strike's azimuth. Knots are hashed per strike; the top knot is
+// pinned to the flash so the channel leaves the lit cloud.
+float boltOffset(float t) {
+  float coarse = t * 6.0;
+  float knot = floor(coarse);
+  float a = knot >= 6.0 ? 0.0 : boltHash(knot) * 2.0 - 1.0;
+  float b = knot + 1.0 >= 6.0 ? 0.0 : boltHash(knot + 1.0) * 2.0 - 1.0;
+  float fine = t * 17.0;
+  float fineKnot = floor(fine);
+  float c = boltHash(fineKnot + 11.0) * 2.0 - 1.0;
+  float d = boltHash(fineKnot + 12.0) * 2.0 - 1.0;
+  // Keep the fine zig-zag inside the coarse channel and pin both endpoints.
+  float fineEnvelope = 4.0 * t * (1.0 - t);
+  return mix(a, b, fract(coarse)) + mix(c, d, fract(fine)) * (0.3 * fineEnvelope);
+}
+
+vec3 lightningBolt(vec3 ray) {
+  float along = dot(ray.xz, uBolt.xy);
+  if (along <= 0.0) return vec3(0.0);
+  float across = (uBolt.x * ray.z - uBolt.y * ray.x) / along;
+  float rise = ray.y / along;
+  float bottom = -uEye.y / uBoltShape.x;
+  float top = (uCloudLayer.x - uEye.y) / uBoltShape.x;
+  float t = (rise - bottom) / max(0.0001, top - bottom);
+  if (t < -0.05 || t > 1.1) return vec3(0.0);
+  float offset = boltOffset(clamp(t, 0.0, 1.0)) * uBoltShape.z;
+  float distanceAcross = abs(across - offset);
+  float width = uBoltShape.y;
+  float core = exp(-distanceAcross * distanceAcross / (width * width));
+  float glow = exp(-distanceAcross / (width * 7.0)) * 0.18;
+  float extent = smoothstep(-0.05, 0.02, t) * (1.0 - smoothstep(0.96, 1.1, t));
+  return uLightningColor * (core + glow) * extent * uBolt.w * exp(-uBoltShape.x * uHaze);
 }
 
 void main() {
@@ -55,23 +126,28 @@ void main() {
   vec4 farView = uInverseProjection * vec4(ndc, 1.0, 1.0);
   vec3 ray = normalize(uCameraRotation * (farView.xyz / farView.w - nearView.xyz / nearView.w));
   #endif
-  float elevation = max(0.0, ray.y);
-  float upper = 1.0 - exp(-elevation * 3.1);
-  vec3 sky = mix(uHorizon, uZenith, upper);
+  vec3 sky = nevaSkyRadiance(ray, uZenith, uHorizon, uSunDirection, uSunGlow, uAntiTwilight, uAureole, uSkyShape.xy);
   float sunAngle = dot(ray, uSunDirection);
-  float sunHalo = pow(max(0.0, sunAngle), 32.0) * 0.16;
-  sky += uSunColor * sunHalo * uSkyState.y * (1.0 - uWeather.x * 0.65);
+  float moonAngle = dot(ray, uMoonDirection);
   float sunEdge = cos(uDiscRadius.x);
   float moonEdge = cos(uDiscRadius.y);
   float sunDisc = smoothstep(sunEdge - 0.000012, sunEdge + 0.000012, sunAngle);
-  float moonDisc = smoothstep(moonEdge - 0.000018, moonEdge + 0.000018, dot(ray, uMoonDirection));
+  float moonDisc = smoothstep(moonEdge - 0.000018, moonEdge + 0.000018, moonAngle);
   #ifndef SKY_EQUIRECT
-  // The probe leaves the discs out: the water's specular lobe owns the sun
-  // and moon, and a second disc in the reflection would double them.
-  sky += uSunColor * sunDisc * uSkyState.y * 5.0;
+  // The probe leaves the discs and the moon halo out: the water's specular
+  // lobe owns the sun and moon, and a second disc would double them. The
+  // sun disc dims and reddens toward the horizon through the key colour.
+  sky += uSunColor * sunDisc * uSkyState.y * uSkyShape.w;
   sky += uMoonColor * moonDisc * uSkyState.z * 1.25;
+  float moonHalo = max(0.0, moonAngle);
+  moonHalo *= moonHalo;
+  moonHalo *= moonHalo;
+  moonHalo *= moonHalo;
+  sky += uMoonColor * moonHalo * moonHalo * moonHalo * uSkyState.z * uSkyShape.z * (1.0 - uWeather.x * 0.6);
   #endif
   float starTransmittance = 1.0 - moonDisc;
+  cloudSunward = 0.5 + 0.5 * dot(ray.xz / max(0.0001, length(ray.xz)),
+    uSunDirection.xz / max(0.0001, length(uSunDirection.xz)));
   if (ray.y > 0.015) {
     // The high veil sits behind the lower cloud deck.
     float highDistance = (uCloudLayer.x + uCloudLayer.y * 3.0 - uEye.y) / ray.y;
@@ -126,6 +202,11 @@ void main() {
       starTransmittance *= transmittance;
     }
   }
+  #ifndef SKY_EQUIRECT
+  // Composed over the deck: rays to a channel below the cloud base only meet
+  // the layer beyond it. Only drawn while a strike is lit.
+  if (uBolt.w > 0.0) sky += lightningBolt(ray);
+  #endif
   // Alpha carries visibility for sharp stars in the existing display pass.
   gl_FragColor = vec4(max(sky, vec3(0.0)), starTransmittance);
 }
@@ -197,6 +278,9 @@ void main() {
   gl_FragColor = vec4(sky.rgb + uMoonColor * stars, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
+  // Twilight gradients are smooth enough to band in 8 bits; a fixed
+  // per-pixel dither (no frame index) breaks the steps without shimmer.
+  gl_FragColor.rgb += (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5) / 255.0;
 }
 `;
 

@@ -2,6 +2,7 @@ import { OCEAN_ISLAND_DEFINITIONS, type OceanIsletId } from "./OceanIslets";
 import type { WorldBounds, WorldPoint } from "./WorldLayout";
 import { LoopSegmentIndex } from "./WorldGeometry";
 import { nevaHeadlandAt } from "./NevaCoastField";
+import { fractalNoise } from "./ProceduralNoise";
 import type { MainlandBiomeId } from "./NevaMainland";
 
 export { isInsideLoop, pointSegmentDistance } from "./WorldGeometry";
@@ -174,12 +175,10 @@ const NEVA_RIM_HEADLAND_METERS = 46;
 const NEVA_RIM_ENVELOPE_INSET_METERS = 6;
 
 /**
- * Curves the outer rim through its knots, then pushes hard-rock headlands out
- * to sea and lets soft ground erode back into bays, using the same geology
- * field that later picks cliff or beach for each shore.
+ * Bounded Hermite curve through every knot at roughly `spacing` metres,
+ * including both end knots.
  */
-function deriveNevaOuterRim(): WorldPoint[] {
-  const knots = NEVA_OUTER_RIM_KNOTS;
+function hermiteCurve(knots: readonly Readonly<WorldPoint>[], spacing: number): WorldPoint[] {
   const curve: WorldPoint[] = [];
   for (let i = 0; i < knots.length - 1; i++) {
     const a = knots[Math.max(0, i - 1)], b = knots[i], c = knots[i + 1], d = knots[Math.min(knots.length - 1, i + 2)];
@@ -191,7 +190,7 @@ function deriveNevaOuterRim(): WorldPoint[] {
       return { x: (next.x - previous.x) * length / divisor, z: (next.z - previous.z) * length / divisor };
     };
     const first = tangent(a, b, c), second = tangent(b, c, d);
-    const steps = Math.max(2, Math.ceil(length / NEVA_RIM_SPACING_METERS));
+    const steps = Math.max(2, Math.ceil(length / spacing));
     for (let step = i === 0 ? 0 : 1; step <= steps; step++) {
       const t = step / steps, t2 = t * t, t3 = t2 * t;
       const h0 = 2 * t3 - 3 * t2 + 1, h1 = t3 - 2 * t2 + t, h2 = -2 * t3 + 3 * t2, h3 = t3 - t2;
@@ -199,8 +198,24 @@ function deriveNevaOuterRim(): WorldPoint[] {
         z: h0 * b.z + h1 * first.z + h2 * c.z + h3 * second.z });
     }
   }
+  return curve;
+}
+
+/** Arc length from the start of a polyline to each of its points. */
+function arcLengths(curve: readonly WorldPoint[]): number[] {
   const arc = [0];
   for (let i = 1; i < curve.length; i++) arc.push(arc[i - 1] + Math.hypot(curve[i].x - curve[i - 1].x, curve[i].z - curve[i - 1].z));
+  return arc;
+}
+
+/**
+ * Curves the outer rim through its knots, then pushes hard-rock headlands out
+ * to sea and lets soft ground erode back into bays, using the same geology
+ * field that later picks cliff or beach for each shore.
+ */
+function deriveNevaOuterRim(): WorldPoint[] {
+  const curve = hermiteCurve(NEVA_OUTER_RIM_KNOTS, NEVA_RIM_SPACING_METERS);
+  const arc = arcLengths(curve);
   const total = arc[arc.length - 1];
   const inset = NEVA_RIM_ENVELOPE_INSET_METERS;
   return curve.map((point, i) => {
@@ -219,6 +234,69 @@ function deriveNevaOuterRim(): WorldPoint[] {
         point.z - MAINLAND_BOUNDS.minZ, MAINLAND_BOUNDS.maxZ - point.z) - inset);
       offset = offset * margin / (margin + offset);
     }
+    return { x: point.x + seaX * offset, z: point.z + seaZ * offset };
+  });
+}
+
+/**
+ * The cove shore, from the southern headland's outer face round its rocky tip,
+ * along the sheltered inner shore past the Reedhaven landing and the river
+ * mouth, then east under Pinewatch to the retained starter coast at
+ * (-184, 89). The knots set the cove's form: a rounded headland tip, a lowland
+ * shore that opens into a small estuary where the river meets the sea, and a
+ * northern shore of low points and shallow bights. Both ends join their
+ * neighbours exactly and are supplied by them.
+ */
+const NEVA_COVE_SHORE_KNOTS: readonly Readonly<WorldPoint>[] = [
+  { x: -350, z: 650 },
+  // Rocky tip of the southern headland.
+  { x: -296, z: 612 }, { x: -256, z: 566 }, { x: -236, z: 530 }, { x: -254, z: 503 },
+  // Two pocket bays along the headland's inner shore, split by a low point.
+  { x: -290, z: 482 }, { x: -324, z: 478 }, { x: -352, z: 444 }, { x: -396, z: 438 },
+  { x: -434, z: 404 }, { x: -462, z: 376 },
+  // Reedhaven's landing and the lowland shore down to the estuary.
+  { x: -478, z: 352 }, { x: -487, z: 333 }, { x: -492, z: 302 }, { x: -500, z: 266 },
+  { x: -510, z: 236 }, { x: -524, z: 202 }, { x: -506, z: 172 }, { x: -488, z: 152 },
+  // Pinewatch's bight, then low points and shallow bays toward the starter coast.
+  { x: -460, z: 128 }, { x: -424, z: 108 }, { x: -384, z: 100.5 }, { x: -350, z: 106 },
+  { x: -322, z: 98 }, { x: -292, z: 80 }, { x: -262, z: 90 }, { x: -236, z: 106 },
+  { x: -210, z: 96 },
+  { x: -184, z: 89 }
+];
+const NEVA_COVE_SPACING_METERS = 8;
+/** Gentle points and pocket bays: sheltered water never builds the fetch that cuts deep bays. */
+const NEVA_COVE_HEADLAND_METERS = 10;
+const NEVA_COVE_RIPPLE_METERS = 5;
+const NEVA_COVE_RIPPLE_SALT = 0x434f5645;
+/**
+ * Working shores that must not move: the two village landings stand on the
+ * shore, and the estuary keeps its authored funnel round the river mouth.
+ */
+export const NEVA_COVE_SHORE_PINS: readonly Readonly<WorldPoint & { radius: number }>[] = [
+  { x: -487, z: 333, radius: 40 },
+  { x: -384, z: 100.5, radius: 36 },
+  { x: -516, z: 200, radius: 44 }
+];
+
+function deriveNevaCoveShore(): WorldPoint[] {
+  const curve = hermiteCurve(NEVA_COVE_SHORE_KNOTS, NEVA_COVE_SPACING_METERS);
+  const arc = arcLengths(curve);
+  const total = arc[arc.length - 1];
+  // Both ends are the neighbours' own vertices, so they are dropped here.
+  return curve.slice(1, -1).map((point, index) => {
+    const i = index + 1;
+    const previous = curve[i - 1], next = curve[i + 1];
+    const tx = next.x - previous.x, tz = next.z - previous.z, length = Math.max(0.001, Math.hypot(tx, tz));
+    // The cove lies on the left of travel, as the open sea does along the rim.
+    const seaX = -tz / length, seaZ = tx / length;
+    const join = Math.min(1, arc[i] / 60, (total - arc[i]) / 60);
+    let hold = join * join * (3 - 2 * join);
+    for (const pin of NEVA_COVE_SHORE_PINS) {
+      const free = Math.min(1, Math.max(0, (Math.hypot(point.x - pin.x, point.z - pin.z) - pin.radius * 0.35) / (pin.radius * 0.65)));
+      hold *= free * free * (3 - 2 * free);
+    }
+    const offset = (nevaHeadlandAt(point.x, point.z) * NEVA_COVE_HEADLAND_METERS
+      + fractalNoise(point.x, point.z, 70, 2, NEVA_COVE_RIPPLE_SALT) * NEVA_COVE_RIPPLE_METERS) * hold;
     return { x: point.x + seaX * offset, z: point.z + seaZ * offset };
   });
 }
@@ -247,11 +325,8 @@ export const NEVA_COAST_LOOP: readonly Readonly<WorldPoint>[] = Object.freeze([
   // The old northern hills lead inland into a broad mountain-backed continent
   // whose outer shore alternates rock headlands and bays.
   ...deriveNevaOuterRim(),
-  // A long southern headland cups the water; the mouth remains open to the east.
-  { x: -230, z: 525 }, { x: -340, z: 440 }, { x: -440, z: 390 },
-  { x: -485, z: 350 }, { x: -490, z: 305 }, { x: -510, z: 240 },
-  { x: -500, z: 175 }, { x: -460, z: 130 }, { x: -395, z: 101 },
-  { x: -340, z: 99 }
+  // A long southern headland cups the cove; the mouth remains open to the east.
+  ...deriveNevaCoveShore()
 ].map(point => Object.freeze(point)));
 
 const NEVA_COAST_INDEX = new LoopSegmentIndex(NEVA_COAST_LOOP);

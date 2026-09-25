@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
+import { SKY_RADIANCE_GLSL } from "./skyRadianceGlsl";
 
 export const aerialPerspectiveUniforms = {
   nevaAerialEnabled: { value: 0 },
@@ -8,24 +9,43 @@ export const aerialPerspectiveUniforms = {
   nevaAerialHorizon: { value: new THREE.Color() },
   nevaAerialFogColor: { value: new THREE.Color() },
   nevaAerialDensity: { value: new THREE.Vector4() },
-  nevaAerialRange: { value: new THREE.Vector3() }
+  nevaAerialRange: { value: new THREE.Vector3() },
+  /** Sun direction (xyz) and forward-scatter lobe power (w). */
+  nevaAerialSun: { value: new THREE.Vector4(0, 1, 0, 1) },
+  nevaAerialSunScatter: { value: new THREE.Color() },
+  nevaAerialSunGlow: { value: new THREE.Vector4() },
+  nevaAerialAntiTwilight: { value: new THREE.Vector4() },
+  nevaAerialAureole: { value: new THREE.Vector4() },
+  nevaAerialSkyShape: { value: new THREE.Vector2() }
 };
 
 export function updateAerialPerspective(frame: LightingFrame, visibility: number, enabled: boolean): void {
   const config = CANONICAL_RENDER_CONFIG.atmosphere;
   const haze = config.aerialPerspective;
-  aerialPerspectiveUniforms.nevaAerialEnabled.value = enabled ? 1 : 0;
-  aerialPerspectiveUniforms.nevaAerialZenith.value.copy(frame.skyTopColor);
-  aerialPerspectiveUniforms.nevaAerialHorizon.value.copy(frame.skyHorizonColor);
-  aerialPerspectiveUniforms.nevaAerialFogColor.value.copy(frame.fogColor);
-  aerialPerspectiveUniforms.nevaAerialDensity.value.set(
+  const uniforms = aerialPerspectiveUniforms;
+  uniforms.nevaAerialEnabled.value = enabled ? 1 : 0;
+  uniforms.nevaAerialZenith.value.copy(frame.skyTopColor);
+  uniforms.nevaAerialHorizon.value.copy(frame.skyHorizonColor);
+  uniforms.nevaAerialFogColor.value.copy(frame.fogColor);
+  uniforms.nevaAerialDensity.value.set(
     config.horizonHaze,
     THREE.MathUtils.lerp(haze.clearMistDensity, haze.poorVisibilityMistDensity,
-      1 - THREE.MathUtils.smoothstep(visibility, haze.mistVisibilityFull, haze.mistVisibilityStart)),
+      1 - THREE.MathUtils.smoothstep(visibility, haze.mistVisibilityFull, haze.mistVisibilityStart))
+      + haze.dawnMistDensity * frame.valleyMist,
     1 / haze.mistHeightMeters,
     frame.fogFar
   );
-  aerialPerspectiveUniforms.nevaAerialRange.value.set(haze.nearFadeStartMeters, haze.nearFadeEndMeters, haze.boundaryFadeStart);
+  uniforms.nevaAerialRange.value.set(haze.nearFadeStartMeters, haze.nearFadeEndMeters, haze.boundaryFadeStart);
+  const sun = frame.sunDirection;
+  uniforms.nevaAerialSun.value.set(sun.x, sun.y, sun.z, haze.sunScatterPower);
+  uniforms.nevaAerialSunScatter.value.copy(frame.sunScatterColor);
+  const glow = frame.sunGlowColor;
+  uniforms.nevaAerialSunGlow.value.set(glow.r, glow.g, glow.b, frame.sunGlow);
+  const anti = frame.antiTwilightColor;
+  uniforms.nevaAerialAntiTwilight.value.set(anti.r, anti.g, anti.b, frame.antiTwilight);
+  const aureole = frame.sunAureoleColor;
+  uniforms.nevaAerialAureole.value.set(aureole.r, aureole.g, aureole.b, config.sky.aureole);
+  uniforms.nevaAerialSkyShape.value.set(config.sky.sunwardGlowFalloff, config.sky.horizonBand);
 }
 
 /** Integral of an exponential height layer along a world-space segment, in meters. */
@@ -36,7 +56,11 @@ export function meanHeightDensity(eyeHeight: number, surfaceHeight: number, scal
   return Math.exp(-lower / scaleHeight) * average;
 }
 
-/** One flat-world, analytic segment model for opaque surfaces and both water meshes. */
+/**
+ * One flat-world, analytic segment model for opaque surfaces and both water
+ * meshes. In-scattered light is the sky's own radiance plus a forward lobe in
+ * the key's colour, so haze glows toward a low sun and stays cool away from it.
+ */
 export const AERIAL_PERSPECTIVE_GLSL = /* glsl */ `
 uniform float nevaAerialEnabled;
 uniform vec3 nevaAerialZenith;
@@ -44,6 +68,13 @@ uniform vec3 nevaAerialHorizon;
 uniform vec3 nevaAerialFogColor;
 uniform vec4 nevaAerialDensity;
 uniform vec3 nevaAerialRange;
+uniform vec4 nevaAerialSun;
+uniform vec3 nevaAerialSunScatter;
+uniform vec4 nevaAerialSunGlow;
+uniform vec4 nevaAerialAntiTwilight;
+uniform vec4 nevaAerialAureole;
+uniform vec2 nevaAerialSkyShape;
+${SKY_RADIANCE_GLSL}
 vec4 nevaAerialSegment(vec3 worldPosition) {
   if (nevaAerialEnabled < 0.5) return vec4(0.0, 0.0, 0.0, 1.0);
   vec3 segment = worldPosition - cameraPosition;
@@ -62,9 +93,15 @@ vec4 nevaAerialSegment(vec3 worldPosition) {
   // The finite authored world still disappears before its terrain/culling edge.
   float boundaryFade = smoothstep(nevaAerialDensity.w * nevaAerialRange.z, nevaAerialDensity.w, distanceMeters);
   transmittance = min(transmittance, 1.0 - boundaryFade);
-  float upper = 1.0 - exp(-max(0.0, ray.y) * 3.1);
-  vec3 skyRadiance = mix(nevaAerialHorizon, nevaAerialZenith, upper);
-  vec3 inscatter = mix(nevaAerialFogColor, skyRadiance, boundaryFade);
+  vec3 skyRadiance = nevaSkyRadiance(ray, nevaAerialZenith, nevaAerialHorizon, nevaAerialSun.xyz,
+    nevaAerialSunGlow, nevaAerialAntiTwilight, nevaAerialAureole, nevaAerialSkyShape);
+  // The forward lobe belongs to the air in front of the land; at the world's
+  // edge the haze hands over smoothly to the sky radiance behind it.
+  float horizonSightline = 1.0 - smoothstep(0.0, 0.05, abs(ray.y));
+  float skyBlend = max(boundaryFade, horizonSightline * (1.0 - transmittance));
+  vec3 forwardLobe = nevaAerialSunScatter * pow(max(0.0, dot(ray, nevaAerialSun.xyz)), nevaAerialSun.w);
+  vec3 localFog = mix(nevaAerialFogColor, nevaAerialHorizon, horizonSightline * 0.65) + forwardLobe;
+  vec3 inscatter = mix(localFog, skyRadiance, skyBlend);
   return vec4(inscatter * (1.0 - transmittance), transmittance);
 }
 vec3 nevaAerialPerspective(vec3 radiance, vec3 worldPosition) {
