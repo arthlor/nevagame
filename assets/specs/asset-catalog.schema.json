@@ -258,6 +258,9 @@
         "sourceProvenance": {
           "$ref": "#/$defs/sourceProvenance"
         },
+        "skinnedAuthoring": {
+          "$ref": "#/$defs/skinnedAuthoring"
+        },
         "humanoidRig": {
           "$ref": "#/$defs/humanoidRig"
         }
@@ -514,6 +517,74 @@
           "minLength": 1,
           "maxLength": 1000,
           "pattern": "\\S"
+        }
+      }
+    },
+    "skinnedAuthoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Retained source-rig evidence for a published NPC whose blend adapter is retired. The published GLB stays frozen; this records the source the native-fidelity check still reads.",
+      "required": [
+        "sourceFile",
+        "sourceSha256",
+        "adapter",
+        "materialMap",
+        "uniformScale"
+      ],
+      "properties": {
+        "sourceFile": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 500,
+          "pattern": "\\.glb$"
+        },
+        "sourceSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "adapter": {
+          "const": "tools/blender/adapt_npc_variants.py"
+        },
+        "materialMap": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sourceMaterial",
+              "token",
+              "value",
+              "texturePolicy"
+            ],
+            "properties": {
+              "sourceMaterial": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "token": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "value": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "texturePolicy": {
+                "enum": [
+                  "preserve",
+                  "none"
+                ]
+              }
+            }
+          }
+        },
+        "uniformScale": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 4
         }
       }
     },

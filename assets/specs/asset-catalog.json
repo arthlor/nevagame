@@ -26055,294 +26055,6 @@
       }
     },
     {
-      "id": "char_npc_barnaby_b",
-      "file": "char_npc_barnaby_b.glb",
-      "family": "character",
-      "generator": "authored_glb",
-      "seed": 9101,
-      "dimensions": {
-        "width": 0.757,
-        "depth": 0.215,
-        "height": 1.0
-      },
-      "palette": [],
-      "budget": {
-        "trianglesMin": 8704,
-        "trianglesTarget": 9672,
-        "trianglesMax": 10640,
-        "materialsMax": 1
-      },
-      "pivot": "ground_center",
-      "collision": "none",
-      "instancing": false,
-      "lod": "hero",
-      "rootNode": "Armature",
-      "requiredNodes": [
-        "Armature"
-      ],
-      "readDistanceMeters": 30,
-      "parameters": {
-        "sourceGlb": "art/imported/tripo/sources/barnaby.glb",
-        "textureMaxSize": 1024
-      }
-    },
-    {
-      "id": "char_npc_elspeth_b",
-      "file": "char_npc_elspeth_b.glb",
-      "family": "character",
-      "generator": "authored_glb",
-      "seed": 9102,
-      "dimensions": {
-        "width": 0.754,
-        "depth": 0.378,
-        "height": 1.0
-      },
-      "palette": [],
-      "budget": {
-        "trianglesMin": 8668,
-        "trianglesTarget": 9632,
-        "trianglesMax": 10596,
-        "materialsMax": 1
-      },
-      "pivot": "ground_center",
-      "collision": "none",
-      "instancing": false,
-      "lod": "hero",
-      "rootNode": "Armature",
-      "requiredNodes": [
-        "Armature"
-      ],
-      "readDistanceMeters": 30,
-      "parameters": {
-        "sourceGlb": "art/imported/tripo/sources/elspeth.glb",
-        "textureMaxSize": 1024
-      }
-    },
-    {
-      "id": "char_npc_silas_b",
-      "file": "char_npc_silas_b.glb",
-      "family": "character",
-      "generator": "authored_glb",
-      "seed": 9103,
-      "dimensions": {
-        "width": 0.76,
-        "depth": 0.267,
-        "height": 1.0
-      },
-      "palette": [],
-      "budget": {
-        "trianglesMin": 8737,
-        "trianglesTarget": 9708,
-        "trianglesMax": 10679,
-        "materialsMax": 1
-      },
-      "pivot": "ground_center",
-      "collision": "none",
-      "instancing": false,
-      "lod": "hero",
-      "rootNode": "Armature",
-      "requiredNodes": [
-        "Armature"
-      ],
-      "readDistanceMeters": 30,
-      "parameters": {
-        "sourceGlb": "art/imported/tripo/sources/silas.glb",
-        "textureMaxSize": 1024
-      }
-    },
-    {
-      "id": "char_npc_maeve_b",
-      "file": "char_npc_maeve_b.glb",
-      "family": "character",
-      "generator": "authored_glb",
-      "seed": 9104,
-      "dimensions": {
-        "width": 0.756,
-        "depth": 0.376,
-        "height": 1.0
-      },
-      "palette": [],
-      "budget": {
-        "trianglesMin": 8303,
-        "trianglesTarget": 9226,
-        "trianglesMax": 10149,
-        "materialsMax": 1
-      },
-      "pivot": "ground_center",
-      "collision": "none",
-      "instancing": false,
-      "lod": "hero",
-      "rootNode": "Armature",
-      "requiredNodes": [
-        "Armature"
-      ],
-      "readDistanceMeters": 30,
-      "parameters": {
-        "sourceGlb": "art/imported/tripo/sources/maeve-tripo-original.glb",
-        "textureMaxSize": 1024
-      }
-    },
-    {
-      "id": "char_npc_tomas_b",
-      "file": "char_npc_tomas_b.glb",
-      "family": "character",
-      "generator": "authored_glb",
-      "seed": 9105,
-      "dimensions": {
-        "width": 0.764,
-        "depth": 0.233,
-        "height": 1.0
-      },
-      "palette": [],
-      "budget": {
-        "trianglesMin": 8958,
-        "trianglesTarget": 9954,
-        "trianglesMax": 10950,
-        "materialsMax": 1
-      },
-      "pivot": "ground_center",
-      "collision": "none",
-      "instancing": false,
-      "lod": "hero",
-      "rootNode": "Armature",
-      "requiredNodes": [
-        "Armature"
-      ],
-      "readDistanceMeters": 30,
-      "parameters": {
-        "sourceGlb": "art/imported/tripo/sources/tomas.glb",
-        "textureMaxSize": 1024
-      }
-    },
-    {
-      "id": "char_npc_ines_b",
-      "file": "char_npc_ines_b.glb",
-      "family": "character",
-      "generator": "authored_glb",
-      "seed": 9106,
-      "dimensions": {
-        "width": 0.753,
-        "depth": 0.288,
-        "height": 1.0
-      },
-      "palette": [],
-      "budget": {
-        "trianglesMin": 8612,
-        "trianglesTarget": 9569,
-        "trianglesMax": 10526,
-        "materialsMax": 1
-      },
-      "pivot": "ground_center",
-      "collision": "none",
-      "instancing": false,
-      "lod": "hero",
-      "rootNode": "Armature",
-      "requiredNodes": [
-        "Armature"
-      ],
-      "readDistanceMeters": 30,
-      "parameters": {
-        "sourceGlb": "art/imported/tripo/sources/ines.glb",
-        "textureMaxSize": 1024
-      }
-    },
-    {
-      "id": "char_npc_rowan_b",
-      "file": "char_npc_rowan_b.glb",
-      "family": "character",
-      "generator": "authored_glb",
-      "seed": 9107,
-      "dimensions": {
-        "width": 0.782,
-        "depth": 0.211,
-        "height": 1.0
-      },
-      "palette": [],
-      "budget": {
-        "trianglesMin": 9333,
-        "trianglesTarget": 10370,
-        "trianglesMax": 11408,
-        "materialsMax": 1
-      },
-      "pivot": "ground_center",
-      "collision": "none",
-      "instancing": false,
-      "lod": "hero",
-      "rootNode": "Armature",
-      "requiredNodes": [
-        "Armature"
-      ],
-      "readDistanceMeters": 30,
-      "parameters": {
-        "sourceGlb": "art/imported/tripo/sources/rowan.glb",
-        "textureMaxSize": 1024
-      }
-    },
-    {
-      "id": "char_npc_mara_b",
-      "file": "char_npc_mara_b.glb",
-      "family": "character",
-      "generator": "authored_glb",
-      "seed": 9108,
-      "dimensions": {
-        "width": 0.752,
-        "depth": 0.293,
-        "height": 1.0
-      },
-      "palette": [],
-      "budget": {
-        "trianglesMin": 9311,
-        "trianglesTarget": 10346,
-        "trianglesMax": 11381,
-        "materialsMax": 1
-      },
-      "pivot": "ground_center",
-      "collision": "none",
-      "instancing": false,
-      "lod": "hero",
-      "rootNode": "Armature",
-      "requiredNodes": [
-        "Armature"
-      ],
-      "readDistanceMeters": 30,
-      "parameters": {
-        "sourceGlb": "art/imported/tripo/sources/mara.glb",
-        "textureMaxSize": 1024
-      }
-    },
-    {
-      "id": "char_npc_ada_b",
-      "file": "char_npc_ada_b.glb",
-      "family": "character",
-      "generator": "authored_glb",
-      "seed": 9109,
-      "dimensions": {
-        "width": 0.753,
-        "depth": 0.295,
-        "height": 1.0
-      },
-      "palette": [],
-      "budget": {
-        "trianglesMin": 9006,
-        "trianglesTarget": 10007,
-        "trianglesMax": 11008,
-        "materialsMax": 1
-      },
-      "pivot": "ground_center",
-      "collision": "none",
-      "instancing": false,
-      "lod": "hero",
-      "rootNode": "Armature",
-      "requiredNodes": [
-        "Armature"
-      ],
-      "readDistanceMeters": 30,
-      "parameters": {
-        "sourceGlb": "art/imported/tripo/sources/ada.glb",
-        "textureMaxSize": 1024
-      }
-    },
-    {
       "id": "tree_coastal_palm_a",
       "file": "tree_coastal_palm_a.glb",
       "family": "vegetation",
@@ -35730,8 +35442,8 @@
         "author": "MoonGaze Developer (generated with Tripo AI)",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceFile": "art/imported/tripo/house_cottage_b.blend",
-        "sourceSha256": "3f1f6d30f1bbf2611b9e90b709f6705fdd1a7b3bcb7f9b07e6f1d1c9c490edfb",
+        "sourceFile": "art/imported/tripo/adapted/house_cottage_b.glb",
+        "sourceSha256": "df941253661c8fb5f52165e09af91d7bda367159145d507b76130165a7b73926",
         "attribution": "Timber-framed cottage generated by the Neva project owner with Tripo AI (generation d8b6604a-7fe5-4178-970b-bb80a6846af2); rights follow the generating account's Tripo plan under https://www.tripo3d.ai/terms. Original textured surface retained except the catalog-declared detached grass sheets removed at the project owner's request."
       }
     },
@@ -38719,8 +38431,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_tomas_b.blend",
-        "sourceSha256": "a550239819380847ee4f92d394e413df875e9ba84aeb0ea21a9d09ded1ed9017",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_tomas_b.glb",
+        "sourceSha256": "43d56acf7342eda7d097074a29b9937964e69b6e3ae0ccfeca16bd365846e6dc",
         "attribution": "Local tomas B-cast Tripo capture, retaining the source rig and all native performances."
       },
       "skinnedAuthoring": {
@@ -38899,8 +38611,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_male_01.blend",
-        "sourceSha256": "4d313901ceea9e2b4498fa7f96769abb84b10ff826dd167c9488d77d9917a5b6",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_tomas_b.glb",
+        "sourceSha256": "43d56acf7342eda7d097074a29b9937964e69b6e3ae0ccfeca16bd365846e6dc",
         "attribution": "Local tomas B-cast Tripo capture, retaining the source rig and all native performances. Ambient male_01: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
       },
       "skinnedAuthoring": {
@@ -39057,8 +38769,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ada_b.blend",
-        "sourceSha256": "bf4d4bffb32788ccde8fd3d34df83260805d96f2758ba021570982b2856bad14",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_ada_b.glb",
+        "sourceSha256": "55c9175a6ff40290c66aed11da6371a628bc95f5e4f05b42a6507a059e7dfd3e",
         "attribution": "Local ada B-cast Tripo capture, retaining the source rig and all native performances."
       },
       "skinnedAuthoring": {
@@ -39216,8 +38928,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_female_01.blend",
-        "sourceSha256": "67e1420afa3eba3eb458cee6e08f6c635878e967a3dc989a076edfe949b0a269",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_ines_b.glb",
+        "sourceSha256": "e3114eb7f0b9bed647f41e670165164e211d40795d4e46c4455a113d7c6926c3",
         "attribution": "Local ines B-cast Tripo capture, retaining the source rig and all native performances. Ambient female_01: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
       },
       "skinnedAuthoring": {
@@ -39402,8 +39114,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_female_02.blend",
-        "sourceSha256": "d414cf79f29cc0664d334d632f8923e4018b35bf628f6370dd4db2af7c1fd306",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_mara_b.glb",
+        "sourceSha256": "cbd4875b7e9dd6e7a721b869f45775468cb0d748baa5b9e95ebacb070e77e366",
         "attribution": "Local mara B-cast Tripo capture, retaining the source rig and all native performances. Ambient female_02: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
       },
       "skinnedAuthoring": {
@@ -39561,8 +39273,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_female_03.blend",
-        "sourceSha256": "4924dc65018f58f53a6884c8befd552885887a36467b949a6d39e3f99a16a5b8",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_ada_b.glb",
+        "sourceSha256": "55c9175a6ff40290c66aed11da6371a628bc95f5e4f05b42a6507a059e7dfd3e",
         "attribution": "Local ada B-cast Tripo capture, retaining the source rig and all native performances. Ambient female_03: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
       },
       "skinnedAuthoring": {
@@ -39725,8 +39437,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_male_02.blend",
-        "sourceSha256": "5d3a0ce8441e2fcefc5cda92ddbd270ee5e7b603a3c413659ed9cf9bbbfbfc2d",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_rowan_b.glb",
+        "sourceSha256": "420988597997c10d7aa869d7454dc2cfae631296a86622364fe1e16e440fd26e",
         "attribution": "Local rowan B-cast Tripo capture, retaining the source rig and all native performances. Ambient male_02: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
       },
       "skinnedAuthoring": {
@@ -39894,8 +39606,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_male_03.blend",
-        "sourceSha256": "e8c23c192e32c89fd1615add27922280a2814d5a810b315af59b739adb121133",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_silas_b.glb",
+        "sourceSha256": "8c4f7b9cb8d0cbba75169ad2159a988e4620273a73abdd62f0210d6116bf9ca4",
         "attribution": "Local silas B-cast Tripo capture, retaining the source rig and all native performances. Ambient male_03: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
       },
       "skinnedAuthoring": {
@@ -40074,8 +39786,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_barnaby_b.blend",
-        "sourceSha256": "3bb8a784fe6365497b4a253eb6970c5785e7bfd7f5fcde99a190d840c5caf019",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_barnaby_b.glb",
+        "sourceSha256": "9201a7bd27cd70fe72ea483a8560ac1eb23f21dc14c2a8dd1be0f271d8b6231d",
         "attribution": "Local barnaby B-cast Tripo capture, retaining the source rig and all native performances."
       },
       "skinnedAuthoring": {
@@ -40210,8 +39922,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_elspeth_b.blend",
-        "sourceSha256": "f804450fec21311bc48a06c891c3750b51835cc75588d71f53370d31c05db6d7",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_elspeth_b.glb",
+        "sourceSha256": "8e972bdfd8de05dc900ef36aeecde256910aa1997f362638db55bf0ca108cdc4",
         "attribution": "Local elspeth B-cast Tripo capture, retaining the source rig and all native performances."
       },
       "skinnedAuthoring": {
@@ -40368,8 +40080,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ines_b.blend",
-        "sourceSha256": "a3604f4f9e69946af82f6870a6a7357be38851fa7a436b752ba67b4d865801bc",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_ines_b.glb",
+        "sourceSha256": "e3114eb7f0b9bed647f41e670165164e211d40795d4e46c4455a113d7c6926c3",
         "attribution": "Local ines B-cast Tripo capture, retaining the source rig and all native performances."
       },
       "skinnedAuthoring": {
@@ -40548,8 +40260,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_maeve_b.blend",
-        "sourceSha256": "9fff56449f62576cbacc648d033a37d9de1a08db4803346727de4599f0b2ed77",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_maeve_b.glb",
+        "sourceSha256": "f35129b6d97bc951b74907e0e108a3ec0ea0b6a19f1d658eb12f5bcb99d83e05",
         "attribution": "Local maeve B-cast Tripo capture, retaining the source rig and all native performances."
       },
       "skinnedAuthoring": {
@@ -40728,8 +40440,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_mara_b.blend",
-        "sourceSha256": "7eb99abf7ef88cfb2ebcca69b9d188427b70809e4cf144a39d48bf1838dd0198",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_mara_b.glb",
+        "sourceSha256": "cbd4875b7e9dd6e7a721b869f45775468cb0d748baa5b9e95ebacb070e77e366",
         "attribution": "Local mara B-cast Tripo capture, retaining the source rig and all native performances."
       },
       "skinnedAuthoring": {
@@ -40886,8 +40598,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_rowan_b.blend",
-        "sourceSha256": "4932a3e650fb2b7170a577d2b8ec1c436ba77aef41e420f50eb3803bfd96ac03",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_rowan_b.glb",
+        "sourceSha256": "420988597997c10d7aa869d7454dc2cfae631296a86622364fe1e16e440fd26e",
         "attribution": "Local rowan B-cast Tripo capture, retaining the source rig and all native performances."
       },
       "skinnedAuthoring": {
@@ -41055,8 +40767,8 @@
         "author": "Neva project owner",
         "license": "Tripo-Terms",
         "licenseUrl": "https://www.tripo3d.ai/terms",
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_silas_b.blend",
-        "sourceSha256": "82cef4ee3991930f6e03e7117d7c6d47e8eec5c9e516247c1a9f4eca3ca5b7f2",
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_silas_b.glb",
+        "sourceSha256": "8c4f7b9cb8d0cbba75169ad2159a988e4620273a73abdd62f0210d6116bf9ca4",
         "attribution": "Local silas B-cast Tripo capture, retaining the source rig and all native performances."
       },
       "skinnedAuthoring": {

@@ -177,35 +177,6 @@
     }
   },
   "cattail_reeds": {},
-  "coastal_hut": {
-    "width": {
-      "kind": "number",
-      "min": 3,
-      "max": 6
-    },
-    "depth": {
-      "kind": "number",
-      "min": 2.5,
-      "max": 5
-    },
-    "wallHeight": {
-      "kind": "number",
-      "min": 2,
-      "max": 3.2
-    },
-    "roofPitch": {
-      "kind": "number",
-      "min": 16,
-      "max": 36
-    },
-    "form": {
-      "kind": "choice",
-      "values": [
-        "shelter",
-        "store"
-      ]
-    }
-  },
   "coastal_palm": {
     "height": {
       "kind": "number",
@@ -408,73 +379,6 @@
       "kind": "number",
       "min": 1,
       "max": 16
-    }
-  },
-  "farmhouse": {
-    "width": {
-      "kind": "number",
-      "min": 3,
-      "max": 14
-    },
-    "depth": {
-      "kind": "number",
-      "min": 3,
-      "max": 12
-    },
-    "wallHeight": {
-      "kind": "number",
-      "min": 2,
-      "max": 7
-    },
-    "roofPitchDeg": {
-      "kind": "number",
-      "min": 20,
-      "max": 55
-    },
-    "masonryCourses": {
-      "kind": "integer",
-      "min": 2,
-      "max": 10
-    },
-    "masonryBlocks": {
-      "kind": "integer",
-      "min": 3,
-      "max": 12
-    },
-    "shingleRows": {
-      "kind": "integer",
-      "min": 3,
-      "max": 12
-    },
-    "shingleColumns": {
-      "kind": "integer",
-      "min": 4,
-      "max": 14
-    },
-    "crossGableWidth": {
-      "kind": "number",
-      "min": 1.5,
-      "max": 6
-    },
-    "porchDepth": {
-      "kind": "number",
-      "min": 0.8,
-      "max": 3
-    },
-    "porchPlanks": {
-      "kind": "integer",
-      "min": 4,
-      "max": 16
-    },
-    "chimneyOffsetX": {
-      "kind": "number",
-      "min": 0.5,
-      "max": 6
-    },
-    "chimneyHeight": {
-      "kind": "number",
-      "min": 3,
-      "max": 12
     }
   },
   "fence_section": {},
@@ -696,6 +600,14 @@
       "max": 0.5
     }
   },
+  "imported_blend": {
+    "sourceBlend": {
+      "kind": "nonemptyString"
+    },
+    "sourceCollection": {
+      "kind": "nonemptyString"
+    }
+  },
   "interior_farmhouse_shell": {
     "width": {
       "kind": "number",
@@ -755,43 +667,6 @@
       "kind": "number",
       "min": 0.05,
       "max": 0.8
-    }
-  },
-  "lighthouse": {
-    "height": {
-      "kind": "number",
-      "min": 6,
-      "max": 24
-    },
-    "baseRadius": {
-      "kind": "number",
-      "min": 1,
-      "max": 5
-    },
-    "sides": {
-      "kind": "integer",
-      "min": 8,
-      "max": 16
-    },
-    "masonryCourses": {
-      "kind": "integer",
-      "min": 2,
-      "max": 12
-    },
-    "masonryBlocks": {
-      "kind": "integer",
-      "min": 6,
-      "max": 24
-    },
-    "bandCount": {
-      "kind": "integer",
-      "min": 4,
-      "max": 12
-    },
-    "cottageWidth": {
-      "kind": "number",
-      "min": 1.5,
-      "max": 5
     }
   },
   "lily_pad_cluster": {},
@@ -1084,33 +959,6 @@
     }
   },
   "seagrass_tuft": {},
-  "stone_bridge": {
-    "length": {
-      "kind": "number",
-      "min": 5,
-      "max": 30
-    },
-    "width": {
-      "kind": "number",
-      "min": 2,
-      "max": 8
-    },
-    "archCount": {
-      "kind": "integer",
-      "min": 1,
-      "max": 4
-    },
-    "masonryCourses": {
-      "kind": "integer",
-      "min": 2,
-      "max": 8
-    },
-    "railPosts": {
-      "kind": "integer",
-      "min": 5,
-      "max": 16
-    }
-  },
   "sunflower_crop": {
     "stage": {
       "kind": "choice",
@@ -1426,23 +1274,6 @@
       "max": 12
     }
   },
-  "windmill": {
-    "height": {
-      "kind": "number",
-      "min": 4,
-      "max": 16
-    },
-    "baseRadius": {
-      "kind": "number",
-      "min": 1,
-      "max": 5
-    },
-    "sides": {
-      "kind": "integer",
-      "min": 8,
-      "max": 16
-    }
-  },
   "wood_barrel": {
     "height": {
       "kind": "number",
@@ -1475,31 +1306,6 @@
   },
   "wood_side_table": {},
   "wood_sideboard": {},
-  "working_dock": {
-    "length": {
-      "kind": "number",
-      "min": 3,
-      "max": 20
-    },
-    "width": {
-      "kind": "number",
-      "min": 2,
-      "max": 10
-    },
-    "canopy": {
-      "kind": "boolean"
-    },
-    "deckPlanks": {
-      "kind": "integer",
-      "min": 4,
-      "max": 40
-    },
-    "pileRows": {
-      "kind": "integer",
-      "min": 2,
-      "max": 8
-    }
-  },
   "woven_rug": {
     "width": {
       "kind": "number",

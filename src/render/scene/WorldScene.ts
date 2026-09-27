@@ -2718,20 +2718,20 @@ export class WorldScene {
   }
 
   /**
-   * The cast's Tripo-authored models (`authored_glb` catalog assets). Their GLBs are normalized to
-   * 1 m, so presentation scales each to the character's height and animates it from its own
-   * embedded clips; the same scale applies wherever background townsfolk reuse a model.
+   * The cast's published Tripo rigs. Each GLB is already life-size — the import scale is baked
+   * into the file — so presentation leaves that scale alone and animates the embedded clips.
+   * Background townsfolk reuse the same models.
    */
   private static readonly TRIPO_NPC_MODELS: Readonly<Record<string, { assetId: AssetId; scale: number }>> = {
-    "npc.barnaby": { assetId: ASSET_IDS.CHAR_NPC_BARNABY_B, scale: 2.0 },
-    "npc.elspeth": { assetId: ASSET_IDS.CHAR_NPC_ELSPETH_B, scale: 1.95 },
-    "npc.silas": { assetId: ASSET_IDS.CHAR_NPC_SILAS_B, scale: 1.90 },
-    "npc.maeve": { assetId: ASSET_IDS.CHAR_NPC_MAEVE_B, scale: 1.88 },
-    "npc.tomas": { assetId: ASSET_IDS.CHAR_NPC_TOMAS_B, scale: 1.95 },
-    "npc.ines": { assetId: ASSET_IDS.CHAR_NPC_INES_B, scale: 1.95 },
-    "npc.rowan": { assetId: ASSET_IDS.CHAR_NPC_ROWAN_B, scale: 2.0 },
-    "npc.mara": { assetId: ASSET_IDS.CHAR_NPC_MARA_B, scale: 1.90 },
-    "npc.ada": { assetId: ASSET_IDS.CHAR_NPC_ADA_B, scale: 1.88 }
+    "npc.barnaby": { assetId: ASSET_IDS.CHAR_NPC_BARNABY_B, scale: 1 },
+    "npc.elspeth": { assetId: ASSET_IDS.CHAR_NPC_ELSPETH_B, scale: 1 },
+    "npc.silas": { assetId: ASSET_IDS.CHAR_NPC_SILAS_B, scale: 1 },
+    "npc.maeve": { assetId: ASSET_IDS.CHAR_NPC_MAEVE_B, scale: 1 },
+    "npc.tomas": { assetId: ASSET_IDS.CHAR_NPC_TOMAS_B, scale: 1 },
+    "npc.ines": { assetId: ASSET_IDS.CHAR_NPC_INES_B, scale: 1 },
+    "npc.rowan": { assetId: ASSET_IDS.CHAR_NPC_ROWAN_B, scale: 1 },
+    "npc.mara": { assetId: ASSET_IDS.CHAR_NPC_MARA_B, scale: 1 },
+    "npc.ada": { assetId: ASSET_IDS.CHAR_NPC_ADA_B, scale: 1 }
   };
 
   private static tripoModelScale(assetId: string): number | undefined {

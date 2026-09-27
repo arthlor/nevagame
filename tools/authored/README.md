@@ -188,6 +188,7 @@ contract are the reference (the retired source remains in git history before the
 | Camp and trail | `smoke_plume`, `clay_oven`, `fire_pit`, `trail_kiosk`, `trail_signpost` (`props/camp.ts`) | authored (redesigned) |
 | Reef | `coral_pillar`, `coral_staghorn`, `coral_table` (`props/reef.ts`) | authored (redesigned) |
 | Riverside | `river_boulder` (`rounded`, `tabular`), `reed_bed`, `fern_clump`, `willow_shrub` (`environment/riverside.ts`) | authored |
+| NPC B-cast | `imported_blend` (published character GLBs; the blend files are gone, so nothing rebuilds them) | frozen |
 | Crop trade packs | `crop_trade_pack` | frozen (to port) |
 | Wearables | `wearable_equipment` (fit groundwork in `generators/wearables/`: the player body sampled by `scripts/extract-player-body.mjs`, weight transfer and a body envelope; not yet registered) | frozen (to port) |
 | Everything else | the other families in `tools/art/legacy-generators.json` | frozen (to port) |
