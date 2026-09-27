@@ -67,39 +67,41 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
   },
   "quest.caravan_woodland_return": {
     "actTitle": "Köyler Arası Ticaret",
-    "questTitle": "Bataklığa Bir Yük",
+    "questTitle": "Bataklık İçin Keten",
     "introDialogue": [
-      "Pinewatch’ta keten ve elma paketlenir. Malzemeleri yetiştirebilir ya da pazardan alabilirsin.",
-      "Burada bir keten paketi hazırla ve Reedhaven’a götür. Dönüş yüküne de yer ayır."
+      "Pinewatch keten ve elma yetiştirir; orman da kereste verir. Reedhaven’da Mara’nın kuru ambarları, bir kütükten çok kumaşa ihtiyaç duyar.",
+      "Burada keten paketi hazırla, yükseltilmiş yoldan Reedhaven’a götürüp Mara’nın tezgâhında sat. Bataklığın yollayacağı yüke de yer bırak."
     ],
     "completionDialogue": [
-      "Şimdi bataklığın ürünlerini yokuş yukarı taşıma zamanı."
+      "Keten şu kuru tahtalarda iyi saklanır. Pinewatch ormanını yerinden oynatmadan tekne erzağını sarabileceğiz.",
+      "Bizim mısırla havucun da gidecek yolu var. Highridge yokuş yukarı; virajı da fiyatı da göz önünde tut."
     ],
     "objectives": {
       "step.caravan.struct.trade_pinewatch.pack": {
-        "description": "Pinewatch’ta bir keten paketi hazırla."
+        "description": "Pinewatch’ta bir keten ticaret paketi hazırla."
       },
       "step.caravan.market.reedhaven.produce.flax": {
-        "description": "Keten paketini Reedhaven’da sat."
+        "description": "Pinewatch keten paketini Reedhaven Ticaret Tezgâhı’nda sat."
       }
     }
   },
   "quest.caravan_upland_round": {
     "actTitle": "Köyler Arası Ticaret",
-    "questTitle": "Uzun Yokuş",
+    "questTitle": "Yaylanın Sofrası",
     "introDialogue": [
-      "Reedhaven’da mısır ve havuç paketlenir. Highridge’in erzağa ihtiyacı var; yolun zahmeti de fiyata yansır.",
-      "Bir mısır paketini Ada’nın tezgâhına götür."
+      "Reedhaven’ın yükseltilmiş tarhlarında mısır ve havuç yetişir. Highridge kök sebze ve atölye malzemesi tutar; alçaktan gelen taze yiyecek ise geçidi aşmak zorundadır.",
+      "Avlumuzda bir mısır paketi bağla, Ada’ya kadar çıkar. Yük sağlam varırsa uzun yolun karşılığı da fiyata yansır."
     ],
     "completionDialogue": [
-      "Highridge’in arpası ve patatesi dönüş için iyi bir yük olabilir."
+      "Islak topraktan çıkan mısır, burada kuru rafta. Bu köyün verdiği bedelde aştığın mesafenin tadı var.",
+      "Biz arpa ve patates yetiştiririz. Neva’ya dönüşte arpa götür; Maeve sana bu yolları bilen tüccar için arabacının ne yaptığını göstersin."
     ],
     "objectives": {
       "step.caravan.struct.trade_reedhaven.pack": {
-        "description": "Reedhaven’da bir mısır paketi hazırla."
+        "description": "Reedhaven’da bir mısır ticaret paketi hazırla."
       },
       "step.caravan.market.highridge.produce.corn": {
-        "description": "Mısır paketini Highridge’de sat."
+        "description": "Reedhaven mısır paketini Highridge Ticaret Tezgâhı’nda sat."
       }
     }
   },
@@ -107,18 +109,19 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Dört Paketlik Yer",
     "introDialogue": [
-      "Highridge arpasını Neva’ya götür, sonra meydanın doğusundaki arabacıya uğra.",
-      "Dört paketlik arabanın kendi atı var. Satış yerinde yazan Ticaret tecrübesine ulaş ve parasını biriktir."
+      "Highridge arpası yola dayanır. Bir paket Neva’ya indir, sonra meydanın doğusundaki arabacı ahırına bak.",
+      "Dört paketlik arabanın kendi atı var. Usta hem parasını hem de yüklü arabayı sürecek kadar Ticaret tecrübesini ister."
     ],
     "completionDialogue": [
-      "Yükleri arkadan yerleştir. Sürücü yerine ellerin boşken bin."
+      "Dört bölme daha az boş yol demek, her pakete iyi fiyat garantisi değil. Yükleri arkadan yerleştir; yola çıkmadan tezgâhlara bak.",
+      "Atıyla araba artık senin. Onu yapan köylerin işine yarayacak bir rota tut."
     ],
     "objectives": {
       "step.caravan.struct.trade_highridge.pack": {
-        "description": "Highridge’de bir arpa paketi hazırla."
+        "description": "Highridge’de bir arpa ticaret paketi hazırla."
       },
       "step.caravan.market.village.produce.barley": {
-        "description": "Arpa paketini Neva’da sat."
+        "description": "Highridge arpa paketini Neva Ticaret Tezgâhı’nda sat."
       },
       "step.caravan.buy_four": {
         "description": "Arabacıdan dört paketlik yük arabasını satın al."
@@ -129,11 +132,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Tüccarın Arabası",
     "introDialogue": [
-      "İşleyen bir ticaret yolu altı paketlik arabanın parasını çıkarır. Ama bütün yükü aynı köye satarsan talep düşer.",
-      "Hem tecrüben hem birikimin yeterli olduğunda büyük arabayı al."
+      "Altı bölmeyle aynı seferde birden fazla köye mal taşıyabilirsin. Hepsini tek tezgâha boşaltırsan onun ambarı dolar, sonraki paket daha az eder.",
+      "Büyük araba pahalı. Hem Ticaret tecrübeni hem birikimini artır; arabayla yapacağın işe de para ayırarak ahırdan satın al."
     ],
     "completionDialogue": [
-      "Dar bir avluya girmeden önce dönüşünü planla."
+      "İkinci araba hazır. Şimdi aynı yola iki çeşit Neva ürünü çıkaralım, iki tezgâhın ne dediğine bakalım."
     ],
     "objectives": {
       "step.caravan.buy_six": {
@@ -141,22 +144,42 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
       }
     }
   },
+  "quest.caravan_shared_load": {
+    actTitle: "Köyler Arası Ticaret", questTitle: "Bir Yol, İki Tezgâh",
+    introDialogue: [
+      "Neva’da bir buğday paketi hazırla ve altı paketlik arabaya yükle. Ellerin boşalınca bir domates paketi hazırlayıp onu da yanına koy.",
+      "Tahılı Pinewatch’a, domatesi Reedhaven’a götür. Tek seferde iki sofraya hizmet edebilirsin; her tezgâhın talebi satıştan sonra değişir."
+    ],
+    completionDialogue: [
+      "Buğday ormana, domates bataklığa vardı. Yol kısalmadı; sen aynı yolu iki kere işe yarar kıldın.",
+      "Sonraki yolculuk için biraz yer ve para bırak. Maeve’nin büyük ambar isteyen bir kanal yük defteri var."
+    ],
+    objectives: {
+      "step.caravan.shared_load.wheat": { description: "Neva’da bir buğday ticaret paketi hazırla." },
+      "step.caravan.shared_load.load_wheat": { description: "Buğday paketini altı paketlik arabana arkadan yükle." },
+      "step.caravan.shared_load.tomato": { description: "Neva’da bir domates ticaret paketi hazırla." },
+      "step.caravan.shared_load.load_tomato": { description: "Domates paketini altı paketlik arabana arkadan yükle." },
+      "step.caravan.shared_load.sell_wheat": { description: "Neva buğday paketini Pinewatch Ticaret Tezgâhı’nda sat." },
+      "step.caravan.shared_load.sell_tomato": { description: "Neva domates paketini Reedhaven Ticaret Tezgâhı’nda sat." }
+    }
+  },
   "quest.caravan_sunreach_freight": {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Boğazın Ötesine On Paket",
     "introDialogue": [
-      "Seabreak’teki yük gemisi Sunreach’e on paket taşır. Yüksek bir bedeli var; dümenine de tecrübeli bir tüccar geçmeli.",
-      "Gemiyi yük rıhtımından satın al. On buğday paketini tek tek yükle, Sunreach’te karaya çıkar ve sat."
+      "Sunreach’in kuru taraçaları ve tuzlu rüzgârı var ama her fırını doyuracak tahılı yok. Geniş güverteli yük gemisi kanaldan on ayrı paket taşıyabilir.",
+      "Paran ve Ticaret tecrüben yettiğinde gemiyi Seabreak yük rıhtımından al. Köy buğdayı paketlerini tek tek yükle, Sunreach’te karaya çıkarıp sat. Tomas koyun teslim defterini tutuyor."
     ],
     "completionDialogue": [
-      "Dönüşte Sunreach’in zeytini ve ayçiçeği çekirdeği ambarını doldurabilir."
+      "Tek defterde on Neva damgası. Tahıl ambarımızda, güverte yeniden boş.",
+      "Eskiden bu geçiş ambarı gidişte doldurup dönüşte pek az şey getirirdi. Ayçiçeği çekirdeğiyle zeytin, dolu dönmen için bir sebep."
     ],
     "objectives": {
       "step.caravan.buy_ship": {
-        "description": "Sunreach ticaret gemisini satın al."
+        "description": "Seabreak Yük Rıhtımı’ndan Sunreach ticaret gemisini satın al."
       },
       "step.caravan.market.sunreach_cove.produce.wheat": {
-        "description": "Sunreach’te on buğday paketi sat."
+        "description": "Sunreach Ticaret Tezgâhı’nda on Neva buğday paketi sat."
       }
     }
   },
@@ -164,18 +187,19 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Eve Dönen Yük",
     "introDialogue": [
-      "Sunreach tezgâhında bir zeytin paketi hazırla ve Neva’ya götür.",
-      "Yol primi dönüşte de geçerli. Hangi yükün kazandıracağını bugünkü talep belirler."
+      "Ines taraçalarda ayçiçeği ve zeytin yetiştiriyor. İkisi de burada su ve sabır ister; ana kara boş pazar rafına bakarak bunları üretemez.",
+      "Koy avlusunda zeytin paketi hazırla. Neva’ya götürüp elden sat. Ambarın kalanını doldurmadan dönüş tekliflerine bak."
     ],
     "completionDialogue": [
-      "Artık beş tezgâhı ve aralarındaki yolları tanıyorsun."
+      "Kuru taraçaların zeytini, Neva tahılının yola çıktığı yerde satıldı. Yol ve kanal artık iki yönde de iş görüyor.",
+      "Defteri okumaya devam et. İyi rota; havaya, arza ve yolun sonunda bekleyen insana göre değişir."
     ],
     "objectives": {
       "step.caravan.struct.trade_sunreach.pack": {
-        "description": "Sunreach’te bir zeytin paketi hazırla."
+        "description": "Sunreach’te bir zeytin ticaret paketi hazırla."
       },
       "step.caravan.market.village.produce.olive": {
-        "description": "Zeytin paketini Neva’da sat."
+        "description": "Sunreach zeytin paketini Neva Ticaret Tezgâhı’nda sat."
       }
     }
   },
@@ -289,11 +313,12 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "3. Bölüm: Nehrin Fısıltısı",
     "questTitle": "Köyde Adil Ticaret",
     "introDialogue": [
-      "Tuttuğun balığı veya tarladan kaldırdığın taze mahsulü köy meydanına götür.",
-      "Tezgâhtaki terazi dürüsttür. Emeğinin karşılığını altına çevir ki yeni tohumlar, sağlam aletler alabilesin."
+      "Köyün manav tezgâhı tahılla bostan ürünlerini bekler.",
+      "Köprüden geçip meydandaki manava git. Hasadının birazını sat. Av limana gider; tahılla sebzenin yeri köydür."
     ],
     "completionDialogue": [
-      "Kesende şıngırdayan altın emeğinin helal karşılığıdır. Pazarı tanıdın artık."
+      "Kesendeki para kendi emeğinin karşılığı. Şimdi daha büyük limanı görmeye hazırsın.",
+      "Uzun yollar için Maeve sana paketleme avlularını gösterebilir. Bağlı yük köy tezgâhına elden taşınır; uzak köy ona daha çok ihtiyaç duyabilir."
     ],
     "objectives": {
       "step.act3_sell_item_village": {
@@ -306,6 +331,7 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "questTitle": "Liman Seferi",
     "introDialogue": [
       "Güneydoğu Limanına hoş geldin! Ben Maeve. Buralarda her şeye okyanus karar verir.",
+      "Açık hasadı manava götürebilir, köy avlularında ticaret paketi de hazırlayabilirsin. Yol, başka köyün ihtiyacı olan yükün taşınmasına para verir; mutfak ise yemek içindir.",
       "Balık Pazarı fiyatlarına bir bak: açık deniz tuzlu su balıkları iyi para eder ama unutma: balık çabuk bozulabilen fiziksel bir yüktür!",
       "Ambarında ne kadar uzun durursa tazeliği o kadar düşer. Seferlerini iyi planla ve elini çabuk tut!"
     ],

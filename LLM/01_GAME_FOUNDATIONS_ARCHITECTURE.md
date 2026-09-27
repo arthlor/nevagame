@@ -58,7 +58,9 @@ Narrative ownership is explicit:
 - `ContentRegistry` validates and exposes that content; it is the single
   runtime content entry point, not a second story database.
 - `QuestDomain` owns quest progression, target/location predicates, content-owned
-  turn-in costs and rewards, `nextQuestId`, and quest-related domain events.
+  turn-in costs and rewards, `nextQuestId`, the optional destination
+  `completionSpeakerId`, and quest-related domain events. The introduction
+  speaker and receiving speaker are static content; no relationship state is saved.
 - `GameState.quests` owns only serializable progression truth: the main track's
   act, a quest/step/progress cursor per track, the focused track, completed quest
   IDs, feature unlocks, and hints. Dialogue
@@ -366,7 +368,7 @@ Explicit gameplay modes (`GameplayMode`; excludes overlay-only `"menu"` / `"paus
 ```ts
 type GameplayMode = "on-foot" | "farm-placement" | "basic-fishing" | "sport-fishing" | "boat-driving" | "mounted";
 ```
-Never infer mode from mesh/UI state. The horse carriage reuses `mounted` and `player.activeMountId`. Its W/S input drives forward/reverse, A/D steers while rolling, releasing movement brakes, and Shift requests a trot. E boards at the bench, dismounts, loads carried cargo at the rear, or collects a stored pack according to the simulation-validated contextual target. `cargo.load-carriage` and `cargo.pickup` commit each transfer atomically. `vehicle.purchase` at a workshop display or harbor freight berth validates proximity, empty hands, Trading XP, funds and ownership before committing. It creates a separate persistent mount or boat and its finite slots; it never replaces an existing vehicle. The large vessel’s camera derives deck/mast framing from catalog dimensions through `GameCamera`, preserving orbit/zoom ownership and the existing boat mode. `CarriagePurchased`, `BoatPurchased` and `TradePackSold` drive acquisition and physical-delivery objectives; `ItemSold` separately credits enclosed units only for harvest packs, never the ingredients of a crafted shipment.
+Never infer mode from mesh/UI state. The horse carriage reuses `mounted` and `player.activeMountId`. Its W/S input drives forward/reverse, A/D steers while rolling, releasing movement brakes, and Shift requests a trot. E boards at the bench, dismounts, loads carried cargo at the rear, or collects a stored pack according to the simulation-validated contextual target. `cargo.load-carriage` and `cargo.pickup` commit each transfer atomically; a successful load emits `CarriageCargoLoaded` so an authored lesson can require actual use of the wagon. `vehicle.purchase` at a workshop display or harbor freight berth validates proximity, empty hands, Trading XP, funds and ownership before committing. It creates a separate persistent mount or boat and its finite slots; it never replaces an existing vehicle. The large vessel’s camera derives deck/mast framing from catalog dimensions through `GameCamera`, preserving orbit/zoom ownership and the existing boat mode. `CarriagePurchased`, `BoatPurchased` and `TradePackSold` drive acquisition and physical-delivery objectives; `ItemSold` separately credits enclosed units only for harvest packs, never the ingredients of a crafted shipment.
 
 Cameras react to `GameplayMode`, never decide gameplay:
 - on-foot: contextual third-person framing with damping; yaw orbits a full 360 degrees and hand pitch/zoom run from sky (-75 deg, close inspection) to near-overhead (+85 deg, far world view) in on-foot, farm-placement, boat-driving, mounted and basic-fishing; resting distance/pitch are unchanged and open exploration lowers pitch and widens the lens while working areas and nearby interactions retain task framing;

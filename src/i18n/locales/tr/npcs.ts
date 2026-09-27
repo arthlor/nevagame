@@ -223,6 +223,13 @@ export const TR_NPCS: Record<string, LocalizedNpcText> = {
         ]
       },
       {
+        id: "dialogue.maeve_packing_stamp",
+        lines: [
+          "Artık paketin nerede başladığını biliyorsun. Neva damgası yükü kimin bağladığını söyler; bu emeğin değerini karşı kıyıdaki tezgâh belirler.",
+          "Yola çıkmadan tekliflere bak. Ambarı dolu alıcı, senin tahminine para veremez."
+        ]
+      },
+      {
         id: "dialogue.maeve_contract_kept",
         lines: [
           "Seçtiğin siparişi tamamladın. Bu liman için panodaki en cafcaflı fiyatın peşinden koşmaktan çok daha kıymetli bu.",
@@ -279,6 +286,13 @@ export const TR_NPCS: Record<string, LocalizedNpcText> = {
         lines: [
           "Resif sahanlığında durdun demek. Şamandıraların ardındaki o sular, bizim avımızın asıl geldiği yerdir.",
           "Koy bir sığınaktır, balık yatağı değil. Balık yatağı sahanlıktır."
+        ]
+      },
+      {
+        id: "dialogue.tomas_channel_manifest",
+        lines: [
+          "On yük karaya çıktı; hepsinin koy defterinde bir yeri var.",
+          "Ines boş ambarla ne götürebileceğini soracak. Bu, geminin geçişi ne kadar hızlı yaptığı sorusundan iyidir."
         ]
       },
       {
@@ -355,6 +369,13 @@ export const TR_NPCS: Record<string, LocalizedNpcText> = {
         ]
       },
       {
+        id: "dialogue.ines_return_cargo",
+        lines: [
+          "Zeytinimiz senin ambarında Neva’ya vardı. Taraça o pazardan uzak ama artık onun sofrasından uzak değil.",
+          "Toprağın burada veremediğini getir. Ben verebildiğini yetiştirmeye devam edeceğim."
+        ]
+      },
+      {
         id: "dialogue.ines_open_horizons",
         lines: [
           "Bu taraçalar bir sezon boyunca sen olmadan da dayanır. Eskiden buna hiç inanmazdım.",
@@ -375,6 +396,10 @@ export const TR_NPCS: Record<string, LocalizedNpcText> = {
     beckonLines: ["Defterini alıp gel. Güvenilir bir rota için her zaman yerimiz vardır."],
     recognitionDialogue: [
       {
+        id: "dialogue.rowan_caravan_grain",
+        lines: ["Neva tahılı fırının listesinde. Fırınlar sıcakken bizim ketenle elma da yola çıkabilir."]
+      },
+      {
         id: "dialogue.rowan_trade_route",
         lines: [
           "Tahılın fırında. Yola çıkmadan önce keresteye bir göz at; boş dönülen sefer ziyan edilmiş seferdir."
@@ -394,6 +419,14 @@ export const TR_NPCS: Record<string, LocalizedNpcText> = {
     beckonLines: ["Şöyle gel, kuru tahtaların yanına. Bakalım neler yola dayanabilmiş."],
     recognitionDialogue: [
       {
+        id: "dialogue.mara_caravan_flax",
+        lines: ["Pinewatch keteni kuru ambarda. Yükseltilmiş yol yine işini gördü."]
+      },
+      {
+        id: "dialogue.mara_shared_load",
+        lines: ["Domates Neva’dan gelirken ormana giden yükün yanında yol aldı. Tek araba, iki köyün sofrası."]
+      },
+      {
         id: "dialogue.mara_trade_route",
         lines: [
           "Tezgâha bir av, dönüşe taze yem. Bataklık köyü işte böyle hayata bağlı kalır."
@@ -412,6 +445,10 @@ export const TR_NPCS: Record<string, LocalizedNpcText> = {
     ],
     beckonLines: ["Gel de ellerini ısıt biraz. Köyün seninle konuşacağı bir siparişi var."],
     recognitionDialogue: [
+      {
+        id: "dialogue.ada_caravan_corn",
+        lines: ["Reedhaven mısırı yüksek rafımızda. Geçit uzundu; yükün kıymeti de oradan geliyor."]
+      },
       {
         id: "dialogue.ada_trade_route",
         lines: [

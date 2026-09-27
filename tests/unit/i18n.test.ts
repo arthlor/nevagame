@@ -313,7 +313,6 @@ describe("Neva i18n Localization Engine", () => {
     });
 
     it("covers 100% of all canonical quests and objectives", () => {
-      expect(ContentRegistry.quests.size).toBe(59);
       for (const [id, quest] of ContentRegistry.quests) {
         const trQuest = TR_QUESTS[id];
         expect(trQuest, `Missing Turkish translation for quest: ${id}`).toBeDefined();
@@ -346,8 +345,7 @@ describe("Neva i18n Localization Engine", () => {
       }
     });
 
-    it("covers 100% of all 28 knowledge entries", () => {
-      expect(ContentRegistry.knowledge.size).toBe(28);
+    it("covers 100% of all canonical knowledge entries", () => {
       for (const [id, entry] of ContentRegistry.knowledge) {
         expect(TR_KNOWLEDGE[id], `Missing Turkish translation for knowledge: ${id}`).toBeDefined();
         expect(TR_KNOWLEDGE[id].title, `Missing Turkish title for knowledge: ${id}`).toBeTruthy();

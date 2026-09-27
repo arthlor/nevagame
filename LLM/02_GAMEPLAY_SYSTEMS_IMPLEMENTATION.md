@@ -84,6 +84,8 @@ tracks or records so the next story beat remains attainable.
 | Main spine | Turn inheritance into useful local practice and earned responsibility | Every beat advances a person/place/action/consequence connection; unlocks are earned through simulation events |
 | The Cove Commons | Make the inherited family farm, shared tools and public orchard matter through use | Stewardship and long-growing orchard goals fit optional play and cannot block the main route |
 | Freight and Favour | Let Maeve's promises teach volume, freshness, grade and distance, then carry real deliveries through Pinewatch, Reedhaven and Highridge | Target feasible contract types rather than depending on a specific randomly offered template; the mainland commissions use actual village sales |
+| The Village Trade Roads | Teach the physical pack hand-off near home, then let receiving stewards lead a circuit of regional goods, wagons and channel freight | A local sale precedes the distance comparison; destination turn-ins use actual sales and wagon loading, while costly vehicles remain optional to the main spine |
+| The Working Trader | Make ingredient sourcing, replacement cost, shared demand and finished return cargo visible | Named-pack recipes and their destination sales must happen through the real yards and counters |
 | Reading the Water | Let Silas teach ecology through actual fishing | Species availability owns seasonal/hour/weather conditions; avoid a second narrative ecology system |
 
 Each track advances linearly with its own cursor. Parallel tracks are not
@@ -129,7 +131,8 @@ The live dialogue model has six contextual sources:
 
 - `introDialogue`: the speaker's ask; it frames the next action.
 - `completionDialogue`: delivered when the active quest's final objective is
-  complete and the player talks to the correct speaker; the quest is completed
+  complete and the player talks to its `completionSpeakerId` when declared, or
+  its introduction speaker otherwise; the quest is completed
   atomically and rewards are granted by `QuestDomain`.
 - `herald` (optional, `{ npcId, lines }`): someone other than the speaker who
   sets the errand up while the speaker is out of reach. Act 7's speaker lives
@@ -151,7 +154,8 @@ The live dialogue model has six contextual sources:
 `ConversationSegment`s assembled in one atomic command, never saved:
 
 1. every errand this person can close is closed (completion, rewards, any
-   turn-in cost handed over, the next errand begun);
+   turn-in cost handed over, the next errand begun); a receiving village steward
+   can introduce the next local request in the same conversation;
 2. a `talk-npc` step aimed at this person is spoken and credited — on step 0
    the speaker's ask *is* the step; a later talk step to the speaker is a report
    back that the completion answers without replaying the ask; anyone else says
@@ -159,7 +163,8 @@ The live dialogue model has six contextual sources:
 3. an errand this conversation began is introduced by the same mouth (its
    speaker's ask, or the herald's word of it);
 4. otherwise what they are waiting on or have heard of, main track first and at
-   most two, so a side thread's ask is heard alongside the spine;
+   most two unprompted asks, so a side thread's introduction can be heard
+   alongside the spine;
 5. otherwise recognition or idle lines.
 
 A talk step is credited only for the thread whose words were delivered;
@@ -172,7 +177,7 @@ refused close (no room for the reward) completes nothing and says why under the
 repeated ask. A talk to someone a running errand wants *later* emits
 `QuestStepAhead`, as any action that would count for a later step does.
 
-Nearby world barks consume the same recognition selector in `NpcPresentation`; they reuse authored lines without changing quests. An NPC with something pending for the player — an errand of theirs to close, or a talk step aimed at them — barks their authored `beckonLines` instead; a herald alone is not a reason, because it can stand for hours and a call repeated that long is nagging. The person just spoken to holds their barks for 30 seconds after a conversation. One projected bubble yields to panels and uses transient per-NPC cooldowns, with no saved dialogue history.
+Nearby world barks consume the same recognition selector in `NpcPresentation`; they reuse authored lines without changing quests. An NPC with something pending for the player — an errand they receive at completion, or a talk step aimed at them — barks their authored `beckonLines` instead; a herald alone is not a reason, because it can stand for hours and a call repeated that long is nagging. The person just spoken to holds their barks for 30 seconds after a conversation. One projected bubble yields to panels and uses transient per-NPC cooldowns, with no saved dialogue history.
 
 The talk command requires the authoritative proximity check against `npcAnchorAt(npcId, clock, quests)` in `src/simulation/presentation/NpcPresentation.ts`. Content in `npcs.ts` schedules day-phase stations; omitted phases retain the home anchor. The renderer, nearby targeting and quest talk/turn-in destinations use the same station, so a quest giver cannot be visible at one place while the tracker points at another. **One quest-aware exception:** while the NPC speaks for an active quest whose final objective is complete and was earned away from them (any type except `talk-npc`, which completes inside the conversation itself), the function returns the NPC's role anchor instead of the schedule stop. That holds Barnaby at the farmhouse workbench for the Act 2 hand-in he names while leaving him a Village Market figure the rest of the day. This derives from the existing clock and quest cursor, adds no saved NPC state, and never advances a track. Elspeth retains her daytime garden welcome; the other stops populate the village and both islands at their authored phases. `NpcTalked`,
 `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted` are
@@ -278,7 +283,7 @@ who simply never turned Act 2 in could run a profitable 360-minute recipe every
 30 real seconds. The crop gate needs no such tightening, since fertility drains
 and seeds run out.
 
-The optional `track.caravans` chain opens after the first harvest-and-compost quest. `questsVillageTrade.ts` sends the player through each packing yard, teaches demand and return loads, introduces the cartwright, gates both wagon acquisitions, then commissions the freight ship and asks for a full Sunreach delivery before an olive return load. It uses real craft, purchase and physical pack-sale events with station/market scope. It does not auto-deliver cargo, waive purchase gates or replace the main story spine. The separate `track.tradecraft` chain opens after the first caravan load and the initial Processing rank. `questsTradeCraft.ts` teaches ingredient sourcing and replacement cost, durable return cargo, premium shipments with shared demand, and a Sunreach export return. It uses actual recipe collection and named-pack sale events; no purchase, cargo or XP gate is bypassed.
+The optional `track.caravans` chain opens after the first harvest-and-compost quest. `questsVillageTrade.ts` begins with a local pack sale so the player learns the yard, hand carry and counter before comparing the same grain on a longer route. Rowan, Mara and Ada receive deliveries and introduce the next village's need at the destination; Maeve handles carriage acquisition and Tomas receives the Sunreach manifest. The chain visits each packing yard, gates both wagon purchases, requires actual loading into the six-pack wagon for a two-counter round, then commissions the freight ship and asks for a full Sunreach delivery before an olive return load. Craft, purchase, carriage-load and physical sale events own progress; it does not auto-deliver cargo, waive purchase gates or replace the main story spine. The separate `track.tradecraft` chain opens after the first longer caravan delivery and the initial Processing rank. `questsTradeCraft.ts` teaches ingredient sourcing and replacement cost, durable return cargo, premium shipments with shared demand, and a Sunreach export return. It uses actual recipe collection and named-pack sale events; no purchase, cargo or XP gate is bypassed.
 
 ## Narrative persistence boundary
 
@@ -1233,6 +1238,12 @@ floors against the best current wholesale quote, so purchased goods do not
 become risk-free immediate resale profit. A harvest, processing result or
 physical catch is the route's production input. The route premium applies only to farm packs with the persisted origin described in §13; loose goods, fish and historical originless cargo never acquire invented provenance.
 
+The Village Trade Roads uses those same authored routes for its receiving-NPC
+handoffs, rather than sending the player back to Maeve after every mainland
+sale. Its knowledge notes unlock after the corresponding physical delivery;
+completed older quests grant only their newly authored notes on load, never
+their coin or XP again.
+
 The expedition board compares current village demand when it has no matching
 contract, and preserves the selected market as the destination for both
 produce and fish runs. Mainland opportunities show the direct distance from the
@@ -1469,7 +1480,7 @@ Weather: wind, rain, thunder
 Dialogue gameplay cues:
 ```text
 NPC approach: readable role/location prompt → talk → contextual intro or idle lines
-Quest completion: final action → return to named speaker → completion lines → atomic reward → next objective
+Quest completion: final action → speak to the named receiver → completion lines → atomic reward → next objective
 Act transition: completion feedback → new act/quest title → new place, verb, or capability
 ```
 

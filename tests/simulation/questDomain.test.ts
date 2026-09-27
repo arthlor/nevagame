@@ -7,6 +7,7 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import type { ActiveQuestDto } from "../../src/simulation/core/QuestTypes";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
+import { HARBOR_DOCK } from "../../src/world/WorldAnchors";
 
 describe("QuestDomain & Storyline Progression", () => {
   it("chains every authored quest inside its own track, terminating once", () => {
@@ -300,8 +301,8 @@ describe("QuestDomain & Storyline Progression", () => {
     expect(sim.state.world.storySchoolSpawned).toBe(true);
     expect(schools).toHaveLength(1);
     expect(schools[0]).toMatchObject({ habitatId: "lake", speciesWeights: [{ speciesId: "fish.trout" }] });
-    sim.state.player.x = 76;
-    sim.state.player.z = 64;
+    sim.state.player.x = HARBOR_DOCK.playerPosition.x;
+    sim.state.player.z = HARBOR_DOCK.playerPosition.z;
     expect(sim.canBoardBoat("boat.player_rowboat")).toBe(true);
   });
 
