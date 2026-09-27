@@ -108,7 +108,7 @@ function createMaterial(name: string, fragmentShader: string, uniforms: Record<s
  */
 export class HdrBloomStage {
   private readonly mips: THREE.WebGLRenderTarget[] = [];
-  private readonly quad = new FullScreenQuad(null);
+  private readonly quad: FullScreenQuad;
   private readonly prefilter: THREE.RawShaderMaterial;
   private readonly downsample: THREE.RawShaderMaterial;
   private readonly upsample: THREE.RawShaderMaterial;
@@ -117,6 +117,7 @@ export class HdrBloomStage {
     this.prefilter = createMaterial("neva_bloom_prefilter", PREFILTER_FRAGMENT, {
       tSource: { value: null }, uSourceTexel: { value: new THREE.Vector2() }, uThreshold: { value: new THREE.Vector3() }
     });
+    this.quad = new FullScreenQuad(this.prefilter);
     this.downsample = createMaterial("neva_bloom_downsample", DOWNSAMPLE_FRAGMENT, {
       tSource: { value: null }, uSourceTexel: { value: new THREE.Vector2() }
     });

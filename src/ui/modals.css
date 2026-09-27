@@ -1459,8 +1459,8 @@
   color: var(--mm-gold-leaf);
 }
 
-.pause-modal .audio-settings-row input[type="range"],
-.start-screen__options .audio-settings-row input[type="range"] {
+.pause-modal :is(.audio-settings-row, .graphics-slider-row) input[type="range"],
+.start-screen__options :is(.audio-settings-row, .graphics-slider-row) input[type="range"] {
   accent-color: var(--mm-gold-leaf);
   background: rgba(8, 11, 16, 0.72) !important;
   border: 1px solid rgba(245, 240, 230, 0.16) !important;

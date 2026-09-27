@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bindGtaoSceneDepth, configureGtaoDistanceLimits } from "../../src/render/pipeline/RendererPipeline";
+import { bindGtaoSceneDepth, configureGtaoDistanceLimits } from "../../src/render/pipeline/GtaoStage";
 
 afterEach(() => vi.restoreAllMocks());
 

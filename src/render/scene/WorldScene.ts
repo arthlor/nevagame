@@ -175,9 +175,17 @@ import { resolveMountPresentationPose } from "../presentation/MountPresentation"
 import { LightingRig } from "../lighting/LightingRig";
 import {
   RendererPipeline,
+  canvasPixelRatio,
+  type ActiveRenderEffects,
   type CaptureRenderMode,
+  type RenderPipelineRuntimeState,
   type RendererPipelineDiagnostics
 } from "../pipeline/RendererPipeline";
+import {
+  DEFAULT_GRAPHICS_EFFECTS,
+  resolveGraphicsEffects,
+  type ResolvedGraphicsEffects
+} from "../config/GraphicsEffectSettings";
 import {
   createWorldDiagnosticOverlay,
   type WorldFieldOverlay
@@ -900,6 +908,14 @@ export class WorldScene {
   private targetQualityLevel = this.qualityLevel;
   private qualityRebuildElapsedSeconds = 0;
   private qualityContactStrength = contactTierEffectStrength(this.qualityLevel);
+  /** Player/Auto effects resolved by the application for `renderQualityTier`. */
+  private graphicsEffects: ResolvedGraphicsEffects = resolveGraphicsEffects(
+    DEFAULT_GRAPHICS_EFFECTS,
+    CANONICAL_RENDER_CONFIG.qualityTier
+  );
+  /** Character and mount contact discs (the Medium tier's contact AO) and their authored opacity. */
+  private readonly contactDiscs = new Map<ContactShadowMesh, number>();
+  private canvasResizePending = false;
   private hasRenderedFrame = false;
   private lastResizeWidth = 0;
   private lastResizeHeight = 0;
@@ -1056,6 +1072,7 @@ export class WorldScene {
       this.scene,
       CANONICAL_RENDER_CONFIG.qualityTier
     );
+    this.rendererPipeline.onContextRestored(() => this.lightingRig.reattachAfterContextRestore());
     this.sunLight = this.lightingRig.sun;
     this.hemiLight = this.lightingRig.skyFill;
 
@@ -2769,6 +2786,7 @@ export class WorldScene {
         if (this.lightingRig.contactShadowsEnabled()) {
           const shadowMesh = createContactShadowMesh(0.48, 0.33, CANONICAL_RENDER_CONFIG.contact.opacity);
           shadowMesh.position.set(0, 0.02, 0);
+          this.registerContactDisc(shadowMesh, CANONICAL_RENDER_CONFIG.contact.opacity);
           model.add(shadowMesh);
         }
 
@@ -3178,17 +3196,25 @@ export class WorldScene {
     const practicalIntensity =
       CANONICAL_RENDER_CONFIG.practicalLights.localIntensity * frame.practicalLightIntensity;
     const glowOpacity = CANONICAL_RENDER_CONFIG.bloom.strength * frame.practicalLightIntensity;
+    // The sprites stand in for requested HDR bloom until its stage takes over.
+    const glowVisible = this.graphicsEffects.practicalGlow
+      || (this.graphicsEffects.hdrBloom && !this.rendererPipeline.isHdrBloomActive());
     for (const practical of this.practicalLights) {
       practical.light.intensity = practicalIntensity;
       practical.light.visible = practical.qualityEnabled && frame.practicalLightIntensity > 0.002;
-      if (practical.glow) practical.glow.material.opacity = glowOpacity;
+      if (practical.glow) {
+        practical.glow.visible = glowVisible;
+        practical.glow.material.opacity = glowOpacity;
+      }
     }
     if (this.playerContactShadow) {
+      this.playerContactShadow.visible = this.graphicsEffects.ambientOcclusion === "contact";
       setContactShadowOpacity(
         this.playerContactShadow,
-        CANONICAL_RENDER_CONFIG.contact.opacity
+        Math.min(1, CANONICAL_RENDER_CONFIG.contact.opacity
           * this.qualityContactStrength
           * THREE.MathUtils.lerp(0.42, 1, frame.daylight)
+          * this.graphicsEffects.aoStrength)
       );
     }
     this.water.updateLighting(frame);
@@ -3788,6 +3814,7 @@ export class WorldScene {
     for (const name of ["donkey_contact_shadow"]) {
       const mesh = root.getObjectByName(name);
       if (!(mesh instanceof THREE.Mesh)) continue;
+      this.contactDiscs.delete(mesh as ContactShadowMesh);
       mesh.removeFromParent();
       mesh.geometry.dispose();
       if (Array.isArray(mesh.material)) {
@@ -3862,8 +3889,20 @@ export class WorldScene {
       );
       shadowMesh.name = "donkey_contact_shadow";
       shadowMesh.position.set(0, 0.02, 0);
+      this.registerContactDisc(shadowMesh, CANONICAL_RENDER_CONFIG.contact.opacity);
       root.add(shadowMesh);
     }
+  }
+
+  private registerContactDisc(disc: ContactShadowMesh, opacity: number): void {
+    this.contactDiscs.set(disc, opacity);
+    this.applyContactDiscPolicy(disc, opacity);
+  }
+
+  /** Contact AO is shown only while it is the resolved AO, scaled by the player's AO strength. */
+  private applyContactDiscPolicy(disc: ContactShadowMesh, opacity: number): void {
+    disc.visible = this.graphicsEffects.ambientOcclusion === "contact";
+    setContactShadowOpacity(disc, Math.min(1, opacity * this.graphicsEffects.aoStrength));
   }
 
   private setDonkeyAnimation(
@@ -6371,6 +6410,10 @@ export class WorldScene {
   }
 
   public render(camera: THREE.Camera, deltaSeconds = 1 / 60): void {
+    if (this.canvasResizePending) {
+      this.canvasResizePending = false;
+      this.handleResize(this.lastResizeWidth || window.innerWidth, this.lastResizeHeight || window.innerHeight);
+    }
     const record = this.phaseRecorder;
     let mark = record ? performance.now() : 0;
     const worldUpdateStart = mark;
@@ -6479,7 +6522,11 @@ export class WorldScene {
   public handleResize(width: number, height: number): void {
     this.lastResizeWidth = Math.max(1, width);
     this.lastResizeHeight = Math.max(1, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.lightingRig.pixelRatioCap()));
+    this.renderer.setPixelRatio(canvasPixelRatio(
+      this.qualityTier,
+      this.graphicsEffects.resolutionScale,
+      window.devicePixelRatio || 1
+    ));
     this.renderer.setSize(this.lastResizeWidth, this.lastResizeHeight);
     const fishingLineMaterial = this.fishingLineMesh?.material;
     if (fishingLineMaterial instanceof LineMaterial) {
@@ -6498,6 +6545,49 @@ export class WorldScene {
     this.qualityLevel = this.targetQualityLevel;
     this.applyContinuousQuality(true);
     this.applyDiscreteQuality(tier);
+  }
+
+  /** The discrete tier being rendered; it lags `setQuality` while a handoff crosses tiers. */
+  public get renderQualityTier(): QualityTier {
+    return this.qualityTier;
+  }
+
+  /**
+   * Applies player/Auto graphics effects resolved for `renderQualityTier`.
+   * Brightness, AO strength and colour finish are uniforms read on the next
+   * frame. Pass creation and render-resolution changes are deferred to the
+   * next frame, never run inside the settings callback.
+   */
+  public setGraphicsEffects(effects: ResolvedGraphicsEffects): void {
+    const resized = effects.resolutionScale !== this.graphicsEffects.resolutionScale;
+    this.graphicsEffects = { ...effects, colorFinish: { ...effects.colorFinish } };
+    this.rendererPipeline.setEffects(this.graphicsEffects);
+    this.lightingRig.setExposureScale(effects.brightness);
+    for (const [disc, opacity] of this.contactDiscs) this.applyContactDiscPolicy(disc, opacity);
+    if (resized) this.canvasResizePending = true;
+  }
+
+  public renderPipelineState(): RenderPipelineRuntimeState {
+    return this.rendererPipeline.runtimeState();
+  }
+
+  public activeRenderEffects(): ActiveRenderEffects {
+    return this.rendererPipeline.activeEffects();
+  }
+
+  /** The selected render path or a requested effect is still compiling. */
+  public isRenderPathPreparing(): boolean {
+    return this.rendererPipeline.isPreparing();
+  }
+
+  /** Recent whole-frame GPU cost, or null where timer queries cannot measure it. */
+  public gpuFrameEstimateMs(): number | null {
+    return this.rendererPipeline.gpuFrameEstimateMs();
+  }
+
+  /** Debug/acceptance: start a clean GPU timing window. */
+  public resetGpuTiming(): void {
+    this.rendererPipeline.resetGpuTiming();
   }
 
   private updateQualityTransition(deltaSeconds: number): void {
@@ -6596,6 +6686,7 @@ export class WorldScene {
       AssetLoader.releaseModel(npc.model);
     }
     this.npcPresentations.clear();
+    this.contactDiscs.clear();
     for (const person of this.ambientTownsfolk) {
       person.animator.dispose();
       person.model.removeFromParent();

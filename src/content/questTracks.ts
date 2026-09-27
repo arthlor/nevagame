@@ -25,7 +25,7 @@ export const TRADELANES_QUEST_TRACK_ID = "track.tradelanes";
 export const QUEST_TRACKS: QuestTrackDefinition[] = [
   { id: "track.tradecraft", title: "The Working Trader", entryQuestId: "quest.tradecraft_materials",
     unlock: { requiresCompletedQuestIds: ["quest.caravan_first_load"], requiresRank: { skill: "processing", rankIndex: 1 } } },
-  { id: "track.caravans", title: "The Village Trade Roads", entryQuestId: "quest.caravan_first_load",
+  { id: "track.caravans", title: "The Village Trade Roads", entryQuestId: "quest.caravan_first_stamp",
     unlock: { requiresCompletedQuestIds: ["quest.act2_harvest_and_compost"] } },
   {
     id: MAIN_QUEST_TRACK_ID,

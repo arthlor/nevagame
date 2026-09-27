@@ -39,6 +39,7 @@ export const QUEST_OBJECTIVE_TYPES = [
   "hook-sport-fish",
   "land-sport-fish",
   "stow-cargo",
+  "load-carriage",
   "board-boat",
   "dock-boat",
   "sell-item",
@@ -125,6 +126,8 @@ export interface QuestDefinition {
   actTitle: string;
   questTitle: string;
   speakerId: NpcId;
+  /** Optional recipient who settles the errand at its destination. Defaults to the speaker. */
+  completionSpeakerId?: NpcId;
   introDialogue: string[];
   completionDialogue: string[];
   /** Optional setup from someone else while the speaker is out of reach. */

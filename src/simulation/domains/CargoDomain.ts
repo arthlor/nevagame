@@ -263,7 +263,7 @@ export class CargoDomain {
   }
 
   public loadCarriage(mountId: string): { success: boolean; reason?: string } {
-    const { state } = this.context;
+    const { state, events } = this.context;
     const mount = state.mounts[mountId];
     if (!canReachCarriageRear(state, mount)) return { success: false, reason: "Stand at the rear of the parked carriage to load it" };
     const id = state.player.carriedFishCargoId;
@@ -275,6 +275,8 @@ export class CargoDomain {
     mount.fishCargoSlotIds![slot] = cargo.id;
     state.player.carriedFishCargoId = null;
     cargo.location = { type: "carriage", containerId: mount.id, slotIndex: slot };
+    events.emit("CarriageCargoLoaded", { cargoId: cargo.id, mountId: mount.id, mountTypeId: mount.mountTypeId,
+      slotIndex: slot, minute: state.clock.currentMinute });
     return { success: true };
   }
 

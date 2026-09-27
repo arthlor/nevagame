@@ -222,7 +222,8 @@ export class FinalColorPass {
   private syncDefines(renderer: THREE.WebGLRenderer): void {
     if (this.toneMapping === renderer.toneMapping && this.outputColorSpace === renderer.outputColorSpace) return;
     this.toneMapping = renderer.toneMapping;
-    this.outputColorSpace = renderer.outputColorSpace;
+    // The renderer getter is typed as a plain string; the pass only branches on the named spaces.
+    this.outputColorSpace = renderer.outputColorSpace as THREE.ColorSpace;
     const defines: Record<string, string> = {};
     if (THREE.ColorManagement.getTransfer(renderer.outputColorSpace) === THREE.SRGBTransfer) defines.SRGB_TRANSFER = "";
     const toneMapping = TONE_MAPPING_DEFINES.get(renderer.toneMapping);

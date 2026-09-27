@@ -20,9 +20,20 @@ const QUALITY_ORDER: readonly QualityTier[] = ["low", "medium", "high"];
 /** Frame-time EMA above which a frame counts as slow, and below which as fast. */
 const SLOW_FRAME_MS = 22;
 const FAST_FRAME_MS = 15.2;
+/**
+ * A vsync-capped 60 Hz display never averages below `FAST_FRAME_MS`, so frame
+ * time alone cannot show headroom there. With GPU timing, a frame rate that
+ * holds this EMA while the GPU uses at most `GPU_HEADROOM_SHARE` of the frame
+ * also counts as headroom. Without timing, recovery stays frame-time only.
+ */
+const HOLDING_FRAME_MS = 17.5;
+const GPU_HEADROOM_SHARE = 0.6;
 /** Sustained pressure needed before one reduction, and headroom before one recovery. */
 const SLOW_SECONDS_TO_REDUCE = 2.5;
 const FAST_SECONDS_TO_RECOVER = 10;
+/** A reduction this soon after a recovery doubles the next recovery wait, up to the cap. */
+const RECOVERY_BACKOFF_WINDOW_MS = 20_000;
+const MAX_SECONDS_TO_RECOVER = 80;
 const ADJUSTMENT_COOLDOWN_MS = 5_000;
 /** GPU work at or above this share of the frame marks the frame as GPU-bound. */
 const GPU_BOUND_SHARE = 0.7;
@@ -71,6 +82,8 @@ export class GraphicsQualitySettings {
   private ladder: readonly ReductionStep[] = [];
   private ladderLevel = 0;
   private lastPressureSource: FramePressureSource = "frame-time";
+  private secondsToRecover = FAST_SECONDS_TO_RECOVER;
+  private lastRecoveryMs = Number.NEGATIVE_INFINITY;
 
   public get preference(): GraphicsQualityPreference {
     return this.preferenceValue;
@@ -83,6 +96,21 @@ export class GraphicsQualitySettings {
   /** Temporary reductions currently applied at the effective tier. */
   public get reductions(): AutoReductions {
     return this.preferenceValue === "auto" ? reductionsAtLevel(this.ladder, this.ladderLevel) : { ...NO_AUTO_REDUCTIONS };
+  }
+
+  /**
+   * Reductions for the tier the renderer is actually drawing, which lags the
+   * effective tier while a quality handoff crosses tiers. A tier Auto is
+   * leaving downward stays fully reduced until the handoff completes, and one
+   * it is leaving upward had recovered fully before Auto moved on.
+   */
+  public reductionsFor(tier: QualityTier): AutoReductions {
+    if (this.preferenceValue !== "auto") return { ...NO_AUTO_REDUCTIONS };
+    const offset = QUALITY_ORDER.indexOf(tier) - QUALITY_ORDER.indexOf(this.effectiveValue);
+    if (offset === 0) return this.reductions;
+    if (offset < 0) return { ...NO_AUTO_REDUCTIONS };
+    const ladder = this.ladderSource(tier);
+    return reductionsAtLevel(ladder, ladder.length);
   }
 
   public get activeReductionSteps(): readonly ReductionStep[] {
@@ -103,6 +131,8 @@ export class GraphicsQualitySettings {
     this.slowSeconds = 0;
     this.fastSeconds = 0;
     this.lastAdjustmentMs = nowMs;
+    this.secondsToRecover = FAST_SECONDS_TO_RECOVER;
+    this.lastRecoveryMs = Number.NEGATIVE_INFINITY;
     const changed = this.setEffective(preference === "auto" ? initialAutoTier() : preference);
     this.enterLadder(false);
     return changed;
@@ -160,8 +190,13 @@ export class GraphicsQualitySettings {
     if (nowMs < this.holdUntilMs) return false;
     const frameMs = rawDeltaSeconds * 1000;
     this.frameTimeEmaMs += (frameMs - this.frameTimeEmaMs) * 0.04;
+    const headroom = this.frameTimeEmaMs < FAST_FRAME_MS || (
+      gpuFrameMs !== null
+      && this.frameTimeEmaMs <= HOLDING_FRAME_MS
+      && gpuFrameMs <= this.frameTimeEmaMs * GPU_HEADROOM_SHARE
+    );
     this.slowSeconds = this.frameTimeEmaMs > SLOW_FRAME_MS ? this.slowSeconds + rawDeltaSeconds : 0;
-    this.fastSeconds = this.frameTimeEmaMs < FAST_FRAME_MS ? this.fastSeconds + rawDeltaSeconds : 0;
+    this.fastSeconds = headroom ? this.fastSeconds + rawDeltaSeconds : 0;
     if (nowMs - this.lastAdjustmentMs < ADJUSTMENT_COOLDOWN_MS) return false;
 
     const index = QUALITY_ORDER.indexOf(this.effectiveValue);
@@ -172,10 +207,10 @@ export class GraphicsQualitySettings {
       // Effects and resolution only relieve the GPU. When timing shows the CPU
       // is the limit, go straight to the tier, which also sheds scene work.
       if (this.ladderLevel < this.ladder.length && source !== "cpu") {
-        return this.adjust(nowMs, source, () => { this.ladderLevel += 1; return "effects"; });
+        return this.reduce(nowMs, source, () => { this.ladderLevel += 1; return "effects"; });
       }
       if (index > 0) {
-        return this.adjust(nowMs, source, () => {
+        return this.reduce(nowMs, source, () => {
           this.setEffective(QUALITY_ORDER[index - 1]);
           this.enterLadder(false);
           return "tier";
@@ -183,12 +218,12 @@ export class GraphicsQualitySettings {
       }
       return false;
     }
-    if (this.fastSeconds >= FAST_SECONDS_TO_RECOVER) {
+    if (this.fastSeconds >= this.secondsToRecover) {
       if (this.ladderLevel > 0) {
-        return this.adjust(nowMs, this.lastPressureSource, () => { this.ladderLevel -= 1; return "effects"; });
+        return this.recover(nowMs, () => { this.ladderLevel -= 1; return "effects"; });
       }
       if (index < QUALITY_ORDER.length - 1) {
-        return this.adjust(nowMs, this.lastPressureSource, () => {
+        return this.recover(nowMs, () => {
           // Re-enter the richer tier fully reduced and recover it step by step,
           // so one good stretch cannot restore every effect at once.
           this.setEffective(QUALITY_ORDER[index + 1]);
@@ -200,16 +235,36 @@ export class GraphicsQualitySettings {
     return false;
   }
 
+  /** Seconds of sustained headroom the next recovery step needs. */
+  public get recoveryDelaySeconds(): number {
+    return this.secondsToRecover;
+  }
+
   private enterLadder(fullyReduced: boolean): void {
     this.ladder = [...this.ladderSource(this.effectiveValue)];
     this.ladderLevel = fullyReduced ? this.ladder.length : 0;
   }
 
-  private adjust(nowMs: number, source: FramePressureSource, change: () => AutoQualityChange): AutoQualityChange {
+  private reduce(nowMs: number, source: FramePressureSource, change: () => AutoQualityChange): AutoQualityChange {
+    // The step just recovered did not hold: wait longer before trying again,
+    // once per failed recovery rather than once per reduction that follows it.
+    if (nowMs - this.lastRecoveryMs < RECOVERY_BACKOFF_WINDOW_MS) {
+      this.secondsToRecover = Math.min(MAX_SECONDS_TO_RECOVER, this.secondsToRecover * 2);
+      this.lastRecoveryMs = Number.NEGATIVE_INFINITY;
+    }
+    this.lastPressureSource = source;
+    return this.adjust(nowMs, change);
+  }
+
+  private recover(nowMs: number, change: () => AutoQualityChange): AutoQualityChange {
+    this.lastRecoveryMs = nowMs;
+    return this.adjust(nowMs, change);
+  }
+
+  private adjust(nowMs: number, change: () => AutoQualityChange): AutoQualityChange {
     this.lastAdjustmentMs = nowMs;
     this.slowSeconds = 0;
     this.fastSeconds = 0;
-    this.lastPressureSource = source;
     return change();
   }
 

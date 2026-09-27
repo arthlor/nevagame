@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { ColorFinish, ResolvedGraphicsEffects } from "../config/GraphicsEffectSettings";
-import { FinalColorPass } from "./FinalColorPass";
+import { FinalColorPass, type FinalColorInputs } from "./FinalColorPass";
 import { FxaaStage } from "./FxaaStage";
 import { GtaoStage } from "./GtaoStage";
 import { HdrBloomStage } from "./HdrBloomStage";
@@ -24,15 +24,25 @@ export interface EnhancedPathTargets {
   bloom: readonly THREE.WebGLRenderTarget[];
 }
 
+/** Optional stages that are installed and requested, i.e. drawn on a final frame. */
+export interface EnhancedActiveStages {
+  gtao: boolean;
+  bloom: boolean;
+  fxaa: boolean;
+}
+
+const UNIT_SIZE: Readonly<{ width: number; height: number }> = Object.freeze({ width: 1, height: 1 });
+
 /**
  * The High tier's render path: the world into one linear HDR colour/depth
  * target (which also feeds the water snapshot), optional GTAO and HDR bloom
  * over that target, then one final-colour pass and optional FXAA.
  *
- * Optional stages are created only while an effect needs them. Creation —
- * module load, allocation and shader warm-up — runs asynchronously and the
- * stage takes over only once ready, so a settings callback never compiles or
- * allocates on the input frame. A stage no longer needed is disposed at once.
+ * Optional stages are created only while an effect needs them. `setEffects`
+ * only records the request and releases stages that are no longer wanted;
+ * creation — module load, allocation and shader warm-up — starts from the next
+ * frame or entry preparation and runs asynchronously, and the stage takes over
+ * only once ready, so a settings callback never compiles or allocates.
  */
 export class EnhancedRenderPath {
   public readonly sceneTarget: THREE.WebGLRenderTarget;
@@ -50,6 +60,7 @@ export class EnhancedRenderPath {
   private height = 1;
   private disposed = false;
   private readonly neutralFinish: ColorFinish = { saturation: 1, contrast: 1, warmth: 0 };
+  private readonly finalInputs: FinalColorInputs;
 
   public constructor(private readonly renderer: THREE.WebGLRenderer, private readonly scene: THREE.Scene) {
     this.sceneTarget = new THREE.WebGLRenderTarget(1, 1, {
@@ -60,11 +71,25 @@ export class EnhancedRenderPath {
       generateMipmaps: false
     });
     this.sceneTarget.texture.name = "enhanced.sceneLinear";
+    this.finalInputs = {
+      scene: this.sceneTarget,
+      camera: new THREE.Camera(),
+      ambientOcclusion: null,
+      aoSize: UNIT_SIZE,
+      aoIntensity: 0,
+      aoEdgeTolerance: CANONICAL_RENDER_CONFIG.postProcessing.ambientOcclusion.edgeDepthTolerance,
+      bloom: null,
+      bloomStrength: 0,
+      finish: this.neutralFinish
+    };
   }
 
-  /** True while a requested stage is still loading or compiling. */
+  /** True while a requested stage has not yet loaded, compiled and taken over. */
   public get preparing(): boolean {
-    return this.creating.size > 0;
+    return this.creating.size > 0
+      || this.awaiting("gtao", this.gtao)
+      || this.awaiting("bloom", this.bloom)
+      || this.awaiting("fxaa", this.fxaa);
   }
 
   public get failedStages(): readonly string[] {
@@ -103,7 +128,14 @@ export class EnhancedRenderPath {
     }
     if (!this.wants("fxaa")) this.releaseOutputTarget();
     this.gtao?.setReduced(effects.aoReduced);
-    if (this.lastCamera) this.ensureStages(this.lastCamera);
+  }
+
+  public activeStages(): EnhancedActiveStages {
+    return {
+      gtao: this.gtao !== null && this.wants("gtao"),
+      bloom: this.bloom !== null && this.wants("bloom"),
+      fxaa: this.fxaa !== null && this.wants("fxaa")
+    };
   }
 
   /** Compiles the final pass and creates every requested stage before first use. */
@@ -124,6 +156,10 @@ export class EnhancedRenderPath {
 
   public isGtaoRendering(noPost: boolean): boolean {
     return !noPost && this.gtao !== null && this.wants("gtao");
+  }
+
+  public isBloomRendering(): boolean {
+    return this.bloom !== null && this.wants("bloom");
   }
 
   public render(camera: THREE.Camera, options: EnhancedFrameOptions): void {
@@ -158,17 +194,15 @@ export class EnhancedRenderPath {
       const smoothing = !options.noPost && this.fxaa !== null && this.wants("fxaa");
       const output = smoothing ? this.ensureOutputTarget() : null;
       options.beginPass("post");
-      this.finalPass.render(renderer, {
-        scene: this.sceneTarget,
-        camera,
-        ambientOcclusion,
-        aoSize: this.gtao?.size ?? { width: 1, height: 1 },
-        aoIntensity: options.aoIntensity,
-        aoEdgeTolerance: CANONICAL_RENDER_CONFIG.postProcessing.ambientOcclusion.edgeDepthTolerance,
-        bloom,
-        bloomStrength: this.bloom?.strength ?? 0,
-        finish: options.noPost ? this.neutralFinish : this.effects?.colorFinish ?? this.neutralFinish
-      }, output);
+      const inputs = this.finalInputs;
+      inputs.camera = camera;
+      inputs.ambientOcclusion = ambientOcclusion;
+      inputs.aoSize = this.gtao?.size ?? UNIT_SIZE;
+      inputs.aoIntensity = options.aoIntensity;
+      inputs.bloom = bloom;
+      inputs.bloomStrength = this.bloom?.strength ?? 0;
+      inputs.finish = options.noPost ? this.neutralFinish : this.effects?.colorFinish ?? this.neutralFinish;
+      this.finalPass.render(renderer, inputs, output);
       if (output && this.fxaa) {
         options.beginPass("fxaa");
         this.fxaa.render(renderer, output, null);
@@ -199,6 +233,10 @@ export class EnhancedRenderPath {
     this.releaseOutputTarget();
     this.finalPass.dispose();
     this.sceneTarget.dispose();
+  }
+
+  private awaiting(kind: StageKind, stage: object | null): boolean {
+    return stage === null && this.wants(kind) && !this.failed.has(kind);
   }
 
   private wants(kind: StageKind): boolean {

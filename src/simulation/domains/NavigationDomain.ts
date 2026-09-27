@@ -532,7 +532,11 @@ export class NavigationDomain {
     if (!definition) return unavailable("Boat not found");
     const wrecked = isBoatWrecked(boat);
     if (!wrecked) {
-      if (definition.fuelCapacity <= 0) return unavailable("This boat needs no tow — row it home");
+      if (definition.fuelCapacity <= 0) {
+        return unavailable(boat.boatTypeId === "boat.trading_ship"
+          ? "This vessel has no engine — sail it back to a berth"
+          : "This boat needs no tow — row it home");
+      }
       if (boat.fuel > 0) return unavailable("The tank still has fuel — sail on");
     }
     if (boat.isDocked) return unavailable("The vessel is already docked");

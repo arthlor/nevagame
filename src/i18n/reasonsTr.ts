@@ -183,6 +183,12 @@ const EXACT_REASONS_TR: Record<string, string> = {
   "Could not purchase the skiff": "Filika satın alınamadı",
   "Could not purchase transport": "Taşıt satın alınamadı",
   "Could not arrange a tow": "Çekici ayarlanamadı",
+  "Board a boat before signaling a tow": "Çekici çağırmadan önce bir tekneye bin",
+  "Dismount before signaling a tow": "Çekici çağırmadan önce binekten in",
+  "The tank still has fuel — sail on": "Depoda hâlâ yakıt var — yoluna devam et",
+  "The vessel is already docked": "Tekne zaten iskeleye bağlı",
+  "This boat needs no tow — row it home": "Bu tekne çekici istemez — kürekle evine götür",
+  "This vessel has no engine — sail it back to a berth": "Bu teknenin motoru yok — yelkenle bir iskeleye dön",
   "Could not refuel": "Yakıt doldurulamadı",
   "Silas cannot repair her yet": "Silas tekneyi henüz onaramaz",
   "Docked at the mooring": "İskeleye bağlandı",
@@ -347,7 +353,19 @@ const EXACT_REASONS_TR: Record<string, string> = {
   "No rod equipped": "Kuşanılmış olta yok",
   "Put away the fishing rod": "Oltayı kaldır",
   "Inspect storage and supplies": "Depoyu ve erzakı incele",
-  "Required for sport fishing · prepare": "Sportif balık için gerekli · hazırla"
+  "Required for sport fishing · prepare": "Sportif balık için gerekli · hazırla",
+  "Could not buy that": "Bu satın alınamadı",
+  "Could not buy that rod": "Bu olta satın alınamadı",
+  "Could not sell fish": "Balık satılamadı",
+  "Could not discard fish": "Balık atılamadı",
+  "Discarded spoiled cargo": "Bozulmuş yük atıldı",
+  "Could not release fish": "Balık salınamadı",
+  "Released back to the water · records kept": "Suya geri bırakıldı · kayıtlar duruyor",
+  "Could not deliver items": "Eşyalar teslim edilemedi",
+  "Could not deliver fish": "Balık teslim edilemedi",
+  "Fish delivered to contract": "Balık sözleşmeye teslim edildi",
+  "That order stays on the board": "O sipariş panoda kalır",
+  "A new order is posted": "Yeni bir sipariş asıldı"
 };
 
 /**
@@ -427,6 +445,21 @@ function translateReasonPattern(reason: string): string | null {
     [/^This recipe requires a (.+)$/, (station) => `Bu tarif bir ${STATION_TR[station] ?? station} istiyor`],
     [/^You need ([\d,.]+) G to finish this quest$/, (money) => `Bu işi bitirmek için ${money} akçe gerek`],
     [/^Need ([\d,.]+) G for packing$/, (cost) => `Paketlemek için ${cost} akçe gerek`],
+    [/^Purchased · ([\d,.]+) G$/, (cost) => `${cost} akçeye alındı`],
+    [/^Recovered (\d+) plant matter$/, (count) => `${count} bitki artığı çıkarıldı`],
+    [/^Recovered (\d+) fish scraps$/, (count) => `${count} balık artığı çıkarıldı`],
+    [/^Contract complete: \+([\d,.]+) G$/, (reward) => `Sözleşme tamamlandı: +${reward} akçe`],
+    [/^Delivered (\d+) items?$/, (count) => `${count} parça teslim edildi`],
+    [/^(.+) purchased and equipped$/, (name) => `${named(name)} alındı ve kuşanıldı`],
+    [/^(.+) equipped$/, (name) => `${named(name)} kuşanıldı`],
+    [/^Towed to (.+) · no charge · (\d+) min passed · see Silas for repair$/, (place, minutes) =>
+      `${named(place)} noktasına çekildi · ücret yok · ${minutes} dakika geçti · onarım için Silas'a uğra`],
+    [/^Towed to (.+) · no charge · (\d+) min passed · catch kept$/, (place, minutes) =>
+      `${named(place)} noktasına çekildi · ücret yok · ${minutes} dakika geçti · av teknede kaldı`],
+    [/^Towed to (.+) · ([\d,.]+) G paid · (\d+) min passed · see Silas for repair$/, (place, cost, minutes) =>
+      `${named(place)} noktasına çekildi · ${cost} akçe · ${minutes} dakika geçti · onarım için Silas'a uğra`],
+    [/^Towed to (.+) · ([\d,.]+) G paid · (\d+) min passed · catch kept$/, (place, cost, minutes) =>
+      `${named(place)} noktasına çekildi · ${cost} akçe · ${minutes} dakika geçti · av teknede kaldı`],
     [/^Need (\d+) Work$/, (cost) => `${cost} Emek gerek`],
     [/^Need (\d+) ([^·]+)$/, (count, item) => `${count} ${named(item)} gerek`],
     [/^Switch to your (.+) in Character & Gear \[C\]\.$/, (rod) => `Karakter ve Donanım [C] ekranından ${named(rod)} oltasına geç.`],

@@ -93,6 +93,9 @@ export const PLACEMENT_OVERRIDES: Readonly<Record<string, PlacementOverride>> = 
   "authored.village.wagon": { x: 68.5, z: -84, rotationY: -0.5 },
   "authored.village.produce-crate": { x: 62.7, z: -69.8, rotationY: 0.4 },
   "authored.village.harvest-basket": { x: 52.5, z: -69.1, rotationY: -0.3 },
+  "authored.river.plant.willow-left-6": { x: -36.3, z: -87.4, rotationY: 5.0553 },
+  "authored.river.plant.willow-left-8": { x: -36.1, z: -80, rotationY: 0.7175 },
+  "authored.river.plant.willow-left-10": { x: -31.3, z: -70, rotationY: 5.4205 },
 };
 
 /** Seeded/layout-derived instances removed by the DEV layout editor. */

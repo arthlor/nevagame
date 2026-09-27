@@ -23,7 +23,7 @@ function awaitingRoleTurnIn(npcId: string, quests: QuestState | undefined): bool
     const questId = progress?.activeQuestId;
     if (!questId) continue;
     const quest = ContentRegistry.quests.get(questId);
-    if (!quest || quest.speakerId !== npcId) continue;
+    if (!quest || (quest.completionSpeakerId ?? quest.speakerId) !== npcId) continue;
     const finalIndex = quest.objectives.length - 1;
     const finalStep = quest.objectives[finalIndex];
     if (!finalStep || finalStep.type === "talk-npc") continue;
@@ -83,7 +83,7 @@ export function npcHasPendingConversation(npcId: string, quests: QuestState): bo
     const objective = quest.objectives[index];
     if (!objective) continue;
     const done = (progress.stepProgress[objective.id] ?? 0) >= objective.targetQuantity;
-    if (quest.speakerId === npcId && index === quest.objectives.length - 1 && done) return true;
+    if ((quest.completionSpeakerId ?? quest.speakerId) === npcId && index === quest.objectives.length - 1 && done) return true;
     if (!done && objective.type === "talk-npc" && objective.targetId === npcId) return true;
   }
   return false;

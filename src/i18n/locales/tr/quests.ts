@@ -8,25 +8,25 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     introDialogue: ["Mahsul paketleri işin başlangıcı. Öğütülmüş tahıl, buğday ve ketenle daha değerli bir yük hazırlayabilirsin.",
       "Tahılı değirmende öğüt ya da Neva pazarından al. Keten rulosunu Pinewatch’tan alabilir veya kendin dokuyabilirsin. Malzemeleri ve paketleme ücretini Neva tezgâhına getir.",
       "Paketlemeden önce tahmini kazanca bak. Kendi yetiştirdiğin ürünler de yeniden alma bedeliyle hesaba katılır. Tahıl çuvallarını Pinewatch’a götür."],
-    completionDialogue: ["Paketin satıldı. Sonraki yükün masrafını bir kenara ayır ve yola çıkmadan diğer köylerin talebine bak."],
+    completionDialogue: ["Pinewatch, düzgün sarılmış öğütülmüş tahıla para verdi. Buğdayı kendi tarladan getirsen de keteni ve paketleme ücretini hesaba kat.", "İşlenmiş yük, ham hasattan daha çok kazandırabilir; ama sonraki paket de malzeme isteyecek. O payı defterden silme."],
     objectives: { "step.tradecraft.materials.make": { description: "Neva tezgâhında öğütülmüş tahıl çuvalları hazırla." }, "step.tradecraft.materials.deliver": { description: "Tahıl çuvallarını Pinewatch’ta sat." } }
   },
   "quest.tradecraft_return_goods": {
     actTitle: "İşini Bilen Tüccar", questTitle: "İki Yönde de Dolu Yük",
     introDialogue: ["Highridge çelik ve bakır satar; Pinewatch ise kereste. Malzemeleri Highridge tezgâhında bir atölye metal kasasına dönüştür.", "Kasayı Reedhaven’a götür. Metal yolda bozulmaz ama alıcıların deposu dolar: benzer yükleri arka arkaya satarsan fiyat düşebilir."],
-    completionDialogue: ["Dönüş yoluna da iş buldun. Hem malzemenin hem alıcının nerede olduğunu bilmek iyi kazandırır."],
+    completionDialogue: ["Highridge metalini Reedhaven’a ulaştırdın. Islak tahtaların yıprattığı yerlerde bu kasa işe yarayacak.", "Metal yolda bozulmaz ama ambar sonsuz değil. Aynı kasadan durmadan getirirsen fiyat da değişir."],
     objectives: { "step.tradecraft.return_goods.make": { description: "Highridge’de bir atölye metal kasası hazırla." }, "step.tradecraft.return_goods.deliver": { description: "Metal kasasını Reedhaven’da sat." } }
   },
   "quest.tradecraft_premium": {
     actTitle: "İşini Bilen Tüccar", questTitle: "Yük Yerinin Değeri",
     introDialogue: ["Değerli bir sevkiyat, arabadaki tek bölmeden daha çok kazandırır. Bunun için işleme ve ticaret tecrübesi, bir de daha fazla sermaye gerekir.", "Reedhaven’dan yoğun yem ve olta yemi al. Pinewatch’tan muşamba ve kereste getir. Nehir seferi malzemelerini sazlık köyünde paketleyip Highridge’e taşı.", "Dayanıklı kumanya, taze yemeklerden uzun süre korunur. Yükünü çeşitlendir; benzer tarifler aynı talebi paylaşır."],
-    completionDialogue: ["Artık yalnız daha çok yük değil, daha değerli yük de taşıyorsun."],
+    completionDialogue: ["Tek bir araba bölmesine koca bir seferin malzemesi sığdı. O yere değerini, yokuşa çıkmadan önce yaptığın hazırlık verdi.", "Bu bedelde yapanın emeği, yolun zahmeti ve alıcı köyün ihtiyacı var."],
     objectives: { "step.tradecraft.premium.make": { description: "Reedhaven’da nehir seferi malzemeleri hazırla." }, "step.tradecraft.premium.deliver": { description: "Sefer malzemelerini Highridge’de sat." } }
   },
   "quest.tradecraft_overseas": {
     actTitle: "İşini Bilen Tüccar", questTitle: "Dönüş Yükü",
     introDialogue: ["Sunreach’te zeytin ve tuzlanmış balık var. İhracat sepeti için anakaradan tahıl ve keten de gerekir; bir sonraki seferinde yanında götür.", "Koy tezgâhında dönüş fiyatlarını karşılaştır ve Neva’ya götürmek üzere bir ihracat sepeti hazırla. Büyük yük gemisinin on bölmesi ayrı yükler taşır; her paket tek tek yüklenir ve kıyıya taşınır."],
-    completionDialogue: ["Gidiş yükün dönüş yüküne malzeme oldu. İki kıyıyı da tanıyan tüccarın yolu boş geçmez."],
+    completionDialogue: ["Dönüş sepetinde Sunreach zeytiniyle tuzlu balığı, ana karadan götürdüğün tahıl ve ketenle yan yana geldi.", "İyi tüccar geçişin iki yanını da görür. Adanın işe yarar kıldığı şey, ambarda eve döner."],
     objectives: { "step.tradecraft.overseas.make": { description: "Sunreach’te bir ihracat sepeti hazırla." }, "step.tradecraft.overseas.deliver": { description: "Sunreach ihracat sepetini Neva’da sat." } }
   },
 

@@ -157,6 +157,18 @@ export function isNeutralColorFinish(finish: Readonly<ColorFinish>): boolean {
   return finish.saturation === 1 && finish.contrast === 1 && finish.warmth === 0;
 }
 
+export function isDefaultGraphicsEffectPreferences(value: Readonly<GraphicsEffectPreferences>): boolean {
+  const defaults = DEFAULT_GRAPHICS_EFFECTS;
+  return value.postProcessing === defaults.postProcessing
+    && value.brightness === defaults.brightness
+    && value.renderResolution === defaults.renderResolution
+    && value.custom.ambientOcclusion === defaults.custom.ambientOcclusion
+    && value.custom.aoStrength === defaults.custom.aoStrength
+    && value.custom.glow === defaults.custom.glow
+    && value.custom.edgeSmoothing === defaults.custom.edgeSmoothing
+    && isNeutralColorFinish(value.custom.colorFinish);
+}
+
 /** The individual choices a post-processing mode stands for. */
 export function effectiveCustomChoices(preferences: Readonly<GraphicsEffectPreferences>): CustomEffectChoices {
   switch (preferences.postProcessing) {
@@ -326,6 +338,8 @@ export const graphicsEffectSettings = new GraphicsEffectSettingsStore();
  */
 export interface GraphicsRuntimeStatus {
   tier: QualityTier;
+  /** The world is being drawn; `active` describes real frames only while this is true. */
+  rendering: boolean;
   enhancedPath: boolean;
   /** Preferences resolved for the tier without Auto's temporary reductions. */
   requested: ResolvedGraphicsEffects;
@@ -338,6 +352,10 @@ export interface GraphicsRuntimeStatus {
   preparing: boolean;
   /** Whether Auto can separate GPU from CPU pressure on this device. */
   pressureSignal: "gpu-timing" | "frame-time";
+  /** Why the enhanced path is unavailable on this device, when it is. */
+  fallbackReason: string | null;
+  /** Optional stages that failed to compile and stay off until requested again. */
+  failedStages: readonly string[];
 }
 
 export class GraphicsRuntimeStatusStore {

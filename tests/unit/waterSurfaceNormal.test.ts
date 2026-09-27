@@ -147,6 +147,7 @@ function testFrame(): LightingFrame {
     sunScatterColor: new THREE.Color(0, 0, 0),
     sunAureoleColor: new THREE.Color("#ffffff"),
     valleyMist: 0,
+    riverMist: 0,
     lightningSeed: 0,
   };
 }

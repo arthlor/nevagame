@@ -81,7 +81,7 @@ export function createMarketUiActions({ sim, notify, setToast, reportSale, reque
       const res = sim.execute({ type: "contract.deliver-items", contractId, itemId, quantity });
       if (!res.success) setToast(res.reason ?? "Could not deliver items");
       else if (res.completed) setToast(`Contract complete: +${res.rewardMoney} G`, 3600);
-      else setToast(`Delivered ${res.delivered} item`);
+      else setToast(res.delivered === 1 ? "Delivered 1 item" : `Delivered ${res.delivered} items`);
     },
     onDeliverFishCargo: (contractId: string, cargoId: string) => {
       const res = sim.execute({ type: "contract.deliver-fish", contractId, cargoId });

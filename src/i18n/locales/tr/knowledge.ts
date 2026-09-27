@@ -91,6 +91,30 @@ export const TR_KNOWLEDGE: Record<string, LocalizedKnowledgeText> = {
     title: "Kargo ve İtibar",
     summary: "Sipariş, üzerinde saat işleyen bir sözdür. Hacim birim başına daha az ama toplamda daha çok kazandırır; tazelik ise ancak buz taşır ve durmadan kürek çekersen kazandırır. Pano bir fiyat listesi değildir; tutabilmen gereken sözlerin listesidir."
   },
+  "knowledge.packing_stamp": {
+    title: "Paket Damgası",
+    summary: "Her köyün paketleme avlusu, yükü hazırlandığı yerde bağlayıp damgalar. Varış tezgâhı paketi tek parça hâlinde, elden teslim alır. Yakındaki satış usulü öğretir; uzak yolun bedelini ise mesafe, yükün durumu ve alıcı köyün ihtiyacı belirler."
+  },
+  "knowledge.village_roads": {
+    title: "İşleyen Köy Yolları",
+    summary: "Neva tahıl yollar; Pinewatch keten, elma ve kereste üretir; Reedhaven erzağını bataklığın üstündeki kuru ambarlarda tutar; Highridge kök sebze ve atölye malzemesi gönderir. Yollar farklı emekleri birbirine bağlar; bir yükün değeri vardığı yere göre değişir."
+  },
+  "knowledge.shared_load": {
+    title: "Bir Yol, İki Tezgâh",
+    summary: "Arabanın yeri, yükler farklı köylere ulaştığında değer kazanır. Tahıl Pinewatch’a, domates Reedhaven’a aynı seferde vardı. Her satış yerel ambarları doldurur; aynı tezgâha benzer paketleri üst üste satmak, talep toparlanana dek daha az kazandırır."
+  },
+  "knowledge.channel_manifest": {
+    title: "Kanal Yük Defteri",
+    summary: "Neva damgalı on paket aynı ambarda Sunreach’e geçti; her biri kıyıya çıkarılıp koy tezgâhına teslim edildi. Geminin hacmi ancak karşı kıyıda alıcı varsa ve dönüş için yer bırakılırsa işe yarar."
+  },
+  "knowledge.return_cargo": {
+    title: "Dolu Dönüş",
+    summary: "Sunreach’in kuru taraçalarında zeytin ve ayçiçeği yetişir; ana kara ise tahıl ve malzeme gönderir. Koy yolu yalnızca gidiş satışı değildir: dönüş yükü aynı gemiyi ve iki kıyıdaki insanları çalışır tutar."
+  },
+  "knowledge.replacement_cost": {
+    title: "Hazır Yükün Maliyeti",
+    summary: "İşlenmiş bir paket malzeme, paketleme ücreti ve zaman harcar. Kendi yetiştirdiğin ürünün bile yerine koyma bedeli vardır. Asıl hesap, tabeladaki en büyük rakam değil; masraf, tazelik, yol ve güncel talep çıktıktan sonra kalan kazançtır."
+  },
   "knowledge.family_ledger": {
     title: "Aile Sicili",
     summary: "Ailenden kalan çiftlik evi ve başlangıç tarlası satın alınmadı, miras kaldı. Yakındaki ortak tarhlara ise pek çok el emek verir: bir sicil defteri neye sahip olduğunun değil, neyin kimin tarafından kullanılır halde tutulduğunun kaydıdır."

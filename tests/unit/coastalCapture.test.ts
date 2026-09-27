@@ -1,62 +1,51 @@
 import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { RendererPipeline, renderTargetDiagnostic } from "../../src/render/pipeline/RendererPipeline";
-import { createCoastalUniforms } from "../../src/render/water/CoastalOptics";
+import { renderTargetDiagnostic } from "../../src/render/pipeline/RendererPipeline";
+import { createPipelineHarness } from "../helpers/fakeWebGLRenderer";
 
-afterEach(()=>vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
-describe("opaque water snapshot ownership",()=>{
-  it("snapshots color/depth in one GPU draw per frame and releases each resized/tier target",async()=>{
-    vi.stubGlobal("window",{devicePixelRatio:1});
-    const snapshots:THREE.WebGLRenderTarget[]=[];
-    let active:THREE.WebGLRenderTarget|null=null;
-    const renderer={
-      info:{autoReset:true,reset:vi.fn(),memory:{geometries:0,textures:0}},
-      getContext:()=>({}),getPixelRatio:()=>1,compileAsync:async()=>{},shadowMap:{enabled:true,needsUpdate:false},
-      autoClear:true,xr:{enabled:false},getActiveCubeFace:()=>0,getActiveMipmapLevel:()=>0,
-      getRenderTarget:()=>active,setRenderTarget:(target:THREE.WebGLRenderTarget)=>{active=target;},
-      initRenderTarget:(target:THREE.WebGLRenderTarget)=>snapshots.push(target),
-      copyTextureToTexture:vi.fn(),render:vi.fn()
-    };
-    const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
-    const uniforms=createCoastalUniforms(null,new THREE.Vector4(0,0,20,20));
-    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(),new THREE.ShaderMaterial());
-    scene.add(mesh);
-    const pipeline=new RendererPipeline(renderer as unknown as THREE.WebGLRenderer,scene,"high");
-    pipeline.bindWaterCapture([mesh],uniforms);
-    const disposals:ReturnType<typeof vi.spyOn>[]=[];
-    try{
-      for(let cycle=0;cycle<3;cycle++){
-        pipeline.setQuality("high");pipeline.resize(320+cycle*80,180);
-        await pipeline.prepareForCapture(camera);
-        const composer=(pipeline as unknown as {composer:EffectComposer}).composer;
-        active=composer.renderTarget1;
-        const draw=()=>mesh.onBeforeRender(renderer as unknown as THREE.WebGLRenderer,scene,camera,mesh.geometry,mesh.material,null!);
-        composer.render=()=>{draw();draw();draw();};
-        renderer.render.mockClear();
-        pipeline.render(camera);
-        expect(renderer.copyTextureToTexture).not.toHaveBeenCalled();
-        expect(renderer.render).toHaveBeenCalledTimes(1);
-        expect(renderer.render.mock.calls[0][0]).not.toBe(scene);
-        expect(uniforms.uSceneCaptureEnabled.value).toBe(1);
-        expect(uniforms.uOpaqueColor.value).not.toBe(active.texture);
-        expect(uniforms.uOpaqueDepth.value).not.toBe(active.depthTexture);
-        expect(uniforms.uOpticsViewport.value.toArray()).toEqual([320+cycle*80,180]);
-        disposals.push(vi.spyOn(snapshots.at(-1)!,"dispose"));
-        pipeline.setQuality("medium");
-        expect(uniforms.uSceneCaptureEnabled.value).toBe(0);
-        expect(uniforms.uOpaqueColor.value).toBeNull();
-        expect(uniforms.uOpaqueDepth.value).toBeNull();
-        expect(pipeline.diagnostics().renderTargets).toHaveLength(0);
+describe("opaque water snapshot ownership", () => {
+  it("snapshots color/depth in one GPU draw per frame and releases each resized/tier target", async () => {
+    const harness = await createPipelineHarness({ waterDrawsPerFrame: 3 });
+    const disposals: ReturnType<typeof vi.spyOn>[] = [];
+    try {
+      for (let cycle = 0; cycle < 3; cycle++) {
+        const width = 320 + cycle * 80;
+        harness.pipeline.setQuality("high");
+        harness.pipeline.resize(width, 180);
+        await harness.pipeline.prepareForCapture(harness.camera);
+        const draws = harness.frame();
+        // Three water draws inside the scene still take a single snapshot.
+        expect(draws.waterSnapshot).toBe(1);
+        expect(harness.renderer.copyTextureToTexture).not.toHaveBeenCalled();
+        const source = harness.sceneTargetDuringDraw!;
+        expect(source.depthTexture).toBeTruthy();
+        expect(harness.uniforms.uSceneCaptureEnabled.value).toBe(1);
+        expect(harness.uniforms.uOpaqueColor.value).not.toBe(source.texture);
+        expect(harness.uniforms.uOpaqueDepth.value).not.toBe(source.depthTexture);
+        expect(harness.uniforms.uOpticsViewport.value.toArray()).toEqual([width, 180]);
+        const snapshot = harness.renderer.initRenderTarget.mock.calls.at(-1)![0] as THREE.WebGLRenderTarget;
+        expect(snapshot.texture).toBe(harness.uniforms.uOpaqueColor.value);
+        disposals.push(vi.spyOn(snapshot, "dispose"));
+        harness.pipeline.setQuality("medium");
+        expect(harness.uniforms.uSceneCaptureEnabled.value).toBe(0);
+        expect(harness.uniforms.uOpaqueColor.value).toBeNull();
+        expect(harness.uniforms.uOpaqueDepth.value).toBeNull();
+        expect(harness.pipeline.diagnostics().renderTargets).toHaveLength(0);
       }
-    }finally{pipeline.dispose();mesh.geometry.dispose();mesh.material.dispose();}
-    for(const dispose of disposals)expect(dispose).toHaveBeenCalledTimes(1);
+    } finally {
+      harness.dispose();
+    }
+    for (const dispose of disposals) expect(dispose).toHaveBeenCalledTimes(1);
   });
 
-  it("accounts for RGBA16F color and the actual 32-bit sampled depth allocation",()=>{
-    const target=new THREE.WebGLRenderTarget(320,180,{type:THREE.HalfFloatType,depthTexture:new THREE.DepthTexture(320,180,THREE.UnsignedIntType)});
-    expect(renderTargetDiagnostic("water",target).estimatedBytes).toBe(320*180*12);
+  it("accounts for RGBA16F color and the actual 32-bit sampled depth allocation", () => {
+    const target = new THREE.WebGLRenderTarget(320, 180, { type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(320, 180, THREE.UnsignedIntType) });
+    expect(renderTargetDiagnostic("water", target).estimatedBytes).toBe(320 * 180 * 12);
     target.dispose();
   });
 });

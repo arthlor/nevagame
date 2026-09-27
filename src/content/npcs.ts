@@ -336,6 +336,14 @@ export const NPCS: NpcDefinition[] = [
         ]
       },
       {
+        id: "dialogue.maeve_packing_stamp",
+        requiresKnowledgeIds: ["knowledge.packing_stamp"],
+        lines: [
+          "You know where a pack begins now. A Neva stamp says who did the tying; the far counter decides what that care is worth.",
+          "Look at the offers before you take the road. A buyer with full stores cannot pay for your hopeful guess."
+        ]
+      },
+      {
         id: "dialogue.maeve_contract_kept",
         requiresCompletedQuestIds: ["quest.act6_harbor_promise"],
         lines: [
@@ -406,6 +414,14 @@ export const NPCS: NpcDefinition[] = [
         lines: [
           "You have stood on the reef shelf. That water past the markers is where our catch actually comes from.",
           "The cove is shelter, not a fishery. The shelf is the fishery."
+        ]
+      },
+      {
+        id: "dialogue.tomas_channel_manifest",
+        requiresKnowledgeIds: ["knowledge.channel_manifest"],
+        lines: [
+          "Ten loads came ashore and every one has a place in the cove ledger.",
+          "Ines will ask what the empty hold can carry back. That is a better question than how fast the ship crossed."
         ]
       },
       {
@@ -500,6 +516,14 @@ export const NPCS: NpcDefinition[] = [
         ]
       },
       {
+        id: "dialogue.ines_return_cargo",
+        requiresKnowledgeIds: ["knowledge.return_cargo"],
+        lines: [
+          "Our olives made it to Neva in your hold. The terrace is far from that market, but not from its supper now.",
+          "Bring back what the soil cannot make here. I will keep growing what it can."
+        ]
+      },
+      {
         id: "dialogue.ines_open_horizons",
         requiresKnowledgeIds: ["knowledge.open_horizons"],
         lines: [
@@ -518,8 +542,12 @@ export const NPCS: NpcDefinition[] = [
       "We have timber and cloth to spare. Flour and a fresh supper are another matter."
     ],
     beckonLines: ["Bring your ledger over. There is room for another reliable route."],
-    recognitionDialogue: [{ id: "dialogue.rowan_trade_route", requiresCompletedQuestIds: ["quest.tradelanes_pinewatch"],
-      lines: ["Your grain is in the bakehouse. Take a look at the timber before you set off; an empty return is a wasted trip."] }]
+    recognitionDialogue: [
+      { id: "dialogue.rowan_caravan_grain", requiresCompletedQuestIds: ["quest.caravan_first_load"],
+        lines: ["Neva grain is on the bakehouse board. Our flax and apples can take the road out while the ovens are warm."] },
+      { id: "dialogue.rowan_trade_route", requiresCompletedQuestIds: ["quest.tradelanes_pinewatch"],
+        lines: ["Your grain is in the bakehouse. Take a look at the timber before you set off; an empty return is a wasted trip."] }
+    ]
   },
   {
     id: "npc.mara", name: "Mara", title: "Reedkeeper & Landing Steward", district: "Reedhaven Marsh",
@@ -530,8 +558,14 @@ export const NPCS: NpcDefinition[] = [
       "Worms and scraps are plentiful here. We still need grain from the farms and fruit from the woods."
     ],
     beckonLines: ["Over here, by the dry boards. Let us see what travelled well."],
-    recognitionDialogue: [{ id: "dialogue.mara_trade_route", requiresCompletedQuestIds: ["quest.tradelanes_reedhaven"],
-      lines: ["A catch at the counter, bait for the return. That is how a marsh village stays connected."] }]
+    recognitionDialogue: [
+      { id: "dialogue.mara_caravan_flax", requiresCompletedQuestIds: ["quest.caravan_woodland_return"],
+        lines: ["Pinewatch flax is dry in our store. The raised road earned its keep again."] },
+      { id: "dialogue.mara_shared_load", requiresKnowledgeIds: ["knowledge.shared_load"],
+        lines: ["The tomatoes made it down from Neva beside a load for the forest. One carriage, two places fed."] },
+      { id: "dialogue.mara_trade_route", requiresCompletedQuestIds: ["quest.tradelanes_reedhaven"],
+        lines: ["A catch at the counter, bait for the return. That is how a marsh village stays connected."] }
+    ]
   },
   {
     id: "npc.ada", name: "Ada", title: "Highridge Provisioner", district: "Highridge Uplands",
@@ -542,7 +576,11 @@ export const NPCS: NpcDefinition[] = [
       "Bring a loaded carriage round the bends slowly. A shorter line over the slope is no road at all."
     ],
     beckonLines: ["Come warm your hands a moment. The village has an order to discuss."],
-    recognitionDialogue: [{ id: "dialogue.ada_trade_route", requiresCompletedQuestIds: ["quest.tradelanes_highridge"],
-      lines: ["Fresh fish made it up the pass again. People are beginning to plan their suppers around your rounds."] }]
+    recognitionDialogue: [
+      { id: "dialogue.ada_caravan_corn", requiresCompletedQuestIds: ["quest.caravan_upland_round"],
+        lines: ["Reedhaven corn is on our high shelves. The pass was long, but that is why the load mattered."] },
+      { id: "dialogue.ada_trade_route", requiresCompletedQuestIds: ["quest.tradelanes_highridge"],
+        lines: ["Fresh fish made it up the pass again. People are beginning to plan their suppers around your rounds."] }
+    ]
   }
 ];

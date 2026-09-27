@@ -69,6 +69,7 @@ export interface DomainEvents {
     minute: GameMinute;
   };
   CargoLoaded: { cargoId: FishCargoId; boatId: BoatId; slotIndex: number; minute: GameMinute };
+  CarriageCargoLoaded: { cargoId: FishCargoId; mountId: string; mountTypeId: string; slotIndex: number; minute: GameMinute };
   CargoUnloaded: { cargoId: FishCargoId; minute: GameMinute };
   CargoStored: { cargoId: FishCargoId; facility: string; minute: GameMinute };
   /** A carried trade pack was set down on walkable ground at x/z. */

@@ -129,6 +129,7 @@ export class GtaoStage {
   private resolutionScale: number;
   private sourceWidth = 1;
   private sourceHeight = 1;
+  private readonly gatherSize = { width: 1, height: 1 };
 
   private constructor(private readonly pass: GTAOPass, private readonly config: GtaoConfig) {
     this.resolutionScale = config.resolutionScale;
@@ -162,8 +163,9 @@ export class GtaoStage {
     return { gather: this.pass.gtaoRenderTarget, denoised: (this.pass as unknown as GtaoPassInternals).pdRenderTarget };
   }
 
-  public get size(): { width: number; height: number } {
-    return { width: this.pass.gtaoRenderTarget.width, height: this.pass.gtaoRenderTarget.height };
+  /** Gather/denoise size in pixels; read every frame, so never reallocated. */
+  public get size(): Readonly<{ width: number; height: number }> {
+    return this.gatherSize;
   }
 
   /** Sizes the gather to a share of the scene target. */
@@ -174,6 +176,8 @@ export class GtaoStage {
     const height = Math.max(1, Math.floor(sceneHeight * this.resolutionScale));
     if (this.pass.gtaoRenderTarget.width === width && this.pass.gtaoRenderTarget.height === height) return;
     this.pass.setSize(width, height);
+    this.gatherSize.width = width;
+    this.gatherSize.height = height;
     this.invalidate();
   }
 
@@ -217,7 +221,8 @@ export class GtaoStage {
       bindGtaoSceneDepth(this.pass, sceneTarget);
       this.pass.camera = camera;
       // Output Off: gather + denoise only, into the pass's own targets.
-      this.pass.render(renderer, sceneTarget, sceneTarget);
+      // deltaTime and maskActive are part of the Pass contract; this gather ignores both.
+      this.pass.render(renderer, sceneTarget, sceneTarget, 0, false);
     }
     return this.texture;
   }

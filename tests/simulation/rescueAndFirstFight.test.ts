@@ -59,6 +59,20 @@ describe("emergency tow", () => {
       success: false,
       reason: "This boat needs no tow — row it home"
     });
+
+    // The sail trader has no tank either, but it is not a rowboat.
+    const rowboat = sim.state.boats["boat.player_rowboat"];
+    sim.state.boats["boat.player_trading_ship"] = {
+      ...rowboat,
+      id: "boat.player_trading_ship",
+      boatTypeId: "boat.trading_ship",
+      fishCargoSlotIds: [...rowboat.fishCargoSlotIds]
+    };
+    sim.state.player.activeBoatId = "boat.player_trading_ship";
+    expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({
+      success: false,
+      reason: "This vessel has no engine — sail it back to a berth"
+    });
   });
 
   it("refuses with fuel in the tank, and waives the fee for a short purse", () => {

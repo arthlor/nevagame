@@ -1,111 +1,68 @@
 import * as THREE from "three";
-import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RendererPipeline } from "../../src/render/pipeline/RendererPipeline";
-import { createCoastalUniforms } from "../../src/render/water/CoastalOptics";
+import { createPipelineHarness } from "../helpers/fakeWebGLRenderer";
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
-async function captureHarness() {
-  vi.stubGlobal("window", { devicePixelRatio: 1 });
-  let active: THREE.WebGLRenderTarget | null = null;
-  const renderer = {
-    info: { autoReset: true, reset: vi.fn(), memory: { geometries: 0, textures: 0 } },
-    getContext: () => ({}), getPixelRatio: () => 1, compileAsync: async () => {},
-    shadowMap: { enabled: true, needsUpdate: false }, getRenderTarget: () => active,
-    autoClear: true, xr: { enabled: false }, getActiveCubeFace: () => 0, getActiveMipmapLevel: () => 0,
-    setRenderTarget: (target: THREE.WebGLRenderTarget | null) => { active = target; },
-    initRenderTarget: vi.fn(), copyTextureToTexture: vi.fn(), render: vi.fn()
-  };
-  const webgl = renderer as unknown as THREE.WebGLRenderer;
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera();
-  const uniforms = createCoastalUniforms(null, new THREE.Vector4(0, 0, 20, 20));
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(), new THREE.ShaderMaterial());
-  scene.add(water);
-  const sceneDraw = vi.spyOn(RenderPass.prototype, "render").mockImplementation((_renderer, _write, read) => {
-    active = read;
-    for (let surface = 0; surface < 2; surface++) {
-      water.onBeforeRender(webgl, scene, camera, water.geometry, water.material, null!);
-    }
-  });
-  const output = vi.spyOn(OutputPass.prototype, "render").mockImplementation(() => {});
-  const aoDraw = vi.spyOn(GTAOPass.prototype, "renderPass").mockImplementation(() => {});
-  const pipeline = new RendererPipeline(webgl, scene, "high");
-  pipeline.bindWaterCapture([water], uniforms);
-  pipeline.resize(320, 180);
-  await pipeline.prepareForCapture(camera);
-  return {
-    pipeline, camera, renderer, uniforms, sceneDraw, output, aoDraw,
-    frame: () => {
-      aoDraw.mockClear();
-      sceneDraw.mockClear();
-      output.mockClear();
-      renderer.copyTextureToTexture.mockClear();
-      renderer.render.mockClear();
-      pipeline.render(camera);
-      return aoDraw.mock.calls.map(call => call[1]);
-    },
-    dispose: () => { pipeline.dispose(); water.geometry.dispose(); water.material.dispose(); }
-  };
-}
-
 describe("capture-mode AO and water continuity", () => {
   it.each([1, 2, 4, 5])("gathers real AO after starting with %i no-post frames", async frames => {
-    const harness = await captureHarness();
+    const harness = await createPipelineHarness();
     try {
       harness.pipeline.setCaptureRenderMode("no-post");
-      for (let frame = 0; frame < frames; frame++) expect(harness.frame()).toEqual([]);
+      for (let frame = 0; frame < frames; frame++) expect(harness.frame().gtao).toBe(0);
       harness.pipeline.setCaptureRenderMode("final");
-      expect(harness.frame()).toHaveLength(4);
+      // A fresh gather is the GTAO pass plus its denoise, into AO's own targets.
+      expect(harness.frame().gtao).toBe(2);
       expect(harness.pipeline.isGtaoActive()).toBe(true);
     } finally { harness.dispose(); }
   });
 
   it("does not reuse a previous camera's AO after a no-post interval", async () => {
-    const harness = await captureHarness();
+    const harness = await createPipelineHarness();
     try {
-      expect(harness.frame()).toHaveLength(4);
+      expect(harness.frame().gtao).toBe(2);
       harness.pipeline.setCaptureRenderMode("no-post");
       harness.camera.position.x += 20;
-      expect(harness.frame()).toEqual([]);
+      expect(harness.frame().gtao).toBe(0);
       harness.pipeline.setCaptureRenderMode("final");
-      expect(harness.frame()).toHaveLength(4);
+      expect(harness.frame().gtao).toBe(2);
+      // An unchanged view reuses the gather; the final pass composites it.
       harness.pipeline.setCaptureRenderMode("final");
-      expect(harness.frame()).toHaveLength(2);
+      const reused = harness.frame();
+      expect(reused.gtao).toBe(0);
+      expect(reused.finalColor).toBe(1);
     } finally { harness.dispose(); }
   });
 
-  it("keeps one scene draw, output conversion and independent water snapshots in both modes", async () => {
-    const harness = await captureHarness();
+  it("keeps one scene draw, one output conversion and independent water snapshots in both modes", async () => {
+    const harness = await createPipelineHarness();
     try {
       let color: THREE.Texture | null = null;
       let depth: THREE.DepthTexture | null = null;
       for (const mode of ["final", "no-post", "final"] as const) {
         harness.pipeline.setCaptureRenderMode(mode);
-        harness.frame();
-        expect(harness.sceneDraw).toHaveBeenCalledTimes(1);
-        expect(harness.output).toHaveBeenCalledTimes(1);
-        expect(harness.renderer.render).toHaveBeenCalledTimes(1);
-        expect(harness.renderer.render.mock.calls[0][0].name).toBe("opaque_water_snapshot_pass");
+        const draws = harness.frame();
+        expect(draws.scene).toBe(1);
+        expect(draws.waterSnapshot).toBe(1);
+        expect(draws.finalColor).toBe(1);
+        // Edge smoothing reads the encoded output, so no-post skips it with the other options.
+        expect(draws.fxaa).toBe(mode === "final" ? 1 : 0);
         expect(harness.renderer.copyTextureToTexture).not.toHaveBeenCalled();
         expect(harness.uniforms.uSceneCaptureEnabled.value).toBe(1);
-        expect(harness.pipeline.diagnostics()).toMatchObject({ renderMode: mode, qualityTier: "high", gtaoActive: mode === "final" });
+        expect(harness.pipeline.diagnostics()).toMatchObject({ renderMode: mode, qualityTier: "high", path: "enhanced", gtaoActive: mode === "final" });
         color ??= harness.uniforms.uOpaqueColor.value;
         depth ??= harness.uniforms.uOpaqueDepth.value;
         expect(harness.uniforms.uOpaqueColor.value).toBe(color);
         expect(harness.uniforms.uOpaqueDepth.value).toBe(depth);
+        expect(harness.uniforms.uOpaqueColor.value).not.toBe(harness.sceneTargetDuringDraw?.texture);
       }
       harness.pipeline.setQuality("medium");
-      harness.frame();
-      expect(harness.renderer.render).toHaveBeenCalledTimes(1);
-      expect(harness.sceneDraw).not.toHaveBeenCalled();
-      expect(harness.output).not.toHaveBeenCalled();
+      const direct = harness.frame();
+      expect(direct).toMatchObject({ scene: 1, waterSnapshot: 0, finalColor: 0, fxaa: 0, gtao: 0 });
+      expect(harness.sceneTargetDuringDraw).toBeNull();
       expect(harness.uniforms.uSceneCaptureEnabled.value).toBe(0);
       expect(harness.uniforms.uOpaqueColor.value).toBeNull();
       expect(harness.uniforms.uOpaqueDepth.value).toBeNull();

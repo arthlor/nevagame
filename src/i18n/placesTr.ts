@@ -22,6 +22,8 @@ const PLACE_LABELS_TR: Record<string, string> = {
   "Family Farm & Commons": "Aile Çiftliği ve Mera",
   "Neva Coast": "Neva Kıyısı",
   "Seabreak Harbor": "Denizkıran Limanı",
+  "Neva Harbor": "Neva Limanı",
+  "the nearest serviced mooring": "en yakın hizmetli iskele",
   "Neva Offshore Grounds": "Neva Açık Deniz Avlakları",
   "Open Channel": "Açık Kanal",
   "Sunreach Cove": "Gündoğumu Koyu",

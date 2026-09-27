@@ -9,7 +9,7 @@ import {
 } from "../config/GraphicsEffectSettings";
 import { GpuFrameTimer, type GpuFrameTimingSnapshot } from "./GpuFrameTimer";
 import { OpaqueWaterSnapshotPass } from "./OpaqueWaterSnapshotPass";
-import type { EnhancedRenderPath } from "./EnhancedRenderPath";
+import type { EnhancedFrameOptions, EnhancedRenderPath } from "./EnhancedRenderPath";
 import type { AtmosphereSky, AtmosphereSkyDiagnostics } from "../atmosphere/AtmosphereSky";
 
 export type CaptureRenderMode = "final" | "no-post";
@@ -29,6 +29,24 @@ export interface RenderTargetDiagnostic {
 
 export type RenderPathState = "direct" | "enhanced" | "enhanced-preparing" | "direct-fallback";
 
+/** Full-screen effects actually drawn on a frame of the current mode. */
+export interface ActiveRenderEffects {
+  gtao: boolean;
+  hdrBloom: boolean;
+  fxaa: boolean;
+  colorFinish: boolean;
+}
+
+export interface RenderPipelineRuntimeState {
+  path: RenderPathState;
+  /** The enhanced path or a requested stage is still compiling. */
+  preparing: boolean;
+  /** Scene render size in device pixels. */
+  renderSize: { width: number; height: number; pixelRatio: number };
+  fallbackReason: string | null;
+  failedStages: readonly string[];
+}
+
 export interface RendererPipelineDiagnostics {
   renderMode: CaptureRenderMode;
   qualityTier: QualityTier;
@@ -38,7 +56,7 @@ export interface RendererPipelineDiagnostics {
   gtaoActive: boolean;
   /** Effects the pipeline was asked for, and those actually drawn this frame. */
   requestedEffects: ResolvedGraphicsEffects;
-  activeEffects: { gtao: boolean; hdrBloom: boolean; fxaa: boolean; colorFinish: boolean };
+  activeEffects: ActiveRenderEffects;
   failedStages: readonly string[];
   renderSize: { width: number; height: number; pixelRatio: number };
   contextRestores: number;
@@ -133,13 +151,18 @@ export class RendererPipeline {
   private qualityTier: QualityTier;
   private effects: ResolvedGraphicsEffects;
   private gtaoBlendScale = 1;
+  private sizeDirty = false;
   private renderMode: CaptureRenderMode = "final";
   private gpuTimer: GpuFrameTimer | null;
   private passTimingEnabled = false;
   private contextLost = false;
   private contextRestores = 0;
-  private lastCamera: THREE.Camera | null = null;
   private readonly contextRestoredListeners = new Set<() => void>();
+  private readonly frameOptions: EnhancedFrameOptions = {
+    noPost: false,
+    aoIntensity: 0,
+    beginPass: (name) => this.gpuTimer?.beginPass(name)
+  };
   private readonly handleContextLost = (): void => {
     // three.js prevents the default and stops drawing; release what belonged
     // to the lost context and stop issuing queries until it is restored.
@@ -150,6 +173,8 @@ export class RendererPipeline {
   private readonly handleContextRestored = (): void => {
     this.contextLost = false;
     this.contextRestores += 1;
+    // three.js replaces `info` (and `shadowMap`) when it rebuilds the context.
+    this.renderer.info.autoReset = false;
     this.gpuTimer = this.createGpuTimer();
     this.gpuTimer?.setPassTimingEnabled(this.passTimingEnabled);
     // Every GPU object died with the old context. Drop them without deleting
@@ -255,14 +280,13 @@ export class RendererPipeline {
   /**
    * Applies resolved player/Auto effects. Live terms (AO strength, colour
    * finish) take effect on the next frame through uniforms; pass creation and
-   * target allocation are deferred to the enhanced path's asynchronous
-   * preparation and never run inside the caller.
+   * target resizing are deferred to the next frame and the enhanced path's
+   * asynchronous preparation, and never run inside the caller.
    */
   public setEffects(effects: ResolvedGraphicsEffects): void {
-    const resized = effects.resolutionScale !== this.effects.resolutionScale;
+    if (effects.resolutionScale !== this.effects.resolutionScale) this.sizeDirty = true;
     this.effects = { ...effects, colorFinish: { ...effects.colorFinish } };
     this.enhanced?.setEffects(this.effects);
-    if (resized) this.applySize();
   }
 
   public get requestedEffects(): Readonly<ResolvedGraphicsEffects> {
@@ -310,7 +334,7 @@ export class RendererPipeline {
     this.capturedWaterThisFrame = false;
     if (this.coastalUniforms) this.coastalUniforms.uSceneCaptureEnabled.value = 0;
     if (this.contextLost) return;
-    this.lastCamera = camera;
+    if (this.sizeDirty) this.applySize();
     this.renderer.info.reset();
     this.gpuTimer?.beginFrame();
     try {
@@ -328,11 +352,10 @@ export class RendererPipeline {
         this.renderer.render(this.scene, camera);
         return;
       }
-      this.enhanced.render(camera, {
-        noPost: this.renderMode === "no-post",
-        aoIntensity: CANONICAL_RENDER_CONFIG.gtao.blendIntensity * this.gtaoBlendScale * this.effects.aoStrength,
-        beginPass: (name) => this.gpuTimer?.beginPass(name)
-      });
+      const options = this.frameOptions;
+      options.noPost = this.renderMode === "no-post";
+      options.aoIntensity = CANONICAL_RENDER_CONFIG.gtao.blendIntensity * this.gtaoBlendScale * this.effects.aoStrength;
+      this.enhanced.render(camera, options);
     } finally {
       this.gpuTimer?.endFrame();
     }
@@ -346,7 +369,6 @@ export class RendererPipeline {
 
   public async prepareForEntry(camera: THREE.Camera): Promise<void> {
     await this.sky?.prepare(this.renderer);
-    this.lastCamera = camera;
     if (this.wantsEnhanced() && !this.fallbackReason) {
       if (!this.enhanced) {
         this.beginInitialization(camera);
@@ -377,9 +399,39 @@ export class RendererPipeline {
     return Boolean(this.enhanced?.isGtaoRendering(this.renderMode === "no-post"));
   }
 
+  /** Whether HDR bloom is drawing, so the glow sprites can stand in until it does. */
+  public isHdrBloomActive(): boolean {
+    return this.renderMode !== "no-post" && Boolean(this.enhanced?.isBloomRendering());
+  }
+
+  /**
+   * What the current frames actually draw: a requested stage counts only once
+   * it has compiled and taken over, and `no-post` draws none of them. Unlike
+   * `diagnostics()` it neither traverses the scene nor polls GPU timers.
+   */
+  public activeEffects(): ActiveRenderEffects {
+    const enhanced = this.enhanced;
+    if (!enhanced || this.renderMode === "no-post") {
+      return { gtao: false, hdrBloom: false, fxaa: false, colorFinish: false };
+    }
+    const stages = enhanced.activeStages();
+    return {
+      gtao: stages.gtao,
+      hdrBloom: stages.bloom,
+      fxaa: stages.fxaa,
+      colorFinish: !isNeutralColorFinish(this.effects.colorFinish)
+    };
+  }
+
   /** Summary for the settings UI and Auto quality. */
-  public runtimeState(): { path: RenderPathState; preparing: boolean; renderSize: { width: number; height: number; pixelRatio: number } } {
-    return { path: this.pathState(), preparing: this.isPreparing(), renderSize: this.renderSize() };
+  public runtimeState(): RenderPipelineRuntimeState {
+    return {
+      path: this.pathState(),
+      preparing: this.isPreparing(),
+      renderSize: this.renderSize(),
+      fallbackReason: this.fallbackReason,
+      failedStages: this.enhanced?.failedStages ?? []
+    };
   }
 
   public diagnostics(): RendererPipelineDiagnostics {
@@ -402,8 +454,6 @@ export class RendererPipeline {
       const shadow = (object as THREE.DirectionalLight).shadow;
       if (shadow?.map) targets.push(renderTargetDiagnostic(`shadow.${object.name || object.uuid}`, shadow.map));
     });
-    const noPost = this.renderMode === "no-post";
-    const path = this.enhanced && !noPost;
     return {
       renderMode: this.renderMode,
       qualityTier: this.qualityTier,
@@ -411,12 +461,7 @@ export class RendererPipeline {
       fallbackReason: this.fallbackReason,
       gtaoActive: this.isGtaoActive(),
       requestedEffects: this.effects,
-      activeEffects: {
-        gtao: this.isGtaoActive(),
-        hdrBloom: Boolean(path && enhanced && enhanced.bloom.length > 0 && this.effects.hdrBloom),
-        fxaa: Boolean(path && enhanced?.output && this.effects.fxaa),
-        colorFinish: Boolean(path && !isNeutralColorFinish(this.effects.colorFinish))
-      },
+      activeEffects: this.activeEffects(),
       failedStages: this.enhanced?.failedStages ?? [],
       renderSize: this.renderSize(),
       contextRestores: this.contextRestores,
@@ -469,8 +514,12 @@ export class RendererPipeline {
     return "enhanced";
   }
 
-  private isPreparing(): boolean {
-    return (this.wantsEnhanced() && !this.fallbackReason && !this.enhanced) || Boolean(this.enhanced?.preparing);
+  /**
+   * The selected path is initializing, or a requested effect has not yet
+   * taken over. Nothing starts before the first frame or entry preparation.
+   */
+  public isPreparing(): boolean {
+    return this.initialization !== null || Boolean(this.enhanced?.preparing);
   }
 
   private renderSize(): { width: number; height: number; pixelRatio: number } {
@@ -483,6 +532,7 @@ export class RendererPipeline {
   }
 
   private applySize(): void {
+    this.sizeDirty = false;
     if (!this.enhanced) return;
     const size = this.renderSize();
     this.enhanced.setSize(size.width, size.height);

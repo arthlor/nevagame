@@ -38,6 +38,36 @@ export const KNOWLEDGE_ENTRIES: Record<string, KnowledgeEntryDefinition> = {
     title: "Freight and Favour",
     summary: "An order is a promise with a clock on it. Volume pays less per unit and more in total; freshness pays only if you carry ice and keep moving. The board is not a list of prices — it is a list of promises you have to be able to keep."
   },
+  "knowledge.packing_stamp": {
+    id: "knowledge.packing_stamp",
+    title: "The Packing Stamp",
+    summary: "A village yard ties and marks a pack where it was made. The receiving counter takes the whole physical load by hand. A sale near home teaches the exchange; a longer route pays for distance, condition and what the far village needs."
+  },
+  "knowledge.village_roads": {
+    id: "knowledge.village_roads",
+    title: "The Working Roads",
+    summary: "Neva sends grain; Pinewatch has flax, apples and timber; Reedhaven keeps provisions dry above the marsh; Highridge sends roots and workshop goods down the pass. The roads link different work, so the value of a load depends on where it ends."
+  },
+  "knowledge.shared_load": {
+    id: "knowledge.shared_load",
+    title: "Two Counters, One Road",
+    summary: "A wagon earns its space when its loads have different destinations. Grain reached Pinewatch and tomatoes reached Reedhaven on one round. Each sale fills local stores, so repeating one recipe at one counter pays less until demand recovers."
+  },
+  "knowledge.channel_manifest": {
+    id: "knowledge.channel_manifest",
+    title: "The Channel Manifest",
+    summary: "Ten marked packs crossed from Neva to Sunreach in one hold, then each was carried ashore and received at the cove counter. A ship's capacity matters only when the cargo has a buyer and the crossing leaves room for a useful return."
+  },
+  "knowledge.return_cargo": {
+    id: "knowledge.return_cargo",
+    title: "A Loaded Return",
+    summary: "Sunreach's dry terraces grow olives and sunflower seed, while the mainland sends grain and materials. The cove route is more than an outward sale: the return load keeps the same vessel and the people on both shores working."
+  },
+  "knowledge.replacement_cost": {
+    id: "knowledge.replacement_cost",
+    title: "The Cost of a Finished Load",
+    summary: "A crafted pack spends ingredients, a packing fee and time. Even homegrown materials have a replacement cost. The useful number is the destination's sale price after those costs, freshness, route and current demand, not the largest figure on a sign."
+  },
   "knowledge.family_ledger": {
     id: "knowledge.family_ledger",
     title: "The Family Ledger",

@@ -503,6 +503,17 @@ describe("Neva i18n Localization Engine", () => {
       expect(translateReason("Need 8 Work to plant · 3 available", "tr")).toBe("Ekim için 8 Emek gerekiyor · Elinde 3 var");
       expect(translateReason("Rested until morning · +12 Work", "tr")).toBe("Sabaha kadar dinlenildi · +12 Emek");
       expect(translateReason("Sold 5 items for 100 G", "tr")).toBe("5 parça eşya 100 akçeye satıldı");
+      expect(translateReason("This boat needs no tow — row it home", "tr")).toBe("Bu tekne çekici istemez — kürekle evine götür");
+      expect(translateReason("This vessel has no engine — sail it back to a berth", "tr"))
+        .toBe("Bu teknenin motoru yok — yelkenle bir iskeleye dön");
+      expect(translateReason("Released back to the water · records kept", "tr"))
+        .toBe("Suya geri bırakıldı · kayıtlar duruyor");
+      expect(translateReason("Purchased · 40 G", "tr")).toBe("40 akçeye alındı");
+      expect(translateReason("Recovered 2 fish scraps", "tr")).toBe("2 balık artığı çıkarıldı");
+      expect(translateReason("Contract complete: +80 G", "tr")).toBe("Sözleşme tamamlandı: +80 akçe");
+      expect(translateReason("Delivered 3 items", "tr")).toBe("3 parça teslim edildi");
+      expect(translateReason("Towed to Neva Harbor · 25 G paid · 15 min passed · catch kept", "tr"))
+        .toBe("Neva Limanı noktasına çekildi · 25 akçe · 15 dakika geçti · av teknede kaldı");
     });
 
     it("localizes standing records and milestones to Turkish", () => {

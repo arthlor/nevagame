@@ -292,7 +292,8 @@ export const QUESTS: QuestDefinition[] = [
       "Cross the bridge into the village and find the produce stall on the square. Sell a little of your harvest there for coin — the catch goes to the harbor, but grain and greens belong to the village."
     ],
     completionDialogue: [
-      "Look at that purse jingle! Honest coin from your own labor. Now you're ready to see the wider harbor."
+      "Look at that purse jingle! Honest coin from your own labor. Now you're ready to see the wider harbor.",
+      "For longer routes, Maeve can show you the packing yards. A tied load goes to a village counter by hand, and the far village may need it more than we do."
     ],
     objectives: [
       {
@@ -323,6 +324,7 @@ export const QUESTS: QuestDefinition[] = [
     speakerId: "npc.maeve",
     introDialogue: [
       "Welcome to the Southeast Harbor! I'm Maeve. Out here, the ocean dictates everything.",
+      "You can bring loose harvest to a produce stall, or make village trade packs at the packing yards. The road pays for carrying what another place needs; the kitchen is for meals.",
       "Take a look at the Fish Market prices: pelagic saltwater fish command high prices, but remember: fish is perishable physical cargo!",
       "The longer it sits in your hold, the more freshness decays. Keep your trips planned and swift!"
     ],

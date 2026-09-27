@@ -14106,3 +14106,133 @@
     #ui-container[data-ui="guildcraft"] .start-screen__options-action { transition: none !important; }
   }
 }
+
+/* Graphics settings: post-processing, brightness and the advanced-effects
+   disclosure share the option chrome above. Text inherits the settings ink,
+   so the same rules read on the dark pause sheet and the paper title dialog. */
+@layer neva-ui {
+  #ui-container .graphics-effect {
+    margin-top: 16px;
+  }
+
+  #ui-container .graphics-effect__title {
+    margin: 0 0 8px;
+    color: inherit;
+    font: 600 16px/1.3 var(--font-serif);
+  }
+
+  #ui-container .graphics-quality-options.graphics-choice-options {
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)) !important;
+  }
+
+  #ui-container .graphics-choice-options .graphics-quality-option {
+    min-height: 44px !important;
+    padding: 8px 10px !important;
+  }
+
+  #ui-container .graphics-choice-options .graphics-quality-option__label {
+    font: 600 15px/1.25 var(--font-serif) !important;
+  }
+
+  #ui-container .graphics-choice-options .graphics-quality-option__description {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+
+  #ui-container .graphics-effect__note {
+    margin: 6px 0 0;
+  }
+
+  #ui-container .graphics-effect__note:empty {
+    display: none;
+  }
+
+  #ui-container .graphics-slider-row {
+    display: grid;
+    grid-template-columns: minmax(72px, 0.34fr) minmax(0, 1fr) minmax(48px, auto);
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    margin-top: 8px;
+    color: inherit;
+  }
+
+  #ui-container .graphics-slider-row label {
+    color: inherit;
+    font-size: 15px;
+  }
+
+  #ui-container .graphics-slider-row input[type="range"] {
+    width: 100%;
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  #ui-container .graphics-slider-row__value {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    opacity: 0.82;
+  }
+
+  #ui-container .graphics-advanced {
+    margin-top: 18px;
+    border-top: 1px solid var(--coast-rule-light);
+  }
+
+  #ui-container .graphics-advanced > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    color: inherit;
+    font: 600 17px/1.3 var(--font-serif);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  #ui-container .graphics-advanced > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  #ui-container .graphics-advanced > summary::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 120ms ease;
+  }
+
+  #ui-container .graphics-advanced[open] > summary::before {
+    transform: rotate(45deg);
+  }
+
+  #ui-container .graphics-advanced > summary:focus-visible {
+    outline: 2px solid var(--guild-gold, var(--coast-ochre));
+    outline-offset: 2px;
+  }
+
+  #ui-container .graphics-effect__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+
+  #ui-container .graphics-settings__reset {
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  #ui-container .graphics-settings__reset > .graphics-settings__hint {
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #ui-container .graphics-advanced > summary::before {
+      transition: none;
+    }
+  }
+}

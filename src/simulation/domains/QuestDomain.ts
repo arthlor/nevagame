@@ -355,6 +355,7 @@ export class QuestDomain {
         }
       })),
       events.on("CargoLoaded", (e) => this.onObjectiveEvent("stow-cargo", undefined, 1, { kind: "boat", id: e.boatId })),
+      events.on("CarriageCargoLoaded", (e) => this.onObjectiveEvent("load-carriage", e.mountTypeId, 1)),
       events.on("BoatBoarded", (e) => this.onObjectiveEvent("board-boat", e.boatId, 1, { kind: "boat", id: e.boatId })),
       events.on("BoatDocked", (e) => this.worldEvent(() => {
         this.onObjectiveEvent("dock-boat", e.boatId, 1, { kind: "boat", id: e.boatId });
@@ -465,14 +466,16 @@ export class QuestDomain {
 
     const speaker = ContentRegistry.npcs.get(quest.speakerId);
     const speakerName = speaker?.name ?? "Townsperson";
+    const completionSpeaker = ContentRegistry.npcs.get(quest.completionSpeakerId ?? quest.speakerId);
+    const completionSpeakerName = completionSpeaker?.name ?? "Townsperson";
 
-    const targetNpcId = awaitingTurnIn ? speaker?.id
+    const targetNpcId = awaitingTurnIn ? completionSpeaker?.id
       : objective.type === "talk-npc" ? objective.targetId : undefined;
     const targetAnchor = targetNpcId ? npcAnchorAt(targetNpcId, this.context.state.clock, this.context.state.quests) : undefined;
 
     // Once the errand is ready to hand in, the target becomes the speaker; while
     // it is still blocked there is nowhere useful to point.
-    const targetLocation = awaitingTurnIn && speaker
+    const targetLocation = awaitingTurnIn && completionSpeaker
       ? turnIn?.success
         ? { x: targetAnchor!.x, z: targetAnchor!.z, name: targetAnchor!.locationName }
         : undefined
@@ -502,7 +505,7 @@ export class QuestDomain {
       totalSteps: quest.objectives.length,
       objectiveDescription: awaitingTurnIn
         ? turnIn?.success
-          ? `Talk to ${speakerName} to continue`
+          ? `Talk to ${completionSpeakerName} to continue`
           : turnIn?.reason ?? "Prepare what this errand still needs"
         : objective.type === "talk-npc" && targetAnchor && targetNpcId
           ? `Speak with ${ContentRegistry.npcs.get(targetNpcId)!.name} at the ${targetAnchor.locationName}`
@@ -817,8 +820,9 @@ export class QuestDomain {
         const progress = questTrackProgress(state.quests, trackId);
         const objective = quest.objectives[progress.activeStepIndex];
         const isSpeaker = quest.speakerId === npcId;
+        const isCompletionSpeaker = (quest.completionSpeakerId ?? quest.speakerId) === npcId;
 
-        if (isSpeaker && this.finalObjectiveComplete(trackId)) {
+        if (isCompletionSpeaker && this.finalObjectiveComplete(trackId)) {
           // A one-step "hear me out" errand credited but never heard — a save
           // from before talk credit was per-thread — hears its ask first.
           const singleAsk = quest.objectives.length === 1
@@ -881,18 +885,20 @@ export class QuestDomain {
       if (!progressed) break;
     }
 
-    if (segments.length === 0) {
+    {
+      let unprompted = 0;
       for (const trackId of this.conversationTrackOrder()) {
-        if (segments.length >= MAX_UNPROMPTED_SEGMENTS) break;
+        if (unprompted >= MAX_UNPROMPTED_SEGMENTS) break;
         const quest = this.getActiveQuest(trackId);
         if (!quest || heard.has(quest.id)) continue;
-        if (quest.speakerId === npcId) {
-          const settle = this.finalObjectiveComplete(trackId) ? this.canSettleQuestTurnIn(quest) : null;
-          segments.push({ ...this.introSegment(quest, false), note: settle && !settle.success ? settle.reason : undefined });
+        if (quest.speakerId === npcId && !this.finalObjectiveComplete(trackId)) {
+          segments.push(this.introSegment(quest, false));
           heard.add(quest.id);
+          unprompted += 1;
         } else if (quest.herald?.npcId === npcId && !this.finalObjectiveComplete(trackId)) {
           segments.push(this.heraldSegment(quest, false));
           heard.add(quest.id);
+          unprompted += 1;
         }
       }
     }
@@ -1045,9 +1051,10 @@ export class QuestDomain {
       return { success: false, reason: "Complete the final objective first" };
     }
 
-    const speaker = ContentRegistry.npcs.get(quest.speakerId);
-    const anchor = validatedAnchor ?? npcAnchorAt(quest.speakerId, state.clock, state.quests);
-    if (!turnInNpcId || turnInNpcId !== quest.speakerId || !speaker || distance2d(state.player, anchor) > NPC_TALK_RADIUS) {
+    const completionSpeakerId = quest.completionSpeakerId ?? quest.speakerId;
+    const speaker = ContentRegistry.npcs.get(completionSpeakerId);
+    const anchor = validatedAnchor ?? npcAnchorAt(completionSpeakerId, state.clock, state.quests);
+    if (!turnInNpcId || turnInNpcId !== completionSpeakerId || !speaker || distance2d(state.player, anchor) > NPC_TALK_RADIUS) {
       return { success: false, reason: `Return to ${speaker?.name ?? "the quest giver"} to turn this in` };
     }
 

@@ -352,7 +352,7 @@ export class ContentRegistry {
       // so a habitat-located landing objective could never complete. Hooking
       // does emit a habitat, which is how a per-water objective is authored.
       "land-sport-fish": ["boat", "ecology"],
-      "stow-cargo": ["boat"], "board-boat": ["boat"], "dock-boat": ["boat", "market"],
+      "stow-cargo": ["boat"], "load-carriage": [], "board-boat": ["boat"], "dock-boat": ["boat", "market"],
       "sell-item": ["market"], "sell-trade-pack": ["market"], "sell-fish": ["market"],
       // Dispatched with no location at all (`NpcTalked`, contract completion and
       // the purchase check), so any declared location could never be matched.
@@ -364,6 +364,7 @@ export class ContentRegistry {
 
     for (const quest of definitions) {
       if (!this.npcs.has(quest.speakerId)) throw new Error(`Quest '${quest.id}' references unknown speakerId '${quest.speakerId}'`);
+      if (quest.completionSpeakerId && !this.npcs.has(quest.completionSpeakerId)) throw new Error(`Quest '${quest.id}' references unknown completionSpeakerId '${quest.completionSpeakerId}'`);
       if (!quest.objectives?.length) throw new Error(`Quest '${quest.id}' must have at least one objective.`);
       if (quest.nextQuestId && !questMap.has(quest.nextQuestId)) throw new Error(`Quest '${quest.id}' references unknown nextQuestId '${quest.nextQuestId}'`);
       if (quest.herald) {
@@ -558,6 +559,9 @@ export class ContentRegistry {
         return;
       case "purchase-upgrade":
         if (!this.rods.has(targetId) && !boats.has(targetId) && !isTradeCarriageType(targetId)) throw new Error(`Quest '${questId}' upgrade target '${targetId}' is missing`);
+        return;
+      case "load-carriage":
+        if (!isTradeCarriageType(targetId)) throw new Error(`Quest '${questId}' carriage target '${targetId}' is missing`);
         return;
       default:
         return;

@@ -74,11 +74,35 @@ import { bindUiHoverAudio, playNoticeSound } from "../ui/audio/uiAudio";
 const SALE_BATCH_WINDOW_MS = 600;
 /** Periodic autosaves, including retries, stay on a one-minute cadence. */
 const AUTOSAVE_INTERVAL_MS = 60_000;
+/**
+ * Frames Auto quality must not judge: the first seconds after entry (shader
+ * and upload warm-up), the return from a hidden tab, and the pass creation or
+ * resize that follows a graphics change or an in-flight compile.
+ */
+const GRAPHICS_ENTRY_HOLD_MS = 4_000;
+const GRAPHICS_RESUME_HOLD_MS = 2_000;
+const GRAPHICS_CHANGE_HOLD_MS = 2_000;
+const GRAPHICS_PREPARING_HOLD_MS = 1_500;
+/** The settings UI's view of the renderer refreshes at most this often. */
+const GRAPHICS_STATUS_INTERVAL_MS = 250;
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import {
   GraphicsQualitySettings,
   type GraphicsQualityPreference
 } from "../render/config/GraphicsQualitySettings";
+import {
+  DEFAULT_GRAPHICS_EFFECTS,
+  NEUTRAL_COLOR_FINISH,
+  cloneGraphicsEffectPreferences,
+  graphicsEffectSettings,
+  graphicsRuntimeStatus,
+  parseGraphicsEffectPreferences,
+  reductionLadder,
+  resolveGraphicsEffects,
+  type GraphicsEffectPreferences,
+  type GraphicsRuntimeStatus
+} from "../render/config/GraphicsEffectSettings";
+import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../render/config/VisualRenderConfig";
 import { applyOfflineProgression, type OfflineProgressionSummary } from "../persistence/offlineDelta";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { selectVillageNotices, villageNoticeContext } from "../content/villageBulletin";
@@ -327,6 +351,14 @@ export interface NevaCaptureDiagnostics {
       p95Ms: number;
       maxMs: number;
     }>;
+  };
+  /** Quality preference, Auto controller state and the effects actually drawn. */
+  graphics: {
+    preference: GraphicsQualityPreference;
+    effectiveTier: QualityTier;
+    pressureSource: string;
+    recoveryDelaySeconds: number;
+    status: GraphicsRuntimeStatus;
   };
   world: WorldRenderDiagnostics;
 }
@@ -737,6 +769,15 @@ export class GameApp {
   private lastInteractionMode: GameplayMode | null = null;
   private readonly diagnosticsEnabled = new URLSearchParams(window.location.search).has("debug");
   private readonly graphicsQuality = new GraphicsQualitySettings();
+  /**
+   * Session-only effect preferences for fixed captures and measurement. Null
+   * follows the player's saved choices in `graphicsEffectSettings`.
+   */
+  private graphicsEffectsOverride: GraphicsEffectPreferences | null = null;
+  private graphicsEffectsDirty = true;
+  private appliedEffectsTier: QualityTier | null = null;
+  private lastGraphicsStatusMs = Number.NEGATIVE_INFINITY;
+  private readonly unsubscribeGraphicsEffects: () => void;
   private readonly presentationPlayerPosition = new THREE.Vector3();
   private renderStats = {
     calls: 0,
@@ -891,6 +932,9 @@ export class GameApp {
     this.worldScene = new WorldScene(canvas);
     this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
     this.worldScene.setCaptureRenderMode(this.captureMode);
+    this.graphicsQuality.setReductionLadderSource((tier) => reductionLadder(this.graphicsPreferences(), tier));
+    this.unsubscribeGraphicsEffects = graphicsEffectSettings.subscribe(() => this.onGraphicsPreferencesChanged());
+    this.syncGraphicsEffects(performance.now());
     if (this.worldAcceptance && new URLSearchParams(window.location.search).get("worldOnly") === "1") {
       uiContainer.style.display = "none";
     }
@@ -1187,6 +1231,25 @@ export class GameApp {
         throw new Error(`Unknown art quality tier: ${artQuality}`);
       }
       this.worldScene.setQuality(artQuality === "low" || artQuality === "medium" ? artQuality : "high");
+    }
+    // Fixed captures must not inherit a player's saved brightness or effects;
+    // measurement lanes may name the effects under test instead.
+    const requestedEffects = import.meta.env.DEV || this.worldAcceptance ? query.get("graphicsEffects") : null;
+    if (requestedEffects !== null || benchmarkPreset) {
+      let parsedEffects: unknown = DEFAULT_GRAPHICS_EFFECTS;
+      if (requestedEffects !== null) {
+        try {
+          parsedEffects = JSON.parse(requestedEffects);
+        } catch {
+          throw new Error(`graphicsEffects must be JSON: ${requestedEffects}`);
+        }
+      }
+      this.graphicsEffectsOverride = requestedEffects !== null
+        ? parseGraphicsEffectPreferences(parsedEffects)
+        : cloneGraphicsEffectPreferences(DEFAULT_GRAPHICS_EFFECTS);
+      this.graphicsQuality.refreshReductionLadder();
+      this.graphicsEffectsDirty = true;
+      this.syncGraphicsEffects(performance.now());
     }
     this.persistenceDisabled = Boolean(benchmarkPreset || debugStart);
     window.__NEVA_RENDER_READY = false;
@@ -1518,6 +1581,7 @@ export class GameApp {
     this.physicsAccumulatorSeconds = 0;
     this.lastTimeMs = performance.now();
     this.bootReady = true;
+    this.graphicsQuality.holdSampling(this.lastTimeMs, GRAPHICS_ENTRY_HOLD_MS);
     this.updateMobileViewportState();
     this.renderReadyFramesRemaining = this.benchmarkCameraView ? 4 : 2;
     this.attachDebugHarness();
@@ -2214,10 +2278,18 @@ export class GameApp {
     const frameStartMark = performance.now();
     let phaseMark = frameStartMark;
 
-    if (!this.benchmarkView && !resumedFromHiddenTab
-      && this.graphicsQuality.sampleFrame(elapsedSeconds, nowMs)) {
-      this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
+    if (resumedFromHiddenTab) {
+      this.graphicsQuality.holdSampling(nowMs, GRAPHICS_RESUME_HOLD_MS);
+    } else if (!this.benchmarkView) {
+      if (this.worldScene.isRenderPathPreparing()) {
+        this.graphicsQuality.holdSampling(nowMs, GRAPHICS_PREPARING_HOLD_MS);
+      }
+      const qualityChange = this.graphicsQuality.sampleFrame(elapsedSeconds, nowMs, this.worldScene.gpuFrameEstimateMs());
+      if (qualityChange === "tier") this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
+      if (qualityChange) this.graphicsEffectsDirty = true;
     }
+    this.syncGraphicsEffects(nowMs);
+    this.publishGraphicsStatus(nowMs);
 
     // Keep the transient input lock on the same unpaused elapsed time as the
     // attachment animation. A wall deadline expired behind the pause menu.
@@ -4012,6 +4084,13 @@ export class GameApp {
             startupTiming: this.startupTimingSnapshot(),
             phaseTiming: this.phaseTimingSnapshot()
           },
+          graphics: {
+            preference: this.graphicsQuality.preference,
+            effectiveTier: this.graphicsQuality.effectiveTier,
+            pressureSource: this.graphicsQuality.pressureSource,
+            recoveryDelaySeconds: this.graphicsQuality.recoveryDelaySeconds,
+            status: this.graphicsStatus()
+          },
           world
         };
       },
@@ -4996,6 +5075,79 @@ export class GameApp {
     }
   };
 
+  private setGraphicsQualityPreference = (preference: GraphicsQualityPreference): void => {
+    if (this.graphicsQuality.setPreference(preference)) this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
+    this.graphicsQuality.holdSampling(performance.now(), GRAPHICS_CHANGE_HOLD_MS);
+    this.graphicsEffectsDirty = true;
+    this.syncGraphicsEffects(performance.now());
+    this.renderUI();
+  };
+
+  private graphicsPreferences(): Readonly<GraphicsEffectPreferences> {
+    return this.graphicsEffectsOverride ?? graphicsEffectSettings.get();
+  }
+
+  private onGraphicsPreferencesChanged(): void {
+    if (this.graphicsEffectsOverride) return;
+    const nowMs = performance.now();
+    this.graphicsQuality.refreshReductionLadder();
+    // Pass creation and resizing follow; they are not frame pressure.
+    this.graphicsQuality.holdSampling(nowMs, GRAPHICS_CHANGE_HOLD_MS);
+    this.graphicsEffectsDirty = true;
+    this.syncGraphicsEffects(nowMs);
+  }
+
+  /**
+   * Applies effects resolved for the tier `WorldScene` is drawing, which lags
+   * the chosen tier during a quality handoff. Returns at once when neither the
+   * inputs nor that tier changed, so the loop can call it every frame.
+   */
+  private syncGraphicsEffects(nowMs: number): void {
+    const tier = this.worldScene.renderQualityTier;
+    if (!this.graphicsEffectsDirty && tier === this.appliedEffectsTier) return;
+    this.graphicsEffectsDirty = false;
+    this.appliedEffectsTier = tier;
+    this.worldScene.setGraphicsEffects(
+      resolveGraphicsEffects(this.graphicsPreferences(), tier, this.graphicsQuality.reductionsFor(tier))
+    );
+    this.publishGraphicsStatus(nowMs, true);
+  }
+
+  /** Publishes what is actually rendering for the settings UI; the UI derives none of it. */
+  private publishGraphicsStatus(nowMs: number, force = false): void {
+    if (!force && nowMs - this.lastGraphicsStatusMs < GRAPHICS_STATUS_INTERVAL_MS) return;
+    this.lastGraphicsStatusMs = nowMs;
+    graphicsRuntimeStatus.publish(this.graphicsStatus());
+  }
+
+  private graphicsStatus(): GraphicsRuntimeStatus {
+    const tier = this.worldScene.renderQualityTier;
+    const preferences = this.graphicsPreferences();
+    const resolved = resolveGraphicsEffects(preferences, tier, this.graphicsQuality.reductionsFor(tier));
+    const pipeline = this.worldScene.renderPipelineState();
+    const drawn = this.worldScene.activeRenderEffects();
+    return {
+      tier,
+      rendering: this.bootReady || this.startupState.status === "revealing",
+      enhancedPath: CANONICAL_RENDER_CONFIG.quality[tier].enhancedPostPath && pipeline.fallbackReason === null,
+      requested: resolveGraphicsEffects(preferences, tier),
+      active: {
+        ...resolved,
+        ambientOcclusion: resolved.ambientOcclusion === "gtao" && !drawn.gtao ? "off" : resolved.ambientOcclusion,
+        practicalGlow: resolved.practicalGlow || (resolved.hdrBloom && !drawn.hdrBloom),
+        hdrBloom: drawn.hdrBloom,
+        fxaa: drawn.fxaa,
+        colorFinish: drawn.colorFinish ? { ...resolved.colorFinish } : { ...NEUTRAL_COLOR_FINISH }
+      },
+      reductions: this.graphicsQuality.activeReductionSteps,
+      renderSize: pipeline.renderSize,
+      preparing: pipeline.preparing,
+      pressureSignal: this.worldScene.gpuFrameEstimateMs() === null ? "frame-time" : "gpu-timing",
+      fallbackReason: pipeline.fallbackReason,
+      failedStages: pipeline.failedStages
+    };
+  }
+
   private requestMobileLandscape = (): void => {
     if (!this.mobileTouchDevice) return;
     const lockLandscape = (): void => {
@@ -5182,10 +5334,7 @@ export class GameApp {
         onRetry: this.retryStartup,
         graphicsQuality: this.graphicsQuality.preference,
         effectiveGraphicsQuality: this.graphicsQuality.effectiveTier,
-        onGraphicsQualityChange: preference => {
-          if (this.graphicsQuality.setPreference(preference)) this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
-          this.renderUI();
-        },
+        onGraphicsQualityChange: this.setGraphicsQualityPreference,
         mobileTouchDevice: this.mobileTouchDevice,
         mobileOrientationBlocked: this.mobileOrientationBlocked
       }), React.createElement(MobileOrientationGate, {
@@ -5664,12 +5813,7 @@ export class GameApp {
         onRetry: this.retryStartup,
         graphicsQuality: this.graphicsQuality.preference,
         effectiveGraphicsQuality: this.graphicsQuality.effectiveTier,
-        onGraphicsQualityChange: (preference: GraphicsQualityPreference) => {
-          if (this.graphicsQuality.setPreference(preference)) {
-            this.worldScene.setQuality(this.graphicsQuality.effectiveTier);
-          }
-          this.renderUI();
-        },
+        onGraphicsQualityChange: this.setGraphicsQualityPreference,
         bootReady: this.bootReady,
         mobileTouchDevice: this.mobileTouchDevice,
         mobileLandscape: this.mobileLandscape,
@@ -5833,6 +5977,7 @@ export class GameApp {
     window.removeEventListener("keydown", this.onLayoutEditorKeyDown);
     window.removeEventListener("keyup", this.onLayoutEditorKeyUp);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    this.unsubscribeGraphicsEffects();
     this.resizeObserver.disconnect();
     this.inputRouter.dispose();
     this.collisionDebugView?.dispose();

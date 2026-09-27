@@ -1145,7 +1145,7 @@ export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
   {
     id: "farm.outhouse",
     // Serves the starter homestead yard, behind the new medieval main house.
-    center: { x: -49.5, z: -44.5},
+    center: { x: -48.8, z: -45.1},
     rotationY: 1.8326,
     envelope: [1.5, 1.45],
     frontageClearanceMeters: 2.5,
