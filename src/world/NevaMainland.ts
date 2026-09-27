@@ -2,9 +2,11 @@ import { nevaBaseGroundHeight, sampleNevaLandforms } from "./NevaLandforms";
 import { nevaCoveShelterAt, nevaHeadlandAt } from "./NevaCoastField";
 import { drainageStripe, fractalNoise, gradientNoise, gullyProfile } from "./ProceduralNoise";
 import { MAINLAND_BROOK_CULVERT_FACE_METERS, mainlandBrookCarvedHeight, mainlandBrookCourses } from "./MainlandBrooks";
-import { MAINLAND_ROUTED_LEGS } from "./MainlandRoutes.generated";
+import { MAINLAND_ROAD_NETWORK } from "./MainlandRoadNetwork.generated";
+import { MAINLAND_WORK_SITES, mainlandWorkSitePoint } from "./MainlandWorkSites";
 import { MAINLAND_BOUNDS, nevaCoastIndex, signedDistanceToNevaCoast } from "./WorldIslands";
 import type { WorldPoint, WorldRoute } from "./WorldLayout";
+import { roadClassWidth } from "./RoadClasses";
 
 export { MAINLAND_BOUNDS };
 
@@ -760,11 +762,30 @@ export function mainlandRouteGroundAt(x: number, z: number): number {
 }
 
 type RoadKnot = readonly [x: number, z: number, elevation?: number];
+/** A road knot: x, z and, for a retained datum or a landing lip, an elevation. */
+export type MainlandRoadKnot = RoadKnot;
 interface GradedRoute extends WorldRoute { elevations: readonly number[] }
 
-function route(id: string, knots: readonly RoadKnot[], kind: WorldRoute["kind"] = "arterial"): GradedRoute {
+/** The centre line a road's knots make; the offline planner surveys against the same curve. */
+export function smoothMainlandCenterline(knots: readonly WorldPoint[]): WorldPoint[] {
+  return smoothCenterline(knots, 4);
+}
+
+const knotKey = (x: number, z: number): string => `${x}:${z}`;
+
+/**
+ * Grades a road against the ground it is surveyed over. A knot another road
+ * has already graded (a junction) keeps that road's elevation, so the two
+ * surfaces meet at one height.
+ */
+function route(
+  id: string,
+  knots: readonly RoadKnot[],
+  kind: WorldRoute["kind"] = "arterial",
+  junctionElevations: ReadonlyMap<string, number> = new Map()
+): GradedRoute {
   const controls = knots.map(([x, z]) => ({ x, z }));
-  const points = smoothCenterline(controls, 4);
+  const points = smoothMainlandCenterline(controls);
   // Connectors that cross into the starter district grade against both
   // landform owners; a mainland-only datum there raised a causeway.
   const terrain = points.map(point => mainlandRouteGroundAt(point.x, point.z));
@@ -782,6 +803,22 @@ function route(id: string, knots: readonly RoadKnot[], kind: WorldRoute["kind"] 
       terrain[i] += (y - terrain[i]) * weight;
     }
   }
+  // Junction knots without a datum take the elevation of the road graded first.
+  const arc = [0];
+  for (let i = 1; i < points.length; i++) arc.push(arc[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z));
+  const pins = new Map<number, number>();
+  for (const knot of knots) {
+    if (knot[2] !== undefined) continue;
+    const elevation = junctionElevations.get(knotKey(knot[0], knot[1]));
+    if (elevation === undefined) continue;
+    const index = points.findIndex(point => point.x === knot[0] && point.z === knot[1]);
+    if (index >= 0) pins.set(index, elevation);
+  }
+  for (const [pinned, elevation] of pins) {
+    for (let i = 0; i < points.length; i++) {
+      terrain[i] += (elevation - terrain[i]) * (1 - mainlandSmoothstep(4, 16, Math.abs(arc[i] - arc[pinned])));
+    }
+  }
   const elevations = terrain.map((height, i) => {
     let total = height * 4, weight = 4;
     for (let offset = 1; offset <= 3; offset++) {
@@ -793,72 +830,92 @@ function route(id: string, knots: readonly RoadKnot[], kind: WorldRoute["kind"] 
   });
   const grade = kind === "trail" ? 0.36 : kind === "lane" ? 0.25 : 0.22;
   for (let pass = 0; pass < 3; pass++) {
-    elevations[0] = knots[0][2] ?? terrain[0];
+    elevations[0] = knots[0][2] ?? pins.get(0) ?? terrain[0];
     for (let i = 1; i < points.length; i++) {
       const rise = grade * Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
-      elevations[i] = Math.max(elevations[i - 1] - rise, Math.min(elevations[i - 1] + rise, elevations[i]));
+      elevations[i] = pins.get(i) ?? Math.max(elevations[i - 1] - rise, Math.min(elevations[i - 1] + rise, elevations[i]));
     }
-    elevations[elevations.length - 1] = knots[knots.length - 1][2] ?? terrain[terrain.length - 1];
+    elevations[elevations.length - 1] = knots[knots.length - 1][2] ?? pins.get(points.length - 1) ?? terrain[terrain.length - 1];
     for (let i = points.length - 2; i >= 0; i--) {
       const rise = grade * Math.hypot(points[i].x - points[i + 1].x, points[i].z - points[i + 1].z);
-      elevations[i] = Math.max(elevations[i + 1] - rise, Math.min(elevations[i + 1] + rise, elevations[i]));
+      elevations[i] = pins.get(i) ?? Math.max(elevations[i + 1] - rise, Math.min(elevations[i + 1] + rise, elevations[i]));
     }
   }
-  return { id, kind, scope: "regional", widthMeters: kind === "trail" ? 2.8 : kind === "lane" ? 4.2 : 4.6,
+  return { id, kind, scope: "regional", widthMeters: roadClassWidth(kind),
     points, elevations, sampledCenterline: true };
-}
-
-/** A plan step is a fixed knot, or "route" to let the offline router join its neighbours. */
-export type MainlandRoutePlanStep = RoadKnot | "route";
-
-export interface MainlandRoutePlan {
-  id: string;
-  kind: WorldRoute["kind"];
-  /**
-   * Authored topology only: endpoints, junctions, landing lips and retained
-   * starter-district datums. The legs between them are found by the
-   * least-cost router in `tools/world/mainlandRoadRouter.ts`.
-   */
-  steps: readonly MainlandRoutePlanStep[];
 }
 
 const HIGHRIDGE_YARD = mainlandVillageElevation("highridge");
 
-/** Freight lanes find valleys, benches and gentle saddles; the cove is the short sea route. */
-export const MAINLAND_ROUTE_PLANS: readonly MainlandRoutePlan[] = [
-  { id: "mainland-farm-pinewatch", kind: "arterial", steps: [[-87, -60, 1.2], [-145, -48, 3], [-190, -45, 4],
-    [-230, -28, 5.4], "route", [-395, 55, 6]] },
-  { id: "mainland-village-highridge", kind: "arterial", steps: [[70, -68, 6.3], [62, -88, 6.3], [72, -104, 7.5],
-    [100, -115], [103, -143], [91, -175], [84, -212], [63, -246], [22, -278], [-27, -283], [-72, -302],
-    "route", [-340, -365, HIGHRIDGE_YARD]] },
-  { id: "mainland-pinewatch-highridge", kind: "arterial", steps: [[-395, 55, 6], "route", [-425, -180],
-    "route", [-340, -365, HIGHRIDGE_YARD]] },
-  { id: "mainland-forest-road", kind: "arterial", steps: [[-425, -180], "route", [-680, -225], "route",
-    [-625, 290], "route", [-565, 340, 2.4]] },
-  { id: "mainland-reedhaven-landing", kind: "lane", steps: [[-565, 340, 2.4], [-537, 341, 2.2], [-514, 336, 1.6],
-    [-489, 333, 0.45]] },
-  { id: "mainland-pinewatch-landing", kind: "lane", steps: [[-395, 55, 6], [-386, 75, 3], [-384, 94, 0.45]] },
-  { id: "mainland-forest-lake", kind: "trail", steps: [[-680, -225], "route", [-617, -180, 0.5]] },
-  { id: "mainland-marsh-bank", kind: "trail", steps: [[-625, 290], "route", [-539, 158, 0.4]] },
-  { id: "mainland-highridge-overlook", kind: "trail", steps: [[-340, -365, HIGHRIDGE_YARD], "route", [-542, -396]] }
-];
+/** What a place is sets how much traffic it draws, and so the class of the roads that serve it. */
+export type MainlandRoadRole = "gateway" | "village" | "work" | "fishing";
 
-/** Expands a plan with the router's generated knots for each routed leg. */
-export function mainlandRouteKnots(plan: MainlandRoutePlan, legs = MAINLAND_ROUTED_LEGS[plan.id] ?? []): RoadKnot[] {
-  const knots: RoadKnot[] = [];
-  let leg = 0;
-  for (const step of plan.steps) {
-    if (step === "route") {
-      for (const [x, z] of legs[leg++] ?? []) knots.push([x, z]);
-    } else {
-      knots.push(step);
-    }
-  }
-  return knots;
+export const MAINLAND_ROAD_ROLE_WEIGHTS: Readonly<Record<MainlandRoadRole, number>> = Object.freeze({
+  gateway: 6,
+  village: 4,
+  work: 1.5,
+  fishing: 0.6
+});
+
+export interface MainlandRoadDestination {
+  id: string;
+  role: MainlandRoadRole;
+  knot: RoadKnot;
+  /** Traffic this place draws, where it differs from its role's weight. */
+  weight?: number;
+  /** A gateway's retained connector from the starter district, which ends at `knot`. */
+  approach?: readonly RoadKnot[];
 }
 
-export const MAINLAND_ROUTES: readonly GradedRoute[] = MAINLAND_ROUTE_PLANS.map(plan =>
-  route(plan.id, mainlandRouteKnots(plan), plan.kind));
+/** Where a work site's carts load: out from its working front, clear of the props stood before it. */
+function workSiteAccess(site: (typeof MAINLAND_WORK_SITES)[number]): RoadKnot {
+  const point = mainlandWorkSitePoint(site, 0, site.footprint[3] + 5.5);
+  return [Math.round(point.x * 10) / 10, Math.round(point.z * 10) / 10];
+}
+
+/**
+ * The places mainland roads serve. `tools/world/mainlandRoadNetwork.ts` decides
+ * which connect, their routes, their classes and their junctions
+ * (`npm run world:plan-roads`); nothing here draws a road.
+ */
+export const MAINLAND_ROAD_DESTINATIONS: readonly MainlandRoadDestination[] = [
+  // The farm gate serves one homestead; the village gate carries the village
+  // market and the harbour's trade, which is how Highridge gets its seafood.
+  { id: "farm", role: "gateway", weight: 3, knot: [-230, -28, 5.4],
+    approach: [[-87, -60, 1.2], [-145, -48, 3], [-190, -45, 4]] },
+  { id: "village", role: "gateway", knot: [-72, -302],
+    approach: [[70, -68, 6.3], [62, -88, 6.3], [72, -104, 7.5], [100, -115], [103, -143], [91, -175], [84, -212],
+      [63, -246], [22, -278], [-27, -283]] },
+  { id: "pinewatch", role: "village", knot: [-395, 55, 6] },
+  { id: "reedhaven", role: "village", knot: [-565, 340, 2.4] },
+  { id: "highridge", role: "village", knot: [-340, -365, HIGHRIDGE_YARD] },
+  ...MAINLAND_WORK_SITES.map((site): MainlandRoadDestination => ({ id: site.id, role: "work", knot: workSiteAccess(site) })),
+  { id: "lake-bank", role: "fishing", knot: [-617, -180, 0.5] },
+  { id: "marsh-bank", role: "fishing", knot: [-539, 158, 0.4] }
+];
+
+/** Village-to-landing lanes, fixed to their landing lips; the cove is the short sea route. */
+export const MAINLAND_LANDING_LANES: readonly { id: string; kind: WorldRoute["kind"]; knots: readonly RoadKnot[] }[] = [
+  { id: "mainland-reedhaven-landing", kind: "lane", knots: [[-565, 340, 2.4], [-537, 341, 2.2], [-514, 336, 1.6], [-489, 333, 0.45]] },
+  { id: "mainland-pinewatch-landing", kind: "lane", knots: [[-395, 55, 6], [-386, 75, 3], [-384, 94, 0.45]] }
+];
+
+/** The generated network, trunks first, each junction at the elevation its trunk was graded to. */
+export const MAINLAND_ROUTES: readonly GradedRoute[] = (() => {
+  const graded: GradedRoute[] = [];
+  const junctionElevations = new Map<string, number>();
+  for (const road of MAINLAND_ROAD_NETWORK) {
+    const built = route(road.id, road.knots, road.kind, junctionElevations);
+    for (const knot of road.knots) {
+      const key = knotKey(knot[0], knot[1]);
+      if (junctionElevations.has(key)) continue;
+      const index = built.points.findIndex(point => point.x === knot[0] && point.z === knot[1]);
+      if (index >= 0) junctionElevations.set(key, built.elevations[index]);
+    }
+    graded.push(built);
+  }
+  return graded;
+})();
 
 const ROAD_BENCH_CELL = 48;
 const ROAD_BENCH_SEGMENTS = MAINLAND_ROUTES.flatMap(road => road.points.slice(1).map((b, index) => {

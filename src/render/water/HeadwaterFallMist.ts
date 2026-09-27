@@ -1,5 +1,6 @@
 /**
- * Plunge-pool spray for the authored headwater fall.
+ * Plunge-pool spray for the authored headwater fall, and the smaller spray
+ * thrown up at the foot of each step of the cascade below it.
  *
  * The falling sheet lands in a pool that must visibly receive it: a burst of
  * rising, dissolving mist is the cheapest, most readable physical cue. Every
@@ -39,6 +40,50 @@ function mistHash(value: number): number {
   return (x >>> 0) / 4294967296;
 }
 
+const PUFF_QUAD = [
+  [-1, -1], [1, -1], [1, 1],
+  [-1, -1], [1, 1], [-1, 1]
+] as const;
+
+function puffGeometry(positions: number[], corners: number[], seeds: number[], pad: number): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("aCorner", new THREE.Float32BufferAttribute(corners, 2));
+  geometry.setAttribute("aSeed", new THREE.Float32BufferAttribute(seeds, 1));
+  geometry.computeBoundingSphere();
+  if (geometry.boundingSphere) geometry.boundingSphere.radius += pad;
+  return geometry;
+}
+
+/**
+ * Spray at the foot of each step of the headwater cascade: fewer, smaller
+ * puffs spread across the channel where each drop lands in its scour pool.
+ */
+export function createCascadeSprayGeometry(tier: QualityTier): THREE.BufferGeometry {
+  const config = mistConfig().cascade;
+  const positions: number[] = [];
+  const corners: number[] = [];
+  const seeds: number[] = [];
+  NEVA_HEADWATERS.cascade.steps.forEach((step, stepIndex) => {
+    const section = WorldLayout.riverSectionAt(step.footZ);
+    const surface = headwaterElevationAt(step.footZ + 0.3);
+    for (let index = 0; index < config.perStep[tier]; index += 1) {
+      const hash = (salt: number): number => mistHash(7919 + stepIndex * 97 + index * 5 + salt);
+      const across = hash(1) * 2 - 1;
+      const x = section.centerX + across * (across < 0 ? section.leftWaterWidth : section.rightWaterWidth) * 0.8;
+      const z = step.footZ + 0.15 + hash(2) * 0.9;
+      const y = surface + hash(4) * 0.2;
+      const seed = hash(3);
+      for (const [cornerX, cornerY] of PUFF_QUAD) {
+        positions.push(x, y, z);
+        corners.push(cornerX, cornerY);
+        seeds.push(seed);
+      }
+    }
+  });
+  return puffGeometry(positions, corners, seeds, config.sizeMeters + config.riseMeters + config.driftMeters);
+}
+
 /** Two triangles per puff; aCorner drives the billboard, aSeed the life cycle. */
 export function createHeadwaterMistGeometry(tier: QualityTier): THREE.BufferGeometry {
   const config = mistConfig();
@@ -49,10 +94,6 @@ export function createHeadwaterMistGeometry(tier: QualityTier): THREE.BufferGeom
   const positions: number[] = [];
   const corners: number[] = [];
   const seeds: number[] = [];
-  const quad = [
-    [-1, -1], [1, -1], [1, 1],
-    [-1, -1], [1, 1], [-1, 1]
-  ] as const;
   for (let index = 0; index < count; index += 1) {
     const hash = (salt: number): number => mistHash(index * 5 + salt);
     // Bias the ring toward the impact: mist is densest where the sheet hits,
@@ -68,21 +109,13 @@ export function createHeadwaterMistGeometry(tier: QualityTier): THREE.BufferGeom
       : landingZ + 0.4 + Math.sin(angle) * radial * 0.85;
     const y = poolElevation + (alongSheet ? 0.35 + hash(6) * 1.2 : hash(7) * 0.55);
     const seed = hash(3);
-    for (const [cornerX, cornerY] of quad) {
+    for (const [cornerX, cornerY] of PUFF_QUAD) {
       positions.push(x, y, z);
       corners.push(cornerX, cornerY);
       seeds.push(seed);
     }
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute("aCorner", new THREE.Float32BufferAttribute(corners, 2));
-  geometry.setAttribute("aSeed", new THREE.Float32BufferAttribute(seeds, 1));
-  geometry.computeBoundingSphere();
-  if (geometry.boundingSphere) {
-    geometry.boundingSphere.radius += config.sizeMeters + config.riseMeters + config.driftMeters;
-  }
-  return geometry;
+  return puffGeometry(positions, corners, seeds, config.sizeMeters + config.riseMeters + config.driftMeters);
 }
 
 export const HEADWATER_MIST_VERTEX_GLSL = /* glsl */ `
@@ -170,6 +203,8 @@ export const HEADWATER_MIST_FRAGMENT_GLSL = /* glsl */ `
 
 export class HeadwaterFallMist {
   public readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  /** Cascade step spray: the same puff shader with its own smaller settings. */
+  public readonly cascadeMesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
   public readonly group = new THREE.Group();
   private tier: QualityTier;
 
@@ -201,8 +236,32 @@ export class HeadwaterFallMist {
     this.mesh.renderOrder = -98;
     this.mesh.castShadow = false;
     this.mesh.receiveShadow = false;
+    const cascade = config.cascade;
+    const cascadeMaterial = new THREE.ShaderMaterial({
+      glslVersion: THREE.GLSL3,
+      vertexShader: HEADWATER_MIST_VERTEX_GLSL,
+      fragmentShader: HEADWATER_MIST_FRAGMENT_GLSL,
+      uniforms: {
+        ...options.sharedUniforms,
+        uMistSizeMeters: { value: cascade.sizeMeters },
+        uMistRiseMeters: { value: cascade.riseMeters },
+        uMistDriftMeters: { value: cascade.driftMeters },
+        uMistCycleSeconds: { value: config.cycleSeconds * 0.8 },
+        uMistOpacity: { value: cascade.opacity },
+        uMistErosion: { value: config.erosion }
+      },
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    this.cascadeMesh = new THREE.Mesh(createCascadeSprayGeometry(this.tier), cascadeMaterial);
+    this.cascadeMesh.name = "headwater_cascade_spray";
+    this.cascadeMesh.frustumCulled = true;
+    this.cascadeMesh.renderOrder = -98;
+    this.cascadeMesh.castShadow = false;
+    this.cascadeMesh.receiveShadow = false;
     this.group.name = "headwater_fall_mist";
-    this.group.add(this.mesh);
+    this.group.add(this.mesh, this.cascadeMesh);
   }
 
   public setQuality(tier: QualityTier): void {
@@ -210,6 +269,8 @@ export class HeadwaterFallMist {
     this.tier = tier;
     this.mesh.geometry.dispose();
     this.mesh.geometry = createHeadwaterMistGeometry(tier);
+    this.cascadeMesh.geometry.dispose();
+    this.cascadeMesh.geometry = createCascadeSprayGeometry(tier);
   }
 
   public get count(): number {
@@ -219,6 +280,8 @@ export class HeadwaterFallMist {
   public dispose(): void {
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
+    this.cascadeMesh.geometry.dispose();
+    this.cascadeMesh.material.dispose();
     this.group.clear();
   }
 }

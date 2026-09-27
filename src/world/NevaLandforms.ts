@@ -143,7 +143,7 @@ export function nevaBaseGroundHeight(x: number, z: number): number {
   return 1.8 + westernRidge + northernRidge + easternUplands + lighthouseHeadland + harborShoulder + farmBasin + authoredPlanes;
 }
 
-/** The authored dome-and-shoulder field, retained exactly inside the headwater cirque. */
+/** The original headwater form supplies the protected spring, fall and west-rim datum. */
 function authoredLandforms(x: number, z: number): NevaLandformSample {
   let minimumElevation = 0;
   let mountain = 0;
@@ -183,10 +183,10 @@ function authoredLandforms(x: number, z: number): NevaLandformSample {
 }
 
 /**
- * The headwater cirque's rim and headwall own the source-concealment and
- * fall-visibility contract (the v55 graybox envelope plus a margin). Inside it
- * the authored field is kept exactly; the procedural summit form fades in
- * beyond it.
+ * Only the watercourse and the west-rim overlook need the original ground.
+ * Retaining the whole graybox rectangle left smooth, abruptly joined mountain
+ * faces visible from the village. The remainder of the cirque can share the
+ * connected ridge and drainage field used by the neighboring summits.
  */
 const HEADWATER_CIRQUE = { minX: -58, maxX: 23, minZ: -189, maxZ: -107 } as const;
 const CIRQUE_FEATHER_METERS = 20;
@@ -194,7 +194,11 @@ const CIRQUE_FEATHER_METERS = 20;
 function cirqueRetention(x: number, z: number): number {
   const dx = Math.max(HEADWATER_CIRQUE.minX - x, 0, x - HEADWATER_CIRQUE.maxX);
   const dz = Math.max(HEADWATER_CIRQUE.minZ - z, 0, z - HEADWATER_CIRQUE.maxZ);
-  return 1 - smoothstep(0, CIRQUE_FEATHER_METERS, Math.hypot(dx, dz));
+  const inCirque = 1 - smoothstep(0, CIRQUE_FEATHER_METERS, Math.hypot(dx, dz));
+  const sourceToPoolZ = Math.max(-150, Math.min(-124, z));
+  const watercourse = 1 - smoothstep(7, 17, Math.hypot(x + 30, z - sourceToPoolZ));
+  const westRim = 1 - smoothstep(5, 12, Math.hypot(x + 41, z + 152));
+  return inCirque * Math.max(watercourse, westRim);
 }
 
 // Summit cross-section: a concave flank under a small rounded cap, so each
@@ -286,7 +290,11 @@ function sculptedLandforms(x: number, z: number, authored: NevaLandformSample): 
     const flankMask = smoothstep(0.02, 0.18, owner.flank) * (1 - smoothstep(0.6, 1, owner.flank));
     // Two faces meeting in a col share one valley floor, not two gully sets.
     const coherence = smoothstep(0, Math.max(2, owner.value * 0.3), owner.value - rival);
-    const depth = owner.elevation * 0.05 * flankMask * coherence * smoothstep(14, 26, owner.elevation);
+    const cirqueErosion = 1 - smoothstep(0, CIRQUE_FEATHER_METERS,
+      Math.hypot(Math.max(HEADWATER_CIRQUE.minX - x, 0, x - HEADWATER_CIRQUE.maxX),
+        Math.max(HEADWATER_CIRQUE.minZ - z, 0, z - HEADWATER_CIRQUE.maxZ)));
+    const depth = owner.elevation * (0.05 + 0.035 * cirqueErosion)
+      * flankMask * coherence * smoothstep(14, 26, owner.elevation);
     if (depth > 0.01) {
       const unitX = downX / downLength, unitZ = downZ / downLength;
       const main = gullyProfile(drainageStripe(x, z, unitX, unitZ, 44, SUMMIT_GULLY_SALT)) - GULLY_MEAN;

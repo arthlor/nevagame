@@ -2,6 +2,7 @@ import React from "react";
 import { GameSheet } from "../coastal/CoastalUI";
 import { UI_GIS } from "../chrome/uiAtlas";
 import { AtlasImage } from "../chrome/AtlasImage";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface FarmGISLegendProps {
   visible: boolean;
@@ -9,6 +10,9 @@ export interface FarmGISLegendProps {
 }
 
 export const FarmGISLegend: React.FC<FarmGISLegendProps> = ({ visible, className = "" }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
+
   if (!visible) return null;
 
   return (
@@ -19,60 +23,60 @@ export const FarmGISLegend: React.FC<FarmGISLegendProps> = ({ visible, className
       tone="slate"
       corners
       role="status"
-      aria-label="Field signs"
+      aria-label={isTr ? "Tarla işaretleri" : "Field signs"}
       data-testid="farm-gis-legend"
     >
       <div className="gis-legend-header">
-        <strong className="gis-legend-title">Field signs</strong>
-        <span className="gis-legend-hint">Release Alt to hide</span>
+        <strong className="gis-legend-title">{isTr ? "Tarla İşaretleri" : "Field signs"}</strong>
+        <span className="gis-legend-hint">{isTr ? "Gizlemek için Alt'ı bırak" : "Release Alt to hide"}</span>
       </div>
 
       <div className="gis-legend-items">
         <div className="gis-legend-group">
-          <span className="gis-group-label">Moisture Tiers</span>
+          <span className="gis-group-label">{isTr ? "Toprak Nemi" : "Moisture Tiers"}</span>
           <div className="gis-legend-item">
             <AtlasImage src={UI_GIS.moist} alt="" />
-            <span>Good moisture</span>
+            <span>{isTr ? "İdeal nem" : "Good moisture"}</span>
           </div>
           <div className="gis-legend-item">
             <AtlasImage src={UI_GIS.dry} alt="" />
-            <span>Dry soil</span>
+            <span>{isTr ? "Kuru toprak" : "Dry soil"}</span>
           </div>
           <div className="gis-legend-item">
             <span className="gis-swatch gis-swatch--saturated" aria-hidden="true" />
-            <span>Saturated soil</span>
+            <span>{isTr ? "Fazla sulanmış toprak" : "Saturated soil"}</span>
           </div>
         </div>
 
         <div className="gis-legend-group">
-          <span className="gis-group-label">Soil Fertility</span>
+          <span className="gis-group-label">{isTr ? "Toprak Verimi" : "Soil Fertility"}</span>
           <div className="gis-legend-item">
             <span className="gis-swatch gis-swatch--rich" aria-hidden="true" />
-            <span>Rich fertility</span>
+            <span>{isTr ? "Zengin verim" : "Rich fertility"}</span>
           </div>
           <div className="gis-legend-item">
             <span className="gis-swatch gis-swatch--fair" aria-hidden="true" />
-            <span>Fair fertility</span>
+            <span>{isTr ? "Orta verim" : "Fair fertility"}</span>
           </div>
           <div className="gis-legend-item">
             <span className="gis-swatch gis-swatch--depleted" aria-hidden="true" />
-            <span>Depleted soil</span>
+            <span>{isTr ? "Yorgun toprak" : "Depleted soil"}</span>
           </div>
         </div>
 
         <div className="gis-legend-group">
-          <span className="gis-group-label">Field Progress</span>
+          <span className="gis-group-label">{isTr ? "Tarla Durumu" : "Field Progress"}</span>
           <div className="gis-legend-item">
             <AtlasImage src={UI_GIS.harvestReady} alt="" />
-            <span>Ready to harvest</span>
+            <span>{isTr ? "Hasada hazır" : "Ready to harvest"}</span>
           </div>
           <div className="gis-legend-item">
             <AtlasImage src={UI_GIS.growing} alt="" />
-            <span>Growing</span>
+            <span>{isTr ? "Büyüyor" : "Growing"}</span>
           </div>
           <div className="gis-legend-item">
             <AtlasImage src={UI_GIS.prepared} alt="" />
-            <span>Prepared soil</span>
+            <span>{isTr ? "İşlenmiş toprak" : "Prepared soil"}</span>
           </div>
         </div>
       </div>

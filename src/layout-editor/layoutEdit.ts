@@ -6,6 +6,7 @@
 export const LAYOUT_EDITOR_COMMIT_PATH = "/__neva_layout_editor/commit";
 
 export type LayoutEditKind =
+  | "interaction-placement"
   | "farmstead"
   | "farm-prop"
   | "farm-fence"
@@ -78,6 +79,7 @@ export interface LayoutEditHudSelection {
 }
 
 export const LAYOUT_EDITOR_SOURCE_FILES = {
+  interactions: "src/world/InteractionPlacements.ts",
   farmLayout: "src/world/FarmLayout.ts",
   worldLayout: "src/world/WorldLayout.ts",
   worldAnchors: "src/world/WorldAnchors.ts",

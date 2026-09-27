@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { ActiveModal } from "../app/ModeController";
 import type { GameAction, GameMode } from "../simulation/core/types";
 import type { FishingInputState, VirtualMoveVector } from "../input/InputRouter";
+import { useTranslation } from "../i18n/useTranslation";
 
 export type SportTouchResponse = "reel" | "slack" | "brace" | "steer-left" | "steer-right" | "neutral";
 
@@ -107,6 +108,8 @@ const KNOB_TRAVEL_RATIO = 0.29;
 const MobileJoystick: React.FC<{
   onChange: (vector: VirtualMoveVector) => void;
 }> = ({ onChange }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
   const pointerIdRef = useRef<number | null>(null);
   const onChangeRef = useRef(onChange);
   const [vector, setVector] = useState<VirtualMoveVector>({ x: 0, z: 0 });
@@ -153,7 +156,7 @@ const MobileJoystick: React.FC<{
     <div
       className="mobile-joystick"
       role="group"
-      aria-label="Movement joystick"
+      aria-label={isTr ? "Hareket kontrol kolu" : "Movement joystick"}
       data-knob-travel={knobTravel.toFixed(1)}
       onPointerDown={(event) => {
         event.preventDefault();
@@ -190,15 +193,17 @@ export const MobileOrientationGate: React.FC<{
   orientationBlocked: boolean;
   onRequestLandscape: () => void;
 }> = ({ touchDevice, orientationBlocked, onRequestLandscape }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
   if (!touchDevice || !orientationBlocked) return null;
   return (
-    <div className="mobile-orientation-gate" role="status" aria-live="polite" aria-label="Landscape orientation required">
+    <div className="mobile-orientation-gate" role="status" aria-live="polite" aria-label={isTr ? "Yatay yönlendirme gerekli" : "Landscape orientation required"}>
       <div className="mobile-orientation-panel">
         <span className="mobile-orientation-mark" aria-hidden="true">↔</span>
-        <h2>Turn your device sideways</h2>
-        <p>The coast is played in landscape.</p>
+        <h2>{isTr ? "Cihazını yan çevir" : "Turn your device sideways"}</h2>
+        <p>{isTr ? "Kıyı dünyası yatay ekranda oynanır." : "The coast is played in landscape."}</p>
         <button type="button" className="mobile-orientation-button" onClick={onRequestLandscape}>
-          Turn to landscape
+          {isTr ? "Yatay konuma geç" : "Turn to landscape"}
         </button>
       </div>
     </div>
@@ -226,6 +231,8 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   dragNotch = null,
   onSetFishingDrag
 }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
   const clearVirtualInputRef = useRef(onClearVirtualInput);
   clearVirtualInputRef.current = onClearVirtualInput;
   useEffect(() => () => clearVirtualInputRef.current(), []);
@@ -238,19 +245,19 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   if (mode === "basic-fishing") {
     return (
       <div className="mobile-controls mobile-controls--fishing mobile-controls--basic" data-testid="mobile-basic-controls">
-        <div className="mobile-action-cluster" aria-label="Fishing actions">
+        <div className="mobile-action-cluster" aria-label={isTr ? "Balıkçılık eylemleri" : "Fishing actions"}>
           {basicFishingPhase === "charging-cast" && (
-            <MobileTapButton label="Cast" className="is-primary" onTap={onReleaseBasicCast} />
+            <MobileTapButton label={isTr ? "Fırlat" : "Cast"} className="is-primary" onTap={onReleaseBasicCast} />
           )}
           {basicFishingPhase === "minigame" && (
             <MobileHoldButton
-              label="Reel"
+              label={isTr ? "Sar" : "Reel"}
               className="is-primary"
               onPress={() => onSetFishingInput({ isReeling: true })}
               onRelease={() => onSetFishingInput({ isReeling: false })}
             />
           )}
-          <MobileTapButton label="Cancel" onTap={() => onVirtualAction("pause")} />
+          <MobileTapButton label={isTr ? "İptal" : "Cancel"} onTap={() => onVirtualAction("pause")} />
         </div>
       </div>
     );
@@ -272,7 +279,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
     // right") sized for the readout card, and a steer response must never
     // label the reel hold. Neutral also reels, matching the in-card touch
     // control's mapping.
-    const holdLabel = response === "slack" ? "Slack" : response === "brace" ? "Brace" : "Reel";
+    const holdLabel = response === "slack" ? (isTr ? "Boşluk ver" : "Slack") : response === "brace" ? (isTr ? "Diren" : "Brace") : (isTr ? "Sar" : "Reel");
     const steerMagnitude = Math.abs(sportSteeringMagnitude) > 0 ? Math.abs(sportSteeringMagnitude) : 0.6;
     const applySteer = () => {
       const held = steerHeldRef.current;
@@ -280,27 +287,27 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
     };
     return (
       <div className="mobile-controls mobile-controls--fishing mobile-controls--sport" data-testid="mobile-sport-controls">
-        <div className="mobile-steer-cluster" role="group" aria-label="Rod steering">
+        <div className="mobile-steer-cluster" role="group" aria-label={isTr ? "Olta yönlendirme" : "Rod steering"}>
           <MobileHoldButton
-            label="◀ Left"
+            label={isTr ? "◀ Sol" : "◀ Left"}
             className={needsSteerLeft ? "is-primary" : ""}
             onPress={() => { steerHeldRef.current.left = true; applySteer(); }}
             onRelease={() => { steerHeldRef.current.left = false; applySteer(); }}
           />
           <MobileHoldButton
-            label="Right ▶"
+            label={isTr ? "Sağ ▶" : "Right ▶"}
             className={needsSteerRight ? "is-primary" : ""}
             onPress={() => { steerHeldRef.current.right = true; applySteer(); }}
             onRelease={() => { steerHeldRef.current.right = false; applySteer(); }}
           />
         </div>
-        <div className="mobile-action-cluster" role="group" aria-label="Fishing actions">
+        <div className="mobile-action-cluster" role="group" aria-label={isTr ? "Balıkçılık eylemleri" : "Fishing actions"}>
           {onSetFishingDrag && (
-            <div className="mobile-action-row mobile-drag-row" role="group" aria-label="Fishing drag">
+            <div className="mobile-action-row mobile-drag-row" role="group" aria-label={isTr ? "Kalama direnci" : "Fishing drag"}>
               {(["Light", "Balanced", "Heavy"] as const).map((label, notch) => (
                 <MobileTapButton
                   key={label}
-                  label={label}
+                  label={label === "Light" ? (isTr ? "Hafif" : "Light") : label === "Balanced" ? (isTr ? "Dengeli" : "Balanced") : (isTr ? "Sıkı" : "Heavy")}
                   className={dragNotch === notch ? "is-primary" : ""}
                   onTap={() => onSetFishingDrag(notch as 0 | 1 | 2)}
                 />
@@ -328,41 +335,41 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   return (
     <div className={`mobile-controls mobile-controls--world mobile-controls--${mode}`} data-testid="mobile-world-controls">
       <MobileJoystick onChange={onSetMoveVector} />
-      <div className="mobile-action-cluster" aria-label="Touch actions">
+      <div className="mobile-action-cluster" aria-label={isTr ? "Dokunmatik eylemler" : "Touch actions"}>
         <div className="mobile-action-row">
           <MobileTapButton
-            label={isPlacement ? "Place" : isBoat ? "Dock" : "Interact"}
+            label={isPlacement ? (isTr ? "Yerleştir" : "Place") : isBoat ? (isTr ? "Yanaş" : "Dock") : (isTr ? "Etkileşim" : "Interact")}
             className="is-primary"
             onTap={() => onVirtualAction("interact")}
           />
           {!isMounted && !isPlacement && (
             <MobileHoldButton
-              label={isAngling ? "Cast" : "Use"}
+              label={isAngling ? (isTr ? "Olta At" : "Cast") : (isTr ? "Kullan" : "Use")}
               onPress={() => onVirtualAction("use-primary")}
               onRelease={() => onVirtualAction("use-primary-release")}
             />
           )}
           {isAngling && !isPlacement && (
-            <MobileTapButton label="Lure" onTap={() => onVirtualAction("fishing.toggle-lure")} />
+            <MobileTapButton label={isTr ? "Yem" : "Lure"} onTap={() => onVirtualAction("fishing.toggle-lure")} />
           )}
         </div>
         <div className="mobile-action-row">
           {isPlacement ? (
-            <MobileTapButton label="Cancel" onTap={() => onVirtualAction("use-secondary")} />
+            <MobileTapButton label={isTr ? "İptal" : "Cancel"} onTap={() => onVirtualAction("use-secondary")} />
           ) : (
             !isMounted && !isBoat && (
-              <MobileTapButton label="Inspect" onTap={() => onVirtualAction("use-secondary")} />
+              <MobileTapButton label={isTr ? "İncele" : "Inspect"} onTap={() => onVirtualAction("use-secondary")} />
             )
           )}
           {!isBoat && (
             <MobileHoldButton
-              label="Sprint"
+              label={isTr ? "Depar" : "Sprint"}
               onPress={() => onSetSprint(true)}
               onRelease={() => onSetSprint(false)}
             />
           )}
           {!isBoat && !isMounted && (
-            <MobileTapButton label="Jump" onTap={onQueueJump} />
+            <MobileTapButton label={isTr ? "Zıpla" : "Jump"} onTap={onQueueJump} />
           )}
         </div>
       </div>

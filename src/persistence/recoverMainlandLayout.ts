@@ -1,3 +1,4 @@
+import { boatMeetsSailingRequirement } from "../content/boats";
 import { Object3D } from "three";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { projectAssetCollision } from "../physics/CollisionCatalogAdapter";
@@ -14,15 +15,22 @@ import { BOAT_MOORINGS } from "../world/WorldMoorings";
 import { clearReach, groundPlayer, nearestPoint } from "./terrainMigrationSupport";
 
 /**
- * Shared recovery for mainland layout revisions. Coordinates are never scaled:
+ * Shared recovery for mainland revisions, optionally limited to working areas on
+ * either island. Coordinates are never scaled:
  * crops stay farm-local and supported actors retain their X/Z. The independent
  * candidate leaves the original slot available if recovery cannot succeed.
  */
-export function recoverMainlandLayout(previous: GameState, schemaVersion: number, layoutRevision: number): GameState {
+export function recoverMainlandLayout(previous: GameState, schemaVersion: number, layoutRevision: number, area?: {
+  contains: (point: { x: number; z: number }) => boolean;
+  boatIsClear: (boat: GameState["boats"][string]) => boolean;
+  /** Reconcile moved berths inside recovery so fishing still sees the original saved pose. */
+  reconcileBoats?: (state: GameState) => void;
+}): GameState {
   const state = structuredClone(previous);
   state.schemaVersion = schemaVersion;
   if (previous.world.layoutRevision >= layoutRevision) return state;
   ContentRegistry.initializeAndValidate();
+  area?.reconcileBoats?.(state);
   const collision = createWorldStaticPlacements(state.worldSeed).flatMap((placement) => {
     const root = new Object3D();
     root.position.set(placement.x, placement.y ?? WorldLayout.terrainHeight(placement.x, placement.z), placement.z);
@@ -30,21 +38,23 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
     root.scale.set(...placement.scale);
     return projectAssetCollision(placement.assetId as AssetId, root, placement.id);
   });
-  const neva = (point: { x: number; z: number }) => !WorldLayout.isInterior(point.x, point.z)
-    && WorldLayout.terrainPatchAt(point.x, point.z)?.islandId === "island.neva";
-  const supported = (point: { x: number; z: number }) => neva(point)
+  const eligibleLand = (point: { x: number; z: number }) => !WorldLayout.isInterior(point.x, point.z)
+    && (area ? area.contains(point) : WorldLayout.terrainPatchAt(point.x, point.z)?.islandId === "island.neva");
+  const supported = (point: { x: number; z: number }) => eligibleLand(point)
     && WorldLayout.isWalkable(point.x, point.z) && !WorldLayout.isWater(point.x, point.z)
     && WorldLayout.traversalSurfaceSample(point.x, point.z).normal.y >= Math.cos(38 * Math.PI / 180);
   const clearPlayer = (point: { x: number; z: number }) => supported(point)
     && staticPoseIsClear(collision, point, WorldLayout.traversalSurfaceHeight(point.x, point.z), 0.4);
 
   for (const boat of Object.values(state.boats)) {
-    if (WorldLayout.isSailable(boat.x, boat.z)) continue;
+    if (area && !area.contains(boat)) continue;
+    if (WorldLayout.isSailable(boat.x, boat.z) && (!area || area.boatIsClear(boat))) continue;
     const moorings = BOAT_MOORINGS.filter((mooring) =>
       (!mooring.boatTypeIds || mooring.boatTypeIds.includes(boat.boatTypeId))
       && WorldLayout.isSailable(mooring.boatPosition.x, mooring.boatPosition.z)
+      && (!area || area.boatIsClear({ ...boat, ...mooring.boatPosition }))
       && (!WorldLayout.navigationRequirementAt(mooring.boatPosition.x, mooring.boatPosition.z)
-        || WorldLayout.navigationRequirementAt(mooring.boatPosition.x, mooring.boatPosition.z)!.requiredBoatTypeId === boat.boatTypeId)
+        || boatMeetsSailingRequirement(boat.boatTypeId, WorldLayout.navigationRequirementAt(mooring.boatPosition.x, mooring.boatPosition.z)!.requiredBoatTypeId))
     ).sort((a, b) => Math.hypot(a.boatPosition.x - boat.x, a.boatPosition.z - boat.z)
       - Math.hypot(b.boatPosition.x - boat.x, b.boatPosition.z - boat.z));
     const mooring = moorings.find((candidate) => boat.isDocked && candidate.marketId === boat.dockedMarketId) ?? moorings[0];
@@ -60,8 +70,8 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
   }
 
   for (const mount of Object.values(state.mounts)) {
-    if (!neva(mount)) continue;
-    const valid = (point: { x: number; z: number }) => neva(point) && (isCarriage(mount)
+    if (!eligibleLand(mount)) continue;
+    const valid = (point: { x: number; z: number }) => eligibleLand(point) && (isCarriage(mount)
       ? carriagePoseIsClear({ ...mount, ...point }, collision)
       : isMountableTraversalPoint(point.x, point.z)
         && staticPoseIsClear(collision, point, WorldLayout.traversalSurfaceHeight(point.x, point.z), 0.7));
@@ -74,7 +84,7 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
     Object.assign(mount, point, { y });
   }
 
-  if (!state.player.activeBoatId && neva(state.player)) {
+  if (!state.player.activeBoatId && eligibleLand(state.player)) {
     const mount = state.player.activeMountId ? state.mounts[state.player.activeMountId] : null;
     if (mount) {
       Object.assign(state.player, playerPoseFromMount(mount));
@@ -86,14 +96,24 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
   }
 
   for (const structure of Object.values(state.world.structures)) {
-    if (!neva(structure)) continue;
+    if (!eligibleLand(structure)) continue;
     // Authored work pads stay in place; arbitrary legacy structures on newly
     // wet/steep ground recover deterministically without changing their IDs.
     const point = nearestPoint(structure, supported, WORLD_SPAWN.playerPosition);
     Object.assign(structure, point, { y: WorldLayout.terrainHeight(point.x, point.z) });
   }
 
+  for (const cargo of Object.values(state.fishCargo)) {
+    if (cargo.location?.type !== "ground") continue;
+    const origin = { x: cargo.location.x!, z: cargo.location.z! };
+    if (!eligibleLand(origin)) continue;
+    const valid = (point: { x: number; z: number }) => supported(point)
+      && staticPoseIsClear(collision, point, WorldLayout.traversalSurfaceHeight(point.x, point.z), 0.45);
+    if (!valid(origin)) Object.assign(cargo.location, nearestPoint(origin, valid, origin));
+  }
+
   for (const school of Object.values(state.world.activeSchools)) {
+    if (area && !area.contains(school)) continue;
     const valid = (point: { x: number; z: number }) => WorldLayout.isSailable(point.x, point.z)
       && WorldLayout.fishingHabitatAt(point.x, point.z) === school.habitatId
       && WorldLayout.fishingEcologyAt(point.x, point.z).id === school.ecologyId;
@@ -137,7 +157,7 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
     for (const point of refuges) {
       if (boat) {
         const requirement = WorldLayout.navigationRequirementAt(point.x, point.z);
-        if (!compatible(point) || (requirement && requirement.requiredBoatTypeId !== boat.boatTypeId)) continue;
+        if (!compatible(point) || (requirement && !boatMeetsSailingRequirement(boat.boatTypeId, requirement.requiredBoatTypeId))) continue;
       } else if (!WorldLayout.isWalkable(point.x, point.z) || WorldLayout.isWater(point.x, point.z)
         || !staticPoseIsClear(collision, point, WorldLayout.traversalSurfaceHeight(point.x, point.z), 0.4)) continue;
       const bearing = bearingAt(point);
@@ -150,14 +170,17 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
     }
     throw new Error("Mainland migration could not preserve the active fishing habitat and reach");
   };
+  const playerMoved = state.player.x !== previous.player.x || state.player.z !== previous.player.z;
   if (state.basicFishing) {
     const forward = state.basicFishing.castDistanceMeters ?? 6.5;
     const lateral = state.basicFishing.castLateralDriftMeters ?? 0;
     const windAngle = Math.atan2(lateral, forward);
     const bearing = state.player.rotationY + windAngle;
     const distance = Math.hypot(forward, lateral);
-    state.player.rotationY = repairReach(bearing, distance, state.basicFishing.ecologyId, [state.basicFishing.habitatId]) - windAngle;
-    if (state.player.activeBoatId) state.boats[state.player.activeBoatId].headingRadians = state.player.rotationY;
+    if (!area || playerMoved || !clearReach(state.player, bearing, distance)) {
+      state.player.rotationY = repairReach(bearing, distance, state.basicFishing.ecologyId, [state.basicFishing.habitatId]) - windAngle;
+      if (state.player.activeBoatId) state.boats[state.player.activeBoatId].headingRadians = state.player.rotationY;
+    }
   }
   const sport = state.sportFishing;
   // A won catch belongs to the pending keep/release choice. It no longer needs

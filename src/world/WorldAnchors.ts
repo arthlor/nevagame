@@ -1,9 +1,10 @@
+import { bindInteractionPoint, bindInteractionPose } from "./InteractionPlacements";
 /**
  * Pure gameplay-space anchors shared by simulation, physics and presentation.
  * Keep this module free of Three.js so simulation can consume it directly.
  */
 
-export const WORLD_LAYOUT_REVISION = 30 as const;
+export const WORLD_LAYOUT_REVISION = 38 as const;
 
 export const WORLD_SPAWN = {
   playerPosition: { x: -65, z: -60.5 },
@@ -25,11 +26,15 @@ export const VILLAGE_PLAZA = { x: 42.0, z: -66.5 } as const;
  * produced stall's 6 m interaction ring and every building envelope, on the
  * south side of the court, and faces north toward the market.
  */
-export const VILLAGE_BULLETIN = {
+const BASE_VILLAGE_BULLETIN = {
   position: { x: 46.5, z: -71.5 },
   rotationY: 0,
   interactionRadiusMeters: 2.6
 } as const;
+
+const bulletinPose = bindInteractionPose("village_bulletin_board", { ...BASE_VILLAGE_BULLETIN.position, rotationY: BASE_VILLAGE_BULLETIN.rotationY });
+export const VILLAGE_BULLETIN = { ...BASE_VILLAGE_BULLETIN, position: bulletinPose,
+  get rotationY() { return bulletinPose.rotationY; } };
 
 /** Northeast village plaza — produce market and arterial road hub. */
 /**
@@ -62,31 +67,29 @@ export const HARBOR_MARKET = {
 /** Open harbor apron in front of the Fish Market stall counter where routes terminate. */
 export const HARBOR_MARKET_APRON = { x: 64.5, z: 54.5 } as const;
 
+/** Landward stairs retain their entrance; the shared wharf extends out to sea. */
+export const HARBOR_MAIN_PIER = {
+  x: 75.5, z: 88.6, length: 48, width: 7.2,
+  supportDatum: { x: 75.5, z: 71.6 }
+} as const;
+
 export const HARBOR_DOCK = {
   marketId: "market.harbor",
-  // After landmark yaw π/2, catalog pile half-extent Z becomes world X.
-  // Keep the hull east of that water-side face so Rapier never starts the
-  // rowboat overlapping pilings (a toi=0 start freezes every boat cast).
-  boatPosition: { x: 82.4, y: 0, z: 72 },
-  // Keep the disembark/boarding point on the authored pier and within the
-  // interaction envelope of the current dock landmark.
-  playerPosition: { x: 76, z: 66 },
-  /** Shore-apron reach. The hull itself uses hullBoardRadius so Act 5's boat pin can board. */
-  boardRadius: 4,
-  /** Covers the full 14 m pier so boarding works from any walkable deck bay. */
-  hullBoardRadius: 7.5,
+  boatPosition: bindInteractionPoint("dock", { x: 81.3, y: 0, z: 73 }, { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z, rotationY: Math.PI / 2 }),
+  playerPosition: bindInteractionPoint("dock", { x: 78.3, z: 73 }, { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z, rotationY: Math.PI / 2 }),
+  boardRadius: 2.8,
+  hullBoardRadius: 4.2,
   dockRadius: 6
 } as const;
 
 /**
- * Walkable pier box for `dock_straight_a` after landmark yaw π/2:
+ * Walkable pier box for `dock_harbor_main_a` after landmark yaw π/2:
  * generator length runs along world Z, width along world X.
  * Keep in sync with catalog `length` / `width` and `WorldLayout.landmark("dock")`.
  */
 export const HARBOR_PIER_DECK = {
-  halfWidthX: 2.7,
-  halfLengthZ: 7.0,
-  hullKeepout: 2.25,
+  halfWidthX: HARBOR_MAIN_PIER.width / 2,
+  halfLengthZ: HARBOR_MAIN_PIER.length / 2,
   /** Asset-space walkable plank top matching catalog collision top (2.5 + 0.18 = 2.68). */
   deckSurfaceAssetY: 2.68,
   /** Shore stairs extend along world −Z from the south deck edge. */
@@ -94,18 +97,18 @@ export const HARBOR_PIER_DECK = {
   stairHalfWidthX: 1.75
 } as const;
 
-/** Separate mooring keeps the progression skiff readable beside the family rowboat. */
+/** Mid-pier west berth leaves the rowboat and freight approaches independent. */
 export const HARBOR_SKIFF_MOORING = {
   marketId: "market.harbor",
-  boatPosition: { x: 88, y: 0, z: 72 },
-  playerPosition: { x: 86, z: 69 },
-  boardRadius: 4,
-  hullBoardRadius: 6,
+  boatPosition: bindInteractionPoint("dock", { x: 69.3, y: 0, z: 88 }, { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z, rotationY: Math.PI / 2 }),
+  playerPosition: bindInteractionPoint("dock", { x: 72.6, z: 88 }, { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z, rotationY: Math.PI / 2 }),
+  boardRadius: 2.8,
+  hullBoardRadius: 4.5,
   dockRadius: 6
 } as const;
 
-export function harborMooringForBoatType(boatTypeId: string): typeof HARBOR_DOCK | typeof HARBOR_SKIFF_MOORING {
-  return boatTypeId === "boat.skiff" ? HARBOR_SKIFF_MOORING : HARBOR_DOCK;
+export function harborMooringForBoatType(boatTypeId: string): typeof HARBOR_DOCK | typeof HARBOR_SKIFF_MOORING | typeof HARBOR_TRADE_MOORING {
+  return boatTypeId === "boat.trading_ship" ? HARBOR_TRADE_MOORING : boatTypeId === "boat.skiff" ? HARBOR_SKIFF_MOORING : HARBOR_DOCK;
 }
 
 /** Harbor fish-cleaning table in front of the fish-market landmark. */
@@ -129,4 +132,10 @@ const HARBOR_MAEVE_FRONT_DISTANCE_METERS = 5.9;
 export const HARBOR_MAEVE_ANCHOR = {
   x: HARBOR_MARKET.position.x + Math.sin(HARBOR_MARKET.rotationY) * HARBOR_MAEVE_FRONT_DISTANCE_METERS,
   z: HARBOR_MARKET.position.z + Math.cos(HARBOR_MARKET.rotationY) * HARBOR_MAEVE_FRONT_DISTANCE_METERS
+} as const;
+
+/** Deep-water east berth, with its own clear loading/boarding bay. */
+export const HARBOR_TRADE_MOORING = {
+  marketId: 'market.harbor', boatPosition: bindInteractionPoint("dock", { x: 82.1, y: 0, z: 103 }, { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z, rotationY: Math.PI / 2 }),
+  playerPosition: bindInteractionPoint("dock", { x: 78.3, z: 103 }, { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z, rotationY: Math.PI / 2 }), purchasePosition: bindInteractionPoint("dock", { x: 78.3, z: 103 }, { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z, rotationY: Math.PI / 2 }), boardRadius: 2.8, hullBoardRadius: 4.5, dockRadius: 8
 } as const;

@@ -47,5 +47,19 @@ export const BOATS: Record<string, BoatDefinition> = {
     costMoney: 850,
     repairCostMoney: 150,
     requiredSkillXp: { skill: "fishing", xp: 7500 }
+  },
+  "boat.trading_ship": {
+    id: "boat.trading_ship", name: "Sunreach Trading Coaster",
+    description: "A broad-deck cargo vessel with ten pack bays, built for the Sunreach crossing.",
+    maxSpeed: 6.2, acceleration: 1.4, turningRate: 0.55, fuelCapacity: 0,
+    durabilityMax: 400,
+    fishCargoSlots: Array.from({ length: 10 }, (_, slotIndex) => ({ slotIndex, type: "hold" as const, maxCargoClass: "medium" as const, hasIce: false })),
+    supplySlotCount: 10, safeSeaRoughness: 0.8, costMoney: 150000, repairCostMoney: 800,
+    requiredSkillXp: { skill: "trading", xp: 30000 }
   }
 };
+
+/** A freight coaster meets the coastal skiff's seaworthiness requirement. */
+export function boatMeetsSailingRequirement(boatTypeId: string, requirement: string): boolean {
+  return boatTypeId === requirement || (boatTypeId === "boat.trading_ship" && requirement === "boat.skiff");
+}

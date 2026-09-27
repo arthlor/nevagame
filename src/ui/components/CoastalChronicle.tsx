@@ -7,6 +7,7 @@ import {
 } from "../notifications";
 import { playUiSound } from "../audio/uiAudio";
 import { handleTabListKeyDown } from "../useTabListKeyboard";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface CoastalChronicleProps {
   entries: readonly ChronicleEntry[];
@@ -32,12 +33,25 @@ export function formatChronicleTime(gameMinute: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
+const getChronicleFilterLabel = (filter: ChronicleFilter, isTr: boolean): string => {
+  if (!isTr) return CHRONICLE_FILTER_LABEL[filter];
+  switch (filter) {
+    case "all": return "Tümü";
+    case "trade": return "Ticaret";
+    case "field": return "Tarla ve Deniz";
+    case "story": return "Hikâye";
+    default: return CHRONICLE_FILTER_LABEL[filter];
+  }
+};
+
 export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
   entries,
   activeFilter,
   onSelectFilter,
   autoCollapseMs = CHRONICLE_AUTO_COLLAPSE_MS
 }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
   const [expanded, setExpanded] = useState(false);
   const [held, setHeld] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -62,7 +76,7 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
       data-testid="coastal-chronicle"
       data-expanded={expanded ? "true" : "false"}
       data-held={held ? "true" : "false"}
-      aria-label="Coastal chronicle"
+      aria-label={isTr ? "Kıyı vakanüvisi" : "Coastal chronicle"}
       onPointerEnter={() => setHeld(true)}
       onPointerLeave={() => setHeld(false)}
       onFocus={() => setHeld(true)}
@@ -80,13 +94,13 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
         }}
       >
         <span className="chronicle-toggle-caret" aria-hidden="true">{expanded ? "▾" : "▸"}</span>
-        <span className="chronicle-toggle-label">Chronicle</span>
+        <span className="chronicle-toggle-label">{isTr ? "Vakanüvis" : "Chronicle"}</span>
         <span className="chronicle-toggle-count" data-testid="chronicle-count">{entries.length}</span>
       </button>
 
       {expanded && (
         <>
-          <div className="chronicle-filters" role="tablist" aria-label="Chronicle strands" onKeyDown={handleTabListKeyDown}>
+          <div className="chronicle-filters" role="tablist" aria-label={isTr ? "Kayıt başlıkları" : "Chronicle strands"} onKeyDown={handleTabListKeyDown}>
             {CHRONICLE_FILTERS.map((filter) => (
               <button
                 type="button"
@@ -101,7 +115,7 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
                   onSelectFilter(filter);
                 }}
               >
-                {CHRONICLE_FILTER_LABEL[filter]}
+                {getChronicleFilterLabel(filter, isTr)}
               </button>
             ))}
           </div>
@@ -110,8 +124,8 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
             {visible.length === 0 ? (
               <li className="chronicle-empty">
                 {activeFilter === "all"
-                  ? "Nothing logged yet today."
-                  : `Nothing under ${CHRONICLE_FILTER_LABEL[activeFilter]} yet.`}
+                  ? (isTr ? "Bugün henüz bir kayıt düşülmedi." : "Nothing logged yet today.")
+                  : (isTr ? `${getChronicleFilterLabel(activeFilter, isTr)} altında henüz bir kayıt yok.` : `Nothing under ${CHRONICLE_FILTER_LABEL[activeFilter]} yet.`)}
               </li>
             ) : (
               visible.map((entry) => (

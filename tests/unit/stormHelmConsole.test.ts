@@ -7,6 +7,7 @@ import type { WorldHudBoatDto } from "../../src/simulation/core/contracts";
 function boat(overrides: Partial<WorldHudBoatDto> = {}): WorldHudBoatDto {
   return {
     boatId: "boat.player_skiff",
+      boatTypeId: "boat.skiff",
     name: "Coastal Fishing Skiff",
     speedKnots: 0,
     seaState: "Rough",

@@ -1,5 +1,10 @@
+import { INTERACTION_PLACEMENTS, INTERACTION_PLACEMENT_OVERRIDES } from "../../world/InteractionPlacements";
+import { LAYOUT_EDITOR_SOURCE_FILES } from "../../layout-editor/layoutEdit";
+import { VILLAGE_TRADE_STATIONS } from "../../world/VillageTradeLayout";
+import { HARBOR_TRADE_MOORING } from "../../world/WorldAnchors";
+import { carriageTuning, workshopCarriagePoses, isCarriage } from "../../simulation/mounts/Carriage";
 import { CarriagePresentation } from "../presentation/CarriagePresentation";
-import { STARTER_CARRIAGE_ID } from "../../simulation/mounts/Carriage";
+import { AmbientBoatPresentation } from "../presentation/AmbientBoatPresentation";
 import { AMBIENT_BOAT_ROUTES, sampleAmbientBoatPose } from "./ambientBoats";
 import {
   AMBIENT_ANIMAL_ROUTES,
@@ -273,7 +278,7 @@ import { createTradePackBackSocket, attachBoatTradePack } from "../animation/Tra
 import { alignEquipmentHands, alignMarkerHand, alignSupportFeet, applyEquipmentSocketPose, createCarryCradle, fishingClipUsesRod, rowboatOarRotation } from "../animation/CharacterEquipment";
 import { buildStarterFarmGround } from "./StarterFarmGround";
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { fishCargoPackAsset, fishSchoolMemberAssets, fishSpeciesAsset } from "./FishSchoolAssets";
+import { cargoPackAsset, fishSchoolMemberAssets, fishSpeciesAsset } from "./FishSchoolAssets";
 import { advanceSchoolFish, type SchoolBoatObstacle } from "../fishing/FishSchoolMotion";
 import { SchoolSurfaceRipples } from "../fishing/SchoolSurfaceRipples";
 import {
@@ -409,7 +414,7 @@ const DWELLING_SMOKE_ATTACHMENTS: readonly {
   { placementId: "authored.village.inn", localX: 3.35, localY: 8.90, localZ: -0.35, scale: 0.48 },
   // Village Market Hall: model building_thatched_cottage_a, stone chimney flue at (0.70, 5.425, -0.72)
   { placementId: "authored.village.market-hall", localX: 0.70, localY: 5.425, localZ: -0.72, scale: 0.46 },
-  // Village Cottage West: model house_cottage_b, red brick chimney pot centered at (1.53, 7.78, 1.22)
+  // Village Cottage West: model house_cottage_b, dark masonry flue centered at (1.53, 7.78, 1.22)
   { placementId: "authored.village.cottage-west", localX: 1.53, localY: 7.78, localZ: 1.22, scale: 0.42 },
   // Village Cottage South: model house_cottage_a, ashlar stack flue top centered at (2.46, 7.34, -0.13)
   { placementId: "authored.village.cottage-south", localX: 2.46, localY: 7.34, localZ: -0.13, scale: 0.42 },
@@ -603,7 +608,7 @@ export interface SportFishingCameraHint {
 }
 
 function boatBuoyancyFootprint(boatTypeId: string): { halfLength: number; halfBeam: number } {
-  return boatTypeId === "boat.skiff"
+  return boatTypeId === "boat.trading_ship" ? { halfLength: 4.5, halfBeam: 1.8 } : boatTypeId === "boat.skiff"
     ? { halfLength: 2.45, halfBeam: 0.9 }
     : { halfLength: 1.55, halfBeam: 0.62 };
 }
@@ -844,9 +849,11 @@ export class WorldScene {
   };
   private readonly faunaPresentations: FaunaPresentation[] = [];
   private carriagePresentation: CarriagePresentation | null = null;
-  private readonly carriagePacks = new Map<string, { root: THREE.Object3D; slot: number }>();
+  private readonly carriages = new Map<string, CarriagePresentation>();
+  private tradingShipPreview: THREE.Group | null = null;
+  private readonly carriagePacks = new Map<string, { root: THREE.Object3D; slot: number; mountId: string }>();
   private donkeyPresentation: DonkeyPresentation | null = null;
-  private readonly backgroundBoats: THREE.Object3D[] = [];
+  private readonly backgroundBoats: AmbientBoatPresentation[] = [];
   private readonly ambientTownsfolk: AmbientTownsfolkPresentation[] = [];
   private readonly ambientFlyers: AmbientFlyerPresentation[] = [];
   private readonly ambientAnimals: AmbientAnimalPresentation[] = [];
@@ -1085,7 +1092,7 @@ export class WorldScene {
 
   private syncCarriagePacks(state: Readonly<GameState>): void {
     for (const [id, pack] of this.carriagePacks) {
-      if (state.mounts[STARTER_CARRIAGE_ID]?.fishCargoSlotIds?.[pack.slot] !== id) {
+      if (state.mounts[pack.mountId]?.fishCargoSlotIds?.[pack.slot] !== id) {
         pack.root.removeFromParent();
         AssetLoader.releaseModel(pack.root);
         this.carriagePacks.delete(id);
@@ -1233,6 +1240,10 @@ export class WorldScene {
       ...Object.values(STATIC_FARM_PROP_ASSETS),
       ASSET_IDS.CHAR_PLAYER_A,
       ...FARMHOUSE_INTERIOR_PROPS.map((placement) => placement.assetId),
+      ASSET_IDS.BUILDING_CART_WORKSHOP_A,
+      ...VILLAGE_TRADE_STATIONS.map(station => station.assetId as AssetId),
+      ASSET_IDS.PROP_MERCHANT_CARRIAGE_4_A, ASSET_IDS.PROP_MERCHANT_CARRIAGE_6_A,
+      ASSET_IDS.BOAT_TRADING_SHIP_A, ASSET_IDS.FAUNA_HORSE_DRAFT_A,
       ASSET_IDS.FAUNA_GULL_A,
       ASSET_IDS.FAUNA_BUTTERFLY_A
     ]);
@@ -1941,8 +1952,25 @@ export class WorldScene {
     object.removeFromParent();
   }
 
+  private stationPlacements: Readonly<GameState["world"]["structures"]> = {};
+
+  public setStationPlacements(structures: Readonly<GameState["world"]["structures"]>): void {
+    this.stationPlacements = structures;
+  }
+
   private tagLayoutEdit(object: THREE.Object3D, tag: LayoutEditTag): void {
-    object.userData[LAYOUT_EDIT_USERDATA_KEY] = tag;
+    const binding = INTERACTION_PLACEMENTS[tag.id];
+    const station = binding?.stationId ? this.stationPlacements[binding.stationId] : undefined;
+    const override = INTERACTION_PLACEMENT_OVERRIDES[tag.id];
+    const pose = station ? { x: station.x, z: station.z, rotationY: (station.rotationY ?? WORLD_STATION_DEFINITIONS[binding!.stationId!].rotationY) + Math.PI } : override;
+    if (pose) {
+      object.position.set(pose.x, tag.fixedY ?? WorldLayout.terrainHeight(pose.x, pose.z) + tag.yOffset, pose.z);
+      object.rotation.y = pose.rotationY;
+    }
+    object.userData[LAYOUT_EDIT_USERDATA_KEY] = INTERACTION_PLACEMENTS[tag.id]
+      ? { ...tag, kind: "interaction-placement", sourceFile: LAYOUT_EDITOR_SOURCE_FILES.interactions,
+          space: "world", rotationWriteMode: "direct", warning: null }
+      : tag;
     this.layoutEditRoots.push(object);
   }
 
@@ -2141,19 +2169,27 @@ export class WorldScene {
       stoneGeometries.push(nonIndexed);
     };
 
-    // Roadside stones follow the compiled centerline and sit beyond the packed
-    // core. Their low-frequency side changes keep the edge authored without
-    // introducing a second, drifting path.
+    // Edge stones mark where the ground falls away beside a road: they stand
+    // on the downhill shoulder of a bank, not at a fixed cadence along level
+    // ground, and never closer than a few metres to the last one.
     for (const [routeIndex, compiledRoute] of WorldLayout.compiledRouteNetwork().entries()) {
       if (compiledRoute.route.id === "farm-home") continue;
-      const spacing = compiledRoute.route.kind === "trail" ? 9 : 11;
       const lateral = compiledRoute.halfWidth + compiledRoute.shoulderWidthMeters + 0.34;
-      for (let sampleIndex = 7; sampleIndex < compiledRoute.samples.length - 7; sampleIndex += spacing) {
+      let lastStone = -Infinity;
+      for (let sampleIndex = 3; sampleIndex < compiledRoute.samples.length - 3; sampleIndex++) {
         const sample = compiledRoute.samples[sampleIndex];
-        const side = Math.sin(sample.distanceAlongRoute * 0.23 + routeIndex * 2.17) >= 0 ? 1 : -1;
+        if (sample.distanceAlongRoute - lastStone < 7) continue;
+        const reach = lateral + 2;
+        const left = WorldLayout.terrainHeight(sample.point.x + sample.normal.x * reach, sample.point.z + sample.normal.z * reach);
+        const right = WorldLayout.terrainHeight(sample.point.x - sample.normal.x * reach, sample.point.z - sample.normal.z * reach);
+        // A drop of 0.45 m across the verge reads as a bank worth marking.
+        if (Math.abs(left - right) < 0.9) continue;
+        const side = left < right ? 1 : -1;
         const x = sample.point.x + sample.normal.x * side * lateral;
         const z = sample.point.z + sample.normal.z * side * lateral;
-        const baseColor = compiledRoute.route.id === "cliffside-coastal-walk" || compiledRoute.route.id === "village-harbor"
+        if (WorldLayout.isWater(x, z) || WorldLayout.isBridgeDeck(x, z)) continue;
+        lastStone = sample.distanceAlongRoute;
+        const baseColor = ["cliffside-coastal-walk", "headland-coastal-walk", "village-harbor"].includes(compiledRoute.route.id)
           ? (sampleIndex % 2 === 0 ? coolStone : darkRock)
           : (sampleIndex % 2 === 0 ? warmCobble : goldenCobble);
         appendStone(
@@ -2554,6 +2590,7 @@ export class WorldScene {
       object.rotation.y = placement.rotationY;
       object.scale.set(placement.scale[0], placement.scale[1], placement.scale[2]);
       if (placement.id === "authored.sunreach.cove-market") this.registerInteractionMaterials("market.sunreach_cove", object);
+      if (VILLAGE_TRADE_STATIONS.some(station => station.id === placement.id)) this.registerInteractionMaterials(placement.id, object);
       object.userData.environmentPlacementId = placement.id;
       object.userData.environmentPlacementOrigin = placement.origin;
       object.userData.islandId = placement.islandId ?? WorldLayout.islandAt(placement.x, placement.z) ?? "island.neva";
@@ -2571,17 +2608,12 @@ export class WorldScene {
           catalogAssetId: placement.assetId,
           grounding: pad?.envelope
         });
-      } else if (placement.origin === "authored") {
-        this.tagLayoutEdit(object, createAuthoredDetailTag(placement.id, placement.assetId, {
-          grounding: placement.grounding,
-          practicalLight: placement.practicalLight,
-          fixedY: placement.y
-        }));
       } else {
-        this.tagLayoutEdit(object, createEnvironmentOverrideTag(placement.id, placement.assetId, {
+        // Computed/authored families need a stable override address just like seeded scenery.
+        this.tagLayoutEdit(object, { ...createEnvironmentOverrideTag(placement.id, placement.assetId, {
           grounding: placement.grounding,
           practicalLight: placement.practicalLight
-        }));
+        }), fixedY: placement.y });
       }
       this.environmentGroup.add(object);
       this.bindLayoutInstanceFeatures(object, {
@@ -3233,7 +3265,7 @@ export class WorldScene {
     let clip: PlayerAnimation | null = action;
     if (action === "board" || action === "dock") {
       const boat = this.boatMeshes.get(targetId);
-      const isSkiff = Boolean(boat?.getObjectByName("boat_skiff_driver_station"));
+      const isSkiff = Boolean(boat && this.boatDriverSeats.has(targetId) && !boat.getObjectByName("boat_rowboat_rower_seat"));
       clip = attachmentClip(action, { skiff: isSkiff });
     } else if (action === "mount") {
       const donkey = this.donkeyPresentation;
@@ -3405,14 +3437,14 @@ export class WorldScene {
     });
   }
 
-  private configureSkiffPresentation(boatId: string, boatRoot: THREE.Group): void {
+  private configureSkiffPresentation(boatId: string, boatRoot: THREE.Group, prefix = "boat_skiff"): void {
     if (this.boatDriverSeats.has(boatId)) return;
-    const driverSeat = boatRoot.getObjectByName("boat_skiff_driver_station");
+    const driverSeat = boatRoot.getObjectByName(`${prefix}_driver_station`);
     if (!driverSeat) throw new Error("[WorldScene] Skiff is missing boat_skiff_driver_station");
-    const fishingStation = boatRoot.getObjectByName("boat_skiff_fishing_station");
+    const fishingStation = boatRoot.getObjectByName(`${prefix}_fishing_station`);
     if (!fishingStation) throw new Error("[WorldScene] Skiff is missing boat_skiff_fishing_station");
-    const footLeftSupport = boatRoot.getObjectByName("boat_skiff_foot_left_socket");
-    const footRightSupport = boatRoot.getObjectByName("boat_skiff_foot_right_socket");
+    const footLeftSupport = boatRoot.getObjectByName(`${prefix}_foot_left_socket`);
+    const footRightSupport = boatRoot.getObjectByName(`${prefix}_foot_right_socket`);
     if (!footLeftSupport || !footRightSupport) {
       throw new Error("[WorldScene] Skiff is missing its authored foot supports");
     }
@@ -3595,8 +3627,10 @@ export class WorldScene {
       for (const id of this.announcedCompleteJobs) if (!live.has(id)) this.announcedCompleteJobs.delete(id);
     }
     for (const job of jobs) {
-      const station = WORLD_STATION_DEFINITIONS[job.stationId];
-      if (!station) continue;
+      const definition = WORLD_STATION_DEFINITIONS[job.stationId];
+      const structure = state.world.structures[job.stationId];
+      if (!definition || !structure) continue;
+      const station = { ...definition, position: structure };
       const dx = station.position.x - focus.x;
       const dz = station.position.z - focus.z;
       if (dx * dx + dz * dz > STATION_ACTIVITY_RADIUS_METERS ** 2) continue;
@@ -4165,11 +4199,13 @@ export class WorldScene {
       }
     };
     for (const route of AMBIENT_BOAT_ROUTES) {
-      const object = await this.loadModel(ASSET_IDS.BOAT_SKIFF_A);
+      const object = await this.loadModel(route.assetId);
+      const driver = await this.loadModel(route.driverAssetId);
+      const presentation = new AmbientBoatPresentation(object, driver, route.assetId === ASSET_IDS.BOAT_ROWBOAT_A);
       object.userData.dynamicPresentation = true;
       this.environmentGroup.add(object);
       object.position.set(route.x, 0, route.z);
-      this.backgroundBoats.push(object);
+      this.backgroundBoats.push(presentation);
     }
     // Background villagers. Deliberately not tagged for the layout editor and
     // never registered as NPCs, so nothing can interact with them.
@@ -4208,6 +4244,7 @@ export class WorldScene {
       const board = await this.loadModel(ASSET_IDS.PROP_SIGNPOST_TRAIL_A);
       const { x, z } = VILLAGE_BULLETIN.position;
       board.name = "village_bulletin_board";
+      this.tagLayoutEdit(board, createAuthoredDetailTag(board.name, ASSET_IDS.PROP_SIGNPOST_TRAIL_A));
       board.position.set(x, WorldLayout.traversalSurfaceHeight(x, z), z);
       board.rotation.y = VILLAGE_BULLETIN.rotationY;
       this.applyStaticShadowPolicy(board);
@@ -4408,11 +4445,13 @@ export class WorldScene {
   }
 
   private updateAmbientFlyers(timeSeconds: number, delta: number, motionScale: number): void {
-    this.backgroundBoats.forEach((object, index) => {
+    this.backgroundBoats.forEach((presentation, index) => {
+      const object = presentation.boat;
       const pose = sampleAmbientBoatPose(AMBIENT_BOAT_ROUTES[index], timeSeconds, this.prefersReducedMotion ? 0 : 1);
       object.position.set(pose.x, this.water.height(pose.x, pose.z, timeSeconds), pose.z);
       object.rotation.y = pose.heading;
       object.visible = Math.hypot(pose.x - this.visibilityAnchor.x, pose.z - this.visibilityAnchor.z) < 430;
+      if (object.visible) presentation.update(timeSeconds, this.prefersReducedMotion);
     });
     for (const flyer of this.ambientFlyers) {
       const visibilityDistance = flyer.kind === "butterfly" ? 120 : flyer.kind === "pigeon" ? 150 : 190;
@@ -4624,9 +4663,19 @@ export class WorldScene {
     this.syncSkiffMooringPreview(state, timeSeconds);
     if (syncRecord) { syncRecord("sync:boats", performance.now() - syncMark); syncMark = performance.now(); }
     this.updateDonkeyPresentation(state, playerPose, this.characterElapsedSeconds, delta, this.latestLocomotionTimeScale);
-    const carriageState = state.mounts[STARTER_CARRIAGE_ID];
-    const drivingCarriage = state.player.activeMountId === STARTER_CARRIAGE_ID;
-    if (carriageState) this.carriagePresentation?.update(carriageState, playerPose, drivingCarriage, delta, this.latestLocomotionTimeScale);
+    const activeCarriage = state.player.activeMountId ? state.mounts[state.player.activeMountId] : undefined;
+    const drivingCarriage = isCarriage(activeCarriage);
+    this.carriagePresentation = activeCarriage ? this.carriages.get(activeCarriage.id) ?? null : null;
+    for (const mount of [...Object.values(state.mounts).filter(isCarriage), ...workshopCarriagePoses().filter(pose => !state.mounts[pose.id])]) {
+      this.carriages.get(mount.id)?.update(mount, playerPose, mount.id === state.player.activeMountId, delta, this.latestLocomotionTimeScale);
+    }
+    if (this.tradingShipPreview) {
+      this.tradingShipPreview.visible = !this.boatMeshes.has("boat.player_trading_ship");
+      const pose = { ...this.skiffMooringPreviewPose(), ...HARBOR_TRADE_MOORING.boatPosition, id: "preview.trading-ship", boatTypeId: "boat.trading_ship" };
+      const motion = this.sampleBoatPresentation(pose, state, timeSeconds);
+      this.tradingShipPreview.position.set(pose.x, pose.y + motion.waveHeight, pose.z);
+      this.tradingShipPreview.rotation.set(motion.pitch, 0, motion.roll, "YXZ");
+    }
     this.syncCarriagePacks(state);
     if (syncRecord) { syncRecord("sync:mounts", performance.now() - syncMark); syncMark = performance.now(); }
 
@@ -4713,10 +4762,10 @@ export class WorldScene {
       const rowboatRig = activeBoat?.boatTypeId === "boat.rowboat"
         ? this.rowboatPresentationRigs.get(activeBoat.id)
         : undefined;
-      const fishingStation = state.sportFishing && activeBoat?.boatTypeId === "boat.skiff"
+      const fishingStation = state.sportFishing && (activeBoat?.boatTypeId === "boat.skiff" || activeBoat?.boatTypeId === "boat.trading_ship")
         ? this.boatFishingStations.get(activeBoat.id)
         : undefined;
-      const skiffFootSupports = activeBoat?.boatTypeId === "boat.skiff"
+      const skiffFootSupports = (activeBoat?.boatTypeId === "boat.skiff" || activeBoat?.boatTypeId === "boat.trading_ship")
         ? this.boatSkiffFootSupports.get(activeBoat.id)
         : undefined;
       const carriageSeat = drivingCarriage ? this.carriagePresentation?.seat : undefined;
@@ -4804,11 +4853,11 @@ export class WorldScene {
       const holdingOars = presentationMode === "boat-driving"
         && activeBoat?.boatTypeId === "boat.rowboat";
       this.syncRowboatOarPresentation(activeBoat?.id ?? null, holdingOars, delta);
-      if (presentationMode === "boat-driving" && activeBoat?.boatTypeId === "boat.skiff"
+      if (presentationMode === "boat-driving" && (activeBoat?.boatTypeId === "boat.skiff" || activeBoat?.boatTypeId === "boat.trading_ship")
         && motion.clip === "skiff_drive" && !attachmentTransitionActive && this.playerAnimation) {
         const boatMesh = this.boatMeshes.get(activeBoat.id);
-        const helm = boatMesh?.getObjectByName("boat_skiff_helm_grip");
-        const helmLeft = boatMesh?.getObjectByName("boat_skiff_helm_grip_left");
+        const helm = boatMesh?.getObjectByName(activeBoat.boatTypeId === "boat.trading_ship" ? "boat_trading_ship_a_helm_grip_right" : "boat_skiff_helm_grip");
+        const helmLeft = boatMesh?.getObjectByName(activeBoat.boatTypeId === "boat.trading_ship" ? "boat_trading_ship_a_helm_grip_left" : "boat_skiff_helm_grip_left");
         if (!helm || !helmLeft) throw new Error("[WorldScene] Skiff is missing its two helm grips");
         alignMarkerHand(this.playerAnimation, "right", helm);
         alignMarkerHand(this.playerAnimation, "left", helmLeft);
@@ -5216,7 +5265,12 @@ export class WorldScene {
       if (person.pendingAnimationSeconds >= interval) {
         animationDelta = person.pendingAnimationSeconds;
         person.pendingAnimationSeconds = 0;
-        person.motionFrame = person.animator.update(animationDelta, context, this.prefersReducedMotion);
+        person.motionFrame = person.animator.update(animationDelta, context, this.prefersReducedMotion, {
+          timeOfDay: state.clock.timeOfDay,
+          nearPlayer: Math.hypot(this.playerPresence.x - pose.x, this.playerPresence.z - pose.z) < 5,
+          reactionKind: socialReaction.kind,
+          reactionAttention: socialReaction.attention
+        });
         const passiveHeadYaw = acknowledgeHeadYaw(
           this.playerPresence,
           pose.x,
@@ -5826,7 +5880,7 @@ export class WorldScene {
     const tiltScale = this.prefersReducedMotion
       ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
       : 1;
-    const maximumTilt = boat.boatTypeId === "boat.skiff"
+    const maximumTilt = boat.boatTypeId !== "boat.rowboat"
       ? THREE.MathUtils.degToRad(10)
       : THREE.MathUtils.degToRad(12);
     const targetPitch = THREE.MathUtils.clamp(
@@ -6009,40 +6063,44 @@ export class WorldScene {
           loadedNewMesh = true;
           if (boatState.boatTypeId === "boat.rowboat") {
             this.configureRowboatPresentation(boatId, bMesh);
-          } else if (boatState.boatTypeId === "boat.skiff") {
-            this.configureSkiffPresentation(boatId, bMesh);
+          } else if (boatState.boatTypeId === "boat.skiff" || boatState.boatTypeId === "boat.trading_ship") {
+            this.configureSkiffPresentation(boatId, bMesh, boatState.boatTypeId === "boat.trading_ship" ? "boat_trading_ship_a" : "boat_skiff");
           }
         }
       }
     }
 
-    if (state.mounts[STARTER_CARRIAGE_ID] && !this.carriagePresentation) {
-      const cart = await this.loadModel(ASSET_IDS.PROP_MERCHANT_CARRIAGE_A);
-      const horse = await this.loadModel(ASSET_IDS.FAUNA_HORSE_DRAFT_A);
-      if (!this.carriagePresentation) {
-        this.carriagePresentation = new CarriagePresentation(cart, horse);
-        this.setShadowPolicy(this.carriagePresentation.root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
-        this.scene.add(this.carriagePresentation.root);
-        this.lightingRig.shadowAtlas.registerDynamicRoot(this.carriagePresentation.root);
+    for (const mount of [...Object.values(state.mounts).filter(isCarriage), ...workshopCarriagePoses().filter(pose => !state.mounts[pose.id])]) {
+      let presentation = this.carriages.get(mount.id);
+      if (!presentation) {
+        const [cart, horse] = await Promise.all([this.loadModel(carriageTuning(mount).assetId as AssetId), this.loadModel(ASSET_IDS.FAUNA_HORSE_DRAFT_A)]);
+        presentation = this.carriages.get(mount.id);
+        if (!presentation) {
+          presentation = new CarriagePresentation(cart, horse, mount.mountTypeId);
+          this.carriages.set(mount.id, presentation);
+          this.setShadowPolicy(presentation.root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
+          this.scene.add(presentation.root);
+          this.lightingRig.shadowAtlas.registerDynamicRoot(presentation.root);
+          loadedNewMesh = true;
+        }
+      }
+      for (const [slot, id] of (mount.fishCargoSlotIds ?? []).entries()) {
+        if (!id || this.carriagePacks.has(id)) continue;
+        const cargo = sim.getState().fishCargo[id], assetId = cargo && cargoPackAsset(cargo);
+        if (!assetId) throw new Error(`Carriage cargo ${id} has no registered model`);
+        const root = await this.loadModel(assetId);
+        if (sim.getState().mounts[mount.id]?.fishCargoSlotIds?.[slot] !== id || this.carriagePacks.has(id)) { AssetLoader.releaseModel(root); continue; }
+        presentation.sockets[slot].add(root);
+        this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
+        this.lightingRig.shadowAtlas.registerDynamicRoot(root);
+        this.carriagePacks.set(id, { root, slot, mountId: mount.id });
         loadedNewMesh = true;
       }
     }
     this.syncCarriagePacks(sim.getState());
-    const carriage = sim.getState().mounts[STARTER_CARRIAGE_ID];
-    if (carriage && this.carriagePresentation) {
-      for (const [slot, id] of (carriage.fishCargoSlotIds ?? []).entries()) {
-        if (!id || this.carriagePacks.has(id)) continue;
-        const cargo = sim.getState().fishCargo[id];
-        const assetId = cargo && fishCargoPackAsset(cargo.speciesId);
-        if (!assetId) throw new Error(`Carriage cargo ${id} has no registered model`);
-        const root = await this.loadModel(assetId);
-        if (sim.getState().mounts[STARTER_CARRIAGE_ID]?.fishCargoSlotIds?.[slot] !== id || this.carriagePacks.has(id)) continue;
-        this.carriagePresentation.sockets[slot].add(root);
-        this.setShadowPolicy(root, CANONICAL_RENDER_CONFIG.shadows.castCharacters);
-        this.lightingRig.shadowAtlas.registerDynamicRoot(root);
-        this.carriagePacks.set(id, { root, slot });
-        loadedNewMesh = true;
-      }
+    if (!this.tradingShipPreview && !this.boatMeshes.has("boat.player_trading_ship")) {
+      this.tradingShipPreview = await this.loadModel(ASSET_IDS.BOAT_TRADING_SHIP_A);
+      this.scene.add(this.tradingShipPreview);
     }
 
     await this.ensureSkiffMooringPreview(state);
@@ -6060,8 +6118,8 @@ export class WorldScene {
     }
     const carriedCargo = carriedId ? state.fishCargo[carriedId] : null;
     if (carriedCargo?.location.type === "player" && !this.carriedFishPresentation && this.playerMesh) {
-      const cargoAssetId = fishCargoPackAsset(carriedCargo.speciesId);
-      if (!cargoAssetId) throw new Error(`[WorldScene] No fish asset for carried ${carriedCargo.speciesId}`);
+      const cargoAssetId = cargoPackAsset(carriedCargo);
+      if (!cargoAssetId) throw new Error(`[WorldScene] No fish asset for carried ${carriedCargo.id}`);
       const payload = await this.loadModel(cargoAssetId);
       if (sim.getState().player.carriedFishCargoId === carriedId && !this.carriedFishPresentation) {
         const socket = this.playerBackpackSocket;
@@ -6085,8 +6143,8 @@ export class WorldScene {
         if (!cargoId || this.boatFishPacks.has(cargoId)) continue;
         const cargo = sim.getState().fishCargo[cargoId];
         if (!cargo) continue;
-        const assetId = fishCargoPackAsset(cargo.speciesId);
-        if (!assetId) throw new Error(`No trade pack for ${cargo.speciesId}`);
+        const assetId = cargoPackAsset(cargo);
+        if (!assetId) throw new Error(`No trade pack for ${cargo.id}`);
         const root = await this.loadModel(assetId);
         if (sim.getState().boats[boatId]?.fishCargoSlotIds[slot] !== cargoId || this.boatFishPacks.has(cargoId)) continue;
         attachBoatTradePack(mesh, boat.boatTypeId, slot, root);
@@ -6103,8 +6161,8 @@ export class WorldScene {
       if (cargo.location.type !== "ground" || this.groundFishPacks.has(cargoId)) continue;
       const { x, z } = cargo.location;
       if (typeof x !== "number" || typeof z !== "number") continue;
-      const assetId = fishCargoPackAsset(cargo.speciesId);
-      if (!assetId) throw new Error(`No trade pack for ${cargo.speciesId}`);
+      const assetId = cargoPackAsset(cargo);
+      if (!assetId) throw new Error(`No trade pack for ${cargo.id}`);
       const root = await this.loadModel(assetId);
       const live = sim.getState().fishCargo[cargoId];
       if (!live || live.location.type !== "ground" || this.groundFishPacks.has(cargoId)) {
@@ -6257,9 +6315,8 @@ export class WorldScene {
       const boat = state.boats[boatId]!;
       parts.push(`boat:${boat.id}:${boat.boatTypeId}:${this.boatMeshes.has(boat.id) ? "mesh" : "missing"}:${boat.fishCargoSlotIds.join(",")}`);
     }
-    const carriage = state.mounts[STARTER_CARRIAGE_ID];
-    if (carriage) {
-      parts.push(`carriage:${this.carriagePresentation ? "mesh" : "missing"}:${(carriage.fishCargoSlotIds ?? []).join(",")}`);
+    for (const carriage of Object.values(state.mounts).filter(isCarriage)) {
+      parts.push(`carriage:${carriage.id}:${this.carriages.has(carriage.id) ? "mesh" : "missing"}:${(carriage.fishCargoSlotIds ?? []).join(",")}`);
     }
     for (const cargoId of this.boatFishPacks.keys()) parts.push(`boat-pack:${cargoId}`);
     for (const cargoId of this.carriagePacks.keys()) parts.push(`carriage-pack:${cargoId}`);
@@ -6559,7 +6616,9 @@ export class WorldScene {
     }
     this.dwellingSmoke.length = 0;
     this.playerAnimationEvents.length = 0;
-    this.carriagePresentation?.dispose();
+    for (const carriage of this.carriages.values()) carriage.dispose();
+    this.carriages.clear();
+    if (this.tradingShipPreview) { this.tradingShipPreview.removeFromParent(); AssetLoader.releaseModel(this.tradingShipPreview); this.tradingShipPreview = null; }
     this.carriagePresentation = null;
     for (const pack of this.carriagePacks.values()) {
       pack.root.removeFromParent();
@@ -6697,7 +6756,12 @@ export class WorldScene {
       flyer.object.removeFromParent();
     }
     this.ambientFlyers.length = 0;
-    for (const boat of this.backgroundBoats) boat.removeFromParent();
+    for (const presentation of this.backgroundBoats) {
+      presentation.dispose();
+      AssetLoader.releaseModel(presentation.driver);
+      AssetLoader.releaseModel(presentation.boat);
+      presentation.boat.removeFromParent();
+    }
     this.backgroundBoats.length = 0;
     for (const practical of this.practicalLights) {
       practical.glow?.removeFromParent();

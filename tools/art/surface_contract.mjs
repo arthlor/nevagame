@@ -1,3 +1,4 @@
+import { nativeNpcContract } from "./native_npc_contract.mjs";
 import { AnimationMixer, LoopOnce, Vector3 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
@@ -66,6 +67,7 @@ export async function validateSurfaceContract(bytes, spec) {
   const geometryOnly = withoutTextures(bytes);
   const buffer = geometryOnly.buffer.slice(geometryOnly.byteOffset, geometryOnly.byteOffset + geometryOnly.byteLength);
   const gltf = await loader.parseAsync(buffer, "");
+  const native = await nativeNpcContract(spec, gltf, loader);
   const meshes = [];
   gltf.scene.traverse((node) => { if (node.isMesh) meshes.push(node); });
   gltf.scene.updateMatrixWorld(true);
@@ -119,6 +121,9 @@ export async function validateSurfaceContract(bytes, spec) {
         if (js.some((j) => !Number.isInteger(j) || j < 0 || j >= mesh.skeleton.bones.length)) fail(`${mesh.name}: invalid joint at ${i}`);
       }
       skinVertices += position.count;
+      // Retained native bodies have a sampled source-rig/weight gate instead
+      // of an absolute authoring-deformation limit. Accessories still use it.
+      if (mesh === native?.body) continue;
       mesh.skeleton.update();
       const edges = new Map();
       for (let i = 0; i < count; i += 3) {
@@ -139,7 +144,7 @@ export async function validateSurfaceContract(bytes, spec) {
   const creature = /^fauna_(donkey|chicken|rabbit|gull|butterfly)$/.test(spec.generator);
   if (creature && !skins.length) fail("creature export lost its skin");
   const deformation = [];
-  if (skins.length) {
+  if (skins.length || native) {
     const mixer = new AnimationMixer(gltf.scene);
     const point = new Vector3();
     const capture = () => skins.map(({ mesh }) => {
@@ -158,6 +163,7 @@ export async function validateSurfaceContract(bytes, spec) {
       const action = mixer.clipAction(clip).reset().setLoop(LoopOnce, 1);
       action.clampWhenFinished = true;
       action.play();
+      native?.begin(clip);
       const times = new Set([0, clip.duration]);
       // Include exported key times as well as interpolated midpoints. This runs
       // on the raw candidate and again after Meshopt packaging.
@@ -167,6 +173,7 @@ export async function validateSurfaceContract(bytes, spec) {
       for (const time of [...times].sort((x, y) => x - y)) {
         mixer.setTime(time);
         gltf.scene.updateMatrixWorld(true);
+        native?.sample(time);
         const positions = capture();
         first ??= positions;
         last = positions;
@@ -195,5 +202,6 @@ export async function validateSurfaceContract(bytes, spec) {
     mesh.geometry.dispose();
     for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) material.dispose();
   }
+  native?.dispose();
   return { primitives: meshes.length, triangles, interpolatedTriangles, skinVertices, deformation };
 }

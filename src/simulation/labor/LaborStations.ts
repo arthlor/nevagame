@@ -1,3 +1,10 @@
+import { bindInteractionPoint } from "../../world/InteractionPlacements";
+
+export const LABOR_PROP_POSES = {
+  "authored.arrival.village.firewood": { x: 66.4, z: -39.8, rotationY: 1.5708 },
+  "authored.arrival.village.rack": { x: 61, z: -40.8, rotationY: 3.1416 },
+  "authored.prop.net-rack.harbor": { x: 67.5, z: 64.5, rotationY: 0.22 }
+} as const;
 /**
  * Chore stations that turn skilled play into Work. They attach to already
  * rendered coastal/farm props, so no new world geometry or layout revision is
@@ -25,7 +32,7 @@ export const LABOR_STATIONS: Readonly<Record<string, Readonly<LaborStationDefini
     id: "labor.firewood",
     name: "Split Kindling",
     prompt: "Split kindling",
-    position: Object.freeze({ x: 64.9, z: -40.1 }),
+    position: bindInteractionPoint("authored.arrival.village.firewood", { x: 64.9, z: -40.1 }, LABOR_PROP_POSES["authored.arrival.village.firewood"]),
     reachMeters: 2.6,
     yield: 20,
     targetMin: 0.72,
@@ -36,7 +43,7 @@ export const LABOR_STATIONS: Readonly<Record<string, Readonly<LaborStationDefini
     id: "labor.racks",
     name: "Turn the Drying Racks",
     prompt: "Turn the racks",
-    position: Object.freeze({ x: 61, z: -40.8 }),
+    position: bindInteractionPoint("authored.arrival.village.rack", { x: 61, z: -40.8 }, LABOR_PROP_POSES["authored.arrival.village.rack"]),
     reachMeters: 2.6,
     yield: 20,
     targetMin: 0.72,
@@ -47,7 +54,7 @@ export const LABOR_STATIONS: Readonly<Record<string, Readonly<LaborStationDefini
     id: "labor.nets",
     name: "Mend the Nets",
     prompt: "Mend the nets",
-    position: Object.freeze({ x: 67.5, z: 64.5 }),
+    position: bindInteractionPoint("authored.prop.net-rack.harbor", { x: 67.5, z: 64.5 }, LABOR_PROP_POSES["authored.prop.net-rack.harbor"]),
     reachMeters: 2.6,
     yield: 20,
     targetMin: 0.72,

@@ -1,3 +1,4 @@
+import { tradePackName } from "../i18n/tradePackNames";
 import React, { useEffect, useMemo, useState } from "react";
 import { IconEnergy, IconPack } from "./components/HudIcons";
 import { FarmForecastPopover } from "./components/FarmForecastPopover";
@@ -9,7 +10,7 @@ import { NoticeStack } from "./components/NoticeStack";
 import { CoastalChronicle } from "./components/CoastalChronicle";
 import type { ChronicleEntry, ChronicleFilter, Notice } from "./notifications";
 import { AtlasImage } from "./chrome/AtlasImage";
-import { atlasForFish } from "./chrome/uiAtlas";
+import { atlasForFish, atlasForItem } from "./chrome/uiAtlas";
 import { playUiSound } from "./audio/uiAudio";
 
 // M1 Component Imports
@@ -22,6 +23,7 @@ import type { ContextualCropChoice } from "./hud/ContextualCropChoice";
 // M2 Component Imports
 import { MaritimeVesselConsole } from "./components/MaritimeVesselConsole";
 import { WeatherHazardBanner } from "./components/WeatherHazardBanner";
+import { useTranslation } from "../i18n/useTranslation";
 
 export interface HUDProps {
   hud: WorldHudDto;
@@ -83,6 +85,8 @@ export const HUD: React.FC<HUDProps> = ({
   chronicleFilter = "all",
   onSelectChronicleFilter
 }) => {
+  const { locale, getLocalizedItem } = useTranslation();
+  const isTr = locale === "tr";
   const [showForecast, setShowForecast] = useState(false);
   const { work, boat, carriedFish, basicFishingPhase } = hud;
   const basicFishingResultOpen = basicFishingPhase === "caught" || basicFishingPhase === "escaped";
@@ -142,11 +146,11 @@ export const HUD: React.FC<HUDProps> = ({
       aria-hidden={blocked || undefined}
       {...(blocked ? { inert: "" } : {})}
     >
-      <HudCluster edge="top-left" className="guild-status-anchor interactive" aria-label="Player resources">
+      <HudCluster edge="top-left" className="guild-status-anchor interactive" aria-label={isTr ? "Oyuncu kaynakları" : "Player resources"}>
         <PlayerUnitFrame work={hud.work} sprint={hud.sprint} mount={hud.mount} statusEffects={hud.statusEffects}
           onOpenCharacterSheet={() => handleModalOpen("character")} />
       </HudCluster>
-      <HudCluster className="guild-objectives interactive" aria-label="Active objectives">
+      <HudCluster className="guild-objectives interactive" aria-label={isTr ? "Aktif hedefler" : "Active objectives"}>
         <QuestTrackerHUD
           activeQuest={activeQuest}
           activeQuests={activeQuests}
@@ -165,7 +169,7 @@ export const HUD: React.FC<HUDProps> = ({
       <HudCluster
         edge="top-right"
         className="guild-almanac-anchor interactive"
-        aria-label="Navigation, weather, and active objectives"
+        aria-label={isTr ? "Seyir, hava durumu ve aktif hedefler" : "Navigation, weather, and active objectives"}
       >
         <div className="hud-top-right">
           <div className="hud-top-right-main">
@@ -203,7 +207,7 @@ export const HUD: React.FC<HUDProps> = ({
       <HudCluster edge="bottom-left" className="guild-notes-anchor">
         <div className="guild-field-notes">
           {(work.showLowNotice || carriedFish) && (
-            <aside className="hud-context-statuses interactive" aria-label="Current field notes">
+            <aside className="hud-context-statuses interactive" aria-label={isTr ? "Mevcut arazi notları" : "Current field notes"}>
               {work.showLowNotice && (
                 <div
                   className={`hud-context-note hud-labor-note${
@@ -212,7 +216,7 @@ export const HUD: React.FC<HUDProps> = ({
                   role="status"
                 >
                   <IconEnergy size={14} aria-hidden="true" />
-                  <span>{work.exhausted ? "Exhausted" : "Low Work"}</span>
+                  <span>{work.exhausted ? (isTr ? "Tükendi" : "Exhausted") : (isTr ? "Düşük Emek" : "Low Work")}</span>
                   <strong>{`${work.current}/${work.maximum}`}</strong>
                 </div>
               )}
@@ -227,8 +231,8 @@ export const HUD: React.FC<HUDProps> = ({
                 >
                   <div className="pack-info-row">
                     <span className="pack-shoulder-mark" aria-hidden="true"><IconPack size={13} /></span>
-                    <AtlasImage src={atlasForFish(carriedFish.speciesId)} alt="" size={24} />
-                    <span className="pack-species-name">{carriedFish.name}</span>
+                    <AtlasImage src={carriedFish.kind === "farm" ? atlasForItem(carriedFish.itemId!) : atlasForFish(carriedFish.speciesId)} alt="" size={24} />
+                    <span className="pack-species-name">{carriedFish.tradePackId ? tradePackName(carriedFish.tradePackId, carriedFish.name, isTr ? "tr" : "en") : carriedFish.kind === "farm" && isTr ? `${getLocalizedItem(carriedFish.itemId!).name} paketi` : carriedFish.name}</span>
                     <strong className="pack-weight">{`${carriedFish.weightKg.toFixed(1)} kg`}</strong>
                   </div>
                   <div className="pack-detail-row">
@@ -240,9 +244,9 @@ export const HUD: React.FC<HUDProps> = ({
                       <span
                         className="pack-speed-penalty"
                         data-testid="carried-pack-penalty"
-                        title="Carrying this on your back slows you down"
+                        title={isTr ? "Bunu sırtında taşımak seni yavaşlatır" : "Carrying this on your back slows you down"}
                       >
-                        {`▼ ${carriedFish.carrySpeedPenaltyPercent}% speed`}
+                        {isTr ? `▼ %${carriedFish.carrySpeedPenaltyPercent} hız` : `▼ ${carriedFish.carrySpeedPenaltyPercent}% speed`}
                       </span>
                     )}
                   </div>
@@ -273,7 +277,7 @@ export const HUD: React.FC<HUDProps> = ({
       {/* Bottom-Center Cluster: the immediate verb and only currently useful alternatives. */}
       <HudCluster edge="bottom-center" className="hud-play-cluster guild-play-anchor">
         {!isPlacementActive && !basicFishingResultOpen && (basicFishingPhase || promptText) && (
-          <footer className="guild-interaction-anchor" aria-label="Contextual interactions">
+          <footer className="guild-interaction-anchor" aria-label={isTr ? "Bağlamsal etkileşimler" : "Contextual interactions"}>
             {basicFishingPhase ? (
               <div
                 className={`interaction-prompt fishing-phase-banner phase-${basicFishingPhase}`}
@@ -282,21 +286,21 @@ export const HUD: React.FC<HUDProps> = ({
               >
                 {basicFishingPhase === "charging-cast" ? (
                   <span className="banner-text">
-                    {touchChrome ? "Release to cast" : "Release E or LMB to cast"}
+                    {touchChrome ? (isTr ? "Savurmak için bırak" : "Release to cast") : (isTr ? "Savurmak için E veya Sol Tık'ı bırak" : "Release E or LMB to cast")}
                   </span>
                 ) : basicFishingPhase === "bite-reaction" || basicFishingPhase === "bite" ? (
                   <div className="banner-content-row">
                     {!touchChrome && <KeyHint keyName="Space" />}
-                    <span className="banner-text is-bite-alert">Hook the fish</span>
+                    <span className="banner-text is-bite-alert">{isTr ? "Balığı kancala" : "Hook the fish"}</span>
                   </div>
                 ) : basicFishingPhase === "minigame" ? (
                   <span className="banner-text">
                     {touchChrome
-                      ? "Hold Reel to keep the fish in the bar"
-                      : "Hold Space to keep the fish in the bar"}
+                      ? (isTr ? "Balığı şeritte tutmak için Sar'a basılı tut" : "Hold Reel to keep the fish in the bar")
+                      : (isTr ? "Balığı şeritte tutmak için Boşluk'a basılı tut" : "Hold Space to keep the fish in the bar")}
                   </span>
                 ) : (
-                  <span className="banner-text">Waiting for a bite</span>
+                  <span className="banner-text">{isTr ? "Vuruş bekleniyor" : "Waiting for a bite"}</span>
                 )}
               </div>
             ) : (
@@ -312,15 +316,15 @@ export const HUD: React.FC<HUDProps> = ({
 
         {!isPlacementActive && !basicFishingPhase &&
           ((canStartPlanting && onStartPlanting) || (contextualCropChoices.length > 0 && onChooseCropAction)) && (
-          <div className="guild-context-actions interactive" role="group" aria-label="Available actions">
+          <div className="guild-context-actions interactive" role="group" aria-label={isTr ? "Kullanılabilir eylemler" : "Available actions"}>
             {canStartPlanting && onStartPlanting && (
               <button type="button" className="guild-context-action" onClick={onStartPlanting}>
-                Plant
+                {isTr ? "Ek" : "Plant"}
               </button>
             )}
             {contextualCropChoices.length > 0 && onChooseCropAction && (
               <details className="guild-context-more" key={contextualCropChoices[0].cropId}>
-                <summary>Other actions</summary>
+                <summary>{isTr ? "Diğer eylemler" : "Other actions"}</summary>
                 <div className="guild-context-more-list">
                   {contextualCropChoices.map((choice) => (
                     <button key={choice.action} type="button" className="guild-context-action"
@@ -341,7 +345,7 @@ export const HUD: React.FC<HUDProps> = ({
         <HudCluster
           edge="bottom-right"
           className="guild-utilities-anchor interactive"
-          aria-label="Micro-menu and purse"
+          aria-label={isTr ? "Mikro menü ve kese" : "Micro-menu and purse"}
         >
           <MicroMenuPurseBar
             money={hud.money}

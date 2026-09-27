@@ -1,9 +1,11 @@
 // src/render/scene/ambientTownsfolk.ts
 
+import { AMBIENT_NPC_ASSETS } from "./ambientNpcAssets";
 import type { ClockState } from "../../simulation/core/types";
 import { ASSET_IDS } from "../assets/AssetCatalog";
 import { MAINLAND_VILLAGES } from "../../world/NevaMainland";
 import { SUNREACH_TOWNSFOLK_ROUTES } from "./sunreachTownsfolk";
+import { HARBOR_TOWNSFOLK_ROUTES } from "./harborTownsfolk";
 
 const MAINLAND_TOWNSFOLK: readonly AmbientTownsfolkRoute[] = Object.values(MAINLAND_VILLAGES).flatMap((village, villageIndex) =>
   [-1, 1].map((side, index) => {
@@ -214,8 +216,9 @@ export const AMBIENT_TOWNSFOLK_ROUTES: readonly AmbientTownsfolkRoute[] = [
     phase: 0.56
   },
   ...MAINLAND_TOWNSFOLK,
-  ...SUNREACH_TOWNSFOLK_ROUTES
-];
+  ...SUNREACH_TOWNSFOLK_ROUTES,
+  ...HARBOR_TOWNSFOLK_ROUTES
+].map((route, index) => ({ ...route, assetId: AMBIENT_NPC_ASSETS[index % AMBIENT_NPC_ASSETS.length] }));
 
 export interface AmbientTownsfolkPose {
   x: number;

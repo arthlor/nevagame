@@ -9,7 +9,7 @@ import {
 import { createWorldStaticPlacements } from "../../src/world/WorldEnvironmentLayout";
 import { signedDistanceToNevaCoast } from "../../src/world/WorldIslands";
 import { WorldLayout } from "../../src/world/WorldLayout";
-import { mainlandBrookFingerprint } from "../../tools/world/mainlandBrookTracer";
+import { mainlandBrookFingerprint, mainlandBrookOutletRule } from "../../tools/world/mainlandBrookTracer";
 
 const course = (id: string) => MAINLAND_BROOK_COURSES.find(brook => brook.id === id)!;
 
@@ -47,7 +47,13 @@ describe("mainland brooks", () => {
       const root = rootOf(brook);
       highest.set(root, Math.max(highest.get(root) ?? 0, mainlandRouteGroundAt(brook.knots[0][0], brook.knots[0][1])));
     }
-    for (const [root, height] of highest) expect(height, root).toBeGreaterThan(15.5);
+    // The open sea's brooks must start higher than the feeders of the lake,
+    // river and cove; the tracer's lattice ground carries a little meander relief.
+    for (const [root, height] of highest) {
+      const brook = course(root), mouth = brook.knots[brook.knots.length - 1];
+      const rule = mainlandBrookOutletRule(brook.outlet as "lake" | "river" | "sea", mouth[0], mouth[1]);
+      expect(height, root).toBeGreaterThan(rule.head - 0.5);
+    }
     expect([...outlets]).toEqual(expect.arrayContaining(["lake", "river", "sea"]));
   });
 
@@ -72,11 +78,19 @@ describe("mainland brooks", () => {
     for (const brook of MAINLAND_BROOK_COURSES) {
       for (let i = 1; i < brook.knots.length - 1; i++) {
         const [x, z, bed] = brook.knots[i];
-        if (roads.some(crossing => Math.hypot(crossing.point.x - x, crossing.point.z - z) < 9)) continue;
+        // A culvert's works, from its squared approach and inlet ramp to its
+        // aprons, grade the channels round it down to the pipe.
+        if (roads.some(crossing => Math.hypot(crossing.point.x - x, crossing.point.z - z) < 12)) continue;
+        // A road deck carries its own grade over a culvert.
+        if (WorldLayout.nearestRouteDistance(x, z).distance < WorldLayout.nearestRouteDistance(x, z).halfWidth + 1.5) continue;
         if (signedDistanceToNevaCoast(x, z) > -3 || mainlandWaterSample(x, z).signedDistance > -3) continue;
         expect(WorldLayout.isWater(x, z), `${brook.id} ${x},${z}`).toBe(false);
         expect(WorldLayout.isWalkable(x, z), `${brook.id} ${x},${z}`).toBe(true);
-        expect(Math.abs(WorldLayout.naturalTerrainHeight(x, z) - bed), `${brook.id} ${x},${z}`).toBeLessThan(0.2);
+        // The channel is cut down to the bed; where a joined brook's channel is
+        // lower beside it, the floor may lie a little below, never above.
+        const floor = WorldLayout.naturalTerrainHeight(x, z) - bed;
+        expect(floor, `${brook.id} ${x},${z}`).toBeLessThan(0.2);
+        expect(floor, `${brook.id} ${x},${z}`).toBeGreaterThan(-0.6);
         // Across the channel the ground rises smoothly from the floor to the banks.
         const next = brook.knots[i + 1];
         const length = Math.hypot(next[0] - x, next[1] - z);
@@ -100,9 +114,15 @@ describe("mainland brooks", () => {
     const crossings = mainlandBrookRoadCrossings();
     expect(crossings.length).toBeGreaterThan(0);
     const placements = createWorldStaticPlacements(42).filter(placement => placement.assetId === "prop_culvert_headwall_a");
+    const seen = new Map<string, number>();
     for (const crossing of crossings) {
-      const walls = placements.filter(placement => placement.id.includes(`culvert.${crossing.brookId}.${crossing.route.id}.`));
-      expect(walls.length, `${crossing.brookId} ${crossing.route.id}`).toBe(2);
+      const key = `${crossing.brookId}.${crossing.route.id}`;
+      const ordinal = seen.get(key) ?? 0;
+      seen.set(key, ordinal + 1);
+      const name = ordinal === 0 ? key : `${key}.${ordinal + 1}`;
+      const walls = placements.filter(placement => placement.id === `authored.mainland.culvert.${name}.upstream`
+        || placement.id === `authored.mainland.culvert.${name}.downstream`);
+      expect(walls.length, name).toBe(2);
       for (const wall of walls) {
         const floor = mainlandBrookAt(wall.x, wall.z, 3)!;
         // The pipe and a skin of road fit between the floor and the road surface.
@@ -110,6 +130,15 @@ describe("mainland brooks", () => {
         const road = WorldLayout.nearestRouteDistance(wall.x, wall.z);
         expect(road.distance - road.halfWidth, wall.id).toBeGreaterThan(0.6);
         expect(road.distance - road.halfWidth, wall.id).toBeLessThan(1.6);
+        // The pipe mouth sits on the brook's course and clears the ground the
+        // terrain grid renders at the face, so it is never half buried.
+        expect(floor.distance, wall.id).toBeLessThan(0.3);
+        for (const reach of [0.05, 0.35]) {
+          const ahead = { x: wall.x + Math.sin(wall.rotationY) * reach, z: wall.z + Math.cos(wall.rotationY) * reach };
+          const ground = WorldLayout.terrainBaseSurfaceHeight(ahead.x, ahead.z);
+          expect(WorldLayout.terrainGridSurfaceHeight(ahead.x, ahead.z), wall.id).toBeCloseTo(ground, 3);
+          expect(wall.y! + 0.06 * wall.scale[1], `${wall.id} at ${reach}`).toBeGreaterThanOrEqual(ground - 0.01);
+        }
       }
       // A road crosses a brook; it never runs along one.
       const brook = course(crossing.brookId);
@@ -128,9 +157,11 @@ describe("mainland brooks", () => {
   }, 120_000);
 
   it("are traced on the natural ground they drain", () => {
-    // The course follows the ground's drainage: its bed never stands far above the ground it crosses.
+    // The course follows the ground's drainage: its bed never stands far above
+    // the ground it crosses. Out in open water a mouth's bed is the waterline.
     for (const brook of MAINLAND_BROOK_COURSES) {
       for (const [x, z, bed] of brook.knots) {
+        if (WorldLayout.isWater(x, z)) continue;
         expect(bed - mainlandRouteGroundAt(x, z), `${brook.id} ${x},${z}`).toBeLessThan(0.6);
       }
     }

@@ -62,16 +62,18 @@ export function revealPageFully(pageKey: string, chars: number): DialogueReveal 
   return { pageKey, chars: Math.max(0, chars) };
 }
 
-export type DialogueFooterLabel = "Show all" | "Next" | "Close" | "Continue";
+export type DialogueFooterLabel = "Show all" | "Next" | "Close" | "Continue" | "Hepsini Göster" | "Devam" | "Kapat" | "İlerle";
 
 export function dialogueFooterLabel(input: {
   isTyping: boolean;
   isLastPage: boolean;
   talkFailed: boolean;
   isCompletion: boolean;
-}): DialogueFooterLabel {
-  if (input.isTyping) return "Show all";
-  if (!input.isLastPage) return "Next";
-  if (input.talkFailed) return "Close";
-  return input.isCompletion ? "Continue" : "Close";
+  locale?: string;
+}): string {
+  const isTr = input.locale === "tr";
+  if (input.isTyping) return isTr ? "Hepsini Göster" : "Show all";
+  if (!input.isLastPage) return isTr ? "Devam" : "Next";
+  if (input.talkFailed) return isTr ? "Kapat" : "Close";
+  return input.isCompletion ? (isTr ? "İlerle" : "Continue") : (isTr ? "Kapat" : "Close");
 }

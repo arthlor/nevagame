@@ -1,6 +1,7 @@
 import { SUNREACH_ANCHORS } from "./WorldIslands";
 import { SUNREACH_FARM_LAYOUT } from "./FarmLayout";
 import type { WorldRoute } from "./WorldLayout";
+import { roadClassWidth } from "./RoadClasses";
 
 /** Authoring coordinates relative to the retained Sunreach landing. */
 function cove(x: number, z: number): { x: number; z: number } {
@@ -36,25 +37,25 @@ export const SUNREACH_NPC_STATIONS = {
  */
 export const SUNREACH_LIVING_ROUTES: readonly WorldRoute[] = [
   {
-    id: "route.sunreach.cove-shore-walk", scope: "regional", kind: "trail", widthMeters: 2.2,
+    id: "route.sunreach.cove-shore-walk", scope: "regional", kind: "trail", widthMeters: roadClassWidth("trail"),
     points: [cove(-10, 6), cove(-6, 25), cove(6, 39), cove(22, 56), cove(41, 61)]
   },
   {
-    id: "route.sunreach.harvest-return", scope: "regional", kind: "trail", widthMeters: 2.1,
+    id: "route.sunreach.harvest-return", scope: "regional", kind: "trail", widthMeters: roadClassWidth("trail"),
     // A second way home makes the shoreline a loop, not an ornamental dead end.
     points: [farm(22, 34), farm(21, 55), farm(0, 77), cove(65, 48), cove(41, 61)]
   },
   {
-    id: "route.sunreach.terrace-service-loop", scope: "regional", kind: "lane", widthMeters: 2,
+    id: "route.sunreach.terrace-service-loop", scope: "regional", kind: "trail", widthMeters: roadClassWidth("trail"),
     points: [farm(0, 34), farm(-34, 34), farm(-34, -37), farm(34, -37), farm(34, 34), farm(0, 34)]
   },
   {
-    id: "route.sunreach.cistern-walk", scope: "regional", kind: "trail", widthMeters: 1.2,
+    id: "route.sunreach.cistern-walk", scope: "regional", kind: "trail", widthMeters: roadClassWidth("trail"),
     // The well is at local (-3.8, 2.4). The dogleg passes on its south side.
     points: [farm(-34, 4.5), farm(-10, 4.5), farm(-6, 5.4), farm(0, 5.4), farm(7, 4.5), farm(34, 4.5)]
   },
   {
-    id: "route.sunreach.upper-terrace-walk", scope: "regional", kind: "trail", widthMeters: 1.2,
+    id: "route.sunreach.upper-terrace-walk", scope: "regional", kind: "trail", widthMeters: roadClassWidth("trail"),
     points: [farm(-34, -14), farm(34, -14)]
   }
 ];

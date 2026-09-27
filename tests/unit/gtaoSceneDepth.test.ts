@@ -100,6 +100,10 @@ describe("GTAO scene-depth reuse", () => {
       expect(pass.pdMaterial.fragmentShader).toContain("uniform float uGtaoMaxDistance;");
       expect(pass.pdMaterial.fragmentShader).toContain("if (sampleDepth >= 0.99999) return;");
       expect(pass.pdMaterial.fragmentShader).toContain("if (viewPos.z < -uGtaoMaxDistance)");
+      const viewPosDeclaration = "vec3 viewPos = getViewPosition(vUv, depth);";
+      expect(pass.pdMaterial.fragmentShader.split(viewPosDeclaration)).toHaveLength(2);
+      expect(pass.pdMaterial.fragmentShader.indexOf(viewPosDeclaration))
+        .toBeLessThan(pass.pdMaterial.fragmentShader.indexOf("if (viewPos.z < -uGtaoMaxDistance)"));
 
       // Re-configuring updates uniforms cleanly without corrupting the shader
       configureGtaoDistanceLimits(pass, { maxDistance: 60, fadeDistance: 40 });

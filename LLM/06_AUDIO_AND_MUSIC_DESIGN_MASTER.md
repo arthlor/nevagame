@@ -148,6 +148,7 @@ The player's physical connection to the island is maintained through continuous 
 - **`sfx.foley.footstep_dock`**: Heavy, salt-weathered cedar plank impact with slight water-resonance underneath. (Bank: 4 variants, spatialized, pitch jitter $0.92 - 1.08$).
 - **`sfx.foley.footstep_sand`**: Soft, granular crunch with loose sand shifting underfoot. (Bank: 4 variants, spatialized, pitch jitter $0.94 - 1.06$).
 - **`sfx.foley.footstep_shallow_water`**: Sloshing foot splash with water droplets dispersing. (Bank: 4 variants, spatialized, pitch jitter $0.92 - 1.10$).
+- **Runtime wiring:** `footstepSurfaceAt` (`src/audio/footstepSurface.ts`) picks the surface and its runtime bank. Canonical water and a mainland brook's running water (within a metre of its nominal width, which covers the drawn water's wander) select `footstep-water`, so wading a brook splashes; the brook adds no audio event or saved state.
 
 ### Movement & Physical Exertion
 - **`sfx.player.sprint_loop`**: Subtle rhythmic cloth rustle and accelerated footstep cadence when sprinting.

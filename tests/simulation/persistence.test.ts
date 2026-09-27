@@ -142,6 +142,7 @@ async function readRawSave(key: string): Promise<unknown> {
 function v36EquipmentMigrationFixture(): SaveEnvelope {
   const state = createInitialGameState(saveV36Layout15.state.worldSeed);
   state.schemaVersion = 36;
+  for (const [id, station] of Object.entries(state.world.structures)) if (station.type === "trading-station") delete state.world.structures[id];
   state.world.layoutRevision = saveV36Layout15.state.world.layoutRevision;
   delete (state.player as unknown as { equipment?: unknown }).equipment;
   delete state.mounts[STARTER_CARRIAGE_ID];
@@ -156,6 +157,7 @@ function v36EquipmentMigrationFixture(): SaveEnvelope {
 function v36RetiredMarketCommodityFixture(): SaveEnvelope {
   const state = createInitialGameState(saveV36RetiredMarketCommodity.state.worldSeed);
   state.schemaVersion = 36;
+  for (const [id, station] of Object.entries(state.world.structures)) if (station.type === "trading-station") delete state.world.structures[id];
   state.world.layoutRevision = saveV36RetiredMarketCommodity.state.world.layoutRevision;
   delete (state.player as unknown as { equipment?: unknown }).equipment;
   delete state.mounts[STARTER_CARRIAGE_ID];
@@ -279,6 +281,7 @@ describe("Persistence & Offline Progression", () => {
       const repo = new IndexedDbSaveRepository();
       const legacy = structuredClone(createInitialGameState());
       legacy.schemaVersion = 5;
+      for (const [id, station] of Object.entries(legacy.world.structures)) if (station.type === "trading-station") delete legacy.world.structures[id];
       legacy.player.money = 731;
       delete (legacy.player as Partial<typeof legacy.player>).traversal;
       const raw = { schemaVersion: 5, savedAtUtcMs: 1, state: legacy };
@@ -982,6 +985,7 @@ describe("Persistence & Offline Progression", () => {
   it("migrates v5 saves to full traversal stamina without changing other player truth", () => {
     const legacy = structuredClone(createInitialGameState());
     legacy.schemaVersion = 5;
+      for (const [id, station] of Object.entries(legacy.world.structures)) if (station.type === "trading-station") delete legacy.world.structures[id];
     legacy.player.money = 731;
     delete (legacy.player as Partial<typeof legacy.player>).traversal;
     const migrated = migrateSaveData({

@@ -1,0 +1,189 @@
+// src/i18n/locales/en/ui.ts
+
+export const EN_UI = {
+  common: {
+    close: "Close",
+    cancel: "Cancel",
+    confirm: "Confirm",
+    save: "Save",
+    back: "Back",
+    continue: "Continue",
+    reload: "Reload",
+    retry: "Retry",
+    empty: "Empty",
+    level: "Level",
+    cost: "Cost",
+    free: "Free",
+    locked: "Locked",
+    unlocked: "Unlocked",
+    coins: "Coins",
+    active: "Active",
+    yes: "Yes",
+    no: "No",
+    coinsAmount: "{amount} coins"
+  },
+  start: {
+    brandName: "Neva Land",
+    tagline: "Grow a home. Follow the tide.",
+    continueGame: "Continue Journey",
+    newGame: "New Game",
+    playWithoutSaving: "Play Without Saving",
+    options: "Options",
+    controls: "Controls",
+    credits: "Credits",
+    openingCoast: "Opening the coast…",
+    coastReady: "The coast is ready.",
+    bootFailed: "The coast could not open. Check your connection and reload the game.",
+    reloadGame: "Reload game",
+    rotatePrompt: "Turn your device sideways",
+    rotateNotice: "The coast is played in landscape.",
+    savedAt: "Saved: {date}",
+    tabs: {
+      graphics: "Graphics",
+      audio: "Audio",
+      interface: "Interface",
+      controls: "Controls",
+      language: "Language"
+    }
+  },
+  interface: {
+    title: "Interface Settings",
+    scaleTitle: "Interface Scale",
+    scaleActive: "Active: {percent}%",
+    scaleAuto: "Auto",
+    scaleAutoDesc: "Matches window",
+    scaleSmall: "Compact",
+    scaleSmallDesc: "More world visible",
+    scaleNormal: "Normal",
+    scaleNormalDesc: "Reference size",
+    scaleLarge: "Large",
+    scaleLargeDesc: "Easier to read",
+    languageTitle: "Language / Dil",
+    languageDesc: "Display language"
+  },
+  escape: {
+    title: "At Ease",
+    resume: "Resume Journey",
+    quickSave: "Quick Save",
+    savingUnavailable: "Saving Unavailable",
+    savedJustNow: "Game Saved",
+    emergencyTow: "Emergency Tow",
+    emergencyTowDesc: "Recall vessel to nearest mooring",
+    emergencyTowConfirm: "Tow vessel to nearest safe mooring for {cost} coins?",
+    safeReturn: "Safe Return",
+    safeReturnDesc: "Walk back to your home porch",
+    timeAtSea: "{time} at sea",
+    dayRecord: "Day {day} · {season}"
+  },
+  hud: {
+    workCapacity: "Work",
+    satchel: "Satchel",
+    journal: "Journal",
+    map: "Map",
+    ledger: "Ledger",
+    expedition: "Expedition",
+    menu: "Menu",
+    dayTime: "Day {day} · {phase}",
+    seasonTime: "{season}, Year {year}",
+    waterNeed: "Needs Water",
+    ripe: "Ready to Harvest",
+    castPrompt: "Cast line into water",
+    reelPrompt: "Hold to reel",
+    interactPrompt: "Press E to talk"
+  },
+  satchel: {
+    title: "Satchel",
+    filterAll: "All",
+    filterSeeds: "Seeds",
+    filterTools: "Tools",
+    filterFish: "Fish",
+    filterProduce: "Produce",
+    filterMaterials: "Materials",
+    empty: "Your satchel is empty.",
+    slots: "{used} / {total} slots",
+    drop: "Discard",
+    use: "Use",
+    equip: "Equip",
+    eat: "Eat",
+    value: "Value: {amount}c",
+    freshness: "Freshness: {percent}%"
+  },
+  market: {
+    title: "Market Stall",
+    buyTab: "Buy Goods",
+    sellTab: "Sell Cargo",
+    sellAll: "Sell All Produce & Fish",
+    traderFunds: "Trader Purse: {amount}c",
+    yourPurse: "Your Purse: {amount}c",
+    unitPrice: "{price}c each",
+    outOfStock: "Sold out",
+    soldMessage: "Sold for {amount} coins",
+    boughtMessage: "Purchased for {amount} coins"
+  },
+  journal: {
+    title: "Logbook & Field Notes",
+    tabErrands: "Errands",
+    tabAlmanac: "Field Notes",
+    tabDiscoveries: "Landmarks",
+    tabBulletin: "Village Bulletin",
+    activeErrands: "Active Errands",
+    completedErrands: "Completed",
+    noActiveErrands: "No active errands at hand.",
+    objectives: "Objectives",
+    rewards: "Rewards",
+    completedBadge: "Completed"
+  },
+  character: {
+    title: "Proficiency & Character",
+    proficiency: "Proficiency",
+    farming: "Farming",
+    fishing: "Fishing",
+    sailing: "Sailing",
+    foraging: "Foraging",
+    crafting: "Crafting",
+    rank: "Rank {rank}: {title}",
+    equipment: "Equipped Gear",
+    rod: "Fishing Rod",
+    vessel: "Moored Vessel",
+    outfit: "Work Clothes"
+  },
+  fishing: {
+    statusReady: "Ready to cast",
+    statusCasting: "Casting...",
+    statusWaiting: "Waiting for bite...",
+    statusBite: "Fish on! Hook it!",
+    statusReeling: "Reeling in",
+    statusEscaping: "Line slack! Reel up!",
+    statusTensionHigh: "Tension too high! Ease reel!",
+    statusLanded: "Landed {name}!",
+    statusEscaped: "The fish broke free...",
+    rodStrain: "Rod Strain",
+    lineTension: "Line Tension",
+    fishStamina: "Fish Stamina",
+    distance: "{meters}m away"
+  },
+  crafting: {
+    title: "Workbench & Kitchen",
+    tabCooking: "Hearth Cooking",
+    tabCrafting: "Carpentry & Tools",
+    tabCompost: "Composting",
+    cookAction: "Prepare Meal",
+    craftAction: "Craft Item",
+    ingredientsRequired: "Ingredients Required",
+    workCost: "{amount} Work",
+    stationMissing: "Requires {station}"
+  },
+  dialogue: {
+    continue: "Continue",
+    close: "Farewell",
+    acceptQuest: "Accept Errand",
+    completeQuest: "Complete Errand",
+    declineQuest: "Not Right Now"
+  }
+} as const;
+
+type DeepString<T> = {
+  [K in keyof T]: T[K] extends object ? DeepString<T[K]> : string;
+};
+
+export type TranslationSchema = DeepString<typeof EN_UI>;

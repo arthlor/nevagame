@@ -1,9 +1,16 @@
+import { bindInteractionPoint } from "./InteractionPlacements";
+import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "./OceanIslets";
-import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "./WorldAnchors";
+import { HARBOR_DOCK, HARBOR_SKIFF_MOORING, HARBOR_TRADE_MOORING } from "./WorldAnchors";
 import { SUNREACH_ANCHORS, type BoatMooringDefinition } from "./WorldIslands";
 import { MAINLAND_VILLAGES } from "./NevaMainland";
 
-export const BOAT_MOORINGS: readonly Readonly<BoatMooringDefinition>[] = Object.freeze([
+const BASE_BOAT_MOORINGS: readonly Readonly<BoatMooringDefinition>[] = Object.freeze([
+  { id: "mooring.neva_trade_ship", islandId: "island.neva", ...HARBOR_TRADE_MOORING, boatTypeIds: ["boat.trading_ship"] },
+  { id: "mooring.sunreach_trade_ship", islandId: "island.sunreach", marketId: "market.sunreach_cove",
+    boatPosition: { x: SUNREACH_ANCHORS.dockBoat.x, y: 0, z: SUNREACH_ANCHORS.dockBoat.z + 14 },
+    playerPosition: { x: SUNREACH_ANCHORS.dockPlayer.x, z: SUNREACH_ANCHORS.dockPlayer.z + 10 },
+    boardRadius: 5, hullBoardRadius: 18, dockRadius: 10, boatTypeIds: ["boat.trading_ship"] },
   ...[MAINLAND_VILLAGES.pinewatch, MAINLAND_VILLAGES.reedhaven].map((village): BoatMooringDefinition => ({
     id: `mooring.${village.id}`, islandId: "island.neva", marketId: village.marketId,
     boatPosition: { ...village.boat, y: 0 }, playerPosition: village.landing,
@@ -51,6 +58,14 @@ export const BOAT_MOORINGS: readonly Readonly<BoatMooringDefinition>[] = Object.
   })
 ]);
 
+export const BOAT_MOORINGS = BASE_BOAT_MOORINGS.map(mooring => {
+  if (mooring.id !== "mooring.sunreach_cove" && mooring.id !== "mooring.sunreach_trade_ship") return mooring;
+  const base = { x: 351 + SUNREACH_OFFSET_X, z: 58, rotationY: Math.PI / 2 };
+  return { ...mooring,
+    boatPosition: bindInteractionPoint("authored.sunreach.cove-dock", mooring.boatPosition, base),
+    playerPosition: bindInteractionPoint("authored.sunreach.cove-dock", mooring.playerPosition, base) };
+});
+
 export interface SailingRouteDefinition {
   id: string;
   fromMooringId: string;
@@ -68,7 +83,7 @@ export interface SailingRouteDefinition {
  */
 export const WORLD_SAILING_ROUTES: readonly Readonly<SailingRouteDefinition>[] = Object.freeze([
   { id: "sailing.harbor-pinewatch", fromMooringId: "mooring.neva_harbor_rowboat", toMooringId: "mooring.pinewatch", requiredBoatTypeId: "boat.rowboat", landAccessible: true,
-    points: [HARBOR_DOCK.boatPosition, { x: 90, z: 105 }, { x: 20, z: 125 }, { x: -180, z: 130 }, { x: -340, z: 125 }, MAINLAND_VILLAGES.pinewatch.boat] },
+    points: [HARBOR_DOCK.boatPosition, { x: 90, z: 122 }, { x: 20, z: 130 }, { x: -180, z: 130 }, { x: -340, z: 125 }, MAINLAND_VILLAGES.pinewatch.boat] },
   { id: "sailing.pinewatch-reedhaven", fromMooringId: "mooring.pinewatch", toMooringId: "mooring.reedhaven", requiredBoatTypeId: "boat.rowboat", landAccessible: true,
     points: [MAINLAND_VILLAGES.pinewatch.boat, { x: -400, z: 142 }, { x: -448, z: 205 }, { x: -456, z: 275 }, MAINLAND_VILLAGES.reedhaven.boat] },
   Object.freeze({
@@ -78,7 +93,9 @@ export const WORLD_SAILING_ROUTES: readonly Readonly<SailingRouteDefinition>[] =
     requiredBoatTypeId: "boat.skiff",
     points: Object.freeze([
       { x: HARBOR_SKIFF_MOORING.boatPosition.x, z: HARBOR_SKIFF_MOORING.boatPosition.z },
-      { x: 125, z: 96 },
+      { x: 69.3, z: 122 },
+      { x: 100, z: 125 },
+      { x: 125, z: 116 },
       { x: 180, z: 116 },
       { x: 350, z: 110 },
       { x: 600, z: 110 },

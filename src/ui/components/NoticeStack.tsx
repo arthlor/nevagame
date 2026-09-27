@@ -11,6 +11,8 @@ import { IconCheck, IconCoin, IconEnergy, IconWarning, type IconProps } from "./
 import { Notice as CoastalNotice } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForCrop, atlasForFish, atlasForItem } from "../chrome/uiAtlas";
+import { useTranslation } from "../../i18n/useTranslation";
+import { villageTradeTextTr } from "../../i18n/villageTradeText";
 
 export interface NoticeStackProps {
   notices: readonly Notice[];
@@ -29,7 +31,7 @@ const TONE_ICON: Partial<Record<NoticeTone, React.FC<IconProps>>> = {
  * into a structured NoticeDelta if not explicitly provided.
  */
 function parseNoticeText(text: string): NoticeDelta | null {
-  const laborMatch = text.match(/^([+-]\d+)\s+Work(?:\s*\((.*)\))?$/i);
+  const laborMatch = text.match(/^([+-]\d+)\s+(?:Work|Emek|İş gücü)(?:\s*\((.*)\))?$/i);
   if (laborMatch) {
     const amount = parseInt(laborMatch[1], 10);
     const context = laborMatch[2] ? ` (${laborMatch[2]})` : "";
@@ -44,7 +46,8 @@ function parseNoticeText(text: string): NoticeDelta | null {
   if (deltaMatch) {
     const amount = parseInt(deltaMatch[1], 10);
     const label = deltaMatch[2].trim();
-    if (label.toLowerCase().endsWith("g") || label.toLowerCase().endsWith("gold")) {
+    const lower = label.toLowerCase();
+    if (lower.endsWith("g") || lower.endsWith("gold") || lower.endsWith("akçe")) {
       return { kind: "money", amount, label };
     }
     return { kind: "item", amount, label };
@@ -54,6 +57,7 @@ function parseNoticeText(text: string): NoticeDelta | null {
 }
 
 export const NoticeStack: React.FC<NoticeStackProps> = ({ notices, className = "" }) => {
+  const { locale } = useTranslation();
   const visible = useMemo(
     () =>
       [...notices]
@@ -145,7 +149,7 @@ export const NoticeStack: React.FC<NoticeStackProps> = ({ notices, className = "
       );
     }
 
-    return <span className="toast-message-text">{notice.text}</span>;
+    return <span className="toast-message-text">{locale === "tr" ? villageTradeTextTr(notice.text) : notice.text}</span>;
   };
 
   return (

@@ -2,12 +2,36 @@ import React, { useState } from "react";
 import type { MaritimeHazardDto } from "../../simulation/core/contracts";
 import { IconWarning, IconWave } from "./HudIcons";
 import { ChromeClose } from "../chrome/Chrome";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface WeatherHazardBannerProps {
   hazard?: MaritimeHazardDto | { text: string; tone: "caution" | "danger" } | null;
   onDismiss?: () => void;
   className?: string;
 }
+
+const TR_HAZARDS: Record<string, { title: string; conditionLabel: string; advisory: string }> = {
+  "dense-fog": {
+    title: "Yoğun Deniz Sisi",
+    conditionLabel: "Görüş < 50m",
+    advisory: "Ufuk çizgisi kayboldu. Yalnızca pusula kerterizine güven."
+  },
+  "squall": {
+    title: "Fırtına Borası",
+    conditionLabel: "Sağanak > 22 kn",
+    advisory: "Tekne sürüklenmesi yüksek. Rüzgara karşı dümen kır ve motor gücünü koru."
+  },
+  "storm-waves": {
+    title: "Tehlikeli Azgın Dalga",
+    conditionLabel: "Dalga kabarması > 0.70",
+    advisory: "Açık denizde şiddetli yalpa. Sığlıklardan ve topuklardan uzak dur."
+  },
+  "storm": {
+    title: "Şiddetli Kıyı Fırtınası",
+    conditionLabel: "Kuvvetli Fırtına & Dalgalar",
+    advisory: "Tehlikeli deniz durumu. Küçük teknelerin gövdesi darbe alır — pruvayı rüzgara tut ya da alargaya çıkıp bekle."
+  }
+};
 
 export function resolveMaritimeHazard(
   hazard?: MaritimeHazardDto | { text: string; tone: "caution" | "danger" } | null
@@ -65,12 +89,17 @@ export const WeatherHazardBanner: React.FC<WeatherHazardBannerProps> = ({
   onDismiss,
   className = ""
 }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
   const [dismissed, setDismissed] = useState(false);
   const resolved = resolveMaritimeHazard(hazard);
 
   if (!resolved || dismissed) return null;
 
   const isDanger = resolved.severity === "danger";
+  const title = (isTr ? TR_HAZARDS[resolved.hazardId]?.title : null) || resolved.title;
+  const conditionLabel = (isTr ? TR_HAZARDS[resolved.hazardId]?.conditionLabel : null) || resolved.conditionLabel;
+  const advisory = (isTr ? TR_HAZARDS[resolved.hazardId]?.advisory : null) || resolved.navigationalAdvisory;
 
   return (
     <aside
@@ -91,10 +120,10 @@ export const WeatherHazardBanner: React.FC<WeatherHazardBannerProps> = ({
 
       <div className="hazard-banner-content">
         <div className="hazard-banner-header-row">
-          <strong className="hazard-banner-title">{resolved.title}</strong>
-          <span className="hazard-condition-badge">{resolved.conditionLabel}</span>
+          <strong className="hazard-banner-title">{title}</strong>
+          <span className="hazard-condition-badge">{conditionLabel}</span>
         </div>
-        <p className="hazard-banner-advisory">{resolved.navigationalAdvisory}</p>
+        <p className="hazard-banner-advisory">{advisory}</p>
       </div>
 
       <ChromeClose
@@ -102,7 +131,7 @@ export const WeatherHazardBanner: React.FC<WeatherHazardBannerProps> = ({
           onDismiss?.();
           setDismissed(true);
         }}
-        label="Dismiss weather warning"
+        label={isTr ? "Hava uyarısını kapat" : "Dismiss weather warning"}
         className="hazard-banner-close hazard-banner-dismiss-btn"
       />
     </aside>

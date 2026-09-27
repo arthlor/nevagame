@@ -73,30 +73,36 @@ function getSkillIcon(skill: string) {
   }
 }
 
-function featureUnlockLabel(featureId: string): string {
-  if (featureId === "boat.player_rowboat") return "Wooden Rowboat";
-  if (featureId === "feature.expedition_planner") return "Expedition Board";
-  if (featureId === "feature.irrigation_zone") return "Field Irrigation";
-  if (featureId === "feature.maritime_guild_charter") return "Maritime Guild Charter";
-  return "New coastal opportunity";
+import { useTranslation } from "../i18n/useTranslation";
+
+function featureUnlockLabel(featureId: string, locale?: string): string {
+  const isTr = locale === "tr";
+  if (featureId === "boat.player_rowboat") return isTr ? "Ahşap Filika" : "Wooden Rowboat";
+  if (featureId === "feature.expedition_planner") return isTr ? "Sefer Panosu" : "Expedition Board";
+  if (featureId === "feature.irrigation_zone") return isTr ? "Tarla Sulama Tulumbası" : "Field Irrigation";
+  if (featureId === "feature.maritime_guild_charter") return isTr ? "Denizcilik Beratı" : "Maritime Guild Charter";
+  return isTr ? "Yeni kıyı imkânı" : "New coastal opportunity";
 }
 
 /** What a completion beat granted, and what the player handed over to settle it. */
 export const DialogueRewardsPanel: React.FC<{ rewards?: QuestRewardDefinition; paid?: QuestTurnInCost }> = ({ rewards, paid }) => {
+  const { locale, getLocalizedItem, getLocalizedKnowledge } = useTranslation();
   const paidItems = paid?.items ?? [];
+  const isTr = locale === "tr";
   return (
     <div className="dialogue-rewards-panel" data-testid="dialogue-rewards">
-      <span className="dialogue-rewards-title">Rewards received</span>
+      <span className="dialogue-rewards-title">{isTr ? "Kazanılan ödüller" : "Rewards received"}</span>
       <div className="dialogue-rewards-list">
         {rewards?.money ? (
           <span className="dialogue-reward-pill money dialogue-reward-pill-enter" style={{ animationDelay: "0ms" }}>
             <IconCoin size={16} aria-hidden />
             <span className="dialogue-reward-qty">+{rewards.money}</span>
-            <span className="dialogue-reward-label">Coins</span>
+            <span className="dialogue-reward-label">{isTr ? "Altın" : "Coins"}</span>
           </span>
         ) : null}
         {rewards?.items?.map((item, idx) => {
           const itemDef = ContentRegistry.items.get(item.itemId);
+          const locItem = getLocalizedItem(item.itemId);
           const sprite = atlasForItem(item.itemId);
           return (
             <span
@@ -110,7 +116,7 @@ export const DialogueRewardsPanel: React.FC<{ rewards?: QuestRewardDefinition; p
                 <IconBasket size={16} aria-hidden />
               )}
               <span className="dialogue-reward-qty">+{item.quantity}</span>
-              <span className="dialogue-reward-label">{itemDef?.name || item.itemId}</span>
+              <span className="dialogue-reward-label">{locItem?.name || itemDef?.name || item.itemId}</span>
             </span>
           );
         })}
@@ -129,7 +135,7 @@ export const DialogueRewardsPanel: React.FC<{ rewards?: QuestRewardDefinition; p
           <span key={featureId} className="dialogue-reward-pill unlock dialogue-reward-pill-enter" style={{ animationDelay: "180ms" }}>
             <IconCompass size={16} aria-hidden />
             <span className="dialogue-reward-label">
-              Now available · {featureUnlockLabel(featureId)}
+              {isTr ? "Artık açık · " : "Now available · "}{featureUnlockLabel(featureId, locale)}
             </span>
           </span>
         ))}
@@ -139,18 +145,18 @@ export const DialogueRewardsPanel: React.FC<{ rewards?: QuestRewardDefinition; p
             <span key={knowledgeId} className="dialogue-reward-pill unlock dialogue-reward-pill-enter" style={{ animationDelay: "220ms" }}>
               <IconCompass size={16} aria-hidden />
               <span className="dialogue-reward-label">
-                Journal · {ContentRegistry.knowledge.get(knowledgeId)?.title ?? "New field note"}
+                {isTr ? "Günlük · " : "Journal · "}{getLocalizedKnowledge(knowledgeId)?.title ?? ContentRegistry.knowledge.get(knowledgeId)?.title ?? "New field note"}
               </span>
             </span>
           ))}
       </div>
       {(paid?.money || paidItems.length > 0) ? (
         <div className="dialogue-paid-row" data-testid="dialogue-paid">
-          <span className="dialogue-rewards-title">Handed over</span>
+          <span className="dialogue-rewards-title">{isTr ? "Teslim edilenler" : "Handed over"}</span>
           <span className="dialogue-paid-list">
             {[
               ...(paid?.money ? [`${paid.money} G`] : []),
-              ...paidItems.map((item) => `${item.quantity} ${ContentRegistry.items.get(item.itemId)?.name ?? item.itemId}`)
+              ...paidItems.map((item) => `${item.quantity} ${getLocalizedItem(item.itemId)?.name ?? ContentRegistry.items.get(item.itemId)?.name ?? item.itemId}`)
             ].join(" · ")}
           </span>
         </div>
@@ -165,7 +171,9 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   onTalkNpc,
   typewriterTickCue = "click"
 }) => {
+  const { locale, getLocalizedNpc, getLocalizedQuest, getLocalizedQuestTrack } = useTranslation();
   const npc = ContentRegistry.npcs.get(npcId);
+  const locNpc = getLocalizedNpc(npcId);
   const [dialogueIndex, setDialogueIndex] = useState(0);
   // Resolved once per NPC. Pre-seeding this with `npc.idleDialogue` used to
   // start the typewriter on text the modal was about to replace, which
@@ -185,10 +193,44 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     setDialogueIndex(0);
     setReveal(EMPTY_DIALOGUE_REVEAL);
     chimedSegmentsRef.current = new Set();
-    const result = onTalkNpc(npcId);
-    const pages = buildDialoguePages(result, npc?.idleDialogue ?? []);
+    const rawResult = onTalkNpc(npcId);
+    let result = rawResult;
+    if (locale === "tr" && rawResult.segments) {
+      const localizedSegments = rawResult.segments.map((seg) => {
+        const copy = { ...seg };
+        if (copy.questId) {
+          const locQ = getLocalizedQuest(copy.questId);
+          copy.questTitle = locQ.questTitle || copy.questTitle;
+          if (copy.trackId) {
+            copy.trackTitle = getLocalizedQuestTrack(copy.trackId).title || copy.trackTitle;
+          }
+          if (copy.kind === "intro" && locQ.introDialogue?.length) {
+            copy.lines = locQ.introDialogue;
+          } else if (copy.kind === "completion" && locQ.completionDialogue?.length) {
+            copy.lines = locQ.completionDialogue;
+          } else if (copy.kind === "herald" && locQ.heraldLines?.length) {
+            copy.lines = locQ.heraldLines;
+          }
+        } else if (copy.kind === "recognition") {
+          const idleIdx = npc?.idleDialogue.findIndex((l) => copy.lines.includes(l));
+          if (idleIdx !== undefined && idleIdx >= 0 && locNpc.idleDialogue[idleIdx]) {
+            copy.lines = [locNpc.idleDialogue[idleIdx]];
+          } else if (npc?.recognitionDialogue && locNpc.recognitionDialogue) {
+            const recMatch = npc.recognitionDialogue.find((r) => r.lines[0] === copy.lines[0]);
+            if (recMatch) {
+              const trRec = locNpc.recognitionDialogue.find((r) => r.id === recMatch.id);
+              if (trRec) copy.lines = trRec.lines;
+            }
+          }
+        }
+        return copy;
+      });
+      result = { ...rawResult, segments: localizedSegments };
+    }
+    const fallbackLines = locale === "tr" ? locNpc.idleDialogue : (npc?.idleDialogue ?? []);
+    const pages = buildDialoguePages(result, fallbackLines);
     setResolved((prev) => ({ npcId, generation: (prev?.generation ?? 0) + 1, pages, failed: !result.success }));
-  }, [npc, npcId, onTalkNpc]);
+  }, [getLocalizedNpc, getLocalizedQuest, getLocalizedQuestTrack, locNpc, locale, npc, npcId, onTalkNpc]);
 
   const isResolved = resolved?.npcId === npcId;
   const pages = isResolved ? resolved.pages : EMPTY_PAGES;
@@ -199,7 +241,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   const isLastPage = dialogueIndex >= totalPages - 1;
   const segment = currentPage?.segment;
   const isCompletionSegment = segment?.kind === "completion";
-  const heading = segment ? segmentHeading(segment) : null;
+  const heading = segment ? segmentHeading(segment, locale) : null;
   const showRewards = pageShowsRewards(currentPage);
   const note = currentPage?.closesSegment ? segment?.note : undefined;
   const pageKey = dialoguePageKey(npcId, resolved?.generation ?? 0, dialogueIndex);
@@ -354,12 +396,12 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
           </div>
           <div className="dialogue-speaker-info">
             <div className="dialogue-name-row">
-              <h2 id="dialogue-title" className="dialogue-speaker-name">{npc.name}</h2>
-              <span className="dialogue-role-badge">{npc.title}</span>
+              <h2 id="dialogue-title" className="dialogue-speaker-name">{locNpc.name}</h2>
+              <span className="dialogue-role-badge">{locNpc.title}</span>
             </div>
-            <span className="dialogue-district">{npc.district}</span>
+            <span className="dialogue-district">{locNpc.district}</span>
           </div>
-          <ChromeClose onClick={onClose} label="Close conversation" />
+          <ChromeClose onClick={onClose} label={locale === "tr" ? "Sohbeti kapat" : "Close conversation"} />
         </header>
 
         <div className="dialogue-body" onClick={() => handleNext(true)}>
@@ -429,7 +471,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
             >
               <KeyHint keyName="Space" glow={isTyping} />
               <span>
-                {dialogueFooterLabel({ isTyping, isLastPage, talkFailed, isCompletion: isCompletionSegment })}
+                {dialogueFooterLabel({ isTyping, isLastPage, talkFailed, isCompletion: isCompletionSegment, locale })}
               </span>
             </ChromeButton>
           </div>

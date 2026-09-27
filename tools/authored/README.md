@@ -103,6 +103,11 @@ atomic publication to `generated/glb/` and `public/assets/models/`, the publishe
   ring with rims only at its open ends and masked cells (a spoked reel plate, a star drag).
 - **Timber is hard-edged.** `addBox` and `flat: true` lofts keep faceted normals; `bevel` chamfers
   a box's long edges and `halfEnd` tapers it (a hewn rail, a splayed leg).
+- **Stone and leaf masses are hulls.** `addHull` wraps a point cloud in a convex hull whose every face
+  is one flat facet, so broad planes come from where the points lie: project points onto a
+  fracture plane and it becomes one facet (the river boulders), overlap a few hulls for a concave
+  mass (the willow mound). Hull faces see their centroid and normal in `token`/`shade`, so moss on
+  upward faces or a wet line low on the flanks is a face rule, not a separate mesh.
 - **Put row edges on colour lines.** A loft `profile` replaces the superellipse with your own section
   points, so a stripe, belly line or gape falls exactly on a quad row (the fish place their section
   rows this way); stations placed on bar edges do the same along the path.
@@ -164,25 +169,56 @@ contract are the reference (the retired source remains in git history before the
 | Village cloth | `banner_cloth`, `laundry_line` | authored |
 | Farm props | `wood_fence` (fence bay and farm gate), `milk_churn`, `water_trough`, `pumpkin_patch`, `hay_bale`, `worm_compost_bin`, `farm_workbench`, `wagon_cart`, `water_well`, `lamp_post` | authored (redesigned) |
 | Horse carriage | `merchant_carriage` (steerable forecarriage, footboard, palm contacts, flexible reins and horse harness) | authored |
+| Working docks | `working_dock` (`buildings/createWorkingDockModel.ts`; short jetties and the main harbor wharf) | authored |
 | Harbour props | `lobster_trap`, `fishing_net_rack` | authored (redesigned) |
 | Stalls | `produce_stall` (dock produce stall and plaza market stall; `ladder`, `sign`) | authored (redesigned) |
 | Buildings | `farm_kitchen` (the farm kitchen, split off `village_building`) | authored (redesigned) |
+| Settlement architecture | `farmhouse`, `cottage`, `coastal_hut`, `tool_shed`, `ice_house` (`buildings/createVillageHomes.ts`, `createWorkingHuts.ts`) | authored (redesigned) |
+| Coastal landmarks | `lighthouse`, `windmill`, `stone_bridge` (`buildings/createCoastalTowers.ts`, `createStoneBridgeModel.ts`) | authored (redesigned) |
 | Held tools and props | `sickle`, `watering_can`, `workstation_scoop` (palm-frame grips), `seed_pouch`, `crop_bundle`, `harvest_basket` (held by their origin) | authored (redesigned) |
 | Equipment tools | `equipment_sickle` (`broad`, `balanced`) and `equipment_watering_can` (`copper_rose`, `long_spout`), styles of the sickle and can generators; `crafting_job_prop` (`tailor`, `toolmaking`, `ready`) | authored (redesigned) |
 | Fishing rods | `fishing_rod` (`willow`, `river`, `heavy_sport`, `offshore`, `master` tiers) | authored (redesigned) |
 | Catch fish | `stylized_fish` (12 species, table in `generators/fish/species.ts`) | authored (redesigned) |
 | Fish trade packs | `fish_trade_pack` (the catch is `buildFishSurface`, flattened) | authored (redesigned) |
+| Crafted trade packs | `crafted_trade_pack` (`props/createCraftedTradePackModel.ts`; provisions, textiles, workshop and maritime loads) | authored |
 | Shore and woodland | `driftwood_cluster`, `driftwood_log`, `fallen_log` (`props/shore.ts`) | authored (redesigned) |
 | Furniture | `cozy_bed`, `cozy_armchair`, `wood_bench`, `picnic_table` (`props/furniture.ts`) | authored (redesigned) |
 | Garden | `potting_bench`, `rustic_watering_can`, `garden_hoe`, `apiary_hive` (`props/garden.ts`) | authored (redesigned) |
 | Harbour | `dock_lantern_post`, `hanging_signboard`, `cargo_sack`, `cargo_crate_large`, `treasure_chest` (`props/harbour.ts`) | authored (redesigned) |
 | Camp and trail | `smoke_plume`, `clay_oven`, `fire_pit`, `trail_kiosk`, `trail_signpost` (`props/camp.ts`) | authored (redesigned) |
 | Reef | `coral_pillar`, `coral_staghorn`, `coral_table` (`props/reef.ts`) | authored (redesigned) |
+| Riverside | `river_boulder` (`rounded`, `tabular`), `reed_bed`, `fern_clump`, `willow_shrub` (`environment/riverside.ts`) | authored |
 | Crop trade packs | `crop_trade_pack` | frozen (to port) |
 | Wearables | `wearable_equipment` (fit groundwork in `generators/wearables/`: the player body sampled by `scripts/extract-player-body.mjs`, weight transfer and a body envelope; not yet registered) | frozen (to port) |
 | Everything else | the other families in `tools/art/legacy-generators.json` | frozen (to port) |
 | Tripo and adapted donor models | `authored_glb` (committed sources under `art/imported/`) | authored GLB |
 | Photo-reconstructed buildings | `authored_glb` (exports under `art/authored/<model>/export/`) | authored GLB (below) |
+
+## Village freight assets
+
+The `trading_station` generator builds covered packing benches with regional stores: grain sacks and sheaves in Neva, stickered timber in Pinewatch, reeds and netting in Reedhaven, ore and weighing hardware in Highridge, and produce crates in Sunreach. The selected catalog palette supplies the canopy accent and material families. The work-surface marker and open front approach remain shared across variants.
+
+The `trading_ship` generator builds a coastal cargo sloop. A shared section table shapes the displacement hull, fitted longitudinal deck planks and supported bulwarks. The keel-stepped mast carries an eased gaff mainsail and a separate staysail; shrouds end at chainplates and deadeyes, and sail edges, hoops, halyards and sheets connect to spars or fittings. A low companionway, anchor windlass, stowed anchor, tiedown eyes and transom-hung rudder make the working deck legible. Its ten cargo sockets retain a level central deck and open center passage; the original helm, foot and fishing markers remain the runtime contact contract. Iron hardware replaces burlap in this vessel's catalog palette; rope and sail share the cream canvas family. `merchant_carriage` reads `cargoSlots` and dimensions from each catalog entry; the four- and six-slot wagons add braced side panels, lashing eyes, springs, a stored cover and outward-opening loading gates around the retained sockets and animated nodes. These details do not change the legacy two-slot cart. Runtime horse assemblies reuse the existing catalog horse; the wagon GLB does not duplicate its mesh or rig. `VillageTradeLayout.ts`, `CarriagePresentation` and `WorldScene` integrate the assets. `tests/unit/freightAssetClearance.test.ts` protects deck/counter support, the open station approach and the freight gates' loading clearance.
+
+The cart workshop uses the registered `cart_workshop` Three.js generator in `generators/buildings/createCartWorkshopModel.ts`. Its catalog reference brief binds the timber store, open repair bay, stepped slate roof, cupola and wheel sign to the owner's reference. The bench, cart, spare wheels and lanterns use palette geometry without textures or local lights. Each authored LOD merges its parts into one surface grouped by palette material before the ordinary validation, Meshopt and atomic publication path. The retained catalog/placement ID replaces the old workshop directly in `WorldEnvironmentLayout`, while `VillageTradeLayout` continues to own the vehicle display and purchase positions. `tests/unit/cartWorkshopAsset.test.ts` checks the entrances, structural support and per-LOD draw/geometry limits.
+
+## Village buildings and coastal landmarks
+
+The farmhouse, cottage, coastal store and shelter, tool shed, lighthouse, windmill, stone bridge
+and ice house use the registered Three.js factories in `generators/buildings/`. Their selected
+catalog briefs combine the existing isolated references with the owner's workshop construction
+direction. `architectureParts.ts` compiles family-local timber, masonry, thick roofs and recessed
+openings into the existing `SurfaceBuilder`; it is not a second exporter or palette. Each asset
+authors three distance levels. The windmill rotor and practical light nodes remain separate where
+the runtime needs their identity; the rest is grouped by palette material, with no texture payload
+or local lighting system.
+
+The replacements retain their asset IDs and collision primitives. Coastal floors and thresholds
+keep their existing traversal heights, the bridge's visible paving follows its declared deck boxes,
+and both house flues keep the smoke attachment coordinates owned by `WorldScene`. The lighthouse
+beacon and each LOD's windmill rotor retain their named nodes. These presentation replacements do
+not change world placement or saved state. `tests/unit/villageArchitectureAssets.test.ts` protects
+the openings, deck and abutment support, sail clearance, flue locations and distance budgets.
 
 ## Photo-reconstructed buildings (canvas-textured exports)
 
@@ -258,3 +294,5 @@ The builder also strips glTF `extras` from every object. The factories keep a `s
 inspector payload in `userData` that embeds three's random UUIDs, which `GLTFExporter` would
 otherwise copy into the asset and make the bytes differ every build. Neva reads none of it.
 Registered generators have no textures, so their GLBs are byte-identical run to run.
+
+`crafted_trade_pack` uses a timber carry frame, leather shoulder straps, cloth wrapping and visible family-specific loads. Catalog parameters select the load and cloth stripe; the shared palette and flat face colours pass the normal GLB staging/LOD/optimization path. `FishSchoolAssets.cargoPackAsset` selects the family model from the captured cargo terms for player, ground, wagon and vessel presentation. Original harvest and fish models remain bound to their existing content.

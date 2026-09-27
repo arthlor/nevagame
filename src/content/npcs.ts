@@ -48,7 +48,7 @@ export const NPCS: NpcDefinition[] = [
     title: "Village Baker & Garden Elder",
     district: "Starter Farm & Village Edge",
     portraitIcon: "sprout",
-    assetId: ASSET_IDS.CHAR_NPC_ELSPETH_A,
+    assetId: ASSET_IDS.CHAR_NPC_ELSPETH_B,
     anchor: {
       x: -63.5,
       z: -62.0,
@@ -132,7 +132,7 @@ export const NPCS: NpcDefinition[] = [
     title: "Homestead Handyman & Craftsman",
     district: "Starter Farmstead",
     portraitIcon: "pack",
-    assetId: ASSET_IDS.CHAR_NPC_BARNABY_A,
+    assetId: ASSET_IDS.CHAR_NPC_BARNABY_B,
     anchor: {
       x: -73.5,
       z: -58.8,
@@ -217,7 +217,7 @@ export const NPCS: NpcDefinition[] = [
     title: "Harbor Salt & Master Angler",
     district: "Neva Harbor Pier",
     portraitIcon: "anchor",
-    assetId: ASSET_IDS.CHAR_NPC_SILAS_A,
+    assetId: ASSET_IDS.CHAR_NPC_SILAS_B,
     anchor: {
       x: HARBOR_SILAS_ANCHOR.x,
       z: HARBOR_SILAS_ANCHOR.z,
@@ -304,7 +304,7 @@ export const NPCS: NpcDefinition[] = [
     title: "Fishmonger & Market Master",
     district: "Neva Fish Market",
     portraitIcon: "fish",
-    assetId: ASSET_IDS.CHAR_NPC_MAEVE_A,
+    assetId: ASSET_IDS.CHAR_NPC_MAEVE_B,
     anchor: {
       x: HARBOR_MAEVE_ANCHOR.x,
       z: HARBOR_MAEVE_ANCHOR.z,
@@ -383,7 +383,7 @@ export const NPCS: NpcDefinition[] = [
     title: "Cove Boatkeeper",
     district: "Sunreach Cove",
     portraitIcon: "boat",
-    assetId: ASSET_IDS.CHAR_NPC_TOMAS_A,
+    assetId: ASSET_IDS.CHAR_NPC_TOMAS_B,
     anchor: { ...SUNREACH_NPC_STATIONS.tomas },
     schedule: [
       { phase: "dawn", position: { ...SUNREACH_NPC_STATIONS.tomasDawn } },
@@ -448,7 +448,7 @@ export const NPCS: NpcDefinition[] = [
     title: "Terrace Grower",
     district: "Sunreach Terraces",
     portraitIcon: "sprout",
-    assetId: ASSET_IDS.CHAR_NPC_INES_A,
+    assetId: ASSET_IDS.CHAR_NPC_INES_B,
     anchor: { ...SUNREACH_NPC_STATIONS.ines },
     schedule: [
       { phase: "dusk", position: { ...SUNREACH_NPC_STATIONS.inesDusk } },
@@ -511,7 +511,7 @@ export const NPCS: NpcDefinition[] = [
   },
   {
     id: "npc.rowan", name: "Rowan", title: "Timberwright & Cove Trader", district: "Pinewatch Forest",
-    portraitIcon: "pack", assetId: ASSET_IDS.CHAR_NPC_BARNABY_A,
+    portraitIcon: "pack", assetId: ASSET_IDS.CHAR_NPC_ROWAN_B,
     anchor: { ...MAINLAND_VILLAGES.pinewatch.npc, rotationY: -Math.PI / 2, locationName: "Pinewatch Trade Yard" },
     idleDialogue: [
       "The woodland road carries carts in any weather. The cove cuts the corner when the water is kind.",
@@ -523,7 +523,7 @@ export const NPCS: NpcDefinition[] = [
   },
   {
     id: "npc.mara", name: "Mara", title: "Reedkeeper & Landing Steward", district: "Reedhaven Marsh",
-    portraitIcon: "fish", assetId: ASSET_IDS.CHAR_NPC_INES_A,
+    portraitIcon: "fish", assetId: ASSET_IDS.CHAR_NPC_MARA_B,
     anchor: { ...MAINLAND_VILLAGES.reedhaven.npc, rotationY: -Math.PI / 2, locationName: "Reedhaven Exchange" },
     idleDialogue: [
       "Stay on the raised road through the reeds. The low ground belongs to the water.",
@@ -535,7 +535,7 @@ export const NPCS: NpcDefinition[] = [
   },
   {
     id: "npc.ada", name: "Ada", title: "Highridge Provisioner", district: "Highridge Uplands",
-    portraitIcon: "coin", assetId: ASSET_IDS.CHAR_NPC_MAEVE_A,
+    portraitIcon: "coin", assetId: ASSET_IDS.CHAR_NPC_ADA_B,
     anchor: { ...MAINLAND_VILLAGES.highridge.npc, rotationY: -Math.PI / 2, locationName: "Highridge Provisions" },
     idleDialogue: [
       "Roots grow well up here. Fresh fish does not walk up the pass on its own.",

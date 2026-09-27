@@ -89,10 +89,17 @@ export const WATER_SHADING_UNIFORMS_GLSL = /* glsl */ `
   uniform float uRiverEdgeOpacity;
   uniform float uRiverEdgeFoamStrength;
   uniform float uRiverEdgeFoamScale;
+  /** Baked river feature white-water coverage (RiverFeatureFoam). */
+  uniform sampler2D uRiverFeatureFoam;
+  /** Feature foam field: world min x, min z, then 1 / width and 1 / depth. */
+  uniform vec4 uRiverFeatureFoamBounds;
+  uniform float uRiverFeatureFoamStrength;
   uniform float uPlungeRingSpeed;
   uniform float uPlungeRingWavelength;
   uniform float uPlungeRingStrength;
   uniform float uPlungeRingSpan;
+  /** Left/right fall-foot reach, pool run and impact-foam strength. */
+  uniform vec4 uPlungeBoil;
   /** Fold values that begin and complete a breaking crest. */
   uniform vec2 uWhitecapFold;
   uniform float uWhitecapScatter;
@@ -553,15 +560,24 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
     }
     float downhillGrade = max(0.0, -surfaceGrade);
     if (downhillGrade > uRapidsGradeStart && riverWeight > 0.02) {
-      // Broken narrow ribbons advected along the authored channel tangent:
-      // riffle lines follow the bend instead of lying across the stream.
-      vec2 rapidAcross = vec2(-riverFlow.y, riverFlow.x);
-      vec2 rapidAdvected = worldPosition.xz - riverFlow * (uTime * uRapidsFlowSpeed * (1.0 - uReducedMotion));
-      vec2 rapidUv = vec2(dot(rapidAdvected, rapidAcross), dot(rapidAdvected, riverFlow)) / uRapidsCellScale;
-      float rapidBend = nevaGradientNoise(rapidUv * vec2(0.65, 0.6));
-      float rapidRibbon = smoothstep(0.72, 0.97, 0.5 + 0.5 * sin(rapidUv.x * 5.2 + rapidBend * 8.0));
+      // Keep the phase in fixed world space: rotating world coordinates by the
+      // locally varying flow vector compressed the old sine into repeated V
+      // contours where the channel bends. A bounded two-phase offset carries
+      // elongated, broken riffle patches downstream without that shear.
+      float rapidCycle = time / 1.8;
+      float rapidPhaseA = fract(rapidCycle);
+      float rapidPhaseB = fract(rapidCycle + 0.5);
+      float rapidBlend = 1.0 - abs(2.0 * rapidPhaseA - 1.0);
+      vec2 rapidTravel = riverFlow * (uRapidsFlowSpeed * 1.8 / uRapidsCellScale);
+      vec2 rapidUv = worldPosition.xz * vec2(1.0, 0.36) / uRapidsCellScale;
+      float rapidA = nevaNoise01(rapidUv - rapidTravel * rapidPhaseA * vec2(1.0, 0.36)
+        + floor(rapidCycle) * vec2(0.31, 0.47));
+      float rapidB = nevaNoise01(rapidUv - rapidTravel * rapidPhaseB * vec2(1.0, 0.36)
+        + floor(rapidCycle + 0.5) * vec2(0.31, 0.47) + 0.5);
+      float rapidRibbon = smoothstep(0.54, 0.78, mix(rapidB, rapidA, rapidBlend));
       float rapidPatch = nevaGradientNoise(worldPosition.xz * 0.24 + vec2(0.0, uTime * 0.24));
-      float rapidPacket = smoothstep(0.05, 0.5, nevaNoise01(rapidUv * vec2(0.8, 1.1) + vec2(11.3, 7.1)));
+      float rapidPacket = smoothstep(0.37, 0.7,
+        nevaNoise01(rapidUv * vec2(1.7, 1.2) + vec2(11.3, 7.1)));
       float rapidGate = smoothstep(uRapidsGradeStart, uRapidsGradeFull, downhillGrade + (rapidPatch - 0.5) * 0.22);
       float rapidFilter = 1.0 - smoothstep(0.12, 0.6, pixelFootprint / uRapidsCellScale);
       foam = max(foam, rapidGate * smoothstep(0.05, 0.5, waterDepth) * rapidRibbon * rapidPacket
@@ -584,17 +600,55 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
         foam = max(foam, edgeShallow * lace * uRiverEdgeFoamStrength * laceFade);
       }
     }
-    // Landing apron: the plunge boils white and sends broken rings across the
-    // flat pool water.
+    // White water the channel's own features raise: aprons below cascade
+    // steps, chute tongues, collars and wakes on rocks that break the surface,
+    // froth on riffle margins. The baked coverage decides how solid the foam
+    // is; the pattern drifts downstream on the bounded two-phase advection.
+    vec2 featureUv = (worldPosition.xz - uRiverFeatureFoamBounds.xy) * uRiverFeatureFoamBounds.zw;
+    if (riverWeight > 0.02 && all(greaterThan(featureUv, vec2(0.0))) && all(lessThan(featureUv, vec2(1.0)))) {
+      float featureCoverage = texture(uRiverFeatureFoam, featureUv).r;
+      if (featureCoverage > 0.012) {
+        float featureCycle = time / 2.4;
+        float featureWeight = 1.0 - abs(2.0 * fract(featureCycle) - 1.0);
+        vec2 featureTravel = riverFlow * (max(flowSpeed, 0.4) * 2.4 * 1.5);
+        vec2 featurePoint = worldPosition.xz * 1.5;
+        float featureA = nevaFoamPattern(featurePoint - featureTravel * fract(featureCycle),
+          floor(featureCycle) * vec2(1.7, 2.3));
+        float featureB = nevaFoamPattern(featurePoint - featureTravel * fract(featureCycle + 0.5),
+          floor(featureCycle + 0.5) * vec2(1.7, 2.3) + 4.1);
+        float featureThreshold = mix(0.84, 0.28, featureCoverage);
+        float featureFoam = smoothstep(featureThreshold - 0.08, featureThreshold + 0.06,
+          mix(featureB, featureA, featureWeight));
+        foam = max(foam, featureFoam * smoothstep(0.012, 0.18, featureCoverage) * uRiverFeatureFoamStrength
+          * riverWeight * mix(0.55, 1.0, nevaDetailFade(0.7, pixelFootprint)));
+      }
+    }
+    // The full falling sheet aerates the receiving pool. A dense impact boil
+    // spans its actual landing width, then tears into drifting patches before
+    // the outflow; the remaining rings are secondary and broken.
     if (nevaHeadwaterContains(worldPosition.xz) && worldPosition.z >= uHeadwaterFallBand.y) {
       vec2 landingDelta = worldPosition.xz - uHeadwaterLandingXZ;
       landingDelta.x += sin(landingDelta.y * 0.55) * smoothstep(0.0, 5.0, landingDelta.y) * 0.8;
+      float downstream = landingDelta.y;
+      float sideReach = landingDelta.x < 0.0 ? uPlungeBoil.x : uPlungeBoil.y;
+      float acrossBoil = 1.0 - smoothstep(0.78, 1.15, abs(landingDelta.x) / max(0.1, sideReach));
+      float downBoil = 1.0 - smoothstep(1.4, uPlungeBoil.z, downstream);
+      float impactCore = 1.0 - smoothstep(0.65, 2.6, downstream);
+      if (acrossBoil * downBoil > 0.001) {
+        vec2 boilTravel = riverFlow * (time * uRiverFlowSpeed);
+        float boilCloud = nevaNoise01((worldPosition.xz - boilTravel * 0.52) * 0.72);
+        float boilBubbles = nevaNoise01((worldPosition.xz - boilTravel * 0.9) * 2.1 + 7.3);
+        float brokenCoverage = smoothstep(0.23, 0.72, boilCloud * 0.68 + boilBubbles * 0.32);
+        float density = mix(0.5 + 0.42 * brokenCoverage, 0.86 + 0.12 * brokenCoverage, impactCore);
+        foam = max(foam, acrossBoil * downBoil * density * uPlungeBoil.w);
+      }
       landingDelta.y *= 0.62;
       float landingDistance = length(landingDelta);
       float landingReach = 1.0 - smoothstep(0.7, 4.8, landingDistance);
       float apronFlat = 1.0 - smoothstep(0.1, 0.3, downhillGrade);
       float apronPattern = nevaNoise01(worldPosition.xz * 1.4 + vec2(uTime * 0.22, -uTime * 0.5));
-      float ringPhase = landingDistance - uTime * uPlungeRingSpeed * (1.0 - uReducedMotion * 0.7);
+      float ringPhase = landingDistance + (apronPattern - 0.5) * uPlungeRingWavelength * 0.9
+        - uTime * uPlungeRingSpeed * (1.0 - uReducedMotion * 0.7);
       float ringWave = 0.5 + 0.5 * sin(ringPhase * 6.2831853 / max(0.2, uPlungeRingWavelength));
       float ringBreakup = smoothstep(0.28, 0.72, apronPattern);
       float rings = pow(ringWave, 3.0) * ringBreakup
@@ -603,7 +657,8 @@ export const WATER_SURFACE_SHADING_GLSL = /* glsl */ `
         * smoothstep(0.15, 0.9, landingDistance);
       foam = max(foam, landingReach * (0.5 + 0.5 * apronPattern) * uRapidsFoamStrength * 1.1
         * mix(0.35, 1.0, apronFlat));
-      foam = max(foam, rings * ringFade * uPlungeRingStrength * (0.6 + 0.4 * apronPattern) * apronFlat);
+      foam = max(foam, rings * ringFade * uPlungeRingStrength * (0.6 + 0.4 * apronPattern) * apronFlat
+        * (1.0 - 0.85 * impactCore * acrossBoil));
     }
     // Breaking crests: the trochoid folding on itself out at sea, and the
     // train collapsing as it runs out of depth (the surf line). They share

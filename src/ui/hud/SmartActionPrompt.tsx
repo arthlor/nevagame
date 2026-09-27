@@ -1,6 +1,12 @@
+import { villageTradeTextTr } from "../../i18n/villageTradeText";
 import React, { useMemo } from "react";
 import { KeyHint } from "../coastal/CoastalUI";
 import { IconEnergy } from "../components/HudIcons";
+import { useTranslation } from "../../i18n/useTranslation";
+import { ContentRegistry } from "../../content/ContentRegistry";
+import { TR_CROPS } from "../../i18n/locales/tr/crops";
+import { TR_ITEMS } from "../../i18n/locales/tr/items";
+import { TR_NPCS } from "../../i18n/locales/tr/npcs";
 
 export interface SmartActionPromptProps {
   promptText: string | null;
@@ -55,6 +61,67 @@ const KNOWN_VERBS = new Set([
   "repair",
   "tow"
 ]);
+
+const TR_VERBS: Record<string, string> = {
+  harvest: "Hasat Et",
+  till: "Çapala",
+  water: "Sula",
+  plant: "Ek",
+  fertilize: "Gübrele",
+  weed: "Yabani Otları Temizle",
+  board: "Bin",
+  dock: "Yanaş",
+  fish: "Balık Tut",
+  cast: "Savur",
+  reel: "Sar",
+  slack: "Boşluk Ver",
+  talk: "Konuş",
+  open: "Aç",
+  inspect: "İncele",
+  collect: "Topla",
+  buy: "Satın Al",
+  sell: "Sat",
+  deliver: "Teslim Et",
+  interact: "Etkileş",
+  release: "Sal",
+  chum: "Yemle",
+  hook: "Kancala",
+  enter: "Gir",
+  mount: "Bin",
+  dismount: "İn",
+  ride: "Sür",
+  steer: "Yön Ver",
+  moor: "Bağla",
+  unmoor: "Palamarı Çöz",
+  rest: "Dinlen",
+  repair: "Onar",
+  tow: "Çektir"
+};
+
+function translateTargetTr(target: string): string {
+  if (!target) return target;
+  const lower = target.toLowerCase();
+  for (const [id, crop] of ContentRegistry.crops.entries()) {
+    if (crop.name.toLowerCase() === lower) {
+      return TR_CROPS[id]?.name ?? crop.name;
+    }
+  }
+  for (const [id, item] of ContentRegistry.items.entries()) {
+    if (item.name.toLowerCase() === lower) {
+      return TR_ITEMS[id]?.name ?? item.name;
+    }
+  }
+  for (const [id, npc] of ContentRegistry.npcs.entries()) {
+    if (npc.name.toLowerCase() === lower) {
+      return TR_NPCS[id]?.name ?? npc.name;
+    }
+  }
+  if (lower === "soil") return "Toprak";
+  if (lower === "ground") return "Toprak";
+  if (lower === "water") return "Su";
+  if (lower === "field") return "Tarla";
+  return target;
+}
 
 function parseStructuredPrompt(
   text: string | null,
@@ -167,6 +234,9 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
   currentWork,
   className = ""
 }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
+
   const parsed = useMemo(
     () => parseStructuredPrompt(promptText, toastMessage),
     [promptText, toastMessage]
@@ -174,13 +244,22 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
 
   if (!parsed) return null;
 
-  const detail = touchChrome ? stripDesktopHints(parsed.detail) : parsed.detail;
-  const accessibleLabel = detail ? `${parsed.cleanLabel} · ${detail}` : parsed.cleanLabel;
+  const rawDetail = touchChrome ? stripDesktopHints(parsed.detail) : parsed.detail;
+  const detail = isTr && rawDetail ? villageTradeTextTr(rawDetail) : rawDetail;
 
   const isInsufficient =
     currentWork !== undefined &&
     parsed.laborCost != null &&
     currentWork < parsed.laborCost;
+
+  const displayVerb = isTr ? (TR_VERBS[parsed.verb.toLowerCase()] ?? parsed.verb) : parsed.verb;
+  const displayTarget = isTr ? villageTradeTextTr(translateTargetTr(parsed.target)) : parsed.target;
+  const translatedCleanLabel = isTr
+    ? (displayVerb && displayTarget ? `${displayTarget} ${displayVerb}` : (displayVerb || displayTarget || parsed.cleanLabel))
+    : parsed.cleanLabel;
+
+  const displayCleanLabel = isTr ? villageTradeTextTr(translatedCleanLabel) : translatedCleanLabel;
+  const accessibleLabel = detail ? `${displayCleanLabel} · ${detail}` : displayCleanLabel;
 
   return (
     <div
@@ -199,18 +278,30 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
 
         {/* Action description text */}
         <span className="banner-text prompt-action-description">
-          {parsed.verb ? (
-            <>
-              <strong className="prompt-verb">{parsed.verb}</strong>
-              {parsed.target ? (
-                <>
-                  {" "}
-                  <span className="prompt-target">{parsed.target}</span>
-                </>
-              ) : null}
-            </>
+          {displayVerb ? (
+            isTr ? (
+              <>
+                {displayTarget ? (
+                  <>
+                    <span className="prompt-target">{displayTarget}</span>
+                    {" "}
+                  </>
+                ) : null}
+                <strong className="prompt-verb">{displayVerb}</strong>
+              </>
+            ) : (
+              <>
+                <strong className="prompt-verb">{displayVerb}</strong>
+                {displayTarget ? (
+                  <>
+                    {" "}
+                    <span className="prompt-target">{displayTarget}</span>
+                  </>
+                ) : null}
+              </>
+            )
           ) : (
-            <span className="prompt-target">{parsed.cleanLabel}</span>
+            <span className="prompt-target">{displayCleanLabel}</span>
           )}
           {detail && <span className="prompt-detail"> · {detail}</span>}
         </span>
@@ -221,13 +312,17 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
             className={`prompt-labor-badge ${isInsufficient ? "is-insufficient" : ""}`.trim()}
             title={
               isInsufficient
-                ? `Insufficient Work Capacity (Requires ${parsed.laborCost} Work, you have ${currentWork})`
-                : `Requires ${parsed.laborCost} Labor / Work Capacity`
+                ? (isTr
+                    ? `Yetersiz Emek Kapasitesi (${parsed.laborCost} Emek gerekiyor, elinde ${currentWork} var)`
+                    : `Insufficient Work Capacity (Requires ${parsed.laborCost} Work, you have ${currentWork})`)
+                : (isTr
+                    ? `${parsed.laborCost} Emek gerektirir`
+                    : `Requires ${parsed.laborCost} Labor / Work Capacity`)
             }
             data-testid="prompt-labor-cost"
           >
             <IconEnergy size={13} aria-hidden="true" />
-            <span className="prompt-labor-cost-value">{`-${parsed.laborCost} Work`}</span>
+            <span className="prompt-labor-cost-value">{`-${parsed.laborCost} ${isTr ? "Emek" : "Work"}`}</span>
           </div>
         )}
       </div>

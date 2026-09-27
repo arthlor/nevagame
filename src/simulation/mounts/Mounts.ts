@@ -1,4 +1,5 @@
-import { CARRIAGE_TYPE_ID, STARTER_CARRIAGE_ID, isCarriage, isCarriageGround, CARRIAGE_TUNING } from "./Carriage";
+import { isTradeCarriageType } from "../../content/villageTrade";
+import { CARRIAGE_TYPE_ID, STARTER_CARRIAGE_ID, isCarriage, isCarriageGround, carriageTuning } from "./Carriage";
 import type { MountState, PlayerState } from "../core/types";
 import { STARTER_DONKEY_ANCHOR } from "../../world/FarmLayout";
 import { WorldLayout } from "../../world/WorldLayout";
@@ -146,7 +147,8 @@ export function isValidMountPose(
   const heightTolerance = options.heightToleranceMeters ?? MOUNT_TUNING.terrainHeightToleranceMeters;
   if (
     !((mount.id === STARTER_DONKEY_ID && mount.mountTypeId === STARTER_DONKEY_TYPE_ID) ||
-      (mount.id === STARTER_CARRIAGE_ID && mount.mountTypeId === CARRIAGE_TYPE_ID)) ||
+      (mount.id === STARTER_CARRIAGE_ID && mount.mountTypeId === CARRIAGE_TYPE_ID) ||
+      (isTradeCarriageType(mount.mountTypeId) && mount.id === mount.mountTypeId)) ||
     ![mount.x, mount.y, mount.z, mount.rotationY].every(Number.isFinite)
   ) return false;
   if (!isMountableTraversalPoint(mount.x, mount.z) || (isCarriage(mount) && !isCarriageGround(mount))) return false;
@@ -218,7 +220,7 @@ export function resolveMountDismountPose(
   player: Pick<PlayerState, "x" | "y" | "z" | "rotationY">,
   mount?: MountState
 ): Pick<PlayerState, "x" | "y" | "z" | "rotationY"> | null {
-  const [left, right] = mountDismountPoseCandidates(player, isCarriage(mount) ? CARRIAGE_TUNING.dismountOffset : MOUNT_TUNING.dismountClearanceMeters);
+  const [left, right] = mountDismountPoseCandidates(player, isCarriage(mount) ? carriageTuning(mount!).dismountOffset : MOUNT_TUNING.dismountClearanceMeters);
   if (isValidPlayerMountGround(left)) return left;
   if (isValidPlayerMountGround(right)) return right;
   return null;

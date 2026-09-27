@@ -11,9 +11,9 @@ import { timber } from "./parts";
 /**
  * Culvert headwall. Where a road crosses a brook, the water passes under the road embankment in a
  * round stone pipe; this is the dressed face of one end. Coursed blocks with a ring of voussoirs
- * round the pipe mouth, an overhanging coping with moss on its lee stones, wing walls splayed out
- * along the banks and stepping down as they go, and a flagstone apron where the water spills out.
- * One stands at each side of a road deck.
+ * round the pipe mouth, an overhanging coping with moss on its lee stones, and wing walls splayed
+ * out along the banks and stepping down as they go. The brook's own gravel bed runs up to the pipe
+ * mouth, so the wall carries no apron of its own. One stands at each side of a road deck.
  */
 export function createCulvertHeadwallModel(context: GeneratorContext): AuthoredModel {
   const { spec } = context;
@@ -21,13 +21,12 @@ export function createCulvertHeadwallModel(context: GeneratorContext): AuthoredM
   const random = mulberry32(context.seed);
   const root = new THREE.Group();
   root.name = `${ID}_root`;
-  // Catalog palette order: cool stone, weathered warm stone, pipe shadow, wet stone, moss.
+  // Catalog palette order: cool stone, weathered warm stone, pipe shadow, moss.
   const surface = new SurfaceBuilder(spec.palette);
   const COOL = 0;
   const WARM = 1;
   const SHADOW = 2;
-  const WET = 3;
-  const MOSS = 4;
+  const MOSS = 3;
   const halfWall = 1.55;
   const face = 0;
   const back = -0.45;
@@ -99,12 +98,6 @@ export function createCulvertHeadwallModel(context: GeneratorContext): AuthoredM
       timber(surface, [from.x, height + 0.05, from.z], [to.x, height + 0.05, to.z], [0.24, 0.05], random() < 0.35 ? MOSS : COOL,
         { ref: [0, 1, 0], bevel: 0.02, shade: shade() });
     }
-  }
-  // Flagstone apron under the spill, dark with wet.
-  const flags = [[0, 0.32, 0.36, 0.24], [-0.42, 0.42, 0.24, 0.28], [0.4, 0.46, 0.26, 0.22], [-0.08, 0.86, 0.34, 0.2],
-    [0.38, 0.9, 0.18, 0.2]] as const;
-  for (const [fx, fz, hx, hz] of flags) {
-    timber(surface, [fx, 0.03, fz - hz], [fx, 0.03, fz + hz], [hx, 0.035], WET, { ref: [0, 1, 0], bevel: 0.02, shade: 0.84 + random() * 0.12 });
   }
   root.add(surface.buildMesh(`${ID}_mesh`));
   addCollisionMarkers(spec, root);

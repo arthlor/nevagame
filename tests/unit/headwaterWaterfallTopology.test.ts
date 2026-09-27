@@ -76,6 +76,27 @@ describe("W06 headwater waterfall topology (live)", () => {
     }
   });
 
+  it("lets the outer fall banks descend into the pool instead of raising isolated spires", () => {
+    for (const x of [-10, -5, 0]) {
+      let previous = WorldLayout.terrainHeight(x, -135);
+      for (const z of [-134, -133, -132]) {
+        const height = WorldLayout.terrainHeight(x, z);
+        expect(height, `outer bank at (${x}, ${z})`).toBeLessThanOrEqual(previous + 0.35);
+        previous = height;
+      }
+    }
+  });
+
+  it("carries fallen rock down both dry sides without filling the wet chute", () => {
+    for (const x of [-43, -16]) {
+      const apron = WorldLayout.terrainHeight(x, -134);
+      const toe = WorldLayout.terrainHeight(x, -129);
+      expect(apron - toe, `talus grade at x=${x}`).toBeGreaterThan(2);
+    }
+    const wetSection = WorldLayout.riverSectionAt(-134);
+    expect(WorldLayout.terrainHeight(wetSection.centerX, -134)).toBeLessThan(wetSection.surfaceElevation);
+  });
+
   it("keeps the whole slice inside the declared edit envelope", () => {
     for (let z = NEVA_HEADWATERS.source.z; z <= NEVA_HEADWATERS.endZ; z += 1) {
       const section = WorldLayout.riverSectionAt(z);

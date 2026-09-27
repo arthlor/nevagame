@@ -1,9 +1,14 @@
+import { quoteMarketRetail } from '../economy/retailQuote';
+import { quoteCraftedTradePack, recordTradePackDelivery } from '../economy/TradePackEconomy';
+import { farmCargoName, isLooseHarvestPack } from '../cargo/farmPacks';
+import { quoteVillageTradePack } from "../economy/VillageTrade";
+import { FARM_PACK_QUANTITY } from "../../content/farmPacks";
+import { cargoContentId, type FarmPackPriceBreakdown } from "../cargo/farmPacks";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { calculateFishPrice, type FishPriceBreakdown } from "../economy/calculateFishValue";
 import { recordMarketPurchase, recordMarketSale, tickMarket } from "../economy/updateMarket";
 import {
   RETAIL_MARKUP,
-  WORKSHOP_SUPPLY_MARKUP,
   cropQualityPriceMultiplier,
   demandFromSupply,
   demandLabelFromModifier,
@@ -18,6 +23,7 @@ import type {
   CropQuality,
   FishCargoId,
   FishCargoState,
+  CargoState,
   InventoryState,
   ItemId,
   ItemStack,
@@ -45,7 +51,7 @@ import type {
 } from "../core/contracts";
 import { previousRodId, ROD_PROGRESSION, rodFishingXpRequirement } from "../../content/rods";
 import { FISH_TRADE_CENTER_MARKET_ID as TRADE_CENTER_MARKET_ID, marketAcceptsFishTradePacks } from "../../content/markets";
-import { isPhysicalTradePackSpecies, qualityRank } from "./domainRules";
+import { isPhysicalTradePackSpecies, isWithinMarketReach, qualityRank } from "./domainRules";
 import { dayOfSeason, formatGameDuration } from "../core/GameClock";
 import { CONTRACT_PASS_WAIT_MINUTES } from "./ContractDomain";
 import {
@@ -87,8 +93,7 @@ export class MarketDomain {
   public getNearbyMarketId(): MarketId | null {
     const { player } = this.context.state;
     for (const market of ContentRegistry.markets.values()) {
-      const { interactionPosition } = market;
-      if (Math.hypot(player.x - interactionPosition.x, player.z - interactionPosition.z) <= interactionPosition.radiusMeters) {
+      if (isWithinMarketReach(player, market)) {
         return market.id;
       }
     }
@@ -416,7 +421,7 @@ export class MarketDomain {
     const fishRows = marketAcceptsFishTradePacks(marketId)
       ? []
       : accessibleFish
-        .filter((cargo) => !this.isTradePack(cargo))
+        .filter((cargo): cargo is FishCargoState => cargo.kind !== "farm" && !this.isTradePack(cargo))
         .map((cargo) => {
           const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
           const quote = this.inspectFish(marketId, cargo.id);
@@ -436,12 +441,17 @@ export class MarketDomain {
       ? accessibleFish
         .filter((cargo) => this.isTradePack(cargo) && cargo.location.type === "player")
         .map((cargo) => {
-          const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
+          const contentId = cargoContentId(cargo);
+          const definition = cargo.kind === "farm" ? ContentRegistry.items.get(contentId) : ContentRegistry.fishSpecies.get(contentId);
           const quote = this.inspectTradePack(marketId, cargo.id);
           return {
             cargoId: cargo.id,
-            speciesId: cargo.speciesId,
-            name: species?.name ?? cargo.speciesId,
+            speciesId: contentId,
+            kind: cargo.kind === "farm" ? "farm" as const : "fish" as const,
+            itemId: cargo.kind === "farm" ? cargo.itemId : undefined,
+            name: cargo.kind === "farm" ? farmCargoName(cargo) : definition?.name ?? contentId,
+            tradePackId: cargo.kind === "farm" ? cargo.tradePack?.definitionId : undefined,
+            canRecoverPlantMatter: cargo.kind === "farm" && isLooseHarvestPack(cargo),
             weightKg: cargo.weightKg,
             quality: cargo.quality,
             freshness: cargo.freshness,
@@ -519,7 +529,7 @@ export class MarketDomain {
           : 0;
         const deliverableItems = itemLane ? Math.min(ownedItems, remaining) : 0;
         const reachableFish = fish
-          ? accessibleFish.filter((cargo) => cargo.speciesId === contract.targetItemIdOrSpecies)
+          ? accessibleFish.filter((cargo): cargo is FishCargoState => cargo.kind !== "farm" && cargo.speciesId === contract.targetItemIdOrSpecies)
           : [];
         const matchingFish = physicalTradePack
           ? reachableFish.filter((cargo) => cargo.location.type === "player" && state.player.carriedFishCargoId === cargo.id)
@@ -530,8 +540,16 @@ export class MarketDomain {
           .filter((cargo) => contract.minWeightKg === undefined || cargo.weightKg >= contract.minWeightKg)
           .slice(0, remaining)
           .map((cargo) => cargo.id);
+        if (itemLane && remaining >= FARM_PACK_QUANTITY) {
+          for (const cargo of accessibleFish) {
+            if (cargo.kind === "farm" && isLooseHarvestPack(cargo) && cargo.itemId === contract.targetItemIdOrSpecies
+              && cargo.location.type === "player" && state.player.carriedFishCargoId === cargo.id
+              && cargo.freshness > 0 && cargo.freshness >= (contract.minFreshness ?? 0)
+              && this.inspectTradePack(marketId, cargo.id).success) eligibleCargoIds.push(cargo.id);
+          }
+        }
         const blockerReasons: string[] = [];
-        if (itemLane && deliverableItems === 0) {
+        if (itemLane && deliverableItems === 0 && eligibleCargoIds.length === 0) {
           blockerReasons.push(`Bring ${remaining} ${item!.name}`);
         } else if (fish && eligibleCargoIds.length === 0) {
           if (matchingFish.length === 0) {
@@ -791,13 +809,13 @@ export class MarketDomain {
     if (!market) return { success: false, reason: "Market not found" };
     if (this.getNearbyMarketId() !== marketId) return { success: false, reason: "You must be at this market to trade" };
     const fishCargo = state.fishCargo[cargoId];
-    if (!fishCargo) return { success: false, reason: "Fish cargo not found" };
-    if (this.isTradePack(fishCargo)) {
+    if (!fishCargo) return { success: false, reason: "Cargo not found" };
+    if (fishCargo.kind === "farm" || this.isTradePack(fishCargo)) {
       return {
         success: false,
         reason: marketAcceptsFishTradePacks(marketId)
           ? "Use the Trade packs counter to sell this carried pack"
-          : "Carry fish trade packs to a village trade counter: Neva Village, Pinewatch, Reedhaven or Highridge"
+          : "Carry trade packs to a village trade counter: Neva Village, Pinewatch, Reedhaven, Highridge or Sunreach"
       };
     }
     if (!this.navigation.canAccessFishCargo(fishCargo, marketId)) {
@@ -809,19 +827,28 @@ export class MarketDomain {
   public inspectTradePack(
     marketId: MarketId,
     cargoId: FishCargoId
-  ): { success: boolean; breakdown?: FishPriceBreakdown; reason?: string } {
+  ): { success: boolean; breakdown?: FishPriceBreakdown | FarmPackPriceBreakdown; reason?: string } {
     const { state } = this.context;
     const market = state.markets[marketId];
     if (!market) return { success: false, reason: "Market not found" };
     if (this.getNearbyMarketId() !== marketId) return { success: false, reason: "You must be at this market to trade" };
     if (!marketAcceptsFishTradePacks(marketId)) {
-      return { success: false, reason: "Carry fish trade packs to a village trade counter: Neva Village, Pinewatch, Reedhaven or Highridge" };
+      return { success: false, reason: "Carry trade packs to a village trade counter: Neva Village, Pinewatch, Reedhaven, Highridge or Sunreach" };
     }
     const fishCargo = state.fishCargo[cargoId];
-    if (!fishCargo) return { success: false, reason: "Fish cargo not found" };
-    if (!this.isTradePack(fishCargo)) return { success: false, reason: "Only fish trade packs use this counter" };
+    if (!fishCargo) return { success: false, reason: "Cargo not found" };
+    if (!this.isTradePack(fishCargo)) return { success: false, reason: "Only trade packs use this counter" };
     if (fishCargo.location.type !== "player" || state.player.carriedFishCargoId !== cargoId) {
       return { success: false, reason: "Collect this trade pack from its boat or carriage and carry it to the counter" };
+    }
+    if (fishCargo.kind === "farm") {
+      if (fishCargo.tradePack) return { success: true, breakdown: quoteCraftedTradePack(
+        fishCargo.tradePack, fishCargo.lots.reduce((sum, lot) => sum + lot.quantity, 0), fishCargo.freshness,
+        fishCargo.sourceMarketId!, market, state.clock.currentMinute, state.worldSeed) };
+      const commodity = market.commodities[fishCargo.itemId];
+      if (!commodity) return { success: false, reason: "This counter does not buy this harvest" };
+      return { success: true, breakdown: quoteVillageTradePack(commodity, fishCargo.lots, fishCargo.freshness,
+        fishCargo.sourceMarketId, marketId, { absoluteHour: state.clock.currentMinute / 60, worldSeed: state.worldSeed }) };
     }
     return this.priceFishCargo(marketId, fishCargo);
   }
@@ -858,8 +885,8 @@ export class MarketDomain {
     if (!market) return { success: false, reason: "Market not found" };
     if (this.getNearbyMarketId() !== marketId) return { success: false, reason: "You must be at this market to trade" };
     const fishCargo = state.fishCargo[cargoId];
-    if (!fishCargo) return { success: false, reason: "Fish cargo not found" };
-    if (this.isTradePack(fishCargo)) {
+    if (!fishCargo) return { success: false, reason: "Cargo not found" };
+    if (fishCargo.kind === "farm" || this.isTradePack(fishCargo)) {
       return {
         success: false,
         reason: "Carry fish trade packs to a village trade counter and sell them one at a time"
@@ -903,17 +930,30 @@ export class MarketDomain {
   public sellTradePack(
     marketId: MarketId,
     cargoId: FishCargoId
-  ): { success: boolean; revenue?: number; breakdown?: FishPriceBreakdown; reason?: string } {
+  ): { success: boolean; revenue?: number; breakdown?: FishPriceBreakdown | FarmPackPriceBreakdown; reason?: string } {
     const quote = this.inspectTradePack(marketId, cargoId);
     if (!quote.success) return { success: false, reason: quote.reason };
     const breakdown = quote.breakdown;
     if (!breakdown) return { success: false, reason: "This trade pack has no market quote" };
     const fishCargo = this.context.state.fishCargo[cargoId];
-    if (!fishCargo) return { success: false, reason: "Fish cargo not found" };
-    if (fishCargo.freshness <= 0) return { success: false, reason: "Fish is spoiled and cannot be sold" };
-    if (breakdown.finalPrice <= 0) return { success: false, reason: "Fish has no market value" };
+    if (!fishCargo) return { success: false, reason: "Cargo not found" };
+    if (fishCargo.freshness <= 0) return { success: false, reason: "This pack is spoiled and cannot be sold" };
+    if (breakdown.finalPrice <= 0) return { success: false, reason: "This pack has no market value" };
 
-    this.commitFishSale(marketId, fishCargo, breakdown);
+    if (fishCargo.kind === "farm") {
+      const { state, events } = this.context;
+      this.cargo.clearPointers(fishCargo);
+      delete state.fishCargo[cargoId];
+      state.player.money += breakdown.finalPrice;
+      if (fishCargo.tradePack) recordTradePackDelivery(state.markets[marketId], fishCargo.tradePack);
+      if (isLooseHarvestPack(fishCargo)) recordMarketSale(state.markets[marketId], fishCargo.itemId, FARM_PACK_QUANTITY);
+      if ("kind" in breakdown) this.progression.addProficiencyXp("trading", breakdown.tradingXp);
+      events.emit("TradePackSold", { marketId, cargoId, itemId: fishCargo.tradePack && !isLooseHarvestPack(fishCargo) ? fishCargo.tradePack.definitionId : fishCargo.itemId, sourceMarketId: fishCargo.sourceMarketId, revenue: breakdown.finalPrice, minute: state.clock.currentMinute });
+      if (isLooseHarvestPack(fishCargo)) events.emit("ItemSold", { marketId, itemId: fishCargo.itemId, quantity: FARM_PACK_QUANTITY,
+        revenue: breakdown.finalPrice, minute: state.clock.currentMinute });
+    } else if (!("kind" in breakdown)) {
+      this.commitFishSale(marketId, fishCargo, breakdown);
+    }
     return { success: true, revenue: breakdown.finalPrice, breakdown };
   }
 
@@ -976,7 +1016,7 @@ export class MarketDomain {
     for (const cargo of cargoEntries) {
       if (
         cargo.freshness <= 0 ||
-        this.isTradePack(cargo) ||
+        cargo.kind === "farm" || this.isTradePack(cargo) ||
         !this.navigation.canAccessFishCargo(cargo, marketId)
       ) continue;
       const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
@@ -1023,7 +1063,8 @@ export class MarketDomain {
     });
   }
 
-  private isTradePack(cargo: FishCargoState): boolean {
+  private isTradePack(cargo: CargoState): boolean {
+    if (cargo.kind === "farm") return true;
     const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
     return species ? isPhysicalTradePackSpecies(species) : false;
   }
@@ -1160,31 +1201,7 @@ export class MarketDomain {
     commodity: Parameters<typeof quoteCommodityPurchase>[0],
     quantity: number
   ): CommodityMarketQuote {
-    const market = ContentRegistry.markets.get(marketId);
-    const workshopSupply = market?.retail.workshopSupplyItemIds?.includes(commodity.itemId) === true;
-    return quoteCommodityPurchase(commodity, quantity, {
-      absoluteHour: this.context.state.clock.currentMinute / 60,
-      worldSeed: this.context.state.worldSeed,
-      minimumEffectiveModifier: this.bestWholesaleEffectiveModifier(commodity.itemId),
-      ...(workshopSupply ? { retailMarkup: WORKSHOP_SUPPLY_MARKUP } : {})
-    });
-  }
-
-  private bestWholesaleEffectiveModifier(itemId: ItemId): number {
-    const { state } = this.context;
-    let best = 0;
-    for (const market of Object.values(state.markets)) {
-      const commodity = market.commodities[itemId];
-      if (!commodity) continue;
-      const demand = demandFromSupply(
-        commodity,
-        commodity.localSupply,
-        state.clock.currentMinute / 60,
-        state.worldSeed
-      );
-      best = Math.max(best, demand * commodity.seasonalModifier);
-    }
-    return best;
+    return quoteMarketRetail(this.context.state, marketId, commodity, quantity);
   }
 
   private awardTradingXp(revenue: number, rate: number): void {

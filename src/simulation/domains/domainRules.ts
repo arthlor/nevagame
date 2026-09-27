@@ -1,6 +1,6 @@
 import type { CargoClass, PlayerState, RodClass } from "../core/types";
 import type { SeededRng } from "../core/Rng";
-import type { FishSpeciesDefinition } from "../../content/types";
+import type { FishSpeciesDefinition, MarketDefinition } from "../../content/types";
 
 const CARGO_CLASS_RANK: Record<CargoClass, number> = {
   small: 0,
@@ -26,7 +26,7 @@ const QUALITY_RANK: Record<string, number> = {
 
 /** Physical carry occupies both hands until a cargo transaction releases it. */
 export function freeHandsBlocker(player: Pick<PlayerState, "carriedFishCargoId">): string | null {
-  return player.carriedFishCargoId ? "Sell or release the carried fish before using tools" : null;
+  return player.carriedFishCargoId ? "Set down or store the carried trade pack before using tools" : null;
 }
 
 export function cargoClassFits(fishClass: CargoClass, slotMax: CargoClass): boolean {
@@ -91,4 +91,9 @@ export function rollSpeciesWeightKg(
  */
 export function isProduceContractType(type: string): boolean {
   return type === "produce" || type === "bulk-order";
+}
+
+export function isWithinMarketReach(player: Pick<PlayerState, "x" | "z">, market: MarketDefinition): boolean {
+  const position = market.interactionPosition;
+  return Math.hypot(player.x - position.x, player.z - position.z) <= position.radiusMeters;
 }

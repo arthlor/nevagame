@@ -1,3 +1,5 @@
+import { createTradeDemand } from "../economy/TradePackEconomy";
+import { isVillageTradeOrigin } from "../../content/villageTrade";
 import { createStarterCarriageState } from "../mounts/Carriage";
 // src/simulation/core/createInitialState.ts
 
@@ -77,7 +79,8 @@ export function createInitialGameState(worldSeed: number = NEW_GAME_WORLD_SEED):
       id: marketId,
       name: marketDef.name,
       regionId: marketDef.regionId,
-      commodities: {}
+      commodities: {},
+      ...(isVillageTradeOrigin(marketId) ? { tradeDemand: createTradeDemand(8 * 60) } : {})
     };
     for (const comm of marketDef.commodities) {
       initialMarkets[marketId].commodities[comm.itemId] = {

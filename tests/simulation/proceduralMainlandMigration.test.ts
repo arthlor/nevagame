@@ -21,7 +21,7 @@ const PRESERVED = ["farms", "crops", "inventories", "processingJobs", "fishCargo
 
 /** A dry, mountable point halfway along the rerouted forest road. */
 function forestRoadPoint(): { x: number; z: number } {
-  const road = MAINLAND_ROUTES.find(route => route.id === "mainland-forest-road")!;
+  const road = MAINLAND_ROUTES.find(route => route.id === "mainland-pinewatch-reedhaven")!;
   for (let offset = 0; offset < road.points.length / 2; offset++) {
     const point = road.points[Math.floor(road.points.length / 2) + offset];
     if (isMountableTraversalPoint(point.x, point.z)) return { x: point.x, z: point.z };

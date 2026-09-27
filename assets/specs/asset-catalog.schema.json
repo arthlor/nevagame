@@ -533,7 +533,7 @@
         "durationSeconds": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "maximum": 10
+          "maximum": 60
         },
         "commitMarkerSeconds": {
           "type": "number",

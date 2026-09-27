@@ -5,6 +5,7 @@ import { playUiSound } from "../audio/uiAudio";
 import { TidebookArt } from "./TidebookArt";
 import { GuildcraftArt } from "./GuildcraftArt";
 import type { ActiveModal } from "../../app/ModeController";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export type { ActiveModal } from "../../app/ModeController";
 
@@ -19,6 +20,8 @@ export interface MicroMenuPurseBarProps {
 export const TidebookPurse: React.FC<{ money: number }> = ({ money }) => {
   const previous = useRef(money);
   const [delta, setDelta] = useState<number | null>(null);
+  const { locale } = useTranslation();
+  const currencySymbol = locale === "tr" ? "akçe" : "G";
   useEffect(() => {
     const difference = money - previous.current;
     previous.current = money;
@@ -28,10 +31,10 @@ export const TidebookPurse: React.FC<{ money: number }> = ({ money }) => {
     return () => window.clearTimeout(timeout);
   }, [money]);
   return (
-    <div className="guild-purse" aria-label={`Purse: ${money.toLocaleString()} gold`} data-testid="hud-gold-purse">
-      <AtlasImage src={UI_STATUS.coin} size={20} aria-hidden="true" /><span className="guild-gold">{money.toLocaleString()} G</span>
+    <div className="guild-purse" aria-label={`Purse: ${money.toLocaleString()} ${locale === "tr" ? "akçe" : "gold"}`} data-testid="hud-gold-purse">
+      <AtlasImage src={UI_STATUS.coin} size={20} aria-hidden="true" /><span className="guild-gold">{money.toLocaleString()} {currencySymbol}</span>
       {delta != null && <span className={`guild-gold-delta ${delta > 0 ? "is-gain" : "is-spend"}`} role="status">
-        {delta > 0 ? "+" : ""}{delta.toLocaleString()} G
+        {delta > 0 ? "+" : ""}{delta.toLocaleString()} {currencySymbol}
       </span>}
     </div>
   );
@@ -40,16 +43,17 @@ export const TidebookPurse: React.FC<{ money: number }> = ({ money }) => {
 export const MicroMenuPurseBar: React.FC<MicroMenuPurseBarProps> = ({
   capacity, expeditionUnlocked = false, onOpenModal, className = ""
 }) => {
+  const { locale } = useTranslation();
   const handleAction = (modal: ActiveModal) => { playUiSound("open"); onOpenModal(modal); };
   const full = capacity.satchelUsed >= capacity.satchelMax;
   const nearlyFull = capacity.satchelUsed >= capacity.satchelMax * 0.9;
   const items: Array<{ id: ActiveModal; label: string; key: string; art: string; test: string }> = [
-    { id: "inventory", label: "Open satchel inventory", key: "I", art: UI_MENU.backpack, test: "satchel" },
-    { id: "journal", label: "Open field journal and quests", key: "J", art: UI_MENU.journal, test: "journal" },
-    { id: "map", label: "Open nautical chart", key: "M", art: UI_MENU.compass, test: "map" },
-    { id: "ledger", label: "Open fleet hold and warehouse ledger", key: "L", art: UI_MENU.ledger, test: "ledger" },
-    ...(expeditionUnlocked ? [{ id: "expedition" as const, label: "Open expedition planner", key: "P", art: UI_MENU.expedition, test: "expeditions" }] : []),
-    { id: "pause", label: "Open game menu (Esc)", key: "Esc", art: UI_MENU.menu, test: "menu" }
+    { id: "inventory", label: locale === "tr" ? "Heybeyi Aç" : "Open satchel inventory", key: "I", art: UI_MENU.backpack, test: "satchel" },
+    { id: "journal", label: locale === "tr" ? "Seyir Defteri ve Görevler" : "Open field journal and quests", key: "J", art: UI_MENU.journal, test: "journal" },
+    { id: "map", label: locale === "tr" ? "Deniz Haritası" : "Open nautical chart", key: "M", art: UI_MENU.compass, test: "map" },
+    { id: "ledger", label: locale === "tr" ? "Kargo Ambarı ve Köy Kaydı" : "Open fleet hold and warehouse ledger", key: "L", art: UI_MENU.ledger, test: "ledger" },
+    ...(expeditionUnlocked ? [{ id: "expedition" as const, label: locale === "tr" ? "Sefer Planı" : "Open expedition planner", key: "P", art: UI_MENU.expedition, test: "expeditions" }] : []),
+    { id: "pause", label: locale === "tr" ? "Menü (Esc)" : "Open game menu (Esc)", key: "Esc", art: UI_MENU.menu, test: "menu" }
   ];
   const renderItem = (item: (typeof items)[number]) => (
     <button
@@ -103,7 +107,7 @@ export const MicroMenuPurseBar: React.FC<MicroMenuPurseBarProps> = ({
     <nav
       className={`micro-menu-purse-bar guild-utilities interactive ${className}`}
       data-testid="micro-menu-purse-bar"
-      aria-label="Capacities and system menu"
+      aria-label={locale === "tr" ? "Kapasiteler ve sistem menüsü" : "Capacities and system menu"}
     >
       <div className="guild-secondary-utilities">
         {secondaryItems.map(renderItem)}

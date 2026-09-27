@@ -9,7 +9,7 @@ export function resolveArtYardAssetId(
 }
 
 /** Ground beds that may be requested with `?ground=`; `grass` is the default and stays implicit. */
-export const ART_YARD_GROUND_KINDS = ["grass", "meadow", "sand", "rock", "grid", "none"] as const;
+export const ART_YARD_GROUND_KINDS = ["grass", "meadow", "sand", "rock", "deck", "studio", "grid", "none"] as const;
 export type ArtYardGroundKind = typeof ART_YARD_GROUND_KINDS[number];
 
 export function resolveArtYardGround(requested: string | null): ArtYardGroundKind {
@@ -27,7 +27,7 @@ export function syncArtYardGroundUrl(currentUrl: URL, ground: ArtYardGroundKind)
 
 export function syncArtYardAssetUrl(currentUrl: URL, assetId: string): URL {
   const next = new URL(currentUrl);
-  if (assetId.startsWith("__showcase_")) next.searchParams.delete("asset");
+  if (assetId.startsWith("__showcase_") && assetId !== "__showcase_ambient_npcs") next.searchParams.delete("asset");
   else next.searchParams.set("asset", assetId);
   return next;
 }

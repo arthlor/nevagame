@@ -175,6 +175,7 @@ input[type="range"] {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   z-index: 10;
+  backdrop-filter: blur(8px);
 }
 
 .hud-sep {
@@ -189,8 +190,46 @@ input[type="range"] {
   white-space: nowrap;
 }
 
+.hud-badge-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.74rem;
+  padding: 0 0.2rem;
+  min-height: auto;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.hud-badge-btn:hover {
+  color: var(--accent-gold-bright);
+  background: rgba(213, 155, 69, 0.15);
+}
+
+#hud-lod-badge {
+  color: var(--accent-teal-bright);
+  font-weight: 600;
+}
+
 #hud-dims-badge {
   color: var(--accent-gold-bright);
+}
+
+#hud-env-badge {
+  color: var(--text-muted);
+}
+
+.hud-anim-pill {
+  display: inline-block;
+  background: rgba(63, 141, 140, 0.25);
+  border: 1px solid var(--accent-teal);
+  color: var(--accent-teal-bright);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.08rem 0.45rem;
+  border-radius: 10px;
 }
 
 .stage-toolbar {
@@ -210,6 +249,7 @@ input[type="range"] {
   background: rgba(14, 21, 25, 0.88);
   min-width: 2.4rem;
   border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(8px);
 }
 
 .stage-toolbar button.active {
@@ -422,8 +462,39 @@ h2 {
 
 .asset-filter-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 7.6rem;
+  grid-template-columns: minmax(0, 1fr) 8.5rem;
   gap: 0.35rem;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.search-input-wrap input {
+  padding-right: 3rem;
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.35rem;
+  min-height: 22px;
+  border-radius: 4px;
+}
+
+.clear-search-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .asset-select {
@@ -439,7 +510,7 @@ h2 {
 
 .asset-nav-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr 1fr auto;
   gap: 0.35rem;
 }
 
@@ -532,7 +603,9 @@ output {
   accent-color: var(--accent-gold);
 }
 
-/* Sockets Inspector */
+/* Materials & Palette Inspector */
+.inspect-materials-section,
+.inspect-collision-section,
 .inspect-sockets-section {
   display: flex;
   flex-direction: column;
@@ -541,6 +614,97 @@ output {
   padding-top: 0.55rem;
 }
 
+.materials-inspector-list,
+.collision-inspector-list,
+.sockets-inspector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.material-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.32rem 0.5rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  font-size: 0.7rem;
+}
+
+.material-swatch {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.material-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.material-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.material-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.material-mesh-count {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+}
+
+.material-details {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.collision-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.32rem 0.5rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  font-size: 0.7rem;
+}
+
+.collision-item-name {
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.68rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collision-item-meta {
+  color: var(--accent-gold-bright);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Sockets Inspector */
 .sockets-inspector-list {
   display: flex;
   flex-direction: column;
@@ -599,8 +763,8 @@ output {
 
 .anim-control-row {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
-  gap: 0.25rem;
+  grid-template-columns: 1.5fr 0.8fr 0.8fr 1fr 1fr 0.8fr 0.8fr;
+  gap: 0.22rem;
   margin-top: 0.2rem;
 }
 
@@ -642,6 +806,28 @@ output {
 }
 
 /* Environment Tab */
+.atmosphere-presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.preset-chip {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.22rem 0.45rem;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  min-height: 24px;
+}
+
+.preset-chip:hover {
+  border-color: var(--accent-gold);
+  color: #fff;
+  background: rgba(213, 155, 69, 0.12);
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -691,6 +877,56 @@ output {
 
 .stage-input-row button {
   white-space: nowrap;
+}
+
+.budget-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.budget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+}
+
+.budget-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.budget-status {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68rem;
+}
+
+.budget-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.budget-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .metrics-grid {

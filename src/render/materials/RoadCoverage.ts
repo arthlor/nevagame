@@ -10,7 +10,7 @@ const EDGE_SIGNAL_WEIGHT = 0.55;
 const EDGE_DISTANCE_OFFSET = 0.16;
 const EDGE_DITHER_CELLS_PER_METER = 16;
 const EDGE_DITHER_OFFSET = 3.1;
-const EDGE_DITHER_STRENGTH = 0.3;
+const EDGE_DITHER_STRENGTH = 0.12;
 const EDGE_ANTIALIAS_MAX = 0.12;
 
 function clamp01(value: number): number {

@@ -1,9 +1,11 @@
+import { bindInteractionPose } from "./InteractionPlacements";
 /**
  * Pure farming-space layout shared by simulation, physics, input and rendering.
  * Keep this module free of Three.js and mutable game state.
  */
 
 import { SUNREACH_ANCHORS } from "./WorldIslands";
+import { roadClassWidth } from "./RoadClasses";
 
 export interface FarmPoint {
   x: number;
@@ -125,10 +127,10 @@ const STARTER_STRUCTURE_ANCHORS = [
   {
     id: "struct.starter_compost",
     type: "compost-bin",
-    x: -11.2,
-    z: -6.4,
+    x: -10.1,
+    z: -8.9,
     // The open slatted working face opens onto the northeast work-trail apron.
-    rotationY: 3.8416,
+    rotationY: 3.4034,
     clearanceRadius: 1.15,
     frontApproachDistanceMeters: 1.0
   },
@@ -206,8 +208,8 @@ function applyFarmFenceOverrides(anchors: readonly FarmFenceAnchor[]): readonly 
 const STARTER_PROP_ANCHORS = [
   { id: "farm_hay_a", type: "hay-bale", x: -13.4, z: -8.2, rotationY: 0.22, scale: 1 },
   { id: "farm_hay_b", type: "hay-bale", x: -12.1, z: -8.5, rotationY: 0.66, scale: 0.94 },
-  { id: "stall_crate_a", type: "produce-crate", x: 12.2, z: -2.4, rotationY: -0.18, scale: 0.9 },
-  { id: "stall_basket_a", type: "harvest-basket", x: 17.3, z: -2.1, rotationY: 0.24, scale: 1 },
+  { id: "stall_crate_a", type: "produce-crate", x: 12.3, z: -3.2, rotationY: -0.18, scale: 0.9 },
+  { id: "stall_basket_a", type: "harvest-basket", x: 5.7, z: -19.5, rotationY: 0.24, scale: 1 },
   { id: "farm_lamp_a", type: "lamp-post", x: 7.5, z: -6.4, rotationY: 0.7854, scale: 0.88 },
   { id: "farm_lamp_a_copy_1", type: "lamp-post", x: 14.8, z: 2.4, rotationY: 2.8798, scale: 0.88},
 ] as const satisfies readonly FarmPropAnchor[];
@@ -216,7 +218,7 @@ const STARTER_PATHS = [
   {
     id: "farm-entry",
     kind: "lane",
-    widthMeters: 2.4,
+    widthMeters: roadClassWidth("lane"),
     // The field junction and yard gateway are both shared. The old southward
     // lead-in ended in open meadow because the arterial already began at the
     // yard gateway, so it read as a road to nowhere.
@@ -225,7 +227,7 @@ const STARTER_PATHS = [
   {
     id: "farm-work-zone",
     kind: "trail",
-    widthMeters: 1.8,
+    widthMeters: roadClassWidth("trail"),
     // Shares the field junction with farm-entry instead of leaving a small
     // walkable/rendered gap at the fork.
     points: [{ x: 0, z: -7 }, { x: -7.8, z: -7 }, { x: -10.4, z: -4.8 }, { x: -10, z: -1.8 }]
@@ -233,7 +235,7 @@ const STARTER_PATHS = [
   {
     id: "farm-home",
     kind: "lane",
-    widthMeters: 2.2,
+    widthMeters: roadClassWidth("lane"),
     // The final local point resolves to the current outside door at
     // world (-53.76, -53.79). Approach from the south without crossing the
     // well or cutting through the farmhouse body.
@@ -444,7 +446,7 @@ export function starterStructureAnchor(id: string): FarmStructureAnchor | undefi
   const local = starterStructureLocalAnchor(id);
   if (!local) return undefined;
   const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, local);
-  return { ...local, ...world };
+  return bindInteractionPose(id, { ...local, ...world }, Math.PI);
 }
 
 export function farmStructureWorldAnchor(
@@ -453,7 +455,7 @@ export function farmStructureWorldAnchor(
 ): FarmStructureAnchor | undefined {
   const local = getFarmLayout(farmId)?.structureAnchors.find((anchor) => anchor.id === id);
   if (!local) return undefined;
-  return { ...local, ...farmLocalToWorld(farmId, local) };
+  return bindInteractionPose(id, { ...local, ...farmLocalToWorld(farmId, local) }, Math.PI);
 }
 
 export function starterMarketAnchor(id: FarmMarketAnchor["id"]): FarmMarketAnchor | undefined {
@@ -462,17 +464,19 @@ export function starterMarketAnchor(id: FarmMarketAnchor["id"]): FarmMarketAncho
   return { ...local, ...farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, local) };
 }
 
-export function starterFarmsteadAnchor(id: FarmsteadAnchor["id"]): FarmsteadAnchor | undefined {
+export function starterFarmsteadAnchor(id: FarmsteadAnchor["id"], authoredBase = false): FarmsteadAnchor | undefined {
   const local = STARTER_FARMSTEAD_ANCHORS.find((anchor) => anchor.id === id);
   if (!local) return undefined;
-  return { ...local, ...farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, local) };
+  const base = { ...local, ...farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, local) };
+  return authoredBase ? base : bindInteractionPose(id, base);
 }
 
 /** World-space well used for field-pump install and irrigate. Decorative village wells are not farms. */
 export function farmWellWorldAnchor(farmId: string): FarmsteadAnchor | undefined {
   const local = getFarmLayout(farmId)?.farmsteadAnchors.find((anchor) => anchor.id === "well");
   if (!local) return undefined;
-  return { ...local, ...farmLocalToWorld(farmId, local) };
+  return bindInteractionPose(farmId === "farm.sunreach_terraces" ? "authored.sunreach.terrace-cistern" : "well",
+    { ...local, ...farmLocalToWorld(farmId, local) });
 }
 
 export const STARTER_STRUCTURE_IDS = STARTER_STRUCTURE_ANCHORS.map((anchor) => anchor.id);

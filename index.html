@@ -81,6 +81,29 @@
       <div id="neva-boot-portrait"><h1>Turn your device sideways</h1><p>The coast is played in landscape.</p></div>
     </div>
     <script>
+      (function() {
+        try {
+          var loc = localStorage.getItem('neva.locale');
+          if (!loc && navigator.language && navigator.language.toLowerCase().startsWith('tr')) loc = 'tr';
+          if (loc === 'tr') {
+            var tag = document.querySelector('#neva-boot-continue .start-screen__tagline');
+            if (tag) tag.textContent = 'Yurdunu kur. Gelgiti takip et.';
+            var brand = document.querySelector('#neva-boot-continue h1');
+            if (brand) brand.textContent = 'Neva Diyarı';
+            var st = document.getElementById('neva-boot-status');
+            if (st) st.textContent = 'Kıyı açılıyor…';
+            var p = document.getElementById('neva-boot-portrait');
+            if (p) {
+              var h1 = p.querySelector('h1');
+              if (h1) h1.textContent = 'Cihazını yan çevir';
+              var ptag = p.querySelector('p');
+              if (ptag) ptag.textContent = 'Kıyı macerası yatay ekranda oynanır.';
+            }
+          }
+        } catch(e) {}
+      })();
+    </script>
+    <script>
       var nevaPreloadAttemptKey = 'neva_preload_reload_at';
       function nevaPreloadAttempts(now) {
         try {

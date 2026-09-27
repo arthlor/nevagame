@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { AMBIENT_NPC_ASSETS } from "../../src/render/scene/ambientNpcAssets";
 import { GameClock } from "../../src/simulation/core/GameClock";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { WorldLayout } from "../../src/world/WorldLayout";
@@ -34,7 +35,10 @@ describe("ambient townsfolk", () => {
 
   it("uses the current NPC model set for every background resident", () => {
     expect(AMBIENT_TOWNSFOLK_ROUTES.length).toBeGreaterThan(0);
-    expect(AMBIENT_TOWNSFOLK_ROUTES.every((route) => route.assetId.endsWith("_b"))).toBe(true);
+    expect(new Set(AMBIENT_TOWNSFOLK_ROUTES.map(route => route.assetId))).toEqual(new Set(AMBIENT_NPC_ASSETS));
+    expect(AMBIENT_NPC_ASSETS.filter(id => id.includes("_male_"))).toHaveLength(3);
+    expect(AMBIENT_NPC_ASSETS.filter(id => id.includes("_female_"))).toHaveLength(3);
+    for (const npc of ContentRegistry.npcs.values()) expect(AMBIENT_NPC_ASSETS).not.toContain(npc.assetId);
   });
 
   it("keeps every step of every route on supported walkable ground", () => {

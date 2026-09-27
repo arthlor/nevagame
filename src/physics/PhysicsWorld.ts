@@ -1,4 +1,5 @@
-import { isCarriage, carriagePoseIsClear, advanceCarriagePose, CARRIAGE_TUNING } from "../simulation/mounts/Carriage";
+import { boatMeetsSailingRequirement } from "../content/boats";
+import { isCarriage, carriagePoseIsClear, advanceCarriagePose, carriageGroundResponseAt, carriageTuning, carriageFootprint, workshopCarriagePoses, CARRIAGE_TUNING } from "../simulation/mounts/Carriage";
 import type RAPIER from "@dimforge/rapier3d-compat";
 import { MathUtils } from "three";
 import { ContentRegistry } from "../content/ContentRegistry";
@@ -329,7 +330,7 @@ interface PlayerBodyRollback {
 }
 
 export class PhysicsWorld implements PhysicsAdapter {
-  private parkedCarriageBody: RAPIER.RigidBody | null = null;
+  private parkedCarriageBodies: RAPIER.RigidBody[] = [];
   private parkedCarriagePose = "";
   private readonly parkedCarriageColliderHandles = new Set<number>();
   private carriageCollision: readonly StaticCollisionProxy[] = [];
@@ -1445,7 +1446,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     let collisionBlocked = false;
     const sailingRequirement = WorldLayout.navigationRequirementAt(nextX, nextZ);
     const blockedByRequirement = sailingRequirement !== null
-      && boat.boatTypeId !== sailingRequirement.requiredBoatTypeId;
+      && !boatMeetsSailingRequirement(boat.boatTypeId, sailingRequirement.requiredBoatTypeId);
     if (blockedByRequirement) {
       nextX = originX;
       nextZ = originZ;
@@ -1810,21 +1811,22 @@ export class PhysicsWorld implements PhysicsAdapter {
       committedAttachmentKey: this.lastPlayerAttachmentKey
     };
 
-    const cart = Object.values(state.mounts).find(isCarriage);
-    const cartKey = cart && state.player.activeMountId !== cart.id ? `${cart.x}:${cart.y}:${cart.z}:${cart.rotationY}` : "";
+    const parkedCarts = [...Object.values(state.mounts).filter(isCarriage), ...workshopCarriagePoses().filter(pose => !state.mounts[pose.id])]
+      .filter(cart => state.player.activeMountId !== cart.id);
+    const cartKey = parkedCarts.map(cart => `${cart.id}:${cart.x}:${cart.y}:${cart.z}:${cart.rotationY}`).join("|");
     if (cartKey !== this.parkedCarriagePose) {
-      if (this.parkedCarriageBody) this.world.removeRigidBody(this.parkedCarriageBody);
-      this.parkedCarriageBody = null;
+      for (const body of this.parkedCarriageBodies) this.world.removeRigidBody(body);
+      this.parkedCarriageBodies = [];
       this.parkedCarriageColliderHandles.clear();
       this.parkedCarriagePose = cartKey;
-      if (cart && cartKey) {
+      for (const cart of parkedCarts) {
+        const tuning = carriageTuning(cart);
         const body = this.world.createRigidBody(this.rapier.RigidBodyDesc.fixed().setTranslation(cart.x, cart.y, cart.z)
           .setRotation({ x: 0, y: Math.sin(cart.rotationY / 2), z: 0, w: Math.cos(cart.rotationY / 2) }));
-        const bed = this.world.createCollider(this.rapier.ColliderDesc.cuboid(1.02, 0.75, 1.38).setTranslation(0, 0.95, 0), body);
-        const horse = this.world.createCollider(this.rapier.ColliderDesc.cuboid(0.48, 0.95, 1.1).setTranslation(0, 1.0, CARRIAGE_TUNING.horseOffset), body);
-        this.parkedCarriageColliderHandles.add(bed.handle);
-        this.parkedCarriageColliderHandles.add(horse.handle);
-        this.parkedCarriageBody = body;
+        const bed = this.world.createCollider(this.rapier.ColliderDesc.cuboid(tuning.bedWidth / 2 + .32, .75, tuning.bedLength / 2 + .08).setTranslation(0, .95, 0), body);
+        const horse = this.world.createCollider(this.rapier.ColliderDesc.cuboid(.48, .95, 1.1).setTranslation(0, 1, tuning.horseOffset), body);
+        this.parkedCarriageColliderHandles.add(bed.handle); this.parkedCarriageColliderHandles.add(horse.handle);
+        this.parkedCarriageBodies.push(body);
       }
       this.dynamicBodyCountStale = true;
       this.world.updateSceneQueries();
@@ -1922,8 +1924,15 @@ export class PhysicsWorld implements PhysicsAdapter {
         }
       );
       const trotting = mountGaitStep.isGalloping;
-      const target = throttle * (trotting ? CARRIAGE_TUNING.trotSpeed : CARRIAGE_TUNING.walkSpeed);
-      const change = (Math.abs(target) > Math.abs(previousSpeed) ? CARRIAGE_TUNING.acceleration : CARRIAGE_TUNING.braking) * dtSafe;
+      const groundResponse = Math.abs(throttle) > 0.001
+        ? carriageGroundResponseAt(mount.x, mount.z, mount.rotationY, throttle)
+        : null;
+      const target = throttle * (trotting ? CARRIAGE_TUNING.trotSpeed : CARRIAGE_TUNING.walkSpeed)
+        * (groundResponse?.speedScale ?? 1);
+      const accelerating = Math.abs(target) > Math.abs(previousSpeed);
+      const change = (accelerating
+        ? CARRIAGE_TUNING.acceleration * (groundResponse?.accelerationScale ?? 1)
+        : CARRIAGE_TUNING.braking) * dtSafe;
       let speed = previousSpeed + Math.max(-change, Math.min(change, target - previousSpeed));
       const priorSteering = this.carriageSteering;
       const requestedSteering = Math.abs(speed) > 0.025 ? -steering * CARRIAGE_TUNING.maximumSteerAngle : this.carriageSteering;
@@ -1934,7 +1943,8 @@ export class PhysicsWorld implements PhysicsAdapter {
       // full horse/shaft/bed sweep cannot cut through a narrow obstacle on turns.
       const midpoint = { ...candidate, x: (mount.x + candidate.x) / 2,
         z: (mount.z + candidate.z) / 2, rotationY: (mount.rotationY + yaw) / 2 };
-      const clear = Math.abs(speed) < 0.00001 || (carriagePoseIsClear(midpoint, this.carriageCollision, (priorSteering + this.carriageSteering) / 2)
+      const clearsParked = carriageFootprint(candidate, this.carriageSteering).every(p => parkedCarts.every(other => carriageFootprint(other).every(q => Math.hypot(p.x - q.x, p.z - q.z) > p.radius + q.radius)));
+      const clear = Math.abs(speed) < 0.00001 || (clearsParked && carriagePoseIsClear(midpoint, this.carriageCollision, (priorSteering + this.carriageSteering) / 2)
         && carriagePoseIsClear(candidate, this.carriageCollision, this.carriageSteering));
       if (!clear) { speed = 0; this.carriageSteering = priorSteering; }
       const accepted = clear ? candidate : mount;
@@ -1946,7 +1956,10 @@ export class PhysicsWorld implements PhysicsAdapter {
         speedMetersPerSecond: Math.abs(speed), accelerationMetersPerSecondSquared: dtSafe > 0 ? (Math.abs(speed) - Math.abs(previousSpeed)) / dtSafe : 0,
         turnRateRadiansPerSecond: dtSafe > 0 ? (accepted.rotationY - mount.rotationY) / dtSafe : 0,
         groundNormal: support.normal, slopeRadians: Math.acos(Math.max(-1, Math.min(1, support.normal.y))),
-        isGrounded: true, isCollisionBlocked: !clear, contactSurface: "path",
+        isGrounded: true, isCollisionBlocked: !clear,
+        contactSurface: support.source === "bridge"
+          ? "bridge-deck"
+          : WorldLayout.terrainSurface(accepted.x, accepted.z, support.normal.y),
         requestedGait: Math.abs(speed) < 0.01 ? "idle" : trotting ? "trot" : "walk" };
       this.previousResolvedPlayerSpeed = speed;
     } else if (

@@ -1,5 +1,15 @@
+import { createWorkingDockModel } from "./buildings/createWorkingDockModel";
+import { createCraftedTradePackModel } from "./props/createCraftedTradePackModel";
+import { createLighthouseModel, createWindmillModel } from "./buildings/createCoastalTowers";
+import { createStoneBridgeModel } from "./buildings/createStoneBridgeModel";
+import { createCoastalHutModel, createIceHouseModel, createToolShedModel } from "./buildings/createWorkingHuts";
+import { createCottageModel, createFarmhouseModel } from "./buildings/createVillageHomes";
 import { createStoneModel, createRoundBushModel, createReedsModel } from "./environment/stoneAndFoliage";
+import { createFernModel, createReedBedModel, createRiverBoulderModel, createWillowShrubModel } from "./environment/riverside";
 import { createMerchantCarriageModel } from "./props/createMerchantCarriageModel";
+import { createTradingStationModel } from "./buildings/createTradingStationModel";
+import { createCartWorkshopModel } from "./buildings/createCartWorkshopModel";
+import { createTradingShipModel } from "./boats/createTradingShipModel";
 import type { AuthoredGenerator } from "../kit";
 import { createFarmKitchenModel } from "./buildings/createFarmKitchenModel";
 import { createBannerClothModel } from "./cloth/createBannerClothModel";
@@ -33,7 +43,7 @@ import { createCozyArmchairModel, createCozyBedModel, createPicnicTableModel, cr
 import { createApiaryHiveModel, createGardenHoeModel, createPottingBenchModel, createRusticWateringCanModel } from "./props/garden";
 import { createCargoCrateLargeModel, createCargoSackModel, createDockLanternModel, createHangingSignboardModel, createTreasureChestModel } from "./props/harbour";
 import { createCoralPillarModel, createCoralStaghornModel, createCoralTableModel } from "./props/reef";
-import { createIceHouseModel, createMineAditModel, createSaltPansModel, createTimberStackModel } from "./props/industry";
+import { createMineAditModel, createSaltPansModel, createTimberStackModel } from "./props/industry";
 import { createTimberSawbuckModel } from "./props/createTimberSawbuckModel";
 import { createCulvertHeadwallModel } from "./props/roadworks";
 import { createDriftwoodClusterModel, createDriftwoodLogModel, createFallenLogModel } from "./props/shore";
@@ -56,6 +66,14 @@ import { createWateringCanModel } from "./tools/createWateringCanModel";
  * `authored_glb`. Porting a legacy family moves its name from that file to here.
  */
 export const AUTHORED_GENERATORS: Readonly<Record<string, AuthoredGenerator>> = {
+  farmhouse: createFarmhouseModel,
+  cottage: createCottageModel,
+  coastal_hut: createCoastalHutModel,
+  working_dock: createWorkingDockModel,
+  lighthouse: createLighthouseModel,
+  windmill: createWindmillModel,
+  stone_bridge: createStoneBridgeModel,
+  tool_shed: createToolShedModel,
   coastal_rock: createStoneModel,
   faceted_rock: createStoneModel,
   pebble_cluster: createStoneModel,
@@ -66,7 +84,14 @@ export const AUTHORED_GENERATORS: Readonly<Record<string, AuthoredGenerator>> = 
   sea_stack: createStoneModel,
   round_bush: createRoundBushModel,
   reeds: createReedsModel,
+  river_boulder: createRiverBoulderModel,
+  reed_bed: createReedBedModel,
+  fern_clump: createFernModel,
+  willow_shrub: createWillowShrubModel,
   merchant_carriage: createMerchantCarriageModel,
+  trading_station: createTradingStationModel,
+  cart_workshop: createCartWorkshopModel,
+  trading_ship: createTradingShipModel,
   fauna_dog: createDogModel,
   fauna_cat: createCatModel,
   fauna_sheep: createSheepModel,
@@ -128,6 +153,7 @@ export const AUTHORED_GENERATORS: Readonly<Record<string, AuthoredGenerator>> = 
   coral_staghorn: createCoralStaghornModel,
   coral_table: createCoralTableModel,
   fish_trade_pack: createFishTradePackModel,
+  crafted_trade_pack: createCraftedTradePackModel,
   mine_adit: createMineAditModel,
   ice_house: createIceHouseModel,
   salt_pans: createSaltPansModel,

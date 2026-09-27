@@ -32,6 +32,7 @@ export interface ProcessingStationApproachDefinition {
 export interface ProcessingStationPoint {
   x: number;
   z: number;
+  rotationY?: number;
 }
 
 export type ProcessingStationApproachFailure = "unknown-station" | "too-far" | "wrong-side";
@@ -90,7 +91,7 @@ export function getProcessingStationFrontPosition(
   const approach = getProcessingStationApproach(stationId);
   if (!approach) return null;
 
-  const frontDirection = authoredFrontDirection(approach.rotationY);
+  const frontDirection = authoredFrontDirection(station.rotationY ?? approach.rotationY);
   return {
     x: station.x + frontDirection.x * approach.frontApproachDistanceMeters,
     z: station.z + frontDirection.z * approach.frontApproachDistanceMeters
@@ -128,7 +129,7 @@ export function assessProcessingStationApproach(
   const centerToPlayerX = player.x - station.x;
   const centerToPlayerZ = player.z - station.z;
   const centerDistance = Math.hypot(centerToPlayerX, centerToPlayerZ);
-  const frontDirection = authoredFrontDirection(approach.rotationY);
+  const frontDirection = authoredFrontDirection(station.rotationY ?? approach.rotationY);
   const frontAlignment = centerDistance > 0.0001
     ? (centerToPlayerX * frontDirection.x + centerToPlayerZ * frontDirection.z) / centerDistance
     : -1;

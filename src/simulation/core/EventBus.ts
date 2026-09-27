@@ -78,6 +78,8 @@ export interface DomainEvents {
   BoatDocked: { boatId: BoatId; marketId: MarketId | null; minute: GameMinute };
   MountBoarded: { mountId: string; minute: GameMinute };
   MountDisembarked: { mountId: string; minute: GameMinute };
+  TradePackSold: { marketId: string; cargoId: string; itemId: string; sourceMarketId?: string; revenue: number; minute: GameMinute };
+  CarriagePurchased: { mountId: string; mountTypeId: string; cost: number; minute: GameMinute };
   BoatPurchased: { boatId: BoatId; boatTypeId: string; cost: number; minute: GameMinute };
   BoatTowed: { boatId: BoatId; reason: "no-fuel" | "wrecked"; cost: number; marketId: MarketId | null; minute: GameMinute };
   BoatGustSurvived: { boatId: BoatId; restored: number; minute: GameMinute };

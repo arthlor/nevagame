@@ -19,7 +19,7 @@ export type ClimateId = "temperate" | "warm" | "cool" | "arid" | "subarctic";
 export type SeasonId = "spring" | "summer" | "autumn" | "winter";
 export type TimeWindowId = "dawn" | "day" | "dusk" | "night";
 export type WeatherTag = "clear" | "cloudy" | "light-rain" | "heavy-rain" | "windy" | "fog" | "storm" | "drought";
-export type StationType = "hand-mill" | "workbench" | "fish-table" | "compost-bin" | "kitchen";
+export type StationType = "hand-mill" | "workbench" | "fish-table" | "compost-bin" | "kitchen" | "trading-station";
 export type StructureId = string;
 export type SkillId = "farming" | "fishing" | "processing" | "trading";
 export type RodClass = "willow" | "river" | "heavy-sport" | "offshore" | "master";
@@ -44,7 +44,7 @@ export type ContractId = string;
 export type BoatUpgradeId = string;
 export type NpcId = string;
 export type MountId = string;
-export type MountTypeId = "mount.donkey" | "mount.horse_carriage";
+export type MountTypeId = "mount.donkey" | "mount.horse_carriage" | "mount.carriage_4" | "mount.carriage_6";
 
 
 export type GameMinute = number; // integer simulation minutes
@@ -253,9 +253,25 @@ export interface ItemStack {
 
 export type ProcessingWorkTier = "light" | "prepared" | "standard" | "masterwork";
 export type ProcessingPresentationKind = "existing" | "tailoring" | "toolmaking";
+export type TradePackFamily = 'provisions' | 'textiles' | 'workshop' | 'maritime';
+export type TradePackTier = 'harvest' | 'crafted' | 'premium';
+/** Paid production terms: later recipe tuning never reprices an existing pack. */
+export interface TradePackSnapshot {
+  definitionId: string;
+  quantity: number;
+  family: TradePackFamily;
+  tier: TradePackTier;
+  baseValue: number;
+  qualityMultiplier: number;
+  decayPerMinute: number;
+  name: string;
+}
+export interface TradeDemandState { supply: number; lastTickMinute: GameMinute; }
+
 export type RecipeResult =
   | { kind: "items"; stacks: ItemStack[] }
-  | { kind: "equipment"; equipmentId: EquipmentId };
+  | { kind: "equipment"; equipmentId: EquipmentId }
+  | { kind: "farm-pack"; itemId: ItemId; quantity: number; lots?: ItemStack[]; sourceMarketId?: MarketId; tradePackId?: string; tradePack?: TradePackSnapshot };
 
 export interface ProcessingJobState {
   id: ProcessingJobId;
@@ -272,6 +288,7 @@ export interface ProcessingJobState {
   presentationKind: ProcessingPresentationKind;
   baseWork: number;
   chargedWork: number;
+  chargedMoney?: number;
   xpReward: number;
   effectiveDurationMinutes: number;
 }
@@ -523,16 +540,34 @@ export interface CargoLocation {
 /** Authored storage facility kinds; barn and warehouse are reserved for later stages. */
 export type StorageKind = "crate" | "barn" | "warehouse" | "cold-storage";
 
-export interface FishCargoState {
+interface CargoStateBase {
   id: FishCargoId;
-  speciesId: FishSpeciesId;
   weightKg: number;
-  quality: FishQuality;
   caughtAtMinute: GameMinute;
   freshness: number; // 0..100
   cargoClass: CargoClass;
   location: CargoLocation;
 }
+
+/** Fish keep their legacy shape; farm packs share the same finite physical slots. */
+export interface FishCargoState extends CargoStateBase {
+  kind?: "fish";
+  speciesId: FishSpeciesId;
+  quality: FishQuality;
+}
+
+export interface FarmCargoState extends CargoStateBase {
+  tradePack?: TradePackSnapshot;
+  /** Absent only on retained packs made before village provenance existed. */
+  sourceMarketId?: MarketId;
+  kind: "farm";
+  speciesId?: never;
+  itemId: ItemId;
+  lots: ItemStack[];
+  quality: CropQuality;
+}
+
+export type CargoState = FishCargoState | FarmCargoState;
 
 export interface WeatherState {
   type: WeatherTag;
@@ -564,6 +599,7 @@ export interface MarketState {
   name: string;
   regionId: RegionId;
   commodities: Record<string, MarketCommodityState>;
+  tradeDemand?: Record<TradePackFamily, TradeDemandState>;
 }
 
 export interface ContractState {
@@ -652,7 +688,7 @@ export interface GameState {
   sportFishing: FishingEncounterState | null;
   boats: Record<BoatId, BoatState>;
   mounts: Record<MountId, MountState>;
-  fishCargo: Record<FishCargoId, FishCargoState>;
+  fishCargo: Record<FishCargoId, CargoState>;
   weather: WeatherState;
   markets: Record<MarketId, MarketState>;
   contracts: ContractState[];

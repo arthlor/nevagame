@@ -1,3 +1,4 @@
+import type { DomainEvents } from "../core/EventBus";
 import { contractSlotsForRank, getNextRank, getRankForXp, PROFICIENCY_RANKS } from "../../content/progression";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { MINUTES_PER_DAY, REST_WAKE_MINUTE_OF_DAY } from "../core/GameClock";
@@ -267,8 +268,8 @@ export class ProgressionDomain {
     };
   }
 
-  public addProficiencyXp(skill: SkillId, xpAmount: number): void {
-    if (!Number.isSafeInteger(xpAmount) || xpAmount <= 0) return;
+  public addProficiencyXp(skill: SkillId, xpAmount: number, publish = true): DomainEvents["ProficiencyLeveledUp"] | null {
+    if (!Number.isSafeInteger(xpAmount) || xpAmount <= 0) return null;
     const { state, events } = this.context;
 
     const currentXp = state.player.proficiencies[skill] ?? 0;
@@ -278,13 +279,16 @@ export class ProgressionDomain {
     state.player.proficiencies[skill] = newXp;
 
     if (newRank.rankIndex > oldRank.rankIndex) {
-      events.emit("ProficiencyLeveledUp", {
+      const event = {
         skill,
         newRank: newRank.rankName,
         totalXp: newXp,
         minute: state.clock.currentMinute
-      });
+      };
+      if (publish) events.emit("ProficiencyLeveledUp", event);
+      return event;
     }
+    return null;
   }
 
   /**
@@ -317,6 +321,12 @@ export class ProgressionDomain {
       this.context.state.player.workCapacity,
       this.context.state.clock.currentMinute
     );
+  }
+
+  /** Development-only Work capacity refill to maximum pool ceiling. */
+  public refillDebugWork(): void {
+    const workCapacity = this.context.state.player.workCapacity;
+    workCapacity.current = workCapacity.maximum;
   }
 
   public getWorkDailyStatus(): {

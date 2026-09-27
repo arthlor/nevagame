@@ -14,6 +14,15 @@ describe("starter island mountain landform", () => {
     expect(WorldLayout.terrainSurfaceSample(-24, -151).weights.cliff).toBeGreaterThan(0.02);
   });
 
+  it("cuts a distinct rocky spur into the village-facing headwater cirque", () => {
+    // This transect sat inside the former whole-rectangle graybox. The eastern
+    // spur must stand apart from the descending gully beside the fall.
+    const gully = WorldLayout.terrainHeight(0, -140);
+    const spur = WorldLayout.terrainHeight(10, -140);
+    expect(spur - gully).toBeGreaterThan(7);
+    expect(WorldLayout.terrainSurfaceSample(0, -140).weights.cliff).toBeGreaterThan(0.1);
+  });
+
   it("keeps the complete new trail corridor below thirty degrees", () => {
     const ids = new Set<string>(NEVA_FOOTHILL_TRAILS.map((trail) => trail.id));
     const failures: object[] = [];

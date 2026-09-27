@@ -1,3 +1,6 @@
+import { TRADE_PACKS, TRADE_APPETITE } from "./tradePacks";
+import { isTradeCarriageType, TRADE_VEHICLES } from "./villageTrade";
+import { FARM_PACK_QUANTITY, isFarmPackItem } from "./farmPacks";
 import { WORLD_DISCOVERIES } from "./discoveries";
 // src/content/ContentRegistry.ts
 
@@ -99,6 +102,10 @@ export class ContentRegistry {
 
     // 3. Validate Recipes
     for (const [recipeId, recipe] of this.recipes.entries()) {
+      if (!Number.isSafeInteger(recipe.costMoney ?? 0) || (recipe.costMoney ?? 0) < 0
+        || !Number.isSafeInteger(recipe.minimumTradingXp ?? 0) || (recipe.minimumTradingXp ?? 0) < 0) {
+        throw new Error(`Recipe '${recipeId}' has invalid gold or Trading gate`);
+      }
       for (const input of recipe.inputs) {
         if (!this.items.has(input.itemId)) {
           throw new Error(`Recipe '${recipeId}' requires missing input itemId: '${input.itemId}'`);
@@ -130,6 +137,22 @@ export class ContentRegistry {
           if (output.quantity > item.stackLimit) {
             throw new Error(`Recipe '${recipeId}' output batch exceeds '${output.itemId}' stack limit`);
           }
+        }
+      } else if (recipe.result.kind === "farm-pack") {
+        const result = recipe.result;
+        const pack = result.tradePackId ? TRADE_PACKS[result.tradePackId] : undefined;
+        const valid = pack
+          ? pack.recipeId === recipe.id && Boolean(TRADE_APPETITE[pack.originMarketId])
+            && result.itemId === pack.iconItemId && recipe.inputs.length <= PLAYER_SATCHEL_SLOT_COUNT
+            && result.quantity === recipe.inputs.reduce((sum, input) => sum + input.quantity, 0)
+            && new Set(recipe.inputs.map(input => input.itemId)).size === recipe.inputs.length
+            && Number.isSafeInteger(pack.baseValue) && pack.baseValue > 0
+            && recipe.inputs.every(input => input.quantity <= this.items.get(input.itemId)!.stackLimit)
+          : isFarmPackItem(result.itemId) && result.quantity === FARM_PACK_QUANTITY
+            && recipe.inputs.length === 1 && recipe.inputs[0].itemId === result.itemId
+            && recipe.inputs[0].quantity === result.quantity;
+        if (!valid || recipe.stationType !== "trading-station") {
+          throw new Error(`Recipe '${recipeId}' has invalid farm-pack contents`);
         }
       } else if (!this.equipment.has(recipe.result.equipmentId)) {
         throw new Error(`Recipe '${recipeId}' produces missing equipment '${recipe.result.equipmentId}'`);
@@ -319,7 +342,7 @@ export class ContentRegistry {
     const stations = new Set(Object.keys(WORLD_STATION_DEFINITIONS));
     const habitats = new Set(["river", "lake", "coast", "offshore"]);
     const ecologies = new Set(Object.keys(FISHING_ECOLOGY_DEFINITIONS));
-    const boatIds = new Set(["boat.player_rowboat", "boat.player_skiff", ...this.boats.keys()]);
+    const boatIds = new Set(["boat.player_rowboat", "boat.player_skiff", "boat.player_trading_ship", ...this.boats.keys()]);
     const expectedKinds: Partial<Record<string, string[]>> = {
       "plant-crop": ["farm"], "water-crop": ["farm"], "harvest-crop": ["farm"],
       "apply-fertilizer": ["farm"], "install-irrigation": ["farm"], "irrigate-farm": ["farm"],
@@ -330,7 +353,7 @@ export class ContentRegistry {
       // does emit a habitat, which is how a per-water objective is authored.
       "land-sport-fish": ["boat", "ecology"],
       "stow-cargo": ["boat"], "board-boat": ["boat"], "dock-boat": ["boat", "market"],
-      "sell-item": ["market"], "sell-fish": ["market"],
+      "sell-item": ["market"], "sell-trade-pack": ["market"], "sell-fish": ["market"],
       // Dispatched with no location at all (`NpcTalked`, contract completion and
       // the purchase check), so any declared location could never be matched.
       "talk-npc": [], "complete-contract": [], "purchase-upgrade": []
@@ -487,6 +510,9 @@ export class ContentRegistry {
       case "craft-recipe":
         if (!this.recipes.has(targetId)) throw new Error(`Quest '${questId}' recipe target '${targetId}' is missing`);
         return;
+      case "sell-trade-pack":
+        if (!this.items.has(targetId) && !TRADE_PACKS[targetId]) throw new Error(`Quest '${questId}' pack target '${targetId}' is missing`);
+        return;
       case "sell-item":
         if (!this.items.has(targetId)) throw new Error(`Quest '${questId}' sell-item target '${targetId}' is missing`);
         return;
@@ -531,7 +557,7 @@ export class ContentRegistry {
         if (!boats.has(targetId)) throw new Error(`Quest '${questId}' boat target '${targetId}' is missing`);
         return;
       case "purchase-upgrade":
-        if (!this.rods.has(targetId) && !boats.has(targetId)) throw new Error(`Quest '${questId}' upgrade target '${targetId}' is missing`);
+        if (!this.rods.has(targetId) && !boats.has(targetId) && !isTradeCarriageType(targetId)) throw new Error(`Quest '${questId}' upgrade target '${targetId}' is missing`);
         return;
       default:
         return;
@@ -607,6 +633,8 @@ export class ContentRegistry {
       }
 
       for (const id of rank.tradingUnlocks) {
+        const requirement = isTradeCarriageType(id) ? TRADE_VEHICLES[id].requiredTradingXp : this.boats.get(id)?.requiredSkillXp?.xp;
+        if (requirement !== undefined && bandFor(requirement) !== rank.rankIndex) throw new Error(`Trade transport ${id} is advertised in the wrong proficiency band`);
         if (id.startsWith("market.") && !this.markets.has(id)) throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing market '${id}'`);
         if (id.startsWith("contract.") && !this.contractTemplates.has(id)) throw new Error(`Rank '${rank.rankName}' tradingUnlocks missing contract template '${id}'`);
       }

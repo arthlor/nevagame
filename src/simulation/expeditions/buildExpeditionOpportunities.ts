@@ -1,3 +1,4 @@
+import { boatMeetsSailingRequirement } from "../../content/boats";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import type { MarketDemandSignal } from "../core/contracts";
 import type { ContractState, GameState } from "../core/types";
@@ -115,7 +116,7 @@ function contractOpportunity(state: GameState, contract: ContractState, vesselId
   } else {
     const requiredType = requiredBoatTypeForMarket(contract.deliveryMarketId);
     if (requiredType) {
-      const requiredBoats = Object.values(state.boats).filter((boat) => boat.boatTypeId === requiredType);
+      const requiredBoats = Object.values(state.boats).filter((boat) => boatMeetsSailingRequirement(boat.boatTypeId, requiredType));
       if (requiredBoats.length > 0 && requiredBoats.every((boat) => boat.durability <= 0)) {
         blockers.push(`${ContentRegistry.boats.get(requiredType)?.name ?? "Your vessel"} has lost her hull — tow and repair before sailing`);
       }

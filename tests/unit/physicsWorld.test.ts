@@ -601,11 +601,11 @@ describe("PhysicsWorld", () => {
 
   it("projects authored bridge steps and dock pilings instead of render triangles", () => {
     const bridge = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
-    const dock = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    const dock = landmarkCollision(ASSET_IDS.DOCK_HARBOR_MAIN_A, "dock");
     expect(bridge).toHaveLength(15);
-    expect(dock).toHaveLength(11);
+    expect(dock).toHaveLength(7);
     expect(bridge.every((proxy) => proxy.kind === "box")).toBe(true);
-    expect(dock.filter((proxy) => proxy.id.includes("piles_"))).toHaveLength(5);
+    expect(dock.filter((proxy) => proxy.id.includes("substructure"))).toHaveLength(1);
     expect(dock.filter((proxy) => proxy.id.includes("stair_"))).toHaveLength(5);
     const bridgePeak = bridge.find((proxy) => proxy.id.endsWith(":main"));
     const bridgeEdge = bridge.find((proxy) => proxy.id.endsWith(":deck_01"));
@@ -1205,7 +1205,7 @@ describe("PhysicsWorld", () => {
   });
 
   it("lets the commissioned rowboat leave the harbor slip past the dock pilings", async () => {
-    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_HARBOR_MAIN_A, "dock");
     const physics = await PhysicsWorld.create(dockCollision);
     const sim = new Simulation();
     sim.state.quests.unlockedFeatureIds.push("boat.player_rowboat");
@@ -1229,13 +1229,13 @@ describe("PhysicsWorld", () => {
   });
 
   it("unsticks a rowboat whose hull starts overlapping the harbor pilings", async () => {
-    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_HARBOR_MAIN_A, "dock");
     const physics = await PhysicsWorld.create(dockCollision);
     const sim = new Simulation();
     const boat = sim.state.boats["boat.player_rowboat"];
     boat.isDocked = false;
     boat.dockedMarketId = null;
-    boat.x = 81;
+    boat.x = 79.65;
     boat.z = 72;
     boat.headingRadians = 0;
     sim.state.player.activeBoatId = boat.id;
@@ -1252,14 +1252,14 @@ describe("PhysicsWorld", () => {
       );
       expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
     }
-    expect(boat.x).toBeGreaterThan(80.5);
+    expect(boat.x).toBeGreaterThan(79.9);
     expect(boat.z).toBeGreaterThan(startZ + 4);
     expect(WorldLayout.isSailable(boat.x, boat.z)).toBe(true);
     physics.dispose();
   });
 
   it("walks continuously from the harbor shore up the dock stairs onto the pier deck", async () => {
-    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_HARBOR_MAIN_A, "dock");
     const physics = await PhysicsWorld.create(dockCollision);
     const sim = new Simulation();
     const dock = WorldLayout.landmark("dock");
@@ -1291,7 +1291,7 @@ describe("PhysicsWorld", () => {
   });
 
   it("walks continuously down the dock stairs from the pier deck back onto the shore", async () => {
-    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_STRAIGHT_A, "dock");
+    const dockCollision = landmarkCollision(ASSET_IDS.DOCK_HARBOR_MAIN_A, "dock");
     const physics = await PhysicsWorld.create(dockCollision);
     const sim = new Simulation();
     const dock = WorldLayout.landmark("dock");

@@ -324,6 +324,7 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
     it("renders correctly with 0 knots speed, calm waters, 0 cargo slots", () => {
       const emptyBoat: WorldHudBoatDto = {
         boatId: "boat.empty_dinghy",
+      boatTypeId: "boat.rowboat",
         name: "Old Dinghy",
         speedKnots: 0,
         seaState: "Calm",
@@ -350,6 +351,7 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
     it("renders extreme critical vitals: 0% hull, 0 fuel, danger flags true", () => {
       const wreckedBoat: WorldHudBoatDto = {
         boatId: "boat.wrecked_skiff",
+      boatTypeId: "boat.skiff",
         name: "Sinking Skiff",
         speedKnots: 0,
         seaState: "Rough",

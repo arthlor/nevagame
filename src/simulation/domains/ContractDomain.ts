@@ -1,3 +1,7 @@
+import { isLooseHarvestPack } from "../cargo/farmPacks";
+import { recordTradePackDelivery } from "../economy/TradePackEconomy";
+import { boatMeetsSailingRequirement } from "../../content/boats";
+import { FARM_PACK_QUANTITY } from "../../content/farmPacks";
 import type { ContractTemplateDefinition } from "../../content/types";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { contractDeliveryMarketId, contractObjectiveTargets } from "../../content/contracts";
@@ -33,7 +37,7 @@ export const CONTRACT_PASS_WAIT_MINUTES = 120;
  */
 export function canReachDeliveryMarket(state: GameState, marketId: string): boolean {
   const boatTypeId = requiredBoatTypeForMarket(marketId);
-  return !boatTypeId || Object.values(state.boats).some((boat) => boat.boatTypeId === boatTypeId);
+  return !boatTypeId || Object.values(state.boats).some((boat) => boatMeetsSailingRequirement(boat.boatTypeId, boatTypeId));
 }
 
 function canReachFishingEcology(state: GameState, ecologyId: FishingEcologyId): boolean {
@@ -452,7 +456,29 @@ export class ContractDomain {
       return { success: false, reason: `Bring this fish cargo to ${ContentRegistry.markets.get(requiredMarketId)?.name ?? "its listed market"}` };
     }
     const fishCargo = state.fishCargo[cargoId];
-    if (!fishCargo) return { success: false, reason: "Fish cargo not found" };
+    if (!fishCargo) return { success: false, reason: "Cargo not found" };
+    if (fishCargo.kind === "farm") {
+      if (!isLooseHarvestPack(fishCargo)) return { success: false, reason: "This order requires loose produce or a harvest pack, not mixed trade goods" };
+      if (!isProduceContractType(contract.type) || contract.targetItemIdOrSpecies !== fishCargo.itemId) {
+        return { success: false, reason: "This order requires different produce" };
+      }
+      if (contract.quantityRequired - contract.quantityFulfilled < FARM_PACK_QUANTITY) {
+        return { success: false, reason: "This order needs fewer than a full pack; deliver loose produce instead" };
+      }
+      const quote = this.market.inspectTradePack(requiredMarketId, cargoId);
+      if (!quote.success || !quote.breakdown) return { success: false, reason: quote.reason };
+      if (fishCargo.freshness <= 0 || (contract.minFreshness !== undefined && fishCargo.freshness < contract.minFreshness)) {
+        return { success: false, reason: "This pack is not fresh enough for the order" };
+      }
+      if (fishCargo.tradePack) recordTradePackDelivery(state.markets[requiredMarketId], fishCargo.tradePack);
+      this.cargo.clearPointers(fishCargo);
+      delete state.fishCargo[cargoId];
+      contract.legacyUnvaluedQuantity ??= contract.quantityFulfilled;
+      contract.deliveredValueMoney = (contract.deliveredValueMoney ?? 0) + quote.breakdown.finalPrice;
+      contract.quantityFulfilled += FARM_PACK_QUANTITY;
+      const completion = this.completeIfFulfilled(contract);
+      return { success: true, delivered: FARM_PACK_QUANTITY, completed: completion.completed, rewardMoney: completion.rewardMoney };
+    }
     const species = ContentRegistry.fishSpecies.get(fishCargo.speciesId);
     if (species && isPhysicalTradePackSpecies(species) &&
       (fishCargo.location.type !== "player" || state.player.carriedFishCargoId !== cargoId)) {

@@ -5,7 +5,7 @@ import { lumps, rope, sack, timber, v3 } from "./parts";
 
 /**
  * Working sites that show where the mainland villages' goods come from: a mine adit above Highridge,
- * an ice house by the forest lake, salt pans on Reedhaven's cove flats and a timber stack at
+ * salt pans on Reedhaven's cove flats and a timber stack at
  * Pinewatch's forest edge. glTF space: +Y up, ground at y = 0, the working front toward +Z, metres.
  */
 
@@ -116,88 +116,6 @@ export function createMineAditModel(context: GeneratorContext): AuthoredModel {
   rope(surface, [[0.62, clear + 0.02, 0.28], [0.62, clear - 0.24, 0.28]], 0.012, IRON, { sides: 4 });
   timber(surface, [0.62, clear - 0.46, 0.28], [0.62, clear - 0.24, 0.28], [0.08, 0.08], LANTERN, { ref: [0, 0, 1], bevel: 0.02 });
   timber(surface, [0.62, clear - 0.24, 0.28], [0.62, clear - 0.19, 0.28], [0.1, 0.1], IRON, { ref: [0, 0, 1], bevel: 0.02 });
-  root.add(surface.buildMesh(`${ID}_mesh`));
-  addCollisionMarkers(spec, root);
-  return { root, clips: [] };
-}
-
-/**
- * Ice house. A coursed stone drum under a turf dome, half sunk into an earth bank, entered through a
- * short stone passage with a strapped timber door. Cut lake ice waits on a sledge by the door beside
- * the straw that packs it.
- */
-export function createIceHouseModel(context: GeneratorContext): AuthoredModel {
-  const { spec } = context;
-  const ID = spec.id;
-  const random = mulberry32(context.seed);
-  const root = new THREE.Group();
-  root.name = `${ID}_root`;
-  // Catalog palette order: warm stone, cool stone, turf, dark timber, iron, ice, straw, bank.
-  const surface = new SurfaceBuilder(spec.palette);
-  const WARM = 0;
-  const COOL = 1;
-  const TURF = 2;
-  const TIMBER = 3;
-  const IRON = 4;
-  const ICE = 5;
-  const STRAW = 6;
-  const BANK = 7;
-  const radius = 1.85;
-  const wall = 1.35;
-  // Earth bank wrapped round the rear half.
-  boulder(surface, new THREE.Vector3(0, 1.02, -1.25), [2.75, 1.1, 2.0], BANK, 11, 0.9, 0.08);
-  // Coursed drum: each course a ring of stones, each stone its own value.
-  const courses = 4;
-  for (let c = 0; c < courses; c += 1) {
-    const y0 = (wall / courses) * c;
-    const y1 = y0 + wall / courses;
-    surface.addLoft([
-      { p: [0, y0, 0], w: radius + 0.03 * (c % 2), h: radius + 0.03 * (c % 2) },
-      { p: [0, y1 - 0.02, 0], w: radius - 0.01, h: radius - 0.01 }
-    ], { sides: 14, ref: [0, 0, 1], phase: c * 0.22, capStart: 0, capEnd: 0, flat: true, token: WARM, shade: () => 0.8 + random() * 0.22 });
-  }
-  // Eave ring and faceted turf dome.
-  surface.addLoft([{ p: [0, wall - 0.02, 0], w: radius + 0.12, h: radius + 0.12 }, { p: [0, wall + 0.12, 0], w: radius + 0.1, h: radius + 0.1 }],
-    { sides: 14, ref: [0, 0, 1], capStart: 0, capEnd: 0, flat: true, token: COOL, shade: 0.94 });
-  const domeRings = [[0, 1.02], [0.3, 0.95], [0.58, 0.78], [0.82, 0.5], [1, 0.12]] as const;
-  surface.addLoft(domeRings.map(([t, k]): Station => ({ p: [0, wall + 0.12 + t * 1.55, 0], w: (radius + 0.08) * k, h: (radius + 0.08) * k })), {
-    sides: 14, ref: [0, 0, 1], capStart: 0, capEnd: 0.3, flat: true, radial: lumps(12, 0.04), token: TURF, shade: () => 0.86 + random() * 0.16
-  });
-  // Entrance passage with a gabled stone head.
-  const front = radius + 0.95;
-  for (const side of [-1, 1]) {
-    timber(surface, [side * 0.78, 0.95, radius - 0.3], [side * 0.78, 0.95, front], [0.2, 0.95], WARM, { ref: [0, 1, 0], bevel: 0.04, shade: 0.9 + random() * 0.08 });
-  }
-  timber(surface, [0, 1.98, radius - 0.3], [0, 1.98, front + 0.06], [1.02, 0.1], COOL, { ref: [0, 1, 0], bevel: 0.03, shade: 0.96 });
-  for (const side of [-1, 1]) {
-    surface.addPanel({
-      cols: 3, rows: 2, thickness: 0.06,
-      point: (u, v) => new THREE.Vector3(side * THREE.MathUtils.lerp(0, 1.02, v), THREE.MathUtils.lerp(2.5, 2.08, v), THREE.MathUtils.lerp(radius - 0.3, front + 0.06, u)),
-      token: () => TURF, shade: () => 0.86 + random() * 0.12
-    });
-  }
-  // Strapped door set back in the passage mouth.
-  for (let k = 0; k < 4; k += 1) {
-    const x = -0.5 + 0.25 * (k + 0.5);
-    timber(surface, [x, 0.02, front - 0.08], [x, 1.84, front - 0.08], [0.115, 0.03], TIMBER, { ref: [0, 0, 1], shade: 0.82 + random() * 0.16 });
-  }
-  for (const y of [0.45, 1.4]) {
-    timber(surface, [-0.48, y, front - 0.03], [0.48, y, front - 0.03], [0.035, 0.012], IRON, { ref: [0, 0, 1] });
-  }
-  surface.addDisc([0.34, 0.95, front - 0.02], [0, 0, 1], 0.04, { token: IRON, sides: 6, dome: 0.02 });
-  // Sledge of cut lake ice by the door.
-  const sx = 1.75;
-  const sz = front + 0.75;
-  for (const side of [-1, 1]) {
-    timber(surface, [sx + side * 0.36, 0.06, sz - 0.62], [sx + side * 0.36, 0.06, sz + 0.62], [0.05, 0.06], TIMBER, { ref: [0, 1, 0], halfEnd: [0.05, 0.035] });
-  }
-  for (const z of [-0.45, 0, 0.45]) {
-    timber(surface, [sx - 0.44, 0.15, sz + z], [sx + 0.44, 0.15, sz + z], [0.05, 0.03], TIMBER, { ref: [0, 1, 0] });
-  }
-  for (const [x, z, y] of [[-0.2, -0.24, 0], [0.2, -0.24, 0], [-0.2, 0.24, 0], [0.2, 0.24, 0], [0, 0, 0.36]] as const) {
-    timber(surface, [sx + x, 0.2 + y, sz + z - 0.19], [sx + x, 0.2 + y, sz + z + 0.19], [0.18, 0.17], ICE, { ref: [0, 1, 0], bevel: 0.04, shade: 0.92 + random() * 0.1 });
-  }
-  heap(surface, [-1.7, front + 0.55], 0.62, 0.55, STRAW, 13, 0.94);
   root.add(surface.buildMesh(`${ID}_mesh`));
   addCollisionMarkers(spec, root);
   return { root, clips: [] };

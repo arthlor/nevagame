@@ -121,7 +121,7 @@ describe("economy balance sheet", () => {
     expect(InventoryManager.addItemsAtomically(inventory, [{ itemId: "fish.sea_bream", quantity: 1 }])).toBe(true);
     const sim = new Simulation(state);
     const purseBefore = state.player.money;
-    expect(sim.inspectCommodityAtMarket("market.village", "produce.wheat", "buy").success).toBe(false);
+    expect(sim.inspectCommodityAtMarket("market.village", "produce.olive", "buy").success).toBe(false);
     expect(sim.inspectCommodityAtMarket("market.village", "fish.sea_bream", "sell").success).toBe(false);
     expect(sim.inspectMarketBoard("market.village")?.sellRows.some((row) => row.itemId === "fish.sea_bream"))
       .toBe(false);

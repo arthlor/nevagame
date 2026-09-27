@@ -24,7 +24,7 @@ export interface VillageNoticeDefinition {
   requiresRankIndex?: { skill: SkillId; rankIndex: number };
 }
 
-const NOTICES: readonly VillageNoticeDefinition[] = [
+export const NOTICES: readonly VillageNoticeDefinition[] = [
   {
     id: "notice.market_days",
     category: "market",

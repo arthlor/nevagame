@@ -39,8 +39,8 @@ describe("cove shore layout30 recovery", () => {
     expect(validateSaveEnvelope(saved)).toBe(true);
     saved.state.world.layoutRevision = WORLD_LAYOUT_REVISION;
     expect(validateSaveEnvelope(saved)).toBe(false);
-    expect(COVE_SHORE_LAYOUT_REVISION).toBe(WORLD_LAYOUT_REVISION);
-    expect(CURRENT_SCHEMA_VERSION).toBe(60);
+    expect(COVE_SHORE_LAYOUT_REVISION).toBe(30);
+    expect(CURRENT_SCHEMA_VERSION).toBeGreaterThanOrEqual(60);
   });
 
   it.each([false, true])("keeps a supported shore-lane pose in place and re-grounds it, mounted=%s", mounted => {

@@ -3,6 +3,7 @@ export interface GpuPassTimingSnapshot {
   samples: number;
   p50Milliseconds: number | null;
   p95Milliseconds: number | null;
+  p99Milliseconds: number | null;
 }
 
 export interface GpuFrameTimingSnapshot {
@@ -14,6 +15,7 @@ export interface GpuFrameTimingSnapshot {
   disjointCount: number;
   p50Milliseconds: number | null;
   p95Milliseconds: number | null;
+  p99Milliseconds: number | null;
   /** Named pass costs. Empty unless pass timing was explicitly enabled. */
   passes: readonly GpuPassTimingSnapshot[];
 }
@@ -43,12 +45,12 @@ function percentile(samples: readonly number[], amount: number): number | null {
   return ordered[index];
 }
 
-function roundedPercentiles(samples: readonly number[]): { p50: number | null; p95: number | null } {
-  const p50 = percentile(samples, 0.5);
-  const p95 = percentile(samples, 0.95);
+function roundedPercentiles(samples: readonly number[]): { p50: number | null; p95: number | null; p99: number | null } {
+  const rounded = (value: number | null) => value === null ? null : Number(value.toFixed(4));
   return {
-    p50: p50 === null ? null : Number(p50.toFixed(4)),
-    p95: p95 === null ? null : Number(p95.toFixed(4))
+    p50: rounded(percentile(samples, 0.5)),
+    p95: rounded(percentile(samples, 0.95)),
+    p99: rounded(percentile(samples, 0.99))
   };
 }
 
@@ -75,6 +77,8 @@ export class GpuFrameTimer {
   private passModeThisFrame = false;
   private readonly rendererName: string;
   private readonly softwareRenderer: boolean;
+  /** Smoothed whole-frame GPU cost for Auto quality; never sorted per frame. */
+  private recentFrameEmaMs: number | null = null;
 
   private static readonly MAX_PENDING_QUERIES = 24;
 
@@ -96,6 +100,15 @@ export class GpuFrameTimer {
 
   public get currentPassName(): string | null {
     return this.active?.pass ?? null;
+  }
+
+  /**
+   * Recent whole-frame GPU cost, or null when timer queries are unavailable,
+   * the renderer is software, or no sample has resolved yet. Cheap enough to
+   * read every frame; results lag the GPU by a few frames.
+   */
+  public recentFrameMilliseconds(): number | null {
+    return this.extension && !this.softwareRenderer ? this.recentFrameEmaMs : null;
   }
 
   /**
@@ -160,6 +173,7 @@ export class GpuFrameTimer {
       disjointCount: this.disjointCount,
       p50Milliseconds: framePercentiles.p50,
       p95Milliseconds: framePercentiles.p95,
+      p99Milliseconds: framePercentiles.p99,
       passes: [...this.passSamples.entries()]
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([name, samples]) => {
@@ -168,7 +182,8 @@ export class GpuFrameTimer {
           name,
           samples: samples.length,
           p50Milliseconds: percentiles.p50,
-          p95Milliseconds: percentiles.p95
+          p95Milliseconds: percentiles.p95,
+          p99Milliseconds: percentiles.p99
         };
       })
     };
@@ -182,6 +197,14 @@ export class GpuFrameTimer {
     this.samples.length = 0;
     this.passSamples.clear();
     this.frameAccumulators.clear();
+    this.recentFrameEmaMs = null;
+  }
+
+  /** Drops collected samples so a matched measurement window starts clean. */
+  public resetSamples(): void {
+    this.samples.length = 0;
+    this.passSamples.clear();
+    this.disjointCount = 0;
   }
 
   private enqueue(pass: string | null): void {
@@ -227,6 +250,9 @@ export class GpuFrameTimer {
       if (pending.pass === null) {
         this.samples.push(milliseconds);
         if (this.samples.length > 240) this.samples.shift();
+        this.recentFrameEmaMs = this.recentFrameEmaMs === null
+          ? milliseconds
+          : this.recentFrameEmaMs + (milliseconds - this.recentFrameEmaMs) * 0.1;
         continue;
       }
       const accumulator = this.frameAccumulators.get(pending.frame);

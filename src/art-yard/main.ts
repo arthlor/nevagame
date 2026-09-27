@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { AmbientBoatPresentation } from "../render/presentation/AmbientBoatPresentation";
+import { AMBIENT_NPC_ASSETS } from "../render/scene/ambientNpcAssets";
+import { removeNpcClipRootTravel } from "../render/animation/AuthoredNpcAnimator";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import "./styles.css";
@@ -12,8 +15,8 @@ import {
 import { AssetLoader, prepareAssetTemplate } from "../render/loaders/AssetLoader";
 import type { CatalogAssetSpec } from "../../tools/authored/kit/types";
 import { LightingRig } from "../render/lighting/LightingRig";
-import { PaletteMaterials } from "../render/materials/PaletteMaterials";
-import { PALETTE_HEX } from "../render/materials/PaletteTokens";
+import { PaletteMaterials, paletteTokenForLoadedMaterial } from "../render/materials/PaletteMaterials";
+import { PALETTE_HEX, type PaletteToken } from "../render/materials/PaletteTokens";
 import { HumanoidAnimator, type PlayerAnimation } from "../render/animation/AnimationController";
 import { resolveHumanoidRig } from "../render/animation/HumanoidRig";
 import { alignEquipmentHands, alignMarkerHand, alignSupportFeet, applyEquipmentSocketPose, createCarryCradle, fishingClipUsesRod, rowboatOarRotation } from "../render/animation/CharacterEquipment";
@@ -83,20 +86,54 @@ interface DetectedSocket {
   parentName: string;
 }
 
+interface DetectedMaterial {
+  token: string | null;
+  name: string;
+  hex: string | null;
+  roughness: number;
+  metalness: number;
+  flatShading: boolean;
+  meshCount: number;
+}
+
+interface AtmospherePreset {
+  minute: number;
+  azimuth: number;
+  weather: WeatherTag;
+}
+
+const ATMOSPHERE_PRESETS: Record<string, AtmospherePreset> = {
+  dawn: { minute: 360, azimuth: 60, weather: "clear" },
+  morning: { minute: 510, azimuth: 75, weather: "clear" },
+  noon: { minute: 720, azimuth: 180, weather: "clear" },
+  afternoon: { minute: 960, azimuth: 225, weather: "clear" },
+  golden: { minute: 1110, azimuth: 260, weather: "clear" },
+  twilight: { minute: 1185, azimuth: 280, weather: "clear" },
+  night: { minute: 1350, azimuth: 315, weather: "clear" },
+  fog: { minute: 450, azimuth: 80, weather: "fog" },
+  storm: { minute: 810, azimuth: 200, weather: "storm" }
+};
+
 // Elements - Core Stage
 const yardApp = requiredElement<HTMLElement>("yard-app");
 const canvas = requiredElement<HTMLCanvasElement>("yard-canvas");
 const status = requiredElement<HTMLDivElement>("yard-status");
 const toast = requiredElement<HTMLDivElement>("yard-toast");
-const hudAssetBadge = requiredElement<HTMLElement>("hud-asset-badge");
+const hudAssetBadge = requiredElement<HTMLButtonElement>("hud-asset-badge");
 const hudViewBadge = requiredElement<HTMLElement>("hud-view-badge");
+const hudLodBadge = requiredElement<HTMLElement>("hud-lod-badge");
 const hudDimsBadge = requiredElement<HTMLElement>("hud-dims-badge");
 const hudTrisBadge = requiredElement<HTMLElement>("hud-tris-badge");
+const hudEnvBadge = requiredElement<HTMLElement>("hud-env-badge");
+const hudAnimBadge = requiredElement<HTMLElement>("hud-anim-badge");
 
 // Elements - Viewport Toolbar
 const camFitBtn = requiredElement<HTMLButtonElement>("cam-fit-btn");
 const camEyeBtn = requiredElement<HTMLButtonElement>("cam-eye-btn");
+const toolbarWireBtn = requiredElement<HTMLButtonElement>("toolbar-wire-btn");
 const originAxesBtn = requiredElement<HTMLButtonElement>("origin-axes-btn");
+const snapshotBtn = requiredElement<HTMLButtonElement>("snapshot-btn");
+const fullscreenBtn = requiredElement<HTMLButtonElement>("fullscreen-btn");
 const helpBtn = requiredElement<HTMLButtonElement>("help-btn");
 const togglePanelBtn = requiredElement<HTMLButtonElement>("toggle-panel-btn");
 
@@ -107,10 +144,12 @@ const tabPanes = Array.from(document.querySelectorAll<HTMLElement>(".tab-pane"))
 
 // Elements - Catalog Tab
 const assetSearch = requiredElement<HTMLInputElement>("asset-search");
+const clearSearchBtn = requiredElement<HTMLButtonElement>("clear-search-btn");
 const familyFilter = requiredElement<HTMLSelectElement>("family-filter");
 const assetSelect = requiredElement<HTMLSelectElement>("asset-select");
 const assetCountBadge = requiredElement<HTMLSpanElement>("asset-count-badge");
 const prevAssetBtn = requiredElement<HTMLButtonElement>("prev-asset-btn");
+const randomAssetBtn = requiredElement<HTMLButtonElement>("random-asset-btn");
 const nextAssetBtn = requiredElement<HTMLButtonElement>("next-asset-btn");
 const copyAssetIdBtn = requiredElement<HTMLButtonElement>("copy-asset-id-btn");
 const categoryChips = Array.from(document.querySelectorAll<HTMLButtonElement>("#category-chips .chip"));
@@ -126,6 +165,12 @@ const skeletonToggle = requiredElement<HTMLInputElement>("skeleton-toggle");
 const originToggle = requiredElement<HTMLInputElement>("origin-toggle");
 const collisionToggle = requiredElement<HTMLInputElement>("collision-toggle");
 const shadowsToggle = requiredElement<HTMLInputElement>("shadows-toggle");
+const materialsList = requiredElement<HTMLElement>("materials-list");
+const materialsCountBadge = requiredElement<HTMLElement>("materials-count-badge");
+const materialsEmptyMsg = requiredElement<HTMLElement>("materials-empty-msg");
+const collisionList = requiredElement<HTMLElement>("collision-list");
+const collisionCountBadge = requiredElement<HTMLElement>("collision-count-badge");
+const collisionEmptyMsg = requiredElement<HTMLElement>("collision-empty-msg");
 const socketsList = requiredElement<HTMLElement>("sockets-list");
 const socketsCountBadge = requiredElement<HTMLElement>("sockets-count-badge");
 const socketsEmptyMsg = requiredElement<HTMLElement>("sockets-empty-msg");
@@ -137,10 +182,12 @@ const clipSelect = requiredElement<HTMLSelectElement>("clip-select");
 const animationModeSelect = requiredElement<HTMLSelectElement>("animation-mode-select");
 const animationContextSelect = requiredElement<HTMLSelectElement>("animation-context-select");
 const animPlayToggle = requiredElement<HTMLButtonElement>("anim-play-toggle");
+const animStep5fBackBtn = requiredElement<HTMLButtonElement>("anim-step-5f-back-btn");
 const animStepFrameBackBtn = requiredElement<HTMLButtonElement>("anim-step-frame-back-btn");
 const animStepBackBtn = requiredElement<HTMLButtonElement>("anim-step-back-btn");
 const animStepFwdBtn = requiredElement<HTMLButtonElement>("anim-step-fwd-btn");
 const animStepFrameFwdBtn = requiredElement<HTMLButtonElement>("anim-step-frame-fwd-btn");
+const animStep5fFwdBtn = requiredElement<HTMLButtonElement>("anim-step-5f-fwd-btn");
 const animSpeed = requiredElement<HTMLSelectElement>("anim-speed");
 const animLoopToggle = requiredElement<HTMLInputElement>("anim-loop-toggle");
 const animScrubber = requiredElement<HTMLInputElement>("anim-scrubber");
@@ -148,6 +195,7 @@ const animTimeOutput = requiredElement<HTMLOutputElement>("anim-time-output");
 const socketPropSelect = requiredElement<HTMLSelectElement>("socket-prop-select");
 
 // Elements - Environment Tab
+const atmosphereChips = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-atmo]"));
 const timeRange = requiredElement<HTMLInputElement>("time-range");
 const timeOutput = requiredElement<HTMLOutputElement>("time-output");
 const azimuthRange = requiredElement<HTMLInputElement>("azimuth-range");
@@ -164,6 +212,11 @@ const turntableSpeed = requiredElement<HTMLInputElement>("turntable-speed");
 const stageInput = requiredElement<HTMLInputElement>("stage-input");
 const stageApply = requiredElement<HTMLButtonElement>("stage-apply");
 const sourceBadge = requiredElement<HTMLSpanElement>("source-badge");
+const budgetCard = requiredElement<HTMLElement>("budget-card");
+const budgetStatusLabel = requiredElement<HTMLElement>("budget-status-label");
+const budgetBarFill = requiredElement<HTMLElement>("budget-bar-fill");
+const budgetTargetLabel = requiredElement<HTMLElement>("budget-target-label");
+const budgetMaxLabel = requiredElement<HTMLElement>("budget-max-label");
 const metricsList = requiredElement<HTMLDListElement>("metrics-list");
 
 // Elements - Shortcuts Modal
@@ -206,6 +259,13 @@ const groundMaterials = {
   grass: PaletteMaterials.standard("grass_yellow_01", { roughness: 0.92, flatShading: true }),
   sand: PaletteMaterials.standard("sand_warm_01", { roughness: 0.94, flatShading: true }),
   rock: PaletteMaterials.standard("rock_coastal_dark_01", { roughness: 0.85, flatShading: true }),
+  deck: PaletteMaterials.standard("wood_weathered_01", { roughness: 0.88, flatShading: true }),
+  studio: new THREE.MeshStandardMaterial({
+    color: 0x181f24,
+    roughness: 0.95,
+    metalness: 0.05,
+    flatShading: true
+  }),
   grid: new THREE.MeshStandardMaterial({
     color: 0x1c282e,
     roughness: 0.9,
@@ -281,6 +341,8 @@ const tempWorldQuat = new THREE.Quaternion();
 
 // State
 let floatingActors: FloatingActor[] = [];
+const showcaseCrews: AmbientBoatPresentation[] = [];
+const showcaseMixers: THREE.AnimationMixer[] = [];
 let currentModel: THREE.Group | null = null;
 let currentSpec: RuntimeAssetSpec | null = null;
 let currentMetrics: YardAssetMetrics | null = null;
@@ -495,6 +557,9 @@ function setCameraAngle(angle: string): void {
     case "three-quarter":
       direction.set(0.72, 0.42, 0.9).normalize();
       break;
+    case "isometric":
+      direction.set(1, 0.816, 1).normalize();
+      break;
     case "top":
       direction.set(0.001, 1, 0.001).normalize();
       break;
@@ -534,6 +599,8 @@ function cameraAngleLabel(angle: string): string {
       return "Rear";
     case "top":
       return "Top";
+    case "isometric":
+      return "Iso";
     case "eye":
       return "Eye";
     default:
@@ -875,6 +942,200 @@ function updateSocketsList(): void {
   }
 }
 
+// Materials & Palette Inspection
+function detectMaterials(root: THREE.Object3D): DetectedMaterial[] {
+  const materialsMap = new Map<string, DetectedMaterial>();
+  root.traverse((object) => {
+    if (object.name.startsWith("COL_") || object.name.startsWith("socket_marker_") || object.name.startsWith("yard_context_")) return;
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.material) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const mat of mats) {
+      const token = paletteTokenForLoadedMaterial(mat) ?? (mat.userData?.neva_palette_token as string | undefined) ?? null;
+      const key = token ?? mat.name ?? mat.uuid;
+      const existing = materialsMap.get(key);
+      if (existing) {
+        existing.meshCount += 1;
+      } else {
+        const stdMat = mat as THREE.MeshStandardMaterial;
+        const hex = token && token in PALETTE_HEX
+          ? PALETTE_HEX[token as PaletteToken]
+          : stdMat.color ? `#${stdMat.color.getHexString()}` : null;
+        materialsMap.set(key, {
+          token,
+          name: token ?? mat.name ?? "Standard Material",
+          hex,
+          roughness: stdMat.roughness ?? 0.8,
+          metalness: stdMat.metalness ?? 0,
+          flatShading: Boolean(stdMat.flatShading),
+          meshCount: 1
+        });
+      }
+    }
+  });
+  return [...materialsMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function updateMaterialsList(): void {
+  materialsList.replaceChildren();
+  const root = inspectionRoot();
+  if (!root) {
+    materialsCountBadge.textContent = "0";
+    materialsEmptyMsg.style.display = "block";
+    return;
+  }
+  const materials = detectMaterials(root);
+  materialsCountBadge.textContent = String(materials.length);
+  materialsEmptyMsg.style.display = materials.length === 0 ? "block" : "none";
+
+  for (const mat of materials) {
+    const item = document.createElement("div");
+    item.className = "material-item";
+
+    const swatch = document.createElement("span");
+    swatch.className = "material-swatch";
+    if (mat.hex) {
+      swatch.style.backgroundColor = mat.hex;
+    }
+
+    const info = document.createElement("div");
+    info.className = "material-info";
+
+    const nameRow = document.createElement("div");
+    nameRow.className = "material-name-row";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "material-name";
+    nameSpan.textContent = mat.name;
+
+    const countSpan = document.createElement("span");
+    countSpan.className = "material-mesh-count";
+    countSpan.textContent = `${mat.meshCount} ${mat.meshCount === 1 ? "mesh" : "meshes"}`;
+
+    nameRow.append(nameSpan, countSpan);
+
+    const detailRow = document.createElement("div");
+    detailRow.className = "material-details";
+    detailRow.textContent = `R: ${mat.roughness.toFixed(2)} · M: ${mat.metalness.toFixed(2)}${mat.flatShading ? " · flat" : ""}`;
+
+    info.append(nameRow, detailRow);
+    item.append(swatch, info);
+    materialsList.append(item);
+  }
+}
+
+function updateCollisionList(): void {
+  collisionList.replaceChildren();
+  const root = currentModel;
+  if (!root) {
+    collisionCountBadge.textContent = "0";
+    collisionEmptyMsg.style.display = "block";
+    return;
+  }
+  const items: HTMLElement[] = [];
+
+  // 1. Exported Trimesh COL_* meshes
+  root.traverse((object) => {
+    if (object.name.startsWith("COL_")) {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const tris = Math.floor((mesh.geometry.getIndex()?.count ?? mesh.geometry.getAttribute("position")?.count ?? 0) / 3);
+      const row = document.createElement("div");
+      row.className = "collision-item";
+      const name = document.createElement("span");
+      name.className = "collision-item-name";
+      name.textContent = `${object.name} (trimesh)`;
+      const meta = document.createElement("span");
+      meta.className = "collision-item-meta";
+      meta.textContent = `${tris.toLocaleString()} tris`;
+      row.append(name, meta);
+      items.push(row);
+    }
+  });
+
+  // 2. Catalog collision primitives
+  if (currentSpec?.collisionPrimitives) {
+    for (const prim of currentSpec.collisionPrimitives) {
+      const row = document.createElement("div");
+      row.className = "collision-item";
+      const name = document.createElement("span");
+      name.className = "collision-item-name";
+      name.textContent = `Box: ${prim.id}`;
+      const meta = document.createElement("span");
+      meta.className = "collision-item-meta";
+      const w = (prim.halfExtents[0] * 2).toFixed(2);
+      const h = (prim.halfExtents[1] * 2).toFixed(2);
+      const d = (prim.halfExtents[2] * 2).toFixed(2);
+      meta.textContent = `${w} × ${h} × ${d} m`;
+      row.append(name, meta);
+      items.push(row);
+    }
+  }
+
+  collisionCountBadge.textContent = String(items.length);
+  collisionEmptyMsg.style.display = items.length === 0 ? "block" : "none";
+  for (const item of items) collisionList.append(item);
+}
+
+function updateBudgetCard(tris: number): void {
+  const budget = (currentSpec as (RuntimeAssetSpec & { budget?: { trianglesMin?: number; trianglesTarget?: number; trianglesMax?: number } }) | null)?.budget;
+  if (!budget || !budget.trianglesMax) {
+    budgetCard.style.display = "none";
+    return;
+  }
+  budgetCard.style.display = "flex";
+  const target = budget.trianglesTarget ?? budget.trianglesMax;
+  const max = budget.trianglesMax;
+  budgetTargetLabel.textContent = `Target: ${target.toLocaleString()}`;
+  budgetMaxLabel.textContent = `Max: ${max.toLocaleString()}`;
+
+  const pct = Math.min(100, Math.round((tris / max) * 100));
+  budgetBarFill.style.width = `${pct}%`;
+
+  if (tris <= target) {
+    budgetBarFill.style.backgroundColor = "var(--accent-teal)";
+    budgetStatusLabel.textContent = `Within target (${tris.toLocaleString()} / ${target.toLocaleString()} tris)`;
+    budgetStatusLabel.style.color = "var(--accent-teal-bright)";
+  } else if (tris <= max) {
+    budgetBarFill.style.backgroundColor = "var(--accent-gold)";
+    budgetStatusLabel.textContent = `Within max (${tris.toLocaleString()} / ${max.toLocaleString()} tris)`;
+    budgetStatusLabel.style.color = "var(--accent-gold-bright)";
+  } else {
+    budgetBarFill.style.backgroundColor = "#e46d58";
+    budgetStatusLabel.textContent = `Over budget (+${(tris - max).toLocaleString()} tris)`;
+    budgetStatusLabel.style.color = "#e46d58";
+  }
+}
+
+function captureSnapshot(): void {
+  try {
+    renderer.render(scene, camera);
+    const dataUrl = canvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    const assetName = currentSpec?.id ?? activeShowcaseTitle ?? "art-yard";
+    const timeStr = formatTime(currentMinute()).replace(":", "");
+    link.download = `${assetName}-${timeStr}.png`;
+    link.href = dataUrl;
+    link.click();
+    showToast("Snapshot saved");
+  } catch (error) {
+    console.error("Snapshot error:", error);
+    showToast("Snapshot failed");
+  }
+}
+
+function applyAtmospherePreset(name: string): void {
+  const preset = ATMOSPHERE_PRESETS[name];
+  if (!preset) return;
+  timeRange.value = String(preset.minute);
+  azimuthRange.value = String(preset.azimuth);
+  weatherSelect.value = preset.weather;
+  updateTimeLabel();
+  updateAzimuthLabel();
+  hudEnvBadge.textContent = `${formatTime(preset.minute)} · ${preset.weather}`;
+  showToast(`Atmosphere: ${name.charAt(0).toUpperCase() + name.slice(1)}`);
+}
+
 // Skeleton Helper
 function hasSkinnedMesh(root: THREE.Object3D): boolean {
   let found = false;
@@ -975,6 +1236,19 @@ function clearModel(): void {
   previewRod = null;
   contextPlayerPelvis = null;
   attachedSocketProp = null;
+  for (const crew of showcaseCrews) {
+    crew.dispose();
+    AssetLoader.releaseModel(crew.driver);
+    AssetLoader.releaseModel(crew.boat);
+  }
+  showcaseCrews.length = 0;
+  for (const mixer of showcaseMixers) {
+    const root = mixer.getRoot() as THREE.Object3D;
+    mixer.stopAllAction();
+    mixer.uncacheRoot(root);
+    AssetLoader.releaseModel(root);
+  }
+  showcaseMixers.length = 0;
   floatingActors = [];
   activeShowcaseTitle = null;
   if (currentModel) currentModel.removeFromParent();
@@ -985,6 +1259,9 @@ function clearModel(): void {
 
   updateDimensions();
   updateSocketsList();
+  updateMaterialsList();
+  updateCollisionList();
+  updateBudgetCard(0);
 }
 
 function clearContextPreview(refit = true): void {
@@ -1018,10 +1295,12 @@ function updateMetrics(): void {
   if (!currentModel) {
     metricsList.replaceChildren();
     hudTrisBadge.textContent = "—";
+    updateBudgetCard(0);
     return;
   }
   const tris = meshTriangleCount(currentModel);
   hudTrisBadge.textContent = `${tris.toLocaleString("en-US")} tris`;
+  updateBudgetCard(tris);
 
   if (activeShowcaseTitle) {
     const rows: Array<[string, string]> = [
@@ -1100,11 +1379,42 @@ function setCategoryFilter(family: string): void {
   populateAssetSelect();
 }
 
+function matchesCategoryFilter(asset: RuntimeAssetSpec, filter: string): boolean {
+  if (filter === "all") return true;
+  if (filter === "showcase") return false;
+  if (asset.family === filter) return true;
+  if (filter === "fauna") {
+    return asset.id.startsWith("fauna_");
+  }
+  if (filter === "tools") {
+    return asset.id.startsWith("tool_");
+  }
+  if (filter === "wearable") {
+    return asset.id.startsWith("wearable_");
+  }
+  if (filter === "furniture") {
+    return (
+      asset.id.includes("chair") ||
+      asset.id.includes("table") ||
+      asset.id.includes("bench") ||
+      asset.id.includes("bed") ||
+      asset.id.includes("stool") ||
+      asset.id.includes("cabinet") ||
+      asset.id.includes("shelf") ||
+      asset.id.startsWith("interior_")
+    );
+  }
+  return false;
+}
+
 function populateAssetSelect(): void {
   const currentVal = assetSelect.value;
   const searchTerm = assetSearch.value.trim().toLowerCase();
   const filteredAssets = ASSET_CATALOG.filter((asset) => {
-    const matchesFamily = activeFamilyFilter === "all" || asset.family === activeFamilyFilter;
+    // Retain the old source assets for regression fixtures, but retire them
+    // from the review roster now that the integrated B cast is catalog-owned.
+    if (/^char_npc_.*_a$/.test(asset.id)) return false;
+    const matchesFamily = matchesCategoryFilter(asset, activeFamilyFilter);
     const matchesSearch =
       !searchTerm ||
       asset.id.toLowerCase().includes(searchTerm) ||
@@ -1116,11 +1426,16 @@ function populateAssetSelect(): void {
   assetCountBadge.textContent = String(filteredAssets.length);
 
   const showcaseOptions = [
+    { value: "__showcase_ambient_npcs", text: "Ambient villagers & boat crews" },
     { value: "__showcase_village", text: "Village & farmstead" },
     { value: "__showcase_architecture", text: "Architecture lineup" },
     { value: "__showcase_farm", text: "Starter homestead" },
+    { value: "__showcase_kitchen", text: "Farmhouse kitchen & hearth" },
     { value: "__showcase_harbor", text: "Fishing harbor" },
+    { value: "__showcase_marine", text: "Marine fauna & coast" },
     { value: "__showcase_riverside", text: "Riverside bend" },
+    { value: "__showcase_crops", text: "Seasonal crop field" },
+    { value: "__showcase_animals", text: "Pasture & livestock" },
     { value: "__showcase_interior", text: "Farmhouse interior" }
   ];
 
@@ -1654,7 +1969,7 @@ async function attachSocketProp(assetId: string): Promise<void> {
 // Diorama Builders
 async function assembleDiorama(
   title: string,
-  placements: Array<{ id: AssetId; pos: [number, number, number]; rotY?: number; scale?: number; floating?: boolean }>,
+  placements: Array<{ id: AssetId; pos: [number, number, number]; rotY?: number; scale?: number; floating?: boolean; driver?: AssetId; idle?: boolean }>,
   options: { water?: boolean; time?: string; camPos?: [number, number, number]; camTarget?: [number, number, number]; distance?: string } = {}
 ): Promise<void> {
   const serial = ++loadSerial;
@@ -1682,6 +1997,18 @@ async function assembleDiorama(
         mesh.receiveShadow = shadowsToggle.checked;
       });
       dioramaRoot.add(model);
+      if (p.driver) {
+        const driver = await AssetLoader.loadModel(p.driver);
+        if (serial !== loadSerial) { AssetLoader.releaseModel(driver); return; }
+        showcaseCrews.push(new AmbientBoatPresentation(model, driver, p.id === "boat_rowboat_a"));
+      } else if (p.idle) {
+        const clip = (model.userData.animationClips as THREE.AnimationClip[]).find(clip => clip.name === "idle");
+        if (clip) {
+          const mixer = new THREE.AnimationMixer(model);
+          mixer.clipAction(removeNpcClipRootTravel(clip)).play();
+          showcaseMixers.push(mixer);
+        }
+      }
 
       if (p.floating) {
         floatingActors.push({
@@ -1717,6 +2044,8 @@ async function assembleDiorama(
     updateDimensions();
     updateSocketsOverlay();
     updateSocketsList();
+    updateMaterialsList();
+    updateCollisionList();
     setStatus();
   } catch (error) {
     setStatus(error instanceof Error ? error.message : "Showcase could not be assembled");
@@ -1724,11 +2053,18 @@ async function assembleDiorama(
 }
 
 async function loadShowcase(showcaseId: string): Promise<void> {
-  if (showcaseId === "__showcase_village") {
+  if (showcaseId === "__showcase_ambient_npcs") {
+    await assembleDiorama("Ambient villagers & boat crews", [
+      ...AMBIENT_NPC_ASSETS.map((id, index) => ({ id, pos: [(index - 2.5) * 1.4, 0, -2] as [number, number, number], idle: true })),
+      { id: "boat_skiff_a", pos: [-3.4, 0, 2.8], rotY: 25, driver: AMBIENT_NPC_ASSETS[0], floating: true },
+      { id: "boat_rowboat_a", pos: [3.4, 0, 2.8], rotY: -25, driver: AMBIENT_NPC_ASSETS[1], floating: true }
+    ], { water: false, camPos: [15, 12, 22], camTarget: [0, 2, 0], distance: "29" });
+  } else if (showcaseId === "__showcase_village") {
     await assembleDiorama(
       "Complete Village & Farmstead",
       [
         { id: "house_farmhouse_a", pos: [2.5, 0.35, -1.5], rotY: -15 },
+        { id: "building_farm_kitchen_a", pos: [-6.5, 0.35, -2.5], rotY: 10 },
         { id: "building_windmill_a", pos: [16, 0.95, -14], rotY: 35 },
         { id: "building_lighthouse_a", pos: [22, 1.8, 12], rotY: -20 },
         { id: "building_fish_market_a", pos: [-14, 0.15, -8], rotY: 75 },
@@ -1778,9 +2114,11 @@ async function loadShowcase(showcaseId: string): Promise<void> {
         { id: "interior_farmhouse_shell", pos: [6, 0.05, 14], rotY: 0 },
         { id: "building_market_stall_a", pos: [18, 0.05, 14], rotY: 0 },
         { id: "building_outhouse_a", pos: [30, 0.05, 14], rotY: 0 },
-        { id: "bridge_stone_a", pos: [-6, 0.05, 28], rotY: 0 },
-        { id: "bridge_log_plank_a", pos: [6, 0.05, 28], rotY: 0 },
-        { id: "dock_straight_a", pos: [18, 0.05, 28], rotY: 0 }
+        { id: "building_farm_kitchen_a", pos: [-18, 0.05, 28], rotY: 0 },
+        { id: "building_ice_house_a", pos: [-6, 0.05, 28], rotY: 0 },
+        { id: "bridge_stone_a", pos: [6, 0.05, 28], rotY: 0 },
+        { id: "bridge_log_plank_a", pos: [18, 0.05, 28], rotY: 0 },
+        { id: "dock_straight_a", pos: [30, 0.05, 28], rotY: 0 }
       ],
       { water: false, time: "720", camPos: [42, 34, 58], camTarget: [0, 2, 7], distance: "72" }
     );
@@ -1809,6 +2147,25 @@ async function loadShowcase(showcaseId: string): Promise<void> {
       ],
       { water: false, time: "720", camPos: [14, 10, 16], distance: "22" }
     );
+  } else if (showcaseId === "__showcase_kitchen") {
+    await assembleDiorama(
+      "Farmhouse Kitchen & Hearth",
+      [
+        { id: "building_farm_kitchen_a", pos: [0, 0.0, 0], rotY: 0 },
+        { id: "prop_farm_workbench_a", pos: [-4.2, 0.0, 1.8], rotY: 90 },
+        { id: "prop_produce_crate_a", pos: [-3.5, 0.0, 3.2], rotY: 15 },
+        { id: "prop_crop_bundle_a", pos: [-2.4, 0.0, 3.5], rotY: -20 },
+        { id: "prop_barrel_wood_a", pos: [3.8, 0.0, -1.5], rotY: 0 },
+        { id: "prop_water_well_a", pos: [4.8, 0.0, 1.2], rotY: 30 },
+        { id: "prop_picnic_table_a", pos: [3.5, 0.0, 4.0], rotY: -15 },
+        { id: "crop_potato_mature", pos: [-5.5, 0.0, -1.5], rotY: 0 },
+        { id: "crop_tomato_mature", pos: [-5.5, 0.0, -3.0], rotY: 15 },
+        { id: "crop_wheat_mature", pos: [-5.5, 0.0, -4.5], rotY: -10 },
+        { id: "char_player_a", pos: [0.8, 0.0, 3.0], rotY: -35 },
+        { id: "fauna_cat_a", pos: [-1.2, 0.0, 1.8], rotY: 45 }
+      ],
+      { water: false, time: "720", camPos: [11, 7, 13], camTarget: [0, 1.2, 1], distance: "17" }
+    );
   } else if (showcaseId === "__showcase_harbor") {
     await assembleDiorama(
       "Working Fishing Harbor",
@@ -1828,6 +2185,28 @@ async function loadShowcase(showcaseId: string): Promise<void> {
       ],
       { water: true, time: "1110", camPos: [16, 11, 18], distance: "24" }
     );
+  } else if (showcaseId === "__showcase_marine") {
+    await assembleDiorama(
+      "Marine Fauna & Coastal Shelf",
+      [
+        { id: "rock_sea_stack_a", pos: [-12, -0.2, -6], rotY: 30 },
+        { id: "rock_coastal_boulder_a", pos: [10, -0.1, -8], rotY: -45 },
+        { id: "rock_reef_small_a", pos: [0, -0.6, 2], rotY: 15 },
+        { id: "rock_harbor_fractured_a", pos: [-8, -0.2, 6], rotY: 60 },
+        { id: "boat_skiff_a", pos: [-2.5, -0.05, -2], rotY: -25, floating: true },
+        { id: "boat_rowboat_a", pos: [5.2, -0.02, 3], rotY: 40, floating: true },
+        { id: "fish_tuna_a", pos: [-4.2, -0.6, 1.5], rotY: 45 },
+        { id: "fish_sailfish_a", pos: [1.5, -0.8, -4], rotY: -30 },
+        { id: "fish_swordfish_a", pos: [-7, -0.7, -1], rotY: 70 },
+        { id: "fish_blue_marlin_a", pos: [6, -0.9, -2], rotY: -80 },
+        { id: "fish_trout_a", pos: [3, -0.4, 4.5], rotY: 20 },
+        { id: "fish_catfish_a", pos: [-2, -0.5, 5], rotY: -60 },
+        { id: "fauna_gull_a", pos: [-11, 4.2, -5], rotY: 15 },
+        { id: "fauna_gull_a", pos: [9, 3.8, -7], rotY: -75 },
+        { id: "foliage_reeds_a", pos: [9, -0.1, 2], rotY: 30 }
+      ],
+      { water: true, time: "1020", camPos: [16, 9, 20], camTarget: [0, 0, 0], distance: "26" }
+    );
   } else if (showcaseId === "__showcase_riverside") {
     await assembleDiorama(
       "Riverside Angler's Bend",
@@ -1844,6 +2223,57 @@ async function loadShowcase(showcaseId: string): Promise<void> {
         { id: "tree_oak_a", pos: [-8.5, 0.4, 2.5], rotY: 15 }
       ],
       { water: true, time: "480", camPos: [11, 7, 13], distance: "18" }
+    );
+  } else if (showcaseId === "__showcase_crops") {
+    await assembleDiorama(
+      "Seasonal Crop & Field Harvest",
+      [
+        { id: "crop_wheat_mature", pos: [-3, 0, -2], rotY: 0 },
+        { id: "crop_wheat_growing", pos: [-1.5, 0, -2], rotY: 10 },
+        { id: "crop_barley_mature", pos: [0, 0, -2], rotY: -5 },
+        { id: "crop_corn_mature", pos: [1.5, 0, -2], rotY: 15 },
+        { id: "crop_sunflower_mature", pos: [3, 0, -2], rotY: 0 },
+        { id: "crop_tomato_mature", pos: [-3, 0, 0], rotY: 25 },
+        { id: "crop_tomato_growing", pos: [-1.5, 0, 0], rotY: -15 },
+        { id: "crop_potato_mature", pos: [0, 0, 0], rotY: 5 },
+        { id: "crop_carrot_mature", pos: [1.5, 0, 0], rotY: -20 },
+        { id: "crop_pumpkin_mature", pos: [3, 0, 0], rotY: 30 },
+        { id: "prop_pumpkin_patch_a", pos: [3.2, 0, 2.5], rotY: 10 },
+        { id: "prop_potting_bench_a", pos: [-3.8, 0, 2.2], rotY: 45 },
+        { id: "prop_worm_compost_a", pos: [-2.2, 0, 3.2], rotY: -10 },
+        { id: "prop_wagon_cart_a", pos: [0.5, 0, 3.5], rotY: 15 },
+        { id: "prop_produce_crate_a", pos: [-0.8, 0, 2.5], rotY: -35 },
+        { id: "prop_crop_bundle_a", pos: [-0.2, 0, 2.3], rotY: 40 },
+        { id: "fauna_butterfly_a", pos: [0, 1.2, 0.5], rotY: 45 },
+        { id: "char_player_a", pos: [1.8, 0, 1.8], rotY: -45 }
+      ],
+      { water: false, time: "660", camPos: [11, 7, 13], camTarget: [0, 0.8, 0.5], distance: "17" }
+    );
+  } else if (showcaseId === "__showcase_animals") {
+    await assembleDiorama(
+      "Pasture & Livestock",
+      [
+        { id: "prop_fence_wood_a", pos: [-6, 0, -4], rotY: 0 },
+        { id: "prop_fence_wood_a", pos: [-2, 0, -4], rotY: 0 },
+        { id: "prop_fence_wood_a", pos: [2, 0, -4], rotY: 0 },
+        { id: "prop_fence_wood_a", pos: [6, 0, -4], rotY: 0 },
+        { id: "prop_hay_bale_a", pos: [-5, 0, -2.5], rotY: 25 },
+        { id: "prop_hay_bale_a", pos: [-4, 0, -1.8], rotY: -40 },
+        { id: "fauna_cow_a", pos: [-2.8, 0, -1.2], rotY: 35 },
+        { id: "fauna_horse_draft_a", pos: [1.2, 0, -1.8], rotY: -20 },
+        { id: "fauna_sheep_a", pos: [4.5, 0, -1.5], rotY: -65 },
+        { id: "fauna_donkey_a", pos: [-4.2, 0, 1.5], rotY: 70 },
+        { id: "fauna_chicken_a", pos: [-1.2, 0, 1.8], rotY: -15 },
+        { id: "fauna_chicken_a", pos: [-0.5, 0, 2.2], rotY: 55 },
+        { id: "fauna_duck_a", pos: [0.8, 0, 2.0], rotY: -40 },
+        { id: "fauna_dog_a", pos: [2.5, 0, 1.2], rotY: -30 },
+        { id: "fauna_cat_a", pos: [3.8, 0, 2.4], rotY: 45 },
+        { id: "fauna_rabbit_a", pos: [-2.5, 0, 3.2], rotY: 15 },
+        { id: "fauna_pigeon_a", pos: [5.2, 0, 0.5], rotY: -80 },
+        { id: "tree_apple_a", pos: [7, 0, -3], rotY: 15 },
+        { id: "foliage_wildflower_a", pos: [0, 0, 0.5], rotY: 0 }
+      ],
+      { water: false, time: "900", camPos: [13, 8, 15], camTarget: [0, 0.8, 0], distance: "19" }
     );
   } else if (showcaseId === "__showcase_interior") {
     await assembleDiorama(
@@ -1923,6 +2353,8 @@ async function loadAsset(assetId: string): Promise<void> {
     updateSocketsOverlay();
     updateSocketsList();
     updateSkeletonHelper();
+    updateMaterialsList();
+    updateCollisionList();
 
     if (spec.family === "boat") {
       floatingActors.push({
@@ -2039,6 +2471,27 @@ function animate(frameMilliseconds: number): void {
     currentLod.update(camera);
   }
 
+  // Stage HUD badges update
+  if (currentLod) {
+    const lvl = currentLod.getCurrentLevel();
+    hudLodBadge.textContent = `LOD${lvl}`;
+    hudLodBadge.style.display = "inline-flex";
+  } else {
+    hudLodBadge.style.display = "none";
+  }
+
+  if (activeAction || usesRuntimePreview()) {
+    hudAnimBadge.textContent = clipSelect.value;
+    hudAnimBadge.style.display = "inline-flex";
+  } else {
+    hudAnimBadge.style.display = "none";
+  }
+
+  const envText = `${formatTime(currentMinute())} · ${weatherSelect.value}`;
+  if (hudEnvBadge.textContent !== envText) {
+    hudEnvBadge.textContent = envText;
+  }
+
   // Animation playback
   if (animationMixer) {
     advanceAnimationTo(frameMilliseconds);
@@ -2083,6 +2536,9 @@ function animate(frameMilliseconds: number): void {
     actor.object.rotation.z = Math.sin(elapsedSeconds * 1.4 + actor.phase) * actor.rollAmplitude;
     actor.object.rotation.x = Math.cos(elapsedSeconds * 1.1 + actor.phase) * actor.pitchAmplitude;
   }
+
+  for (const mixer of showcaseMixers) mixer.update(delta);
+  for (const crew of showcaseCrews) crew.update(elapsedSeconds, window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
   // Windmill sails animation in showcase. Turn every authored LOD pivot so a
   // level switch never shows a frozen rotor, with the runtime's spin sign.
@@ -2147,6 +2603,12 @@ updateAzimuthLabel();
 
 assetSearch.addEventListener("input", populateAssetSelect);
 
+clearSearchBtn.addEventListener("click", () => {
+  assetSearch.value = "";
+  populateAssetSelect();
+  assetSearch.focus();
+});
+
 familyFilter.addEventListener("change", () => {
   setCategoryFilter(familyFilter.value);
 });
@@ -2154,12 +2616,47 @@ familyFilter.addEventListener("change", () => {
 prevAssetBtn.addEventListener("click", () => navigateAsset(-1));
 nextAssetBtn.addEventListener("click", () => navigateAsset(1));
 
+randomAssetBtn.addEventListener("click", () => {
+  const options = Array.from(assetSelect.options).filter(
+    (opt) => !opt.value.startsWith("__showcase_")
+  );
+  if (options.length === 0) return;
+  const picked = options[Math.floor(Math.random() * options.length)];
+  assetSelect.value = picked.value;
+  void loadAsset(picked.value);
+});
+
+hudAssetBadge.addEventListener("click", () => {
+  const textToCopy = currentSpec?.id ?? activeShowcaseTitle ?? assetSelect.value;
+  navigator.clipboard.writeText(textToCopy).then(
+    () => showToast(`Copied ${textToCopy}`),
+    () => showToast("Copy failed")
+  );
+});
+
 copyAssetIdBtn.addEventListener("click", () => {
   const textToCopy = currentSpec?.id ?? activeShowcaseTitle ?? assetSelect.value;
   navigator.clipboard.writeText(textToCopy).then(
     () => showToast(`Copied ${textToCopy}`),
     () => showToast("Copy failed")
   );
+});
+
+toolbarWireBtn.addEventListener("click", () => {
+  shadingSelect.value = shadingSelect.value === "lit" ? "wireframe_overlay" : "lit";
+  updateShadingMode(shadingSelect.value);
+});
+
+snapshotBtn.addEventListener("click", captureSnapshot);
+
+fullscreenBtn.addEventListener("click", () => {
+  if (!document.fullscreenElement) {
+    void yardApp.requestFullscreen().catch(() => {
+      void document.documentElement.requestFullscreen();
+    });
+  } else {
+    void document.exitFullscreen();
+  }
 });
 
 togglePanelBtn.addEventListener("click", () => {
@@ -2210,8 +2707,10 @@ function stepAnimationTime(deltaSeconds: number): void {
   animTimeOutput.value = `${newTime.toFixed(2)}s / ${currentClipDuration.toFixed(2)}s`;
 }
 
+animStep5fBackBtn.addEventListener("click", () => stepAnimationTime(-5 / 30));
 animStepFrameBackBtn.addEventListener("click", () => stepAnimationTime(-1 / 30));
 animStepFrameFwdBtn.addEventListener("click", () => stepAnimationTime(1 / 30));
+animStep5fFwdBtn.addEventListener("click", () => stepAnimationTime(5 / 30));
 animStepBackBtn.addEventListener("click", () => stepAnimationTime(-0.1));
 animStepFwdBtn.addEventListener("click", () => stepAnimationTime(0.1));
 
@@ -2290,6 +2789,17 @@ collisionToggle.addEventListener("change", () => setCollision(collisionToggle.ch
 shadowsToggle.addEventListener("change", () => updateShadowPolicies(shadowsToggle.checked));
 
 // Event Listeners - Environment
+atmosphereChips.forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const atmo = chip.dataset.atmo;
+    if (atmo) applyAtmospherePreset(atmo);
+  });
+});
+
+weatherSelect.addEventListener("change", () => {
+  hudEnvBadge.textContent = `${formatTime(currentMinute())} · ${weatherSelect.value}`;
+});
+
 timeRange.addEventListener("input", updateTimeLabel);
 azimuthRange.addEventListener("input", updateAzimuthLabel);
 groundSelect.addEventListener("change", () => updateGroundBed(groundSelect.value));
@@ -2344,10 +2854,14 @@ window.addEventListener("keydown", (event) => {
     setCameraAngle("top");
   } else if (event.key === "6") {
     setEyeLevelCamera();
+  } else if (event.key === "7") {
+    setCameraAngle("isometric");
   } else if (event.key === "[" || event.key === "ArrowLeft") {
     navigateAsset(-1);
   } else if (event.key === "]" || event.key === "ArrowRight") {
     navigateAsset(1);
+  } else if (event.key.toLowerCase() === "r") {
+    randomAssetBtn.click();
   } else if (event.key === "Tab") {
     event.preventDefault();
     togglePanelBtn.click();
@@ -2356,6 +2870,8 @@ window.addEventListener("keydown", (event) => {
   } else if (event.key.toLowerCase() === "f") {
     const root = inspectionRoot();
     if (root) fitModel(root);
+  } else if (event.key.toLowerCase() === "p") {
+    captureSnapshot();
   } else if (event.key.toLowerCase() === "w") {
     shadingSelect.value = shadingSelect.value === "lit" ? "wireframe_overlay" : "lit";
     updateShadingMode(shadingSelect.value);
@@ -2392,7 +2908,7 @@ void loadYardData()
   .finally(() => {
     const initialAssetId = resolveArtYardAssetId(
       requestedAssetId,
-      new Set(ASSET_CATALOG.map((asset) => asset.id)),
+      new Set(Array.from(assetSelect.options, option => option.value)),
       "__showcase_village"
     );
     assetSelect.value = initialAssetId;

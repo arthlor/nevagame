@@ -186,6 +186,9 @@ describe("water shader linkage", () => {
       expect(WATER_SURFACE_SHADING_GLSL).toContain("nevaRiverDetail(worldPosition.xz, riverFlow");
       expect(WATER_SURFACE_SHADING_GLSL).toContain("riverFlow");
       expect(WATER_SURFACE_SHADING_GLSL).toContain("rapidGate");
+      expect(WATER_SURFACE_SHADING_GLSL).toContain("rapidUv = worldPosition.xz * vec2(1.0, 0.36)");
+      expect(WATER_SURFACE_SHADING_GLSL).not.toContain("dot(rapidAdvected, rapidAcross)");
+      expect(WATER_SURFACE_SHADING_GLSL).not.toContain("sin(rapidUv.x");
       expect(WATER_SURFACE_SHADING_GLSL).toContain("uPlungeRingWavelength");
       expect(WATER_SURFACE_SHADING_GLSL).not.toContain("flowOffset");
     } finally {

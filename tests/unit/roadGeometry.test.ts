@@ -13,6 +13,7 @@ import {
   WorldLayout
 } from "../../src/world/WorldLayout";
 import { buildOrganicRoadGeometry, sampleRoadCrossSection } from "../../src/world/RoadGeometry";
+import { ROAD_WHEEL_GAUGE_METERS } from "../../src/world/RoadClasses";
 
 type PositionAttribute = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
@@ -67,11 +68,11 @@ function authoredRoadGeometry(): THREE.BufferGeometry {
  * Reconstructs the collider plane a road must sit on. Each island has its own
  * terrain patch with its own origin and grid step — Neva is 600 m / 384, and
  * Sunreach is 360 m / 256 — so the plane has to be rebuilt on the patch that
- * actually owns the point. Sampling every island on Neva's grid mis-registers
- * Sunreach by up to ~6 cm on its steeper ground.
+ * actually owns the point. Read the canonical heightfield rather than raw
+ * height samples: patch-edge vertices are stitched to adjacent coarse grids.
  */
 function baseTerrainPlaneSampler(): (x: number, z: number) => number {
-  const heights = new Map<string, number>();
+  const heightfields = new Map<string, Float32Array>();
   return (x, z) => {
     const patch = WorldLayout.terrainPatchAt(x, z);
     const size = patch?.sizeMeters ?? TERRAIN_SIZE_METERS;
@@ -82,18 +83,17 @@ function baseTerrainPlaneSampler(): (x: number, z: number) => number {
     const minimumX = centerX - size * 0.5;
     const minimumZ = centerZ - size * 0.5;
     const patchId = patch?.id ?? "terrain.neva";
+    let heightfield = heightfields.get(patchId);
+    if (!heightfield) {
+      heightfield = WorldLayout.terrainBaseHeightfieldForPatch(patchId);
+      heightfields.set(patchId, heightfield);
+    }
     const height = (column: number, row: number): number => {
-      const key = `${patchId}:${column}:${row}`;
-      if (!heights.has(key)) {
-        heights.set(key, Math.fround(WorldLayout.terrainBaseHeight(
-          minimumX + column * step,
-          minimumZ + row * step
-        )));
-      }
-      return heights.get(key)!;
+      // Heightfield rows run along X and columns along Z in Rapier.
+      return heightfield![column * (resolution + 1) + row];
     };
-    const column = Math.floor((x - minimumX) / step);
-    const row = Math.floor((z - minimumZ) / step);
+    const column = THREE.MathUtils.clamp(Math.floor((x - minimumX) / step), 0, resolution - 1);
+    const row = THREE.MathUtils.clamp(Math.floor((z - minimumZ) / step), 0, resolution - 1);
     const u = (x - minimumX - column * step) / step;
     const v = (z - minimumZ - row * step) / step;
     const a = height(column, row);
@@ -181,31 +181,65 @@ describe("Organic road geometry", () => {
     } finally { geometry.dispose(); }
   });
 
-  it("samples a deterministic nonnegative crown, paired ruts, shoulder, and feather", () => {
+  it("samples a smooth nonnegative crown, shoulder and feather; wheel tracks never cut the collider", () => {
     const profile = WORLD_ROUTE_PROFILES.arterial;
+    const halfWidth = profile.widthMeters * 0.5;
     const sampleAt = (lateralDistanceMeters: number) => sampleRoadCrossSection({
-      routeId: "farm-village",
-      routeKind: "arterial",
       profile,
-      halfWidthMeters: 1.9,
-      lateralDistanceMeters,
-      distanceAlongRouteMeters: 37.5
+      halfWidthMeters: halfWidth,
+      lateralDistanceMeters
     });
     const center = sampleAt(0);
-    const leftRut = sampleAt(-1.9 * 0.34);
-    const rightRut = sampleAt(1.9 * 0.34);
-    const shoulder = sampleAt(1.9 + profile.shoulderWidthMeters);
-    const feather = sampleAt(1.9 + profile.shoulderWidthMeters + profile.terrainFeatherMeters);
+    const leftTrack = sampleAt(-ROAD_WHEEL_GAUGE_METERS * 0.5);
+    const rightTrack = sampleAt(ROAD_WHEEL_GAUGE_METERS * 0.5);
+    const shoulder = sampleAt(halfWidth + profile.shoulderWidthMeters);
+    const feather = sampleAt(halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters);
 
     expect(center.surfaceOffsetMeters).toBeCloseTo(profile.crownMeters, 4);
-    expect(leftRut).toEqual(rightRut);
-    expect(leftRut.wheelWearMeters).toBeGreaterThan(0);
-    expect(leftRut.surfaceOffsetMeters).toBeLessThan(center.surfaceOffsetMeters);
+    expect(leftTrack).toEqual(rightTrack);
+    // The crown falls steadily to the edge: no groove under either wheel track.
+    let previous = Infinity;
+    for (let lateral = 0; lateral <= halfWidth; lateral += 0.05) {
+      const offset = sampleAt(lateral).surfaceOffsetMeters;
+      expect(offset).toBeLessThanOrEqual(previous + 1e-9);
+      previous = offset;
+    }
     expect(shoulder.surfaceOffsetMeters).toBe(0);
     expect(feather.surfaceOffsetMeters).toBe(0);
-    for (const sample of [center, leftRut, shoulder, feather]) {
+    for (const sample of [center, leftTrack, shoulder, feather]) {
       expect(sample.surfaceOffsetMeters).toBeGreaterThanOrEqual(0);
     }
+  });
+
+  it("gives every road vertex its own across/along frame and class, exact through terrain conformity", () => {
+    const geometry = WorldLayout.buildPathGeometry();
+    try {
+      const positions = geometry.getAttribute("position");
+      const frames = geometry.getAttribute("roadFrame");
+      const context = geometry.getAttribute("roadContext");
+      expect(frames.itemSize).toBe(2);
+      expect(context.itemSize).toBe(3);
+      expect(geometry.getAttribute("roadClass")).toBeUndefined();
+      expect(WorldLayout.buildPathCollisionGeometry().getAttribute("roadFrame")).toBeUndefined();
+      const farm = COMPILED_WORLD_ROUTES.find((route) => route.route.id === "farm-village")!;
+      let checked = 0;
+      for (let index = 0; index < positions.count && checked < 400; index++) {
+        const classCode = Math.round(context.getX(index) * 3);
+        if (classCode !== 0) continue;
+        const x = positions.getX(index), z = positions.getZ(index);
+        const route = WorldLayout.nearestRouteDistance(x, z);
+        if (route.route.id !== "farm-village" || route.distance > route.halfWidth) continue;
+        // Away from bends and junctions, the across coordinate is the true offset.
+        const sample = farm.samples.reduce((best, candidate) =>
+          Math.hypot(candidate.point.x - x, candidate.point.z - z) < Math.hypot(best.point.x - x, best.point.z - z) ? candidate : best);
+        const signed = (x - route.point.x) * sample.normal.x + (z - route.point.z) * sample.normal.z;
+        if (WORLD_ROUTE_JUNCTIONS.some((junction) => Math.hypot(x - junction.center.x, z - junction.center.z) < 12)) continue;
+        expect(Math.abs(frames.getX(index)), `${x},${z}`).toBeCloseTo(Math.abs(signed), 1);
+        expect(Math.sign(frames.getX(index)) === Math.sign(signed) || Math.abs(signed) < 0.05, `${x},${z}`).toBe(true);
+        checked++;
+      }
+      expect(checked).toBeGreaterThan(100);
+    } finally { geometry.dispose(); }
   });
 
   it("compiles one deterministic centerline network with route-relative samples", () => {
@@ -361,22 +395,27 @@ describe("Organic road geometry", () => {
     const positions = render.getAttribute("position");
     const colors = render.getAttribute("color");
     const original = collision.getAttribute("color");
-    const profile = render.getAttribute("roadProfile");
-    expect(profile.count).toBe(positions.count);
-    expect(profile.itemSize).toBe(3);
-    expect(profile.normalized).toBe(true);
-    expect(profile.array).toBeInstanceOf(Uint8Array);
-    expect(collision.getAttribute("roadProfile")).toBeUndefined();
-    let wornCore = 0;
+    const context = render.getAttribute("roadContext");
+    expect(context.count).toBe(positions.count);
+    expect(context.itemSize).toBe(3);
+    expect(context.normalized).toBe(true);
+    expect(context.array).toBeInstanceOf(Uint8Array);
+    expect(collision.getAttribute("roadContext")).toBeUndefined();
     let looseShoulder = 0;
     let softened = 0;
     let coreSamples = 0;
+    const useSamples = { arterial: 0, lane: 0, trail: 0, shared: 0, junction: 0 };
     for (let index = 0; index < positions.count; index++) {
       const alpha = colors.getW(index);
-      expect(profile.getZ(index)).toBeGreaterThanOrEqual(0);
-      expect(profile.getZ(index)).toBeLessThanOrEqual(1);
-      if (profile.getX(index) > 0.5 && profile.getY(index) < 0.2) wornCore++;
-      if (profile.getY(index) > 0.8 && profile.getX(index) < 0.1) looseShoulder++;
+      for (const component of [context.getX(index), context.getY(index), context.getZ(index)]) {
+        expect(component).toBeGreaterThanOrEqual(0);
+        expect(component).toBeLessThanOrEqual(1);
+      }
+      const classCode = Math.round(context.getX(index) * 3);
+      expect(Math.abs(context.getX(index) * 3 - classCode)).toBeLessThan(0.01);
+      useSamples[(["arterial", "lane", "trail", "shared"] as const)[classCode]]++;
+      if (context.getZ(index) > 0.5) useSamples.junction++;
+      if (context.getY(index) > 0.8) looseShoulder++;
       expect(alpha).toBeGreaterThanOrEqual(0);
       expect(alpha).toBeLessThanOrEqual(1);
       if (original.getW(index) > 0.99 && alpha < 0.8) softened++;
@@ -388,10 +427,14 @@ describe("Organic road geometry", () => {
         }
       }
     }
-    expect(wornCore).toBeGreaterThan(0);
     expect(looseShoulder).toBeGreaterThan(0);
     expect(softened).toBeGreaterThan(0);
     expect(coreSamples).toBeGreaterThan(0);
+    expect(useSamples.arterial).toBeGreaterThan(0);
+    expect(useSamples.lane).toBeGreaterThan(0);
+    expect(useSamples.trail).toBeGreaterThan(0);
+    expect(useSamples.shared).toBeGreaterThan(0);
+    expect(useSamples.junction).toBeGreaterThan(0);
     render.dispose();
     collision.dispose();
   }, 60000);
@@ -403,13 +446,18 @@ describe("Organic road geometry", () => {
     const after = indexedRoadSurface(conformed);
     const baseHeightAt = baseTerrainPlaneSampler();
     let maximumHeightChange = 0;
+    let maximumHeightChangeAt: [number, number] = [0, 0];
     let maximumBurial = 0;
     let maximumAddedHeight = 0;
     for (const [x, , z] of before.centroids) {
       const base = baseHeightAt(x, z);
-      maximumHeightChange = Math.max(maximumHeightChange, Math.abs(
+      const change = Math.abs(
         Math.max(base, before.heightAt(x, z)) - Math.max(base, after.heightAt(x, z))
-      ));
+      );
+      if (change > maximumHeightChange) {
+        maximumHeightChange = change;
+        maximumHeightChangeAt = [x, z];
+      }
     }
     const roadCount = conformed.userData.roadTriangleCount + conformed.userData.junctionTriangleCount;
     for (const [index, [x, y, z]] of after.centroids.entries()) {
@@ -419,7 +467,9 @@ describe("Organic road geometry", () => {
       // Gateway slabs are intentionally separate from the ground ribbon.
       if (index < roadCount) maximumBurial = Math.max(maximumBurial, base - y);
     }
-    expect(maximumHeightChange).toBeLessThan(0.00002);
+    // At mainland coordinates near 600 m, Float32 road X/Z vertices round by
+    // several ten-thousandths of a metre before barycentric interpolation.
+    expect(maximumHeightChange, `at ${maximumHeightChangeAt.join(", ")}`).toBeLessThan(0.0001);
     // Terrain-grid conformity may lift the ribbon by a sub-millimetre drape
     // where Sunreach's coarser patch grid (360 m / 256) resamples sloped
     // ground (measured 0.85 mm at 1323, 150); traversal still resolves from
@@ -479,17 +529,26 @@ describe("Organic road geometry", () => {
 
   it("exposes continuous, typed junction aprons for farm and landmark branches", () => {
     // The compact-square market adds a second village-market apron joining the
-    // crossing to the stall counter on the court's south lip.
-    expect(WORLD_ROUTE_JUNCTIONS.map((junction) => junction.surface)).toEqual([
-      "field",
-      "farm-yard",
-      "village-market",
-      "village-market",
-      "farm-yard",
-      "landmark-gateway",
-      "landmark-gateway",
-      "landmark-gateway"
-    ]);
+    // crossing to the stall counter on the court's south lip. Forks where one
+    // road leaves another are small field or gateway aprons.
+    const authored = WORLD_ROUTE_JUNCTIONS.filter((junction) => !junction.id.startsWith("mainland-junction:"));
+    expect(Object.fromEntries(authored.map((junction) => [junction.id, junction.surface]))).toEqual({
+      "starter-farm-field": "field",
+      "starter-farm-yard": "farm-yard",
+      "farm-foothill-gateway": "landmark-gateway",
+      "village-market": "village-market",
+      "harbor-road-fork": "landmark-gateway",
+      "village-market-apron": "village-market",
+      "village-commons": "farm-yard",
+      "river-crossing": "landmark-gateway",
+      "bridge-west-fork": "landmark-gateway",
+      "headland-walk-fork": "field",
+      "lighthouse-gateway": "landmark-gateway",
+      "harbor-market-gateway": "landmark-gateway",
+      "harbor-landing-fork": "field"
+    });
+    expect(WORLD_ROUTE_JUNCTIONS.filter((junction) => junction.id.startsWith("mainland-junction:"))
+      .every((junction) => junction.surface === "landmark-gateway")).toBe(true);
     for (const junction of WORLD_ROUTE_JUNCTIONS) {
       expect(junction.blendLengthMeters).toBeGreaterThan(0);
       expect(WorldLayout.pathInfluence(junction.center.x, junction.center.z)).toBeGreaterThan(0.9);

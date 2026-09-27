@@ -95,7 +95,7 @@ export const HEADWATER_GRAYBOX_VIEWPOINTS: readonly GrayboxViewpoint[] = Object.
     // Walkable west-bank stance beside the pool, looking downstream along the
     // outflow. The stance stays off the fall-face bank, which no player route
     // reaches.
-    cameraPosition: Object.freeze({ x: -34.5, y: 6.4, z: -128.5 }),
+    cameraPosition: Object.freeze({ x: -39.5, y: 6.4, z: -128.5 }),
     targetPosition: Object.freeze({ x: -27.9, y: 2.0, z: -122 }),
     description: "Close viewpoint from the west bank, framing the plunge pool basin and how it drains into the main river reach.",
     primarySubject: "pool-outflow",

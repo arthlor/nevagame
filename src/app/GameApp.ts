@@ -1,4 +1,5 @@
-import { isCarriage, carriagePoint, CARRIAGE_TUNING, canReachCarriageRear } from "../simulation/mounts/Carriage";
+import { farmCargoName } from "../simulation/cargo/farmPacks";
+import { isCarriage, carriagePoint, carriageTuning, canReachCarriageRear } from "../simulation/mounts/Carriage";
 import { playOpeningCamera } from "../render/camera/OpeningCameraSequence";
 import { buildNextWorldHint } from "../simulation/presentation/WorldGuidancePresentation";
 import { buildRestQuote } from "../simulation/presentation/RestPresentation";
@@ -98,7 +99,7 @@ import {
   WORLD_MARKET_LOCATIONS,
   WORLD_STATION_DEFINITIONS
 } from "../world/WorldGameplayLocations";
-import { WORLD_SAILING_ROUTES } from "../world/WorldMoorings";
+import { WORLD_SAILING_ROUTES, dockedMooring } from "../world/WorldMoorings";
 import { SUNREACH_OFFSET_X } from "../world/WorldIslands";
 import { isQuestActive } from "../simulation/core/QuestTypes";
 import { formatGameDuration } from "../simulation/core/GameClock";
@@ -113,6 +114,8 @@ import { prepareStartupWorld, WORLD_STARTUP_TIMEOUT_MS } from "./startup/prepare
 import { commitStartupSave } from "./startup/commitStartupSave";
 import { applyDebugStartScenario, DEBUG_START_SCENARIOS, type DebugStartScenario } from "./startup/DebugStartScenario";
 import { yieldToTask } from "../utils/CooperativeTask";
+import { localeStore } from "../i18n/localeStore";
+import { translateReason, getLocalizedHint } from "../i18n/i18n";
 
 /** How long the person just spoken to keeps their world barks to themselves. */
 const POST_CONVERSATION_BARK_HOLD_MS = 30_000;
@@ -172,7 +175,7 @@ import { gameAudio, type AudioCueId } from "../audio/AudioManager";
 import { bindDomainAudio, syncWorldAudio } from "../audio/gameplayAudio";
 import { footstepBankForSurface, footstepSurfaceAt } from "../audio/footstepSurface";
 import type { LayoutEditCommit, LayoutEditTag } from "../layout-editor/layoutEdit";
-import { applyLayoutEditLiveSession } from "../layout-editor/layoutEditLiveSession";
+import { applyLayoutEditLiveSession, restoreLayoutPlacementSession } from "../layout-editor/layoutEditLiveSession";
 import {
   InteractionTargetResolver,
   type ResolvedInteractionTarget
@@ -264,7 +267,7 @@ export interface NevaDebugApi {
   execute: (command: GameCommand) => InteractionResult;
   advanceGameMinutes: (minutes: number) => void;
   tickRealSeconds: (seconds: number) => void;
-  teleport: (x: number, z: number) => void;
+  teleport: (x: number, z: number, yaw?: number) => void;
   teleportActiveBoat: (x: number, z: number) => void;
   moveToNpc: (npcId: string) => boolean;
   moveToStation: (stationId: string) => boolean;
@@ -996,7 +999,7 @@ export class GameApp {
     if (active) this.layoutEditorChipVisible = true;
     if (active) this.worldScene.setLayoutEditingEnabled(true);
     this.layoutEditor.setActive(active);
-    if (!active) this.worldScene.setLayoutEditingEnabled(false);
+    if (!this.layoutEditor.isActive()) this.worldScene.setLayoutEditingEnabled(false);
     this.inputRouter.setLayoutEditorActive(this.layoutEditor.isActive());
   }
 
@@ -1326,6 +1329,7 @@ export class GameApp {
       actionTimingScale: this.actionTimingScale,
       allowDebugCommands: import.meta.env.DEV
     });
+    if (import.meta.env.DEV) restoreLayoutPlacementSession(this.sim);
     this.attachSimulationFeedback();
     if (resumedExistingSave) {
       // Restore the gameplay mode from the canonical simulation state: offline
@@ -1877,7 +1881,7 @@ export class GameApp {
         this.worldScene.playPlayerAction("pickup");
         const carriedId = this.sim.state.player.carriedFishCargoId;
         const cargo = this.sim.state.fishCargo[cargoId] ?? (carriedId ? this.sim.state.fishCargo[carriedId] : null);
-        if (cargo) {
+        if (cargo && cargo.kind !== "farm") {
           this.pendingCatchCargo = cargo;
           this.pendingCatchRecord = record ?? null;
           this.setActiveModal("catch");
@@ -2133,8 +2137,12 @@ export class GameApp {
       this.sim.events.on("FishHooked", () => this.requestAutosave()),
       this.sim.events.on("BoatBoarded", () => this.requestAutosave()),
       this.sim.events.on("BoatDocked", () => this.requestAutosave()),
-      this.sim.events.on("BoatPurchased", ({ cost }) => {
-        this.notify(`Coastal skiff commissioned · ${cost} G`, "reward", 2600);
+      this.sim.events.on("BoatPurchased", ({ boatTypeId, cost }) => {
+        this.notify(`${ContentRegistry.boats.get(boatTypeId)?.name ?? "Vessel"} purchased · ${cost.toLocaleString()} G`, "reward", 2600);
+        this.requestAutosave();
+      }),
+      this.sim.events.on("CarriagePurchased", ({ mountTypeId, cost }) => {
+        this.notify(`${this.sim.inspectTradeVehicle(mountTypeId)?.name ?? "Wagon"} purchased · ${cost.toLocaleString()} G`, "reward", 2600);
         this.requestAutosave();
       }),
       this.sim.events.on("BasicFishingStarted", () => this.requestAutosave()),
@@ -2371,6 +2379,7 @@ export class GameApp {
             Boolean(this.activeModal) || this.farmingActions.isActive || this.cameraInteractionNearby
           ),
           boat: activeBoat ? this.lastBoatMotion[activeBoat.id] : undefined,
+          boatTypeId: activeBoat?.boatTypeId,
           discontinuityReason: presentedPlayer.discontinuityReason,
           discontinuitySequence: presentedPlayer.discontinuitySequence,
           lookHint: sportFishingCameraHint?.lookHint,
@@ -2663,14 +2672,18 @@ export class GameApp {
     this.saleBatch.lastMs = now;
 
     const { units, gold } = this.saleBatch;
-    const text = units === 1 ? `Sold for ${gold} G` : `Sold ${units} items for ${gold} G`;
+    const isTr = localeStore.current === "tr";
+    const text = isTr
+      ? (units === 1 ? `${gold} akçeye satıldı` : `${units} parça eşya ${gold} akçeye satıldı`)
+      : (units === 1 ? `Sold for ${gold} G` : `Sold ${units} items for ${gold} G`);
     const notice = this.notices.push(text, now, { tone: "reward", durationMs: 2600, key: "market-sale", category: "trade" });
     if (notice) this.chronicle.record(notice, this.sim.state.clock.currentMinute);
     if (startsBatch) playNoticeSound("reward");
   }
 
   private notify(text: string, tone: NoticeTone, durationMs: number = NOTICE_DEFAULT_DURATION_MS, category: NoticeCategory = "general"): void {
-    const notice = this.notices.push(text, performance.now(), { tone, durationMs, category });
+    const localizedText = translateReason(text, localeStore.current);
+    const notice = this.notices.push(localizedText, performance.now(), { tone, durationMs, category });
     if (!notice) return;
     // Toasts expire; the Chronicle keeps them, so it is fed from the same call.
     this.chronicle.record(notice, this.sim.state.clock.currentMinute);
@@ -2684,15 +2697,18 @@ export class GameApp {
    */
   private notifyAwaySummary(summary: OfflineProgressionSummary): void {
     if (summary.simulatedGameMinutes <= 0) return;
-    const count = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+    const isTr = localeStore.current === "tr";
+    const count = (n: number, one: string, many: string, trLabel: string): string =>
+      isTr ? `${n} ${trLabel}` : `${n} ${n === 1 ? one : many}`;
     const parts: string[] = [];
-    if (summary.cropsMaturedCount > 0) parts.push(count(summary.cropsMaturedCount, "crop ready", "crops ready"));
-    if (summary.cropsWitheredCount > 0) parts.push(count(summary.cropsWitheredCount, "crop withered", "crops withered"));
-    if (summary.jobsCompletedCount > 0) parts.push(count(summary.jobsCompletedCount, "job done", "jobs done"));
-    if (summary.cargoSpoiledCount > 0) parts.push(`${summary.cargoSpoiledCount} catch spoiled`);
-    if (summary.contractsExpiredCount > 0) parts.push(count(summary.contractsExpiredCount, "contract expired", "contracts expired"));
+    if (summary.cropsMaturedCount > 0) parts.push(count(summary.cropsMaturedCount, "crop ready", "crops ready", "ürün olgunlaştı"));
+    if (summary.cropsWitheredCount > 0) parts.push(count(summary.cropsWitheredCount, "crop withered", "crops withered", "ürün soldu"));
+    if (summary.jobsCompletedCount > 0) parts.push(count(summary.jobsCompletedCount, "job done", "jobs done", "iş tamamlandı"));
+    if (summary.cargoSpoiledCount > 0) parts.push(isTr ? `${summary.cargoSpoiledCount} balık bayatladı` : `${summary.cargoSpoiledCount} catch spoiled`);
+    if (summary.contractsExpiredCount > 0) parts.push(count(summary.contractsExpiredCount, "contract expired", "contracts expired", "sözleşme süresi doldu"));
     if (parts.length === 0) return;
-    this.notify(`While you were away · ${parts.join(" · ")}`, "info", 6000);
+    const prefix = isTr ? "Uzakta olduğun sürede" : "While you were away";
+    this.notify(`${prefix} · ${parts.join(" · ")}`, "info", 6000);
   }
 
   private currentNotices(): Notice[] {
@@ -2715,7 +2731,8 @@ export class GameApp {
     icon: string = "sparkle"
   ): void {
     if (this.sim.questDomain.isHintShown(hintId)) return;
-    this.activeHint = { hintId, title, message, icon };
+    const loc = getLocalizedHint(hintId, title, message, localeStore.current);
+    this.activeHint = { hintId, title: loc.title, message: loc.message, icon };
     this.sim.questDomain.recordHintShown(hintId);
   }
 
@@ -2908,7 +2925,7 @@ export class GameApp {
               worldPosition: { x: mount.x, y: mount.y, z: mount.z },
               modes: ["mounted"],
               requiresLineOfSight: false,
-              prompt: isCarriage(mount) ? `[E] Leave carriage · ${mount.fishCargoSlotIds?.filter(Boolean).length ?? 0}/2 packs` : "[E] Dismount"
+              prompt: isCarriage(mount) ? `[E] Leave carriage · ${mount.fishCargoSlotIds?.filter(Boolean).length ?? 0}/${mount.fishCargoSlotIds?.length ?? 0} packs` : "[E] Dismount"
             }]
           : [],
         { mode: this.mode, player: p }
@@ -2928,7 +2945,7 @@ export class GameApp {
           worldPosition: { x: mount.x, y: mount.y, z: mount.z },
           modes: ["on-foot"],
           requiresLineOfSight: false,
-          prompt: isCarriage(mount) ? `[E] Drive carriage · ${mount.fishCargoSlotIds?.filter(Boolean).length ?? 0}/2 packs` : "[E] Ride donkey"
+          prompt: isCarriage(mount) ? `[E] Drive carriage · ${mount.fishCargoSlotIds?.filter(Boolean).length ?? 0}/${mount.fishCargoSlotIds?.length ?? 0} packs` : "[E] Ride donkey"
         });
       }
     }
@@ -2936,7 +2953,7 @@ export class GameApp {
     if (this.mode === "on-foot") {
       for (const mount of Object.values(this.sim.state.mounts)) {
         if (!canReachCarriageRear(this.sim.state, mount)) continue;
-        const rear = carriagePoint(mount, 0, CARRIAGE_TUNING.rearOffset);
+        const rear = carriagePoint(mount, 0, carriageTuning(mount).rearOffset);
         const occupied = mount.fishCargoSlotIds?.filter(Boolean).length ?? 0;
         const pickupId = mount.fishCargoSlotIds?.find(id => id && this.sim.canPickupFishCargo(id));
         if (!p.carriedFishCargoId && !pickupId) continue;
@@ -2944,7 +2961,7 @@ export class GameApp {
           kind: "mount", action: p.carriedFishCargoId ? "load-carriage" : "pickup-cargo",
           distanceMeters: Math.hypot(p.x - rear.x, p.z - rear.z), priority: -1,
           worldPosition: { ...rear, y: mount.y }, modes: ["on-foot"], requiresLineOfSight: false,
-          prompt: p.carriedFishCargoId ? `[E] Load carriage · ${occupied}/2 packs` : `[E] Collect trade pack · ${occupied}/2 packs` });
+          prompt: p.carriedFishCargoId ? `[E] Load carriage · ${occupied}/${mount.fishCargoSlotIds?.length ?? 0} packs` : `[E] Collect trade pack · ${occupied}/${mount.fishCargoSlotIds?.length ?? 0} packs` });
       }
     }
 
@@ -2962,14 +2979,14 @@ export class GameApp {
 
     const stationDefinitions = Object.values(WORLD_STATION_DEFINITIONS).map((station) => ({
       stationId: station.id,
-      idlePrompt: station.type === "hand-mill"
+      idlePrompt: station.type === "trading-station" ? "[E] Pack village specialties" : station.type === "hand-mill"
         ? "[E] Use Hand Mill"
         : station.type === "fish-table"
           ? "[E] Use Fish Table"
           : station.type === "compost-bin"
             ? "[E] Use Compost Bin"
             : "[E] Use Workbench",
-      collectPrompt: station.type === "fish-table" ? "[E] Collect Catch Work" : "[E] Collect Output"
+      collectPrompt: station.type === "trading-station" ? "[E] Collect trade pack" : station.type === "fish-table" ? "[E] Collect Catch Work" : "[E] Collect Output"
     }));
     for (const definition of stationDefinitions) {
       const structure = this.sim.state.world.structures[definition.stationId];
@@ -3057,7 +3074,8 @@ export class GameApp {
         if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") continue;
         const boat = this.sim.state.boats[cargo.location.containerId];
         if (!boat || !this.sim.canPickupFishCargo(cargo.id)) continue;
-        const fishName = ContentRegistry.fishSpecies.get(cargo.speciesId)?.name ?? "fish";
+        const fishName = cargo.kind === "farm" ? farmCargoName(cargo)
+          : ContentRegistry.fishSpecies.get(cargo.speciesId)?.name ?? "fish";
         candidates.push({
           id: `cargo:${cargo.id}:pickup`,
           entityId: cargo.id,
@@ -3078,7 +3096,8 @@ export class GameApp {
         if (!this.sim.canPickupFishCargo(cargo.id)) continue;
         const { x, z } = cargo.location;
         if (typeof x !== "number" || typeof z !== "number") continue;
-        const fishName = ContentRegistry.fishSpecies.get(cargo.speciesId)?.name ?? "fish";
+        const fishName = cargo.kind === "farm" ? farmCargoName(cargo)
+          : ContentRegistry.fishSpecies.get(cargo.speciesId)?.name ?? "fish";
         candidates.push({
           id: `cargo:${cargo.id}:pickup-ground`,
           entityId: cargo.id,
@@ -3272,12 +3291,13 @@ export class GameApp {
     if (this.mode === "on-foot") {
       for (const boat of Object.values(this.sim.state.boats)) {
         if (!this.sim.canBoardBoat(boat.id)) continue;
+        const access = dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z)?.playerPosition ?? boat;
         candidates.push({
           id: `dock:${boat.id}:board`,
           entityId: boat.id,
           kind: "dock",
           action: "board",
-          distanceMeters: Math.hypot(p.x - boat.x, p.z - boat.z),
+          distanceMeters: Math.min(Math.hypot(p.x - boat.x, p.z - boat.z), Math.hypot(p.x - access.x, p.z - access.z)),
           priority: 0,
           worldPosition: { x: boat.x, y: boat.y, z: boat.z },
           modes: ["on-foot"],
@@ -3286,6 +3306,17 @@ export class GameApp {
           requiresLineOfSight: false,
           prompt: `[E] Board ${ContentRegistry.boats.get(boat.boatTypeId)?.name ?? "Vessel"}`
         });
+      }
+
+      for (const typeId of ["mount.carriage_4", "mount.carriage_6", "boat.trading_ship"]) {
+        const offer = this.sim.inspectTradeVehicle(typeId);
+        if (!offer || offer.owned) continue;
+        const distance = Math.hypot(p.x - offer.position.x, p.z - offer.position.z);
+        if (distance > 3) continue;
+        candidates.push({ id: `transport:${typeId}:purchase`, entityId: typeId, kind: "dock", action: "purchase-trade-vehicle",
+          distanceMeters: distance, priority: -1, worldPosition: offer.position, modes: ["on-foot"], requiresLineOfSight: false,
+          prompt: offer.canPurchase ? `[E] Buy ${offer.name} · ${offer.cost.toLocaleString()} G`
+            : `${offer.name} · ${offer.cargoSlots} packs · ${offer.cost.toLocaleString()} G · ${offer.reason}` });
       }
 
       const skiff = this.sim.state.boats["boat.player_skiff"];
@@ -3392,7 +3423,7 @@ export class GameApp {
           priority: 0,
           worldPosition: {
             x: FARMHOUSE_OUTSIDE_DOOR.x,
-            y: FARMHOUSE_OUTSIDE_DOOR.y,
+            y: WorldLayout.traversalSurfaceHeight(FARMHOUSE_OUTSIDE_DOOR.x, FARMHOUSE_OUTSIDE_DOOR.z),
             z: FARMHOUSE_OUTSIDE_DOOR.z
           },
           modes: ["on-foot"],
@@ -3838,13 +3869,16 @@ export class GameApp {
       case "dismount":
         this.toggleMount(picked.entityId);
         break;
+      case "purchase-trade-vehicle": {
+        if (!picked.entityId) break;
+        const result = this.sim.execute({ type: "vehicle.purchase", vehicleTypeId: picked.entityId });
+        if (!result.success) this.notify(result.reason ?? "Could not purchase transport", "warning");
+        break;
+      }
       case "purchase-boat": {
         const result = this.sim.execute({ type: "boat.purchase-skiff" });
         if (!result.success) {
           this.notify(result.reason ?? "Could not purchase the skiff", "danger");
-        } else {
-          this.notify(`Coastal skiff commissioned · ${(result.cost ?? 0).toLocaleString()} G`, "reward", 2600);
-          this.requestAutosave();
         }
         break;
       }
@@ -3883,7 +3917,8 @@ export class GameApp {
         this.transitionDoor(FARMHOUSE_INTERIOR_DOOR.enterSpawn, "Entered cozy home");
         break;
       case "exit":
-        this.transitionDoor(FARMHOUSE_OUTSIDE_DOOR.exitSpawn, "Stepped outside");
+        this.transitionDoor({ ...FARMHOUSE_OUTSIDE_DOOR.exitSpawn,
+          y: WorldLayout.traversalSurfaceHeight(FARMHOUSE_OUTSIDE_DOOR.exitSpawn.x, FARMHOUSE_OUTSIDE_DOOR.exitSpawn.z) + 0.5 }, "Stepped outside");
         break;
     }
     if (!this.farmingActions.isActive) this.lockedInteractionTarget = null;
@@ -3900,6 +3935,20 @@ export class GameApp {
 
   private teleportPlayer(toPose: { x: number; y: number; z: number; rotationY: number }): void {
     const player = this.sim.state.player;
+    if (player.activeBoatId) {
+      const boat = this.sim.state.boats[player.activeBoatId];
+      if (boat) {
+        boat.speed = 0;
+      }
+      player.activeBoatId = null;
+      this.setGameplayMode("on-foot");
+    }
+    if (player.activeMountId) {
+      this.sim.execute({ type: "mount.dismount" });
+    }
+    if (this.sim.state.basicFishing) {
+      this.sim.execute({ type: "fishing.cancel-basic" });
+    }
     const commit = this.sim.execute({
       type: "physics.commit",
       frame: {
@@ -3919,6 +3968,7 @@ export class GameApp {
     this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
       discontinuity: "teleport"
     });
+    this.gameCamera?.snapYaw(toPose.rotationY);
   }
 
   private attachDebugHarness(): void {
@@ -4005,11 +4055,11 @@ export class GameApp {
         const bridge = WorldLayout.landmark("bridge");
         return { x: bridge.x, z: bridge.z };
       },
-      teleport: (x, z) => {
+      teleport: (x, z, yaw) => {
         const y = WorldLayout.isWater(x, z)
           ? 0.5
           : WorldLayout.traversalSurfaceHeight(x, z) + 0.5;
-        this.teleportPlayer({ x, y, z, rotationY: this.sim.state.player.rotationY });
+        this.teleportPlayer({ x, y, z, rotationY: yaw ?? this.sim.state.player.rotationY });
       },
       teleportActiveBoat: (x, z) => {
         const activeBoatId = this.sim.state.player.activeBoatId;
@@ -5571,6 +5621,38 @@ export class GameApp {
         onSpawnSchool: () => {
           const point = SPORT_FISHING_REVIEW_POINTS.trout;
           this.sim.spawnFishSchool(point.habitatId, point.x, point.z, [point.speciesId]);
+        },
+        onSetWeather: (type: WeatherTag) => {
+          this.sim.setDebugWeather(type);
+          this.renderUI();
+        },
+        onSetTimePreset: (minute: number) => {
+          this.sim.setDebugMinute(minute);
+          this.renderUI();
+        },
+        onRefillWork: () => {
+          this.sim.refillDebugWork();
+          this.renderUI();
+        },
+        onTeleport: (x: number, z: number, yaw?: number) => {
+          const y = WorldLayout.isWater(x, z)
+            ? 0.5
+            : WorldLayout.traversalSurfaceHeight(x, z) + 0.5;
+          this.teleportPlayer({ x, y, z, rotationY: yaw ?? this.sim.state.player.rotationY });
+          this.renderUI();
+        },
+        onPrepareWheatReview: () => {
+          this.sim.prepareDebugWheatArtReview();
+          this.renderUI();
+        },
+        onPrepareTrioReview: () => {
+          this.sim.prepareDebugStarterTrioArtReview();
+          this.renderUI();
+        },
+        onSpawnTunaSchool: () => {
+          const point = SPORT_FISHING_REVIEW_POINTS.tuna;
+          this.sim.spawnFishSchool(point.habitatId, point.x, point.z, [point.speciesId]);
+          this.renderUI();
         },
         assetCoverage: this.assetCoverage,
         startup: this.startupState,

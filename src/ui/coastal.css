@@ -794,12 +794,20 @@
   #ui-container .crafting-requirement__item .atlas-image { flex: 0 0 28px; }
   #ui-container .crafting-requirement.is-ready strong { color: #91bda3; }
   #ui-container .crafting-requirement.is-short strong { color: #dda16d; }
-  #ui-container .crafting-job-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin: 16px 0; background: none; }
+  #ui-container .crafting-job-facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1px 24px; margin: 16px 0; background: none; }
   #ui-container .crafting-job-facts > div { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 9px 0; background: none; border-bottom: 1px solid #cfb66d33; }
   #ui-container .crafting-collection-note { color: var(--guild-muted); font-size: 13px; line-height: 1.5; }
   #ui-container .crafting-job-facts :is(dt, dd) { margin: 0; }
   #ui-container .crafting-job-facts dt { color: #aaa596; white-space: nowrap; }
   #ui-container .crafting-job-facts dd { text-align: right; }
+  #ui-container .crafting-trade-routes .crafting-job-facts { grid-template-columns: minmax(0, 1fr); }
+  #ui-container .crafting-trade-routes .crafting-job-facts > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+  #ui-container .crafting-trade-routes .crafting-job-facts dt { white-space: normal; }
+  #ui-container .crafting-trade-routes p { color: #c7c0ae; font-size: 12px; line-height: 1.5; }
+  #ui-container .crafting-ingredient-sources { font-size: 12px; line-height: 1.5; padding: 4px 0; }
+  #ui-container .crafting-ingredient-sources summary { cursor: pointer; padding: 4px 0; color: #d3bd83; }
+  #ui-container .crafting-ingredient-sources p { margin: 4px 0; color: #c7c0ae; }
+  #ui-container .crafting-requirement > strong { flex-shrink: 0; margin-left: 12px; }
   #ui-container .crafting-rounding-note,
   #ui-container .crafting-blockers { padding: 10px; border-left: 2px solid #d9b75c; background: #151d1ccc; }
   #ui-container .crafting-blockers ul { margin: 6px 0 0; padding-left: 18px; }
@@ -858,6 +866,7 @@
   }
 
   @media (max-width: 620px) {
+    #ui-container .crafting-job-facts { grid-template-columns: minmax(0, 1fr); }
     #ui-container .character-screen__body,
     #ui-container .crafting-modal__body { display: block; overflow-y: auto; }
     #ui-container .character-screen__loadout,

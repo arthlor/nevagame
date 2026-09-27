@@ -1,3 +1,5 @@
+import { TRADE_CRAFT_QUESTS } from "./questsTradeCraft";
+import { VILLAGE_TRADE_QUESTS } from "./questsVillageTrade";
 import { MAINLAND_VILLAGES } from "../world/NevaMainland";
 import { SUNREACH_OFFSET_X } from "../world/WorldIslands";
 // src/content/quests.ts
@@ -1858,5 +1860,7 @@ export const QUESTS: QuestDefinition[] = [
       ],
       unlocksKnowledgeIds: ["knowledge.open_horizons"]
     }
-  }
+  },
+  ...VILLAGE_TRADE_QUESTS,
+  ...TRADE_CRAFT_QUESTS
 ];

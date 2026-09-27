@@ -56,6 +56,7 @@ export interface WorldCompositionSample {
   opening: number;
   macro: number;
   meso: number;
+  mountainWoodland: number;
   density: Readonly<Record<CompositionCategory, number>>;
 }
 
@@ -342,6 +343,7 @@ function sunreachCompositionSample(worldSeed: number, x: number, z: number): Wor
     opening,
     macro,
     meso,
+    mountainWoodland: 0,
     density: {
       tree: clamp01((oliveGrove * 0.64 + cove * 0.12) * (1 - structuralClearance) * (1 - opening * 0.72)),
       bush: clamp01((dryScrub * 0.48 + dryWash * 0.26) * (1 - structuralClearance) * (1 - opening * 0.48)),
@@ -411,7 +413,7 @@ function mainlandCompositionSample(worldSeed: number, x: number, z: number): Wor
     habitat: { ...habitat, dominant: dominantKey(habitat) },
     route: { clearance: routeClearance, frame: roadside * (0.45 + meso * 0.55), gateway: villageOpening },
     architectureClearance, coastlineClearance: coast, fishingAccessClearance: harbor,
-    opening, macro, meso,
+    opening, macro, meso, mountainWoodland: 0,
     density: {
       tree: clamp01((woodland + orchard * 0.16 + roadside * biome.temperate * 0.15) * clear * (1 - glade * 0.7)),
       bush: clamp01((woodland * 0.45 + meadow * 0.2 + riparian * 0.24 + roadside * 0.18) * clear * (0.55 + fine * 0.7)),
@@ -464,7 +466,10 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
   const coverMicro = valueNoise(worldSeed, x, z, 3.4, 0x51ed270b);
   const flowerMicro = valueNoise(worldSeed, x, z, 2.8, 0x2c1b3c6d);
   const springExposure = headwaterSpringInfluence(x, z);
-  const mountainExposure = Math.max(sampleNevaLandforms(x, z).exposure, springExposure);
+  const landform = sampleNevaLandforms(x, z);
+  const mountainExposure = Math.max(landform.exposure, springExposure);
+  const terrainHeight = WorldLayout.terrainHeight(x, z);
+  const terrainNormalY = WorldLayout.terrainNormalY(x, z);
 
   const farmWorkOpening = radialWeight(
     x,
@@ -486,6 +491,14 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
     routeGateway
   );
   const opening = clamp01(Math.max(authoredOpening, smoothstep(0.72, 0.94, macro) * 0.72));
+  const mountainWoodland = clamp01(
+    landform.mountain
+    * (0.46 + macro * 0.38 + meso * 0.16)
+    * (1 - smoothstep(0.16, 0.5, mountainExposure))
+    * (1 - smoothstep(24, 36, terrainHeight))
+    * smoothstep(0.72, 0.88, terrainNormalY)
+    * (1 - opening * 0.35)
+  );
 
   const sheltered = clamp01(
     district.farm * 0.54
@@ -536,16 +549,16 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
     + district.headland * 0.012
     + district.coast * 0.018;
   const tree = clamp01((
-    (woodland * 0.9 + orchard * 0.54 + riparian * 0.22 + workingEdge * 0.16 + exposed * 0.08)
-    * (0.42 + macro * 0.58) * 0.24
-    + treeFloor * (1 - opening * 0.82)
-  )
+    (
+      (woodland * 0.9 + orchard * 0.54 + riparian * 0.22 + workingEdge * 0.16 + exposed * 0.08)
+      * (0.42 + macro * 0.58) * 0.24
+      * (1 - smoothstep(24, 32, terrainHeight) * 0.85)
+      + treeFloor * (1 - opening * 0.82)
+      + mountainWoodland * 0.24
+    )
     * (1 - structuralClearance)
     * routeEdgeDensity
-    // Alpine thinning: forest gives way to rock above the high contour,
-    // whatever the habitat below says. Lowland districts never reach it.
-    * (1 - smoothstep(24, 32, WorldLayout.terrainHeight(x, z)) * 0.85)
-  );
+  ));
   const bush = clamp01((
     (woodland * 0.62 + meadow * 0.26 + riparian * 0.48 + workingEdge * 0.34)
     * (0.36 + meso * 0.64) * 0.24
@@ -605,6 +618,7 @@ export function sampleWorldComposition(worldSeed: number, x: number, z: number):
     opening,
     macro,
     meso,
+    mountainWoodland,
     density: {
       tree,
       bush,

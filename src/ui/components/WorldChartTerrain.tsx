@@ -3,6 +3,7 @@ import { worldIslandDefinitions } from "../../world/WorldIslands";
 import { WorldLayout, type WorldPoint } from "../../world/WorldLayout";
 import { worldPointToMapSvg, worldRouteToMapSvgPath } from "../../world/WorldMapProjection";
 import { NEVA_HEADWATERS } from "../../world/NevaHeadwaters";
+import { mainlandBrookCourses } from "../../world/MainlandBrooks";
 import { MAINLAND_LAKE, MAINLAND_RIVER, MAINLAND_SUMMITS } from "../../world/NevaMainland";
 import { WORLD_SAILING_ROUTES } from "../../world/WorldMoorings";
 import { WORLD_MAP_PROJECTION } from "../../world/WorldMapProjection";
@@ -21,6 +22,12 @@ for (let z = NEVA_HEADWATERS.source.z; z <= 90; z += 2) {
 }
 const river = `${worldRouteToMapSvgPath([...banks[0], ...banks[1].reverse()])} Z`;
 const mainlandRiver = worldRouteToMapSvgPath(MAINLAND_RIVER);
+// Mountain brooks, inked thinner than the river and thickening as they gather water.
+const brooks = mainlandBrookCourses().map((course) => ({
+  id: course.id,
+  path: worldRouteToMapSvgPath(course.knots.map(([x, z]) => ({ x, z }))),
+  width: Math.min(1.6, 0.55 + Math.sqrt(course.knots[course.knots.length - 1][3]) * 0.35)
+}));
 const mainlandLake = worldPointToMapSvg(MAINLAND_LAKE.center);
 const summits = MAINLAND_SUMMITS.map(summit => worldPointToMapSvg(summit));
 const soundings = [MAINLAND_RIVER[0], MAINLAND_RIVER[3], { x: -250, z: 300 }, { x: 500, z: 325 }]
@@ -201,6 +208,9 @@ export const WorldChartTerrain = React.memo(function WorldChartTerrain({ activeL
       {/* Inked river waterways */}
       <path d={river} fill="#2a3d35" stroke="#4a371c" strokeWidth="1.8" strokeLinejoin="round" />
       <path d={mainlandRiver} fill="none" stroke="#2a3d35" strokeWidth={14 * WORLD_MAP_PROJECTION.scaleX} strokeLinecap="round" strokeLinejoin="round" />
+      <g fill="none" stroke="#2a3d35" strokeLinecap="round" strokeLinejoin="round" opacity="0.85">
+        {brooks.map((brook) => <path key={brook.id} d={brook.path} strokeWidth={brook.width} />)}
+      </g>
       <ellipse cx={mainlandLake.x} cy={mainlandLake.y} rx={MAINLAND_LAKE.radiusX * WORLD_MAP_PROJECTION.scaleX} ry={MAINLAND_LAKE.radiusZ * WORLD_MAP_PROJECTION.scaleZ} fill="#2a3d35" />
       {summits.map((point, index) => <path key={`summit-${index}`} d={`M${point.x - 6},${point.y + 4} l6,-10 l6,10 l-6,-4 Z`} fill="#a59370" stroke="#695d49" strokeWidth="0.8" />)}
 

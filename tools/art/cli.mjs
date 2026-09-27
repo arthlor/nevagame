@@ -355,7 +355,10 @@ function validateAnimationContract(asset) {
   }
   if (asset.family === "character") {
     const isNpc = asset.id.startsWith("char_npc_");
-    const requiredClips = isNpc ? REQUIRED_NPC_CLIPS : REQUIRED_CHARACTER_CLIPS;
+    // Source-rig NPCs retain their actual peaceful library. The authored NPC
+    // animator requires locomotion; it selects supported gestures by name.
+    const requiredClips = isNpc && asset.skinnedAuthoring
+      ? ["idle", "walk"] : isNpc ? REQUIRED_NPC_CLIPS : REQUIRED_CHARACTER_CLIPS;
     const missing = requiredClips.filter((name) => !clips.has(name) || clips.get(name).optional);
     if (missing.length) throw new Error(`${asset.id}: missing required animation clips: ${missing.join(", ")}`);
   }
@@ -493,8 +496,7 @@ function referenceBriefMarkdown(asset) {
     "",
     `- Status: ${brief.status}`,
     `- Subject: ${brief.subject}`,
-    `- Production route: ${productionRoute(asset)}`,
-    `- Dimensions: ${asset.dimensions.width} x ${asset.dimensions.depth} x ${asset.dimensions.height} m`,
+    `- Production route: ${productionRoute(asset)}`,    `- Dimensions: ${asset.dimensions.width} x ${asset.dimensions.depth} x ${asset.dimensions.height} m`,
     `- Triangle budget: ${asset.budget.trianglesMin} / ${asset.budget.trianglesTarget} / ${asset.budget.trianglesMax} min/target/max`,
     `- Palette: ${asset.palette.join(", ")}`,
     `- Read distance: ${asset.readDistanceMeters} m`,
@@ -535,8 +537,7 @@ function referenceBriefMarkdown(asset) {
     "",
     `## Review views\n\n${brief.reviewViews.join(", ")}`,
     "",
-    "Direct runtime factories, local palettes, local lights, and direct public export are outside this contract.",
-    "",
+    "Direct runtime factories, local palettes, local lights, and direct public export are outside this contract.",    "",
   ].join("\n");
 }
 

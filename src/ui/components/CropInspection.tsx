@@ -5,6 +5,7 @@ import { ChromeClose } from "../chrome/Chrome";
 import { GameSheet, Meter } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForCrop, atlasForGrowth } from "../chrome/uiAtlas";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface CropInspectionProps {
   inspection: CropInspectionDto;
@@ -16,6 +17,29 @@ export interface CropInspectionProps {
 
 const titleCase = (value: string): string =>
   value.replace(/(^|[-_])\w/g, (match) => match.replace(/[-_]/, "").toUpperCase());
+
+const STAGE_TR: Record<string, string> = {
+  seed: "Tohum",
+  sprout: "Filiz",
+  vegetative: "Gelişme",
+  flowering: "Çiçeklenme",
+  mature: "Olgun",
+  harvestable: "Hasada Hazır",
+  withered: "Solmuş"
+};
+
+const MOISTURE_TR: Record<string, string> = {
+  dry: "Kuru",
+  normal: "İdeal",
+  wet: "Islak"
+};
+
+const SOIL_TR: Record<string, string> = {
+  poor: "Zayıf",
+  fair: "Orta",
+  good: "İyi",
+  rich: "Verimli"
+};
 
 /**
  * Browsers measure the card before paint; the static renderer does not measure
@@ -30,6 +54,9 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
   onUnroot,
   className = ""
 }) => {
+  const { locale, getLocalizedCrop } = useTranslation();
+  const isTr = locale === "tr";
+
   const sheetRef = useRef<HTMLElement | null>(null);
   const [measuredSize, setMeasuredSize] = useState<{ width: number; height: number } | null>(null);
   const [unrootArmed, setUnrootArmed] = useState(false);
@@ -42,9 +69,6 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
         : "dry";
   const showsUnroot = Boolean(onUnroot) && inspection.stage !== "withered";
 
-  // Measure the rendered card instead of trusting a magic height. The unroot
-  // hint wraps to a variable number of lines, and an underestimated height let
-  // the card drift down over the crop anchor it is supposed to sit above.
   useIsomorphicLayoutEffect(() => {
     const element = sheetRef.current;
     if (!element) return;
@@ -65,7 +89,6 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  // A different planting or a newly blocked action invalidates an armed confirm.
   useEffect(() => {
     setUnrootArmed(false);
   }, [inspection.placedCropId, inspection.actions.canUnroot]);
@@ -80,11 +103,9 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
     const viewportWidth = window.innerWidth || 1920;
     const viewportHeight = window.innerHeight || 1080;
 
-    // Center card horizontally above projected 3D ground anchor
     const rawLeft = projectedPosition.x - cardWidth / 2;
     const rawTop = projectedPosition.y - cardHeight - 20;
 
-    // Viewport clamping with safe margin
     const clampedLeft = Math.max(margin, Math.min(viewportWidth - cardWidth - margin, rawLeft));
     const clampedTop = Math.max(margin, Math.min(viewportHeight - cardHeight - margin, rawTop));
 
@@ -99,6 +120,11 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
     };
   }, [projectedPosition, measuredSize]);
 
+  const cropDisplayName = (isTr ? getLocalizedCrop(inspection.cropId).name : null) || inspection.name;
+  const stageDisplay = isTr ? (STAGE_TR[inspection.stage] ?? titleCase(inspection.stage)) : titleCase(inspection.stage);
+  const moistureDisplay = isTr ? (MOISTURE_TR[inspection.moisture.band] ?? titleCase(inspection.moisture.band)) : titleCase(inspection.moisture.band);
+  const soilDisplay = inspection.soil ? (isTr ? (SOIL_TR[inspection.soil.band] ?? titleCase(inspection.soil.band)) : titleCase(inspection.soil.band)) : null;
+
   return (
     <GameSheet
       ref={sheetRef}
@@ -111,7 +137,7 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
       corners={false}
       rivets={false}
       role="region"
-      aria-label={`${inspection.name} crop inspection`}
+      aria-label={`${cropDisplayName} crop inspection`}
       tabIndex={0}
       data-testid="crop-inspection"
       data-projected={Boolean(projectedStyle)}
@@ -125,16 +151,16 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
       <header className="crop-inspection-title">
         <div className="crop-title-group">
           <IconSprout size={18} className="crop-title-icon" />
-          <strong>{inspection.name}</strong>
+          <strong>{cropDisplayName}</strong>
         </div>
         <div className="crop-header-right">
           <span className={`crop-stage-chip stage-${inspection.stage}`}>
-            {titleCase(inspection.stage)}
+            {stageDisplay}
           </span>
           {onClose && (
             <ChromeClose
               onClick={onClose}
-              label="Close crop inspection"
+              label={isTr ? "Ekin incelemesini kapat" : "Close crop inspection"}
               className="crop-inspection-close-btn"
             />
           )}
@@ -150,12 +176,11 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
         </div>
         <dl className="crop-inspection-grid">
           <div className="crop-meta-item crop-growth-item">
-            <dt>Stage</dt>
+            <dt>{isTr ? "Aşama" : "Stage"}</dt>
             <dd className="crop-growth-status">
-              {/* Simulation-owned progress; the UI never re-derives growth. */}
               <Meter
                 className="crop-growth-meter"
-                label="Growth"
+                label={isTr ? "Büyüme" : "Growth"}
                 value={Math.round(inspection.maturityProgress * 100)}
                 max={100}
                 variant="labor"
@@ -167,25 +192,25 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
             </dd>
           </div>
           <div className="crop-meta-item">
-            <dt>Moisture</dt>
+            <dt>{isTr ? "Nem" : "Moisture"}</dt>
             <dd className={`moisture-badge moisture-${moistureTone}`}>
-              {titleCase(inspection.moisture.band)}
+              {moistureDisplay}
             </dd>
           </div>
           {inspection.soil && (
             <div className="crop-meta-item">
-              <dt>Soil</dt>
+              <dt>{isTr ? "Toprak" : "Soil"}</dt>
               <dd className={`soil-badge soil-${inspection.soil.band}`}>
-                {titleCase(inspection.soil.band)}
+                {soilDisplay}
               </dd>
             </div>
           )}
           <div className="crop-meta-item crop-next-action">
-            <dt>Next</dt>
+            <dt>{isTr ? "Sıradaki" : "Next"}</dt>
             <dd>
               <strong>{inspection.immediateAction.label}</strong>
               {inspection.immediateAction.cost != null && (
-                <span>{inspection.immediateAction.cost} Work</span>
+                <span>{inspection.immediateAction.cost} {isTr ? "Emek" : "Work"}</span>
               )}
               {inspection.immediateAction.blockerReason && (
                 <span>{inspection.immediateAction.blockerReason}</span>
@@ -200,7 +225,7 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
           {unrootArmed ? (
             <>
               <span className="crop-unroot-warning" role="status">
-                Destroys the planting; no seed is returned
+                {isTr ? "Ekini söker; tohum geri gelmez" : "Destroys the planting; no seed is returned"}
               </span>
               <div className="crop-unroot-actions">
                 <button
@@ -210,7 +235,9 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
                   autoFocus
                   onClick={() => onUnroot(inspection.placedCropId)}
                 >
-                  Confirm unroot · {inspection.unrootWork.cost} Work
+                  {isTr
+                    ? `Sökmeyi onayla · ${inspection.unrootWork.cost} Emek`
+                    : `Confirm unroot · ${inspection.unrootWork.cost} Work`}
                 </button>
                 <button
                   type="button"
@@ -218,7 +245,7 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
                   data-testid="crop-unroot-cancel"
                   onClick={() => setUnrootArmed(false)}
                 >
-                  Keep
+                  {isTr ? "Vazgeç" : "Keep"}
                 </button>
               </div>
             </>
@@ -231,15 +258,19 @@ export const CropInspection: React.FC<CropInspectionProps> = ({
                 disabled={!inspection.actions.canUnroot}
                 title={
                   inspection.actions.unrootReason
-                  ?? "Remove the planting for work; the seed is not returned"
+                  ?? (isTr
+                      ? "Emek karşılığı ekini kaldır; tohum geri gelmez"
+                      : "Remove the planting for work; the seed is not returned")
                 }
                 onClick={() => setUnrootArmed(true)}
               >
-                Unroot · {inspection.unrootWork.cost} Work
+                {isTr
+                  ? `Kökünden sök · ${inspection.unrootWork.cost} Emek`
+                  : `Unroot · ${inspection.unrootWork.cost} Work`}
               </button>
               <span className="crop-unroot-reason">
                 {inspection.actions.canUnroot
-                  ? "Removes the planting; no seed is returned"
+                  ? (isTr ? "Ekini kaldırır; tohum geri gelmez" : "Removes the planting; no seed is returned")
                   : inspection.actions.unrootReason}
               </span>
             </>

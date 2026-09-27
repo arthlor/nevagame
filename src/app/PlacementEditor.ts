@@ -47,6 +47,8 @@ export class PlacementEditor {
   private selected: Object3D | null = null;
   private grabbing = false;
   private dirty = false;
+  private dragOrigin: { object: Object3D; pose: EditorPoseState } | null = null;
+  private grabOffset = { x: 0, z: 0 };
   private status: string | null = null;
   private commitInFlight = false;
   private pendingDelete = false;
@@ -103,6 +105,12 @@ export class PlacementEditor {
 
   public setActive(active: boolean): void {
     if (this.active === active) return;
+    if (this.commitInFlight) {
+      this.status = "Finishing the current write…";
+      this.onChange();
+      return;
+    }
+    if (!active) this.cancelPreview();
     this.active = active;
     if (!active) {
       const object = this.selected;
@@ -134,6 +142,7 @@ export class PlacementEditor {
 
   public async undo(): Promise<boolean> {
     if (!this.active || this.commitInFlight || !this.historyManager.canUndo()) return false;
+    this.cancelPreview();
     try {
       const success = await this.historyManager.undo();
       if (success) {
@@ -152,6 +161,7 @@ export class PlacementEditor {
 
   public async redo(): Promise<boolean> {
     if (!this.active || this.commitInFlight || !this.historyManager.canRedo()) return false;
+    this.cancelPreview();
     try {
       const success = await this.historyManager.redo();
       if (success) {
@@ -171,6 +181,8 @@ export class PlacementEditor {
   /** Returns true when Escape was consumed to deselect. */
   public handleEscape(): boolean {
     if (!this.active || !this.selected) return false;
+    if (this.commitInFlight) return true;
+    this.cancelPreview();
     const object = this.selected;
     const tag = readLayoutEditTag(object);
     if (tag) this.emitLiveSync(object, tag);
@@ -529,7 +541,10 @@ export class PlacementEditor {
     if (!this.active || this.commitInFlight || (code !== "KeyQ" && code !== "KeyE")) return;
     if (this.rotateHeld.size === 0 && this.selected && !this.grabbing) {
       const tag = readLayoutEditTag(this.selected);
-      if (tag) this.historyManager.beginDrag(tag.id, this.objectPose(this.selected));
+      if (tag) {
+        this.dragOrigin = { object: this.selected, pose: this.objectPose(this.selected) };
+        this.historyManager.beginDrag(tag.id, this.dragOrigin.pose);
+      }
     }
     this.rotateHeld.add(code);
     this.nudgeRotation(code === "KeyQ" ? -1 : 1, shiftHeld);
@@ -567,6 +582,7 @@ export class PlacementEditor {
   }
 
   private beginPick(input: PlacementEditorSync): void {
+    this.cancelPreview();
     const picked = this.worldScene.pickLayoutEditable(input.camera, input.pointerNdc);
     if (!picked) {
       this.clearSelection();
@@ -574,6 +590,12 @@ export class PlacementEditor {
       return;
     }
     this.selected = picked;
+    this.dragOrigin = { object: picked, pose: this.objectPose(picked) };
+    const pickedTag = readLayoutEditTag(picked);
+    const groundHit = pickedTag?.indoor || pickedTag?.fixedY !== undefined
+      ? this.worldScene.raycastHorizontalPlane(input.camera, input.pointerNdc, picked.position.y)
+      : this.worldScene.raycastTerrain(input.camera, input.pointerNdc);
+    this.grabOffset = groundHit ? { x: picked.position.x - groundHit.x, z: picked.position.z - groundHit.z } : { x: 0, z: 0 };
     this.grabbing = true;
     this.dirty = false;
     const tag = readLayoutEditTag(picked);
@@ -598,8 +620,8 @@ export class PlacementEditor {
       ? this.worldScene.raycastHorizontalPlane(input.camera, input.pointerNdc, object.position.y)
       : this.worldScene.raycastTerrain(input.camera, input.pointerNdc);
     if (!hit) return;
-    const x = snapWorldCoord(hit.x, input.shiftHeld);
-    const z = snapWorldCoord(hit.z, input.shiftHeld);
+    const x = snapWorldCoord(hit.x + this.grabOffset.x, input.shiftHeld);
+    const z = snapWorldCoord(hit.z + this.grabOffset.z, input.shiftHeld);
     let y = tag.fixedY ?? object.position.y;
     if (!tag.indoor && tag.fixedY === undefined) {
       const snapped = this.terrainSnapper.snapToSurface(x, z, { yOffset: tag.yOffset });
@@ -650,9 +672,8 @@ export class PlacementEditor {
       return;
     }
     if (!footprintIsStable(tag, object.position.x, object.position.z, object.rotation.y)) {
-      this.historyManager.cancelDrag(tag.id);
-      this.status = footprintStatus(tag, object.position.x, object.position.z, object.rotation.y)
-        ?? "Unstable footprint — move onto flatter ground";
+      this.cancelPreview();
+      this.status = "Unstable footprint — restored the last saved placement";
       this.onChange();
       return;
     }
@@ -664,10 +685,11 @@ export class PlacementEditor {
         `Move ${tag.id}`
       );
       if (recorded) this.status = `Wrote ${tag.id} → ${tag.sourceFile}`;
+      this.dragOrigin = null;
       this.dirty = false;
     } catch (error) {
-      this.dirty = true;
-      this.status = error instanceof Error ? error.message : "Write failed";
+      this.cancelPreview();
+      this.status = `${error instanceof Error ? error.message : "Write failed"} — placement restored`;
     } finally {
       this.onChange();
       this.flushQueuedLayoutEdits();
@@ -802,6 +824,24 @@ export class PlacementEditor {
       sourceFile: tag.sourceFile,
       warning: tag.warning
     };
+  }
+
+  private cancelPreview(): void {
+    const origin = this.dragOrigin;
+    this.dragOrigin = null;
+    this.rotateHeld.clear();
+    this.grabbing = false;
+    this.dirty = false;
+    if (!origin) return;
+    const { object, pose } = origin;
+    const tag = readLayoutEditTag(object);
+    if (!tag) return;
+    this.historyManager.cancelDrag(tag.id);
+    object.position.set(pose.x, pose.y ?? object.position.y, pose.z);
+    object.rotation.y = pose.rotationY;
+    this.emitLiveSync(object, tag);
+    this.worldScene.followLayoutEditGrounding();
+    this.onStaticWorldChanged();
   }
 
   private clearSelection(): void {

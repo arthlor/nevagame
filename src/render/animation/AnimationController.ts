@@ -794,7 +794,7 @@ export class HumanoidAnimator {
             : "fishing_idle";
       const craftStance = boatInput?.boatTypeId === "boat.rowboat"
         ? "rowboat_idle"
-        : boatInput?.boatTypeId === "boat.skiff"
+        : (boatInput?.boatTypeId === "boat.skiff" || boatInput?.boatTypeId === "boat.trading_ship")
           ? "skiff_fishing"
           : "idle";
       return { base: craftStance, upper };
@@ -806,7 +806,7 @@ export class HumanoidAnimator {
         const exerting = Math.abs(boatInput.throttle) > 0.05 && !blocked;
         return { base: exerting ? "row" : "rowboat_idle", upper: null };
       }
-      if (boatInput?.boatTypeId === "boat.skiff") {
+      if ((boatInput?.boatTypeId === "boat.skiff" || boatInput?.boatTypeId === "boat.trading_ship")) {
         const effort = boatInput.motion?.controlEffort ?? Math.max(
           Math.abs(boatInput.throttle),
           Math.abs(boatInput.steering)

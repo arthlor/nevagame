@@ -472,6 +472,10 @@
   "coral_pillar": {},
   "coral_staghorn": {},
   "coral_table": {},
+  "crafted_trade_pack": {
+    "load": { "kind": "choice", "values": ["provisions", "textiles", "workshop", "maritime"] },
+    "stripeToken": { "kind": "nonemptyString" }
+  },
   "fish_trade_pack": {
     "stripeToken": {
       "kind": "nonemptyString"
@@ -637,10 +641,26 @@
       "kind": "number",
       "min": 1.5,
       "max": 3
+    },
+    "cargoSlots": {
+      "kind": "integer",
+      "min": 2,
+      "max": 6
     }
   },
   "mine_adit": {},
-  "ice_house": {},
+  "ice_house": {
+    "radius": {
+      "kind": "number",
+      "min": 1.85,
+      "max": 1.85
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 1.45,
+      "max": 1.45
+    }
+  },
   "salt_pans": {},
   "timber_stack": {},
   "timber_sawbuck": {},
@@ -654,5 +674,195 @@
   "rock_spire": {},
   "sea_stack": {},
   "round_bush": {},
-  "reeds": {"stalks":{"kind":"integer","min":5,"max":30},"height":{"kind":"number","min":0.5,"max":3},"bladeCount":{"kind":"integer","min":2,"max":16}}
+  "reeds": {"stalks":{"kind":"integer","min":5,"max":30},"height":{"kind":"number","min":0.5,"max":3},"bladeCount":{"kind":"integer","min":2,"max":16}},
+  "lighthouse": {"height":{"kind":"number","min":6,"max":24},"baseRadius":{"kind":"number","min":1,"max":5},"sides":{"kind":"integer","min":8,"max":16},"masonryCourses":{"kind":"integer","min":2,"max":12},"masonryBlocks":{"kind":"integer","min":6,"max":24},"bandCount":{"kind":"integer","min":4,"max":12},"cottageWidth":{"kind":"number","min":1.5,"max":5}},
+  "windmill": {"height":{"kind":"number","min":4,"max":16},"baseRadius":{"kind":"number","min":1,"max":5},"sides":{"kind":"integer","min":8,"max":16}},
+  "stone_bridge": {"length":{"kind":"number","min":5,"max":30},"width":{"kind":"number","min":2,"max":8},"archCount":{"kind":"integer","min":1,"max":4},"masonryCourses":{"kind":"integer","min":2,"max":8},"railPosts":{"kind":"integer","min":5,"max":16}},
+  "tool_shed": {"width":{"kind":"number","min":2.4,"max":2.4},"depth":{"kind":"number","min":2.2,"max":2.2},"wallHeight":{"kind":"number","min":2.05,"max":2.05},"roofPitchDeg":{"kind":"integer","min":18,"max":18},"foundationHeight":{"kind":"number","min":0.42,"max":0.42},"roofOverhang":{"kind":"number","min":0.34,"max":0.34},"shingleRows":{"kind":"integer","min":4,"max":4},"shingleColumns":{"kind":"integer","min":5,"max":5},"masonryCourses":{"kind":"integer","min":2,"max":2},"masonryBlocks":{"kind":"integer","min":3,"max":3},"doorWidth":{"kind":"number","min":0.86,"max":0.86},"doorHeight":{"kind":"number","min":1.55,"max":1.55}},
+  "river_boulder": {"form":{"kind":"choice","values":["rounded","tabular"]},"lobes":{"kind":"integer","min":1,"max":3},"moss":{"kind":"number","min":0,"max":1}},
+  "reed_bed": {"stalks":{"kind":"integer","min":8,"max":64},"height":{"kind":"number","min":0.3,"max":2.4},"spread":{"kind":"number","min":0.15,"max":1.6},"cattailEvery":{"kind":"integer","min":0,"max":8},"bladeCount":{"kind":"integer","min":1,"max":4}},
+  "fern_clump": {"fronds":{"kind":"integer","min":5,"max":16},"length":{"kind":"number","min":0.3,"max":1.4}},
+  "willow_shrub": {"stems":{"kind":"integer","min":3,"max":12},"height":{"kind":"number","min":0.8,"max":3.2},"spread":{"kind":"number","min":0.4,"max":2.4}},
+  "trading_station": {"accent":{"kind":"choice","values":["accent_teal_01","accent_red_01","accent_ochre_01","cloth_olive_01","cloth_slate_01"]},"specialty":{"kind":"choice","values":["grain","timber","marsh","ore","orchard"]}},
+  "trading_ship": {},
+  "cart_workshop": {
+    "width": {
+      "kind": "number",
+      "min": 10.5,
+      "max": 10.5
+    },
+    "depth": {
+      "kind": "number",
+      "min": 7.4,
+      "max": 7.4
+    },
+    "ridgeHeight": {
+      "kind": "number",
+      "min": 7.35,
+      "max": 7.35
+    },
+    "bayFraction": {
+      "kind": "number",
+      "min": 0.44,
+      "max": 0.44
+    },
+    "roofOverhang": {
+      "kind": "number",
+      "min": 0.58,
+      "max": 0.58
+    },
+    "signRadius": {
+      "kind": "number",
+      "min": 0.5,
+      "max": 0.7
+    }
+  },
+  "working_dock": {
+    "length": {
+      "kind": "number",
+      "min": 3,
+      "max": 60
+    },
+    "width": {
+      "kind": "number",
+      "min": 2,
+      "max": 10
+    },
+    "canopy": {
+      "kind": "boolean"
+    },
+    "deckPlanks": {
+      "kind": "integer",
+      "min": 4,
+      "max": 100
+    },
+    "pileRows": {
+      "kind": "integer",
+      "min": 2,
+      "max": 20
+    }
+  },
+  "farmhouse": {
+    "width": {
+      "kind": "number",
+      "min": 6.6,
+      "max": 6.6
+    },
+    "depth": {
+      "kind": "number",
+      "min": 4.8,
+      "max": 4.8
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 3.1,
+      "max": 3.1
+    },
+    "roofPitchDeg": {
+      "kind": "integer",
+      "min": 50,
+      "max": 50
+    },
+    "masonryCourses": {
+      "kind": "integer",
+      "min": 4,
+      "max": 4
+    },
+    "masonryBlocks": {
+      "kind": "integer",
+      "min": 5,
+      "max": 5
+    },
+    "shingleRows": {
+      "kind": "integer",
+      "min": 8,
+      "max": 8
+    },
+    "shingleColumns": {
+      "kind": "integer",
+      "min": 12,
+      "max": 12
+    },
+    "crossGableWidth": {
+      "kind": "number",
+      "min": 3.2,
+      "max": 3.2
+    },
+    "porchDepth": {
+      "kind": "number",
+      "min": 1.7,
+      "max": 1.7
+    },
+    "porchPlanks": {
+      "kind": "integer",
+      "min": 8,
+      "max": 8
+    },
+    "chimneyOffsetX": {
+      "kind": "number",
+      "min": 3.35,
+      "max": 3.35
+    },
+    "chimneyHeight": {
+      "kind": "number",
+      "min": 8.9,
+      "max": 8.9
+    }
+  },
+  "cottage": {
+    "width": {
+      "kind": "number",
+      "min": 4.4,
+      "max": 4.4
+    },
+    "depth": {
+      "kind": "number",
+      "min": 5.64,
+      "max": 5.64
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 3.95,
+      "max": 3.95
+    },
+    "roofRise": {
+      "kind": "number",
+      "min": 2.18,
+      "max": 2.18
+    },
+    "chimneyHeight": {
+      "kind": "number",
+      "min": 7.78,
+      "max": 7.78
+    }
+  },
+  "coastal_hut": {
+    "width": {
+      "kind": "number",
+      "min": 3.8,
+      "max": 4.4
+    },
+    "depth": {
+      "kind": "number",
+      "min": 3.3,
+      "max": 3.7
+    },
+    "wallHeight": {
+      "kind": "number",
+      "min": 2.4,
+      "max": 2.4
+    },
+    "roofPitch": {
+      "kind": "integer",
+      "min": 25,
+      "max": 25
+    },
+    "form": {
+      "kind": "choice",
+      "values": [
+        "shelter",
+        "store"
+      ]
+    }
+  }
 }

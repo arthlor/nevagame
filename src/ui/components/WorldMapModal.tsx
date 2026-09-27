@@ -16,6 +16,8 @@ import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForMapNode } from "../chrome/uiAtlas";
 import { WorldChartTerrain } from "./WorldChartTerrain";
 import { playUiSound } from "../audio/uiAudio";
+import { placeLabel } from "../../i18n/placesTr";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface WorldMapModalProps {
   map: WorldMapDto;
@@ -44,6 +46,7 @@ function chartAreaViewBox(area: "sea" | "neva" | "sunreach") {
 }
 
 const CARDINALS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const CARDINALS_TR = ["K", "KD", "D", "GD", "G", "GB", "B", "KB"];
 
 function nodeSupportsLens(node: MapNode, lens: MapLens): boolean {
   if (lens === "markets") return Boolean(node.marketId);
@@ -89,6 +92,13 @@ const MAP_LENS_LABELS: Record<MapLens, string> = {
   markets: "Markets",
   fishing: "Fishing notes",
   farmland: "Farms"
+};
+
+const MAP_LENS_LABELS_TR: Record<MapLens, string> = {
+  geography: "Harita",
+  markets: "Pazarlar",
+  fishing: "Balık notları",
+  farmland: "Çiftlikler"
 };
 
 interface MapNode {
@@ -177,6 +187,9 @@ function fishingInsight(map: WorldMapDto, node: MapNode): {
 export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   map, questMarkers = [], customWaypoint, onSetCustomWaypoint, onInspectMarketDemand, onClose
 }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
+  const chartName = (name: string) => placeLabel(name, locale);
   const [chartArea, setChartArea] = useState<"sea" | "neva" | "sunreach">("sea");
   const [activeLens, setActiveLens] = useState<MapLens>("geography");
   const [selectedNodeId, setSelectedNodeId] = useState<string>("chart.neva_harbor");
@@ -222,11 +235,17 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   const selectedFishingInsight = fishingInsight(map, selectedNode);
   const selectedFarm = selectedNode.farmId ? map.farms[selectedNode.farmId] : undefined;
   const selectedDistance = Math.hypot(selectedNode.worldPosition.x - playerX, selectedNode.worldPosition.z - playerZ);
-  const selectedTerrain = WorldLayout.isSailable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
-    ? "Navigable water"
-    : WorldLayout.isWalkable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
-      ? "Road or trail"
-      : "Rough ground";
+  const selectedTerrain = isTr
+    ? WorldLayout.isSailable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
+      ? "Seyredilebilir su"
+      : WorldLayout.isWalkable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
+        ? "Yol veya patika"
+        : "Engebeli arazi"
+    : WorldLayout.isSailable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
+      ? "Navigable water"
+      : WorldLayout.isWalkable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
+        ? "Road or trail"
+        : "Rough ground";
 
   const areaIncludes = (node: MapNode) => chartArea === "neva" ? node.islandId === "island.neva"
     : chartArea === "sunreach" ? node.islandId === "island.sunreach"
@@ -275,7 +294,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   const waypointBearingDeg = activeWaypoint
     ? Math.round((Math.atan2(activeWaypoint.x - playerX, -(activeWaypoint.z - playerZ)) * 180 / Math.PI + 360) % 360)
     : 0;
-  const bearingCardinal = CARDINALS[Math.round(waypointBearingDeg / 45) % 8];
+  const bearingCardinal = (isTr ? CARDINALS_TR : CARDINALS)[Math.round(waypointBearingDeg / 45) % 8];
 
   // Focus and select node with automatic camera centering when zoomed
   const focusNode = (nodeId: string) => {
@@ -461,49 +480,53 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
               <IconCompass size={22} />
             </span>
             <div>
-              <h2 id="map-title" className="map-title">Nautical Chart of the Neva Archipelago</h2>
-              <span className="map-subtitle">Islands, sea lanes, farms, and fishing notes</span>
+              <h2 id="map-title" className="map-title">{isTr ? "Neva Takımadası Deniz Haritası" : "Nautical Chart of the Neva Archipelago"}</h2>
+              <span className="map-subtitle">{isTr ? "Adalar, deniz yolları, çiftlikler ve balıkçılık notları" : "Islands, sea lanes, farms, and fishing notes"}</span>
               {map.activeSchools.length > 0 && (
                 <span className="map-school-tally" data-testid="map-school-tally">
-                  {`${map.activeSchools.length} school${map.activeSchools.length === 1 ? "" : "s"} working`}
-                  {` · nearest ${map.activeSchools[0].distanceMeters} m`}
+                  {isTr
+                    ? `${map.activeSchools.length} sürü faal · en yakını ${map.activeSchools[0].distanceMeters} m`
+                    : `${map.activeSchools.length} school${map.activeSchools.length === 1 ? "" : "s"} working · nearest ${map.activeSchools[0].distanceMeters} m`}
                 </span>
               )}
             </div>
           </div>
 
-          <ChromeClose onClick={onClose} label="Close map" className="map-close-btn" />
+          <ChromeClose onClick={onClose} label={isTr ? "Haritayı kapat" : "Close map"} className="map-close-btn" />
         </header>
 
         <div className="map-modal-content" data-lens={activeLens}>
-          <div className="map-lenses-bar" role="tablist" aria-label="Chart lenses" data-testid="map-lenses" onKeyDown={handleTabListKeyDown}>
-            {(["geography", "markets", "fishing", "farmland"] as MapLens[]).map((lens) => (
-              <button
-                key={lens}
-                type="button"
-                id={`map-lens-${lens}`}
-                role="tab"
-                aria-selected={activeLens === lens}
-                aria-controls="map-lens-details"
-                tabIndex={activeLens === lens ? 0 : -1}
-                className={`map-lens-btn ${activeLens === lens ? "is-active" : ""}`}
-                aria-label={MAP_LENS_LABELS[lens]}
-                title={MAP_LENS_LABELS[lens]}
-                onClick={() => {
-                  playUiSound("page-turn");
-                  setActiveLens(lens);
-                  setSelectedNodeId(destinationForView(chartArea, lens, selectedNode).id);
-                }}
-              >
-                {MAP_LENS_ICONS[lens]}
-                <span className="map-lens-label">{MAP_LENS_LABELS[lens]}</span>
-              </button>
-            ))}
+          <div className="map-lenses-bar" role="tablist" aria-label={isTr ? "Harita filtreleri" : "Chart lenses"} data-testid="map-lenses" onKeyDown={handleTabListKeyDown}>
+            {(["geography", "markets", "fishing", "farmland"] as MapLens[]).map((lens) => {
+              const label = isTr ? MAP_LENS_LABELS_TR[lens] : MAP_LENS_LABELS[lens];
+              return (
+                <button
+                  key={lens}
+                  type="button"
+                  id={`map-lens-${lens}`}
+                  role="tab"
+                  aria-selected={activeLens === lens}
+                  aria-controls="map-lens-details"
+                  tabIndex={activeLens === lens ? 0 : -1}
+                  className={`map-lens-btn ${activeLens === lens ? "is-active" : ""}`}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => {
+                    playUiSound("page-turn");
+                    setActiveLens(lens);
+                    setSelectedNodeId(destinationForView(chartArea, lens, selectedNode).id);
+                  }}
+                >
+                  {MAP_LENS_ICONS[lens]}
+                  <span className="map-lens-label">{label}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="map-canvas-container">
             {/* Regional Navigation Bookmark Ribbon */}
-            <nav className="map-area-tabs" aria-label="Chart area">
+            <nav className="map-area-tabs" aria-label={isTr ? "Harita bölgesi" : "Chart area"}>
               {(["sea", "neva", "sunreach"] as const).map((area) => (
                 <button
                   className="map-area-tab"
@@ -512,16 +535,16 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                   aria-pressed={chartArea === area}
                   onClick={() => switchArea(area)}
                 >
-                  {area === "sea" ? "Open sea" : area === "neva" ? "Neva" : "Sunreach"}
+                  {area === "sea" ? (isTr ? "Açık deniz" : "Open sea") : area === "neva" ? "Neva" : (isTr ? "Güneşeren" : "Sunreach")}
                 </button>
               ))}
             </nav>
 
             {/* On-Canvas Brass Zoom Controls */}
-            <div className="map-zoom-controls" aria-label="Chart zoom controls">
-              <button type="button" className="map-zoom-btn" onClick={handleZoomIn} title="Zoom in" aria-label="Zoom in">+</button>
-              <button type="button" className="map-zoom-btn map-zoom-reset" onClick={handleZoomReset} title="Reset chart view" aria-label="Reset chart view">1:1</button>
-              <button type="button" className="map-zoom-btn" onClick={handleZoomOut} title="Zoom out" aria-label="Zoom out">−</button>
+            <div className="map-zoom-controls" aria-label={isTr ? "Harita yakınlaştırma kontrolleri" : "Chart zoom controls"}>
+              <button type="button" className="map-zoom-btn" onClick={handleZoomIn} title={isTr ? "Yakınlaş" : "Zoom in"} aria-label={isTr ? "Yakınlaş" : "Zoom in"}>+</button>
+              <button type="button" className="map-zoom-btn map-zoom-reset" onClick={handleZoomReset} title={isTr ? "Harita görünümünü sıfırla" : "Reset chart view"} aria-label={isTr ? "Harita görünümünü sıfırla" : "Reset chart view"}>1:1</button>
+              <button type="button" className="map-zoom-btn" onClick={handleZoomOut} title={isTr ? "Uzaklaş" : "Zoom out"} aria-label={isTr ? "Uzaklaş" : "Zoom out"}>−</button>
             </div>
 
             <svg
@@ -529,7 +552,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
               viewBox={chartView}
               className="map-svg-canvas"
               role="group"
-              aria-label="Map of Neva, Sunreach and the channel islands"
+              aria-label={isTr ? "Neva, Güneşeren ve boğaz adaları haritası" : "Map of Neva, Sunreach and the channel islands"}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -570,7 +593,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                     }}
                     role="button"
                     tabIndex={0}
-                    aria-label={`Select ${node.name}`}
+                    aria-label={isTr ? `${chartName(node.name)} seç` : `Select ${node.name}`}
                     aria-pressed={isSelected}
                   >
                     {isSelected && (
@@ -619,7 +642,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                       <g transform={`translate(${px + 14}, ${py - 10})`}>
                         <rect width="112" height="22" rx="4" fill="rgba(42, 28, 20, 0.92)" stroke="#c4a46a" strokeWidth="1" />
                         <text x="6" y="15" fill="#fbf7ee" fontSize="11" fontWeight="700">
-                          {nodeMarketInsight.demandLabel ?? "Steady"}
+                          {nodeMarketInsight.demandLabel ?? (isTr ? "Durgun" : "Steady")}
                         </text>
                       </g>
                     )}
@@ -628,7 +651,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                       <g transform={`translate(${px + 14}, ${py - 10})`}>
                         <rect width="128" height="22" rx="4" fill="rgba(30, 48, 56, 0.92)" stroke="#5ea3ad" strokeWidth="1" />
                         <text x="6" y="15" fill="#e0f4f7" fontSize="11" fontWeight="700">
-                          {nodeFishingInsight.species[0] ?? "No notes yet"}
+                          {nodeFishingInsight.species[0] ?? (isTr ? "Henüz not yok" : "No notes yet")}
                         </text>
                       </g>
                     )}
@@ -637,7 +660,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                       <g transform={`translate(${px + 14}, ${py - 10})`}>
                         <rect width="115" height="22" rx="4" fill="rgba(40, 56, 32, 0.92)" stroke="#88aa6e" strokeWidth="1" />
                         <text x="6" y="15" fill="#f0fae8" fontSize="11" fontWeight="700">
-                          {nodeFarm.plantedCount} Crops Planted
+                          {nodeFarm.plantedCount} {isTr ? "Mahsul Ekili" : "Crops Planted"}
                         </text>
                       </g>
                     )}
@@ -651,7 +674,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                         fontFamily="serif"
                         className="map-node-text"
                       >
-                        {node.name}
+                        {chartName(node.name)}
                       </text>
                     )}
                   </g>
@@ -706,12 +729,14 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                           stroke="#4a3a12" strokeWidth="2" strokeLinejoin="round" />
                         {focused && <path d="M0 -6.4 L4.7 0 L0 6.4 L-4.7 0 Z" fill="#fff6dd" opacity="0.6" />}
                         <text {...labelPosition} fill="#2c2118" fontSize="10.5" fontWeight="bold" fontFamily="serif">
-                          {marker.label}
+                          {chartName(marker.label)}
                         </text>
                         <text y="25" fill="#5a4a2c" fontSize="9.5" textAnchor="middle" fontFamily="serif">
                           {`${marker.distanceMeters} m`}
                         </text>
-                        <title>{`Objective · ${marker.label} · ${marker.distanceMeters} m`}</title>
+                        <title>{isTr
+                          ? `Hedef · ${chartName(marker.label)} · ${marker.distanceMeters} m`
+                          : `Objective · ${marker.label} · ${marker.distanceMeters} m`}</title>
                       </g>
                     </g>
                   );
@@ -746,7 +771,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                 <circle r="10" fill="none" stroke="#9a3528" strokeWidth="1.2" opacity="0.5" className="player-pulse-ring" />
                 <circle r="5" fill="#9a3528" stroke="#fbf7ee" strokeWidth="1.5" />
                 <text y="-10" fill="#4a2810" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="serif">
-                  YOU
+                  {isTr ? "SEN" : "YOU"}
                 </text>
               </g>
 
@@ -772,10 +797,10 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
                 <circle r="3" fill="#bfa369" stroke="#362516" strokeWidth="0.8" />
 
-                <text y="-21" textAnchor="middle" fill="#8f2628" fontSize="8" fontWeight="bold" fontFamily="serif">N</text>
-                <text y="26" textAnchor="middle" fill="#5a4a38" fontSize="7" fontWeight="600" fontFamily="serif">S</text>
-                <text x="25" y="3" textAnchor="middle" fill="#5a4a38" fontSize="7" fontWeight="600" fontFamily="serif">E</text>
-                <text x="-25" y="3" textAnchor="middle" fill="#5a4a38" fontSize="7" fontWeight="600" fontFamily="serif">W</text>
+                <text y="-21" textAnchor="middle" fill="#8f2628" fontSize="8" fontWeight="bold" fontFamily="serif">{isTr ? "K" : "N"}</text>
+                <text y="26" textAnchor="middle" fill="#5a4a38" fontSize="7" fontWeight="600" fontFamily="serif">{isTr ? "G" : "S"}</text>
+                <text x="25" y="3" textAnchor="middle" fill="#5a4a38" fontSize="7" fontWeight="600" fontFamily="serif">{isTr ? "D" : "E"}</text>
+                <text x="-25" y="3" textAnchor="middle" fill="#5a4a38" fontSize="7" fontWeight="600" fontFamily="serif">{isTr ? "B" : "W"}</text>
               </g>
             </svg>
           </div>
@@ -787,16 +812,24 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
             aria-labelledby={`map-lens-${activeLens}`}
             tabIndex={0}
           >
-            <label className="guild-chart-destination">Place
-              <select aria-label="Chart destination" value={selectedNodeId} onChange={(event) => focusNode(event.target.value)}>
-                {directoryNodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+            <label className="guild-chart-destination">{isTr ? "Yer" : "Place"}
+              <select aria-label={isTr ? "Harita hedefi" : "Chart destination"} value={selectedNodeId} onChange={(event) => focusNode(event.target.value)}>
+                {directoryNodes.map((node) => <option key={node.id} value={node.id}>{chartName(node.name)}</option>)}
               </select>
             </label>
             <header className="sidebar-node-header">
               <AtlasImage src={atlasForMapNode(selectedNode.id)} alt="" size={40} className="sidebar-node-atlas" />
               <div>
-                <span className="sidebar-category-badge">{selectedNode.category.toUpperCase()}</span>
-                <h3 className="sidebar-node-name">{selectedNode.name}</h3>
+                <span className="sidebar-category-badge">
+                  {isTr
+                    ? selectedNode.category === "farm" ? "ÇİFTLİK"
+                      : selectedNode.category === "village" ? "KÖY"
+                      : selectedNode.category === "harbor" ? "LİMAN"
+                      : selectedNode.category === "lighthouse" ? "FENER"
+                      : "BALIKÇILIK"
+                    : selectedNode.category.toUpperCase()}
+                </span>
+                <h3 className="sidebar-node-name">{chartName(selectedNode.name)}</h3>
               </div>
             </header>
 
@@ -810,14 +843,18 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
               }}
             >
               <IconCompass size={14} aria-hidden="true" />
-              <span>Plot course to {selectedNode.name}</span>
+              <span>{isTr ? `${chartName(selectedNode.name)} rotası çiz` : `Plot course to ${selectedNode.name}`}</span>
             </button>
 
             {/* Active Plotted Waypoint Card */}
             {activeWaypoint && (
               <div className="map-active-course-card">
                 <div className="map-course-header">
-                  <span className="map-course-title">Course to {waypointDestination?.name ?? "chart point"}</span>
+                  <span className="map-course-title">
+                    {isTr
+                      ? `${waypointDestination ? chartName(waypointDestination.name) : "noktaya"} rota`
+                      : `Course to ${waypointDestination?.name ?? "chart point"}`}
+                  </span>
                   <button
                     type="button"
                     className="map-course-clear-btn"
@@ -825,19 +862,19 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                       playUiSound("click");
                       setWaypoint(null);
                     }}
-                    title="Clear active course"
-                    aria-label="Clear active course"
+                    title={isTr ? "Rotayı temizle" : "Clear active course"}
+                    aria-label={isTr ? "Rotayı temizle" : "Clear active course"}
                   >
-                    Clear
+                    {isTr ? "Temizle" : "Clear"}
                   </button>
                 </div>
                 <div className="map-course-stats">
                   <div className="route-row">
-                    <span>Bearing</span>
+                    <span>{isTr ? "Kerteriz" : "Bearing"}</span>
                     <strong>{bearingCardinal} {waypointBearingDeg}°</strong>
                   </div>
                   <div className="route-row">
-                    <span>Direct distance</span>
+                    <span>{isTr ? "Kuş uçuşu" : "Direct distance"}</span>
                     <strong>{waypointDistance} m</strong>
                   </div>
                 </div>
@@ -846,14 +883,14 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
             {activeLens === "geography" && (
               <div className="sidebar-section">
-                <h4>Route</h4>
+                <h4>{isTr ? "Rota" : "Route"}</h4>
                 <div className="route-stat-card">
                   <div className="route-row">
-                    <span>Direct distance</span>
+                    <span>{isTr ? "Kuş uçuşu" : "Direct distance"}</span>
                     <strong>{Math.round(selectedDistance)} m</strong>
                   </div>
                   <div className="route-row">
-                    <span>Approach</span>
+                    <span>{isTr ? "Zemin" : "Approach"}</span>
                     <span className="tag-safe">{selectedTerrain}</span>
                   </div>
                 </div>
@@ -862,14 +899,14 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
             {activeLens === "markets" && selectedMarketInsight?.success && (
               <div className="sidebar-section">
-                <h4>Market note</h4>
+                <h4>{isTr ? "Pazar notu" : "Market note"}</h4>
                 <div className="route-stat-card">
                   <div className="route-row">
-                    <span>Most wanted</span>
+                    <span>{isTr ? "En çok aranan" : "Most wanted"}</span>
                     <strong>{selectedMarketInsight.itemName}</strong>
                   </div>
                   <div className="route-row">
-                    <span>Demand</span>
+                    <span>{isTr ? "Talep" : "Demand"}</span>
                     <span className="tag-up">{selectedMarketInsight.demandLabel}</span>
                   </div>
                 </div>
@@ -878,18 +915,18 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
             {activeLens === "fishing" && selectedFishingInsight && (
               <div className="sidebar-section">
-                <h4>Fishing notes</h4>
+                <h4>{isTr ? "Balık notları" : "Fishing notes"}</h4>
                 <div className="route-stat-card">
                   <div className="route-row">
-                    <span>Water</span>
+                    <span>{isTr ? "Su türü" : "Water"}</span>
                     <strong>{selectedFishingInsight.waterType}</strong>
                   </div>
                   <div className="route-row">
-                    <span>Discovered here</span>
-                    <strong>{selectedFishingInsight.species.length > 0 ? selectedFishingInsight.species.join(", ") : "No notes yet"}</strong>
+                    <span>{isTr ? "Burada keşfedilen" : "Discovered here"}</span>
+                    <strong>{selectedFishingInsight.species.length > 0 ? selectedFishingInsight.species.join(", ") : (isTr ? "Henüz not yok" : "No notes yet")}</strong>
                   </div>
                   {selectedFishingInsight.record && (
-                    <div className="route-row"><span>Record</span><span>{selectedFishingInsight.record}</span></div>
+                    <div className="route-row"><span>{isTr ? "Rekor" : "Record"}</span><span>{selectedFishingInsight.record}</span></div>
                   )}
                 </div>
               </div>
@@ -897,19 +934,19 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
             {activeLens === "farmland" && selectedFarm && (
               <div className="sidebar-section">
-                <h4>Farm notes</h4>
+                <h4>{isTr ? "Çiftlik notları" : "Farm notes"}</h4>
                 <div className="route-stat-card">
                   <div className="route-row">
-                    <span>Soil</span>
+                    <span>{isTr ? "Toprak" : "Soil"}</span>
                     <strong className="farm-soil-value">{selectedFarm.fertilityPercent}%</strong>
                   </div>
                   <div className="route-row">
-                    <span>Climate</span>
+                    <span>{isTr ? "İklim" : "Climate"}</span>
                     <span>{selectedFarm.climateLabel}</span>
                   </div>
                   <div className="route-row">
-                    <span>Planted</span>
-                    <strong>{selectedFarm.plantedCount} plots</strong>
+                    <span>{isTr ? "Ekim" : "Planted"}</span>
+                    <strong>{selectedFarm.plantedCount} {isTr ? "parsel" : "plots"}</strong>
                   </div>
                 </div>
               </div>
@@ -917,21 +954,31 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
             <div className="map-sidebar-tip">
               <span>{activeLens === "fishing"
-                ? "Select a waterway to read your discoveries and catches."
+                ? (isTr ? "Keşiflerinizi ve avlarınızı görmek için bir su yolu seçin." : "Select a waterway to read your discoveries and catches.")
                 : activeLens === "farmland"
-                  ? "Select a farm to read its soil and planting notes."
+                  ? (isTr ? "Toprak ve ekim notlarını görmek için bir çiftlik seçin." : "Select a farm to read its soil and planting notes.")
                   : activeLens === "markets"
-                    ? "Select a market to see trade lanes and arbitrage."
-                    : "Select a place, then plot its course, or click the chart to pin a point."}</span>
+                    ? (isTr ? "Ticaret yollarını ve fiyat fırsatlarını görmek için bir pazar seçin." : "Select a market to see trade lanes and arbitrage.")
+                    : (isTr ? "Bir yer seçip rota çizin veya işaret koymak için haritaya tıklayın." : "Select a place, then plot its course, or click the chart to pin a point.")}</span>
             </div>
 
             <div className="map-sidebar-directory">
               <div className="map-directory-header">
                 <span className="map-directory-title">
-                  {activeLens === "markets" ? "Markets" : activeLens === "fishing" ? "Fishing places" : activeLens === "farmland" ? "Farms" : chartArea === "sea" ? "Charted places" : chartArea === "neva" ? "Neva mainland places" : "Sunreach isle places"}
+                  {activeLens === "markets"
+                    ? (isTr ? "Pazarlar" : "Markets")
+                    : activeLens === "fishing"
+                      ? (isTr ? "Balıkçılık yerleri" : "Fishing places")
+                      : activeLens === "farmland"
+                        ? (isTr ? "Çiftlikler" : "Farms")
+                        : chartArea === "sea"
+                          ? (isTr ? "Kayıtlı yerler" : "Charted places")
+                          : chartArea === "neva"
+                            ? (isTr ? "Neva ana kara yerleri" : "Neva mainland places")
+                            : (isTr ? "Güneşeren ada yerleri" : "Sunreach isle places")}
                 </span>
                 <span className="map-directory-count">
-                  {directoryNodes.length} charted
+                  {directoryNodes.length} {isTr ? "kayıtlı" : "charted"}
                 </span>
               </div>
               <ul className="map-directory-list" role="list">
@@ -949,7 +996,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                           focusNode(node.id);
                         }}
                       >
-                        <span className="map-directory-item-name">{node.name}</span>
+                        <span className="map-directory-item-name">{chartName(node.name)}</span>
                         <span className="map-directory-item-dist">{dist} m</span>
                       </button>
                     </li>

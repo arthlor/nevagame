@@ -11,8 +11,13 @@ interface RoadTerrainGrid {
 
 // Interpolating the whole vertex keeps the authored shoulder/color field intact
 // when a road face crosses a terrain cell or the two supporting planes meet.
-type RoadVertex = [x: number, y: number, z: number, r: number, g: number, b: number, a: number];
+// Position and RGBA come first; any further per-vertex attributes the source
+// carries (the road frame and class) follow in `EXTRA_ATTRIBUTES` order. They
+// are linear across a source triangle, so the split keeps them exact.
+type RoadVertex = number[];
 type ClipPlane = (vertex: RoadVertex) => number;
+
+const EXTRA_ATTRIBUTES = ["roadFrame", "roadClass", "normal"] as const;
 
 const CLIP_EPSILON = 1e-9;
 
@@ -66,6 +71,10 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
     throw new Error("Road terrain conformity requires the indexed RGBA road geometry");
   }
 
+  const extras = EXTRA_ATTRIBUTES.flatMap((name) => {
+    const attribute = source.getAttribute(name);
+    return attribute ? [{ name, attribute, values: [] as number[] }] : [];
+  });
   const positions: number[] = [];
   const colors: number[] = [];
   const indices: number[] = [];
@@ -103,6 +112,12 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
     const index = positions.length / 3;
     positions.push(quantized[0], quantized[1], quantized[2]);
     colors.push(quantized[3], quantized[4], quantized[5], quantized[6]);
+    let offset = 7;
+    for (const extra of extras) {
+      for (let component = 0; component < extra.attribute.itemSize; component++) {
+        extra.values.push(quantized[offset++]);
+      }
+    }
     vertexCache.set(key, index);
     return index;
   };
@@ -140,10 +155,16 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
     if (triangle % 32 === 0) yield;
     const vertices = [0, 1, 2].map((corner): RoadVertex => {
       const index = sourceIndex.getX(triangle * 3 + corner);
-      return [
+      const vertex = [
         sourcePositions.getX(index), sourcePositions.getY(index), sourcePositions.getZ(index),
         sourceColors.getX(index), sourceColors.getY(index), sourceColors.getZ(index), sourceColors.getW(index)
       ];
+      for (const extra of extras) {
+        for (let component = 0; component < extra.attribute.itemSize; component++) {
+          vertex.push(extra.attribute.getComponent(index, component));
+        }
+      }
+      return vertex;
     });
     const kind = triangle < roadTriangleEnd ? "road" : triangle < junctionTriangleEnd ? "junction" : "gateway";
     const triangleMinimumX = Math.min(...vertices.map((vertex) => vertex[0]));
@@ -216,8 +237,23 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4));
+  for (const extra of extras) {
+    geometry.setAttribute(extra.name, new THREE.Float32BufferAttribute(extra.values, extra.attribute.itemSize));
+  }
   geometry.setIndex(indices);
-  geometry.computeVertexNormals();
+  // Shade with the road's own crowned surface. Where a coarse terrain face
+  // rises above the ribbon near its edge the split follows that face, and its
+  // tilted normal drew light wedges along the road; the carried normal keeps
+  // the lighting on the road's smooth form. Positions still follow the terrain.
+  const carried = geometry.getAttribute("normal");
+  if (carried) {
+    for (let index = 0; index < carried.count; index++) {
+      const length = Math.hypot(carried.getX(index), carried.getY(index), carried.getZ(index)) || 1;
+      carried.setXYZ(index, carried.getX(index) / length, carried.getY(index) / length, carried.getZ(index) / length);
+    }
+  } else {
+    geometry.computeVertexNormals();
+  }
   // COLOR_0 may split an otherwise shared vertex. Smooth those coincident
   // corners together so the new terrain-cell boundaries do not become facets.
   const normals = geometry.getAttribute("normal");

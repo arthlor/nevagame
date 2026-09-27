@@ -278,6 +278,8 @@ who simply never turned Act 2 in could run a profitable 360-minute recipe every
 30 real seconds. The crop gate needs no such tightening, since fertility drains
 and seeds run out.
 
+The optional `track.caravans` chain opens after the first harvest-and-compost quest. `questsVillageTrade.ts` sends the player through each packing yard, teaches demand and return loads, introduces the cartwright, gates both wagon acquisitions, then commissions the freight ship and asks for a full Sunreach delivery before an olive return load. It uses real craft, purchase and physical pack-sale events with station/market scope. It does not auto-deliver cargo, waive purchase gates or replace the main story spine. The separate `track.tradecraft` chain opens after the first caravan load and the initial Processing rank. `questsTradeCraft.ts` teaches ingredient sourcing and replacement cost, durable return cargo, premium shipments with shared demand, and a Sunreach export return. It uses actual recipe collection and named-pack sale events; no purchase, cargo or XP gate is bypassed.
+
 ## Narrative persistence boundary
 
 Dialogue page position, open/closed modal state, and the last spoken line are
@@ -590,22 +592,26 @@ interface RecipeDefinition {
 
 `src/content/recipes.ts` owns recipe membership, inputs, results, authored duration, tier, presentation kind and gates. `src/content/equipment.ts` owns permanent equipment membership, slots, effects, icons and presentation bindings. `ContentRegistry` validates both graphs; `ProcessingDomain`, `EquipmentDomain` and `ProgressionDomain` are the only mutation/formula owners. Do not maintain a second item or recipe database in UI, animation, Three.js nodes or documentation.
 
+Trade packs are made only at the five `trading-station` packing yards. `src/content/tradePacks.ts` owns each yard's harvest, crafted and premium recipes, material inputs, packing fee, Processing/Trading gates, value and preservation. `villageTrade.ts` retains the home villages of the original harvest goods. Finite regional market shelves, farming and existing processing recipes supply the inputs; better shipments combine materials from several villages. The station shows each input's suppliers, current full-batch purchase cost, fee, replacement cost and estimated destination margin. Replacement cost counts homegrown ingredients at current retail value and excludes travel; a depleted supplier cannot advertise an executable purchase. Start consumes exact graded lots, gold and Work atomically; collection places one finished physical pack in empty hands. The origin and paid economic terms are frozen when the job starts. Old kitchen jobs finish at Neva's yard without rewriting their paid output or charging a new fee.
+
 ## 5.1 Processing transaction and save contract
 
 Starting and collecting are separate simulation commands:
 
-1. **Start quote:** validate a real station and its front approach, station type, recipe/rank gate, ingredients, free hands, Work affordability, and—only for an equipment result—unique ownership plus available or reserved wardrobe capacity. An empty station is valid. At most one active or complete job may reference a station; every job must reference an existing station.
+1. **Start quote:** validate a real station and its front approach, station type and regional membership, recipe/rank gates, ingredients, fee, free hands, Work affordability, and—only for an equipment result—unique ownership plus available or reserved wardrobe capacity. An empty station is valid. At most one active or complete job may reference a station; every job must reference an existing station.
 2. **Commit:** `SimulationActionTimeline` owns the action clock and commit timestamp. It replays the canonical command exactly once at the marker; animation and audio are observers. Before the marker, cancellation or reload costs nothing. After a successful marker, presentation interruption cannot undo the economic transaction.
 3. **Wait:** only an already-committed job may advance from `active` to `complete`, including through bounded offline progression. Offline time never starts or collects a job. A completed result may wait indefinitely and continues to occupy its station.
 4. **Collect:** revalidate the station approach and current destination capacity. Grant the captured result and captured Processing XP atomically, emit completion once, then remove the job. A full satchel or wardrobe leaves the completed job intact.
 
-A job snapshots its result, user-facing labels, tier, Work debit, XP, presentation kind and effective duration when it starts. Later content edits cannot change an in-flight economic result. Save validation permits zero jobs, rejects more than one non-collected job per station, and validates the snapshot itself rather than re-deriving it from mutable recipe content: tier-owned Work/XP, status against the saved clock, exact start/end/duration arithmetic, bounded labels and duration, and unique item stacks within the empty-satchel and per-item limits. Collection defensively rechecks the frozen economic payload before granting output or XP. Schema migration and reload behavior belong to `01` §6.1.
+A job snapshots its result, user-facing labels, tier, Work debit, gold fee, XP, presentation kind and effective duration when it starts. Later content edits cannot change an in-flight economic result. Save validation permits zero jobs, rejects more than one non-collected job per station, and validates the snapshot itself rather than re-deriving it from mutable recipe content: tier-owned Work/XP, status against the saved clock, exact start/end/duration arithmetic, bounded labels and duration, and unique item stacks within the empty-satchel and per-item limits. Collection defensively rechecks the frozen economic payload before granting output or XP. Schema migration and reload behavior belong to `01` §6.1.
 
 Content validation rejects duplicate item-output stacks, any individual output above its item stack limit, and any authored batch that cannot fit in the canonical empty player satchel. This is an authoring sanity check, not a start-time capacity reservation: current satchel space is intentionally re-evaluated only when the player collects the finished item result.
 
 Recipes keep their authored/effective durations; the practical gear gate moves are described below. The compost and basic chum batch yields are rebalanced in `src/content/recipes.ts`; jobs started before those changes retain their captured output. New jobs use a tier reflecting the hands-on task: `light` for short milling or fish cleaning, `prepared` for multi-input supplies and meals, `standard` for a larger batch or textile/equipment work, and `masterwork` for advanced durable gear. Station wait time is not all active labor: the worm compost batch occupies its bin for hours but is not charged as hours of manual work. `PROCESSING_WORK_BY_TIER` and `PROCESSING_XP_BY_TIER` own the exact values, with equal tier XP preventing a cheaper short job from becoming a fast rank-farming route. The v36 fixture preserves the historical result, Work, XP, duration and gates of every former recipe; its in-flight jobs retain their captured `standard` values when current recipe tiers change. Tiers communicate production scale, are not rarity labels and do not bypass rank gates.
 
 Representative connections remain grain → chum, fish scraps → fertilizer, local fish → supplies/preserved food, farm fiber → tackle and textiles, and workshop materials → durable clothing/tools. Lure production has two recovery speeds: a low-efficiency novice recipe uses renewable plant matter and composted worms for one immediate replacement, while the later batch recipe turns harvested flax and fish scraps into two. Every recipe must support preparation, useful recovery, preservation, equipment or trade.
+
+Harvest packing starts at novice Processing; crafted and premium shipments use the shared rank ladder and premium shipments also require Trading experience. `tradePacks.ts` owns the gates, tiers and fees, and `progression.ts` advertises the corresponding recipes. Start consumes every ingredient in lowest-grade-first order and freezes the exact lots, total quantity, value-weighted crop-quality multiplier, base shipment value and decay rate. Collection requires free hands and creates one physical pack independent of satchel space; condition begins at collection, consistent with completed station outputs waiting indefinitely. Later recipe tuning does not reprice already-paid jobs or cargo. A blocked collection leaves the job intact. Durable textiles, metal and timber do not decay or consume ice; fresh and preserved provisions use their captured decay rate with the existing location/climate modifiers. Discarding a mixed shipment returns no materials or fee; only a pure harvest pack can recover plant matter.
 
 ## 5.2 Processing progression and economy proof
 
@@ -855,7 +861,7 @@ Weight uses a non-uniform distribution: most near species average, rare values n
 
 # 10. Physical Cargo & Freshness
 
-A player-carried fish occupies both hands. `domainRules.freeHandsBlocker` owns the shared eligibility rule consumed by farming, processing and fishing entry points; their commit paths reject competing tool actions before consuming Work, inventory or RNG. Crop inspection and application animation preflight report the same blocker. Cargo remains visible and unchanged until an explicit cargo transaction frees the hands; tool use never hides or automatically discards it. This does not change cargo capacity, economy tuning or saved state.
+A player-carried trade pack occupies both hands. `domainRules.freeHandsBlocker` owns the shared eligibility rule consumed by farming, processing and fishing entry points; their commit paths reject competing tool actions before consuming Work, inventory or RNG. Crop inspection and application animation preflight report the same blocker. Cargo remains visible and unchanged until an explicit cargo transaction frees the hands; tool use never hides or automatically discards it. This does not change cargo capacity, economy tuning or saved state.
 
 Sport fish and the authored physical basic catch are **fish trade packs**. They
 land in a boat cargo slot (or the player's hands when a compatible shore
@@ -867,18 +873,27 @@ must carry the pack to a village counter that accepts it—Neva Village, Pinewat
 Reedhaven or Highridge—on foot or riding the donkey, and sell it from the Trade
 packs ledger. `MarketDefinition.acceptsFishTradePacks` owns that capability;
 market commands, app routing, world demand boards and the ledger consume it.
-The harbor remains the supply and ordinary fish-goods stall. A carried pack can be stowed back aboard the vessel the player is standing on with `cargo.stow-aboard`: the verb takes an explicit `placement` of `"hold"` or `"hook"`, so the outer transom hook is a deliberate choice rather than a silent overflow. The hook accepts the gargantuan class the internal hold cannot, but it is exposed storage: its freshness modifier matches open carry and it never receives a slot's built-in ice, while the hold's protected slots decay slower and can carry built-in ice. A placement with no fitting free slot is refused with that reason and the catch stays in hand. The inherited horse carriage carries two compatible small/medium packs in independent slots. At its rear, `cargo.load-carriage` moves the carried pack into the first free slot; `cargo.pickup` collects a stored pack. Both require an on-foot player within reach, refuse fishing/boarding conflicts and preserve cargo on rejection. A full bed never consumes or drops the carried pack. A carried pack can also be set down on walkable ground with `cargo.drop`: the free transaction places it one step ahead on dry, walkable, non-sailable footing and keeps its identity, weight, quality and freshness. `cargo.pickup` collects a grounded pack within reach. Ground rests decay at the open-air rate from their own ground climate, never take ice, cannot be sold or stowed from the ground — the pack must be carried to the counter, vessel, carriage or storage first — and persist through save, reload and offline time like any other cargo location. Each pack remains in exactly one boat slot, carriage slot, ground rest or player carry location throughout the handoff. Cart cargo uses open-air freshness and the cart's local climate, including offline progression; no remote satchel ice cools it. Unload and carry each pack to the counter to sell it.
+The harbor remains the supply and ordinary fish-goods stall. A carried pack can be stowed back aboard the vessel the player is standing on with `cargo.stow-aboard`: the verb takes an explicit `placement` of `"hold"` or `"hook"`, so the outer transom hook is a deliberate choice rather than a silent overflow. The hook accepts the gargantuan class the internal hold cannot, but it is exposed storage: its freshness modifier matches open carry and it never receives a slot's built-in ice, while the hold's protected slots decay slower and can carry built-in ice. A placement with no fitting free slot is refused with that reason and the catch stays in hand. The inherited horse carriage and purchased wagons carry compatible small/medium packs in independent slots, with capacity owned by their content definitions. At its rear, `cargo.load-carriage` moves the carried pack into the first free slot; `cargo.pickup` collects a stored pack. Both require an on-foot player within reach, refuse fishing/boarding conflicts and preserve cargo on rejection. A full bed never consumes or drops the carried pack. A carried pack can also be set down on walkable ground with `cargo.drop`: the free transaction places it one step ahead on dry, walkable, non-sailable footing and keeps its identity, weight, quality and freshness. `cargo.pickup` collects a grounded pack within reach. Ground rests decay at the open-air rate from their own ground climate, never take ice, cannot be sold or stowed from the ground — the pack must be carried to the counter, vessel, carriage or storage first — and persist through save, reload and offline time like any other cargo location. Each pack remains in exactly one boat slot, carriage slot, ground rest or player carry location throughout the handoff. Cart cargo uses open-air freshness and the cart's local climate, including offline progression; no remote satchel ice cools it. Unload and carry each pack to the counter to sell it.
 
 ```ts
-interface FishCargoState {
+interface CargoStateBase {
   id: FishCargoId;
-  speciesId: FishSpeciesId;
   weightKg: number;
-  quality: FishQuality;
   caughtAtMinute: GameMinute;
   freshness: number;
-  cargoClass: "small" | "medium" | "large" | "gargantuan";
+  cargoClass: CargoClass;
   location: CargoLocation;
+}
+interface FishCargoState extends CargoStateBase {
+  kind?: "fish";
+  speciesId: FishSpeciesId;
+  quality: FishQuality;
+}
+interface FarmCargoState extends CargoStateBase {
+  kind: "farm";
+  itemId: ItemId;
+  lots: ItemStack[];
+  quality: CropQuality;
 }
 ```
 Freshness starts at **100**:
@@ -920,6 +935,8 @@ At 0: process/discard/fertilizer; never silently delete.
 
 For fishing preparation and Expedition Board readiness, accessible supplies are the satchel followed by the active vessel, or the board's deterministically selected vessel when planning ashore. Consumption is satchel-first and atomic. Remote vessel supply inventories never satisfy a live fishing action or appear as packed for the selected trip.
 
+Farm packs share the same finite hands, ground, carriage, boat and facility slots as fish packs. Their grade label is the lowest enclosed grade, while valuation prices every captured lot separately. Farm decay uses the rate in `farmPacks.ts` with the same location, climate and ice factors, including offline progression. They cannot be released as fish or unpacked to erase decay. Discarding explicitly recovers plant matter and never updates fish records.
+
 # 11. Boats & Sea Safety
 
 ```ts
@@ -953,13 +970,17 @@ Rowboat: first vehicle, lake sport/nearshore, tiny cargo/low speed/poor rough se
 
 Fishing Skiff: LIVE acquisition at the authored harbor skiff mooring requires **7,500 Fishing XP and 850 G**. The atomic purchase creates the persisted `boat.player_skiff`, its eight-slot supply inventory, four internal medium cargo slots, two **external gargantuan hooks** (needed to stow blue marlin; do not nerf marlin to large), fuel tank, and better rough-water tolerance. `item.boat_fuel` is sold at the harbor; `boat.refuel` (dock, nearby, or aboard) consumes one can and fills `fuel` to `fuelCapacity`. A fresh save does not create a skiff; it remains a progression-world asset until purchased.
 
+The trading coaster is a late Trading acquisition at the outer freight berth of Seabreak's main pier. `boats.ts` owns its gold/XP gates, ten physical medium cargo bays, sailing performance and hull limits. It sails without a fuel tank, preserves manual one-pack loading/unloading, and uses compatible Neva and Sunreach moorings. Acquisition creates `boat.player_trading_ship` and its own finite supply store. It qualifies for the open-channel and contract-reach requirements wherever a skiff can sail, and keeps the existing storm, hull, repair and emergency-tow rules. It is never granted by a fresh save or migration.
+
+Neva’s rowboat, skiff and coaster share one working pier with separate boarding points. `WorldAnchors` owns their berths and `WorldMoorings` routes departures around the pier end. Docking or towing home aligns each hull parallel to the pier; the offshore galleon remains scenery.
+
 The Neva–Sunreach sailing centerline, serviced ports and optional islet landings are world registries. Sunreach sits far enough from Neva for the crossing to read as an expedition; Gull's Rest, Driftwood Cay and Lantern Shoal remain off the direct line as small skiff-only detours with walkable landings, discoveries and nearby fishing opportunities. Their `marketId: null` moorings permit docking and reboarding but provide no trade, refuel or automatic service. `MOTOR_FUEL_PER_GAME_MINUTE` in `NavigationDomain` owns motor burn, and the route regression must keep a full-tank direct round trip feasible with a useful reserve.
 The sheltered mainland cove connects Seabreak, Pinewatch and Reedhaven by local
 moorings and sailing routes; those villages also remain reachable by road. A
 local sailing option must not make a mainland delivery require boat ownership.
 The open-channel exposure gate is physical navigation: a rowboat is stopped at
 the safe-side edge, speed is cleared, and one contextual notice names the
-Coastal Fishing Skiff requirement. The skiff may cross. This is not a UI-only
+Coastal Fishing Skiff requirement. The skiff and trading coaster may cross. This is not a UI-only
 lock or a teleporter; fuel and return-route feasibility remain ordinary boat
 economy constraints.
 
@@ -1016,7 +1037,7 @@ re-authored in the same change, or the rider bobs out of step with the animal. M
 
 ## 11B. Mounts (LIVE)
 
-Mounts provide land traversal. The starter pack donkey and inherited horse carriage exist in fresh saves; migration adds the carriage to existing saves without replacing progress. The carriage parks on the open southern edge of the farmhouse yard, facing the exit, with two physical cargo slots governed by §10. There is no purchase, breeding, feeding, durability or stabling economy.
+Mounts provide land traversal. The starter pack donkey and inherited horse carriage exist in fresh saves; migration adds the carriage to existing saves without replacing progress. The carriage parks on the open southern edge of the farmhouse yard, facing the exit, with two physical cargo slots governed by §10. Larger wagons are bought at Neva's cart workshop: each purchase includes its own horse and independent cargo slots. `src/content/villageTrade.ts` owns capacity, geometry dimensions, Trading XP and gold gates; `NavigationDomain.inspectTradeVehicle` owns the displayed offer and atomic purchase validation. `VillageTradeLayout.ts` owns the barn, display bays and packing-yard positions. Vehicles can coexist, and parked assemblies block pedestrians and other wagons. Breeding, feeding and a stabling economy are not implemented.
 
 `MountState` in `src/simulation/core/types.ts` owns pose and gallop-resource
 fields, plus the carriage-only physical cargo slot pointers. `GameState.mounts` is keyed by stable mount ID;
@@ -1084,7 +1105,7 @@ Contract:
   pose. The rider socket and authored left/right stirrup sockets own pelvis and
   foot support; terrain contact solving does not modify mounted poses.
 
-The horse carriage uses `Carriage.ts` for capacity, interaction offsets, collision footprint, driving tuning and its trot stamina budget. W/S moves it forward or backward at the walk speed, A/D steers only while rolling, release brakes, and Shift trots while the budget lasts: roughly ten seconds of trot, then a forced walk until recovery. Walking and reversing stay free. `PhysicsWorld` advances the budget through the shared `advanceMountGait` stepper and commits it to the carriage mount, and the HUD shows it as Trot in the unit-frame stamina slot. `PhysicsWorld` checks the bed, shafts and horse across each fixed-step movement and turn against static collision and dry slope-safe support. Parked bed and horse colliders block pedestrians. The catalog horse gait follows resolved movement, the wheels follow signed travel, and the player sits at the authored driver socket. The initial parking pose and exit clearance are tested against the actual world collision projection. The horse walk/trot bake and catalog reference speeds match `CARRIAGE_TUNING`; reverse travel plays the walk backwards and never spends trot stamina. Steering approaches its target gradually in the transient physics controller. The rear axle follows its rolling tangent and the front axle/horse articulate around the kingpin; the same steered footprint owns collision clearance. Steering is restored on rejected physics commits and is not saved. The cart and horse sample their own terrain support; driver palms, soles and pelvis use authored rein grips, footboard contacts and the seat. The deforming reins connect those palms to head-bone bit sockets.
+The horse carriage uses `Carriage.ts` for capacity, interaction offsets, collision footprint, driving tuning and its trot stamina budget. W/S moves it forward or backward at the walk speed, A/D steers only while rolling, release brakes, and Shift trots while the budget lasts: roughly ten seconds of trot, then a forced walk until recovery. Walking and reversing stay free. Its grounded speed and acceleration respond to the canonical route kind, packed core, shoulder, natural ground and travel grade; dry, slope-safe off-road travel remains possible but slower. `CARRIAGE_TUNING.groundResponse` owns those scales, and `WorldLayout` supplies the same route and terrain fields used by road presentation and collision. `PhysicsWorld` advances the budget through the shared `advanceMountGait` stepper and commits it to the carriage mount, and the HUD shows it as Trot in the unit-frame stamina slot. `PhysicsWorld` checks the bed, shafts and horse across each fixed-step movement and turn against static collision and dry slope-safe support. Parked bed and horse colliders block pedestrians. The catalog horse gait follows resolved movement, the wheels follow signed travel, and the player sits at the authored driver socket. The initial parking pose and exit clearance are tested against the actual world collision projection. The horse walk/trot bake and catalog reference speeds match `CARRIAGE_TUNING`; reverse travel plays the walk backwards and never spends trot stamina. Steering approaches its target gradually in the transient physics controller. The rear axle follows its rolling tangent and the front axle/horse articulate around the kingpin; the same steered footprint owns collision clearance. Steering is restored on rejected physics commits and is not saved. The cart and horse sample their own terrain support; driver palms, soles and pelvis use authored rein grips, footboard contacts and the seat. The deforming reins connect those palms to head-bone bit sockets.
 
 Deferred for mounts: purchase/ownership progression, general mount inventory,
 feeding, further species, and working while mounted. The gallop budget
@@ -1162,6 +1183,12 @@ fishPrice = speciesBasePrice × weightModifier × qualityModifier × freshnessMo
 
 LIVE: produce **grade affects sale price per lot**. A harvested crop enters the satchel as a graded lot, and `marketPricing.ts` owns the grade ladder (`CROP_QUALITY_PRICE_MULTIPLIER`): **Crop grade:** Common ×1.00, Fine ×1.20, Exceptional ×1.45, Prize ×1.75 of the same quote; an ungraded lot (processed output, legacy stock) quotes at Common. A sale fills the **highest grade first**, so the board's quote, the ticket breakdown and the money paid always price the same lots in the same order; a bulk quote walks one supply cursor across the lots and remains the exact sum of its one-unit marginal fills. Generic consumption (processing, quest turn-ins) is the opposite order: it spends the lowest grade first so the player keeps the best lot for the market. Fish quality affects price **in the cargo lane only** — a landed `FishCargoState` carries its own quality and `calculateFishPrice` prices it. A fish held as a satchel *item* is a fungible stack with no per-instance quality and settles at the same commodity quote as any other item; it must never be priced from the journal's best-ever record, which paid a permanent trophy multiplier on every later common catch while the market board quoted a lower number. Example Blue Marlin (base 480): `480 × 1.35 (weight) × 1.25 (fine) × 0.95 (freshness 75–89) × 1.25 (demand) × 1.05 (season) ≈ 1010`. UI must explain components.
 
+Regional packs sell at all five village counters. `src/simulation/economy/TradePackEconomy.ts` owns named-pack settlement: captured base value × captured ingredient quality × shared family demand × the buyer's regional appetite × shortest authored route multiplier × condition, rounded down once. Trading XP derives from the settled gold and route XP multiplier. `VillageTrade.ts` owns route length/multipliers; longer routes pay more gold and XP at equal conditions, and driving in circles adds no value. Road and channel routes connect through explicit mooring access/boarding links, including the main pier's stairs and deck; moving a berth farther offshore does not detach Sunreach from the pricing graph. The station previews a fresh pack using available ingredient grades; the counter re-quotes the actual carried pack before committing.
+
+Village `tradeDemand` pools are shared by provisions, textiles, workshop goods and maritime supplies. Each delivery consumes one pack's demand regardless of recipe or ingredient count, so switching between related recipes cannot evade saturation. `TRADE_DEMAND_TUNING` owns the resting supply, saturation cap and hourly recovery. The existing deterministic demand curve supplies day/hour variation without consuming gameplay RNG; live and offline hourly recovery agree. Regional appetite makes imports useful while condition, cost, distance and saturation can change the best destination. A sale consumes exactly one carried pack and records `TradePackSold` using its named content ID. Pure harvest packs also add their enclosed crop units to commodity supply and emit `ItemSold`; mixed shipments do neither.
+
+Legacy packs without captured named-pack terms retain the prior graded wholesale/packing quote in `VillageTrade.ts`, including any known origin; no origin means no distance or foreign-specialty bonus. A matching raw-produce order accepts a whole pure harvest pack only if enough units remain, then records its settlement value in the existing contract ledger. Mixed shipments cannot satisfy raw-material orders. Smaller remainders require loose produce, so no contents are silently lost.
+
 Physical fish trade packs use the same deterministic fish formula at a
 content-declared village trade counter after the player is carrying the pack. Ordinary
 non-pack physical fish, if authored later, remain in the fish-market cargo
@@ -1170,7 +1197,7 @@ logistics without making a pack sale available.
 
 Selling raises local supply; repeated dumping gradually lowers price, while town throughput restores it toward the centered market. Never crash price dramatically from one ordinary sale. Single and bulk trades are priced as the exact sum of deterministic one-unit marginal fills, including across clamp boundaries, so one bulk fill and the same sequence of one-unit fills pay the same total. Trading XP is derived from total realized revenue with no per-click minimum.
 
-Buys are capped at `floor(localSupply)`, reduce stall supply, and use a **1.25 retail multiplier** over wholesale. For a commodity sold at more than one market, the retail quote also floors its effective modifier at the best current wholesale modifier across those markets; an immediate cross-market round trip cannot profit even when demand differs. `MarketDomain.inspectFish` / `sellFish` handle the ordinary fish lane, while `inspectTradePack` / `sellTradePack` handle the carried trade-pack lane and return `FishPriceBreakdown`; UI must not call `calculateFishPrice`.
+Buys are capped at `floor(localSupply)`, reduce stall supply, and use a **1.25 retail multiplier** over wholesale. For a commodity sold at more than one market, the retail quote also floors its effective modifier at the best current wholesale modifier across those markets; an immediate cross-market round trip cannot profit even when demand differs. `MarketDomain.inspectFish` / `sellFish` handle the ordinary fish lane, while `inspectTradePack` / `sellTradePack` handle the carried trade-pack lane and return the fish or farm breakdown; UI must not reproduce either pricing formula.
 
 Every retailed crop seed and item has authored commodity stock. Seed purchases use the same finite stock, marginal demand quote, retail spread and hourly restock as other wares; there is no fixed-price unlimited shelf fallback. A physical fish's item registration is a casting marker, not a satchel sale asset, so its quote and sale are available only through the carried trade-pack lane.
 
@@ -1189,11 +1216,14 @@ The larger cove adds distinct working destinations, owned by `NevaMainland`,
   warm-climate produce meet stronger seasonal demand after the mountain road;
   there is no dock that bypasses the inland haul.
 
-Freight roads follow broad foothill contours and round the forest lake's head;
-the meandering lowland channel remains a freshwater fishing destination rather
-than an arbitrary road obstacle. Narrower working lanes keep carriage clearance,
-and broad bends and graded shoulders support the loaded trip. Fishing-bank trails
-and Highridge's shoulder overlook branch off that useful route network. The cove
+The road network is planned from these places (`01` §10): the busiest links
+between villages and the starter district are cart roads, a work site's track is
+a farm lane its carts can use, and a fishing bank is reached beside a road or by a
+footpath. Freight roads follow broad foothill contours and round the forest lake's
+head; the meandering lowland channel remains a freshwater fishing destination
+rather than an arbitrary road obstacle. Every class keeps carriage clearance except
+footpaths; a cart road carries one carriage, so its long stretches have passing
+places, and broad bends and graded shoulders support the loaded trip. The cove
 crossing saves land distance while inland deliveries still require the road haul.
 
 Existing commodity base values remain identical across the network. Regional
@@ -1201,8 +1231,7 @@ stock, consumption and seasonal factors determine each village's appetite;
 repeatable authored contract premiums pay for kept deliveries. Retail still
 floors against the best current wholesale quote, so purchased goods do not
 become risk-free immediate resale profit. A harvest, processing result or
-physical catch is the route's production input. No distance or origin bonus is
-invented for cargo whose state does not record provenance.
+physical catch is the route's production input. The route premium applies only to farm packs with the persisted origin described in §13; loose goods, fish and historical originless cargo never acquire invented provenance.
 
 The expedition board compares current village demand when it has no matching
 contract, and preserves the selected market as the destination for both
@@ -1368,7 +1397,7 @@ system.
 
 Feasibility includes reaching the delivery market and the goods' source. A produce order requires a reachable market that sells its crop seed; a fish order requires a compatible school in the species' own ecology on an island the player can reach. A market at the far end of a sailing route in `WORLD_SAILING_ROUTES` (Sunreach Cove) offers orders only once the player owns that route's vessel (the Coastal Fishing Skiff); the rowboat cannot make the crossing, so an earlier cove order could only expire. `canReachDeliveryMarket` and `canReachFishingEcology` in `ContractDomain` own the route checks, and the expedition board reports a contract it blocks.
 
-Contracts run in two lanes, not four: item delivery and physical fish cargo. `bulk-order` is an **item** lane type — `isProduceContractType` in `domainRules.ts` owns that split. It previously had no live templates because the feasibility and refund branches asked `type === "produce"` directly and routed it into the fish lane, where an item target can never match. A physical basic-catch species (Golden Sea Bream) carries an item registration only so it can be cast; board readiness and bulk-demand reporting route it through the cargo lane via `isPhysicalTradePackSpecies`, never as a satchel stack. Fish commissions are named buyers at their posted delivery markets, including Harbor and Sunreach Cove. They require the pack in the player's hands at that market; a pack left in a boat, carriage, or on the ground cannot be handed in remotely. This commission exception does not open ordinary trade-pack sale at those markets.
+Contracts run in two lanes, not four: item delivery and physical fish cargo. `bulk-order` is an **item** lane type — `isProduceContractType` in `domainRules.ts` owns that split. It previously had no live templates because the feasibility and refund branches asked `type === "produce"` directly and routed it into the fish lane, where an item target can never match. A physical basic-catch species (Golden Sea Bream) carries an item registration only so it can be cast; board readiness and bulk-demand reporting route it through the cargo lane via `isPhysicalTradePackSpecies`, never as a satchel stack. Fish commissions are named buyers at their posted delivery markets, including Harbor and Sunreach Cove. They require the pack in the player's hands at that market; a pack left in a boat, carriage, or on the ground cannot be handed in remotely. The harbor commission exception does not open ordinary trade-pack sales at Seabreak; Sunreach has its own village counter.
 
 The board's capacity is owned by `contractSlotsForRank` in `src/content/progression.ts`. `ContractDomain` passes both Trading rank and the maritime guild charter unlock: the charter increases capacity in addition to rank progression. Refill may leave fewer listings when no feasible template exists. After a story-required order and the produce/fishing choice are served, refill prefers one feasible mainland or cross-channel order when space remains. Wider capacity must offer useful choices without bypassing feasibility or delivery requirements.
 

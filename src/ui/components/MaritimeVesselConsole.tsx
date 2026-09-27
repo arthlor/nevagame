@@ -1,10 +1,12 @@
+import { tradePackName } from "../../i18n/tradePackNames";
 import React, { useMemo } from "react";
 import type { WorldHudBoatDto } from "../../simulation/core/contracts";
 import { IconBoat, IconFish, IconWarning, IconHook, IconSnowflake} from "./HudIcons";
 import { ItemSlot, Meter } from "../coastal/CoastalUI";
 import { ChromeQuality } from "../chrome/Chrome";
 import { AtlasImage } from "../chrome/AtlasImage";
-import { atlasForFish } from "../chrome/uiAtlas";
+import { atlasForFish, atlasForItem } from "../chrome/uiAtlas";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface MaritimeVesselConsoleProps {
   boat: WorldHudBoatDto;
@@ -23,11 +25,13 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
   onSelectSlot,
   className = ""
 }) => {
+  const { locale, getLocalizedBoat, getLocalizedFish, getLocalizedItem } = useTranslation();
+  const isTr = locale === "tr";
   const isDocked = Boolean(boat.isDocked);
 
   const defaultInsignia = useMemo(() => {
     if (registrationInsignia) return registrationInsignia;
-    return boat.boatId.includes("skiff") ? "REG · NV-SKF-02" : "REG · NV-ROW-01";
+    return boat.boatTypeId === "boat.trading_ship" ? "REG · NV-TRD-03" : boat.boatId.includes("skiff") ? "REG · NV-SKF-02" : "REG · NV-ROW-01";
   }, [boat.boatId, registrationInsignia]);
 
   const hullDamageClass = useMemo(() => {
@@ -38,11 +42,13 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
     return "hull-sound";
   }, [boat.hull.percent, boat.hull.danger, boat.wrecked]);
 
+  const boatDisplayName = (isTr ? getLocalizedBoat(boat.boatTypeId).name : null) || boat.name;
+
   return (
     <section
       className={`hud-boat-panel interactive ${isDocked ? "is-docked" : ""} ${className}`.trim()}
       role="region"
-      aria-label="Maritime vessel console"
+      aria-label={isTr ? "Deniz taşıtı paneli" : "Maritime vessel console"}
       data-testid="maritime-vessel-console"
     >
       {/* Vessel Header */}
@@ -50,8 +56,8 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
         <div className="boat-panel-title-row">
           <div className="boat-panel-name-group">
             <IconBoat size={16} className="boat-header-icon" aria-hidden="true" />
-            <strong className="boat-panel-name">{boat.name}</strong>
-            <span className="boat-registration-insignia" title="Neva Maritime Registration">
+            <strong className="boat-panel-name">{boatDisplayName}</strong>
+            <span className="boat-registration-insignia" title={isTr ? "Neva Deniz Sicili" : "Neva Maritime Registration"}>
               {defaultInsignia}
             </span>
           </div>
@@ -59,26 +65,26 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
           <div className="boat-status-chips">
             {boat.wrecked ? (
               <span className="boat-wrecked-chip" role="status">
-                Wrecked
+                {isTr ? "Enkaz" : "Wrecked"}
               </span>
             ) : isDocked ? (
               <span className="boat-docked-chip" role="status">
-                Docked
+                {isTr ? "Demirli" : "Docked"}
               </span>
             ) : (
               <>
                 {boat.speedKnots > 0 ? (
                   <span className="boat-underway-chip" role="status">
-                    Underway
+                    {isTr ? "Seyirde" : "Underway"}
                   </span>
                 ) : (
                   <span className="boat-drifting-chip" role="status">
-                    Drifting
+                    {isTr ? "Sürükleniyor" : "Drifting"}
                   </span>
                 )}
                 {boat.showNightWarning && (
                   <span className="boat-night-chip" role="status">
-                    Night waters
+                    {isTr ? "Gece suları" : "Night waters"}
                   </span>
                 )}
               </>
@@ -93,14 +99,14 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
               <span className="boat-speed-label">
                 {`${boat.speedKnots} kn · ${boat.seaState}`}
               </span>
-              <span className="boat-bearing-label" title="Heading Bearing">
+              <span className="boat-bearing-label" title={isTr ? "Rota Açısı" : "Heading Bearing"}>
                 {`· ${String(headingDegrees).padStart(3, "0")}° ${headingCardinal}`}
               </span>
             </div>
 
             {boat.wrecked ? (
               <span className="boat-sea-warning" role="alert">
-                <IconWarning size={13} aria-hidden="true" /> Hull lost — tow to Neva Harbor for repairs
+                <IconWarning size={13} aria-hidden="true" /> {isTr ? "Gövde parçalandı — tamir için Neva Limanı'na çektir" : "Hull lost — tow to Neva Harbor for repairs"}
               </span>
             ) : boat.seaWarning && (
               <span className="boat-sea-warning" role="alert">
@@ -118,12 +124,12 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
             {/* Hull Integrity Section */}
             <div className={`boat-hull-section ${hullDamageClass}`}>
               <div className="boat-hull-label-row">
-                <span className="boat-section-title">Hull</span>
+                <span className="boat-section-title">{isTr ? "Gövde" : "Hull"}</span>
                 <span className="boat-hull-value">{`${boat.hull.percent}%`}</span>
               </div>
               <Meter
                 className={`hud-boat-hull ${hullDamageClass}`}
-                label="Hull"
+                label={isTr ? "Gövde" : "Hull"}
                 value={boat.hull.current}
                 max={boat.hull.maximum}
                 showLabel={false}
@@ -136,12 +142,12 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
             {boat.fuel && (
               <div className="boat-fuel-section">
                 <div className="boat-hull-label-row">
-                  <span className="boat-section-title">Fuel</span>
+                  <span className="boat-section-title">{isTr ? "Yakıt" : "Fuel"}</span>
                   <span className="boat-hull-value">{`${boat.fuel.percent}%`}</span>
                 </div>
                 <Meter
                   className="hud-boat-fuel"
-                  label="Fuel"
+                  label={isTr ? "Yakıt" : "Fuel"}
                   value={boat.fuel.current}
                   max={boat.fuel.maximum}
                   showLabel={false}
@@ -155,13 +161,13 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
           {/* Physical Cargo Hold Bay Grid */}
           <div className="boat-cargo-section">
             <div className="boat-cargo-label-row">
-              <span className="boat-section-title">Cargo Hold</span>
+              <span className="boat-section-title">{isTr ? "Ambar" : "Cargo Hold"}</span>
               <span className="boat-cargo-count-badge">
                 {`${boat.occupiedCargoSlots}/${boat.cargoSlots.length}`}
               </span>
             </div>
 
-            <div className="boat-cargo-grid" aria-label="Hold Bays & Hooks">
+            <div className="boat-cargo-grid" aria-label={isTr ? "Ambar Bölmeleri ve Kancalar" : "Hold Bays & Hooks"}>
               {boat.cargoSlots.map((slot) => {
                 const isHook = slot.slotType === "external-hook";
                 const hasIce = slot.hasIce;
@@ -174,7 +180,7 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
                         isHook ? "is-hook" : "is-hold"
                       }`}
                       slotNumber={slot.slotNumber}
-                      label={`Empty ${isHook ? "transom hook" : "hold bay"} ${slot.slotNumber}`}
+                      label={isTr ? `Boş ${isHook ? "ayna kancası" : "ambar bölmesi"} ${slot.slotNumber}` : `Empty ${isHook ? "transom hook" : "hold bay"} ${slot.slotNumber}`}
                       onClick={() => onSelectSlot?.(slot.slotNumber)}
                     >
                       {isHook && (
@@ -183,7 +189,7 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
                         </span>
                       )}
                       {hasIce && (
-                        <span className="cargo-ice-indicator" title="Ice preserved (0.4x decay)">
+                        <span className="cargo-ice-indicator" title={isTr ? "Buzla korunuyor (0.4x bozulma)" : "Ice preserved (0.4x decay)"}>
                           <IconSnowflake size={12} />
                         </span>
                       )}
@@ -192,6 +198,7 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
                 }
 
                 const cargo = slot.cargo;
+                const cargoFishName = cargo.tradePackId ? tradePackName(cargo.tradePackId, cargo.name, isTr ? "tr" : "en") : (isTr ? (cargo.kind === "farm" ? getLocalizedItem(cargo.itemId!).name : getLocalizedFish(cargo.speciesId).name) : null) || cargo.name;
                 return (
                   <ItemSlot
                     key={cargo.cargoId}
@@ -200,12 +207,12 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
                     className={`boat-cargo-slot is-occupied ${
                       isHook ? "is-hook" : "is-hold"
                     }`}
-                    label={`${cargo.name}, ${cargo.weightKg.toFixed(1)} kg, ${
+                    label={`${cargoFishName}, ${cargo.weightKg.toFixed(1)} kg, ${
                       cargo.quality
-                    } quality, ${cargo.freshnessPercent}% fresh`}
+                    }, ${cargo.freshnessPercent}%`}
                     onClick={() => onSelectSlot?.(slot.slotNumber)}
                   >
-                    <AtlasImage src={atlasForFish(cargo.speciesId)} alt="" size={28} />
+                    <AtlasImage src={cargo.kind === "farm" ? atlasForItem(cargo.itemId!) : atlasForFish(cargo.speciesId)} alt="" size={28} />
                     {!atlasForFish(cargo.speciesId) && (
                       <IconFish size={14} aria-hidden="true" />
                     )}
@@ -216,16 +223,16 @@ export const MaritimeVesselConsole: React.FC<MaritimeVesselConsoleProps> = ({
                       {`${cargo.weightKg.toFixed(1)}kg`}
                     </span>
 
-                    {isHook && <span className="cargo-hook-tag">HOOK</span>}
+                    {isHook && <span className="cargo-hook-tag">{isTr ? "KANCA" : "HOOK"}</span>}
                     {hasIce && (
-                      <span className="cargo-ice-indicator" title="Ice preserved (0.4x decay)">
+                      <span className="cargo-ice-indicator" title={isTr ? "Buzla korunuyor (0.4x bozulma)" : "Ice preserved (0.4x decay)"}>
                         <IconSnowflake size={12} />
                       </span>
                     )}
 
                     <div
                       className="cargo-freshness-track"
-                      title={`Freshness: ${cargo.freshnessPercent}% (${cargo.freshnessTone})`}
+                      title={cargo.kind === "farm" ? (isTr ? `Durum: %${cargo.freshnessPercent}` : `Condition: ${cargo.freshnessPercent}%`) : (isTr ? `Tazelik: %${cargo.freshnessPercent}` : `Freshness: ${cargo.freshnessPercent}% (${cargo.freshnessTone})`)}
                       aria-hidden="true"
                     >
                       <div

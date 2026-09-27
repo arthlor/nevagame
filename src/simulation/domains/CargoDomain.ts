@@ -2,7 +2,7 @@ import { canReachCarriageRear, CARRIAGE_TUNING } from "../mounts/Carriage";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { advanceCargoFreshness } from "../fishing/calculateFreshness";
 import { InventoryManager } from "../inventory/InventoryManager";
-import type { BoatId, BoatState, CargoClass, CargoLocation, FishCargoId, FishCargoState, FishInstance, ItemId, MarketId, StorageKind } from "../core/types";
+import type { BoatId, BoatState, CargoClass, CargoLocation, FishCargoId, CargoState, FishInstance, ItemId, MarketId, StorageKind } from "../core/types";
 import type { HoldStoresDto } from "../core/contracts";
 import { buildCargoPresentation } from "../presentation/WorldHudPresentation";
 import type { DomainContext } from "./DomainContext";
@@ -20,6 +20,7 @@ import {
 import { WorldLayout } from "../../world/WorldLayout";
 import { SAILABLE_BOUNDS } from "../../world/WorldLayout";
 import { accessibleFishingSupplyCount } from "../fishing/FishingSupplies";
+import { isLooseHarvestPack } from "../cargo/farmPacks";
 
 export class CargoDomain {
   constructor(
@@ -130,17 +131,20 @@ export class CargoDomain {
     if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
     const cargo = state.fishCargo[cargoId];
     if (!cargo) return { success: false, reason: "Fish cargo not found" };
+    if ((state.basicFishing && state.basicFishing.phase !== "caught") || state.sportFishing?.result === "active") return { success: false, reason: "Finish fishing first" };
     if (!this.navigation.canAccessFishCargo(cargo, marketId)) {
       return { success: false, reason: "Move to the fish cargo before discarding it" };
     }
-    const scraps = scrapsForCargoClass(cargo.cargoClass);
+    // Only loose harvest can become compost. Sealed tools, canvas and fittings
+    // cannot manufacture plant matter when their shipment is discarded.
+    const scraps = cargo.kind === "farm" && !isLooseHarvestPack(cargo) ? 0 : scrapsForCargoClass(cargo.cargoClass);
     const inventory = state.inventories[state.player.inventoryId];
-    const stack = [{ itemId: "item.fish_scraps", quantity: scraps }];
-    const canGrantScraps = InventoryManager.canAddItems(inventory, stack);
+    const stack = scraps ? [{ itemId: cargo.kind === "farm" ? "item.plant_matter" : "item.fish_scraps", quantity: scraps }] : [];
+    const canGrantScraps = scraps === 0 || InventoryManager.canAddItems(inventory, stack);
     if (!canGrantScraps && cargo.freshness > 0) {
       return { success: false, reason: "No inventory space for scraps" };
     }
-    if (canGrantScraps) InventoryManager.addItemsAtomically(inventory, stack);
+    if (canGrantScraps && scraps > 0) InventoryManager.addItemsAtomically(inventory, stack);
     this.clearPointers(cargo);
     delete state.fishCargo[cargoId];
     return { success: true, scraps: canGrantScraps ? scraps : 0 };
@@ -160,9 +164,11 @@ export class CargoDomain {
     if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
     const cargo = state.fishCargo[cargoId];
     if (!cargo) return { success: false, reason: "Fish cargo not found" };
+    if ((state.basicFishing && state.basicFishing.phase !== "caught") || state.sportFishing?.result === "active") return { success: false, reason: "Finish fishing first" };
     if (!this.navigation.canAccessFishCargo(cargo, marketId)) {
       return { success: false, reason: "Move to the fish cargo before releasing it" };
     }
+    if (cargo.kind === "farm") return { success: false, reason: "Farm packs cannot be released as fish" };
     if (cargo.freshness <= 0) {
       return { success: false, reason: "The fish is spoiled — make scraps instead" };
     }
@@ -186,6 +192,7 @@ export class CargoDomain {
    */
   public pickup(cargoId: FishCargoId): { success: boolean; reason?: string } {
     const { state, events } = this.context;
+    if (state.basicFishing || state.sportFishing) return { success: false, reason: "Finish fishing first" };
     if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
     if (state.player.carriedFishCargoId) return { success: false, reason: "Your hands are already full" };
     const cargo = state.fishCargo[cargoId];
@@ -235,7 +242,7 @@ export class CargoDomain {
 
   public canPickup(cargoId: FishCargoId): boolean {
     const { state } = this.context;
-    if (state.player.activeMountId || state.player.carriedFishCargoId) return false;
+    if (state.basicFishing || state.sportFishing || state.player.activeMountId || state.player.carriedFishCargoId) return false;
     const cargo = state.fishCargo[cargoId];
     if (!cargo) return false;
     if (cargo.location.type === "carriage") {
@@ -264,7 +271,7 @@ export class CargoDomain {
     if (!cargo || cargo.location.type !== "player" || cargo.location.containerId !== "player") return { success: false, reason: "Carry a trade pack to the carriage first" };
     if (!cargoClassFits(cargo.cargoClass, CARRIAGE_TUNING.maximumCargoClass)) return { success: false, reason: "This pack is too large for the carriage" };
     const slot = mount.fishCargoSlotIds?.findIndex(id => id === null) ?? -1;
-    if (slot < 0) return { success: false, reason: "Both carriage cargo slots are full" };
+    if (slot < 0) return { success: false, reason: "All carriage cargo slots are full" };
     mount.fishCargoSlotIds![slot] = cargo.id;
     state.player.carriedFishCargoId = null;
     cargo.location = { type: "carriage", containerId: mount.id, slotIndex: slot };
@@ -350,7 +357,7 @@ export class CargoDomain {
     advanceCargoFreshness(state, minutes, startMinute);
   }
 
-  public clearPointers(cargo: FishCargoState): void {
+  public clearPointers(cargo: CargoState): void {
     const { state } = this.context;
     // Ground rests own no slot: the pack's location is the pose itself, so
     // only the hands pointer can dangle. Boat, carriage and player branches
@@ -396,7 +403,7 @@ export class CargoDomain {
   }
 
   /** Cargo currently sitting in one facility, oldest first for stable DTO order. */
-  private facilityCargo(facility: StorageFacilityDefinition): FishCargoState[] {
+  private facilityCargo(facility: StorageFacilityDefinition): CargoState[] {
     const { state } = this.context;
     if (!facility.fishLocation) return [];
     return Object.values(state.fishCargo)
@@ -411,7 +418,7 @@ export class CargoDomain {
   public canStoreFishInStorage(kind: StorageKind): boolean {
     const { state } = this.context;
     const facility = STORAGE_FACILITY_BY_KIND[kind];
-    if (!facility?.fishLocation || !this.facilityUnlocked(facility) || state.player.activeMountId) return false;
+    if (!facility?.fishLocation || !this.facilityUnlocked(facility) || state.player.activeMountId || state.basicFishing || state.sportFishing) return false;
     const cargo = state.player.carriedFishCargoId
       ? state.fishCargo[state.player.carriedFishCargoId]
       : undefined;
@@ -429,6 +436,7 @@ export class CargoDomain {
    */
   public storeFishInStorage(cargoId: FishCargoId, kind: StorageKind): { success: boolean; reason?: string } {
     const { state, events } = this.context;
+    if (state.basicFishing || state.sportFishing) return { success: false, reason: "Finish fishing first" };
     const facility = STORAGE_FACILITY_BY_KIND[kind];
     if (!facility?.fishLocation) return { success: false, reason: "That storage is not available" };
     const blocker = this.storageBlocker(kind);
@@ -455,6 +463,7 @@ export class CargoDomain {
   /** Collects a stored catch back into both hands. */
   public takeFishFromStorage(cargoId: FishCargoId, kind: StorageKind): { success: boolean; reason?: string } {
     const { state, events } = this.context;
+    if (state.basicFishing || state.sportFishing) return { success: false, reason: "Finish fishing first" };
     const facility = STORAGE_FACILITY_BY_KIND[kind];
     if (!facility?.fishLocation) return { success: false, reason: "That storage is not available" };
     const blocker = this.storageBlocker(kind);
@@ -500,7 +509,7 @@ export class CargoDomain {
   /** Whether the carried pack could be stowed on the active vessel right now. */
   public canStowAboard(boatId: BoatId, placement: "hold" | "hook"): boolean {
     const { state } = this.context;
-    if (state.player.activeMountId || !state.player.carriedFishCargoId) return false;
+    if (state.basicFishing || state.sportFishing || state.player.activeMountId || !state.player.carriedFishCargoId) return false;
     const cargo = state.fishCargo[state.player.carriedFishCargoId];
     const boat = state.boats[boatId];
     if (!cargo || !boat || state.player.activeBoatId !== boat.id) return false;
@@ -515,6 +524,7 @@ export class CargoDomain {
    */
   public stowAboard(boatId: BoatId, placement: "hold" | "hook"): { success: boolean; reason?: string } {
     const { state, events } = this.context;
+    if (state.basicFishing || state.sportFishing) return { success: false, reason: "Finish fishing first" };
     if (state.player.activeMountId) return { success: false, reason: "Dismount before handling fish cargo" };
     const cargoId = state.player.carriedFishCargoId;
     const cargo = cargoId ? state.fishCargo[cargoId] : undefined;

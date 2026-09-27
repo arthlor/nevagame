@@ -1,3 +1,4 @@
+import type { CargoState, TradePackFamily } from "../../simulation/core/types";
 import { ASSET_IDS, type AssetId } from "../assets/AssetCatalog";
 
 /** Runtime presentation bindings for every species that can appear in a sport-fishing school. */
@@ -69,4 +70,31 @@ export const FISH_CARGO_PACK_ASSETS: Readonly<Record<string, AssetId>> = {
 
 export function fishCargoPackAsset(speciesId: string): AssetId | null {
   return FISH_CARGO_PACK_ASSETS[speciesId] ?? null;
+}
+
+const FARM_CARGO_PACK_ASSETS: Readonly<Record<string, AssetId>> = {
+  "produce.wheat": ASSET_IDS.PROP_TRADE_PACK_WHEAT_A,
+  "produce.barley": ASSET_IDS.PROP_TRADE_PACK_BARLEY_A,
+  "produce.corn": ASSET_IDS.PROP_TRADE_PACK_CORN_A,
+  "produce.tomato": ASSET_IDS.PROP_TRADE_PACK_TOMATO_A,
+  "produce.potato": ASSET_IDS.PROP_TRADE_PACK_POTATO_A,
+  "produce.carrot": ASSET_IDS.PROP_TRADE_PACK_CARROT_A,
+  "produce.flax": ASSET_IDS.PROP_TRADE_PACK_FLAX_A,
+  "produce.apple": ASSET_IDS.PROP_TRADE_PACK_APPLE_A,
+  "produce.olive": ASSET_IDS.PROP_TRADE_PACK_OLIVE_A,
+  "produce.sunflower_seed": ASSET_IDS.PROP_CARGO_SACK_A
+};
+
+const CRAFTED_CARGO_PACK_ASSETS: Readonly<Record<TradePackFamily, AssetId>> = {
+  provisions: ASSET_IDS.PROP_TRADE_PACK_PROVISIONS_A,
+  textiles: ASSET_IDS.PROP_TRADE_PACK_TEXTILES_A,
+  workshop: ASSET_IDS.PROP_TRADE_PACK_WORKSHOP_A,
+  maritime: ASSET_IDS.PROP_TRADE_PACK_MARITIME_A
+};
+
+export function cargoPackAsset(cargo: CargoState): AssetId | null {
+  if (cargo.kind !== "farm") return fishCargoPackAsset(cargo.speciesId);
+  return cargo.tradePack && cargo.tradePack.tier !== "harvest"
+    ? CRAFTED_CARGO_PACK_ASSETS[cargo.tradePack.family]
+    : FARM_CARGO_PACK_ASSETS[cargo.itemId] ?? null;
 }

@@ -5,6 +5,7 @@ import { LoopSegmentIndex } from "./WorldGeometry";
 import type { WorldPoint, WorldRoute } from "./WorldLayout";
 import { SUNREACH_FARM_LAYOUT } from "./FarmLayout";
 import { createTerraceProfile } from "./TerraceProfile";
+import { roadClassWidth } from "./RoadClasses";
 import { SUNREACH_LIVING_ROUTES } from "./SunreachLivingLayout";
 
 function clamp01(value: number): number {
@@ -50,7 +51,7 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
     id: "route.sunreach.cove-terraces",
     scope: "regional",
     kind: "arterial",
-    widthMeters: 3.4,
+    widthMeters: roadClassWidth("arterial"),
     points: [
       { x: 355 + SUNREACH_OFFSET_X, z: 58 },
       { x: 363 + SUNREACH_OFFSET_X, z: 62 },
@@ -65,7 +66,7 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
     id: "route.sunreach.terraces-scrub",
     scope: "regional",
     kind: "lane",
-    widthMeters: 2.7,
+    widthMeters: roadClassWidth("lane"),
     points: [
       { x: 455 + SUNREACH_OFFSET_X, z: 39 },
       { x: 477 + SUNREACH_OFFSET_X, z: 39 },
@@ -77,7 +78,7 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
     id: "route.sunreach.scrub-ridge",
     scope: "regional",
     kind: "trail",
-    widthMeters: 2.3,
+    widthMeters: roadClassWidth("trail"),
     points: [
       { x: 515 + SUNREACH_OFFSET_X, z: 75 },
       { x: 544 + SUNREACH_OFFSET_X, z: 59 },
@@ -89,7 +90,7 @@ export const SUNREACH_ROUTES: readonly WorldRoute[] = [
     id: "route.sunreach.scrub-reef",
     scope: "regional",
     kind: "trail",
-    widthMeters: 2.2,
+    widthMeters: roadClassWidth("trail"),
     points: [
       { x: 515 + SUNREACH_OFFSET_X, z: 75 },
       { x: 522 + SUNREACH_OFFSET_X, z: 111 },

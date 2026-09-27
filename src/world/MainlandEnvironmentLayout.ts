@@ -1,7 +1,9 @@
-import { MAINLAND_BROOK_CULVERT_FACE_METERS, mainlandBrookAt } from "./MainlandBrooks";
+import {
+  MAINLAND_BROOK_CULVERT_FACE_METERS, mainlandBrookAt, mainlandBrookCourses, mainlandBrookFloorHalfWidth, mainlandBrookHalfWidth
+} from "./MainlandBrooks";
 import { MAINLAND_BOUNDS, MAINLAND_VILLAGES, mainlandBiomeAt, mainlandBlendAt, mainlandBrookRoadCrossings } from "./NevaMainland";
 import { MAINLAND_SETTLEMENT_BUILDINGS, mainlandSettlementClearanceAt } from "./MainlandSettlementLayout";
-import { MAINLAND_WORK_SITES, mainlandWorkSitePoint } from "./MainlandWorkSites";
+import { MAINLAND_WORK_SITES, mainlandWorkSiteClearanceAt, mainlandWorkSitePoint } from "./MainlandWorkSites";
 import { WorldLayout } from "./WorldLayout";
 import type { EnvironmentAssetPlacement, GroundCoverPlacement } from "./WorldEnvironmentLayout";
 import { sampleWorldComposition, type WorldCompositionSample, type CompositionCategory } from "./WorldCompositionField";
@@ -120,7 +122,8 @@ export function mainlandSettlementPlacements(): EnvironmentAssetPlacement[] {
       }
     }
   }
-  return [...placements, ...details, ...mainlandWorkSitePlacements(), ...mainlandRouteLandmarks(), ...mainlandCulvertPlacements()];
+  return [...placements, ...details, ...mainlandWorkSitePlacements(), ...mainlandRouteLandmarks(), ...mainlandCulvertPlacements(),
+    ...mainlandBrookDressingPlacements()];
 }
 
 /** Coping top of `prop_culvert_headwall_a` above its floor, before any height scale. */
@@ -130,32 +133,201 @@ const CULVERT_HEADWALL_WIDTH_SCALE = 1.3;
 /**
  * Where a road crosses a brook, the water passes under it in a culvert: a
  * stone headwall stands at each side of the road deck, parallel to the road,
- * on the brook's floor, and tall enough to hold the road's edge. The brook
- * carve stops at the same line (`MAINLAND_BROOK_CULVERT_FACE_METERS`).
+ * where the brook's course reaches the line its carve stops at
+ * (`MAINLAND_BROOK_CULVERT_FACE_METERS` past the deck), so the pipe mouth
+ * sits on the water. Its foot stands on the ground the terrain grid renders
+ * at the face, which a 3.125 m grid cannot cut as sharply as the analytic
+ * floor, so neither the ground nor the water draped on it buries the pipe;
+ * it is tall enough to hold the road's edge.
  */
 function mainlandCulvertPlacements(): EnvironmentAssetPlacement[] {
   const placements: EnvironmentAssetPlacement[] = [];
+  const seen = new Map<string, number>();
   for (const crossing of mainlandBrookRoadCrossings()) {
-    const { point, brook, road, route } = crossing;
-    // Road normal, and how squarely the brook meets the road.
-    const normal = { x: -road.z, z: road.x };
-    const square = Math.max(0.35, Math.abs(brook.x * normal.x + brook.z * normal.z));
-    const offset = (route.widthMeters * 0.5 + MAINLAND_BROOK_CULVERT_FACE_METERS) / square;
+    const { point, route } = crossing;
+    // A brook that meets the same road twice gets a culvert at each crossing.
+    const key = `${crossing.brookId}.${route.id}`;
+    const ordinal = seen.get(key) ?? 0;
+    seen.set(key, ordinal + 1);
+    const name = ordinal === 0 ? key : `${key}.${ordinal + 1}`;
+    const course = mainlandBrookCourses().find(candidate => candidate.id === crossing.brookId)!;
     for (const side of [-1, 1] as const) {
-      const x = point.x + brook.x * offset * side, z = point.z + brook.z * offset * side;
-      const facing = Math.sign(normal.x * brook.x * side + normal.z * brook.z * side) || 1;
+      const wall = headwallOnCourse(course.knots, point, side);
+      if (!wall) continue;
+      const { x, z, out } = wall;
       const floor = mainlandBrookAt(x, z, 3);
       if (!floor) continue;
-      const lift = crossing.roadElevation + 0.06 - floor.bed;
+      const foot = WorldLayout.terrainGridSurfaceHeight(x + out.x * 0.05, z + out.z * 0.05) - 0.02;
+      const lift = crossing.roadElevation + 0.06 - foot;
+      const end = side < 0 ? "upstream" : "downstream";
       placements.push({
-        ...authored(`culvert.${crossing.brookId}.${route.id}.${side < 0 ? "upstream" : "downstream"}`,
-          "prop_culvert_headwall_a", x, z, Math.atan2(normal.x * facing, normal.z * facing)),
-        y: floor.bed + 0.04,
+        ...authored(`culvert.${name}.${end}`, "prop_culvert_headwall_a", x, z, Math.atan2(out.x, out.z)),
+        y: foot,
         // Wide enough that the wing walls reach the channel's banks.
         scale: [CULVERT_HEADWALL_WIDTH_SCALE, Math.max(0.7, Math.min(2.2, lift / CULVERT_HEADWALL_HEIGHT_METERS)), 1]
       });
+      // Riprap: loose stones laid either side of the water below the wall,
+      // where the spill scours the banks, along the brook however it meets the road.
+      const water = floor.halfWidth;
+      const away = { x: floor.direction.x * side, z: floor.direction.z * side };
+      ([[-(water + 0.55), 1.0, "rock_pebble_cluster_d"], [water + 0.6, 1.25, "rock_pebble_cluster_d"],
+        [-(water + 0.9), 2.1, "rock_pebble_cluster_d"]] as const)
+        .forEach(([across, ahead, assetId], k) => {
+          const px = x + away.x * ahead - away.z * across, pz = z + away.z * ahead + away.x * across;
+          placements.push({ ...authored(`culvert.${name}.${end}.riprap.${k}`, assetId, px, pz, k * 1.9 + side),
+            scale: [1.1, 1, 1.1] });
+        });
     }
   }
+  return placements;
+}
+
+/**
+ * Where a course, followed from a road crossing upstream (`side` -1) or
+ * downstream (+1), first stands `MAINLAND_BROOK_CULVERT_FACE_METERS` clear of
+ * the road deck's edge, with the direction out from the road there; null when
+ * the course ends first. Measured against the road itself, so a bend never
+ * brings a wall onto the deck.
+ */
+function headwallOnCourse(
+  knots: readonly (readonly number[])[], crossing: { x: number; z: number }, side: -1 | 1
+): { x: number; z: number; out: { x: number; z: number } } | null {
+  const arc = [0];
+  for (let i = 1; i < knots.length; i++) arc.push(arc[i - 1] + Math.hypot(knots[i][0] - knots[i - 1][0], knots[i][1] - knots[i - 1][1]));
+  const pointAt = (s: number): { x: number; z: number } => {
+    let i = 1;
+    while (i < knots.length - 1 && arc[i] < s) i++;
+    const t = Math.max(0, Math.min(1, (s - arc[i - 1]) / Math.max(1e-9, arc[i] - arc[i - 1])));
+    return { x: knots[i - 1][0] + (knots[i][0] - knots[i - 1][0]) * t, z: knots[i - 1][1] + (knots[i][1] - knots[i - 1][1]) * t };
+  };
+  let start = 0, nearest = Infinity;
+  for (let s = 0; s <= arc[arc.length - 1]; s += 0.05) {
+    const p = pointAt(s), distance = Math.hypot(p.x - crossing.x, p.z - crossing.z);
+    if (distance < nearest) { nearest = distance; start = s; }
+  }
+  const clear = (s: number): boolean => {
+    const p = pointAt(s), road = WorldLayout.nearestRouteDistance(p.x, p.z);
+    return road.distance - road.halfWidth >= MAINLAND_BROOK_CULVERT_FACE_METERS;
+  };
+  let inside = start;
+  for (let step = 0.25; step <= 16; step += 0.25) {
+    const s = start + side * step;
+    if (s < 0 || s > arc[arc.length - 1]) return null;
+    if (!clear(s)) { inside = s; continue; }
+    let low = inside, high = s;
+    for (let k = 0; k < 16; k++) { const mid = (low + high) / 2; if (clear(mid)) high = mid; else low = mid; }
+    const p = pointAt(high), road = WorldLayout.nearestRouteDistance(p.x, p.z);
+    const length = Math.max(1e-6, Math.hypot(p.x - road.point.x, p.z - road.point.z));
+    return { x: p.x, z: p.z, out: { x: (p.x - road.point.x) / length, z: (p.z - road.point.z) / length } };
+  }
+  return null;
+}
+
+/** Deterministic per-brook dressing roll in [0, 1). */
+const BROOK_DRESSING_SEED = 0x62726f6f;
+/** Bed grade above which a brook tumbles between boulders, and the turn that makes a tight bend. */
+const BROOK_BOULDER_GRADE = 0.22;
+const BROOK_BEND_TURN = 0.35;
+
+let brookDressing: EnvironmentAssetPlacement[] | null = null;
+
+/**
+ * Stones and wood that make a channel read as a mountain brook: pebbles along
+ * the water's edge, boulders on steep reaches and the outer bank of tight
+ * bends, a few rocks where each brook rises, the odd fallen log across a small
+ * forest brook, and a spread of pebbles where it meets open water. Every
+ * placement is derived from the traced course and kept off the water, the
+ * roads, village work space and the work sites.
+ */
+function mainlandBrookDressingPlacements(): EnvironmentAssetPlacement[] {
+  if (brookDressing) return brookDressing;
+  const placements: EnvironmentAssetPlacement[] = [];
+  const clear = (x: number, z: number, margin: number): boolean => {
+    if (mainlandBlendAt(x, z) < 0.999 || WorldLayout.isWater(x, z)) return false;
+    const road = WorldLayout.nearestRouteDistance(x, z);
+    return road.distance > road.halfWidth + road.shoulderWidthMeters + margin
+      && mainlandSettlementClearanceAt(x, z) > margin && mainlandWorkSiteClearanceAt(x, z) > margin;
+  };
+  const place = (id: string, assetId: string, x: number, z: number, rotationY: number, scale: number, margin: number): void => {
+    if (!clear(x, z, margin)) return;
+    placements.push({ ...authored(id, assetId, x, z, rotationY), scale: [scale, scale * 0.9, scale] });
+  };
+  // Washed stream stones are the grey set: the golden and warm field stones
+  // read as dry ground and the coastal basalt sets black away from the sea.
+  const pebbles = "rock_pebble_cluster_d";
+  mainlandBrookCourses().forEach((course, courseIndex) => {
+    const knots = course.knots;
+    const roll = (address: number, salt: number): number => hash(BROOK_DRESSING_SEED, courseIndex * 100_003 + address, salt);
+    // Walk the course in metre steps, with position, direction, grade and catchment.
+    const steps: { x: number; z: number; fx: number; fz: number; grade: number; hectares: number; turn: number }[] = [];
+    for (let i = 1; i < knots.length; i++) {
+      const [ax, az, aBed, aHa] = knots[i - 1], [bx, bz, bBed, bHa] = knots[i];
+      const length = Math.hypot(bx - ax, bz - az);
+      if (length < 1e-3) continue;
+      const fx = (bx - ax) / length, fz = (bz - az) / length;
+      const after = knots[Math.min(knots.length - 1, i + 1)];
+      const afterLength = Math.hypot(after[0] - bx, after[1] - bz) || 1;
+      const turn = fx * (after[1] - bz) / afterLength - fz * (after[0] - bx) / afterLength;
+      for (let d = 0; d < length; d += 1) {
+        const t = d / length;
+        steps.push({ x: ax + (bx - ax) * t, z: az + (bz - az) * t, fx, fz,
+          grade: Math.max(0, (aBed - bBed) / length), hectares: aHa + (bHa - aHa) * t, turn });
+      }
+    }
+    if (steps.length < 6) return;
+    const name = (kind: string, n: number) => `brook.${course.id}.${kind}.${n}`;
+    // Pebbles at the water's edge, now on one bank, now the other.
+    let n = 0;
+    for (let at = 3 + roll(0, 0x11) * 6; at < steps.length - 3; at += 7 + roll(Math.floor(at), 0x12) * 7) {
+      const step = steps[Math.floor(at)], r = roll(Math.floor(at), 0x13);
+      const side = r < 0.5 ? -1 : 1;
+      const lateral = side * (mainlandBrookHalfWidth(step.hectares) + 0.35 + roll(Math.floor(at), 0x14) * 0.6);
+      place(name("pebbles", n++), pebbles, step.x - step.fz * lateral, step.z + step.fx * lateral,
+        r * Math.PI * 2, 0.85 + roll(Math.floor(at), 0x15) * 0.55, 0.4);
+    }
+    // Boulders where the brook tumbles, and on the outer bank of a tight bend.
+    n = 0;
+    for (let at = 4; at < steps.length - 4; at += 1) {
+      const step = steps[at];
+      const steep = step.grade > BROOK_BOULDER_GRADE && roll(at, 0x21) < 0.1;
+      const bend = Math.abs(step.turn) > BROOK_BEND_TURN && roll(at, 0x22) < 0.06;
+      if (!steep && !bend) continue;
+      const side = bend ? -Math.sign(step.turn) : roll(at, 0x23) < 0.5 ? -1 : 1;
+      const lateral = side * (mainlandBrookFloorHalfWidth(step.hectares) + 0.2 + roll(at, 0x24) * 0.7);
+      const big = roll(at, 0x25) > 0.7;
+      place(name("boulder", n++), "rock_boulder_large_a", step.x - step.fz * lateral, step.z + step.fx * lateral,
+        roll(at, 0x26) * Math.PI * 2, big ? 0.55 + roll(at, 0x27) * 0.25 : 0.32 + roll(at, 0x27) * 0.18, 1.2);
+      at += 5;
+    }
+    // A fallen log across a small forest brook, now and then.
+    const forest = (x: number, z: number) => mainlandBiomeAt(x, z) === "biome.pine_forest";
+    n = 0;
+    for (let at = 20 + Math.floor(roll(0, 0x31) * 30); at < steps.length - 10; at += 55 + Math.floor(roll(at, 0x32) * 40)) {
+      const step = steps[at];
+      if (!forest(step.x, step.z) || mainlandBrookHalfWidth(step.hectares) > 0.7 || step.grade > 0.3) continue;
+      place(name("log", n++), "prop_fallen_log_a", step.x, step.z,
+        Math.atan2(-step.fx, -step.fz) + (roll(at, 0x33) - 0.5) * 0.5, 0.9 + roll(at, 0x34) * 0.2, 0.8);
+    }
+    // Where it rises: a few rocks round the spring.
+    const source = steps[0];
+    ([[-1.7, -0.8, 0.36], [1.5, -1.3, 0.5]] as const).forEach(([across, ahead, size], k) => {
+      place(name("spring", k), "rock_boulder_large_a", source.x - source.fz * across + source.fx * ahead,
+        source.z + source.fx * across + source.fz * ahead, roll(k, 0x41) * Math.PI * 2, size + roll(k, 0x42) * 0.2, 1);
+    });
+    ([[0.2, 0.9]] as const).forEach(([across, ahead], k) => {
+      place(name("spring", k + 2), "rock_pebble_cluster_d", source.x - source.fz * across + source.fx * ahead,
+        source.z + source.fx * across + source.fz * ahead, roll(k + 2, 0x41) * Math.PI * 2, 1.2, 1);
+    });
+    // Where it meets open water: washed pebbles either side of the spreading water.
+    if (course.outlet === "lake" || course.outlet === "river" || course.outlet === "sea") {
+      for (let k = 0; k < 3; k++) {
+        const step = steps[Math.max(0, steps.length - 3 - k * 2)];
+        const lateral = (k === 1 ? -1 : 1) * (mainlandBrookHalfWidth(step.hectares) * 1.8 + 0.7 + k * 0.3);
+        place(name("mouth", k), pebbles, step.x - step.fz * lateral, step.z + step.fx * lateral, roll(k, 0x51) * Math.PI * 2, 1.1, 0.2);
+      }
+    }
+  });
+  brookDressing = placements;
   return placements;
 }
 
@@ -185,38 +357,58 @@ function mainlandWorkSitePlacements(): EnvironmentAssetPlacement[] {
   return placements;
 }
 
-/** Working traces occur at useful stopping intervals, each as a small coherent group. */
+/**
+ * Roadside furniture stands where travel needs it: a signpost at each fork,
+ * in the widest gap between the roads leaving it, and a resting spot beside
+ * each passing place, where a carriage pulls over.
+ */
 function mainlandRouteLandmarks(): EnvironmentAssetPlacement[] {
   const placements: EnvironmentAssetPlacement[] = [];
-  for (const route of WorldLayout.compiledRouteNetwork()) {
-    if (!route.route.id.startsWith("mainland-") || route.route.kind === "lane") continue;
-    let nextStop = 170;
-    let station = 0;
-    for (const sample of route.samples) {
-      if (sample.distanceAlongRoute < nextStop) continue;
-      nextStop += 230;
-      const dx = sample.tangent.x, dz = sample.tangent.z;
-      const length = Math.hypot(dx, dz);
-      if (length < 0.1) continue;
-      const side = station++ % 2 ? -1 : 1;
-      const setback = route.halfWidth + route.shoulderWidthMeters + 5;
-      const x = sample.point.x + dz / length * setback * side;
-      const z = sample.point.z - dx / length * setback * side;
-      const nearest = WorldLayout.nearestRouteDistance(x, z);
-      if (!inMainlandDressingArea(x, z) || !workingSpaceIsClear(x, z, 5)
-        || nearest.distance < nearest.halfWidth + nearest.shoulderWidthMeters + 3
-        || WorldLayout.terrainNormalY(x, z) < 0.93) continue;
-      const biome = mainlandBiomeAt(x, z);
-      const support = biome === "biome.highlands" ? "prop_bench_wood_a"
-        : biome === "biome.reed_marsh" ? "prop_lobster_trap_a" : "prop_fallen_log_a";
-      placements.push(authored(`waystation.${route.route.id}.${station}.marker`, "prop_signpost_trail_a", x, z, Math.atan2(dx, dz)));
-      const supportX = x + dx / length * 2.8, supportZ = z + dz / length * 2.8;
-      const supportRoad = WorldLayout.nearestRouteDistance(supportX, supportZ);
-      if (!WorldLayout.isWater(supportX, supportZ) && workingSpaceIsClear(supportX, supportZ, 3)
-        && supportRoad.distance > supportRoad.halfWidth + supportRoad.shoulderWidthMeters + 2) {
-        placements.push(authored(`waystation.${route.route.id}.${station}.rest`, support, supportX, supportZ, Math.atan2(dx, dz)));
+  const routes = WorldLayout.compiledRouteNetwork();
+  for (const junction of WorldLayout.routeJunctions()) {
+    if (!junction.id.startsWith("mainland-")) continue;
+    const passing = junction.id.startsWith("mainland-passing:");
+    // Headings of the arms leaving the junction, eight metres out.
+    const arms: number[] = [];
+    for (const route of routes) {
+      if (!junction.routeIds.includes(route.route.id)) continue;
+      let nearest = 0;
+      route.samples.forEach((sample, index) => {
+        if (Math.hypot(sample.point.x - junction.center.x, sample.point.z - junction.center.z)
+          < Math.hypot(route.samples[nearest].point.x - junction.center.x, route.samples[nearest].point.z - junction.center.z)) nearest = index;
+      });
+      for (const step of [-1, 1]) {
+        let k = nearest + step;
+        while (k >= 0 && k < route.samples.length
+          && Math.hypot(route.samples[k].point.x - junction.center.x, route.samples[k].point.z - junction.center.z) < 8) k += step;
+        if (k < 0 || k >= route.samples.length) continue;
+        arms.push(Math.atan2(route.samples[k].point.z - junction.center.z, route.samples[k].point.x - junction.center.x));
       }
     }
+    if (arms.length < (passing ? 2 : 3)) continue;
+    arms.sort((a, b) => a - b);
+    let gap = 0, heading = 0;
+    for (let i = 0; i < arms.length; i++) {
+      const next = i === arms.length - 1 ? arms[0] + Math.PI * 2 : arms[i + 1];
+      if (next - arms[i] > gap) { gap = next - arms[i]; heading = arms[i] + gap * 0.5; }
+    }
+    const setback = junction.radiusMeters + junction.blendLengthMeters + (passing ? 2.2 : 1.4);
+    const x = junction.center.x + Math.cos(heading) * setback;
+    const z = junction.center.z + Math.sin(heading) * setback;
+    const nearest = WorldLayout.nearestRouteDistance(x, z);
+    if (!inMainlandDressingArea(x, z) || !workingSpaceIsClear(x, z, passing ? 3 : 2)
+      || nearest.distance < nearest.halfWidth + nearest.shoulderWidthMeters + 0.8
+      || WorldLayout.isWater(x, z) || WorldLayout.terrainNormalY(x, z) < 0.9) continue;
+    const facing = Math.atan2(junction.center.x - x, junction.center.z - z);
+    const key = junction.id.replace(/[^a-z0-9]+/gi, "-");
+    if (!passing) {
+      placements.push(authored(`junction.${key}.signpost`, "prop_signpost_trail_a", x, z, facing));
+      continue;
+    }
+    const biome = mainlandBiomeAt(x, z);
+    const rest = biome === "biome.highlands" ? "prop_bench_wood_a"
+      : biome === "biome.reed_marsh" ? "prop_lobster_trap_a" : "prop_fallen_log_a";
+    placements.push(authored(`passing.${key}.rest`, rest, x, z, facing + Math.PI * 0.5));
   }
   return placements;
 }

@@ -1,3 +1,12 @@
+import { migrateTradeEconomy66 } from "./migrateTradeEconomy66";
+import { createTradeDemand } from "../simulation/economy/TradePackEconomy";
+import { isVillageTradeOrigin } from "../content/villageTrade";
+import { migrateVillageTrade65 } from "./migrateVillageTrade65";
+import { migrateHarborDistrict67 } from "./migrateHarborDistrict67";
+import { migrateCartWorkshop68 } from "./migrateCartWorkshop68";
+import { migrateMainHarbor69 } from "./migrateMainHarbor69";
+import { migrateRoadNetwork70 } from "./migrateRoadNetwork70";
+import { migrateFarmPacks64 } from "./migrateFarmPacks64";
 import { migrateCoastalRoad54 } from "./migrateCoastalRoad54";
 import { migrateHeadwaterSpring55 } from "./migrateHeadwaterSpring55";
 import { migrateGroundCargo56 } from "./migrateGroundCargo56";
@@ -6,6 +15,9 @@ import { migrateProcessingWorkTiers58 } from "./migrateProcessingWorkTiers58";
 import { migrateSunreachLayout28 } from "./migrateSunreachLayout28";
 import { migrateProceduralMainland59 } from "./migrateProceduralMainland59";
 import { migrateCoveShore60 } from "./migrateCoveShore60";
+import { migrateVillageMountain61 } from "./migrateVillageMountain61";
+import { migrateCoastalValley63 } from "./migrateCoastalValley63";
+import { migrateRoadJunctions62 } from "./migrateRoadJunctions62";
 import { createStarterCarriageState, STARTER_CARRIAGE_ID } from "../simulation/mounts/Carriage";
 import { migrateOceanLayout20, translateLegacyOceanPositions } from "./migrateOceanLayout20";
 import { migrateTerrainLayout14 } from "./migrateTerrainLayout14";
@@ -1474,7 +1486,17 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   58: (state: unknown) => migrateProcessingWorkTiers58(state as GameState),
   // Layout 28 has no schema step of its own; bring the save up to it first.
   59: (state: unknown) => migrateProceduralMainland59(advanceLayoutRevision(state, 28) as GameState),
-  60: (state: unknown) => migrateCoveShore60(advanceLayoutRevision(state, 29) as GameState)
+  60: (state: unknown) => migrateCoveShore60(advanceLayoutRevision(state, 29) as GameState),
+  61: (state: unknown) => migrateVillageMountain61(advanceLayoutRevision(state, 30) as GameState),
+  62: (state: unknown) => migrateRoadJunctions62(advanceLayoutRevision(state, 31) as GameState),
+  63: (state: unknown) => migrateCoastalValley63(advanceLayoutRevision(state, 32) as GameState),
+  64: (state: unknown) => migrateFarmPacks64(state as GameState),
+  65: (state: unknown) => migrateVillageTrade65(advanceLayoutRevision(state, 33) as GameState),
+  66: (state: unknown) => migrateTradeEconomy66(state as GameState),
+  67: (state: unknown) => migrateHarborDistrict67(advanceLayoutRevision(state, 34) as GameState),
+  68: (state: unknown) => migrateCartWorkshop68(advanceLayoutRevision(state, 35) as GameState),
+  69: (state: unknown) => migrateMainHarbor69(advanceLayoutRevision(state, 36) as GameState),
+  70: (state: unknown) => migrateRoadNetwork70(advanceLayoutRevision(state, 37) as GameState)
 };
 
 
@@ -1508,6 +1530,14 @@ function advanceLayoutRevision(state: unknown, target: number): unknown {
   if (due(28)) state = migrateSunreachLayout28(state as GameState);
   if (due(29)) state = migrateProceduralMainland59(state as GameState);
   if (due(30)) state = migrateCoveShore60(state as GameState);
+  if (due(31)) state = migrateVillageMountain61(state as GameState);
+  if (due(32)) state = migrateRoadJunctions62(state as GameState);
+  if (due(33)) state = migrateCoastalValley63(state as GameState);
+  if (due(34)) state = migrateVillageTrade65(state as GameState);
+  if (due(35)) state = migrateHarborDistrict67(state as GameState);
+  if (due(36)) state = migrateCartWorkshop68(state as GameState);
+  if (due(37)) state = migrateMainHarbor69(state as GameState);
+  if (due(38)) state = migrateRoadNetwork70(state as GameState);
   return state;
 }
 
@@ -1567,7 +1597,11 @@ function fillMissingMarketCommodities(state: GameState): void {
       id: marketId,
       name: definition.name,
       regionId: definition.regionId,
-      commodities: {}
+      commodities: {},
+      // Older saves gain absent villages after the versioned migrations ran.
+      // New market state must include their current trade contract as well.
+      ...(state.schemaVersion >= 66 && isVillageTradeOrigin(marketId)
+        ? { tradeDemand: createTradeDemand(lastTick) } : {})
     });
     if (!market.commodities) continue;
     for (const comm of definition.commodities) {

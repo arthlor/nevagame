@@ -1,5 +1,7 @@
+import { TRADE_PACK_RECIPES } from "./tradePacks";
 // src/content/progression.ts
 
+import { FARM_PACK_RECIPES } from "./farmPacks";
 import { ProficiencyRankDefinition } from "./types";
 
 /**
@@ -50,6 +52,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     fishingUnlocks: ["rod.willow"],
     tradingUnlocks: ["market.village", "market.harbor"],
     processingUnlocks: [
+      ...FARM_PACK_RECIPES.map((recipe) => recipe.id),
       "recipe.wheat_to_grain",
       "recipe.barley_to_grain",
       "recipe.sunflower_to_grain",
@@ -93,7 +96,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     xpRequired: 3000,
     farmingUnlocks: ["crop.flax"],
     fishingUnlocks: ["rod.heavy_sport"],
-    tradingUnlocks: [],
+    tradingUnlocks: ["mount.carriage_4"],
     processingUnlocks: [
       "recipe.cook_orchard_tart",
       "recipe.deck_boots",
@@ -115,7 +118,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     xpRequired: 15000,
     farmingUnlocks: [],
     fishingUnlocks: [],
-    tradingUnlocks: [],
+    tradingUnlocks: ["mount.carriage_6"],
     processingUnlocks: ["recipe.batch_harvest_bowls"]
   },
   {
@@ -124,7 +127,7 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     xpRequired: 30000,
     farmingUnlocks: [],
     fishingUnlocks: [],
-    tradingUnlocks: [],
+    tradingUnlocks: ["boat.trading_ship"],
     processingUnlocks: ["recipe.batch_fish_stews"]
   },
   {
@@ -146,6 +149,11 @@ export const PROFICIENCY_RANKS: ProficiencyRankDefinition[] = [
     processingUnlocks: []
   }
 ];
+
+for (const recipe of TRADE_PACK_RECIPES.filter(recipe => !recipe.tags.includes('harvest'))) {
+  const rank = PROFICIENCY_RANKS.find(rank => rank.xpRequired >= (recipe.minimumSkill?.xp ?? 0))!;
+  rank.processingUnlocks.push(recipe.id);
+}
 
 export function getRankForXp(xp: number): ProficiencyRankDefinition {
   for (let i = PROFICIENCY_RANKS.length - 1; i >= 0; i--) {

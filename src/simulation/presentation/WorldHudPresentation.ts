@@ -1,3 +1,5 @@
+import { farmCargoName } from "../cargo/farmPacks";
+import { cargoContentId } from "../cargo/farmPacks";
 import { buildEndgameRecordTracker } from "./WorldGuidancePresentation";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
@@ -18,7 +20,7 @@ import type {
   WorldHudDto,
   HudIconId
 } from "../core/contracts";
-import type { FishCargoState, FishSchoolState, GameState } from "../core/types";
+import type { CargoState, FishSchoolState, GameState } from "../core/types";
 import type { ActiveQuestDto } from "../core/QuestTypes";
 import { dayOfSeason, MINUTES_PER_DAY } from "../core/GameClock";
 import { WORK_DAILY_EARN_CAP, WORK_MEAL_DAILY_LIMIT, workEarningsDayFor } from "../domains/ProgressionDomain";
@@ -35,12 +37,17 @@ const titleCase = (value: string): string =>
 const seaState = (roughness: number): "Calm" | "Swell" | "Rough" =>
   roughness < 0.35 ? "Calm" : roughness < 0.7 ? "Swell" : "Rough";
 
-export const buildCargoPresentation = (cargo: FishCargoState): WorldHudCargoDto => {
+export const buildCargoPresentation = (cargo: CargoState): WorldHudCargoDto => {
   const freshnessPercent = Math.round(cargo.freshness);
   return {
     cargoId: cargo.id,
-    speciesId: cargo.speciesId,
-    name: ContentRegistry.fishSpecies.get(cargo.speciesId)?.name ?? "Sport fish",
+    kind: cargo.kind === "farm" ? "farm" : "fish",
+    itemId: cargo.kind === "farm" ? cargo.itemId : undefined,
+    tradePackId: cargo.kind === "farm" ? cargo.tradePack?.definitionId : undefined,
+    speciesId: cargoContentId(cargo),
+    name: cargo.kind === "farm"
+      ? farmCargoName(cargo)
+      : ContentRegistry.fishSpecies.get(cargo.speciesId)?.name ?? "Sport fish",
     weightKg: cargo.weightKg,
     quality: cargo.quality,
     freshnessPercent,
@@ -500,6 +507,7 @@ export function buildWorldHudDto(
     activeBoat && boatDefinition
       ? {
           boatId: activeBoat.id,
+          boatTypeId: activeBoat.boatTypeId,
           name: boatDefinition.name,
           speedKnots: Math.round(activeBoat.speed * 1.944),
           isDocked: activeBoat.isDocked,

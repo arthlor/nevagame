@@ -88,6 +88,7 @@ function layoutIdLiteral(id: string): string {
 }
 
 export interface LayoutSourceFiles {
+  interactions?: string;
   farmLayout: string;
   worldLayout: string;
   worldAnchors: string;
@@ -281,7 +282,8 @@ function patchFarmhouseDoorFollow(
     z: origin.z + evalLayoutNumber(zMatch[1]!),
     rotationY: evalLayoutNumber(rotMatch[1]!)
   };
-  const doorNeedle = "export const FARMHOUSE_OUTSIDE_DOOR";
+  const doorNeedle = interior.includes("export const BASE_FARMHOUSE_OUTSIDE_DOOR")
+    ? "export const BASE_FARMHOUSE_OUTSIDE_DOOR" : "export const FARMHOUSE_OUTSIDE_DOOR";
   const doorIndex = interior.indexOf(doorNeedle);
   if (doorIndex < 0) throw new LayoutEditPatchError("Missing FARMHOUSE_OUTSIDE_DOOR");
   const brace = interior.indexOf("{", doorIndex);
@@ -923,6 +925,15 @@ export function applyLayoutEditToSources(
   const rotationY = layoutRotationForWrite(commit);
 
   switch (commit.kind) {
+    case "interaction-placement": {
+      if (!next.interactions) throw new LayoutEditPatchError("Missing interaction placement source");
+      const allowed = new RegExp(`"?${escapeRegExp(commit.id)}"?\\s*:`);
+      const bindings = next.interactions.slice(next.interactions.indexOf("export const INTERACTION_PLACEMENTS"));
+      if (!allowed.test(bindings)) throw new LayoutEditPatchError(`Unknown interactive placement ${commit.id}`);
+      next.interactions = upsertRecordLiteral(next.interactions, "INTERACTION_PLACEMENT_OVERRIDES", commit.id,
+        `{ x: ${formatWorldCoord(commit.x)}, z: ${formatWorldCoord(commit.z)}, rotationY: ${formatRadians(commit.rotationY)} }`);
+      break;
+    }
     case "farmstead":
     case "farm-prop":
     case "farm-structure": {
@@ -1020,6 +1031,7 @@ export function isLayoutEditCommit(value: unknown): value is LayoutEditCommit {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
   const kinds: LayoutEditKind[] = [
+    "interaction-placement",
     "farmstead",
     "farm-prop",
     "farm-fence",
@@ -1069,6 +1081,7 @@ export function readLayoutSources(rootDirectory: string): LayoutSourceFiles {
   const read = (relative: string): string =>
     fs.readFileSync(path.join(rootDirectory, relative), "utf8");
   return {
+    interactions: read(LAYOUT_EDITOR_SOURCE_FILES.interactions),
     farmLayout: read(LAYOUT_EDITOR_SOURCE_FILES.farmLayout),
     worldLayout: read(LAYOUT_EDITOR_SOURCE_FILES.worldLayout),
     worldAnchors: read(LAYOUT_EDITOR_SOURCE_FILES.worldAnchors),
@@ -1128,11 +1141,11 @@ export function writeLayoutSources(
   const previous = readLayoutSources(rootDirectory);
   const keys = Object.keys(LAYOUT_EDITOR_SOURCE_FILES) as Array<keyof LayoutSourceFiles>;
   const pending = keys
-    .filter((key) => files[key] !== previous[key])
+    .filter((key) => files[key] !== undefined && files[key] !== previous[key])
     .map((key) => ({
       absolute: path.join(rootDirectory, LAYOUT_EDITOR_SOURCE_FILES[key]),
-      contents: files[key],
-      previous: previous[key]
+      contents: files[key]!,
+      previous: previous[key]!
     }));
   if (pending.length === 0) return [];
 

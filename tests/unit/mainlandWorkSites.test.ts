@@ -67,7 +67,7 @@ describe("mainland work sites", () => {
     expect(Math.max(mainlandMountainExposureAt(at(adit, 0, -8).x, at(adit, 0, -8).z),
       mainlandMountainExposureAt(at(adit, 0, -14).x, at(adit, 0, -14).z))).toBeGreaterThan(0.15);
     expect(roadGap(adit.center)).toBeLessThan(12);
-    expect(WorldLayout.nearestRouteDistance(adit.center.x, adit.center.z).route.id).toBe("mainland-highridge-overlook");
+    expect(WorldLayout.nearestRouteDistance(adit.center.x, adit.center.z).route.id).toBe("mainland-highridge-adit-road");
   });
 
   it("dig the ice house into a bank above the forest lake, door toward the water, beside the road", () => {

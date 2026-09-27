@@ -66,10 +66,11 @@ export function createMarketUiActions({ sim, notify, setToast, reportSale, reque
       else if (result.revenue != null) reportSale(result.quantity ?? 0, result.revenue);
     },
     onDiscardFishCargo: (marketId: MarketId, cargoId: string) => {
+      const farmPack = sim.state.fishCargo[cargoId]?.kind === "farm";
       const res = sim.execute({ type: "cargo.discard", cargoId, marketId });
       if (!res.success) notify(res.reason ?? "Could not discard fish", "danger");
-      else if (res.scraps) notify(`Discarded for ${res.scraps} fish scraps`, "info");
-      else notify("Discarded spoiled fish", "info");
+      else if (res.scraps) notify(`Recovered ${res.scraps} ${farmPack ? "plant matter" : "fish scraps"}`, "info");
+      else notify("Discarded spoiled cargo", "info");
     },
     onReleaseFishCargo: (marketId: MarketId, cargoId: string) => {
       const res = sim.execute({ type: "cargo.release", cargoId, marketId });

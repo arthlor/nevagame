@@ -8,7 +8,8 @@ import {
   GameMode,
   MarketId,
   RecipeId,
-  RodId
+  RodId,
+  WeatherTag
 } from "../simulation/core/types";
 import { NauticalCompassAlmanac } from "./hud/NauticalCompassAlmanac";
 import { NoticeStack } from "./components/NoticeStack";
@@ -244,6 +245,13 @@ export interface GameUIProps {
   onGrantMoney: (amount: number) => void;
   onToggleWeather: () => void;
   onSpawnSchool: () => void;
+  onSetWeather?: (type: WeatherTag) => void;
+  onSetTimePreset?: (minute: number) => void;
+  onRefillWork?: () => void;
+  onTeleport?: (x: number, z: number, yaw?: number) => void;
+  onPrepareWheatReview?: () => void;
+  onPrepareTrioReview?: () => void;
+  onSpawnTunaSchool?: () => void;
   assetCoverage: AssetCoverageSummary;
   startup?: StartupState;
   onStart?: () => void;
@@ -341,6 +349,13 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
   onGrantMoney,
   onToggleWeather,
   onSpawnSchool,
+  onSetWeather,
+  onSetTimePreset,
+  onRefillWork,
+  onTeleport,
+  onPrepareWheatReview,
+  onPrepareTrioReview,
+  onSpawnTunaSchool,
   assetCoverage,
   startup = READY_STARTUP_STATE,
   onStart = () => {},
@@ -665,6 +680,15 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
           onSpawnSchool={onSpawnSchool}
           assetCoverage={assetCoverage}
           bootReady={bootReady}
+          onSetWeather={onSetWeather}
+          onSetTimePreset={onSetTimePreset}
+          onRefillWork={onRefillWork}
+          onTeleport={onTeleport}
+          onPrepareWheatReview={onPrepareWheatReview}
+          onPrepareTrioReview={onPrepareTrioReview}
+          onSpawnTunaSchool={onSpawnTunaSchool}
+          layoutEditorActive={layoutEditor?.active}
+          onToggleLayoutEditor={layoutEditor?.onToggle}
         />
       )}
     </div>

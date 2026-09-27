@@ -43,13 +43,18 @@ describe("W09 headwater riparian habitat group", () => {
     const logs = group.filter((placement) => placement.assetId === "prop_driftwood_log_a");
     const bushes = group.filter((placement) => placement.assetId.startsWith("foliage_bush"));
 
-    // A cluster, not scatter: the stand reads as one mass at the pool margin,
-    // following the west waterline the basin carved.
+    // A cluster, not scatter: the dominant stand reads as one mass following
+    // the west waterline the basin carved; a smaller clump holds the east
+    // margin. Every reed roots at a pool margin, never out in open water.
     expect(reeds.length).toBeGreaterThanOrEqual(6);
+    const westReeds = reeds.filter((reed) => reed.x < WorldLayout.riverSectionAt(reed.z).centerX);
+    expect(westReeds.length).toBeGreaterThan(reeds.length / 2);
     for (const reed of reeds) {
       const section = WorldLayout.riverSectionAt(reed.z);
-      const westWaterEdge = section.centerX - section.leftWaterWidth;
-      const marginOffset = westWaterEdge - reed.x;
+      const west = reed.x < section.centerX;
+      const marginOffset = west
+        ? section.centerX - section.leftWaterWidth - reed.x
+        : reed.x - (section.centerX + section.rightWaterWidth);
       expect(marginOffset, `${reed.id} sits off the pool margin`).toBeGreaterThan(-1.5);
       expect(marginOffset, `${reed.id} sits off the pool margin`).toBeLessThan(3.2);
     }
@@ -73,6 +78,9 @@ describe("W09 headwater riparian habitat group", () => {
         placement.id
       ).toBe(true);
       if (REED_ASSETS.has(placement.assetId)) continue;
+      // Collision-free stones embedded in the plunge margin are the one other
+      // exception (`headwaterBaseDressing.test.ts` requires them in the water).
+      if (placement.id.startsWith(`${GROUP_PREFIX}impact-rock-`)) continue;
       expect(WorldLayout.isWater(placement.x, placement.z), placement.id).toBe(false);
     }
   });

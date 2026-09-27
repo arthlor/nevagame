@@ -14,13 +14,18 @@
         <div id="yard-toast" class="stage-toast" role="status" aria-live="polite"></div>
 
         <div class="stage-hud" id="stage-hud">
-          <span id="hud-asset-badge">Loading…</span>
+          <button type="button" id="hud-asset-badge" class="hud-badge-btn" title="Click to copy asset ID">Loading…</button>
           <span class="hud-sep" aria-hidden="true">·</span>
           <span id="hud-view-badge">3/4 · 8m</span>
+          <span class="hud-sep" aria-hidden="true">·</span>
+          <span id="hud-lod-badge">LOD0</span>
           <span class="hud-sep" aria-hidden="true">·</span>
           <span id="hud-dims-badge">—</span>
           <span class="hud-sep" aria-hidden="true">·</span>
           <span id="hud-tris-badge">—</span>
+          <span class="hud-sep" aria-hidden="true">·</span>
+          <span id="hud-env-badge">12:00</span>
+          <span id="hud-anim-badge" class="hud-anim-pill" style="display: none;">—</span>
         </div>
 
         <div class="stage-toolbar" aria-label="Viewport controls">
@@ -29,10 +34,14 @@
           <button type="button" data-cam="side" title="Side (3)">Side</button>
           <button type="button" data-cam="rear" title="Rear (4)">Rear</button>
           <button type="button" data-cam="top" title="Top (5)">Top</button>
+          <button type="button" data-cam="isometric" title="Isometric 45° (7)">Iso</button>
           <button type="button" id="cam-fit-btn" title="Fit (F)">Fit</button>
           <button type="button" id="cam-eye-btn" title="Eye Level 1.6m (6)">Eye</button>
           <span class="toolbar-sep" aria-hidden="true"></span>
+          <button type="button" id="toolbar-wire-btn" title="Toggle Wireframe Overlay (W)">Wire</button>
           <button type="button" id="origin-axes-btn" title="Origin XYZ Axes (O)">Axes</button>
+          <button type="button" id="snapshot-btn" title="Capture Snapshot PNG (P)">Snap</button>
+          <button type="button" id="fullscreen-btn" title="Toggle Fullscreen">Full</button>
           <button type="button" id="help-btn" title="Keyboard Shortcuts (?)">Help</button>
           <button type="button" id="toggle-panel-btn" title="Toggle panel (Tab)">Hide</button>
         </div>
@@ -67,29 +76,40 @@
 
           <div class="category-chip-row" id="category-chips" aria-label="Category filters">
             <button type="button" class="chip active" data-family="all">All</button>
+            <button type="button" class="chip" data-family="showcase">Showcase</button>
             <button type="button" class="chip" data-family="architecture">Architecture</button>
+            <button type="button" class="chip" data-family="fauna">Fauna</button>
             <button type="button" class="chip" data-family="prop">Prop</button>
             <button type="button" class="chip" data-family="boat">Boat</button>
             <button type="button" class="chip" data-family="vegetation">Vegetation</button>
             <button type="button" class="chip" data-family="crop">Crop</button>
             <button type="button" class="chip" data-family="fish">Fish</button>
+            <button type="button" class="chip" data-family="tools">Tools</button>
+            <button type="button" class="chip" data-family="wearable">Wearables</button>
+            <button type="button" class="chip" data-family="furniture">Furniture</button>
             <button type="button" class="chip" data-family="character">Character</button>
             <button type="button" class="chip" data-family="rock">Rock</button>
             <button type="button" class="chip" data-family="cloud">Cloud</button>
-            <button type="button" class="chip" data-family="showcase">Showcase</button>
           </div>
 
           <div class="asset-filter-row">
-            <input id="asset-search" type="search" placeholder="Search catalog…" spellcheck="false" aria-label="Filter assets" />
+            <div class="search-input-wrap">
+              <input id="asset-search" type="search" placeholder="Search catalog…" spellcheck="false" aria-label="Filter assets" />
+              <button type="button" id="clear-search-btn" class="clear-search-btn" title="Clear search" aria-label="Clear search">Clear</button>
+            </div>
             <select id="family-filter" aria-label="Family">
-              <option value="all" selected>All Families</option>
+              <option value="all" selected>All Categories</option>
               <option value="showcase">Showcases</option>
               <option value="architecture">Architecture</option>
-              <option value="prop">Prop</option>
+              <option value="fauna">Fauna & Animals</option>
+              <option value="prop">Props</option>
               <option value="boat">Boat</option>
               <option value="vegetation">Vegetation</option>
               <option value="crop">Crop</option>
               <option value="fish">Fish</option>
+              <option value="tools">Tools & Equipment</option>
+              <option value="wearable">Wearables</option>
+              <option value="furniture">Furniture & Interior</option>
               <option value="character">Character</option>
               <option value="rock">Rock</option>
               <option value="cloud">Cloud</option>
@@ -101,6 +121,7 @@
 
           <div class="asset-nav-row">
             <button type="button" id="prev-asset-btn" title="Previous ([)">Prev</button>
+            <button type="button" id="random-asset-btn" title="Random asset (R)">Random</button>
             <button type="button" id="next-asset-btn" title="Next (])">Next</button>
             <button type="button" id="copy-asset-id-btn" title="Copy asset ID">Copy ID</button>
           </div>
@@ -129,10 +150,10 @@
           <div class="field-group">
             <label class="field-label" for="shading-select">Shading Mode</label>
             <select id="shading-select">
-              <option value="lit" selected>Lit</option>
-              <option value="unlit">Unlit (Flat)</option>
+              <option value="lit" selected>Lit (PBR Standard)</option>
+              <option value="unlit">Unlit (Flat Albedo)</option>
               <option value="wireframe_overlay">Wire overlay</option>
-              <option value="wireframe_pure">Wire</option>
+              <option value="wireframe_pure">Wire pure</option>
               <option value="vertex_colors">Vertex color</option>
               <option value="normals">Normals</option>
               <option value="lod0">LOD0</option>
@@ -170,6 +191,27 @@
             </div>
           </div>
 
+          <!-- Materials & Palette Tokens -->
+          <div class="inspect-materials-section">
+            <div class="section-title-row">
+              <h2>Palette Materials</h2>
+              <span class="count-badge" id="materials-count-badge">0</span>
+            </div>
+            <div id="materials-list" class="materials-inspector-list"></div>
+            <div id="materials-empty-msg" class="empty-state-text">No materials detected</div>
+          </div>
+
+          <!-- Collision Primitives Breakdown -->
+          <div class="inspect-collision-section">
+            <div class="section-title-row">
+              <h2>Collision Primitives</h2>
+              <span class="count-badge" id="collision-count-badge">0</span>
+            </div>
+            <div id="collision-list" class="collision-inspector-list"></div>
+            <div id="collision-empty-msg" class="empty-state-text">No collision primitives defined</div>
+          </div>
+
+          <!-- Sockets Inspector -->
           <div class="inspect-sockets-section">
             <div class="section-title-row">
               <h2>Sockets Inspector</h2>
@@ -211,16 +253,19 @@
 
             <div class="anim-control-row">
               <button type="button" id="anim-play-toggle" class="anim-action-btn primary">Pause</button>
+              <button type="button" id="anim-step-5f-back-btn" class="anim-action-btn" title="Step back 5 frames (-5f)">-5f</button>
               <button type="button" id="anim-step-frame-back-btn" class="anim-action-btn" title="Step back 1 frame (-1f)">-1f</button>
               <button type="button" id="anim-step-back-btn" class="anim-action-btn" title="Step back 0.1s">-0.1s</button>
               <button type="button" id="anim-step-fwd-btn" class="anim-action-btn" title="Step forward 0.1s">+0.1s</button>
               <button type="button" id="anim-step-frame-fwd-btn" class="anim-action-btn" title="Step forward 1 frame (+1f)">+1f</button>
+              <button type="button" id="anim-step-5f-fwd-btn" class="anim-action-btn" title="Step forward 5 frames (+5f)">+5f</button>
             </div>
 
             <div class="anim-secondary-row">
               <div class="speed-select-wrap">
                 <label for="anim-speed" class="field-label-sm">Speed</label>
                 <select id="anim-speed" title="Playback speed">
+                  <option value="0.1">0.1×</option>
                   <option value="0.25">0.25×</option>
                   <option value="0.5">0.5×</option>
                   <option value="1.0" selected>1×</option>
@@ -242,18 +287,44 @@
             <label class="field-label" for="socket-prop-select">Hand Prop</label>
             <select id="socket-prop-select">
               <option value="none">None</option>
-              <option value="tool_fishing_rod_a">Fishing rod</option>
-              <option value="tool_watering_can_a">Watering can</option>
-              <option value="tool_sickle_a">Sickle</option>
-              <option value="tool_seed_pouch_a">Seed pouch</option>
-              <option value="prop_harvest_basket_a">Harvest basket</option>
-              <option value="prop_crop_bundle_a">Crop bundle</option>
-              <option value="fish_trout_a">Trout cargo</option>
-              <option value="fish_tuna_a">Tuna cargo</option>
-              <option value="tool_workstation_scoop_a">Scoop</option>
-              <option value="prop_crafting_tailor_a">Tailoring tools</option>
-              <option value="prop_crafting_toolmaking_a">Toolmaking tools</option>
-              <option value="prop_crafting_ready_a">Equipment inspection</option>
+              <optgroup label="Fishing Rods">
+                <option value="tool_fishing_rod_a">Basic fishing rod</option>
+                <option value="tool_fishing_rod_river_a">River cane rod</option>
+                <option value="tool_fishing_rod_heavy_sport_a">Heavy sport rod</option>
+                <option value="tool_fishing_rod_offshore_a">Offshore rod</option>
+                <option value="tool_fishing_rod_master_a">Master rod</option>
+              </optgroup>
+              <optgroup label="Farming Tools">
+                <option value="tool_watering_can_a">Watering can</option>
+                <option value="tool_watering_can_copper_rose_a">Copper rose can</option>
+                <option value="tool_watering_can_long_spout_a">Long spout can</option>
+                <option value="tool_sickle_a">Harvest sickle</option>
+                <option value="tool_sickle_broad_a">Broad sickle</option>
+                <option value="tool_sickle_balanced_a">Balanced sickle</option>
+                <option value="tool_seed_pouch_a">Seed pouch</option>
+              </optgroup>
+              <optgroup label="Carried Cargo & Produce">
+                <option value="prop_harvest_basket_a">Harvest basket</option>
+                <option value="prop_crop_bundle_a">Crop bundle</option>
+                <option value="prop_cargo_sack_a">Cargo sack</option>
+                <option value="prop_cargo_crate_large_a">Cargo crate</option>
+                <option value="prop_trade_pack_trout_a">Trout pack</option>
+                <option value="prop_trade_pack_wheat_a">Wheat pack</option>
+                <option value="item_bread_loaf_a">Bread loaf</option>
+                <option value="item_apple_a">Apple</option>
+              </optgroup>
+              <optgroup label="Fish Cargo">
+                <option value="fish_trout_a">Trout cargo</option>
+                <option value="fish_tuna_a">Tuna cargo</option>
+                <option value="fish_catfish_a">Catfish cargo</option>
+                <option value="fish_swordfish_a">Swordfish cargo</option>
+              </optgroup>
+              <optgroup label="Crafting & Inspection">
+                <option value="tool_workstation_scoop_a">Scoop</option>
+                <option value="prop_crafting_tailor_a">Tailoring tools</option>
+                <option value="prop_crafting_toolmaking_a">Toolmaking tools</option>
+                <option value="prop_crafting_ready_a">Equipment inspection</option>
+              </optgroup>
             </select>
           </section>
         </div>
@@ -261,9 +332,25 @@
         <!-- Tab 4: Environment -->
         <div class="tab-pane" id="tab-content-environment" role="tabpanel" aria-labelledby="tab-btn-environment">
           <div class="field-group">
+            <span class="field-label">Atmosphere Presets</span>
+            <div class="chip-row atmosphere-presets-row" aria-label="Atmosphere presets">
+              <button type="button" class="preset-chip" data-atmo="dawn" title="6:00 Clear Dawn">Dawn</button>
+              <button type="button" class="preset-chip" data-atmo="morning" title="8:30 Morning Sun">Morning</button>
+              <button type="button" class="preset-chip" data-atmo="noon" title="12:00 Bright Noon">Noon</button>
+              <button type="button" class="preset-chip" data-atmo="afternoon" title="16:00 Warm Sun">Afternoon</button>
+              <button type="button" class="preset-chip" data-atmo="golden" title="18:30 Golden Hour">Golden Hour</button>
+              <button type="button" class="preset-chip" data-atmo="twilight" title="19:45 Soft Twilight">Twilight</button>
+              <button type="button" class="preset-chip" data-atmo="night" title="22:30 Starlight Night">Night</button>
+              <button type="button" class="preset-chip" data-atmo="fog" title="7:30 Morning Fog">Fog</button>
+              <button type="button" class="preset-chip" data-atmo="storm" title="13:30 Coastal Storm">Storm</button>
+            </div>
+          </div>
+
+          <div class="field-group">
             <label class="field-label" for="time-range">Time of Day <output id="time-output">12:00</output></label>
             <input id="time-range" type="range" min="0" max="1439" step="1" value="720" />
             <div class="chip-row" aria-label="Time presets">
+              <button type="button" data-time="360">6:00</button>
               <button type="button" data-time="480">8:00</button>
               <button type="button" data-time="720">12:00</button>
               <button type="button" data-time="1020">17:00</button>
@@ -294,6 +381,8 @@
                 <option value="meadow">Meadow field</option>
                 <option value="sand">Sand</option>
                 <option value="rock">Rock</option>
+                <option value="deck">Weathered deck</option>
+                <option value="studio">Studio neutral</option>
                 <option value="grid">Grid</option>
                 <option value="none">None</option>
               </select>
@@ -314,6 +403,7 @@
               <button type="button" data-dist="8">8m</button>
               <button type="button" data-dist="15">15m</button>
               <button type="button" data-dist="30">30m</button>
+              <button type="button" data-dist="50">50m</button>
             </div>
           </div>
 
@@ -339,6 +429,22 @@
             <input id="stage-input" type="text" placeholder="published or run-…" spellcheck="false" aria-label="Art stage" />
             <button id="stage-apply" type="button">Apply</button>
           </div>
+
+          <div class="budget-card" id="budget-card">
+            <div class="budget-header">
+              <span class="budget-title">Triangle Budget</span>
+              <span class="budget-status" id="budget-status-label">—</span>
+            </div>
+            <div class="budget-bar-track">
+              <div class="budget-bar-fill" id="budget-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="budget-legend">
+              <span>0</span>
+              <span id="budget-target-label">Target: —</span>
+              <span id="budget-max-label">Max: —</span>
+            </div>
+          </div>
+
           <dl id="metrics-list" class="metrics-grid"></dl>
         </div>
       </aside>
@@ -354,15 +460,18 @@
         <div class="shortcuts-list">
           <div class="shortcut-item"><kbd>1</kbd>–<kbd>5</kbd><span>Camera angles (Front, 3/4, Side, Rear, Top)</span></div>
           <div class="shortcut-item"><kbd>6</kbd><span>Eye-level camera (1.6m POV)</span></div>
+          <div class="shortcut-item"><kbd>7</kbd><span>Isometric 45° review angle</span></div>
           <div class="shortcut-item"><kbd>F</kbd><span>Fit camera framing to bounds</span></div>
           <div class="shortcut-item"><kbd>Space</kbd><span>Play / Pause animation (or toggle turntable)</span></div>
           <div class="shortcut-item"><kbd>[</kbd> / <kbd>]</kbd><span>Previous / Next asset</span></div>
+          <div class="shortcut-item"><kbd>R</kbd><span>Select random asset</span></div>
           <div class="shortcut-item"><kbd>W</kbd><span>Toggle wireframe overlay</span></div>
           <div class="shortcut-item"><kbd>C</kbd><span>Toggle collision primitives</span></div>
           <div class="shortcut-item"><kbd>B</kbd><span>Toggle bounding box</span></div>
           <div class="shortcut-item"><kbd>S</kbd><span>Toggle authoring sockets</span></div>
           <div class="shortcut-item"><kbd>K</kbd><span>Toggle skeleton rig helper</span></div>
           <div class="shortcut-item"><kbd>O</kbd><span>Toggle origin XYZ axes</span></div>
+          <div class="shortcut-item"><kbd>P</kbd><span>Capture snapshot PNG of current view</span></div>
           <div class="shortcut-item"><kbd>T</kbd><span>Toggle turntable auto-rotation</span></div>
           <div class="shortcut-item"><kbd>Tab</kbd><span>Show / Hide side panel</span></div>
           <div class="shortcut-item"><kbd>?</kbd><span>Open keyboard shortcuts</span></div>

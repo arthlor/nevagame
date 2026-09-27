@@ -5,6 +5,7 @@ import { GameSheet, Meter } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForAction } from "../chrome/uiAtlas";
 import { IconEnergy } from "./HudIcons";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface FarmingActionStatusProps {
   action: FarmingActionSnapshot;
@@ -27,12 +28,32 @@ export const ACTION_LABELS: Record<FarmingActionSnapshot["action"], { title: str
   dock: { title: "Docking vessel…", hint: "Securing boat to pier" }
 };
 
+export const ACTION_LABELS_TR: Record<FarmingActionSnapshot["action"], { title: string; hint?: string }> = {
+  plant: { title: "Tohum ekiliyor…", hint: "Sürülmüş toprağa tohum serpiliyor" },
+  water: { title: "Toprak sulanıyor…", hint: "Ekin yatağı sulanıyor" },
+  fertilize: { title: "Gübreleniyor…", hint: "Toprağın besini artırılıyor" },
+  harvest: { title: "Hasat ediliyor…", hint: "Çiftlik mahsulü toplanıyor" },
+  unroot: { title: "Kökünden sökülüyor…", hint: "Ekin topraktan kaldırılıyor" },
+  "processing-start": { title: "Tezgâh hazırlanıyor…", hint: "Zanaat tezgâhı dolduruluyor" },
+  "processing-collect": { title: "Mahsul toplanıyor…", hint: "İşlenmiş ürünler toplanıyor" },
+  pickup: { title: "Yerden alınıyor…", hint: "Eşya kaldırılıyor" },
+  place: { title: "Yerleştiriliyor…", hint: "Eşya yere bırakılıyor" },
+  workstation: { title: "Çalışılıyor…", hint: "Zanaat tezgâhı işletiliyor" },
+  cast: { title: "Olta savruluyor…", hint: "Balık oltası denize atılıyor" },
+  board: { title: "Tekneye biniliyor…", hint: "Güverteye adım atılıyor" },
+  dock: { title: "Yanaşılıyor…", hint: "Tekne iskeleye bağlanıyor" }
+};
+
 const FALLBACK_TIMING = { durationMs: 2000, commitMs: 1000 };
 
 export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action, className = "" }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
+  const labelMap = isTr ? ACTION_LABELS_TR : ACTION_LABELS;
+
   const meta = action.action === "harvest" && action.workCost === 0
-    ? { title: "Clearing crop…", hint: "Removing withered crop" }
-    : ACTION_LABELS[action.action] ?? { title: "Working…", hint: "Action in progress" };
+    ? (isTr ? { title: "Ekin temizleniyor…", hint: "Kurumuş ekin kaldırılıyor" } : { title: "Clearing crop…", hint: "Removing withered crop" })
+    : labelMap[action.action] ?? (isTr ? { title: "Çalışılıyor…", hint: "Eylem devam ediyor" } : { title: "Working…", hint: "Action in progress" });
   const progress = Number.isFinite(action.progress) ? Math.max(0, Math.min(1, action.progress)) : 0;
   const percent = Math.min(100, Math.max(0, Math.round(progress * 100)));
   const isCommitted = action.committed;
@@ -66,10 +87,10 @@ export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action
             {workCost != null && workCost > 0 && (
               <span
                 className="cast-bar-work-chip"
-                title={`Consumes ${workCost} Work`}
+                title={isTr ? `${workCost} Emek tüketir` : `Consumes ${workCost} Work`}
                 data-testid="cast-bar-work-cost"
               >
-                <IconEnergy size={12} aria-hidden="true" /> {`-${workCost} Work`}
+                <IconEnergy size={12} aria-hidden="true" /> {`-${workCost} ${isTr ? "Emek" : "Work"}`}
               </span>
             )}
           </div>
@@ -93,7 +114,7 @@ export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action
           <div
             className="cast-bar-commit-marker"
             style={{ left: `${commitPercent}%` }}
-            title={`Work takes effect here`}
+            title={isTr ? "Emek burada işlenir" : "Work takes effect here"}
             aria-hidden="true"
           />
           {/* Channeling Progress Spark */}

@@ -701,6 +701,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
   describe("F5.1 & F5.2 Maritime Vessel Console & Cargo Hold Bay Grid", () => {
     const baseBoatDto: WorldHudBoatDto = {
       boatId: "boat.player_rowboat",
+      boatTypeId: "boat.rowboat",
       name: "Rowboat",
       speedKnots: 3.8,
       seaState: "Calm",
@@ -770,6 +771,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
       const skiffDto: WorldHudBoatDto = {
         ...baseBoatDto,
         boatId: "boat.player_skiff",
+      boatTypeId: "boat.skiff",
         name: "Motor Skiff",
         fuel: { current: 75, maximum: 100, percent: 75, danger: false }
       };

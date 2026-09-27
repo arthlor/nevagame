@@ -23,6 +23,7 @@ import {
 import { SUNREACH_ROUTES } from "../../src/world/SunreachWorld";
 import { SUNREACH_LIVING_ROUTES } from "../../src/world/SunreachLivingLayout";
 import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
+import { WORLD_ISLAND_DEFINITIONS } from "../../src/world/WorldIslands";
 import {
   PLAYER_HOMESTEAD_LAYOUT,
   STARTER_FARM_LAYOUT,
@@ -32,6 +33,7 @@ import {
   worldToFarmLocal
 } from "../../src/world/FarmLayout";
 import { FARMHOUSE_OUTSIDE_DOOR } from "../../src/world/FarmhouseInterior";
+import { isInHeadwaterBounds } from "../../src/world/NevaHeadwaters";
 import {
   HARBOR_DOCK,
   HARBOR_PIER_DECK,
@@ -50,7 +52,8 @@ import {
   GROUND_COVER_DENSITY,
   GRASS_MAX_PATH_INFLUENCE,
   isPlacementFootprintStable,
-  type EnvironmentAssetPlacement
+  type EnvironmentAssetPlacement,
+  type GroundCoverPlacement
 } from "../../src/world/WorldEnvironmentLayout";
 import {
   compositionAddress,
@@ -130,6 +133,35 @@ function footprintsOverlap(a: FootprintBox, b: FootprintBox): boolean {
     rotateYaw(0, 1, b.yaw)
   ];
   return axes.every((axis) => intervalsOverlap(projectAxis(axis, aCorners), projectAxis(axis, bCorners)));
+}
+
+function shorelineArcProjection(
+  loop: readonly Readonly<{ x: number; z: number }>[],
+  point: Readonly<{ x: number; z: number }>
+): { distanceAlong: number; coastDistance: number; loopLength: number } {
+  let distanceAlong = 0;
+  let coastDistance = Number.POSITIVE_INFINITY;
+  let closestArc = 0;
+  for (let index = 0; index < loop.length; index += 1) {
+    const start = loop[index]!;
+    const end = loop[(index + 1) % loop.length]!;
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const lengthSquared = dx * dx + dz * dz;
+    const length = Math.sqrt(lengthSquared);
+    if (length <= 0.001) continue;
+    const progress = Math.max(0, Math.min(1,
+      ((point.x - start.x) * dx + (point.z - start.z) * dz) / lengthSquared));
+    const nearestX = start.x + dx * progress;
+    const nearestZ = start.z + dz * progress;
+    const candidateDistance = Math.hypot(point.x - nearestX, point.z - nearestZ);
+    if (candidateDistance < coastDistance) {
+      coastDistance = candidateDistance;
+      closestArc = distanceAlong + length * progress;
+    }
+    distanceAlong += length;
+  }
+  return { distanceAlong: closestArc, coastDistance, loopLength: distanceAlong };
 }
 
 function villageBuildingFootprints(
@@ -243,14 +275,16 @@ describe("WorldLayout", () => {
     expect(WorldLayout.isSailable(WORLD_LAYOUT_V5.anchors.harborDock.x, WORLD_LAYOUT_V5.anchors.harborDock.z)).toBe(true);
   });
 
-  it("keeps the cliffside coastal trail on dry walkable ground", () => {
-    const trail = WorldLayout.compiledRouteNetwork().find((route) => route.route.id === "cliffside-coastal-walk");
-    expect(trail).toBeDefined();
-    for (const sample of trail!.samples) {
-      expect(
-        WorldLayout.isWalkable(sample.point.x, sample.point.z),
-        `${sample.point.x.toFixed(1)},${sample.point.z.toFixed(1)}`
-      ).toBe(true);
+  it("keeps the cliffside and headland coastal walks on dry walkable ground", () => {
+    for (const id of ["cliffside-coastal-walk", "headland-coastal-walk"]) {
+      const trail = WorldLayout.compiledRouteNetwork().find((route) => route.route.id === id);
+      expect(trail, id).toBeDefined();
+      for (const sample of trail!.samples) {
+        expect(
+          WorldLayout.isWalkable(sample.point.x, sample.point.z),
+          `${id} ${sample.point.x.toFixed(1)},${sample.point.z.toFixed(1)}`
+        ).toBe(true);
+      }
     }
   });
 
@@ -412,24 +446,27 @@ describe("WorldLayout", () => {
     );
   });
 
-  it("routes the village lighthouse road through the walkable bridge corridor", () => {
-    const route = WORLD_ROUTES.find((candidate) => candidate.id === "village-lighthouse");
-    expect(route).toBeDefined();
-    expect(route?.linearSegmentIndices).toEqual([4, 5, 6, 7]);
-    const bridgeCorridor = route?.points.slice(3, 9);
+  it("carries the farm road alone through the walkable bridge corridor and forks the lighthouse lane at its west approach", () => {
+    const farmRoad = WORLD_ROUTES.find((candidate) => candidate.id === "farm-village")!;
+    const lighthouse = WORLD_ROUTES.find((candidate) => candidate.id === "village-lighthouse")!;
+    expect(farmRoad.linearSegmentIndices).toEqual([4, 5, 6, 7]);
+    const bridgeCorridor = farmRoad.points.slice(4, 10);
     const bridge = WORLD_LAYOUT_V5.anchors.bridge;
     const halfSpan = BRIDGE_WORLD_PROFILE.spanLength * 0.5;
-    expect(bridgeCorridor).toHaveLength(6);
-    expect(bridgeCorridor?.[0]).toEqual(WORLD_LAYOUT_V5.anchors.riverCrossing);
-    expect(bridgeCorridor?.slice(1).every((point) => point.z === bridge.z)).toBe(true);
-    expect(bridgeCorridor?.[1]?.x).toBeCloseTo(bridge.x + halfSpan + BRIDGE_WORLD_PROFILE.approachLength, 8);
-    expect(bridgeCorridor?.[2]?.x).toBeCloseTo(bridge.x + halfSpan, 8);
-    expect(bridgeCorridor?.[3]).toEqual(bridge);
-    expect(bridgeCorridor?.[4]?.x).toBeCloseTo(bridge.x - halfSpan, 8);
-    expect(bridgeCorridor?.[5]?.x).toBeCloseTo(bridge.x - halfSpan - BRIDGE_WORLD_PROFILE.approachLength, 8);
-    expect(route?.points.slice(3, 9).every((point) =>
+    expect(bridgeCorridor.slice(0, 5).every((point) => point.z === bridge.z)).toBe(true);
+    expect(bridgeCorridor[0].x).toBeCloseTo(bridge.x - halfSpan - BRIDGE_WORLD_PROFILE.approachLength, 8);
+    expect(bridgeCorridor[1].x).toBeCloseTo(bridge.x - halfSpan, 8);
+    expect(bridgeCorridor[2]).toEqual(bridge);
+    expect(bridgeCorridor[3].x).toBeCloseTo(bridge.x + halfSpan, 8);
+    expect(bridgeCorridor[4].x).toBeCloseTo(bridge.x + halfSpan + BRIDGE_WORLD_PROFILE.approachLength, 8);
+    expect(bridgeCorridor[5]).toEqual(WORLD_LAYOUT_V5.anchors.riverCrossing);
+    expect(bridgeCorridor.every((point) =>
       !WorldLayout.isWater(point.x, point.z) || WorldLayout.isBridgeDeck(point.x, point.z)
     )).toBe(true);
+    // Only the farm road crosses the deck; the lighthouse lane leaves it on the west bank.
+    expect(lighthouse.points[0]).toEqual(bridgeCorridor[0]);
+    expect(WORLD_ROUTES.filter((route) => route.points.some((point) => point.x === bridge.x && point.z === bridge.z))
+      .map((route) => route.id)).toEqual(["farm-village"]);
   });
 
   it("feathers authored farm, path, and shoreline surfaces instead of using hard material seams", async () => {
@@ -476,7 +513,7 @@ describe("WorldLayout", () => {
       expect(Math.abs(WorldLayout.coastlineZ(x + 1) - WorldLayout.coastlineZ(x))).toBeLessThan(1.1);
       expect(WorldLayout.waterSignedDistance(x, WorldLayout.coastlineZ(x) + 1)).toBeGreaterThan(0);
       const landwardZ = WorldLayout.coastlineZ(x) - 1;
-      if (WorldLayout.riverDistance(x, landwardZ) > WorldLayout.riverHalfWidth(landwardZ) + 1) {
+      if (WorldLayout.riverWaterSignedDistance(x, landwardZ) < -1) {
         expect(WorldLayout.waterSignedDistance(x, landwardZ)).toBeLessThan(0);
       }
     }
@@ -544,7 +581,7 @@ describe("WorldLayout", () => {
       // Neva regional, then the farmstead paths, then western beach and northern bluff trails...
       "arterial", "lane", "arterial", "lane", "trail",
       "lane", "trail", "lane", "trail", "trail",
-      "trail", "trail", "trail", "trail",
+      "trail", "trail", "trail", "trail", "trail",
       // ...then Sunreach's original routes, working-settlement walks, and mainland.
       "arterial", "lane", "trail", "trail",
       ...SUNREACH_LIVING_ROUTES.map(route => route.kind),
@@ -650,6 +687,104 @@ describe("WorldLayout", () => {
     expect(second.groundCoverPlacements).not.toEqual(first.groundCoverPlacements);
   }, 60_000);
 
+  it("dresses both authored island shorelines while leaving coastal access open", () => {
+    const layout = createWorldEnvironmentLayout(42891);
+    const shoreline = layout.staticPlacements.filter((placement) =>
+      placement.id.startsWith("seeded-fill.shoreline.")
+    );
+    const anchors = shoreline.filter((placement) => placement.id.includes(".anchor."));
+    const shorelineCover = layout.groundCoverPlacements.filter((placement) =>
+      placement.id.startsWith("seeded-fill.ground-cover.shoreline.")
+    );
+    const expectedAssets: Readonly<Record<string, RegExp>> = {
+      "island.neva": /^(rock_coastal_[abcd]|rock_pebble_cluster_[abc]|foliage_beach_grass_a|foliage_bush_a|prop_driftwood_log_a|tree_coastal_palm_[ab])$/,
+      "island.sunreach": /^(rock_reef_small_a|rock_coastal_boulder_a|rock_pebble_cluster_c|foliage_beach_grass_a|foliage_bush_round_a|prop_driftwood_log_a|tree_coastal_palm_[ab])$/
+    };
+
+    expect(anchors.filter((placement) => placement.islandId === "island.neva").length).toBeGreaterThan(100);
+    expect(anchors.filter((placement) => placement.islandId === "island.sunreach").length).toBeGreaterThan(10);
+    expect(shorelineCover.filter((placement) => placement.islandId === "island.neva" && placement.category === "pebbles").length).toBeGreaterThan(220);
+    expect(shorelineCover.filter((placement) => placement.islandId === "island.neva" && placement.category === "meadowTall").length).toBeGreaterThan(45);
+    expect(shorelineCover.filter((placement) => placement.islandId === "island.sunreach" && placement.category === "pebbles").length).toBeGreaterThan(40);
+    expect(shorelineCover.filter((placement) => placement.islandId === "island.sunreach" && placement.category === "grass").length).toBeGreaterThan(35);
+    const coastalTrees = layout.staticPlacements.filter((placement) => {
+      if (!placement.assetId.startsWith("tree_")) return false;
+      const shore = WorldLayout.shoreProjectionAt(placement.x, placement.z);
+      return (shore.islandId === "island.neva" || shore.islandId === "island.sunreach")
+        && shore.signedDistanceMeters <= -0.5 && shore.signedDistanceMeters >= -16;
+    });
+    expect(coastalTrees.length).toBeGreaterThan(0);
+    expect(coastalTrees.every((placement) => placement.assetId.startsWith("tree_coastal_palm_"))).toBe(true);
+
+    for (const islandId of ["island.neva", "island.sunreach"] as const) {
+      const loop = WORLD_ISLAND_DEFINITIONS[islandId].coastLoop;
+      const islandPlacements = shoreline.filter((placement) => placement.islandId === islandId);
+      const islandCover = shorelineCover.filter((placement) => placement.islandId === islandId);
+      expect(islandPlacements.length + islandCover.length, `${islandId} shoreline assets`).toBeGreaterThan(0);
+      for (const placement of [...anchors.filter((placement) => placement.islandId === islandId), ...islandCover]) {
+        expect(shorelineArcProjection(loop, placement).coastDistance, placement.id).toBeLessThan(13);
+      }
+      const loopLength = shorelineArcProjection(loop, loop[0]!).loopLength;
+      const coastalMarkers = [...layout.staticPlacements, ...layout.groundCoverPlacements].filter((placement) => {
+        const authoredCoastId = placement.id.startsWith("authored.harbor.")
+          || placement.id.startsWith("authored.harbor-coast.");
+        const coastalAsset = /^(rock_coastal_|rock_harbor_fractured_|rock_pebble_cluster_|rock_reef_|tree_coastal_palm_|foliage_beach_grass_|foliage_coastal_|prop_driftwood_|building_coastal_shelter_)/
+          .test(placement.assetId);
+        const newShorePlacement = placement.id.startsWith("seeded-fill.shoreline.")
+          || placement.id.startsWith("seeded-fill.ground-cover.shoreline.");
+        if (!authoredCoastId && !coastalAsset && !newShorePlacement) return false;
+        const shore = WorldLayout.shoreProjectionAt(placement.x, placement.z);
+        return shore.islandId === islandId && shore.signedDistanceMeters <= -0.5
+          && shore.signedDistanceMeters >= -20;
+      });
+      const orderedCoverage = coastalMarkers
+        .map((placement) => ({
+          position: shorelineArcProjection(loop, placement).distanceAlong,
+          id: placement.id,
+          x: placement.x,
+          z: placement.z
+        })).sort((left, right) => left.position - right.position);
+      const gaps = orderedCoverage.slice(1).map((entry, index) => ({
+        gap: entry.position - orderedCoverage[index]!.position,
+        from: orderedCoverage[index]!, to: entry
+      }));
+      gaps.push({
+        gap: loopLength - orderedCoverage.at(-1)!.position + orderedCoverage[0]!.position,
+        from: orderedCoverage.at(-1)!, to: orderedCoverage[0]!
+      });
+      expect(Math.max(...gaps.map((gap) => gap.gap)), `${islandId} largest shoreline dressing gap`).toBeLessThan(36);
+
+      for (const placement of [...islandPlacements, ...islandCover]) {
+        expect(placement.assetId, placement.id).toMatch(expectedAssets[islandId]!);
+        expect(ASSET_BY_ID.get(placement.assetId as AssetId), placement.assetId).toBeDefined();
+        const shore = WorldLayout.shoreProjectionAt(placement.x, placement.z);
+        const sample = sampleWorldComposition(42891, placement.x, placement.z);
+        expect(shore.islandId, placement.id).toBe(islandId);
+        expect(shore.signedDistanceMeters, placement.id).toBeLessThan(placement.grounding ? -0.85 : -0.35);
+        expect(shore.signedDistanceMeters, placement.id).toBeGreaterThan(placement.grounding ? -18 : -14);
+        expect(WorldLayout.isWater(placement.x, placement.z), placement.id).toBe(false);
+        expect(WorldLayout.pathInfluence(placement.x, placement.z), placement.id).toBeLessThanOrEqual(0.08);
+        expect(sample.route.clearance, placement.id).toBeLessThanOrEqual(placement.grounding ? 0.04 : 0.08);
+        if (placement.grounding) {
+          expect(sample.fishingAccessClearance, placement.id).toBeLessThanOrEqual(0.08);
+          expect(isPlacementFootprintStable(
+            placement,
+            placement.assetId.startsWith("rock_coastal_") ? 0.8 : 0.72,
+            placement.assetId.startsWith("rock_coastal_") ? 1.1 : 0.78
+          ), placement.id).toBe(true);
+        } else {
+          const coverPlacement = placement as GroundCoverPlacement;
+          const spec = ASSET_BY_ID.get(placement.assetId as AssetId);
+          expect(spec?.instancing, placement.id).toBe(true);
+          expect(spec?.collision, placement.id).toBe("none");
+          if (coverPlacement.category !== "pebbles") {
+            expect(sample.fishingAccessClearance, placement.id).toBeLessThanOrEqual(0.08);
+          }
+        }
+      }
+    }
+  }, 60_000);
+
   it("keeps placement counts, IDs, variants, exclusions, and clearances valid", () => {
     const layout = createWorldEnvironmentLayout(42891);
     const authored = byOrigin(layout.staticPlacements, "authored");
@@ -666,10 +801,42 @@ describe("WorldLayout", () => {
     const causalCount = (islandId: string, category: string) => causal.filter((placement) =>
       placement.compositionTag?.islandId === islandId && placement.compositionTag?.category === category
     ).length;
-    expect(causalCount("island.neva", "tree")).toBeLessThanOrEqual(235);
-    expect(causalCount("island.neva", "tree")).toBeGreaterThanOrEqual(180);
-    expect(causalCount("island.neva", "bush")).toBe(115);
-    expect(causalCount("island.neva", "rock")).toBe(66);
+    expect(causalCount("island.neva", "tree")).toBeLessThanOrEqual(247);
+    expect(causalCount("island.neva", "tree")).toBeGreaterThanOrEqual(192);
+    const mountainGrove = causal.filter((placement) => placement.id.startsWith("seeded-fill.mountain-grove."));
+    expect(mountainGrove).toHaveLength(10);
+    for (const placement of mountainGrove) {
+      const sample = sampleWorldComposition(42891, placement.x, placement.z);
+      expect(placement.assetId, placement.id).toMatch(/^tree_pine_/);
+      expect(sample.mountainWoodland, placement.id).toBeGreaterThanOrEqual(0.12);
+      expect(WorldLayout.terrainHeight(placement.x, placement.z), placement.id).toBeGreaterThanOrEqual(6);
+      expect(WorldLayout.terrainHeight(placement.x, placement.z), placement.id).toBeLessThanOrEqual(27);
+      if (isInHeadwaterBounds(placement.x, placement.z)) {
+        expect(Math.abs(placement.x - WorldLayout.riverCenterX(placement.z)), placement.id).toBeGreaterThanOrEqual(12);
+      }
+      expect(WorldLayout.waterSignedDistance(placement.x, placement.z), placement.id).toBeLessThanOrEqual(-3);
+      expect(isPlacementFootprintStable(placement, 0.72, 0.78), placement.id).toBe(true);
+    }
+    const lighthouseMarginTrees = causal.filter((placement) =>
+      placement.id.startsWith("seeded-fill.lighthouse-margin.tree.")
+    );
+    const lighthouseMarginBushes = causal.filter((placement) =>
+      placement.id.startsWith("seeded-fill.lighthouse-margin.bush.")
+    );
+    expect(lighthouseMarginTrees).toHaveLength(12);
+    expect(lighthouseMarginBushes).toHaveLength(18);
+    for (const placement of [...lighthouseMarginTrees, ...lighthouseMarginBushes]) {
+      const sample = sampleWorldComposition(42891, placement.x, placement.z);
+      expect(sample.district.dominant, placement.id).toBe("headland");
+      expect(sample.opening, placement.id).toBeLessThanOrEqual(0.76);
+      expect(sample.route.clearance, placement.id).toBeLessThanOrEqual(0.005);
+      expect(sample.coastlineClearance, placement.id).toBeLessThanOrEqual(0.08);
+    }
+    // The seeded shoreline understory adds ten coastal scrub anchors for this
+    // seed; one bush yields to the river's bank-top willows (NevaRiverDressing).
+    expect(causalCount("island.neva", "bush")).toBe(142);
+    // One field rock yields to a bank-top willow.
+    expect(causalCount("island.neva", "rock")).toBe(137);
     // The reed slope/mountain gate only ever lowers reed density, and the
     // lip-crest box excludes the plunging edge; each retired exactly the
     // reeds it targets (cliff/high/crest floaters). The layout-25 river rework
@@ -678,8 +845,8 @@ describe("WorldLayout", () => {
     // depositional, low-access properties, checked below.
     expect(causalCount("island.neva", "reed")).toBe(84);
     expect(causalCount("island.sunreach", "tree")).toBe(48);
-    expect(causalCount("island.sunreach", "bush")).toBe(62);
-    expect(causalCount("island.sunreach", "rock")).toBe(38);
+    expect(causalCount("island.sunreach", "bush")).toBe(70);
+    expect(causalCount("island.sunreach", "rock")).toBe(48);
     const roles = new Set(causal.map((placement) => placement.compositionTag?.role));
     expect(roles).toEqual(new Set(["core", "edge", "isolate", "landmark", "riparian", "route-frame"]));
     const structural = causal.filter((placement) =>
@@ -711,12 +878,16 @@ describe("WorldLayout", () => {
         expect(sample.route.gateway).toBeLessThanOrEqual(0.12);
         expect(sample.fishingAccessClearance).toBeLessThanOrEqual(0.08);
         // `architectureClearance` does not mean the same thing on both islands.
-        // On Neva it is building frontage, which nothing may stand in. On
+        // On Neva it is building frontage. The dedicated shore-anchor pass
+        // admits only its small 0.24 falloff band; earlier causal placements
+        // stay outside the 0.08 frontage clearance. On
         // Sunreach it is the cove/terrace opening falloff, which the generator
         // only soft-weights via `1 - structuralClearance`, so the edge of an
         // opening is a legal — and visually correct — place for scrub.
         expect(sample.architectureClearance).toBeLessThanOrEqual(
-          placement.compositionTag.islandId === "island.sunreach" ? 0.35 : 0.08
+          placement.compositionTag.islandId === "island.sunreach"
+            ? 0.35
+            : placement.id.startsWith("seeded-fill.shoreline.") ? 0.24 : 0.08
         );
       }
       if (placement.grounding) {
@@ -811,6 +982,9 @@ describe("WorldLayout", () => {
     const tallMeadow = nevaCover("meadowTall");
     expect(tallMeadow.every((placement) => placement.scale[1] >= 0.78 && placement.scale[1] <= 1.05)).toBe(true);
     expect(tallMeadow.every((placement) => {
+      if (placement.id.startsWith("seeded-fill.ground-cover.shoreline.island.neva.meadowTall.")) {
+        return shorelineArcProjection(WORLD_ISLAND_DEFINITIONS["island.neva"].coastLoop, placement).coastDistance < 13;
+      }
       const wetness = WorldLayout.shorelineWetness(placement.x, placement.z);
       const waterDistance = WorldLayout.waterSignedDistance(placement.x, placement.z);
       return (wetness > 0.1 && wetness < 0.72)
@@ -834,13 +1008,18 @@ describe("WorldLayout", () => {
       return landwardDistance >= 0.45 && landwardDistance <= 5.4;
     })).toBe(true);
     const retainedCoastPebbles = layout.groundCoverPlacements.filter((placement) =>
-        placement.category === "pebbles"
-        && placement.id.startsWith("seeded-fill.ground-cover.coast.pebbles")
-      );
-    expect(retainedCoastPebbles.length).toBeGreaterThan(0);
-    expect(retainedCoastPebbles.length).toBeLessThanOrEqual(Math.round(GROUND_COVER_DENSITY.high.pebbles * 0.42));
+      placement.category === "pebbles"
+        && placement.id.startsWith("seeded-fill.ground-cover.shoreline.island.neva.pebbles.")
+    );
+    expect(retainedCoastPebbles.length).toBeGreaterThan(220);
+    for (const placement of retainedCoastPebbles) {
+      expect(shorelineArcProjection(WORLD_ISLAND_DEFINITIONS["island.neva"].coastLoop, placement).coastDistance)
+        .toBeLessThan(13);
+    }
 
-    const coastalRocks = authored.filter((placement) => placement.assetId.startsWith("rock_coastal_"));
+    const coastalRocks = authored.filter((placement) =>
+      placement.assetId.startsWith("rock_coastal_") && !placement.id.startsWith("authored.mainland.")
+    );
     expect(coastalRocks.map((placement) => placement.id)).toEqual([
       "authored.rock.headland-a",
       "authored.rock.headland-b",
@@ -1064,7 +1243,7 @@ describe("WorldLayout", () => {
       expect(Math.abs(section.rightWaterWidth - previousWidth)).toBeLessThanOrEqual(footprintTolerance);
     }
     const significantBends = sections.filter((section) =>
-      Math.abs(section.curvature * 42) >= 0.25
+      Math.abs(section.curvature * 42) >= 0.25 && section.z < 52
       && Math.abs(section.z - WORLD_LAYOUT_V5.anchors.bridge.z) > 12
     );
     expect(significantBends.length).toBeGreaterThan(0);
@@ -1109,13 +1288,14 @@ describe("WorldLayout", () => {
       "cliffside-coastal-walk",
       "harbor-beach-path",
       "harbor-rocky-landing",
+      "headland-coastal-walk",
       "farm-headwater-trail",
       "western-overlook-trail",
       "western-beach-trail",
       "northern-bluff-trail"
     ]);
     expect(routes.map((route) => route.kind)).toEqual([
-      "arterial", "lane", "arterial", "lane", "trail", "trail", "trail", "trail", "trail", "trail", "trail"
+      "arterial", "lane", "arterial", "lane", "trail", "trail", "trail", "trail", "trail", "trail", "trail", "trail"
     ]);
     // Every route on every island, not just the Neva ones: road ribbons and
     // route terrain conformity are built from these samples.
@@ -1132,20 +1312,28 @@ describe("WorldLayout", () => {
       point.z - WORLD_LAYOUT_V5.anchors.bridge.z
     ) < 0.01)).toBe(true);
     expect(farmVillage.at(-1)).toEqual({ ...VILLAGE_CROSSING });
-    for (const route of routes.slice(1, 4)) {
-      expect(route.points[0]).toEqual({ ...VILLAGE_CROSSING });
-    }
+    expect(routes[1].points[0]).toEqual({ ...VILLAGE_CROSSING });
     expect(routes[1].points.at(-1)).toEqual(WORLD_LAYOUT_V5.anchors.privateHomestead);
+    // The harbor road, lighthouse lane and cliff walk leave the farm road at
+    // forks instead of running along it from the square or over the bridge.
+    const junctionOf = (id: string) => WORLD_ROUTE_JUNCTIONS.find((junction) => junction.id === id)!;
+    expect(routes[2].points[0]).toEqual(junctionOf("harbor-road-fork").center);
+    expect(farmVillage).toContainEqual(routes[2].points[0]);
     expect(routes[2].points.at(-1)).toEqual(WORLD_LAYOUT_V5.anchors.fishMarket);
+    expect(routes[3].points[0]).toEqual(junctionOf("bridge-west-fork").center);
+    expect(farmVillage).toContainEqual(routes[3].points[0]);
     expect(routes[3].points.at(-1)).toEqual(WORLD_LAYOUT_V5.anchors.lighthouse);
-    expect(routes[4].points[0]).toEqual(WORLD_LAYOUT_V5.anchors.lighthouse);
+    expect(routes[4].points[0]).toEqual(WORLD_LAYOUT_V5.anchors.riverCrossing);
     expect(routes[4].points.at(-1)).toEqual(WORLD_LAYOUT_V5.anchors.fishMarket);
+    const headland = routes.find((route) => route.id === "headland-coastal-walk")!;
+    expect(headland.points[0]).toEqual(WORLD_LAYOUT_V5.anchors.lighthouse);
+    expect(headland.points.at(-1)).toEqual(junctionOf("headland-walk-fork").center);
+    expect(routes[3].points).toContainEqual(headland.points.at(-1));
     expect(routes.some((route) => route.id === "riverbank-trail")).toBe(false);
     expect(routes.some((route) => route.id === "orchard-path")).toBe(false);
     for (const junction of WORLD_ROUTE_JUNCTIONS) {
       expect(junction.routeIds.every((routeId) =>
-        routes.some((route) => route.id === routeId)
-        || FARM_ROUTES.some((route) => route.id === routeId)
+        WORLD_ROUTE_NETWORK.some((route) => route.id === routeId)
       )).toBe(true);
     }
   });

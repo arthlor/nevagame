@@ -1,3 +1,9 @@
+import { TRADE_PACK_FAMILIES, TRADE_PACKS, TRADE_DEMAND_TUNING } from '../content/tradePacks';
+import { validTradePackSnapshot } from '../simulation/cargo/farmPacks';
+import { isTradeCarriageType, TRADE_VEHICLES, VILLAGE_TRADE_GOODS, isVillageTradeOrigin } from "../content/villageTrade";
+import { carriageTuning, isCarriage } from "../simulation/mounts/Carriage";
+import { FARM_PACK_QUANTITY, FARM_PACK_WEIGHT_KG } from "../content/farmPacks";
+import { farmPackQuality, validFarmPackLots } from "../simulation/cargo/farmPacks";
 import { CARRIAGE_TYPE_ID, CARRIAGE_TUNING, STARTER_CARRIAGE_ID } from "../simulation/mounts/Carriage";
 import { dockedMooring } from "../world/WorldMoorings";
 // src/persistence/SaveSchema.ts
@@ -33,7 +39,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 60;
+export const CURRENT_SCHEMA_VERSION = 70;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -148,8 +154,24 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 60
+    (schemaVersion >= 70
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 69
+      ? state.world.layoutRevision !== 37
+      : schemaVersion >= 68
+      ? state.world.layoutRevision !== 36
+      : schemaVersion >= 67
+      ? state.world.layoutRevision !== 35
+      : schemaVersion >= 65
+      ? state.world.layoutRevision !== 34
+      : schemaVersion >= 63
+      ? state.world.layoutRevision !== 33
+      : schemaVersion >= 62
+      ? state.world.layoutRevision !== 32
+      : schemaVersion >= 61
+      ? state.world.layoutRevision !== 31
+      : schemaVersion >= 60
+      ? state.world.layoutRevision !== 30
       : schemaVersion >= 59
       ? state.world.layoutRevision !== 29
       : schemaVersion >= 58
@@ -433,11 +455,11 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     for (const [mountId, mount] of Object.entries(mounts)) {
       if (
         !isRecord(mount) ||
-        (mountId !== STARTER_DONKEY_ID && !(schemaVersion >= 46 && mountId === STARTER_CARRIAGE_ID)) ||
+        (mountId !== STARTER_DONKEY_ID && !(schemaVersion >= 46 && mountId === STARTER_CARRIAGE_ID) && !(schemaVersion >= 65 && isTradeCarriageType(mountId))) ||
         mount.id !== mountId ||
-        mount.mountTypeId !== (mountId === STARTER_CARRIAGE_ID ? CARRIAGE_TYPE_ID : STARTER_DONKEY_TYPE_ID) ||
-        (mountId === STARTER_CARRIAGE_ID && (!Array.isArray(mount.fishCargoSlotIds) || mount.fishCargoSlotIds.length !== CARRIAGE_TUNING.cargoSlots)) ||
-        (mountId !== STARTER_CARRIAGE_ID && mount.fishCargoSlotIds !== undefined) ||
+        mount.mountTypeId !== (isTradeCarriageType(mountId) ? TRADE_VEHICLES[mountId].id : mountId === STARTER_CARRIAGE_ID ? CARRIAGE_TYPE_ID : STARTER_DONKEY_TYPE_ID) ||
+        (isCarriage(mount as unknown as GameState["mounts"][string]) && (!Array.isArray(mount.fishCargoSlotIds) || mount.fishCargoSlotIds.length !== carriageTuning(mount as unknown as GameState["mounts"][string]).cargoSlots)) ||
+        (mountId === STARTER_DONKEY_ID && mount.fishCargoSlotIds !== undefined) ||
         !isFiniteInRange(mount.gallopStamina, 0, MOUNT_TUNING.maximumGallopStamina) ||
         !isFiniteInRange(mount.gallopRecoveryDelaySeconds, 0, MOUNT_TUNING.gallopRecoveryDelaySeconds) ||
         typeof mount.gallopExhausted !== "boolean" ||
@@ -492,7 +514,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
     if (
       !isRecord(structure) ||
       structure.id !== structureId ||
-      !["hand-mill", "workbench", "fish-table", "compost-bin", "kitchen"].includes(structure.type as string) ||
+      !["hand-mill", "workbench", "fish-table", "compost-bin", "kitchen", ...(schemaVersion >= 65 ? ["trading-station"] : [])].includes(structure.type as string) ||
       ![structure.x, structure.y, structure.z].every((value) => isFiniteNumber(value)) ||
       (structure.rotationY !== undefined && !isFiniteNumber(structure.rotationY))
     ) return false;
@@ -560,6 +582,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
           : ["standard", "masterwork"]) ||
         !isOneOf(job.presentationKind, ["existing", "tailoring", "toolmaking"]) ||
         !isSafeInteger(job.baseWork, 1) ||
+        (job.chargedMoney !== undefined && (schemaVersion < 66 || !isSafeInteger(job.chargedMoney, 0))) ||
         !isSafeInteger(job.chargedWork, 1) ||
         job.chargedWork > job.baseWork ||
         !isSafeInteger(job.xpReward, 1) ||
@@ -568,7 +591,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
         job.startedAtMinute > state.clock.currentMinute ||
         job.completesAtMinute <= job.startedAtMinute ||
         job.completesAtMinute - job.startedAtMinute !== job.effectiveDurationMinutes ||
-        station.type !== recipe.stationType ||
+        (station.type !== recipe.stationType && !(schemaVersion === 64 && recipe.result.kind === "farm-pack" && station.type === "kitchen")) ||
         (job.status === "active" && state.clock.currentMinute >= job.completesAtMinute) ||
         (job.status === "complete" && state.clock.currentMinute < job.completesAtMinute)
       ) return false;
@@ -597,6 +620,15 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
           ) return false;
           outputItemIds.add(stack.itemId);
         }
+      } else if (schemaVersion >= 64 && job.result.kind === "farm-pack") {
+        if (job.result.tradePack !== undefined || job.result.tradePackId !== undefined) {
+          if (schemaVersion < 66 || !validTradePackSnapshot(job.result.tradePack, job.result.lots, job.result.sourceMarketId)
+            || job.result.tradePackId !== job.result.tradePack.definitionId
+            || !isSafeInteger(job.chargedMoney, 0)
+            || job.result.itemId !== TRADE_PACKS[job.result.tradePack.definitionId].iconItemId
+            || !Array.isArray(job.result.lots)
+            || job.result.quantity !== job.result.lots.reduce((sum, lot) => sum + lot.quantity, 0)) return false;
+        } else if (!validFarmPackLots(job.result.itemId, job.result.quantity, job.result.lots) || (job.result.sourceMarketId !== undefined && (schemaVersion < 65 || !isVillageTradeOrigin(job.result.sourceMarketId) || !VILLAGE_TRADE_GOODS[job.result.sourceMarketId]?.includes(job.result.itemId)))) return false;
       } else if (job.result.kind === "equipment") {
         const equipmentId = job.result.equipmentId;
         if (
@@ -635,16 +667,28 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   }
 
   for (const [cargoId, cargo] of Object.entries(state.fishCargo)) {
-    if (!isRecord(cargo) || cargo.id !== cargoId || typeof cargo.speciesId !== "string" || !isRecord(cargo.location) || !isFiniteNumber(cargo.weightKg, 0) || !isFiniteInRange(cargo.freshness, 0, 100) || !isSafeInteger(cargo.caughtAtMinute, 0) || !isOneOf(cargo.quality, FISH_QUALITIES) || !isOneOf(cargo.cargoClass, CARGO_CLASSES)) return false;
-    const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
-    if (!species || cargo.cargoClass !== species.cargoClass || cargo.weightKg < species.weightKg.min || cargo.weightKg > species.weightKg.max) return false;
+    if (!isRecord(cargo) || cargo.id !== cargoId || !isRecord(cargo.location) || !isFiniteNumber(cargo.weightKg, 0) || !isFiniteInRange(cargo.freshness, 0, 100) || !isSafeInteger(cargo.caughtAtMinute, 0) || !isOneOf(cargo.cargoClass, CARGO_CLASSES)) return false;
+    if (cargo.kind === "farm") {
+      if (schemaVersion < 64 || cargo.speciesId !== undefined || cargo.weightKg !== FARM_PACK_WEIGHT_KG || cargo.cargoClass !== "medium") return false;
+      if (cargo.tradePack !== undefined) {
+        if (schemaVersion < 66 || !validTradePackSnapshot(cargo.tradePack, cargo.lots, cargo.sourceMarketId)
+          || cargo.itemId !== TRADE_PACKS[cargo.tradePack.definitionId].iconItemId) return false;
+      } else if (!validFarmPackLots(cargo.itemId, FARM_PACK_QUANTITY, cargo.lots)
+        || (cargo.sourceMarketId !== undefined && (schemaVersion < 65 || !isVillageTradeOrigin(cargo.sourceMarketId) || !VILLAGE_TRADE_GOODS[cargo.sourceMarketId]?.includes(cargo.itemId)))) return false;
+      if (cargo.quality !== farmPackQuality(cargo.lots)) return false;
+    } else {
+      if (cargo.kind !== undefined && cargo.kind !== "fish") return false;
+      if (typeof cargo.speciesId !== "string" || !isOneOf(cargo.quality, FISH_QUALITIES)) return false;
+      const species = ContentRegistry.fishSpecies.get(cargo.speciesId);
+      if (!species || cargo.cargoClass !== species.cargoClass || cargo.weightKg < species.weightKg.min || cargo.weightKg > species.weightKg.max) return false;
+    }
     if (cargo.location.type === "player") {
       if (cargo.location.containerId !== "player" || state.player.carriedFishCargoId !== cargoId) return false;
     } else if (schemaVersion >= 46 && cargo.location.type === "carriage") {
       const carriage = state.mounts?.[cargo.location.containerId];
       const slot = cargo.location.slotIndex;
-      if (!carriage || carriage.mountTypeId !== CARRIAGE_TYPE_ID || !Number.isInteger(slot)
-        || typeof slot !== "number" || slot < 0 || slot >= CARRIAGE_TUNING.cargoSlots
+      if (!carriage || !isCarriage(carriage) || !Number.isInteger(slot)
+        || typeof slot !== "number" || slot < 0 || slot >= carriageTuning(carriage).cargoSlots
         || carriage.fishCargoSlotIds?.[slot] !== cargoId || !cargoClassFits(cargo.cargoClass, CARRIAGE_TUNING.maximumCargoClass)) return false;
     } else if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
       const boat = state.boats[cargo.location.containerId];
@@ -716,6 +760,14 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       market.regionId !== definition.regionId ||
       !isRecord(market.commodities)
     ) return false;
+    if (schemaVersion >= 66 && isVillageTradeOrigin(marketId)) {
+      if (!isRecord(market.tradeDemand) || Object.keys(market.tradeDemand).length !== TRADE_PACK_FAMILIES.length) return false;
+      for (const family of TRADE_PACK_FAMILIES) {
+        const demand = market.tradeDemand[family];
+        if (!isRecord(demand) || !isFiniteInRange(demand.supply, TRADE_DEMAND_TUNING.targetPacks, TRADE_DEMAND_TUNING.maximumSupply)
+          || !isSafeInteger(demand.lastTickMinute, 0) || demand.lastTickMinute > state.clock.currentMinute) return false;
+      }
+    }
     for (const [itemId, commodity] of Object.entries(market.commodities)) {
       if (
         (isCurrentSchema && !definition.commodities.some((entry) => entry.itemId === itemId)) ||

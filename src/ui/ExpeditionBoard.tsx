@@ -7,6 +7,9 @@ import { GameSheet, Meter } from "./coastal/CoastalUI";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForItem } from "./chrome/uiAtlas";
 import type { ExpeditionBoardDto } from "../simulation/expeditions/buildExpeditionOpportunities";
+import { localizeCatalogText } from "../i18n/catalogNames";
+import { translateExpeditionText } from "../i18n/expeditionTr";
+import { useTranslation } from "../i18n/useTranslation";
 
 interface ExpeditionBoardProps {
   board: ExpeditionBoardDto;
@@ -14,6 +17,10 @@ interface ExpeditionBoardProps {
 }
 
 export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
+  const line = (text: string) => translateExpeditionText(text, locale);
+  const contentName = (text: string) => (isTr ? localizeCatalogText(text, locale) : text);
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
 
@@ -40,32 +47,42 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
         <header className="modal-header expedition-board-header">
           <div className="expedition-title-group">
             <h2 id="expedition-title" className="modal-heading-with-mark">
-              <IconExpedition size={19} aria-hidden="true" /> Expedition board
+              <IconExpedition size={19} aria-hidden="true" /> {isTr ? "Sefer Panosu" : "Expedition board"}
             </h2>
-            <span className="expedition-subtitle">Posted opportunities and what you still need</span>
+            <span className="expedition-subtitle">{isTr ? "Duyurulan seferler ve gereken hazırlıklar" : "Posted opportunities and what you still need"}</span>
           </div>
-          <ChromeClose onClick={onClose} label="Close expedition board" />
+          <ChromeClose onClick={onClose} label={isTr ? "Sefer panosunu kapat" : "Close expedition board"} />
         </header>
 
         <details className="expedition-readiness-disclosure">
           <summary className="expedition-readiness-summary">
-            <strong>Trip readiness</strong>
-            <span>{readiness.vessel ? `${readiness.vessel.name} · ${readiness.vessel.hullPercent}% hull` : "No vessel"}</span>
-            <span>{formatWeatherLabel(readiness.weatherType)} · {readiness.seaLabel}</span>
-            <span>{availableSupplyKinds} {availableSupplyKinds === 1 ? "supply type" : "supply types"} available</span>
+            <strong>{isTr ? "Sefer hazırlığı" : "Trip readiness"}</strong>
+            <span>
+              {readiness.vessel
+                ? isTr
+                  ? `${contentName(readiness.vessel.name)} · %${readiness.vessel.hullPercent} gövde`
+                  : `${readiness.vessel.name} · ${readiness.vessel.hullPercent}% hull`
+                : (isTr ? "Tekne yok" : "No vessel")}
+            </span>
+            <span>{formatWeatherLabel(readiness.weatherType)} · {line(readiness.seaLabel)}</span>
+            <span>
+              {isTr
+                ? `${availableSupplyKinds} erzak türü mevcut`
+                : `${availableSupplyKinds} ${availableSupplyKinds === 1 ? "supply type" : "supply types"} available`}
+            </span>
           </summary>
-          <div className="expedition-readiness-strip" role="group" aria-label="Current readiness details">
+          <div className="expedition-readiness-strip" role="group" aria-label={isTr ? "Mevcut hazırlık detayları" : "Current readiness details"}>
             <div className="expedition-readiness-vessel">
               <div className="expedition-readiness-title">
                 <IconBoat size={18} aria-hidden="true" />
-                <span>Vessel</span>
+                <span>{isTr ? "Tekne" : "Vessel"}</span>
               </div>
               <div className="expedition-vessel-status">
-                <strong>{readiness.vessel?.name ?? "None"}</strong>
+                <strong>{readiness.vessel ? contentName(readiness.vessel.name) : (isTr ? "Yok" : "None")}</strong>
                 {readiness.vessel && (
                   <Meter
                     className="expedition-hull-meter"
-                    label="Hull"
+                    label={isTr ? "Gövde" : "Hull"}
                     value={readiness.vessel.hullCurrent}
                     max={readiness.vessel.hullMaximum}
                     valueText={`${readiness.vessel.hullPercent}%`}
@@ -77,13 +94,13 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
             <div className="expedition-readiness-supplies">
               <div className="expedition-readiness-title">
                 <IconFish size={18} aria-hidden="true" />
-                <span>Supplies</span>
+                <span>{isTr ? "Erzak" : "Supplies"}</span>
               </div>
               <div className="expedition-supplies-grid">
                 {readiness.supplies.map(({ itemId, name, count }) => (
                   <span key={itemId} className={`expedition-supply-pill ${count > 0 ? "is-ready" : "is-missing"}`}>
                     <AtlasImage src={atlasForItem(itemId)} alt="" size={18} />
-                    <span>{name}</span>
+                    <span>{contentName(name)}</span>
                     <strong>{count}</strong>
                   </span>
                 ))}
@@ -92,15 +109,15 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
             <div className="expedition-readiness-weather">
               <div className="expedition-readiness-title">
                 <WeatherIcon type={readiness.weatherType} size={18} aria-hidden="true" />
-                <span>Weather</span>
+                <span>{isTr ? "Hava" : "Weather"}</span>
               </div>
-              <strong className="expedition-weather-val">{formatWeatherLabel(readiness.weatherType)} · {readiness.seaLabel}</strong>
+              <strong className="expedition-weather-val">{formatWeatherLabel(readiness.weatherType)} · {line(readiness.seaLabel)}</strong>
             </div>
           </div>
         </details>
 
         <div className="expedition-board-body">
-          <nav className="expedition-notice-stack" aria-label="Posted opportunities">
+          <nav className="expedition-notice-stack" aria-label={isTr ? "Duyurulan seferler" : "Posted opportunities"}>
             {opportunities.map((opportunity) => (
               <button
                 key={opportunity.id}
@@ -110,46 +127,56 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
                 aria-controls="expedition-opportunity-details"
                 onClick={() => setSelectedId(opportunity.id)}
               >
-                <span className="expedition-notice-tone">{opportunity.tone === "steady" ? "Steady" : "Bold"}</span>
-                <strong>{opportunity.title.replace(/^(Steady|Bold):\s*/, "")}</strong>
-                <span>{opportunity.destination}</span>
+                <span className="expedition-notice-tone">
+                  {isTr
+                    ? (opportunity.tone === "steady" ? "Durgun" : "Cesur")
+                    : (opportunity.tone === "steady" ? "Steady" : "Bold")}
+                </span>
+                <strong>{line(opportunity.title.replace(/^(Steady|Bold):\s*/, ""))}</strong>
+                <span>{line(opportunity.destination)}</span>
                 <span className={opportunity.ready ? "is-ready" : "is-blocked"}>
-                  {opportunity.ready ? "Ready" : `${opportunity.blockers.length} to resolve`}
+                  {opportunity.ready
+                    ? (isTr ? "Hazır" : "Ready")
+                    : (isTr ? `${opportunity.blockers.length} eksik var` : `${opportunity.blockers.length} to resolve`)}
                 </span>
               </button>
             ))}
           </nav>
 
-          <section id="expedition-opportunity-details" className="expedition-selected-notice" aria-label="Selected opportunity">
+          <section id="expedition-opportunity-details" className="expedition-selected-notice" aria-label={isTr ? "Seçilen sefer" : "Selected opportunity"}>
             {selected ? (
               <>
                 <div className="expedition-selected-heading" aria-live="polite" aria-atomic="true">
                   <div>
-                    <span>{selected.tone === "steady" ? "Steady opportunity" : "Bold opportunity"}</span>
-                    <h3>{selected.title.replace(/^(Steady|Bold):\s*/, "")}</h3>
+                    <span>
+                      {isTr
+                        ? (selected.tone === "steady" ? "Durgun sefer" : "Cesur sefer")
+                        : (selected.tone === "steady" ? "Steady opportunity" : "Bold opportunity")}
+                    </span>
+                    <h3>{line(selected.title.replace(/^(Steady|Bold):\s*/, ""))}</h3>
                   </div>
                   <strong className={selected.ready ? "is-ready" : "is-blocked"}>
-                    {selected.ready ? "Ready" : "Not ready"}
+                    {selected.ready ? (isTr ? "Hazır" : "Ready") : (isTr ? "Hazır Değil" : "Not ready")}
                   </strong>
                 </div>
-                <p>{selected.summary}</p>
+                <p>{line(selected.summary)}</p>
                 <dl className="expedition-selected-meta">
-                  <div><dt>Destination</dt><dd>{selected.destination}</dd></div>
-                  {selected.journeyLabel && <div><dt>Journey</dt><dd>{selected.journeyLabel}</dd></div>}
-                  <div><dt>Return</dt><dd>{selected.valueLabel}</dd></div>
-                  {selected.deadlineLabel && <div><dt>Deadline</dt><dd>{selected.deadlineLabel}</dd></div>}
+                  <div><dt>{isTr ? "Menzil" : "Destination"}</dt><dd>{line(selected.destination)}</dd></div>
+                  {selected.journeyLabel && <div><dt>{isTr ? "Yolculuk" : "Journey"}</dt><dd>{line(selected.journeyLabel)}</dd></div>}
+                  <div><dt>{isTr ? "Kazanç" : "Return"}</dt><dd>{line(selected.valueLabel)}</dd></div>
+                  {selected.deadlineLabel && <div><dt>{isTr ? "Süre" : "Deadline"}</dt><dd>{line(selected.deadlineLabel)}</dd></div>}
                 </dl>
                 {selected.ready ? (
-                  <p className="expedition-ready-note">All requirements for this notice are met.</p>
+                  <p className="expedition-ready-note">{isTr ? "Bu duyuru için tüm gereksinimler sağlandı." : "All requirements for this notice are met."}</p>
                 ) : (
                   <div className="expedition-blockers">
-                    <h4><IconWarning size={15} aria-hidden="true" /> Resolve in order</h4>
-                    <ol>{selected.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ol>
+                    <h4><IconWarning size={15} aria-hidden="true" /> {isTr ? "Giderilmesi gerekenler" : "Resolve in order"}</h4>
+                    <ol>{selected.blockers.map((blocker) => <li key={blocker}>{line(blocker)}</li>)}</ol>
                   </div>
                 )}
               </>
             ) : (
-              <p className="expedition-empty">No opportunity is posted right now.</p>
+              <p className="expedition-empty">{isTr ? "Şu anda duyurulmuş bir sefer yok." : "No opportunity is posted right now."}</p>
             )}
           </section>
         </div>

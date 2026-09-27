@@ -32,15 +32,16 @@ export interface DialoguePage {
  * The heading a part of the conversation carries, so a single talk that closes
  * one errand and opens another reads as two beats rather than one run of text.
  */
-export function segmentHeading(segment: ConversationSegment): string | null {
+export function segmentHeading(segment: ConversationSegment, locale?: string): string | null {
   if (!segment.questTitle) return null;
+  const isTr = locale === "tr";
   switch (segment.kind) {
     case "completion":
-      return `Errand complete · ${segment.questTitle}`;
+      return isTr ? `Görev tamamlandı · ${segment.questTitle}` : `Errand complete · ${segment.questTitle}`;
     case "herald":
-      return `Word of an errand · ${segment.questTitle}`;
+      return isTr ? `Görev haberi · ${segment.questTitle}` : `Word of an errand · ${segment.questTitle}`;
     case "intro":
-      if (segment.startsQuest) return `New errand · ${segment.questTitle}`;
+      if (segment.startsQuest) return isTr ? `Yeni görev · ${segment.questTitle}` : `New errand · ${segment.questTitle}`;
       return segment.trackId && segment.trackId !== MAIN_QUEST_TRACK_ID && segment.trackTitle
         ? `${segment.trackTitle} · ${segment.questTitle}`
         : segment.questTitle;

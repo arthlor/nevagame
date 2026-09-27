@@ -9,6 +9,7 @@ import {
   type CharacterToolKey,
   type CharacterVisualLoadout
 } from "../render/animation/CharacterEquipmentAssembler";
+import { useTranslation } from "../i18n/useTranslation";
 
 export interface CharacterPreview3DProps {
   loadout: CharacterVisualLoadout;
@@ -31,6 +32,8 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
   descriptionId,
   onRotateStart
 }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
   const hostRef = useRef<HTMLDivElement>(null);
   const assemblerRef = useRef<CharacterEquipmentAssembler | null>(null);
   const loadoutRef = useRef(loadout);
@@ -63,7 +66,11 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
       renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
     } catch (error) {
       console.warn("[CharacterPreview] WebGL preview unavailable", error);
-      setRendererFallback("3D preview unavailable. Your equipped gear is still listed beside the preview.");
+      setRendererFallback(
+        isTr
+          ? "3B önizleme kullanılamıyor. Kuşanılan teçhizatınız yanda listelenmeye devam ediyor."
+          : "3D preview unavailable. Your equipped gear is still listed beside the preview."
+      );
       canvas.remove();
       return;
     }
@@ -114,7 +121,11 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
 
     const contextLost = (event: Event): void => {
       event.preventDefault();
-      setRendererFallback("3D preview paused after a graphics reset. The loadout remains safe.");
+      setRendererFallback(
+        isTr
+          ? "Grafik sıfırlanması nedeniyle 3B önizleme duraklatıldı. Teçhizatınız güvende."
+          : "3D preview paused after a graphics reset. The loadout remains safe."
+      );
     };
     const contextRestored = (): void => setRendererFallback(null);
     canvas.addEventListener("webglcontextlost", contextLost);
@@ -140,7 +151,9 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
         onSyncSettled: (failedAssetIds) => {
           if (disposed) return;
           setEquipmentFallback(failedAssetIds.length > 0
-            ? "One gear model could not be shown. The text comparison is still accurate."
+            ? (isTr
+                ? "Bir teçhizat modeli gösterilemedi. Metin karşılaştırması geçerliliğini koruyor."
+                : "One gear model could not be shown. The text comparison is still accurate.")
             : null);
         }
       });
@@ -156,7 +169,11 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
       }
     }).catch((error) => {
       console.warn("[CharacterPreview] Character model could not be loaded", error);
-      if (!disposed) setCharacterFallback("3D preview unavailable. The text comparison remains accurate.");
+      if (!disposed) setCharacterFallback(
+        isTr
+          ? "3B önizleme kullanılamıyor. Metin karşılaştırması geçerliliğini koruyor."
+          : "3D preview unavailable. The text comparison remains accurate."
+      );
     });
 
     let isDragging = false;

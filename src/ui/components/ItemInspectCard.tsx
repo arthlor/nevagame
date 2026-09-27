@@ -4,6 +4,9 @@ import { freshnessTone } from "../../simulation/fishing/freshnessBands";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish, atlasForItem } from "../chrome/uiAtlas";
 import { formatCompactDuration } from "./formatCompactDuration";
+import { useTranslation } from "../../i18n/useTranslation";
+import { TR_ITEMS } from "../../i18n/locales/tr/items";
+import { TR_CROPS } from "../../i18n/locales/tr/crops";
 
 interface ItemInspectCardProps {
   item: ItemInspectionDto;
@@ -33,6 +36,10 @@ const CLIMATE_LABEL = (climate: string): string =>
 
 export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor = null, detailsOnly = false }) => {
   const [viewport, setViewport] = useState<{ w: number; h: number } | null>(null);
+  const { locale } = useTranslation();
+  const trItem = locale === "tr" ? TR_ITEMS[item.itemId] : undefined;
+  const displayName = trItem?.name ?? item.name;
+  const displayLore = trItem?.description ?? item.loreText;
 
   useEffect(() => {
     const read = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
@@ -75,7 +82,7 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
           <AtlasImage src={sprite} alt="" size={34} />
         </span>
         <span className="item-inspect-titles">
-          <strong className="item-inspect-name">{item.name}</strong>
+          <strong className="item-inspect-name">{displayName}</strong>
           <span className="item-inspect-sub">
             <span className="item-inspect-category">{item.categoryLabel}</span>
             {item.rarity && (
@@ -89,11 +96,11 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
 
       <dl className="item-inspect-stats">
         <div>
-          <dt>Base value</dt>
-          <dd data-testid="item-inspect-value">{`${item.baseValue.toLocaleString()} G`}</dd>
+          <dt>{locale === "tr" ? "Taban değer" : "Base value"}</dt>
+          <dd data-testid="item-inspect-value">{`${item.baseValue.toLocaleString()} ${locale === "tr" ? "akçe" : "G"}`}</dd>
         </div>
         <div>
-          <dt>Stacks to</dt>
+          <dt>{locale === "tr" ? "Yığın sınırı" : "Stacks to"}</dt>
           <dd>{item.stackLimit}</dd>
         </div>
       </dl>
@@ -101,7 +108,7 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
       {item.freshness && (
         <section className="item-inspect-freshness" data-testid="item-inspect-freshness">
           <div className="item-inspect-freshness-head">
-            <span>Freshness</span>
+            <span>{locale === "tr" ? "Tazelik" : "Freshness"}</span>
             <strong data-tone={freshnessToneFor(item.freshness.percent)}>
               {`${item.freshness.percent}% · ${item.freshness.label}`}
             </strong>
@@ -125,18 +132,18 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
 
       {item.agronomy && (
         <section className="item-inspect-agronomy" data-testid="item-inspect-agronomy">
-          <h4>{item.agronomy.cropName}</h4>
+          <h4>{locale === "tr" && item.agronomy.cropId && TR_CROPS[item.agronomy.cropId]?.name ? TR_CROPS[item.agronomy.cropId].name : item.agronomy.cropName}</h4>
           <dl className="item-inspect-agronomy-grid">
             <div>
-              <dt>Water need</dt>
+              <dt>{locale === "tr" ? "Su ihtiyacı" : "Water need"}</dt>
               <dd>{item.agronomy.waterNeed}</dd>
             </div>
             <div>
-              <dt>Grows in</dt>
+              <dt>{locale === "tr" ? "Büyüme" : "Grows in"}</dt>
               <dd>{formatGrowthDuration(item.agronomy.growthMinutes)}</dd>
             </div>
             <div>
-              <dt>Yield</dt>
+              <dt>{locale === "tr" ? "Verim" : "Yield"}</dt>
               <dd>
                 {item.agronomy.yieldMin === item.agronomy.yieldMax
                   ? `${item.agronomy.yieldMin}`
@@ -144,13 +151,13 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
               </dd>
             </div>
             <div>
-              <dt>Soil cost</dt>
+              <dt>{locale === "tr" ? "Toprak yükü" : "Soil cost"}</dt>
               <dd>{item.agronomy.fertilityCost}</dd>
             </div>
           </dl>
           {item.agronomy.preferredClimates.length > 0 && (
             <p className="item-inspect-climates">
-              <span>Thrives in</span>
+              <span>{locale === "tr" ? "Sevdiği iklim" : "Thrives in"}</span>
               {item.agronomy.preferredClimates.map((climate) => (
                 <span key={climate} className="item-inspect-climate-chip">
                   {CLIMATE_LABEL(climate)}
@@ -161,14 +168,14 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
           {item.agronomy.regrows && (
             <p className="item-inspect-regrow">
               {item.agronomy.regrowMinutes
-                ? `Regrows every ${formatGrowthDuration(item.agronomy.regrowMinutes)}`
-                : "Regrows after harvest"}
+                ? `${locale === "tr" ? "Her " + formatGrowthDuration(item.agronomy.regrowMinutes) + " bir yeniden ürün verir" : `Regrows every ${formatGrowthDuration(item.agronomy.regrowMinutes)}`}`
+                : locale === "tr" ? "Hasat sonrası yeniden ürün verir" : "Regrows after harvest"}
             </p>
           )}
         </section>
       )}
 
-      {!detailsOnly && item.loreText && <p className="item-inspect-lore">{item.loreText}</p>}
+      {!detailsOnly && displayLore && <p className="item-inspect-lore">{displayLore}</p>}
     </aside>
   );
 };

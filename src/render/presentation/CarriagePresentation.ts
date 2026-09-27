@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { ASSET_IDS, ASSET_BY_ID } from '../assets/AssetCatalog';
-import { CARRIAGE_TUNING } from '../../simulation/mounts/Carriage';
+import { ASSET_IDS, ASSET_BY_ID, type AssetId } from '../assets/AssetCatalog';
+import { carriageTuning } from '../../simulation/mounts/Carriage';
 import type { MountState } from '../../simulation/core/types';
 import type { PresentedPlayerFrame } from './PlayerPresentationBuffer';
 import { resolveMountPresentationPose } from './MountPresentation';
@@ -33,18 +33,20 @@ export class CarriagePresentation {
   private initialized = false;
   private steering = 0;
 
-  constructor(readonly cart: THREE.Group, readonly horse: THREE.Group) {
+  private readonly tuning: ReturnType<typeof carriageTuning>;
+  constructor(readonly cart: THREE.Group, readonly horse: THREE.Group, mountTypeId: MountState['mountTypeId'] = 'mount.horse_carriage') {
+    this.tuning = carriageTuning({ mountTypeId });
     this.root.name = 'horse_carriage_transport';
     this.root.add(cart, horse);
-    horse.position.z = CARRIAGE_TUNING.horseOffset;
+    horse.position.z = this.tuning.horseOffset;
     const required = (root: THREE.Object3D, name: string) => {
       const node = root.getObjectByName(name);
       if (!node) throw new Error(`Carriage is missing ${name}`);
       return node;
     };
-    const cartNode = (suffix: string) => required(cart, `${ASSET_IDS.PROP_MERCHANT_CARRIAGE_A}_${suffix}`);
+    const cartNode = (suffix: string) => required(cart, `${this.tuning.assetId}_${suffix}`);
     this.seat = cartNode('driver_socket');
-    this.sockets = [1, 2].map(i => cartNode(`cargo_0${i}`));
+    this.sockets = Array.from({ length: this.tuning.cargoSlots }, (_, i) => cartNode(`cargo_${String(i + 1).padStart(2, "0")}`));
     this.feet = { left: cartNode('foot_left'), right: cartNode('foot_right') };
     this.grips = { left: cartNode('rein_grip_left'), right: cartNode('rein_grip_right') };
     this.frontAxle = cartNode('front_axle');
@@ -109,13 +111,13 @@ export class CarriagePresentation {
     const speed = active ? player.motion.speedMetersPerSecond : 0;
     const signedSpeed = active ? player.motion.velocity.x * Math.sin(pose.rotationY) + player.motion.velocity.z * Math.cos(pose.rotationY) : 0;
     const desiredSteering = Math.abs(signedSpeed) > 0.025
-      ? Math.atan(player.motion.turnRateRadiansPerSecond * CARRIAGE_TUNING.wheelbase / signedSpeed) : discontinuity ? 0 : this.steering;
+      ? Math.atan(player.motion.turnRateRadiansPerSecond * this.tuning.wheelbase / signedSpeed) : discontinuity ? 0 : this.steering;
     this.steering = discontinuity ? desiredSteering : THREE.MathUtils.damp(this.steering, desiredSteering, 14, dt);
     this.frontAxle.rotation.y = this.steering;
-    const horseArm = CARRIAGE_TUNING.horseOffset - CARRIAGE_TUNING.frontAxleOffset;
-    this.horse.position.set(Math.sin(this.steering) * horseArm, this.horse.position.y, CARRIAGE_TUNING.frontAxleOffset + Math.cos(this.steering) * horseArm);
+    const horseArm = this.tuning.horseOffset - this.tuning.frontAxleOffset;
+    this.horse.position.set(Math.sin(this.steering) * horseArm, this.horse.position.y, this.tuning.frontAxleOffset + Math.cos(this.steering) * horseArm);
     this.horse.rotation.y = this.steering;
-    this.fitSupport(this.cart, 0.94, CARRIAGE_TUNING.rearAxleOffset, CARRIAGE_TUNING.frontAxleOffset, heightAt, dt, discontinuity);
+    this.fitSupport(this.cart, this.tuning.bedWidth / 2 + .24, this.tuning.rearAxleOffset, this.tuning.frontAxleOffset, heightAt, dt, discontinuity);
     this.fitSupport(this.horse, 0.25, -0.52, 0.78, heightAt, dt, discontinuity);
     const name = speed < 0.025 ? 'idle' : signedSpeed > 0 && player.motion.requestedGait === 'trot' ? 'trot' : 'walk';
     if (name !== this.clip) {
@@ -139,9 +141,9 @@ export class CarriagePresentation {
     }
     for (const saved of this.bonePose) { saved.node.position.copy(saved.position); saved.node.quaternion.copy(saved.quaternion); }
     this.mixers.forEach((mixer, index) => {
-      const id = index === 0 ? ASSET_IDS.PROP_MERCHANT_CARRIAGE_A : ASSET_IDS.FAUNA_HORSE_DRAFT_A;
+      const id = index === 0 ? this.tuning.assetId : ASSET_IDS.FAUNA_HORSE_DRAFT_A;
       for (const [clip, action] of this.actions[index]) {
-        const reference = ASSET_BY_ID.get(id)?.animationClips?.find(c => c.name === clip)?.referenceSpeedMetersPerSecond;
+        const reference = ASSET_BY_ID.get(id as AssetId)?.animationClips?.find(c => c.name === clip)?.referenceSpeedMetersPerSecond;
         action.setEffectiveTimeScale(reference ? signedSpeed / reference * locomotionScale : 1);
       }
       mixer.update(dt);

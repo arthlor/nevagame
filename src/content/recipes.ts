@@ -1,5 +1,6 @@
 // src/content/recipes.ts
 
+import { TRADE_PACK_RECIPES } from "./tradePacks";
 import type { ItemStack, RecipeResult } from "../simulation/core/types";
 import type { RecipeDefinition } from "./types";
 
@@ -447,4 +448,6 @@ export const RECIPES: Record<string, RecipeDefinition> = {
  * is exposed by the current P12 station loop. Keeping the deferred definition
  * in the registry preserves save validation for an already-created job.
  */
+for (const recipe of TRADE_PACK_RECIPES) RECIPES[recipe.id] = recipe;
+
 export const LIVE_RECIPE_IDS = new Set<RecipeDefinition["id"]>(Object.keys(RECIPES));

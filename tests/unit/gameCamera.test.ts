@@ -28,6 +28,24 @@ function stillPlayerMotion(): PlayerMotionSample {
 }
 
 describe("GameCamera", () => {
+  it("frames a freight vessel's full mast and deck and restores the small-boat profile", () => {
+    const camera = new GameCamera();
+    camera.setReducedMotion(true);
+    const target = new THREE.Vector3(500, .5, 110);
+    for (const anchor of [target, new THREE.Vector3(500, 1.35, 104.52)]) {
+      camera.update(anchor, "boat-driving", 1 / 60, undefined, undefined, {
+        player: stillPlayerMotion(), boatTypeId: "boat.trading_ship"
+      });
+      camera.camera.updateMatrixWorld(true);
+      for (const x of [-2.2, 2.2]) for (const y of [0, 9.2]) for (const z of [-5.7, 5.7]) {
+        const point = new THREE.Vector3(500 + x, y, 110 + z).project(camera.camera);
+        expect(Math.abs(point.x)).toBeLessThan(1);
+        expect(Math.abs(point.y)).toBeLessThan(1);
+      }
+    }
+    camera.update(target, "boat-driving", 1/60, undefined, undefined, {player:stillPlayerMotion(),boatTypeId:"boat.rowboat"});
+    expect(camera.framingState().distance).toBe(CAMERA_PROFILES["boat-driving"].distance);
+  });
   it("allows reward trauma on foot and removes it with reduced motion", () => {
     const plain = new GameCamera();
     const reward = new GameCamera();

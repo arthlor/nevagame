@@ -71,6 +71,7 @@ export interface RuntimeAnimationEventSpec {
 
 export interface RuntimeAssetSpec {
   id: AssetId;
+  dimensions: { width: number; height: number; depth: number };
   file: string;
   contentHash: string;
   family: AssetFamily;
@@ -103,7 +104,8 @@ export const ASSET_BY_ID: ReadonlyMap<AssetId, RuntimeAssetSpec> = new Map(
 
 const BOAT_ASSET_BY_TYPE: Readonly<Record<string, AssetId>> = {
   "boat.rowboat": ASSET_IDS.BOAT_ROWBOAT_A,
-  "boat.skiff": ASSET_IDS.BOAT_SKIFF_A
+  "boat.skiff": ASSET_IDS.BOAT_SKIFF_A,
+  "boat.trading_ship": ASSET_IDS.BOAT_TRADING_SHIP_A
 };
 
 export function boatAssetId(boatTypeId: string): AssetId {

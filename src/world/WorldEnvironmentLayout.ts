@@ -1,3 +1,8 @@
+import { bindInteractionPose, INTERACTION_PLACEMENTS } from "./InteractionPlacements";
+import { WORLD_STATION_DEFINITIONS } from "./WorldGameplayLocations";
+import { LABOR_PROP_POSES } from "../simulation/labor/LaborStations";
+import { VILLAGE_TRADE_STATIONS, CART_WORKSHOP, inVillageTradeReserve } from "./VillageTradeLayout";
+import { mainHarborDockDressing, harborDistrictPlacements, retainHarborDistrictDressing, inHarborWorkingReserve } from "./HarborDistrictLayout";
 import { oceanIsletPlacements } from "./OceanIsletPlacements";
 import { mainlandGroundCoverSteps, mainlandSettlementPlacements, mainlandStructuralPlacementSteps,
   STARTER_DRESSING_BOUNDS } from "./MainlandEnvironmentLayout";
@@ -21,6 +26,10 @@ import {
 } from "./FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN } from "./FarmhouseInterior";
 import { HARBOR_DOCK, HARBOR_MARKET, HARBOR_SKIFF_MOORING, RIVER_CROSSING, VILLAGE_CROSSING } from "./WorldAnchors";
+import { NEVA_SUMMITS } from "./NevaLandforms";
+import { ROAD_WHEEL_GAUGE_METERS } from "./RoadClasses";
+import { isInHeadwaterBounds } from "./NevaHeadwaters";
+import { RIVER_DRESSING_ASSET_SIZES, nevaRiverDressingPlacements } from "./NevaRiverDressing";
 import {
   compositionAddress,
   compositionPlacementTag,
@@ -75,6 +84,15 @@ export const PLACEMENT_OVERRIDES: Readonly<Record<string, PlacementOverride>> = 
   "seeded-fill.landscape.work.orchard.1": { x: 86.6, z: -73.9, rotationY: 0.05 },
   "seeded-fill.landscape.work.orchard.0": { x: 94.3, z: -80.2, rotationY: 0.3 },
   "seeded-fill.landscape.work.orchard.2": { x: 87.8, z: -74.2, rotationY: 0.35 },
+  "seeded-fill.landscape.pause.farm-lane": { x: -40, z: -40.7, rotationY: 2.0958 },
+  "seeded-fill.landscape.pause.river-walk": { x: -34.2, z: -7.2, rotationY: 1.9971 },
+  "seeded-fill.landscape.pause.headland-rest": { x: -18.1, z: 76.8, rotationY: 0.0855 },
+  "seeded-fill.landscape.pause.meadow-picnic": { x: 38.2, z: 12.4, rotationY: 2.0944 },
+  "seeded-fill.landscape.pause.harbor-road": { x: 57.7, z: 38.6, rotationY: 1.6567 },
+  "authored.harbor-district.neva.square-bench": { x: 73.9, z: 52.7, rotationY: 0.1 },
+  "authored.village.wagon": { x: 68.5, z: -84, rotationY: -0.5 },
+  "authored.village.produce-crate": { x: 62.7, z: -69.8, rotationY: 0.4 },
+  "authored.village.harvest-basket": { x: 52.5, z: -69.1, rotationY: -0.3 },
 };
 
 /** Seeded/layout-derived instances removed by the DEV layout editor. */
@@ -160,6 +178,14 @@ function stablePlacementId(groupId: string, index: number): string {
   return `seeded-fill.${groupId}.${index.toString().padStart(3, "0")}`;
 }
 
+function stablePlacementPriority(id: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < id.length; index += 1) {
+    hash = Math.imul(hash ^ id.charCodeAt(index), 0x01000193);
+  }
+  return (hash >>> 0) / 0x1_0000_0000;
+}
+
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
@@ -200,8 +226,13 @@ export function generateFarmPathPaverSamples(): FarmPathPaverSample[] {
       ) continue;
       nextDistance = sample.distanceAlongRoute + spacing;
       const side = Math.sin(sample.distanceAlongRoute * 0.73 + sampleIndex * 1.17) >= 0 ? 1 : -1;
-      const lateral = compiled.halfWidth * (
-        0.1 + Math.abs(Math.sin(sample.distanceAlongRoute * 0.41 + sampleIndex)) * 0.32
+      // Stepping slabs lie where feet go: between a cart road's wheel tracks,
+      // never in them, and down the middle of a footpath.
+      const between = compiled.route.kind === "trail"
+        ? compiled.halfWidth * 0.42
+        : ROAD_WHEEL_GAUGE_METERS * 0.5 - 0.5;
+      const lateral = between * (
+        0.2 + Math.abs(Math.sin(sample.distanceAlongRoute * 0.41 + sampleIndex)) * 0.8
       );
       const x = sample.point.x + sample.normal.x * side * lateral;
       const z = sample.point.z + sample.normal.z * side * lateral;
@@ -422,7 +453,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   // Fall-face overlook: the shortened trail ends at the west rim; this bench
   // sits on the western reveal ledge so the first furniture view is the tall
   // curtain, not the spring source (which the rim hides upstream).
-  authoredPlacement("authored.arrival.spring.bench", { assetId: "prop_bench_wood_a", x: -45.0, z: -136.5, rotationY: -1.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.spring.bench", { assetId: "prop_bench_wood_a", x: -51.5, z: -52.9, rotationY: -2.0944, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.spring.sign", { assetId: "prop_signpost_trail_a", x: -51.0, z: -157.5, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.overlook.bench", { assetId: "prop_bench_wood_a", x: -127.2, z: -91.8, rotationY: -1.309, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.overlook.cairn", { assetId: "rock_field_a", x: -125, z: -84, rotationY: 0.6, scale: [0.8, 0.8, 0.8], clearanceRadiusMeters: 1.5 }),
@@ -436,8 +467,8 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.arrival.village.crate", { assetId: "prop_crate_wood_a", x: 64.7, z: -48.8, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.village.barrel", { assetId: "prop_barrel_wood_a", x: 64.2, z: -50.6, rotationY: 0.5, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   
-  authoredPlacement("authored.arrival.village.rack", { assetId: "prop_fish_drying_rack_a", x: 61, z: -40.8, rotationY: 3.1416, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.village.firewood", { assetId: "prop_firewood_stack_a", x: 66.4, z: -39.8, rotationY: 1.5708, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.rack", { assetId: "prop_fish_drying_rack_a", ...LABOR_PROP_POSES["authored.arrival.village.rack"], scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.village.firewood", { assetId: "prop_firewood_stack_a", ...LABOR_PROP_POSES["authored.arrival.village.firewood"], scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.village.crate-inn", { assetId: "prop_crate_wood_a", x: 62.9, z: -40.7, rotationY: -0.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
 
   // Working village frontage and a neighboring orchard homestead. No additional shop/quest owners.
@@ -500,8 +531,8 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.harbor.yard-lantern", { assetId: "prop_dock_lantern_a", x: 86, z: 56.5, rotationY: 0.25, scale: [1, 1, 1], practicalLight: true }),
 
   // A maintained stopping place on the lighthouse walk; no new fire/camping mechanic.
-  authoredPlacement("authored.coast.walk-kiosk", { assetId: "prop_trail_kiosk_a", x: -60, z: 65, rotationY: 2.7, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.coast.rest-fire-pit", { assetId: "prop_fire_pit_a", x: -62, z: 60, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 2 }),
+  authoredPlacement("authored.coast.walk-kiosk", { assetId: "prop_trail_kiosk_a", x: -19.8, z: 61.9, rotationY: 7.0686, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.coast.rest-fire-pit", { assetId: "prop_fire_pit_a", x: -17.6, z: 78.5, rotationY: 0.2, scale: [1, 1, 1], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.woodland.habitat-snag", { assetId: "tree_dead_a", x: -151, z: -118, rotationY: 0.4, scale: [1, 1, 1] }),
   // A tor on the western summit's rounded cap, the only level ground left on the peaked summit.
   authoredPlacement("authored.woodland.boulder", { assetId: "rock_boulder_large_a", x: -126, z: -116, rotationY: -0.3, scale: [1, 1, 1], grounding: [1.1, 0.99], clearanceRadiusMeters: 2 }),
@@ -525,12 +556,12 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.coast.coral-pillar", { assetId: "prop_coral_pillar_a", x: 133, z: WorldLayout.coastlineZ(133) + 31, rotationY: 0.3, scale: [1, 1, 1] }),
   authoredPlacement("authored.coast.coral-staghorn", { assetId: "prop_coral_staghorn_a", x: 137, z: WorldLayout.coastlineZ(137) + 27, rotationY: -0.4, scale: [1, 1, 1] }),
   authoredPlacement("authored.coast.coral-table", { assetId: "prop_coral_table_a", x: 139, z: WorldLayout.coastlineZ(139) + 29, rotationY: 0.1, scale: [1, 1, 1] }),
-  authoredPlacement("authored.farm.pumpkin-patch", { assetId: "prop_pumpkin_patch_a", x: -74.2, z: -53.3, rotationY: -1.5708, scale: [1, 1, 1] }),
-  authoredPlacement("authored.tree.apple.orchard-a", { assetId: "tree_apple_a", x: 82, z: -44, rotationY: 0.22, scale: [1, 1, 1], grounding: [1.05, 0.74] }),
-  authoredPlacement("authored.tree.apple.orchard-b", { assetId: "tree_apple_a", x: 88, z: -40, rotationY: -0.48, scale: [1, 1, 1], grounding: [1, 0.72] }),
-  authoredPlacement("authored.tree.apple.orchard-c", { assetId: "tree_apple_a", x: 86, z: -52, rotationY: 0.84, scale: [1, 1, 1], grounding: [1, 0.7] }),
+  authoredPlacement("authored.farm.pumpkin-patch", { assetId: "prop_pumpkin_patch_a", x: -78, z: -55.7, rotationY: -1.0472, scale: [1, 1, 1] }),
+  authoredPlacement("authored.tree.apple.orchard-a", { assetId: "tree_apple_a", x: 100, z: -48, rotationY: 0.22, scale: [1, 1, 1], grounding: [1.05, 0.74] }),
+  authoredPlacement("authored.tree.apple.orchard-b", { assetId: "tree_apple_a", x: 100, z: -38, rotationY: -0.48, scale: [1, 1, 1], grounding: [1, 0.72] }),
+  authoredPlacement("authored.tree.apple.orchard-c", { assetId: "tree_apple_a", x: 96, z: -57, rotationY: 0.84, scale: [1, 1, 1], grounding: [1, 0.7] }),
   authoredPlacement("authored.tree.oak.farm-west", { assetId: "tree_oak_c", x: -82, z: -47, rotationY: 0.35, scale: [1, 1, 1], grounding: [1.18, 0.78] }),
-  authoredPlacement("authored.tree.oak.village", { assetId: "tree_oak_a", x: 78, z: -42, rotationY: 0.58, scale: [1, 1, 1], grounding: [1.22, 0.8] }),
+  authoredPlacement("authored.tree.oak.village", { assetId: "tree_oak_a", x: 107, z: -58, rotationY: 0.58, scale: [1, 1, 1], grounding: [1.22, 0.8] }),
   authoredPlacement("authored.tree.pine.headland", { assetId: "tree_pine_b", x: -122, z: 45, rotationY: -0.42, scale: [1, 1, 1], grounding: [1.28, 0.8] }),
   authoredPlacement("authored.foliage.reeds.bridge-south", { assetId: "foliage_reeds_a", x: -8, z: -14.5, rotationY: 0.15, scale: [1, 1, 1] }),
   authoredPlacement("authored.foliage.reeds.bridge-north", { assetId: "foliage_reeds_a", x: -20, z: 0.5, rotationY: -0.25, scale: [1, 1, 1] }),
@@ -550,39 +581,69 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.headwater.lip-rock-west-crest", { assetId: "rock_boulder_large_a", x: -33.85, z: -140.65, rotationY: 0.6, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
   authoredPlacement("authored.headwater.lip-rock-east-inner", { assetId: "rock_field_a", x: -24.6, z: -139.4, rotationY: 2.1, scale: [0.95, 0.8, 1], grounding: [0.85, 0.75] }),
   authoredPlacement("authored.headwater.lip-rock-east-crest", { assetId: "rock_boulder_large_a", x: -24.00, z: -138.00, rotationY: -0.8, scale: [0.85, 0.8, 0.85], grounding: [0.8, 0.72] }),
-  authoredPlacement("authored.headwater.lip-rock-east-outer", { assetId: "rock_field_a", x: -22.2, z: -138.6, rotationY: -0.25, scale: [0.88, 0.75, 0.9], grounding: [0.85, 0.75] }),
+  authoredPlacement("authored.headwater.lip-rock-east-outer", { assetId: "rock_field_a", x: -24.75, z: -142, rotationY: -0.25, scale: [0.88, 0.75, 0.9], grounding: [0.85, 0.75] }),
   // The spring seeps from the headwall talus; this embedded boulder marks the
   // source while the shortened trail terminus and rim stay clear upstream-west.
   authoredPlacement("authored.headwater.springhead-boulder", { assetId: "rock_boulder_large_a", x: -31, z: -154, rotationY: -0.4, scale: [1, 0.95, 1], grounding: [1.1, 0.99] }),
-  // W08 basin rim: two embedded outcrops break the carved pool edge so it
-  // reads as rock the water worked into, not a smooth trench. Stances of the
-  // review cameras stay clear of both footprints.
-  authoredPlacement("authored.headwater.pool-rim-west", { assetId: "rock_field_a", x: -48.5, z: -141.5, rotationY: 0.3, scale: [1, 0.85, 0.95], grounding: [0.85, 0.75] }),
+  // An embedded west ledge and east pool-rim outcrop break the smooth valley
+  // edge while leaving the walked approach and review cameras clear.
+  authoredPlacement("authored.headwater.pool-rim-west", { assetId: "rock_field_a", x: -46.5, z: -129, rotationY: 0.3, scale: [1, 0.85, 0.95], grounding: [0.85, 0.75] }),
+  // Fallen blocks settle on the level pool shelf below the exposed fall face.
+  authoredPlacement("authored.headwater.talus-west-boulder", { assetId: "rock_boulder_large_a", x: -44, z: -125.5, rotationY: 0.4, scale: [1.25, 0.92, 1.1], grounding: [1.1, 0.99], clearanceRadiusMeters: 2.2 }),
+  authoredPlacement("authored.headwater.talus-west-field", { assetId: "rock_field_a", x: -40, z: -126, rotationY: -0.5, scale: [1.08, 0.78, 0.95], grounding: [0.85, 0.75], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.headwater.talus-east-boulder", { assetId: "rock_boulder_large_a", x: -15, z: -127.7, rotationY: 0.5, scale: [1.18, 0.85, 1.08], grounding: [1.1, 0.99], clearanceRadiusMeters: 2.2 }),
+  authoredPlacement("authored.headwater.talus-east-field", { assetId: "rock_field_a", x: -11, z: -126.5, rotationY: -0.7, scale: [1.02, 0.8, 0.92], grounding: [0.85, 0.75], clearanceRadiusMeters: 1.5 }),
   // Kept clear of the walked pool-bank approach (which runs z = -129.5 → -132).
   // Sits clear of the graded approach trail; the bench reshapes this corner,
   // so the cell is chosen against the graded terrain, not the raw bank.
-  authoredPlacement("authored.headwater.pool-rim-east", { assetId: "rock_boulder_large_a", x: -19.3, z: -124.3, rotationY: -0.5, scale: [0.95, 0.9, 0.95], grounding: [0.9, 0.8] }),
+  authoredPlacement("authored.headwater.pool-rim-east", { assetId: "rock_boulder_large_a", x: -19.9, z: -124.75, rotationY: -0.5, scale: [0.95, 0.9, 0.95], grounding: [0.9, 0.8] }),
   // W09 slice habitat: one composed riparian group at the pool — a dominant
-  // reed/cattail stand on the calm west margin, broadleaf support on both
-  // banks, and two logs washed up at the outflow. The gorge faces and the
-  // walked pool-bank corridor stay deliberately open.
-  authoredPlacement("authored.headwater.reeds-west-1", { assetId: "foliage_cattail_a", x: WorldLayout.riverCenterX(-129.2) - WorldLayout.riverSectionAt(-129.2).leftWaterWidth - 0.39, z: -129.2, rotationY: 0.5, scale: [1.15, 1.15, 1.15] }),
-  authoredPlacement("authored.headwater.reeds-west-2", { assetId: "foliage_reeds_a", x: WorldLayout.riverCenterX(-128.4) - WorldLayout.riverSectionAt(-128.4).leftWaterWidth - 0.53, z: -128.4, rotationY: 1.9, scale: [1.05, 1.05, 1.05] }),
-  authoredPlacement("authored.headwater.reeds-west-3", { assetId: "foliage_cattail_a", x: WorldLayout.riverCenterX(-127.6) - WorldLayout.riverSectionAt(-127.6).leftWaterWidth - 0.25, z: -127.6, rotationY: 2.6, scale: [1.2, 1.2, 1.2] }),
-  authoredPlacement("authored.headwater.reeds-west-4", { assetId: "foliage_reeds_a", x: WorldLayout.riverCenterX(-126.8) - WorldLayout.riverSectionAt(-126.8).leftWaterWidth - 0.39, z: -126.8, rotationY: 0.9, scale: [1.1, 1.1, 1.1] }),
-  authoredPlacement("authored.headwater.reeds-west-5", { assetId: "foliage_cattail_a", x: WorldLayout.riverCenterX(-126.0) - WorldLayout.riverSectionAt(-126.0).leftWaterWidth - 0.53, z: -126.0, rotationY: 3.4, scale: [0.95, 0.95, 0.95] }),
-  authoredPlacement("authored.headwater.reeds-west-6", { assetId: "foliage_reeds_a", x: WorldLayout.riverCenterX(-125.2) - WorldLayout.riverSectionAt(-125.2).leftWaterWidth - 0.25, z: -125.2, rotationY: 4.2, scale: [1.15, 1.15, 1.15] }),
-  authoredPlacement("authored.headwater.reeds-west-7", { assetId: "foliage_cattail_a", x: WorldLayout.riverCenterX(-124.4) - WorldLayout.riverSectionAt(-124.4).leftWaterWidth - 0.39, z: -124.4, rotationY: 5.4, scale: [1.05, 1.05, 1.05] }),
-  authoredPlacement("authored.headwater.reeds-west-8", { assetId: "foliage_reeds_a", x: WorldLayout.riverCenterX(-123.6) - WorldLayout.riverSectionAt(-123.6).leftWaterWidth - 0.53, z: -123.6, rotationY: 2.2, scale: [1.0, 1.0, 1.0] }),
+  // reed/cattail stand on the calm west margin with a smaller clump on the east
+  // margin, broadleaf support on both banks, and two logs washed up at the
+  // outflow. The gorge faces and the walked pool-bank corridor stay open.
+  authoredPlacement("authored.headwater.reeds-west-1", { assetId: "foliage_cattail_a", x: -32.9, z: -128.6, rotationY: 0.5, scale: [1.15, 1.15, 1.15] }),
+  authoredPlacement("authored.headwater.reeds-west-2", { assetId: "foliage_reeds_a", x: -32.8, z: -130.5, rotationY: 1.9, scale: [1.05, 1.05, 1.05] }),
+  authoredPlacement("authored.headwater.reeds-west-3", { assetId: "foliage_cattail_a", x: -33, z: -129, rotationY: 2.6, scale: [1.2, 1.2, 1.2] }),
+  authoredPlacement("authored.headwater.reeds-west-4", { assetId: "foliage_reeds_a", x: -32.5, z: -131.6, rotationY: 0.9, scale: [1.1, 1.1, 1.1] }),
+  authoredPlacement("authored.headwater.reeds-west-5", { assetId: "foliage_cattail_a", x: -32.4, z: -133.7, rotationY: 3.4, scale: [0.95, 0.95, 0.95] }),
+  authoredPlacement("authored.headwater.reeds-east-1", { assetId: "foliage_reeds_a", x: -24.9, z: -133.8, rotationY: 4.2, scale: [1.15, 1.15, 1.15] }),
+  authoredPlacement("authored.headwater.reeds-west-7", { assetId: "foliage_cattail_a", x: -33.1, z: -130.2, rotationY: 5.4, scale: [1.05, 1.05, 1.05] }),
+  authoredPlacement("authored.headwater.reeds-east-2", { assetId: "foliage_reeds_a", x: -23.8, z: -131.8, rotationY: 2.2, scale: [1.0, 1.0, 1.0] }),
   authoredPlacement("authored.headwater.bush-west-a", { assetId: "foliage_bush_round_a", x: -40.66, z: -124.56, rotationY: 0.8, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.bush-west-b", { assetId: "foliage_bush_a", x: -41.29, z: -117.17, rotationY: 2.4, scale: [0.95, 0.95, 0.95], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.bush-east-a", { assetId: "foliage_bush_a", x: -21.1, z: -126.6, rotationY: 1.3, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.bush-east-b", { assetId: "foliage_bush_round_a", x: -18.50, z: -124.40, rotationY: 3.1, scale: [1.05, 1.05, 1.05], grounding: [0.5, 0.5] }),
-  authoredPlacement("authored.headwater.tree-maple-east", { assetId: "tree_maple_a", x: -19.97, z: -129.1, rotationY: 0.7, scale: [1, 1, 1], grounding: [0.6, 0.6] }),
-  authoredPlacement("authored.headwater.tree-oak-east", { assetId: "tree_oak_broadleaf_a", x: -18.3, z: -131.5, rotationY: 2.2, scale: [0.95, 0.95, 0.95], grounding: [0.6, 0.6] }),
-  authoredPlacement("authored.headwater.tree-maple-west", { assetId: "tree_maple_a", x: -41.55, z: -117.0, rotationY: 4.0, scale: [1.02, 1.02, 1.02], grounding: [0.6, 0.6] }),
-  authoredPlacement("authored.headwater.log-outflow-west", { assetId: "prop_driftwood_log_a", x: -23.7, z: -132.1, rotationY: 0.5236, scale: [0.9, 0.9, 0.9] }),
-  authoredPlacement("authored.headwater.log-outflow-east", { assetId: "prop_driftwood_log_a", x: -32.9, z: -132.7, rotationY: 2.6, scale: [0.82, 0.82, 0.82] }),
+  authoredPlacement("authored.headwater.bush-west-b", { assetId: "foliage_bush_a", x: -41.29, z: -117.42, rotationY: 2.4, scale: [0.95, 0.95, 0.95], grounding: [0.5, 0.5] }),
+  authoredPlacement("authored.headwater.bush-east-a", { assetId: "foliage_bush_a", x: -19.8, z: -125.85, rotationY: 1.3, scale: [1, 1, 1], grounding: [0.5, 0.5] }),
+  authoredPlacement("authored.headwater.bush-east-b", { assetId: "foliage_bush_round_a", x: -18.75, z: -124.40, rotationY: 3.1, scale: [1.05, 1.05, 1.05], grounding: [0.5, 0.5] }),
+  // Low stones and rooted cover gather on the dry impact shelves. The centre
+  // remains open for the falling sheet, boil and outflow; these catalog assets
+  // have no collider, so the pool-bank approach keeps its physical clearance.
+  authoredPlacement("authored.headwater.impact-pebbles-west", { assetId: "rock_pebble_cluster_a", x: -34.98, z: -133.83, rotationY: 0.48, scale: [1.1, 0.95, 1.05], grounding: [0.55, 0.44] }),
+  authoredPlacement("authored.headwater.impact-pebbles-east", { assetId: "rock_pebble_cluster_b", x: -18, z: -128.3, rotationY: -0.7, scale: [1.05, 0.92, 1], grounding: [0.45, 0.37] }),
+  // Dark, mossy stones emerge from the nonwalkable plunge margin. Their
+  // catalog collision is none, so they do not narrow either bank approach.
+  authoredPlacement("authored.headwater.impact-rock-west", { assetId: "rock_reef_small_a", x: -31.7, z: -134.1, rotationY: 0.6, scale: [3.2, 2.75, 3] }),
+  authoredPlacement("authored.headwater.impact-rock-east", { assetId: "rock_reef_small_a", x: -25.9, z: -134.0, rotationY: -0.8, scale: [3, 2.7, 3.2] }),
+  authoredPlacement("authored.headwater.impact-bush-west", { assetId: "foliage_bush_round_a", x: -35.2, z: -133.87, rotationY: 1.1, scale: [1.15, 1.04, 1.1], grounding: [0.54, 0.47] }),
+  authoredPlacement("authored.headwater.impact-bush-east", { assetId: "foliage_bush_round_a", x: -17.6, z: -128.2, rotationY: -0.45, scale: [1.1, 1.02, 1.05], grounding: [0.52, 0.45] }),
+  authoredPlacement("authored.headwater.impact-bush-west-outer", { assetId: "foliage_bush_round_a", x: -34.88, z: -133.53, rotationY: 2.35, scale: [1.08, 1.06, 1.08], grounding: [0.4, 0.35] }),
+  authoredPlacement("authored.headwater.impact-bush-east-inner", { assetId: "foliage_bush_round_a", x: -17.9, z: -128.15, rotationY: 0.75, scale: [1.02, 1.04, 1.02], grounding: [0.4, 0.34] }),
+  // Reeds occupy the slower, shin-deep margins beside the boil, rather than
+  // the jet itself or the dry walking shelf.
+  authoredPlacement("authored.headwater.impact-reeds-west", { assetId: "foliage_reeds_a", x: -33.55, z: -131.2, rotationY: 0.25, scale: [1.2, 1.16, 1.2] }),
+  authoredPlacement("authored.headwater.impact-reeds-east", { assetId: "foliage_reeds_a", x: -24.05, z: -132.7, rotationY: 2.1, scale: [1.12, 1.1, 1.12] }),
+  authoredPlacement("authored.headwater.pool-pebbles-west", { assetId: "rock_pebble_cluster_b", x: -37.57, z: -128.53, rotationY: 2.1, scale: [0.95, 0.88, 1], grounding: [0.42, 0.35] }),
+  authoredPlacement("authored.headwater.pool-pebbles-east", { assetId: "rock_pebble_cluster_c", x: -17.6, z: -128.8, rotationY: 0.37, scale: [0.9, 0.82, 0.95], grounding: [0.48, 0.4] }),
+  authoredPlacement("authored.headwater.pool-pebbles-west-lower", { assetId: "rock_pebble_cluster_a", x: -36.85, z: -127.35, rotationY: -0.35, scale: [0.9, 0.8, 1], grounding: [0.45, 0.4] }),
+  authoredPlacement("authored.headwater.pool-bush-west-lower", { assetId: "foliage_bush_round_a", x: -37.56, z: -127.94, rotationY: -0.35, scale: [1.05, 1.02, 1.05], grounding: [0.49, 0.43] }),
+  authoredPlacement("authored.headwater.pool-bush-east-lower", { assetId: "foliage_bush_a", x: -17.55, z: -127.91, rotationY: 2.1, scale: [0.82, 0.84, 0.82], grounding: [0.74, 0.62] }),
+  authoredPlacement("authored.headwater.pool-meadow-west", { assetId: "foliage_meadow_tall_a", x: -37.7, z: -128.2, rotationY: 1.4, scale: [1.12, 1.05, 1.1] }),
+  authoredPlacement("authored.headwater.pool-meadow-east", { assetId: "foliage_meadow_tall_b", x: -18.2, z: -127.2, rotationY: -0.6, scale: [1.08, 1.05, 1.12] }),
+  authoredPlacement("authored.headwater.pool-flowers-west", { assetId: "foliage_wildflower_a", x: -38, z: -126.5, rotationY: 0.35, scale: [1.05, 1, 1.05] }),
+  authoredPlacement("authored.headwater.pool-flowers-east", { assetId: "foliage_wildflower_b", x: -16.8, z: -126.3, rotationY: -0.4, scale: [0.95, 0.92, 0.95] }),
+  authoredPlacement("authored.headwater.tree-maple-east", { assetId: "tree_maple_a", x: -15.23, z: -125.1, rotationY: 0.7, scale: [1, 1, 1], grounding: [0.6, 0.6] }),
+  authoredPlacement("authored.headwater.tree-oak-east", { assetId: "tree_oak_broadleaf_a", x: -17, z: -127.4, rotationY: 2.2, scale: [0.95, 0.95, 0.95], grounding: [0.6, 0.6] }),
+  authoredPlacement("authored.headwater.tree-maple-west", { assetId: "tree_maple_a", x: -41.26, z: -117.69, rotationY: 4.0, scale: [1.02, 1.02, 1.02], grounding: [0.6, 0.6] }),
+  authoredPlacement("authored.headwater.log-outflow-west", { assetId: "prop_driftwood_log_a", x: -34.7, z: -130.9, rotationY: 0.5236, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.headwater.log-outflow-east", { assetId: "prop_driftwood_log_a", x: -33.75, z: -132.7, rotationY: 2.6, scale: [0.82, 0.82, 0.82] }),
   authoredPlacement("authored.prop.lamp.village-west", { assetId: "prop_lamp_post_a", x: 30.0, z: -64.5, rotationY: -1.0472, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.lamp.village-east", { assetId: "prop_lamp_post_a", x: 52.5, z: -63.5, rotationY: 3.1416, scale: [1, 1, 1], practicalLight: true }),
   authoredPlacement("authored.prop.lamp.village-mill", { assetId: "prop_lamp_post_a", x: 75.3, z: -71.3, rotationY: 1.0472, scale: [1, 1, 1], practicalLight: true }),
@@ -601,7 +662,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.prop.crate.harbor", { assetId: "prop_crate_wood_a", x: 69, z: 65.1, rotationY: 0.15, scale: [1, 1, 1] }),
   authoredPlacement("authored.prop.barrel.harbor", { assetId: "prop_barrel_wood_a", x: 81.9, z: 66.9, rotationY: 0.1, scale: [1, 1, 1] }),
   authoredPlacement("authored.prop.trap.harbor", { assetId: "prop_lobster_trap_a", x: 81.5, z: 66, rotationY: 0.65, scale: [1, 1, 1] }),
-  authoredPlacement("authored.prop.net-rack.harbor", { assetId: "prop_fishing_net_rack_a", x: 67.5, z: 64.5, rotationY: 0.22, scale: [1, 1, 1] }),
+  authoredPlacement("authored.prop.net-rack.harbor", { assetId: "prop_fishing_net_rack_a", ...LABOR_PROP_POSES["authored.prop.net-rack.harbor"], scale: [1, 1, 1] }),
   authoredPlacement("authored.fauna.chicken.farm-a", { assetId: "fauna_chicken_a", x: -63.3, z: -69.6, rotationY: 0.7854, scale: [1.1, 1.1, 1.1] }),
   authoredPlacement("authored.fauna.chicken.farm-b", { assetId: "fauna_chicken_a", x: -61.2, z: -68.1, rotationY: -0.5, scale: [0.92, 0.92, 0.92] }),
   authoredPlacement("authored.prop.wagon.farm-road", { assetId: "prop_wagon_cart_a", x: -54.5, z: -70.5, rotationY: -3.6652, scale: [1, 1, 1], grounding: [1.5, 1.05] }),
@@ -623,7 +684,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   // Farmhouse exterior: firewood stacked just outside the southeast wall
   authoredPlacement("authored.farm.firewood", { assetId: "prop_firewood_stack_a", x: -50, z: -54.1, rotationY: 4.7124, scale: [1, 1, 1] }),
   // Wheelbarrow parked beside the farm work-path, facing the crop rows
-  authoredPlacement("authored.farm.wheelbarrow", { assetId: "prop_wheelbarrow_a", x: -56.5, z: -61.4, rotationY: -4.1888, scale: [1, 1, 1] }),
+  authoredPlacement("authored.farm.wheelbarrow", { assetId: "prop_wheelbarrow_a", x: -49.8, z: -56, rotationY: -2.8798, scale: [1, 1, 1] }),
   // Beehive in the sunny meadow east of the chicken yard
   authoredPlacement("authored.farm.beehive", { assetId: "prop_beehive_a", x: -56, z: -49, rotationY: -0.2, scale: [1, 1, 1] }),
   // Sunflower row along the northern farm perimeter fence
@@ -644,9 +705,9 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.fauna.rabbit-meadow", { assetId: "fauna_rabbit_a", x: -55, z: -43, rotationY: 1.2, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-meadow-east", { assetId: "fauna_rabbit_a", x: -53.5, z: -43.8, rotationY: -0.8, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-meadow-west", { assetId: "fauna_rabbit_a", x: -56.8, z: -41.4, rotationY: 2.6, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.fauna.rabbit-inland-glade", { assetId: "fauna_rabbit_a", x: 23, z: -27, rotationY: -0.7, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.fauna.rabbit-inland-glade-east", { assetId: "fauna_rabbit_a", x: 24.8, z: -28.2, rotationY: -2.1, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
-  authoredPlacement("authored.fauna.rabbit-inland-glade-west", { assetId: "fauna_rabbit_a", x: 21.4, z: -25.8, rotationY: 0.5, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
+  authoredPlacement("authored.fauna.rabbit-inland-glade", { assetId: "fauna_rabbit_a", x: 26.1, z: -49.1, rotationY: -0.7, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
+  authoredPlacement("authored.fauna.rabbit-inland-glade-east", { assetId: "fauna_rabbit_a", x: 19.6, z: -33.9, rotationY: -2.1, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
+  authoredPlacement("authored.fauna.rabbit-inland-glade-west", { assetId: "fauna_rabbit_a", x: 19.8, z: -73.1, rotationY: 0.5, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-central-meadow", { assetId: "fauna_rabbit_a", x: 42, z: 4, rotationY: 2.35, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-central-meadow-east", { assetId: "fauna_rabbit_a", x: 114.2, z: -14, rotationY: -1.1, scale: [1.25, 1.25, 1.25], clearanceRadiusMeters: 1.4 }),
   authoredPlacement("authored.fauna.rabbit-central-meadow-west", { assetId: "fauna_rabbit_a", x: 40.4, z: 2.8, rotationY: 0.3, scale: [1.3, 1.3, 1.3], clearanceRadiusMeters: 1.4 }),
@@ -686,7 +747,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.village.hay-bale-a", { assetId: "prop_hay_bale_a", x: 27.8, z: -68.5, rotationY: 0.2, scale: [1, 1, 1] }),
   authoredPlacement("authored.village.hay-bale-b", { assetId: "prop_hay_bale_a", x: 26.6, z: -69.8, rotationY: 1.1, scale: [0.92, 0.92, 0.92] }),
   
-  authoredPlacement("authored.village.firewood", { assetId: "prop_firewood_stack_a", x: 34.0, z: -60.7, rotationY: 5.236, scale: [1, 1, 1] }),
+  authoredPlacement("authored.village.firewood", { assetId: "prop_firewood_stack_a", x: 29.5, z: -63.3, rotationY: 6.8068, scale: [1, 1, 1] }),
   authoredPlacement("authored.fauna.chicken.village-a", { assetId: "fauna_chicken_a", x: 34.0, z: -76.0, rotationY: 0.6, scale: [1.05, 1.05, 1.05] }),
   authoredPlacement("authored.fauna.chicken.village-b", { assetId: "fauna_chicken_a", x: 35.6, z: -76.8, rotationY: -0.8, scale: [0.95, 0.95, 0.95] }),
   authoredPlacement("authored.fauna.chicken.village-c", { assetId: "fauna_chicken_a", x: 32.9, z: -77.2, rotationY: 1.6, scale: [1, 1, 1] }),
@@ -782,6 +843,273 @@ function independentCoastalDressing(worldSeed: number): EnvironmentAssetPlacemen
   return placements;
 }
 
+interface ShorelineArcSegment {
+  start: Readonly<{ x: number; z: number }>;
+  end: Readonly<{ x: number; z: number }>;
+  startDistance: number;
+  length: number;
+}
+
+interface ShorelineArc {
+  segments: readonly ShorelineArcSegment[];
+  length: number;
+}
+
+interface ShorelineAssetPlan {
+  assetId: string;
+  category: CompositionCategory;
+  scale: readonly [number, number];
+  footprint: readonly [number, number];
+  minimumNormalY: number;
+  maximumHeightDelta: number;
+}
+
+function shorelineArc(loop: readonly Readonly<{ x: number; z: number }>[]): ShorelineArc {
+  let length = 0;
+  const segments: ShorelineArcSegment[] = [];
+  for (let index = 0; index < loop.length; index += 1) {
+    const start = loop[index]!;
+    const end = loop[(index + 1) % loop.length]!;
+    const segmentLength = Math.hypot(end.x - start.x, end.z - start.z);
+    if (segmentLength <= 0.001) continue;
+    segments.push({ start, end, startDistance: length, length: segmentLength });
+    length += segmentLength;
+  }
+  return { segments, length };
+}
+
+function shorelinePointAt(arc: ShorelineArc, distance: number): { x: number; z: number } {
+  const wrapped = ((distance % arc.length) + arc.length) % arc.length;
+  const segment = arc.segments.find((entry) => wrapped <= entry.startDistance + entry.length)
+    ?? arc.segments[arc.segments.length - 1]!;
+  const progress = Math.max(0, Math.min(1, (wrapped - segment.startDistance) / segment.length));
+  return {
+    x: segment.start.x + (segment.end.x - segment.start.x) * progress,
+    z: segment.start.z + (segment.end.z - segment.start.z) * progress
+  };
+}
+
+function shorelinePlacementRadius(placement: EnvironmentAssetPlacement): number {
+  if (placement.assetId.startsWith("tree_")) return 3.2 * placement.scale[0];
+  if (placement.assetId.startsWith("foliage_bush_")) return 1.25 * placement.scale[0];
+  if (placement.assetId.startsWith("rock_")) {
+    return Math.max(0.8, placement.grounding ? Math.hypot(...placement.grounding) : 1.1);
+  }
+  if (placement.assetId.startsWith("prop_driftwood_")) return 1.4 * placement.scale[0];
+  return placement.grounding ? Math.hypot(...placement.grounding) : 0.75 * placement.scale[0];
+}
+
+function shorelineAssetPlan(
+  islandId: "island.neva" | "island.sunreach",
+  shoreKind: ReturnType<typeof WorldLayout.shoreProjectionAt>["shoreKind"],
+  roll: number
+): ShorelineAssetPlan {
+  const exposedStone = shoreKind === "cliff" || shoreKind === "rock-shelf";
+  if (exposedStone) {
+    if (islandId === "island.sunreach") {
+      const reef = roll < 0.62;
+      return {
+        assetId: reef ? "rock_reef_small_a" : "rock_coastal_boulder_a",
+        category: "rock",
+        scale: reef ? [0.62, 1.02] : [0.58, 0.88],
+        footprint: reef ? [0.78, 0.6] : [0.88, 0.66],
+        minimumNormalY: 0.74,
+        maximumHeightDelta: reef ? 0.78 : 1.05
+      };
+    }
+    const coastalRocks = ["rock_coastal_a", "rock_coastal_b", "rock_coastal_c", "rock_coastal_d"];
+    return {
+      assetId: coastalRocks[Math.min(coastalRocks.length - 1, Math.floor(roll * coastalRocks.length))]!,
+      category: "rock",
+      scale: [0.58, 0.92],
+      footprint: [0.9, 0.68],
+      minimumNormalY: 0.8,
+      maximumHeightDelta: 1.1
+    };
+  }
+
+  if (islandId === "island.sunreach") {
+    if (roll < 0.2) {
+      return { assetId: "prop_driftwood_log_a", category: "rock", scale: [0.7, 0.98], footprint: [1.12, 0.42], minimumNormalY: 0.74, maximumHeightDelta: 0.78 };
+    }
+    if (roll < 0.46) {
+      return { assetId: "rock_pebble_cluster_c", category: "rock", scale: [0.62, 0.88], footprint: [0.58, 0.46], minimumNormalY: 0.74, maximumHeightDelta: 0.78 };
+    }
+    if (roll < 0.74) {
+      return { assetId: "foliage_bush_round_a", category: "bush", scale: [0.62, 0.9], footprint: [0.4, 0.34], minimumNormalY: 0.76, maximumHeightDelta: 0.72 };
+    }
+  } else {
+    if (roll < 0.22) {
+      return { assetId: "prop_driftwood_log_a", category: "rock", scale: [0.68, 0.98], footprint: [1.12, 0.42], minimumNormalY: 0.74, maximumHeightDelta: 0.78 };
+    }
+    if (roll < 0.38) {
+      const pebble = roll < 0.30 ? "rock_pebble_cluster_a" : "rock_pebble_cluster_b";
+      return { assetId: pebble, category: "rock", scale: [0.64, 0.9], footprint: [0.58, 0.46], minimumNormalY: 0.74, maximumHeightDelta: 0.78 };
+    }
+    if (roll < 0.58) {
+      return { assetId: "foliage_bush_a", category: "bush", scale: [0.58, 0.86], footprint: [0.38, 0.34], minimumNormalY: 0.76, maximumHeightDelta: 0.72 };
+    }
+  }
+
+  return {
+    assetId: "foliage_beach_grass_a",
+    category: "short-cover",
+    scale: islandId === "island.sunreach" ? [0.86, 1.18] : [0.88, 1.24],
+    footprint: [0.25, 0.22],
+    minimumNormalY: 0.72,
+    maximumHeightDelta: 0.78
+  };
+}
+
+function shorelineAssetPlacement(
+  worldSeed: number,
+  islandId: "island.neva" | "island.sunreach",
+  cluster: number,
+  salt: number,
+  slot: number,
+  plan: ShorelineAssetPlan,
+  x: number,
+  z: number,
+  rotationY: number
+): EnvironmentAssetPlacement | null {
+  const sample = sampleWorldComposition(worldSeed, x, z);
+  const island = WORLD_ISLAND_DEFINITIONS[islandId];
+  if (sample.islandId !== islandId || WorldLayout.islandAt(x, z) !== islandId
+    || WorldLayout.isInterior(x, z) || WorldLayout.isWater(x, z) || !WorldLayout.isWalkable(x, z)
+    || WorldLayout.terrainHeight(x, z) < 0.25 || WorldLayout.waterSignedDistance(x, z) > -0.85
+    || WorldLayout.terrainNormalY(x, z) < plan.minimumNormalY
+    || WorldLayout.pathInfluence(x, z) > 0.08
+    || sample.route.clearance > 0.04 || sample.route.gateway > 0.08
+    || (islandId === "island.neva" && sample.architectureClearance > 0.24)
+    || sample.fishingAccessClearance > 0.08
+    || !clearsCompleteRouteCorridor(x, z, 0.45)
+    || !clearsLandmarks(x, z, 0.75)
+    || (islandId === "island.sunreach" && !clearsSunreachDressing(x, z, 1.15))) return null;
+
+  const scaleRoll = islandCompositionPriority(islandId, worldSeed, plan.category, cluster, salt, slot * 11 + 4);
+  const scale = plan.scale[0] + (plan.scale[1] - plan.scale[0]) * scaleRoll;
+  const role = slot === 0 ? "anchor" : slot === 1 ? "understory" : "canopy";
+  const placement: EnvironmentAssetPlacement = {
+    id: `seeded-fill.shoreline.${islandId}.${role}.${compositionAddress(worldSeed, plan.category, cluster, salt, slot)}`,
+    origin: "seeded-fill",
+    islandId,
+    biomeId: island.biomeId,
+    assetId: plan.assetId,
+    x,
+    z,
+    rotationY,
+    scale: [scale, scale * (0.92 + islandCompositionPriority(islandId, worldSeed, plan.category, cluster, salt, slot * 11 + 5) * 0.16), scale],
+    grounding: [plan.footprint[0] * scale, plan.footprint[1] * scale],
+    compositionTag: {
+      ...compositionPlacementTag(worldSeed, plan.category, cluster, salt, slot, sample),
+      role: "edge"
+    }
+  };
+  if (!isPlacementFootprintStable(placement, plan.minimumNormalY, plan.maximumHeightDelta)) return null;
+  return placement;
+}
+
+function* generateIslandShorelineDressingSteps(
+  worldSeed: number,
+  existing: readonly EnvironmentAssetPlacement[]
+): Generator<void, EnvironmentAssetPlacement[], void> {
+  const placements: EnvironmentAssetPlacement[] = [];
+  const occupied = [...existing];
+  const islands = ["island.neva", "island.sunreach"] as const;
+  const clearance = (placement: EnvironmentAssetPlacement) => shorelinePlacementRadius(placement) + 0.35;
+
+  for (const islandId of islands) {
+    const definition = WORLD_ISLAND_DEFINITIONS[islandId];
+    const arc = shorelineArc(definition.coastLoop);
+    const salt = islandId === "island.neva" ? 0x4e455641 : 0x53554e52;
+    const minimumSpacing = islandId === "island.neva" ? 17 : 14;
+    const spacingRange = islandId === "island.neva" ? 8 : 7;
+    let address = 0;
+    let distance = islandCompositionPriority(islandId, worldSeed, "rock", 0, salt, 0) * minimumSpacing;
+    while (distance < arc.length) {
+      if (address % 8 === 0) yield;
+      const shorelinePoint = shorelinePointAt(arc, distance);
+      const shore = WorldLayout.shoreProjectionAt(shorelinePoint.x, shorelinePoint.z);
+      const anchorRoll = islandCompositionPriority(islandId, worldSeed, "rock", address, salt, 1);
+      if (shore.islandId === islandId) {
+        const setbackBase = shore.shoreKind === "cliff" || shore.shoreKind === "rock-shelf"
+          ? 2.4 + anchorRoll * 1.4
+          : 2.2 + anchorRoll * 2.2;
+        const alongshoreJitter = (islandCompositionPriority(islandId, worldSeed, "rock", address, salt, 2) - 0.5) * 4.6;
+        const assetRoll = islandCompositionPriority(islandId, worldSeed, "rock", address, salt, 3);
+        const primaryPlan = shorelineAssetPlan(islandId, shore.shoreKind, assetRoll);
+        let primary: EnvironmentAssetPlacement | null = null;
+        const alternateAlong = [0, -2.8, 2.8, -5.1, 5.1] as const;
+        for (let attempt = 0; attempt < alternateAlong.length && !primary; attempt += 1) {
+          const tangentOffset = alongshoreJitter + alternateAlong[attempt]!;
+          const landwardOffset = setbackBase + attempt * 0.52;
+          const x = shore.boundaryPointXZ.x - shore.waterwardNormalXZ.x * landwardOffset + shore.tangentXZ.x * tangentOffset;
+          const z = shore.boundaryPointXZ.z - shore.waterwardNormalXZ.z * landwardOffset + shore.tangentXZ.z * tangentOffset;
+          const yaw = islandCompositionPriority(islandId, worldSeed, primaryPlan.category, address, salt, 4) * Math.PI * 2;
+          const candidate = shorelineAssetPlacement(worldSeed, islandId, address, salt, 0, primaryPlan, x, z, yaw);
+          if (!candidate) continue;
+          const radius = shorelinePlacementRadius(candidate);
+          if (occupied.some((other) => Math.hypot(other.x - x, other.z - z) < radius + clearance(other))) continue;
+          primary = candidate;
+          placements.push(candidate);
+          occupied.push(candidate);
+        }
+
+        if (primary) {
+          const secondaryRoll = islandCompositionPriority(islandId, worldSeed, "short-cover", address, salt, 6);
+          if (secondaryRoll < 0.46) {
+            const secondaryPlan: ShorelineAssetPlan = islandId === "island.sunreach"
+              ? { assetId: "foliage_bush_round_a", category: "bush", scale: [0.58, 0.82], footprint: [0.36, 0.3], minimumNormalY: 0.76, maximumHeightDelta: 0.72 }
+              : { assetId: "foliage_beach_grass_a", category: "short-cover", scale: [0.84, 1.1], footprint: [0.24, 0.2], minimumNormalY: 0.72, maximumHeightDelta: 0.78 };
+            const side = islandCompositionPriority(islandId, worldSeed, "short-cover", address, salt, 7) < 0.5 ? -1 : 1;
+            const tangentOffset = side * (3 + secondaryRoll * 1.6);
+            const setback = setbackBase + 1.25 + secondaryRoll * 0.85;
+            const x = shore.boundaryPointXZ.x - shore.waterwardNormalXZ.x * setback + shore.tangentXZ.x * (alongshoreJitter + tangentOffset);
+            const z = shore.boundaryPointXZ.z - shore.waterwardNormalXZ.z * setback + shore.tangentXZ.z * (alongshoreJitter + tangentOffset);
+            const yaw = islandCompositionPriority(islandId, worldSeed, secondaryPlan.category, address, salt, 8) * Math.PI * 2;
+            const candidate = shorelineAssetPlacement(worldSeed, islandId, address, salt, 1, secondaryPlan, x, z, yaw);
+            if (candidate && !occupied.some((other) => Math.hypot(other.x - x, other.z - z)
+              < shorelinePlacementRadius(candidate) + clearance(other))) {
+              placements.push(candidate);
+              occupied.push(candidate);
+            }
+          }
+
+          const canopyRoll = islandCompositionPriority(islandId, worldSeed, "tree", address, salt, 9);
+          const canopyEligible = islandId === "island.neva"
+            ? shore.shoreKind !== "sheltered" && canopyRoll < 0.085
+            : shore.shoreKind === "sheltered" && canopyRoll < 0.18;
+          if (canopyEligible) {
+            const canopyIsNeva = islandId === "island.neva";
+            const canopyPlan: ShorelineAssetPlan = {
+              assetId: canopyRoll < (canopyIsNeva ? 0.042 : 0.09) ? "tree_coastal_palm_a" : "tree_coastal_palm_b",
+              category: "tree",
+              scale: canopyIsNeva ? [0.72, 0.92] : [0.72, 0.9],
+              footprint: [0.72, 0.64],
+              minimumNormalY: 0.78,
+              maximumHeightDelta: 0.72
+            };
+            const canopySetback = setbackBase + 6.2 + canopyRoll * 3.6;
+            const x = shore.boundaryPointXZ.x - shore.waterwardNormalXZ.x * canopySetback + shore.tangentXZ.x * alongshoreJitter;
+            const z = shore.boundaryPointXZ.z - shore.waterwardNormalXZ.z * canopySetback + shore.tangentXZ.z * alongshoreJitter;
+            const yaw = islandCompositionPriority(islandId, worldSeed, "tree", address, salt, 10) * Math.PI * 2;
+            const candidate = shorelineAssetPlacement(worldSeed, islandId, address, salt, 2, canopyPlan, x, z, yaw);
+            if (candidate && !occupied.some((other) => Math.hypot(other.x - x, other.z - z)
+              < shorelinePlacementRadius(candidate) + clearance(other))) {
+              placements.push(candidate);
+              occupied.push(candidate);
+            }
+          }
+        }
+      }
+      const spacingRoll = islandCompositionPriority(islandId, worldSeed, "rock", address, salt, 11);
+      distance += minimumSpacing + spacingRange * spacingRoll;
+      address += 1;
+    }
+  }
+  return placements;
+}
+
 interface CausalStructuralSpec {
   category: CompositionCategory;
   targetCount: number;
@@ -811,7 +1139,14 @@ function structuralAssetFor(
     return sheltered[Math.min(sheltered.length - 1, Math.floor(speciesRoll * sheltered.length))];
   }
   if (category === "bush") return speciesRoll < 0.58 ? "foliage_bush_a" : "foliage_bush_round_a";
-  if (category === "reed") return speciesRoll < 0.52 ? "foliage_reeds_a" : "foliage_cattail_a";
+  // A mixed stand, not a row of identical clumps: broad reed beds, lone reed
+  // clumps, low sedge tussocks and cattails in the wettest pockets.
+  if (category === "reed") {
+    return speciesRoll < 0.34 ? "foliage_reed_bed_a"
+      : speciesRoll < 0.58 ? "foliage_reeds_a"
+        : speciesRoll < 0.84 ? "foliage_sedge_tussock_a"
+          : "foliage_cattail_a";
+  }
   if (category === "rock") {
     if (sample.district.headland >= 0.3 || sample.district.coast >= 0.48) {
       return "rock_coastal_boulder_a";
@@ -841,8 +1176,10 @@ function structuralCandidatePosition(
       : -depositionalSide;
     const waterWidth = side > 0 ? section.rightWaterWidth : section.leftWaterWidth;
     const bankRun = side > 0 ? section.rightBankRun : section.leftBankRun;
-    const dryShelfOffset = 0.12
-      + bankRun * (0.004 + compositionPriority(worldSeed, spec.category, address, spec.salt, 10) * 0.018);
+    // A reed margin is a band, not a ruled line: most stems crowd the wet
+    // edge, fewer climb the lower bank while it stays wet enough to hold them.
+    const shelfRoll = compositionPriority(worldSeed, spec.category, address, spec.salt, 10);
+    const dryShelfOffset = 0.12 + Math.pow(shelfRoll, 1.6) * Math.min(1.8, 0.6 + bankRun * 0.25);
     return {
       x: section.centerX + side * (waterWidth + dryShelfOffset),
       z
@@ -965,6 +1302,195 @@ function generateDistrictLandmarkSpecimens(
   return placements;
 }
 
+function generateMountainGroveSpecimens(
+  worldSeed: number,
+  occupied: readonly EnvironmentAssetPlacement[]
+): EnvironmentAssetPlacement[] {
+  const spec: CausalStructuralSpec = {
+    category: "tree",
+    targetCount: 10,
+    salt: 0x6d21,
+    spacing: 4.2,
+    scaleRange: [0.9, 1.28],
+    footprint: [0.46, 0.46]
+  };
+  const candidates: { placement: EnvironmentAssetPlacement; score: number }[] = [];
+  for (const [summitIndex, summit] of NEVA_SUMMITS.entries()) {
+    for (let address = 0; address < 96; address += 1) {
+      const candidateAddress = summitIndex * 96 + address;
+      const angle = compositionPriority(worldSeed, "tree", candidateAddress, spec.salt, 0) * Math.PI * 2;
+      const radius = 0.34 + compositionPriority(worldSeed, "tree", candidateAddress, spec.salt, 1) * 0.82;
+      const focused = summit.id === "spring-mountain";
+      const spanX = summit.radiusX * (focused ? 0.52 : 1.18);
+      const spanZ = summit.radiusZ * (focused ? 0.46 : 1.18);
+      const centerZ = summit.z + (focused ? summit.radiusZ * 0.42 : 0);
+      const point = {
+        x: summit.x + Math.cos(angle) * spanX * radius,
+        z: centerZ + Math.sin(angle) * spanZ * radius
+      };
+      const sample = sampleWorldComposition(worldSeed, point.x, point.z);
+      const height = WorldLayout.terrainHeight(point.x, point.z);
+      const headwaterChannelDistance = isInHeadwaterBounds(point.x, point.z)
+        ? Math.abs(point.x - WorldLayout.riverCenterX(point.z)) : Number.POSITIVE_INFINITY;
+      if (sample.mountainWoodland < 0.12 || height < 6 || height > 27
+        || headwaterChannelDistance < 12 || WorldLayout.isWater(point.x, point.z)
+        || WorldLayout.waterSignedDistance(point.x, point.z) > -3
+        || sample.route.clearance > 0.005 || sample.route.gateway > 0.05
+        || sample.architectureClearance > 0.05 || sample.coastlineClearance > 0.05
+        || sample.fishingAccessClearance > 0.08 || !clearsCompleteRouteCorridor(point.x, point.z, 0.5)
+        || causesDenseRouteWall(point.x, point.z, occupied)
+        || !clearsLandmarks(point.x, point.z, spec.spacing * 0.45)
+        || occupied.some((other) => distanceTo(point.x, point.z, other) < spec.spacing + 1.5)) continue;
+      const priority = compositionPriority(worldSeed, "tree", candidateAddress, spec.salt, 2);
+      const scaleRoll = compositionPriority(worldSeed, "tree", candidateAddress, spec.salt, 4);
+      const speciesRoll = compositionPriority(worldSeed, "tree", candidateAddress, spec.salt, 5);
+      const scale = spec.scaleRange[0] + (spec.scaleRange[1] - spec.scaleRange[0]) * scaleRoll;
+      const assetId = speciesRoll < 0.52 ? "tree_pine_a"
+        : speciesRoll < 0.84 ? "tree_pine_b"
+          : speciesRoll < 0.95 ? "tree_pine_tall_a" : "tree_pine_young_a";
+      const placement: EnvironmentAssetPlacement = {
+        id: `seeded-fill.mountain-grove.${compositionAddress(worldSeed, "tree", candidateAddress, spec.salt, 3)}`,
+        origin: "seeded-fill",
+        assetId,
+        x: point.x,
+        z: point.z,
+        rotationY: compositionPriority(worldSeed, "tree", candidateAddress, spec.salt, 6) * Math.PI * 2,
+        scale: [scale, scale * (0.96 + compositionPriority(worldSeed, "tree", candidateAddress, spec.salt, 7) * 0.12), scale],
+        grounding: [spec.footprint[0] * scale, spec.footprint[1] * scale],
+        compositionTag: {
+          ...compositionPlacementTag(worldSeed, "tree", candidateAddress, spec.salt, 8, sample),
+          role: sample.mountainWoodland >= 0.36 ? "core" : "edge",
+          priority
+        }
+      };
+      if (!isPlacementFootprintStable(placement, 0.72, 0.78)) continue;
+      candidates.push({
+        placement,
+        score: sample.mountainWoodland * 0.78 + sample.macro * 0.14 + priority * 0.08
+          + (summit.id === "spring-mountain" ? 0.18 : 0)
+      });
+    }
+  }
+  candidates.sort((left, right) => right.score - left.score
+    || left.placement.id.localeCompare(right.placement.id));
+  const placements: EnvironmentAssetPlacement[] = [];
+  for (const candidate of candidates) {
+    if (placements.some((other) => distanceTo(candidate.placement.x, candidate.placement.z, other) < spec.spacing * 0.86)) continue;
+    placements.push(candidate.placement);
+    if (placements.length === spec.targetCount) break;
+  }
+  if (placements.length !== spec.targetCount) {
+    throw new Error(`[WorldEnvironmentLayout] Could only place ${placements.length}/${spec.targetCount} mountain-grove trees`);
+  }
+  return placements;
+}
+
+function* generateLighthouseMarginSpecimens(
+  worldSeed: number,
+  occupied: readonly EnvironmentAssetPlacement[]
+): Generator<void, EnvironmentAssetPlacement[], void> {
+  const lighthouse = WORLD_LAYOUT_V5.anchors.lighthouse;
+  const specs = [
+    {
+      category: "tree" as const,
+      targetCount: 12,
+      salt: 0x6d67,
+      spacing: 6.2,
+      minRadius: 30,
+      maxRadius: 70,
+      maxHeight: 24,
+      scaleRange: [0.82, 1.18] as const,
+      footprint: [1.1, 0.78] as const
+    },
+    {
+      category: "bush" as const,
+      targetCount: 18,
+      salt: 0x6d79,
+      spacing: 2.8,
+      minRadius: 26,
+      maxRadius: 74,
+      maxHeight: 22,
+      scaleRange: [0.72, 1.12] as const,
+      footprint: [0.62, 0.48] as const
+    }
+  ];
+  const placements: EnvironmentAssetPlacement[] = [];
+  const visualRadius = (placement: EnvironmentAssetPlacement): number =>
+    placement.assetId.startsWith("tree_") ? 3.2 * placement.scale[0]
+      : placement.assetId.startsWith("foliage_bush_") ? 1.2 * placement.scale[0]
+        : placement.grounding ? Math.hypot(...placement.grounding) : 0.9;
+
+  for (const spec of specs) {
+    const candidates: { placement: EnvironmentAssetPlacement; score: number }[] = [];
+    for (let address = 0; address < spec.targetCount * 160; address += 1) {
+      if (address % 16 === 0) yield;
+      const angle = compositionPriority(worldSeed, spec.category, address, spec.salt, 0) * Math.PI * 2;
+      const radius = spec.minRadius
+        + compositionPriority(worldSeed, spec.category, address, spec.salt, 1) * (spec.maxRadius - spec.minRadius);
+      const point = {
+        x: lighthouse.x + Math.cos(angle) * radius,
+        z: lighthouse.z + Math.sin(angle) * radius
+      };
+      const sample = sampleWorldComposition(worldSeed, point.x, point.z);
+      const height = WorldLayout.terrainHeight(point.x, point.z);
+      if (sample.islandId !== "island.neva" || sample.district.dominant !== "headland"
+        || sample.district.headland < 0.22 || sample.opening > 0.76
+        || height < 1 || height > spec.maxHeight || WorldLayout.isWater(point.x, point.z)
+        || WorldLayout.waterSignedDistance(point.x, point.z) > -4
+        || WorldLayout.terrainNormalY(point.x, point.z) < (spec.category === "tree" ? 0.74 : 0.68)
+        || sample.route.clearance > 0.005 || sample.route.gateway > 0.05
+        || sample.architectureClearance > 0.05 || sample.coastlineClearance > 0.08
+        || sample.fishingAccessClearance > 0.08
+        || !clearsCompleteRouteCorridor(point.x, point.z, 0.5)
+        || causesDenseRouteWall(point.x, point.z, [...occupied, ...placements])
+        || !clearsLandmarks(point.x, point.z, spec.spacing * 0.48)) continue;
+
+      const priority = compositionPriority(worldSeed, spec.category, address, spec.salt, 2);
+      const scale = spec.scaleRange[0]
+        + (spec.scaleRange[1] - spec.scaleRange[0]) * compositionPriority(worldSeed, spec.category, address, spec.salt, 3);
+      const speciesRoll = compositionPriority(worldSeed, spec.category, address, spec.salt, 4);
+      const placement: EnvironmentAssetPlacement = {
+        id: `seeded-fill.lighthouse-margin.${spec.category}.${compositionAddress(worldSeed, spec.category, address, spec.salt, 5)}`,
+        origin: "seeded-fill",
+        assetId: structuralAssetFor(spec.category, sample, speciesRoll),
+        x: point.x,
+        z: point.z,
+        rotationY: compositionPriority(worldSeed, spec.category, address, spec.salt, 6) * Math.PI * 2,
+        scale: [scale, scale * (0.94 + compositionPriority(worldSeed, spec.category, address, spec.salt, 7) * 0.12), scale],
+        grounding: [spec.footprint[0] * scale, spec.footprint[1] * scale],
+        compositionTag: {
+          ...compositionPlacementTag(worldSeed, spec.category, address, spec.salt, 8, sample),
+          priority
+        }
+      };
+      const ownRadius = visualRadius(placement);
+      if (occupied.some((other) => distanceTo(point.x, point.z, other) < ownRadius + visualRadius(other) + 0.45)
+        || placements.some((other) => distanceTo(point.x, point.z, other) < Math.max(spec.spacing, ownRadius + visualRadius(other) + 0.45))
+        || !isPlacementFootprintStable(placement, 0.74, spec.category === "tree" ? 0.76 : 0.68)) continue;
+      candidates.push({
+        placement,
+        score: sample.district.headland * 0.48 + sample.habitat.exposed * 0.18
+          + sample.habitat.meadow * 0.14 + sample.macro * 0.12 + priority * 0.08
+      });
+    }
+    candidates.sort((left, right) => right.score - left.score
+      || left.placement.id.localeCompare(right.placement.id));
+    let placed = 0;
+    for (const candidate of candidates) {
+      const radius = visualRadius(candidate.placement);
+      if (placements.some((other) => distanceTo(candidate.placement.x, candidate.placement.z, other)
+        < Math.max(spec.spacing, radius + visualRadius(other) + 0.45))) continue;
+      placements.push(candidate.placement);
+      placed += 1;
+      if (placed === spec.targetCount) break;
+    }
+    if (placed !== spec.targetCount) {
+      throw new Error(`[WorldEnvironmentLayout] Could only place ${placed}/${spec.targetCount} lighthouse-margin ${spec.category} instances`);
+    }
+  }
+  return placements;
+}
+
 function generateRouteFrameSpecimens(
   worldSeed: number,
   occupied: readonly EnvironmentAssetPlacement[]
@@ -1042,8 +1568,8 @@ function* generateCausalStructuralPlacements(
   existing: readonly EnvironmentAssetPlacement[]
 ): Generator<void, EnvironmentAssetPlacement[], void> {
   const specs: readonly CausalStructuralSpec[] = [
-    { category: "tree", targetCount: 235, salt: 0x1d17, spacing: 5.4, scaleRange: [0.74, 1.38], footprint: [1.2, 0.8] },
-    { category: "bush", targetCount: 115, salt: 0x2b29, spacing: 2.5, scaleRange: [0.62, 1.24], footprint: [0.7, 0.58] },
+    { category: "tree", targetCount: 247, salt: 0x1d17, spacing: 5.4, scaleRange: [0.74, 1.38], footprint: [1.2, 0.8] },
+    { category: "bush", targetCount: 133, salt: 0x2b29, spacing: 2.5, scaleRange: [0.62, 1.24], footprint: [0.7, 0.58] },
     { category: "reed", targetCount: 84, salt: 0x3c41, spacing: 1.2, scaleRange: [0.74, 1.08], footprint: [0.45, 0.38] },
     { category: "rock", targetCount: 72, salt: 0x4d53, spacing: 2.6, scaleRange: [0.72, 1.28], footprint: [0.9, 0.7] }
   ];
@@ -1051,6 +1577,9 @@ function* generateCausalStructuralPlacements(
   const landmarks = generateDistrictLandmarkSpecimens(worldSeed, existing);
   accepted.push(...landmarks);
   accepted.push(...generateRouteFrameSpecimens(worldSeed, [...existing, ...accepted]));
+  accepted.push(...generateMountainGroveSpecimens(worldSeed, [...existing, ...accepted]));
+  const lighthouseMargin = yield* generateLighthouseMarginSpecimens(worldSeed, [...existing, ...accepted]);
+  accepted.push(...lighthouseMargin);
   for (const spec of specs) {
     const candidateMultiplier = spec.category === "tree" ? 36
       : spec.category === "bush" ? 36
@@ -1385,9 +1914,9 @@ function generateLandscapeDressing(
   // A few places to pause belong to existing journeys, never to invented roads.
   const pauses = [
     { id: "farm-lane", route: "farm-village", fraction: 0.18, asset: "prop_bench_wood_a" },
-    { id: "river-walk", route: "village-lighthouse", fraction: 0.68, asset: "prop_bench_wood_a" },
+    { id: "river-walk", route: "village-lighthouse", fraction: 0.372, asset: "prop_bench_wood_a" },
     { id: "meadow-picnic", route: "village-harbor", fraction: 0.48, asset: "prop_picnic_table_a" },
-    { id: "headland-rest", route: "cliffside-coastal-walk", fraction: 0.12, asset: "prop_bench_wood_a" },
+    { id: "headland-rest", route: "headland-coastal-walk", fraction: 0.257, asset: "prop_bench_wood_a" },
     { id: "harbor-road", route: "village-harbor", fraction: 0.76, asset: "prop_bench_wood_a" }
   ];
   for (const pause of pauses) {
@@ -1656,6 +2185,141 @@ function* scatterCoastGroundCover(
   return placements.sort((left, right) => (right.compositionTag?.priority ?? 0) - (left.compositionTag?.priority ?? 0));
 }
 
+interface IslandShorelineCoverSpec {
+  category: "grass" | "meadowTall" | "pebbles";
+  composition: CompositionCategory;
+  count: number;
+  salt: number;
+  assets: readonly string[];
+  scale: readonly [number, number];
+  landwardOffsets: readonly number[];
+  minimumNormalY: number;
+}
+
+function* scatterIslandShorelineCover(
+  worldSeed: number,
+  islandId: "island.neva" | "island.sunreach",
+  spec: IslandShorelineCoverSpec
+): Generator<void, GroundCoverPlacement[], void> {
+  const arc = shorelineArc(WORLD_ISLAND_DEFINITIONS[islandId].coastLoop);
+  const placements: GroundCoverPlacement[] = [];
+  const tangentOffsets = [0, -1.7, 1.7, -3.4, 3.4, -5.1, 5.1] as const;
+  const categoryScale = GROUND_COVER_SCALE_PROFILE[spec.category];
+
+  for (let slot = 0; slot < spec.count; slot += 1) {
+    if (slot % 8 === 0) yield;
+    const spacing = arc.length / spec.count;
+    const jitter = (islandCompositionPriority(islandId, worldSeed, spec.composition, slot, spec.salt, 0) - 0.5)
+      * spacing * 0.38;
+    const shorePoint = shorelinePointAt(arc, (slot + 0.5) * spacing + jitter);
+    const shore = WorldLayout.shoreProjectionAt(shorePoint.x, shorePoint.z);
+    if (shore.islandId !== islandId) continue;
+
+    let candidate: { x: number; z: number; sample: WorldCompositionSample } | null = null;
+    const optionStart = Math.floor(
+      islandCompositionPriority(islandId, worldSeed, spec.composition, slot, spec.salt, 1)
+        * spec.landwardOffsets.length * tangentOffsets.length
+    );
+    for (let option = 0; option < spec.landwardOffsets.length * tangentOffsets.length && !candidate; option += 1) {
+      const optionIndex = (option + optionStart) % (spec.landwardOffsets.length * tangentOffsets.length);
+      const setbackIndex = Math.floor(optionIndex / tangentOffsets.length);
+      const tangentIndex = optionIndex % tangentOffsets.length;
+      const setback = spec.landwardOffsets[setbackIndex]!;
+      const tangentOffset = tangentOffsets[tangentIndex]!
+        + (islandCompositionPriority(islandId, worldSeed, spec.composition, slot, spec.salt, 2) - 0.5) * 1.2;
+      const x = shore.boundaryPointXZ.x - shore.waterwardNormalXZ.x * setback
+        + shore.tangentXZ.x * tangentOffset;
+      const z = shore.boundaryPointXZ.z - shore.waterwardNormalXZ.z * setback
+        + shore.tangentXZ.z * tangentOffset;
+      if (WorldLayout.islandAt(x, z) !== islandId || !WorldLayout.isWalkable(x, z)
+        || WorldLayout.isWater(x, z) || WorldLayout.isInterior(x, z)
+        || WorldLayout.waterSignedDistance(x, z) > -0.35
+        || WorldLayout.terrainNormalY(x, z) < spec.minimumNormalY
+        || WorldLayout.pathInfluence(x, z) > 0.08
+        || !clearsCompleteRouteCorridor(x, z, 0.18)
+        || !clearsLandmarks(x, z, 0.12)
+        || (islandId === "island.sunreach" && !clearsSunreachDressing(x, z, spec.category === "pebbles" ? 1.3 : 1.6))) continue;
+
+      const sample = sampleWorldComposition(worldSeed, x, z);
+      if (sample.route.clearance > 0.08 || sample.route.gateway > 0.12
+        || (islandId === "island.neva" && sample.architectureClearance > 0.24)) continue;
+      if (spec.category !== "pebbles" && sample.fishingAccessClearance > 0.08) continue;
+      candidate = { x, z, sample };
+    }
+    if (!candidate) continue;
+
+    const variantRoll = islandCompositionPriority(islandId, worldSeed, spec.composition, slot, spec.salt, 3);
+    const scaleRoll = islandCompositionPriority(islandId, worldSeed, spec.composition, slot, spec.salt, 4);
+    const scale = spec.scale[0] + (spec.scale[1] - spec.scale[0]) * scaleRoll;
+    const tag = compositionPlacementTag(worldSeed, spec.composition, slot, spec.salt, 5, candidate.sample);
+    placements.push({
+      id: `seeded-fill.ground-cover.shoreline.${islandId}.${spec.category}.${tag.address}`,
+      origin: "seeded-fill",
+      islandId,
+      biomeId: WORLD_ISLAND_DEFINITIONS[islandId].biomeId,
+      category: spec.category,
+      assetId: spec.assets[Math.min(spec.assets.length - 1, Math.floor(variantRoll * spec.assets.length))]!,
+      x: candidate.x,
+      z: candidate.z,
+      rotationY: islandCompositionPriority(islandId, worldSeed, spec.composition, slot, spec.salt, 6) * Math.PI * 2,
+      scale: [
+        scale * categoryScale.horizontal * (0.94 + islandCompositionPriority(islandId, worldSeed, spec.composition, slot, spec.salt, 7) * 0.12),
+        scale * categoryScale.vertical,
+        scale * categoryScale.horizontal * (0.94 + islandCompositionPriority(islandId, worldSeed, spec.composition, slot, spec.salt, 8) * 0.12)
+      ],
+      compositionTag: tag
+    });
+  }
+
+  return placements;
+}
+
+function* generateIslandShorelineCoverSteps(
+  worldSeed: number,
+  targetIslandId: "island.neva" | "island.sunreach"
+): Generator<void, GroundCoverPlacement[], void> {
+  const placements: GroundCoverPlacement[] = [];
+  const specs: readonly Readonly<{ islandId: "island.neva" | "island.sunreach"; spec: IslandShorelineCoverSpec }>[] = [
+    {
+      islandId: "island.neva",
+      spec: {
+        category: "pebbles", composition: "rock", count: Math.round(GROUND_COVER_DENSITY.high.pebbles * 0.42),
+        salt: 0x4e565031, assets: ["rock_pebble_cluster_a", "rock_pebble_cluster_b"], scale: [0.68, 0.98],
+        landwardOffsets: [0.9, 1.6, 2.6, 3.9, 5.4, 7.2], minimumNormalY: 0.6
+      }
+    },
+    {
+      islandId: "island.neva",
+      spec: {
+        category: "meadowTall", composition: "short-cover", count: 56,
+        salt: 0x4e565032, assets: ["foliage_beach_grass_a"], scale: [1.0, 1.12],
+        landwardOffsets: [2.6, 3.8, 5.2, 6.8, 8.6], minimumNormalY: 0.68
+      }
+    },
+    {
+      islandId: "island.sunreach",
+      spec: {
+        category: "pebbles", composition: "rock", count: 51,
+        salt: 0x53525031, assets: ["rock_pebble_cluster_c"], scale: [0.62, 0.92],
+        landwardOffsets: [1.1, 1.8, 2.8, 4.1, 5.7, 7.5], minimumNormalY: 0.6
+      }
+    },
+    {
+      islandId: "island.sunreach",
+      spec: {
+        category: "grass", composition: "short-cover", count: 48,
+        salt: 0x53525032, assets: ["foliage_beach_grass_a"], scale: [0.8, 1.08],
+        landwardOffsets: [2.8, 4.0, 5.4, 7.0, 8.8], minimumNormalY: 0.68
+      }
+    }
+  ];
+  for (const { islandId: specIslandId, spec } of specs) {
+    if (specIslandId !== targetIslandId) continue;
+    placements.push(...yield* scatterIslandShorelineCover(worldSeed, specIslandId, spec));
+  }
+  return placements;
+}
+
 export function generateGroundCoverPlacements(worldSeed: number): GroundCoverPlacement[] {
   return runSync(generateGroundCoverPlacementsSteps(worldSeed));
 }
@@ -1728,10 +2392,12 @@ function* generateGroundCoverPlacementsSteps(worldSeed: number): Generator<void,
       || surface.weights.meadow > 0.26
       || (waterDistance > -8 && waterDistance < -1.4);
   };
+  const shorelineCover = yield* generateIslandShorelineCoverSteps(worldSeed, "island.neva");
+  const shorelineTallCount = shorelineCover.filter((placement) => placement.category === "meadowTall").length;
   const meadowTall = (yield* scatterGroundCover(
     "meadowTall",
     ["foliage_meadow_tall_a", "foliage_meadow_tall_b", "foliage_beach_grass_a"],
-    high.meadowTall,
+    high.meadowTall - shorelineTallCount,
     mixSeed(worldSeed, 0x2c51),
     tallMeadowGround,
     [1, 1.34],
@@ -1764,8 +2430,7 @@ function* generateGroundCoverPlacementsSteps(worldSeed: number): Generator<void,
         : "foliage_beach_grass_a"
     };
   });
-  const coastPebbleCount = Math.round(high.pebbles * 0.42);
-  const coastPebbles = yield* scatterCoastGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], coastPebbleCount, mixSeed(worldSeed, 0x3c59), [0.55, 8.4], (x, z) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && WorldLayout.terrainNormal(x, z).y > 0.68 && WorldLayout.pathInfluence(x, z) < 0.08 && WorldLayout.coastProfile(x).beach + WorldLayout.coastProfile(x).rockShelf > 0.42, [0.74, 1.12], worldSeed);
+  const coastPebbles = shorelineCover.filter((placement) => placement.category === "pebbles");
   const pathPebbleCount = Math.round(high.pebbles * 0.22);
   const shoulderPebbles = yield* scatterGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], high.pebbles - coastPebbles.length - pathPebbleCount, mixSeed(worldSeed, 0x3c5a), (x, z, surface) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && surface.farmInfluence < 0.12 && WorldLayout.pathShoulderInfluence(x, z) > 0.12 && WorldLayout.pathInfluence(x, z) < 0.2, [0.74, 1.12], "ground-cover.shoulder.pebbles", (x, z) => 0.68 + WorldLayout.pathShoulderInfluence(x, z) * 0.32, worldSeed);
   const pathPebbles = yield* scatterGroundCover(
@@ -1790,7 +2455,7 @@ function* generateGroundCoverPlacementsSteps(worldSeed: number): Generator<void,
     ...flowers,
     ...bushes,
     ...meadowTall,
-    ...coastPebbles,
+    ...shorelineCover,
     ...shoulderPebbles,
     ...pathPebbles,
     ...paving,
@@ -1809,10 +2474,11 @@ export function generateSunreachGroundCoverPlacements(worldSeed: number): Ground
 
 function* generateSunreachGroundCoverPlacementsSteps(worldSeed: number): Generator<void, GroundCoverPlacement[], void> {
   const bounds = WORLD_ISLAND_DEFINITIONS["island.sunreach"].authoredBounds;
+  const shorelineCover = yield* generateIslandShorelineCoverSteps(worldSeed, "island.sunreach");
   const specs = [
-    { category: "grass" as const, composition: "short-cover" as const, count: 360, salt: 0x7311, assets: ["foliage_beach_grass_a", "foliage_meadow_tall_a"] as const, scale: [0.78, 1.12] as const },
+    { category: "grass" as const, composition: "short-cover" as const, count: 360 - shorelineCover.filter((placement) => placement.category === "grass").length, salt: 0x7311, assets: ["foliage_beach_grass_a", "foliage_meadow_tall_a"] as const, scale: [0.78, 1.12] as const },
     { category: "flowers" as const, composition: "flower" as const, count: 72, salt: 0x7327, assets: ["foliage_flower_drift_a", "foliage_flower_drift_c"] as const, scale: [1.8, 2.8] as const },
-    { category: "pebbles" as const, composition: "rock" as const, count: 96, salt: 0x7339, assets: ["rock_pebble_cluster_a", "rock_pebble_cluster_c"] as const, scale: [0.62, 0.94] as const }
+    { category: "pebbles" as const, composition: "rock" as const, count: 96 - shorelineCover.filter((placement) => placement.category === "pebbles").length, salt: 0x7339, assets: ["rock_pebble_cluster_a", "rock_pebble_cluster_c"] as const, scale: [0.62, 0.94] as const }
   ] as const;
   const placements: GroundCoverPlacement[] = [];
   for (const spec of specs) {
@@ -1862,11 +2528,68 @@ function* generateSunreachGroundCoverPlacementsSteps(worldSeed: number): Generat
       throw new Error(`[WorldEnvironmentLayout] Could only place ${placed}/${spec.count} Sunreach ${spec.category} instances`);
     }
   }
+  placements.push(...shorelineCover);
   return placements;
 }
 
 const STATIC_PLACEMENTS_CACHE = new Map<string, readonly EnvironmentAssetPlacement[]>();
 const ENVIRONMENT_LAYOUT_CACHE = new Map<string, WorldEnvironmentLayout>();
+
+/** Plan clearance each river dressing asset keeps from placements composed before it. */
+const RIVER_DRESSING_CLEARANCE: Readonly<Record<string, number>> = {
+  foliage_willow_shrub_a: 2.4,
+  foliage_fern_a: 0.9,
+  foliage_sedge_tussock_a: 0.6,
+  foliage_reed_bed_a: 0.6,
+  foliage_cattail_a: 0.4
+};
+
+/**
+ * River dressing (`NevaRiverDressing`) is authored and seed-independent, so it
+ * yields only to the other authored placements; seeded fill then yields to it.
+ */
+function riverDressingClearOf(earlier: readonly EnvironmentAssetPlacement[]): EnvironmentAssetPlacement[] {
+  const dressing = nevaRiverDressingPlacements((placement) => isPlacementFootprintStable(placement, 0.76, 0.72));
+  return dressing.filter((placement) => {
+    const clearance = RIVER_DRESSING_CLEARANCE[placement.assetId] ?? 0.5;
+    return !earlier.some((other) => Math.abs(other.x - placement.x) < clearance + 1.2
+      && Math.abs(other.z - placement.z) < clearance + 1.2
+      && distanceTo(placement.x, placement.z, other) < clearance + (other.grounding ? Math.max(...other.grounding) : 0.35));
+  });
+}
+
+/**
+ * True when a seeded tree, bush or rock would stand inside a willow, fern or
+ * river stone of the dressing. Seeded reeds are left alone: where they meet a
+ * reed bed the two simply read as one denser stand.
+ */
+function crowdsRiverDressing(placement: EnvironmentAssetPlacement, dressing: readonly EnvironmentAssetPlacement[]): boolean {
+  const category = placement.compositionTag?.category;
+  if (category !== "tree" && category !== "bush" && category !== "rock") return false;
+  const own = placement.grounding ? Math.max(...placement.grounding) : 0.6;
+  return dressing.some((other) => {
+    const footprint = RIVER_DRESSING_ASSET_SIZES[other.assetId as keyof typeof RIVER_DRESSING_ASSET_SIZES];
+    const reach = other.assetId === "foliage_willow_shrub_a" ? 1.5
+      : other.assetId === "foliage_fern_a" ? 0.6
+        : footprint && other.assetId.startsWith("rock_") ? 0.5 * footprint[0] * other.scale[0] : -1;
+    return reach > 0 && distanceTo(placement.x, placement.z, other) < reach + own;
+  });
+}
+
+/** Decorative grove moved alongside the new barn; these have no crop state. */
+export function villageTradeOrchardPlacements(): EnvironmentAssetPlacement[] {
+  return AUTHORED_DETAIL_PLACEMENTS.filter(placement => placement.id.startsWith("authored.tree.apple.orchard-") || placement.id === "authored.tree.oak.village");
+}
+
+export function villageTradePlacements(): EnvironmentAssetPlacement[] {
+  return [
+    ...VILLAGE_TRADE_STATIONS.map(station => ({ id: station.id, assetId: station.assetId,
+      x: station.position.x, z: station.position.z, rotationY: station.rotationY + Math.PI,
+      scale: [1, 1, 1] as [number, number, number], origin: "authored" as const })),
+    { id: CART_WORKSHOP.id, assetId: "building_cart_workshop_a", ...CART_WORKSHOP.position,
+      rotationY: CART_WORKSHOP.rotationY, scale: [1, 1, 1], origin: "authored" }
+  ];
+}
 
 export function createWorldStaticPlacements(worldSeed: number): readonly EnvironmentAssetPlacement[] {
   return runSync(staticPlacementSteps(worldSeed));
@@ -1888,9 +2611,43 @@ function* staticPlacementSteps(worldSeed: number): Generator<void, readonly Envi
     ...generateSunreachCausalCompositionPlacements(worldSeed)
   ];
   const mainlandPlacements = [...mainlandSettlementPlacements(), ...yield* mainlandStructuralPlacementSteps(worldSeed)];
-  const composed = [...existing, ...causalPlacements, ...sunreachPlacements, ...oceanIsletPlacements(), ...mainlandPlacements];
-  const staticPlacements = [...composed, ...generateLandscapeDressing(composed)].filter(retainLegacyHarborDressing);
-  staticPlacements.push(...createHarborCoastPlacements());
+  const riverDressing = riverDressingClearOf(existing);
+  const causalBesideRiver = causalPlacements.filter((placement) => !crowdsRiverDressing(placement, riverDressing));
+  const trade = villageTradePlacements();
+  const harborDistrict = [
+    ...harborDistrictPlacements((x, z) => WorldLayout.terrainHeight(x, z)),
+    ...mainHarborDockDressing((x, z) => WorldLayout.terrainHeight(x, z))
+  ];
+  const composed = [...trade, ...existing, ...causalBesideRiver, ...riverDressing, ...sunreachPlacements, ...oceanIsletPlacements(), ...mainlandPlacements];
+  const landscapeDressing = generateLandscapeDressing([...composed, ...harborDistrict]);
+  const harborCoast = createHarborCoastPlacements();
+  const shorelineDressing = yield* generateIslandShorelineDressingSteps(
+    worldSeed,
+    [...composed, ...landscapeDressing, ...harborCoast, ...harborDistrict]
+  );
+  const retainedPlacements = [...composed, ...landscapeDressing, ...shorelineDressing]
+    .filter(retainLegacyHarborDressing)
+    .filter(placement => placement.origin === "authored" || !inVillageTradeReserve(placement));
+  const staticPlacements = applyPlacementOverrides([...retainedPlacements, ...harborCoast].filter(retainHarborDistrictDressing).concat(harborDistrict))
+    .filter(placement => !PLACEMENT_REMOVED.includes(placement.id)).map(placement => {
+    const binding = INTERACTION_PLACEMENTS[placement.id];
+    if (!binding) return placement;
+    const station = binding.stationId ? WORLD_STATION_DEFINITIONS[binding.stationId] : undefined;
+    const base = station ? { ...placement, ...station.position, rotationY: station.rotationY + Math.PI } : placement;
+    return bindInteractionPose(placement.id, base);
+  });
+  for (let index = 0; index < staticPlacements.length; index += 1) {
+    const placement = staticPlacements[index]!;
+    if (!placement.assetId.startsWith("tree_") || placement.assetId.startsWith("tree_coastal_palm_")) continue;
+    const shore = WorldLayout.shoreProjectionAt(placement.x, placement.z);
+    if ((shore.islandId !== "island.neva" && shore.islandId !== "island.sunreach")
+      || shore.signedDistanceMeters >= -0.5 || shore.signedDistanceMeters < -16) continue;
+    const variantRoll = placement.compositionTag?.priority ?? stablePlacementPriority(placement.id);
+    staticPlacements[index] = {
+      ...placement,
+      assetId: variantRoll < 0.5 ? "tree_coastal_palm_a" : "tree_coastal_palm_b"
+    };
+  }
   for (const placement of staticPlacements) {
     if (!placement.grounding) continue;
     if (PLACEMENT_OVERRIDES[placement.id]) continue;
@@ -1922,7 +2679,7 @@ export function createWorldEnvironmentLayout(worldSeed: number): WorldEnvironmen
           ...generateGroundCoverPlacements(worldSeed).filter(retainHarborGroundCover),
           ...generateSunreachGroundCoverPlacements(worldSeed),
           ...runSync(mainlandGroundCoverSteps(worldSeed))
-        ];
+        ].filter(placement => !inHarborWorkingReserve(placement, 0.5));
       }
       return cachedGroundCover;
     }
@@ -1962,7 +2719,7 @@ export async function prepareWorldEnvironmentLayout(worldSeed: number, signal?: 
     ...(await runCooperatively(generateGroundCoverPlacementsSteps(worldSeed), signal)).filter(retainHarborGroundCover),
     ...await runCooperatively(generateSunreachGroundCoverPlacementsSteps(worldSeed), signal),
     ...await runCooperatively(mainlandGroundCoverSteps(worldSeed), signal)
-  ];
+  ].filter(placement => !inHarborWorkingReserve(placement, 0.5));
   signal?.throwIfAborted();
   const layout = { worldSeed, staticPlacements, groundCoverPlacements };
   ENVIRONMENT_LAYOUT_CACHE.set(cacheKey, layout);

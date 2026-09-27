@@ -57,6 +57,8 @@ export interface LightingFrame {
   sunAureoleColor: THREE.Color;
   /** Morning valley-mist share, 0–1. */
   valleyMist: number;
+  /** Mist over running water, 0–1 (`waterSurface.riverMist`). */
+  riverMist: number;
   /** Per-strike seed that shapes the visible storm bolt. */
   lightningSeed: number;
 }
@@ -155,6 +157,7 @@ function createLightingFrame(): LightingFrame {
     sunScatterColor: new THREE.Color(),
     sunAureoleColor: new THREE.Color(),
     valleyMist: 0,
+    riverMist: 0,
     lightningSeed: 0
   };
 }
@@ -511,6 +514,20 @@ export function deriveLightingFrame(
   const valleyMist = dawnMistEnvelope(minuteOfDay)
     * (1 - storm)
     * (1 - clamp01(state.weather.precipitation * 3));
+  // Mist over running water gathers where the dawn valley mist does, returns
+  // lightly as the air cools in the evening, and fog weather keeps a low layer
+  // on the river all day. Wind, rain and storms tear it away.
+  const riverMistConfig = config.waterSurface.riverMist;
+  const [calmWind, tornWind] = riverMistConfig.calmWindMetersPerSecond;
+  const [fogStart, fogFull] = riverMistConfig.fogVisibility;
+  const calmAir = (1 - storm)
+    * (1 - clamp01(state.weather.precipitation * 3))
+    * (1 - smooth01((state.weather.windSpeed - calmWind) / Math.max(0.1, tornWind - calmWind)));
+  const riverMist = clamp01(Math.max(
+    dawnMistEnvelope(minuteOfDay),
+    dawnMistEnvelope(minuteOfDay, riverMistConfig.eveningMinutes) * riverMistConfig.eveningShare,
+    smooth01((fogStart - visibility) / Math.max(0.01, fogStart - fogFull))
+  ) * calmAir);
 
   Object.assign(frame, {
     sunDirection,
@@ -548,6 +565,7 @@ export function deriveLightingFrame(
     sunScatterColor,
     sunAureoleColor,
     valleyMist,
+    riverMist,
     lightningSeed: hash01(state.worldSeed * 0.37 + lightningCycle * 7.13)
   });
   return frame;
@@ -570,8 +588,10 @@ export class LightingRig {
   private readonly frame = createLightingFrame();
   private presentedMinuteOfDay: number | null = null;
   private lastPresentationUpdateSeconds = Number.NEGATIVE_INFINITY;
-  private readonly originalShadowRender: (lights: THREE.Light[], scene: THREE.Scene, camera: THREE.Camera) => void;
+  private originalShadowRender: (lights: THREE.Light[], scene: THREE.Scene, camera: THREE.Camera) => void;
   private readonly shadowRenderWrapper: (lights: THREE.Light[], scene: THREE.Scene, camera: THREE.Camera) => void;
+  /** Player brightness; scales the time/weather exposure at its single write. */
+  private exposureScale = 1;
 
   public constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
     this.scene = scene;
@@ -647,6 +667,30 @@ export class LightingRig {
 
   public pixelRatioCap(): number {
     return CANONICAL_RENDER_CONFIG.quality[this.qualityTier].pixelRatioCap;
+  }
+
+  /**
+   * Player brightness, within `postProcessing.brightness`. It multiplies the
+   * time/weather exposure this rig computes, so there is still one exposure
+   * owner and no automatic-exposure or luminance-readback system beside it.
+   */
+  public setExposureScale(scale: number): void {
+    const bounds = CANONICAL_RENDER_CONFIG.postProcessing.brightness;
+    this.exposureScale = THREE.MathUtils.clamp(Number.isFinite(scale) ? scale : 1, bounds.min, bounds.max);
+    this.renderer.toneMappingExposure = this.frame.exposure * this.exposureScale;
+  }
+
+  /**
+   * A restored WebGL context replaces `renderer.shadowMap`; route the new one
+   * through the atlas compositor again and refresh its maps.
+   */
+  public reattachAfterContextRestore(): void {
+    if (this.renderer.shadowMap.render !== this.shadowRenderWrapper) {
+      this.originalShadowRender = this.renderer.shadowMap.render.bind(this.renderer.shadowMap);
+      this.renderer.shadowMap.render = this.shadowRenderWrapper;
+    }
+    this.renderer.shadowMap.autoUpdate = false;
+    this.setQuality(this.qualityTier);
   }
 
   public shadowAtlasDiagnostics(): ShadowAtlasDiagnostics {
@@ -743,7 +787,7 @@ export class LightingRig {
       frame.lightningColor,
       frame.lightning * CANONICAL_RENDER_CONFIG.weather.lightningIntensity
     );
-    this.renderer.toneMappingExposure = frame.exposure;
+    this.renderer.toneMappingExposure = frame.exposure * this.exposureScale;
 
     const fog = this.scene.fog;
     if (fog instanceof THREE.Fog) {

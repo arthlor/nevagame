@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
+import { ROAD_CLASS_PROFILES } from "../../src/world/RoadClasses";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import previous from "../fixtures/neva_layout25_coastal_road.json";
 
 const road = MAINLAND_ROUTES.find(route => route.id === "mainland-village-highridge")!;
 
 describe("village coastal contour road", () => {
-  it("retains both village connections and the freight lane width", () => {
+  it("retains both village connections as a cart road", () => {
     expect(road.points[0]).toEqual(previous.points[0]);
     expect(road.points.at(-1)).toEqual(previous.points.at(-1));
-    expect(road.widthMeters).toBe(previous.widthMeters);
+    // Layout 38 sets every road's width from its class; this one stays freight.
+    expect(road.kind).toBe("arterial");
+    expect(road.widthMeters).toBe(ROAD_CLASS_PROFILES.arterial.widthMeters);
   });
 
   it("settles into the foothills instead of lifting an embankment above both sides", () => {

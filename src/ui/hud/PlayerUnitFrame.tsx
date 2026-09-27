@@ -3,6 +3,8 @@ import type { HudStatusChipDto, WorldHudDto } from "../../simulation/core/contra
 import { HudIcon } from "../components/HudIcons";
 import { Meter } from "../coastal/CoastalUI";
 import { GuildcraftArt } from "./GuildcraftArt";
+import { translateStatusChip } from "../../i18n/statusChipsTr";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface PlayerUnitFrameProps {
   work: WorldHudDto["work"];
@@ -16,6 +18,7 @@ export interface PlayerUnitFrameProps {
 export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
   work, sprint, mount, statusEffects = [], onOpenCharacterSheet, className = ""
 }) => {
+  const { t, locale } = useTranslation();
   const workCurrent = Math.round(work.current);
   const workMaximum = Math.round(work.maximum);
   const sprintCurrent = sprint ? Math.round(sprint.current) : 0;
@@ -38,50 +41,58 @@ export const PlayerUnitFrame: React.FC<PlayerUnitFrameProps> = ({
 
   return (
   <div className={`player-unit-frame guild-vitals ${className}`} role="region"
-    aria-label="Player unit status" data-testid="player-unit-frame">
-    <button type="button" className="guild-profile" title="Open Character & Gear (C)"
-      aria-label="Player profile and crest" onClick={onOpenCharacterSheet}>
+    aria-label={locale === "tr" ? "Oyuncu durumu" : "Player unit status"} data-testid="player-unit-frame">
+    <button type="button" className="guild-profile" title={locale === "tr" ? "Karakter ve Donanımı Aç (C)" : "Open Character & Gear (C)"}
+      aria-label={locale === "tr" ? "Oyuncu profili ve amblemi" : "Player profile and crest"} onClick={onOpenCharacterSheet}>
       <GuildcraftArt art="portrait" className="guild-profile-painting" />
       <GuildcraftArt art="ring" className="guild-profile-rim" />
       <GuildcraftArt art="seal" className="guild-profile-seal" />
     </button>
-    <span className="guild-player-name">Wayfarer</span>
+    <span className="guild-player-name">{locale === "tr" ? "Seyyah" : "Wayfarer"}</span>
     <div className={`guild-vital-bar guild-work ${work.exhausted ? "is-exhausted" : ""}${workPulse ? ` ${workPulse}` : ""}`}>
-      <Meter className="guild-vital-meter" label="Work" value={workCurrent} max={workMaximum}
+      <Meter className="guild-vital-meter" label={t("hud.workCapacity")} value={workCurrent} max={workMaximum}
         showLabel={false} showValue={false} fill={work.exhausted ? "danger" : "gold"}
-        valueText={work.exhausted ? `${workCurrent} of ${workMaximum} — rest, eat, or work to recover` : undefined} />
+        valueText={work.exhausted ? `${workCurrent} / ${workMaximum} — ${locale === "tr" ? "dinlen, yemek ye ya da emek kazan" : "rest, eat, or work to recover"}` : undefined} />
       <GuildcraftArt art="meter" className="guild-vital-rim" />
-      <span className="guild-vital-readout"><span className="guild-vital-label">Work</span> <strong>{workCurrent} / {workMaximum}</strong>
+      <span className="guild-vital-readout"><span className="guild-vital-label">{t("hud.workCapacity")}</span> <strong>{workCurrent} / {workMaximum}</strong>
         {work.earnCap != null && <em className="guild-work-earned" data-testid="work-earned-today">
-          {" "}+{work.earnedToday ?? 0}/{work.earnCap} today
+          {" "}+{work.earnedToday ?? 0}/{work.earnCap} {locale === "tr" ? "bugün" : "today"}
         </em>}
       </span>
     </div>
     {sprint && <div className={`guild-vital-bar guild-sprint ${sprint.exhausted ? "is-exhausted" : ""}`}>
-      <Meter className="guild-vital-meter" label="Sprint" value={sprintCurrent} max={sprintMaximum}
-        valueText={sprint.exhausted ? "Winded — stamina recovering" : undefined}
+      <Meter className="guild-vital-meter" label={locale === "tr" ? "Depar" : "Sprint"} value={sprintCurrent} max={sprintMaximum}
+        valueText={sprint.exhausted ? (locale === "tr" ? "Soluklanıyor — dayanıklılık toparlanıyor" : "Winded — stamina recovering") : undefined}
         showLabel={false} showValue={false} fill={sprint.exhausted ? "danger" : "sprint"}
         data-testid="sprint-stamina" />
       <GuildcraftArt art="meter" className="guild-vital-rim" />
       <span className="guild-vital-readout">{sprint.exhausted
-        ? <><span className="guild-vital-label">Sprint</span> <span data-testid="sprint-stamina-winded" role="status">Winded</span></>
-        : <><span className="guild-vital-label">Sprint</span> <strong>{sprintCurrent} / {sprintMaximum}</strong></>}</span>
+        ? <><span className="guild-vital-label">{locale === "tr" ? "Depar" : "Sprint"}</span> <span data-testid="sprint-stamina-winded" role="status">{locale === "tr" ? "Nefessiz" : "Winded"}</span></>
+        : <><span className="guild-vital-label">{locale === "tr" ? "Depar" : "Sprint"}</span> <strong>{sprintCurrent} / {sprintMaximum}</strong></>}</span>
     </div>}
-    {mount && <div className={`guild-vital-bar guild-sprint ${mount.exhausted ? "is-exhausted" : ""}`}>
-      <Meter className="guild-vital-meter" label={mount.label} value={mountCurrent} max={mountMaximum}
-        valueText={mount.exhausted ? `Winded — ${mount.label.toLowerCase()} recovering` : undefined}
-        showLabel={false} showValue={false} fill={mount.exhausted ? "danger" : "sprint"}
-        data-testid="mount-stamina" />
-      <GuildcraftArt art="meter" className="guild-vital-rim" />
-      <span className="guild-vital-readout">{mount.exhausted
-        ? <><span className="guild-vital-label">{mount.label}</span> <span data-testid="mount-stamina-winded" role="status">Winded</span></>
-        : <><span className="guild-vital-label">{mount.label}</span> <strong>{mountCurrent} / {mountMaximum}</strong></>}</span>
-    </div>}
-    {statusEffects.length > 0 && <div className="guild-status-effects" aria-label="Active status effects">
-      {statusEffects.map((chip) => <span key={chip.id} className={`guild-status-effect status-chip--${chip.type}`}
-        title={`${chip.label}: ${chip.description}`} data-testid={`status-chip-${chip.id}`}>
-        <HudIcon name={chip.icon} size={14} /><span>{chip.label}</span>
-      </span>)}
+    {mount && (() => {
+      const mountName = locale === "tr" && mount.label.toLowerCase() === "donkey" ? "Eşek" : mount.label;
+      return (
+        <div className={`guild-vital-bar guild-sprint ${mount.exhausted ? "is-exhausted" : ""}`}>
+          <Meter className="guild-vital-meter" label={mountName} value={mountCurrent} max={mountMaximum}
+            valueText={mount.exhausted ? (locale === "tr" ? `Yoruldu — ${mountName.toLowerCase()} soluklanıyor` : `Winded — ${mount.label.toLowerCase()} recovering`) : undefined}
+            showLabel={false} showValue={false} fill={mount.exhausted ? "danger" : "sprint"}
+            data-testid="mount-stamina" />
+          <GuildcraftArt art="meter" className="guild-vital-rim" />
+          <span className="guild-vital-readout">{mount.exhausted
+            ? <><span className="guild-vital-label">{mountName}</span> <span data-testid="mount-stamina-winded" role="status">{locale === "tr" ? "Yoruldu" : "Winded"}</span></>
+            : <><span className="guild-vital-label">{mountName}</span> <strong>{mountCurrent} / {mountMaximum}</strong></>}</span>
+        </div>
+      );
+    })()}
+    {statusEffects.length > 0 && <div className="guild-status-effects" aria-label={locale === "tr" ? "Aktif durum etkileri" : "Active status effects"}>
+      {statusEffects.map((chip) => {
+        const copy = translateStatusChip(chip, locale);
+        return <span key={chip.id} className={`guild-status-effect status-chip--${chip.type}`}
+          title={`${copy.label}: ${copy.description}`} data-testid={`status-chip-${chip.id}`}>
+          <HudIcon name={chip.icon} size={14} /><span>{copy.label}</span>
+        </span>;
+      })}
     </div>}
   </div>
   );

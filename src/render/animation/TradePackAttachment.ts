@@ -20,6 +20,15 @@ export function createTradePackBackSocket(character: THREE.Object3D): THREE.Grou
 
 /** Offsets use the published vessel's authored storage/hook frames, in metres. */
 export function attachBoatTradePack(boat: THREE.Object3D, boatType: string, slot: number, pack: THREE.Object3D): void {
+  if (boatType === "boat.trading_ship") {
+    const markerName = `boat_trading_ship_a_cargo_${String(slot + 1).padStart(2, "0")}`;
+    const marker = boat.getObjectByName(markerName);
+    if (!marker) throw new Error(`Missing cargo attachment ${markerName}`);
+    pack.userData.dynamicPresentation = true;
+    pack.scale.setScalar(.75);
+    marker.add(pack);
+    return;
+  }
   const rowboat = boatType === "boat.rowboat";
   const hook = !rowboat && slot >= 4;
   const markerName = rowboat ? "boat_rowboat_storage_01"

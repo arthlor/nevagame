@@ -1,3 +1,5 @@
+import { bindInteractionPoint } from "./InteractionPlacements";
+import { starterFarmsteadAnchor } from "./FarmLayout";
 // src/world/FarmhouseInterior.ts
 import { ASSET_IDS, type AssetId } from "../render/assets/AssetCatalog.generated";
 
@@ -31,7 +33,7 @@ export const FARMHOUSE_INTERIOR_BOUNDS = Object.freeze({
  * The starter farmhouse is placed at world coordinates (-57.0, -53.5) facing South.
  * Porch steps and doorway extend South to world z ≈ -57.8 to -58.5.
  */
-export const FARMHOUSE_OUTSIDE_DOOR = Object.freeze({
+export const BASE_FARMHOUSE_OUTSIDE_DOOR = Object.freeze({
   x: -53.76,
   y: 0.95,
   z: -53.79,
@@ -43,6 +45,15 @@ export const FARMHOUSE_OUTSIDE_DOOR = Object.freeze({
     rotationY: 3.0616
   }
 });
+
+const farmhouseBase = starterFarmsteadAnchor("farmhouse", true)!;
+export const FARMHOUSE_OUTSIDE_DOOR = Object.freeze({
+  ...bindInteractionPoint("farmhouse", BASE_FARMHOUSE_OUTSIDE_DOOR, farmhouseBase),
+  get x() { return farmhouseDoorPoint.x; },
+  get z() { return farmhouseDoorPoint.z; },
+  exitSpawn: bindInteractionPoint("farmhouse", BASE_FARMHOUSE_OUTSIDE_DOOR.exitSpawn, farmhouseBase)
+});
+const farmhouseDoorPoint = bindInteractionPoint("farmhouse", BASE_FARMHOUSE_OUTSIDE_DOOR, farmhouseBase);
 
 /**
  * Interior door anchor inside the farmhouse room.

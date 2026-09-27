@@ -1,3 +1,4 @@
+import { tickTradeDemand } from "./TradePackEconomy";
 // src/simulation/economy/updateMarket.ts
 
 import { GameMinute, MarketCommodityState, MarketState, SeasonId } from "../core/types";
@@ -15,7 +16,7 @@ export function tickMarket(
   const def = ContentRegistry.markets.get(market.id);
   if (!def) return false;
 
-  let ticked = false;
+  let ticked = tickTradeDemand(market, currentMinute);
 
   for (const commodityDef of def.commodities) {
     let state = market.commodities[commodityDef.itemId];

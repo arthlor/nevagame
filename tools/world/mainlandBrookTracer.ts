@@ -11,10 +11,10 @@
  * its network rises in the mountains. Village yards, building pads and work
  * sites are walls, so brooks run round them rather than through them.
  *
- * Each brook's course is smoothed, and its bed is graded to fall
- * monotonically downstream, balancing cut against fill along the ground,
- * dropping under every routed road to pass through a culvert, and meeting
- * its trunk or the water level exactly. Run it after `world:route-roads`;
+ * Each brook's course is smoothed and led square across every road it
+ * meets, and its bed is graded to fall monotonically downstream, balancing
+ * cut against fill along the ground, dropping under every routed road to
+ * pass through a culvert, and meeting its trunk or the water level exactly. Run it after `world:plan-roads`;
  * the roads never depend on the brooks. The result is written to
  * `src/world/MainlandBrooks.generated.ts` with a terrain fingerprint; a unit
  * test fails when the terrain drifts from the brooks traced on it.
@@ -28,15 +28,23 @@ import { fileURLToPath } from "node:url";
 import { MAINLAND_ARCHITECTURE_PADS } from "../../src/world/MainlandSettlementLayout";
 import { MAINLAND_WORK_SITES, mainlandWorkSiteClearanceAt } from "../../src/world/MainlandWorkSites";
 import { MAINLAND_BROOK_CULVERT_FACE_METERS } from "../../src/world/MainlandBrooks";
-import { MAINLAND_ROUTE_FINGERPRINT } from "../../src/world/MainlandRoutes.generated";
+import { MAINLAND_ROAD_NETWORK } from "../../src/world/MainlandRoadNetwork.generated";
 import {
+  MAINLAND_VILLAGES,
   brookCoursesCrossingRoads,
   mainlandBlendAt,
   mainlandRouteGroundAt,
   mainlandWaterSample
 } from "../../src/world/NevaMainland";
+import { nevaCoveShelterAt } from "../../src/world/NevaCoastField";
 import { fractalNoise } from "../../src/world/ProceduralNoise";
 import { MAINLAND_BOUNDS, signedDistanceToNevaCoast } from "../../src/world/WorldIslands";
+import { WorldLayout } from "../../src/world/WorldLayout";
+
+function smoothstep(a: number, b: number, value: number): number {
+  const t = Math.max(0, Math.min(1, (value - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
 
 type Outlet = "lake" | "river" | "sea";
 export interface TracedBrook {
@@ -49,17 +57,46 @@ export interface TracedBrook {
 
 const GRID_METERS = 4;
 const CELL_AREA_HECTARES = (GRID_METERS * GRID_METERS) / 10_000;
-/** Catchment at which a gully floor carries a running brook. */
-const CHANNEL_HECTARES = 0.15;
-/** A network is a mountain brook only if one of its channel heads rises this high. */
-const MOUNTAIN_HEAD_METERS = 16;
+/**
+ * Catchment at which a gully floor carries a running brook, and how high a
+ * network's highest source must rise, by where the water ends. The lake, the
+ * river and the sheltered cove are where people live and work, so their
+ * smaller feeders count; on the outer slopes only the bigger brooks that
+ * cut down to the open sea are kept.
+ */
+const OUTLET_RULES = {
+  inland: { hectares: 0.07, head: 12 },
+  cove: { hectares: 0.1, head: 12 },
+  open: { hectares: 0.3, head: 18 }
+} as const;
+const CHANNEL_HECTARES = Math.min(...Object.values(OUTLET_RULES).map(rule => rule.hectares));
+
+/** The rules a network follows, by where it ends: a mouth's position decides the cove from the open sea. */
+export function mainlandBrookOutletRule(outlet: Outlet, mouthX: number, mouthZ: number): { hectares: number; head: number } {
+  if (outlet !== "sea") return OUTLET_RULES.inland;
+  return nevaCoveShelterAt(mouthX, mouthZ) > COVE_MOUTH_SHELTER ? OUTLET_RULES.cove : OUTLET_RULES.open;
+}
+/** Cove shelter at a sea mouth above which the brook feeds the sheltered cove. */
+const COVE_MOUTH_SHELTER = 0.5;
 /** Short first-order channels read as wet hollows, not brooks. */
 const MINIMUM_REACH_METERS = 70;
 /** Mainland share below which the retained starter relief owns the ground. */
 const MAINLAND_ONLY = 0.999;
-/** Walls: building pads and work sites keep this clear. */
-const PAD_CLEARANCE_METERS = 5;
-const WORK_SITE_CLEARANCE_METERS = 4;
+/**
+ * Walls: building pads and work sites keep this clear, and each village's
+ * working square; a brook may run past a village's outskirts, never across
+ * its market.
+ */
+const PAD_CLEARANCE_METERS = 12;
+const VILLAGE_SQUARE_METERS = 30;
+const WORK_SITE_CLEARANCE_METERS = 10;
+/**
+ * A road stands on its embankment in the flood, so water crosses it only
+ * where the ground is lowest, as a culvert would be sited, and never runs
+ * along it. The graded bed still follows the natural ground.
+ */
+const ROAD_EMBANKMENT_METERS = 1.5;
+const ROAD_EMBANKMENT_VERGE_METERS = [2.5, 7] as const;
 /** Flood gradient that keeps filled hollows draining toward their spill point. */
 const FLAT_GRADE = 0.0005;
 /**
@@ -74,6 +111,16 @@ const MEANDER_SALT = 0x6b0c;
 const SMOOTH_HALF_WINDOW = 3;
 const SMOOTH_PASSES = 2;
 const KNOT_SPACING_METERS = 6;
+/** A tributary ends where it first comes this close to its trunk, joining it this many knots downstream. */
+const TRIBUTARY_JOIN_METERS = 6;
+const TRIBUTARY_JOIN_DOWNSTREAM_KNOTS = 1;
+/**
+ * A brook is led square across a road, as a culvert is laid: straight along
+ * the road's normal past each headwall face by this run, bending back into its
+ * own course over the blend beyond.
+ */
+const SQUARE_RUN_METERS = 3;
+const SQUARE_BLEND_METERS = 9;
 /**
  * Cover over a culvert: under and beside a road the bed sits this far below
  * the road's graded surface, enough for the stone pipe and a skin of road
@@ -84,6 +131,12 @@ const CULVERT_COVER_METERS = 1.25;
 const CULVERT_APRON_METERS = 1.8;
 /** Upstream of a culvert the bed ramps down to its cap no steeper than this. */
 const CULVERT_INLET_GRADE = 0.3;
+/**
+ * A brook meets the lake, the river or the sea at this height above the
+ * shared water datum: its channel runs out across the shore to the waterline
+ * and is never cut below it, where the water would flood the cut.
+ */
+const MOUTH_BED_METERS = 0.08;
 /** Bed incision below the graded ground, growing with the catchment. */
 const INCISION_BASE_METERS = 0.35;
 const INCISION_GAIN_METERS = 0.18;
@@ -156,7 +209,9 @@ function buildingDistance(x: number, z: number): number {
 }
 
 function isWall(x: number, z: number): boolean {
-  return buildingDistance(x, z) < PAD_CLEARANCE_METERS || mainlandWorkSiteClearanceAt(x, z) < WORK_SITE_CLEARANCE_METERS;
+  return buildingDistance(x, z) < PAD_CLEARANCE_METERS || mainlandWorkSiteClearanceAt(x, z) < WORK_SITE_CLEARANCE_METERS
+    || Object.values(MAINLAND_VILLAGES).some(village =>
+      Math.hypot(x - village.market.x, z - village.market.z) < VILLAGE_SQUARE_METERS);
 }
 
 function buildLattice(): Lattice {
@@ -175,7 +230,11 @@ function buildLattice(): Lattice {
     // the edge takes it, and no brook is drawn to it.
     if (mainlandBlendAt(cx, cz) < MAINLAND_ONLY) { kind[index] = 5; continue; }
     if (isWall(cx, cz)) { kind[index] = 1; continue; }
-    ground[index] = mainlandRouteGroundAt(cx, cz) + fractalNoise(cx, cz, MEANDER_SCALE_METERS, 2, MEANDER_SALT) * MEANDER_METERS;
+    const road = WorldLayout.nearestRouteDistance(cx, cz);
+    const embankment = 1 - smoothstep(road.halfWidth + ROAD_EMBANKMENT_VERGE_METERS[0],
+      road.halfWidth + ROAD_EMBANKMENT_VERGE_METERS[1], road.distance);
+    ground[index] = mainlandRouteGroundAt(cx, cz) + fractalNoise(cx, cz, MEANDER_SCALE_METERS, 2, MEANDER_SALT) * MEANDER_METERS
+      + embankment * ROAD_EMBANKMENT_METERS;
   }
   return { columns, rows, x, z, ground, kind };
 }
@@ -331,6 +390,55 @@ function resample(points: { x: number; z: number }[], spacing: number): { x: num
   return out;
 }
 
+/** The point at an arc position along a resampled course. */
+function pointOnCourse(points: readonly { x: number; z: number; s: number }[], s: number): { x: number; z: number } {
+  let i = 1;
+  while (i < points.length - 1 && points[i].s < s) i++;
+  const a = points[i - 1], b = points[i], t = Math.max(0, Math.min(1, (s - a.s) / Math.max(1e-9, b.s - a.s)));
+  return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
+}
+
+/** Arc position on a resampled course of a point lying on it. */
+function arcAt(points: readonly { x: number; z: number; s: number }[], at: { x: number; z: number }): number {
+  let best = 0, bestDistance = Infinity;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i];
+    const length = Math.hypot(b.x - a.x, b.z - a.z);
+    const t = Math.max(0, Math.min(1, ((at.x - a.x) * (b.x - a.x) + (at.z - a.z) * (b.z - a.z)) / Math.max(1e-9, length * length)));
+    const distance = Math.hypot(a.x + (b.x - a.x) * t - at.x, a.z + (b.z - a.z) * t - at.z);
+    if (distance < bestDistance) { bestDistance = distance; best = a.s + length * t; }
+  }
+  return best;
+}
+
+/**
+ * Leads a course square across every road it crosses: straight along the
+ * road's normal for the culvert and a short run past each face, easing back
+ * into the course beyond, so the water meets each headwall head on.
+ */
+function squareRoadCrossings(id: string, course: { x: number; z: number; s: number }[]): { x: number; z: number; s: number }[] {
+  let points = resample(course, 1);
+  for (let k = 0; ; k++) {
+    const crossings = brookCoursesCrossingRoads([{ id, knots: points.map(point => [point.x, point.z]) }]);
+    if (k >= crossings.length) break;
+    const crossing = crossings[k];
+    const across = { x: -crossing.road.z, z: crossing.road.x };
+    const downstream = Math.sign(crossing.brook.x * across.x + crossing.brook.z * across.z) || 1;
+    const at = arcAt(points, crossing.point), total = points[points.length - 1].s;
+    const half = crossing.route.widthMeters * 0.5 + MAINLAND_BROOK_CULVERT_FACE_METERS + SQUARE_RUN_METERS;
+    const blend = Math.min(SQUARE_BLEND_METERS, at - half - 1, total - at - half - 1);
+    if (blend < 2) continue;
+    points = resample(points.map(point => {
+      const offset = point.s - at;
+      const weight = 1 - smoothstep(half, half + blend, Math.abs(offset));
+      if (weight <= 0) return point;
+      const x = crossing.point.x + across.x * downstream * offset, z = crossing.point.z + across.z * downstream * offset;
+      return { x: point.x + (x - point.x) * weight, z: point.z + (z - point.z) * weight };
+    }), 1);
+  }
+  return resample(points, KNOT_SPACING_METERS);
+}
+
 function incision(hectares: number): number {
   return Math.min(INCISION_MAX_METERS, INCISION_BASE_METERS + INCISION_GAIN_METERS * Math.sqrt(hectares / CHANNEL_HECTARES));
 }
@@ -339,7 +447,7 @@ function incision(hectares: number): number {
  * Bed graded to fall downstream: the mean of the ground cut down to its
  * running minimum and filled up to its running maximum, so cut and fill
  * balance, less an incision that deepens with the catchment. The mouth meets
- * the trunk bed or sits one incision below the water level.
+ * the trunk bed or the waterline.
  */
 function gradeBed(ground: number[], hectares: number[], mouth: number): number[] {
   const count = ground.length;
@@ -363,11 +471,31 @@ export function traceMainlandBrooks(): TracedBrook[] {
   const reaches = channelReaches(lattice, drainage);
   const { area } = drainage;
 
-  // Drop short first-order stubs, then keep the networks whose remaining
-  // brooks rise in the mountains; a stub never vouches for its network.
+  // Each network follows the rules of the water it ends in. Its reaches are
+  // trimmed back from the source to that catchment, short first-order stubs
+  // are dropped, and a network is kept only if its remaining brooks rise
+  // high enough; a dropped stub never vouches for its network.
+  const rootOf = (index: number): number => { while (reaches[index].into >= 0) index = reaches[index].into; return index; };
+  const rules = reaches.map((_, index) => {
+    const root = reaches[rootOf(index)];
+    if (root.outlet === "starter") return null;
+    const mouth = root.cells[root.cells.length - 1];
+    return mainlandBrookOutletRule(root.outlet, lattice.x(mouth), lattice.z(mouth));
+  });
+  reaches.forEach((reach, index) => {
+    const rule = rules[index];
+    if (!rule) return;
+    let first = 0;
+    while (first < reach.cells.length - 2 && area[reach.cells[first]] < rule.hectares) first++;
+    reach.cells = reach.cells.slice(first);
+  });
   const children = reaches.map(() => [] as number[]);
   reaches.forEach((reach, index) => { if (reach.into >= 0) children[reach.into].push(index); });
-  const stub = reaches.map((reach, index) => children[index].length === 0 && reachLength(reach.cells, lattice) < MINIMUM_REACH_METERS);
+  const stub = reaches.map((reach, index) => {
+    const rule = rules[index];
+    return !rule || area[reach.cells[0]] < rule.hectares
+      || (children[index].length === 0 && reachLength(reach.cells, lattice) < MINIMUM_REACH_METERS);
+  });
   const headHeight = new Array<number>(reaches.length).fill(0);
   for (let index = reaches.length - 1; index >= 0; index--) {
     const own = stub[index] ? 0 : lattice.ground[reaches[index].cells[0]];
@@ -375,9 +503,8 @@ export function traceMainlandBrooks(): TracedBrook[] {
   }
   const kept = new Set<number>();
   reaches.forEach((_, index) => {
-    let root = index;
-    while (reaches[root].into >= 0) root = reaches[root].into;
-    if (reaches[root].outlet === "starter" || headHeight[root] < MOUNTAIN_HEAD_METERS || stub[index]) return;
+    const rule = rules[index];
+    if (!rule || stub[index] || headHeight[rootOf(index)] < rule.head) return;
     kept.add(index);
   });
   // A kept reach needs its trunk kept, or it would end in the air.
@@ -388,8 +515,14 @@ export function traceMainlandBrooks(): TracedBrook[] {
 
   const ids = new Map<number, string>();
   let next = 1;
-  const brooks: TracedBrook[] = [];
+  const graded: {
+    id: string; index: number; into: number; junction: number; outlet: Outlet;
+    points: { x: number; z: number; bed: number }[]; hectares: number[];
+  }[] = [];
   const bedAt = new Map<number, { x: number; z: number; bed: number }[]>();
+  // Along each graded course, its knots' arc positions and the stretches its
+  // culverts' works occupy: the pipe and its aprons.
+  const worksAt = new Map<number, { arc: number[]; works: { from: number; to: number }[] }>();
   for (let index = 0; index < reaches.length; index++) {
     if (!kept.has(index)) continue;
     const reach = reaches[index];
@@ -398,7 +531,7 @@ export function traceMainlandBrooks(): TracedBrook[] {
     const cells = reach.cells;
     const course = cells.map(cell => ({ x: lattice.x(cell), z: lattice.z(cell) }));
     // A tributary ends on its trunk's smoothed course, not on the lattice cell.
-    let mouthBed = -incision(area[cells[cells.length - 2]]);
+    let mouthBed = MOUTH_BED_METERS;
     if (reach.into >= 0) {
       const trunk = bedAt.get(reach.into)!;
       const end = course[course.length - 1];
@@ -407,27 +540,71 @@ export function traceMainlandBrooks(): TracedBrook[] {
       course[course.length - 1] = { x: best.x, z: best.z };
       mouthBed = best.bed;
     }
-    const smooth = resample(smoothCourse(course), KNOT_SPACING_METERS);
+    let smooth = resample(smoothCourse(course), KNOT_SPACING_METERS);
+    // A tributary joins where it first meets its trunk. The flow lattice can
+    // run the two side by side for a stretch before the cells merge, which
+    // would cut two overlapping channels.
+    // It meets the trunk at an angle, aiming a knot downstream of the point it
+    // first comes close to, as water joining a current does, never square on.
+    if (reach.into >= 0) {
+      const trunk = bedAt.get(reach.into)!;
+      const nearest = (point: { x: number; z: number }): number => {
+        let best = 0;
+        trunk.forEach((knot, i) => {
+          if (Math.hypot(knot.x - point.x, knot.z - point.z) < Math.hypot(trunk[best].x - point.x, trunk[best].z - point.z)) best = i;
+        });
+        return best;
+      };
+      let meet = smooth.findIndex((point, i) => i > 0 && i < smooth.length - 1
+        && Math.hypot(trunk[nearest(point)].x - point.x, trunk[nearest(point)].z - point.z) < TRIBUTARY_JOIN_METERS);
+      if (meet <= 0) meet = smooth.length - 1;
+      let jointIndex = Math.min(trunk.length - 1, nearest(smooth[meet]) + TRIBUTARY_JOIN_DOWNSTREAM_KNOTS);
+      // Never into a culvert's pipe or aprons, where the trunk's bed is held
+      // at the pipe: the tributary joins just above them, from its point
+      // nearest there.
+      const { arc, works } = worksAt.get(reach.into)!;
+      const blocked = works.find(work => arc[jointIndex] >= work.from - 0.01 && arc[jointIndex] <= work.to + 0.01);
+      if (blocked) {
+        jointIndex = Math.max(0, arc.findIndex(position => position >= blocked.from) - 1);
+        const target = trunk[jointIndex];
+        let closest = 1;
+        for (let i = 1; i <= meet; i++) {
+          if (Math.hypot(smooth[i].x - target.x, smooth[i].z - target.z) < Math.hypot(smooth[closest].x - target.x, smooth[closest].z - target.z)) closest = i;
+        }
+        meet = closest;
+      }
+      const joint = trunk[jointIndex];
+      smooth = resample([...smooth.slice(0, meet), { x: joint.x, z: joint.z }], KNOT_SPACING_METERS);
+      mouthBed = joint.bed;
+    }
+    smooth = squareRoadCrossings(id, smooth);
     // A brook passes under every road it meets: knots mark the ends and the
     // middle of each culvert, whose bed is capped below the road.
-    const culverts = brookCoursesCrossingRoads([{ id, knots: smooth.map(point => [point.x, point.z]) }]).map(crossing => {
-      const normal = { x: -crossing.road.z, z: crossing.road.x };
-      const square = Math.max(0.35, Math.abs(crossing.brook.x * normal.x + crossing.brook.z * normal.z));
-      let s = 0;
-      for (let i = 1; i < smooth.length; i++) {
-        const a = smooth[i - 1], b = smooth[i];
-        const length = Math.hypot(b.x - a.x, b.z - a.z);
-        const t = ((crossing.point.x - a.x) * (b.x - a.x) + (crossing.point.z - a.z) * (b.z - a.z)) / Math.max(1e-9, length * length);
-        if (t >= 0 && t <= 1 && Math.hypot(a.x + (b.x - a.x) * t - crossing.point.x, a.z + (b.z - a.z) * t - crossing.point.z) < 0.01) {
-          s = a.s + length * t;
-          break;
-        }
+    // The culvert's works run along the course from the crossing until it
+    // stands clear of the road deck by the headwall face and the apron,
+    // measured against the road itself so a bend in it is covered too.
+    const clearance = (s: number): number => {
+      const point = pointOnCourse(smooth, s), road = WorldLayout.nearestRouteDistance(point.x, point.z);
+      return road.distance - road.halfWidth;
+    };
+    const worksEdge = (from: number, side: -1 | 1): number => {
+      const reach = MAINLAND_BROOK_CULVERT_FACE_METERS + CULVERT_APRON_METERS, total = smooth[smooth.length - 1].s;
+      let inside = from;
+      for (let step = 0.25; step <= 30; step += 0.25) {
+        const s = Math.max(0, Math.min(total, from + side * step));
+        if (clearance(s) < reach && s > 0 && s < total) { inside = s; continue; }
+        let low = inside, high = s;
+        for (let k = 0; k < 16; k++) { const mid = (low + high) / 2; if (clearance(mid) >= reach) high = mid; else low = mid; }
+        return high;
       }
-      return { s, cap: crossing.roadElevation - CULVERT_COVER_METERS,
-        span: (crossing.route.widthMeters * 0.5 + MAINLAND_BROOK_CULVERT_FACE_METERS + CULVERT_APRON_METERS) / square };
+      return from + side * 30;
+    };
+    const culverts = brookCoursesCrossingRoads([{ id, knots: smooth.map(point => [point.x, point.z]) }]).map(crossing => {
+      const s = arcAt(smooth, crossing.point);
+      return { s, cap: crossing.roadElevation - CULVERT_COVER_METERS, from: worksEdge(s, -1), to: worksEdge(s, 1) };
     });
     for (const culvert of culverts) {
-      for (const at of [culvert.s - culvert.span, culvert.s, culvert.s + culvert.span]) {
+      for (const at of [culvert.from, culvert.s, culvert.to]) {
         if (at <= 0 || at >= smooth[smooth.length - 1].s || smooth.some(point => Math.abs(point.s - at) < 0.05)) continue;
         const i = smooth.findIndex(point => point.s > at);
         const a = smooth[i - 1], b = smooth[i], t = (at - a.s) / (b.s - a.s);
@@ -444,24 +621,61 @@ export function traceMainlandBrooks(): TracedBrook[] {
     // inlet is spread back along the course: each step may fall at its own
     // grade or the inlet grade, whichever is steeper, so the bed eases down
     // to the apron instead of stepping at its edge, and only as far as needed.
-    const graded = bed.slice();
+    const uncapped = bed.slice();
     for (const culvert of culverts) {
-      smooth.forEach((point, i) => { if (Math.abs(point.s - culvert.s) <= culvert.span + 0.01) bed[i] = Math.min(bed[i], culvert.cap); });
+      smooth.forEach((point, i) => { if (point.s >= culvert.from - 0.01 && point.s <= culvert.to + 0.01) bed[i] = Math.min(bed[i], culvert.cap); });
     }
     for (let i = bed.length - 2; i >= 0; i--) {
       const run = smooth[i + 1].s - smooth[i].s;
-      const grade = Math.max(CULVERT_INLET_GRADE, (graded[i] - graded[i + 1]) / Math.max(1e-6, run));
+      const grade = Math.max(CULVERT_INLET_GRADE, (uncapped[i] - uncapped[i + 1]) / Math.max(1e-6, run));
       bed[i] = Math.min(bed[i], bed[i + 1] + run * grade);
     }
     for (let i = 1; i < bed.length; i++) bed[i] = Math.min(bed[i], bed[i - 1]);
-    const knots = smooth.map((point, i) => [
-      Math.round(point.x * 10) / 10, Math.round(point.z * 10) / 10,
-      Math.round(bed[i] * 100) / 100, Math.round(hectares[i] * 10) / 10
-    ] as [number, number, number, number]);
-    bedAt.set(index, knots.map(([x, z, b]) => ({ x, z, bed: b })));
-    brooks.push({ id, outlet: reach.into >= 0 ? ids.get(reach.into)! : reach.outlet as Outlet, knots });
+    const points = smooth.map((point, i) => ({ x: Math.round(point.x * 10) / 10, z: Math.round(point.z * 10) / 10, bed: bed[i] }));
+    bedAt.set(index, points);
+    worksAt.set(index, { arc: smooth.map(point => point.s), works: culverts.map(culvert => ({ from: culvert.from, to: culvert.to })) });
+    let junction = -1;
+    if (reach.into >= 0) {
+      const trunk = bedAt.get(reach.into)!, end = points[points.length - 1];
+      junction = 0;
+      trunk.forEach((knot, i) => {
+        if (Math.hypot(knot.x - end.x, knot.z - end.z) < Math.hypot(trunk[junction].x - end.x, trunk[junction].z - end.z)) junction = i;
+      });
+    }
+    graded.push({ id, index, into: reach.into, junction, points,
+      hectares: hectares.map(value => Math.round(value * 10) / 10), outlet: reach.outlet as Outlet });
   }
-  return brooks;
+  // The network's beds fall all the way down: where a tributary had to drop
+  // under a road just above its confluence, its trunk is lowered below the
+  // junction to meet it, and every tributary ends exactly on its trunk's bed.
+  const byIndex = new Map(graded.map(brook => [brook.index, brook]));
+  for (let k = graded.length - 1; k >= 0; k--) {
+    const brook = graded[k], beds = brook.points;
+    for (let i = 1; i < beds.length; i++) beds[i].bed = Math.min(beds[i].bed, beds[i - 1].bed);
+    if (brook.into >= 0) {
+      const trunk = byIndex.get(brook.into)!.points[brook.junction];
+      trunk.bed = Math.min(trunk.bed, beds[beds.length - 1].bed);
+    }
+  }
+  for (const brook of graded) {
+    const beds = brook.points;
+    for (let i = 1; i < beds.length; i++) beds[i].bed = Math.min(beds[i].bed, beds[i - 1].bed);
+    if (brook.into >= 0) beds[beds.length - 1].bed = byIndex.get(brook.into)!.points[brook.junction].bed;
+  }
+  return graded.map(brook => {
+    const knots: [number, number, number, number][] = [];
+    brook.points.forEach((point, i) => {
+      const knot: [number, number, number, number] = [point.x, point.z, Math.round(point.bed * 100) / 100, brook.hectares[i]];
+      // Rounding can land two culvert knots on one point; a course never repeats a point.
+      const previous = knots[knots.length - 1];
+      if (previous && previous[0] === knot[0] && previous[1] === knot[1]) {
+        previous[2] = Math.min(previous[2], knot[2]);
+        return;
+      }
+      knots.push(knot);
+    });
+    return { id: brook.id, outlet: brook.into >= 0 ? ids.get(brook.into)! : brook.outlet, knots };
+  });
 }
 
 /** Hash of the tracing parameters and the ground over the whole lattice at a coarse stride. */
@@ -471,12 +685,16 @@ export function mainlandBrookFingerprint(): string {
     const text = value.toFixed(3);
     for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0;
   };
-  for (const value of [GRID_METERS, CHANNEL_HECTARES, MOUNTAIN_HEAD_METERS, MINIMUM_REACH_METERS,
-    PAD_CLEARANCE_METERS, MEANDER_METERS, MEANDER_SCALE_METERS, MEANDER_SALT, WORK_SITE_CLEARANCE_METERS, FLAT_GRADE, SMOOTH_HALF_WINDOW, SMOOTH_PASSES,
+  for (const rule of Object.values(OUTLET_RULES)) { mix(rule.hectares); mix(rule.head); }
+  for (const value of [GRID_METERS, COVE_MOUTH_SHELTER, MINIMUM_REACH_METERS,
+    PAD_CLEARANCE_METERS, VILLAGE_SQUARE_METERS, TRIBUTARY_JOIN_METERS, TRIBUTARY_JOIN_DOWNSTREAM_KNOTS, ROAD_EMBANKMENT_METERS, ...ROAD_EMBANKMENT_VERGE_METERS, MEANDER_METERS, MEANDER_SCALE_METERS, MEANDER_SALT, WORK_SITE_CLEARANCE_METERS, FLAT_GRADE, SMOOTH_HALF_WINDOW, SMOOTH_PASSES,
     KNOT_SPACING_METERS, INCISION_BASE_METERS, INCISION_GAIN_METERS, INCISION_MAX_METERS,
-    CULVERT_COVER_METERS, CULVERT_APRON_METERS, CULVERT_INLET_GRADE, MAINLAND_BROOK_CULVERT_FACE_METERS]) mix(value);
-  // Beds are capped under the routed roads, so the brooks follow the routes.
-  for (let i = 0; i < MAINLAND_ROUTE_FINGERPRINT.length; i++) mix(MAINLAND_ROUTE_FINGERPRINT.charCodeAt(i));
+    CULVERT_COVER_METERS, CULVERT_APRON_METERS, CULVERT_INLET_GRADE, MAINLAND_BROOK_CULVERT_FACE_METERS,
+    SQUARE_RUN_METERS, SQUARE_BLEND_METERS, MOUTH_BED_METERS]) mix(value);
+  // Beds are capped under the roads, so the brooks follow every generated road knot.
+  for (const road of MAINLAND_ROAD_NETWORK) {
+    for (const knot of road.knots) for (const value of knot) mix(value);
+  }
   for (const [x, z] of MAINLAND_WORK_SITES.map(site => [site.center.x, site.center.z])) { mix(x); mix(z); }
   for (let x = MAINLAND_BOUNDS.minX; x <= MAINLAND_BOUNDS.maxX; x += 36) {
     for (let z = MAINLAND_BOUNDS.minZ; z <= MAINLAND_BOUNDS.maxZ; z += 36) {

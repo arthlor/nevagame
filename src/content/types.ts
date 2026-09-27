@@ -121,6 +121,8 @@ export interface FishSpeciesDefinition {
 }
 
 export interface RecipeDefinition {
+  costMoney?: number;
+  minimumTradingXp?: number;
   id: RecipeId;
   name: string;
   stationType: StationType;

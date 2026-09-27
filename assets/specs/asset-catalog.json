@@ -2537,6 +2537,551 @@
       }
     },
     {
+      "id": "rock_river_boulder_a",
+      "file": "rock_river_boulder_a.glb",
+      "family": "rock",
+      "generator": "river_boulder",
+      "seed": 4101,
+      "dimensions": {
+        "width": 1,
+        "depth": 0.86,
+        "height": 0.62
+      },
+      "palette": [
+        "stone_cool_01",
+        "stone_moss_01",
+        "stone_warm_01",
+        "rock_coastal_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 60,
+        "trianglesTarget": 240,
+        "trianglesMax": 900,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": true,
+      "lod": "small",
+      "lodLevels": [
+        {
+          "node": "rock_river_boulder_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "rock_river_boulder_a_LOD1",
+          "distanceMeters": 22,
+          "triangleRatioMin": 0.3,
+          "triangleRatioMax": 0.8
+        }
+      ],
+      "rootNode": "rock_river_boulder_a_root",
+      "requiredNodes": [
+        "rock_river_boulder_a_root",
+        "rock_river_boulder_a_LOD0",
+        "rock_river_boulder_a_LOD1",
+        "COL_rock_river_boulder_a"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "form": "rounded",
+        "lobes": 1,
+        "moss": 0.55
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            0.27,
+            0
+          ],
+          "halfExtents": [
+            0.42,
+            0.27,
+            0.36
+          ]
+        }
+      ],
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "rock_river_boulder_b",
+      "file": "rock_river_boulder_b.glb",
+      "family": "rock",
+      "generator": "river_boulder",
+      "seed": 4102,
+      "dimensions": {
+        "width": 1.25,
+        "depth": 0.95,
+        "height": 0.72
+      },
+      "palette": [
+        "stone_cool_01",
+        "stone_moss_01",
+        "stone_warm_01",
+        "rock_coastal_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 60,
+        "trianglesTarget": 240,
+        "trianglesMax": 900,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": true,
+      "lod": "small",
+      "lodLevels": [
+        {
+          "node": "rock_river_boulder_b_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "rock_river_boulder_b_LOD1",
+          "distanceMeters": 22,
+          "triangleRatioMin": 0.3,
+          "triangleRatioMax": 0.8
+        }
+      ],
+      "rootNode": "rock_river_boulder_b_root",
+      "requiredNodes": [
+        "rock_river_boulder_b_root",
+        "rock_river_boulder_b_LOD0",
+        "rock_river_boulder_b_LOD1",
+        "COL_rock_river_boulder_b"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "form": "rounded",
+        "lobes": 2,
+        "moss": 0.55
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            0.31,
+            0
+          ],
+          "halfExtents": [
+            0.52,
+            0.31,
+            0.4
+          ]
+        }
+      ],
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "rock_river_boulder_c",
+      "file": "rock_river_boulder_c.glb",
+      "family": "rock",
+      "generator": "river_boulder",
+      "seed": 4103,
+      "dimensions": {
+        "width": 1.1,
+        "depth": 0.9,
+        "height": 0.55
+      },
+      "palette": [
+        "stone_cool_01",
+        "stone_moss_01",
+        "stone_warm_01",
+        "rock_coastal_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 60,
+        "trianglesTarget": 240,
+        "trianglesMax": 900,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": true,
+      "lod": "small",
+      "lodLevels": [
+        {
+          "node": "rock_river_boulder_c_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "rock_river_boulder_c_LOD1",
+          "distanceMeters": 22,
+          "triangleRatioMin": 0.3,
+          "triangleRatioMax": 0.8
+        }
+      ],
+      "rootNode": "rock_river_boulder_c_root",
+      "requiredNodes": [
+        "rock_river_boulder_c_root",
+        "rock_river_boulder_c_LOD0",
+        "rock_river_boulder_c_LOD1",
+        "COL_rock_river_boulder_c"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "form": "tabular",
+        "lobes": 2,
+        "moss": 0.6
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            0.24,
+            0
+          ],
+          "halfExtents": [
+            0.46,
+            0.24,
+            0.38
+          ]
+        }
+      ],
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "rock_river_ledge_a",
+      "file": "rock_river_ledge_a.glb",
+      "family": "rock",
+      "generator": "river_boulder",
+      "seed": 4104,
+      "dimensions": {
+        "width": 2.4,
+        "depth": 1.5,
+        "height": 0.95
+      },
+      "palette": [
+        "stone_cool_01",
+        "stone_moss_01",
+        "stone_warm_01",
+        "rock_coastal_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 60,
+        "trianglesTarget": 360,
+        "trianglesMax": 1400,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": true,
+      "lod": "small",
+      "lodLevels": [
+        {
+          "node": "rock_river_ledge_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "rock_river_ledge_a_LOD1",
+          "distanceMeters": 22,
+          "triangleRatioMin": 0.3,
+          "triangleRatioMax": 0.8
+        }
+      ],
+      "rootNode": "rock_river_ledge_a_root",
+      "requiredNodes": [
+        "rock_river_ledge_a_root",
+        "rock_river_ledge_a_LOD0",
+        "rock_river_ledge_a_LOD1",
+        "COL_rock_river_ledge_a"
+      ],
+      "readDistanceMeters": 45,
+      "parameters": {
+        "form": "tabular",
+        "lobes": 3,
+        "moss": 0.7
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            0.42,
+            0
+          ],
+          "halfExtents": [
+            1,
+            0.42,
+            0.62
+          ]
+        }
+      ],
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "foliage_reed_bed_a",
+      "file": "foliage_reed_bed_a.glb",
+      "family": "vegetation",
+      "generator": "reed_bed",
+      "seed": 4111,
+      "dimensions": {
+        "width": 1.9,
+        "depth": 1.25,
+        "height": 1.7
+      },
+      "palette": [
+        "foliage_olive_01",
+        "wood_dark_01",
+        "foliage_sage_01",
+        "grass_yellow_01"
+      ],
+      "budget": {
+        "trianglesMin": 400,
+        "trianglesTarget": 1800,
+        "trianglesMax": 4200,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "lodLevels": [
+        {
+          "node": "foliage_reed_bed_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_reed_bed_a_LOD1",
+          "distanceMeters": 18,
+          "triangleRatioMin": 0.12,
+          "triangleRatioMax": 0.55
+        }
+      ],
+      "rootNode": "foliage_reed_bed_a_root",
+      "requiredNodes": [
+        "foliage_reed_bed_a_root",
+        "foliage_reed_bed_a_LOD0",
+        "foliage_reed_bed_a_LOD1"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "stalks": 32,
+        "height": 1.6,
+        "spread": 0.85,
+        "cattailEvery": 4,
+        "bladeCount": 3
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "foliage_sedge_tussock_a",
+      "file": "foliage_sedge_tussock_a.glb",
+      "family": "vegetation",
+      "generator": "reed_bed",
+      "seed": 4112,
+      "dimensions": {
+        "width": 1.15,
+        "depth": 0.8,
+        "height": 0.55
+      },
+      "palette": [
+        "foliage_olive_01",
+        "foliage_sage_01",
+        "grass_yellow_01"
+      ],
+      "budget": {
+        "trianglesMin": 150,
+        "trianglesTarget": 700,
+        "trianglesMax": 1800,
+        "materialsMax": 3
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "lodLevels": [
+        {
+          "node": "foliage_sedge_tussock_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_sedge_tussock_a_LOD1",
+          "distanceMeters": 14,
+          "triangleRatioMin": 0.12,
+          "triangleRatioMax": 0.6
+        }
+      ],
+      "rootNode": "foliage_sedge_tussock_a_root",
+      "requiredNodes": [
+        "foliage_sedge_tussock_a_root",
+        "foliage_sedge_tussock_a_LOD0",
+        "foliage_sedge_tussock_a_LOD1"
+      ],
+      "readDistanceMeters": 20,
+      "parameters": {
+        "stalks": 22,
+        "height": 0.5,
+        "spread": 0.32,
+        "cattailEvery": 0,
+        "bladeCount": 2
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "foliage_fern_a",
+      "file": "foliage_fern_a.glb",
+      "family": "vegetation",
+      "generator": "fern_clump",
+      "seed": 4121,
+      "dimensions": {
+        "width": 1.3,
+        "depth": 1.2,
+        "height": 0.62
+      },
+      "palette": [
+        "foliage_leaf_01",
+        "foliage_highlight_01",
+        "foliage_shadow_01"
+      ],
+      "budget": {
+        "trianglesMin": 300,
+        "trianglesTarget": 1200,
+        "trianglesMax": 2800,
+        "materialsMax": 3
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "lodLevels": [
+        {
+          "node": "foliage_fern_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_fern_a_LOD1",
+          "distanceMeters": 16,
+          "triangleRatioMin": 0.18,
+          "triangleRatioMax": 0.65
+        }
+      ],
+      "rootNode": "foliage_fern_a_root",
+      "requiredNodes": [
+        "foliage_fern_a_root",
+        "foliage_fern_a_LOD0",
+        "foliage_fern_a_LOD1"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "fronds": 11,
+        "length": 0.75
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "foliage_willow_shrub_a",
+      "file": "foliage_willow_shrub_a.glb",
+      "family": "vegetation",
+      "generator": "willow_shrub",
+      "seed": 4131,
+      "dimensions": {
+        "width": 2.6,
+        "depth": 2.4,
+        "height": 2.2
+      },
+      "palette": [
+        "foliage_sage_01",
+        "foliage_highlight_01",
+        "foliage_shadow_01",
+        "wood_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 1800,
+        "trianglesMax": 3600,
+        "materialsMax": 4
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": true,
+      "lod": "small",
+      "lodLevels": [
+        {
+          "node": "foliage_willow_shrub_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "foliage_willow_shrub_a_LOD1",
+          "distanceMeters": 24,
+          "triangleRatioMin": 0.25,
+          "triangleRatioMax": 0.7
+        }
+      ],
+      "rootNode": "foliage_willow_shrub_a_root",
+      "requiredNodes": [
+        "foliage_willow_shrub_a_root",
+        "foliage_willow_shrub_a_LOD0",
+        "foliage_willow_shrub_a_LOD1",
+        "COL_foliage_willow_shrub_a"
+      ],
+      "readDistanceMeters": 40,
+      "parameters": {
+        "stems": 7,
+        "height": 2.2,
+        "spread": 1.25
+      },
+      "collisionPrimitives": [
+        {
+          "id": "stool",
+          "center": [
+            0,
+            0.5,
+            0
+          ],
+          "halfExtents": [
+            0.3,
+            0.5,
+            0.3
+          ]
+        }
+      ],
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
       "id": "foliage_kelp_a",
       "file": "foliage_kelp_a.glb",
       "family": "vegetation",
@@ -5725,6 +6270,191 @@
       }
     },
     {
+      "id": "rock_pebble_cluster_d",
+      "file": "rock_pebble_cluster_d.glb",
+      "family": "rock",
+      "generator": "pebble_cluster",
+      "seed": 163,
+      "dimensions": {
+        "width": 0.85,
+        "depth": 0.7,
+        "height": 0.18
+      },
+      "palette": [
+        "stone_cool_01",
+        "stone_coastal_light_01"
+      ],
+      "budget": {
+        "trianglesMin": 25,
+        "trianglesTarget": 120,
+        "trianglesMax": 360,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "rock_pebble_cluster_d_root",
+      "requiredNodes": [
+        "rock_pebble_cluster_d_root"
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "count": 7,
+        "spread": 0.42,
+        "size": 0.14
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Ground-hugging faceted cluster of washed grey stream pebbles with varied stone sizes, laid along a mountain brook's water edge",
+        "sources": [
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "silhouette",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Defines authored planar stone geometry, grounded contact, palette discipline, and controlled detail density."
+          }
+        ],
+        "components": [
+          {
+            "id": "primary_pebble",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Establishes the cluster scale and dominant directional gesture",
+            "shape": "Low irregular faceted stone with a compressed crown",
+            "count": "1 stone",
+            "cues": [
+              "Largest stone sits off center",
+              "Broad face remains readable from above"
+            ]
+          },
+          {
+            "id": "support_pebbles",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Builds a loose eroded grouping around the dominant stone",
+            "shape": "Varied flattened polyhedra with different axes and tilts",
+            "count": "majority of count",
+            "cues": [
+              "At least three distinct sizes",
+              "No repeated orientation sequence"
+            ]
+          },
+          {
+            "id": "edge_chips",
+            "parent": "support_pebbles",
+            "importance": "secondary",
+            "role": "Tapers the scatter into the surrounding soil or shore",
+            "shape": "Small low wedges placed along two uneven outer arcs",
+            "count": "1-3 stones",
+            "cues": [
+              "Edges fade asymmetrically",
+              "Chips never form a ring"
+            ]
+          }
+        ],
+        "silhouette": [
+          "The cluster forms an irregular low wedge rather than a circular pile.",
+          "One dominant stone and two supporting peaks control the top-down read.",
+          "Small edge chips taper the group into terrain along unequal sides."
+        ],
+        "negativeSpace": [
+          "Preserve visible ground gaps between the largest three stones.",
+          "Leave one open side so the cluster reads as deposited rather than deliberately arranged."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "high",
+          "requirements": [
+            "Undersides stay close to the ground plane and do not expose floating gaps on slopes.",
+            "Rear stones vary their axes while supporting the same off-center dominant mass."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "size_hierarchy",
+            "componentIds": [
+              "primary_pebble",
+              "support_pebbles"
+            ],
+            "requirement": "The cluster has one obvious largest stone plus at least two smaller scale tiers.",
+            "priority": "must"
+          },
+          {
+            "id": "ground_contact",
+            "componentIds": [
+              "primary_pebble",
+              "support_pebbles",
+              "edge_chips"
+            ],
+            "requirement": "Every stone sits low enough to read as embedded in the terrain surface.",
+            "priority": "must"
+          },
+          {
+            "id": "eroded_scatter",
+            "componentIds": [
+              "support_pebbles",
+              "edge_chips"
+            ],
+            "requirement": "Spacing and axes create a natural deposited rhythm without rings or grids.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "count",
+            "componentIds": [
+              "primary_pebble",
+              "support_pebbles",
+              "edge_chips"
+            ],
+            "purpose": "Allocates one dominant stone first and distributes the remainder across support tiers."
+          },
+          {
+            "parameter": "spread",
+            "componentIds": [
+              "support_pebbles",
+              "edge_chips"
+            ],
+            "purpose": "Controls cluster footprint and the amount of visible ground between stones."
+          },
+          {
+            "parameter": "size",
+            "componentIds": [
+              "primary_pebble",
+              "support_pebbles"
+            ],
+            "purpose": "Controls the base stone scale while seeded ratios preserve the hierarchy."
+          }
+        ],
+        "failureModes": [
+          "Pebbles form a regular ring, grid, or evenly spaced radial pattern.",
+          "All stones share one size and orientation, producing a stamped procedural look.",
+          "Stones float above terrain or expose deep undersides from the gameplay camera."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
       "id": "prop_path_slab_a",
       "file": "prop_path_slab_a.glb",
       "family": "prop",
@@ -6123,23 +6853,25 @@
         "house_farmhouse_a_root",
         "house_farmhouse_a_LOD0",
         "house_farmhouse_a_LOD1",
-        "COL_house_farmhouse_a"
+        "COL_house_farmhouse_a",
+        "house_farmhouse_a_LOD2",
+        "farmhouse_lantern_glow"
       ],
       "readDistanceMeters": 30,
       "parameters": {
         "width": 6.6,
         "depth": 4.8,
         "wallHeight": 3.1,
-        "roofPitchDeg": 43,
+        "roofPitchDeg": 50,
         "masonryCourses": 4,
         "masonryBlocks": 5,
-        "shingleRows": 12,
-        "shingleColumns": 14,
+        "shingleRows": 8,
+        "shingleColumns": 12,
         "crossGableWidth": 3.2,
         "porchDepth": 1.7,
         "porchPlanks": 8,
-        "chimneyOffsetX": 3.168,
-        "chimneyHeight": 8.1
+        "chimneyOffsetX": 3.35,
+        "chimneyHeight": 8.9
       },
       "collisionPrimitives": [
         {
@@ -6167,7 +6899,13 @@
           "node": "house_farmhouse_a_LOD1",
           "distanceMeters": 72,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.52
+          "triangleRatioMax": 0.55
+        },
+        {
+          "node": "house_farmhouse_a_LOD2",
+          "distanceMeters": 100,
+          "triangleRatioMin": 0.03,
+          "triangleRatioMax": 0.32
         }
       ],
       "referenceAuthoring": {
@@ -6196,6 +6934,17 @@
               "detail_density"
             ],
             "notes": "Isolated 3/4 sheet locking porch volume, overlapping shingles, chimney masonry, and lantern glow."
+          },
+          {
+            "id": "owner_workshop_craft",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/cart-workshop/wheelwright-workshop.png",
+            "use": [
+              "form_language",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
           }
         ],
         "components": [
@@ -6469,7 +7218,8 @@
         "building_lighthouse_a_LOD0",
         "building_lighthouse_a_LOD1",
         "lighthouse_lantern_beacon",
-        "COL_building_lighthouse_a"
+        "COL_building_lighthouse_a",
+        "building_lighthouse_a_LOD2"
       ],
       "readDistanceMeters": 60,
       "parameters": {
@@ -6535,7 +7285,13 @@
           "node": "building_lighthouse_a_LOD1",
           "distanceMeters": 40,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.52
+          "triangleRatioMax": 0.55
+        },
+        {
+          "node": "building_lighthouse_a_LOD2",
+          "distanceMeters": 74,
+          "triangleRatioMin": 0.03,
+          "triangleRatioMax": 0.32
         }
       ],
       "referenceAuthoring": {
@@ -6564,6 +7320,17 @@
               "detail_density"
             ],
             "notes": "Isolated sheet locking red/white bands, masonry cottage, gallery railing, and lantern room."
+          },
+          {
+            "id": "owner_workshop_craft",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/cart-workshop/wheelwright-workshop.png",
+            "use": [
+              "form_language",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
           }
         ],
         "components": [
@@ -6781,7 +7548,8 @@
         "building_windmill_a_LOD0",
         "building_windmill_a_LOD1",
         "windmill_rotor",
-        "COL_building_windmill_a"
+        "COL_building_windmill_a",
+        "building_windmill_a_LOD2"
       ],
       "readDistanceMeters": 60,
       "parameters": {
@@ -6843,7 +7611,13 @@
           "node": "building_windmill_a_LOD1",
           "distanceMeters": 72,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.52
+          "triangleRatioMax": 0.55
+        },
+        {
+          "node": "building_windmill_a_LOD2",
+          "distanceMeters": 100,
+          "triangleRatioMin": 0.03,
+          "triangleRatioMax": 0.32
         }
       ],
       "referenceAuthoring": {
@@ -6860,6 +7634,17 @@
               "detail_density"
             ],
             "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
+          },
+          {
+            "id": "owner_workshop_craft",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/cart-workshop/wheelwright-workshop.png",
+            "use": [
+              "form_language",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
           }
         ],
         "components": [
@@ -7039,7 +7824,8 @@
         "bridge_stone_a_root",
         "bridge_stone_a_LOD0",
         "bridge_stone_a_LOD1",
-        "COL_bridge_stone_a"
+        "COL_bridge_stone_a",
+        "bridge_stone_a_LOD2"
       ],
       "readDistanceMeters": 60,
       "parameters": {
@@ -7257,7 +8043,13 @@
           "node": "bridge_stone_a_LOD1",
           "distanceMeters": 40,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.52
+          "triangleRatioMax": 0.55
+        },
+        {
+          "node": "bridge_stone_a_LOD2",
+          "distanceMeters": 74,
+          "triangleRatioMin": 0.03,
+          "triangleRatioMax": 0.32
         }
       ],
       "referenceAuthoring": {
@@ -7286,6 +8078,17 @@
               "detail_density"
             ],
             "notes": "Isolated sheet locking double arches, cobbled deck, timber rails, and lantern post."
+          },
+          {
+            "id": "owner_workshop_craft",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/cart-workshop/wheelwright-workshop.png",
+            "use": [
+              "form_language",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
           }
         ],
         "components": [
@@ -18896,7 +19699,7 @@
       "id": "prop_tool_shed_a",
       "file": "prop_tool_shed_a.glb",
       "family": "architecture",
-      "generator": "village_building",
+      "generator": "tool_shed",
       "seed": 451,
       "dimensions": {
         "width": 3.1,
@@ -18922,35 +19725,25 @@
       "rootNode": "prop_tool_shed_a_root",
       "requiredNodes": [
         "prop_tool_shed_a_root",
-        "COL_prop_tool_shed_a"
+        "COL_prop_tool_shed_a",
+        "prop_tool_shed_a_LOD0",
+        "prop_tool_shed_a_LOD1",
+        "prop_tool_shed_a_LOD2"
       ],
       "readDistanceMeters": 20,
       "parameters": {
         "width": 2.4,
         "depth": 2.2,
         "wallHeight": 2.05,
-        "roofPitchDeg": 32,
+        "roofPitchDeg": 18,
         "foundationHeight": 0.42,
         "roofOverhang": 0.34,
-        "roofCourses": 3,
         "shingleRows": 4,
         "shingleColumns": 5,
         "masonryCourses": 2,
         "masonryBlocks": 3,
-        "porchDepth": 0.55,
-        "porchPlanks": 4,
-        "wingOffset": 0.15,
-        "wingWidth": 0.9,
-        "wingDepth": 0.9,
-        "chimneyOffsetX": 0,
-        "chimneyHeight": 0,
-        "plinthScale": 1,
-        "porchWidthRatio": 0.65,
         "doorWidth": 0.86,
-        "doorHeight": 1.55,
-        "roofForm": "lean-to",
-        "openingLayout": "shed-tools",
-        "variant": "shed"
+        "doorHeight": 1.55
       },
       "collisionPrimitives": [
         {
@@ -18993,6 +19786,17 @@
               "detail_density"
             ],
             "notes": "Locks chunky masonry, timber frame, overlapping roof planes, and porch thickness."
+          },
+          {
+            "id": "owner_workshop_craft",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/cart-workshop/wheelwright-workshop.png",
+            "use": [
+              "form_language",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
           }
         ],
         "components": [
@@ -19121,14 +19925,6 @@
               "roof"
             ],
             "purpose": "Sets the lean-to pitch."
-          },
-          {
-            "parameter": "variant",
-            "componentIds": [
-              "frame",
-              "openings"
-            ],
-            "purpose": "Selects the shed door and window layout."
           }
         ],
         "failureModes": [
@@ -19149,7 +19945,27 @@
       "surfaceAuthoring": {
         "normalPolicy": "authored",
         "facetColors": "rest_face"
-      }
+      },
+      "lodLevels": [
+        {
+          "node": "prop_tool_shed_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "prop_tool_shed_a_LOD1",
+          "distanceMeters": 32,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.55
+        },
+        {
+          "node": "prop_tool_shed_a_LOD2",
+          "distanceMeters": 59,
+          "triangleRatioMin": 0.03,
+          "triangleRatioMax": 0.32
+        }
+      ]
     },
     {
       "id": "building_farm_kitchen_a",
@@ -19158,23 +19974,25 @@
       "generator": "farm_kitchen",
       "seed": 452,
       "dimensions": {
-        "width": 4.55,
-        "depth": 4.7,
-        "height": 5.7
+        "width": 4.6,
+        "depth": 3.8,
+        "height": 4.5
       },
       "palette": [
         "stone_warm_01",
-        "plaster_warm_01",
-        "wood_honey_01",
         "wood_dark_01",
+        "wood_honey_01",
         "roof_terracotta_01",
-        "emissive_window_01"
+        "metal_brass_01",
+        "emissive_lantern_01",
+        "foliage_sage_01",
+        "plaster_warm_01"
       ],
       "budget": {
         "trianglesMin": 1500,
-        "trianglesTarget": 10470,
+        "trianglesTarget": 13500,
         "trianglesMax": 19000,
-        "materialsMax": 6
+        "materialsMax": 8
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -19187,14 +20005,14 @@
       ],
       "readDistanceMeters": 20,
       "parameters": {
-        "width": 3.2,
-        "depth": 2.6,
-        "wallHeight": 2.1,
-        "roofPitchDeg": 30,
-        "foundationHeight": 0.42,
-        "roofOverhang": 0.34,
-        "porchDepth": 1.35,
-        "chimneyHeight": 2.4,
+        "width": 4,
+        "depth": 3,
+        "wallHeight": 2.7,
+        "roofPitchDeg": 14,
+        "foundationHeight": 0.25,
+        "roofOverhang": 0.42,
+        "porchDepth": 1.2,
+        "chimneyHeight": 3.2,
         "doorWidth": 0.86,
         "doorHeight": 1.55
       },
@@ -19204,12 +20022,12 @@
           "center": [
             0,
             1.6,
-            0
+            -0.2
           ],
           "halfExtents": [
-            1.7,
+            1.9,
             1.6,
-            1.45
+            1.4
           ]
         }
       ]
@@ -27574,7 +28392,8 @@
         "building_coastal_shelter_a_root",
         "building_coastal_shelter_a_LOD0",
         "building_coastal_shelter_a_LOD1",
-        "COL_building_coastal_shelter_a"
+        "COL_building_coastal_shelter_a",
+        "building_coastal_shelter_a_LOD2"
       ],
       "readDistanceMeters": 36,
       "parameters": {
@@ -27595,7 +28414,13 @@
           "node": "building_coastal_shelter_a_LOD1",
           "distanceMeters": 38,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.65
+          "triangleRatioMax": 0.55
+        },
+        {
+          "node": "building_coastal_shelter_a_LOD2",
+          "distanceMeters": 70,
+          "triangleRatioMin": 0.03,
+          "triangleRatioMax": 0.32
         }
       ],
       "collisionPrimitives": [
@@ -27680,6 +28505,17 @@
               "materials"
             ],
             "notes": "Frame extracted from the user supplied 58-second coastal video. Scene relationships and construction are evidence; UI labels are not Neva names."
+          },
+          {
+            "id": "owner_workshop_craft",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/cart-workshop/wheelwright-workshop.png",
+            "use": [
+              "form_language",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
           }
         ],
         "components": [
@@ -27859,7 +28695,8 @@
         "building_coastal_store_a_root",
         "building_coastal_store_a_LOD0",
         "building_coastal_store_a_LOD1",
-        "COL_building_coastal_store_a"
+        "COL_building_coastal_store_a",
+        "building_coastal_store_a_LOD2"
       ],
       "readDistanceMeters": 36,
       "parameters": {
@@ -27880,7 +28717,13 @@
           "node": "building_coastal_store_a_LOD1",
           "distanceMeters": 38,
           "triangleRatioMin": 0.08,
-          "triangleRatioMax": 0.65
+          "triangleRatioMax": 0.55
+        },
+        {
+          "node": "building_coastal_store_a_LOD2",
+          "distanceMeters": 70,
+          "triangleRatioMin": 0.03,
+          "triangleRatioMax": 0.32
         }
       ],
       "collisionPrimitives": [
@@ -27991,6 +28834,17 @@
               "materials"
             ],
             "notes": "Frame extracted from the user supplied 58-second coastal video. Scene relationships and construction are evidence; UI labels are not Neva names."
+          },
+          {
+            "id": "owner_workshop_craft",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/cart-workshop/wheelwright-workshop.png",
+            "use": [
+              "form_language",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
           }
         ],
         "components": [
@@ -34213,7 +35067,8 @@
         "bedWidth": 1.4,
         "bedLength": 2.6,
         "wheelRadius": 0.64,
-        "shaftLength": 2.2
+        "shaftLength": 2.2,
+        "cargoSlots": 2
       },
       "animationClips": [
         {
@@ -34796,18 +35651,25 @@
       "generator": "authored_glb",
       "seed": 20260922,
       "dimensions": {
-        "width": 7.815271,
-        "depth": 6.127753,
+        "width": 5.6,
+        "depth": 7.3,
         "height": 7.8
       },
       "palette": [
-        "plaster_cream_01"
+        "stone_warm_01",
+        "plaster_cream_01",
+        "wood_honey_01",
+        "wood_dark_01",
+        "rock_coastal_dark_01",
+        "metal_dark_01",
+        "emissive_window_01",
+        "emissive_lantern_01"
       ],
       "budget": {
-        "trianglesMin": 7000,
-        "trianglesTarget": 7791,
-        "trianglesMax": 8200,
-        "materialsMax": 2
+        "trianglesMin": 4000,
+        "trianglesTarget": 10000,
+        "trianglesMax": 16000,
+        "materialsMax": 8
       },
       "pivot": "ground_center",
       "collision": "box",
@@ -34833,7 +35695,8 @@
         "house_cottage_b_root",
         "house_cottage_b_LOD0",
         "house_cottage_b_LOD1",
-        "COL_house_cottage_b"
+        "COL_house_cottage_b",
+        "house_cottage_b_LOD2"
       ],
       "readDistanceMeters": 30,
       "parameters": {
@@ -34850,8 +35713,14 @@
         {
           "node": "house_cottage_b_LOD1",
           "distanceMeters": 48,
-          "triangleRatioMin": 0.2,
-          "triangleRatioMax": 0.5
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.55
+        },
+        {
+          "node": "house_cottage_b_LOD2",
+          "distanceMeters": 89,
+          "triangleRatioMin": 0.03,
+          "triangleRatioMax": 0.32
         }
       ],
       "sourceProvenance": {
@@ -35017,8 +35886,8 @@
       "generator": "ice_house",
       "seed": 612,
       "dimensions": {
-        "width": 4.99,
-        "depth": 7.41,
+        "width": 4,
+        "depth": 5.5,
         "height": 3.1
       },
       "palette": [
@@ -35032,9 +35901,9 @@
         "foliage_olive_01"
       ],
       "budget": {
-        "trianglesMin": 375,
-        "trianglesTarget": 1250,
-        "trianglesMax": 2000,
+        "trianglesMin": 1500,
+        "trianglesTarget": 4500,
+        "trianglesMax": 8000,
         "materialsMax": 8
       },
       "pivot": "ground_center",
@@ -35044,10 +35913,16 @@
       "rootNode": "building_ice_house_a_root",
       "requiredNodes": [
         "building_ice_house_a_root",
-        "COL_building_ice_house_a"
+        "COL_building_ice_house_a",
+        "building_ice_house_a_LOD0",
+        "building_ice_house_a_LOD1",
+        "building_ice_house_a_LOD2"
       ],
       "readDistanceMeters": 40,
-      "parameters": {},
+      "parameters": {
+        "radius": 1.85,
+        "wallHeight": 1.45
+      },
       "collisionPrimitives": [
         {
           "id": "main",
@@ -35062,7 +35937,166 @@
             2.9
           ]
         }
-      ]
+      ],
+      "lodLevels": [
+        {
+          "node": "building_ice_house_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "building_ice_house_a_LOD1",
+          "distanceMeters": 38,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.55
+        },
+        {
+          "node": "building_ice_house_a_LOD2",
+          "distanceMeters": 70,
+          "triangleRatioMin": 0.03,
+          "triangleRatioMax": 0.32
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Turf-covered stone cold vault with arched entry and a small sled of cut lake ice",
+        "sources": [
+          {
+            "id": "owner_workshop_craft",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/cart-workshop/wheelwright-workshop.png",
+            "use": [
+              "form_language",
+              "structure",
+              "detail_density"
+            ],
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
+          },
+          {
+            "id": "neva_art_bible",
+            "kind": "canonical",
+            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
+            "use": [
+              "form_language",
+              "materials"
+            ],
+            "notes": "Owns warm coastal palette, broad authored facets and gameplay distance readability."
+          }
+        ],
+        "components": [
+          {
+            "id": "vault",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Insulated cold storage mass grounded beside the lake",
+            "shape": "Coursed stone drum with broad faceted turf shoulders and a capped cold-air vent",
+            "count": "one assembly",
+            "cues": [
+              "Insulated cold storage mass grounded beside the lake",
+              "Coursed stone drum with broad faceted turf shoulders and a capped cold-air vent"
+            ]
+          },
+          {
+            "id": "entrance",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Readable insulated doorway within the old solid footprint",
+            "shape": "Deep barrel-vault passage, radial arch stones and iron-strapped plank door",
+            "count": "one assembly",
+            "cues": [
+              "Readable insulated doorway within the old solid footprint",
+              "Deep barrel-vault passage, radial arch stones and iron-strapped plank door"
+            ]
+          },
+          {
+            "id": "sled",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Visible practical purpose beside the entrance",
+            "shape": "Supported timber runners carrying pale ice blocks on straw",
+            "count": "one assembly",
+            "cues": [
+              "Visible practical purpose beside the entrance",
+              "Supported timber runners carrying pale ice blocks on straw"
+            ]
+          }
+        ],
+        "silhouette": [
+          "A low turf dome dominates the stone body.",
+          "Projecting stone arch and dark insulated door mark the entry.",
+          "A compact ice sled and cold-air vent explain the practical function."
+        ],
+        "negativeSpace": [
+          "Keep space around the doorway clear of the ice sled.",
+          "Recess the door behind the radial stone arch."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "All elevations and undersides have continuous supported construction.",
+            "Far distance models retain primary masses and structural openings."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "vault_read",
+            "componentIds": [
+              "vault"
+            ],
+            "requirement": "Coursed stone drum with broad faceted turf shoulders and a capped cold-air vent",
+            "priority": "must"
+          },
+          {
+            "id": "entrance_read",
+            "componentIds": [
+              "entrance"
+            ],
+            "requirement": "Deep barrel-vault passage, radial arch stones and iron-strapped plank door",
+            "priority": "must"
+          },
+          {
+            "id": "sled_read",
+            "componentIds": [
+              "sled"
+            ],
+            "requirement": "Supported timber runners carrying pale ice blocks on straw",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "radius",
+            "componentIds": [
+              "vault"
+            ],
+            "purpose": "Keep the round storage body inside the existing collision footprint."
+          },
+          {
+            "parameter": "wallHeight",
+            "componentIds": [
+              "vault",
+              "entrance"
+            ],
+            "purpose": "Place turf shoulders and entrance crown on shared stone datums."
+          }
+        ],
+        "failureModes": [
+          "Unconnected details or paper thin roofs lose the workshop construction language.",
+          "Fine high contrast decoration adds noise at gameplay distance.",
+          "Replacement geometry changes the existing approach or collision footprint."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      }
     },
     {
       "id": "prop_salt_pans_a",
@@ -35183,7 +36217,6 @@
         "stone_cool_01",
         "stone_coastal_warm_01",
         "soil_shadow_01",
-        "rock_coastal_dark_01",
         "stone_moss_01"
       ],
       "budget": {
@@ -35270,6 +36303,4776 @@
       ],
       "readDistanceMeters": 35,
       "parameters": {}
+    },
+    {
+      "id": "prop_merchant_carriage_4_a",
+      "file": "prop_merchant_carriage_4_a.glb",
+      "family": "prop",
+      "generator": "merchant_carriage",
+      "seed": 8921,
+      "dimensions": {
+        "width": 2.5,
+        "depth": 7,
+        "height": 2.7
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "accent_teal_01",
+        "metal_dark_01",
+        "metal_brass_01"
+      ],
+      "budget": {
+        "trianglesMin": 1500,
+        "trianglesTarget": 4500,
+        "trianglesMax": 14000,
+        "materialsMax": 5
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "prop_merchant_carriage_4_a_root",
+      "requiredNodes": [
+        "prop_merchant_carriage_4_a_root",
+        "prop_merchant_carriage_4_a_cargo_01",
+        "prop_merchant_carriage_4_a_cargo_02",
+        "prop_merchant_carriage_4_a_tailgate",
+        "prop_merchant_carriage_4_a_driver_socket",
+        "prop_merchant_carriage_4_a_front_axle",
+        "prop_merchant_carriage_4_a_rear_axle",
+        "prop_merchant_carriage_4_a_foot_left",
+        "prop_merchant_carriage_4_a_foot_right",
+        "prop_merchant_carriage_4_a_rein_grip_left",
+        "prop_merchant_carriage_4_a_rein_grip_right",
+        "prop_merchant_carriage_4_a_rein_left",
+        "prop_merchant_carriage_4_a_rein_right",
+        "prop_merchant_carriage_4_a_harness_body",
+        "prop_merchant_carriage_4_a_harness_head",
+        "prop_merchant_carriage_4_a_shafts",
+        "prop_merchant_carriage_4_a_shaft_tug_left",
+        "prop_merchant_carriage_4_a_shaft_tug_right",
+        "prop_merchant_carriage_4_a_cargo_03",
+        "prop_merchant_carriage_4_a_cargo_04"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "bedWidth": 1.85,
+        "bedLength": 3,
+        "wheelRadius": 0.64,
+        "shaftLength": 2.2,
+        "cargoSlots": 4
+      },
+      "animationClips": [
+        {
+          "name": "walk",
+          "durationSeconds": 7.5398223686155035,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 1.6
+        },
+        {
+          "name": "trot",
+          "durationSeconds": 3.7699111843077517,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 3.2
+        },
+        {
+          "name": "load",
+          "durationSeconds": 1.6,
+          "loop": false
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 3.2,
+          "loop": true
+        }
+      ],
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "prop_merchant_carriage_6_a",
+      "file": "prop_merchant_carriage_6_a.glb",
+      "family": "prop",
+      "generator": "merchant_carriage",
+      "seed": 8923,
+      "dimensions": {
+        "width": 2.65,
+        "depth": 7.5,
+        "height": 2.7
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "accent_teal_01",
+        "metal_dark_01",
+        "metal_brass_01"
+      ],
+      "budget": {
+        "trianglesMin": 1500,
+        "trianglesTarget": 4500,
+        "trianglesMax": 14000,
+        "materialsMax": 5
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "prop_merchant_carriage_6_a_root",
+      "requiredNodes": [
+        "prop_merchant_carriage_6_a_root",
+        "prop_merchant_carriage_6_a_cargo_01",
+        "prop_merchant_carriage_6_a_cargo_02",
+        "prop_merchant_carriage_6_a_tailgate",
+        "prop_merchant_carriage_6_a_driver_socket",
+        "prop_merchant_carriage_6_a_front_axle",
+        "prop_merchant_carriage_6_a_rear_axle",
+        "prop_merchant_carriage_6_a_foot_left",
+        "prop_merchant_carriage_6_a_foot_right",
+        "prop_merchant_carriage_6_a_rein_grip_left",
+        "prop_merchant_carriage_6_a_rein_grip_right",
+        "prop_merchant_carriage_6_a_rein_left",
+        "prop_merchant_carriage_6_a_rein_right",
+        "prop_merchant_carriage_6_a_harness_body",
+        "prop_merchant_carriage_6_a_harness_head",
+        "prop_merchant_carriage_6_a_shafts",
+        "prop_merchant_carriage_6_a_shaft_tug_left",
+        "prop_merchant_carriage_6_a_shaft_tug_right",
+        "prop_merchant_carriage_6_a_cargo_03",
+        "prop_merchant_carriage_6_a_cargo_04",
+        "prop_merchant_carriage_6_a_cargo_05",
+        "prop_merchant_carriage_6_a_cargo_06"
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "bedWidth": 2,
+        "bedLength": 3.5,
+        "wheelRadius": 0.64,
+        "shaftLength": 2.2,
+        "cargoSlots": 6
+      },
+      "animationClips": [
+        {
+          "name": "walk",
+          "durationSeconds": 7.5398223686155035,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 1.6
+        },
+        {
+          "name": "trot",
+          "durationSeconds": 3.7699111843077517,
+          "loop": true,
+          "referenceSpeedMetersPerSecond": 3.2
+        },
+        {
+          "name": "load",
+          "durationSeconds": 1.6,
+          "loop": false
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 3.2,
+          "loop": true
+        }
+      ],
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "station_trade_neva_a",
+      "file": "station_trade_neva_a.glb",
+      "family": "prop",
+      "generator": "trading_station",
+      "seed": 9200,
+      "dimensions": {
+        "width": 4.4,
+        "depth": 3.1,
+        "height": 3.4
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "accent_teal_01",
+        "burlap_grain_01",
+        "metal_brass_01",
+        "stone_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 800,
+        "trianglesTarget": 4500,
+        "trianglesMax": 14000,
+        "materialsMax": 7
+      },
+      "pivot": "ground_center",
+      "collision": "compound",
+      "collisionPrimitives": [
+        {
+          "id": "workbench",
+          "center": [
+            0,
+            0.55,
+            0.55
+          ],
+          "halfExtents": [
+            1.5,
+            0.55,
+            0.45
+          ]
+        },
+        {
+          "id": "stores",
+          "center": [
+            0,
+            0.7,
+            -0.95
+          ],
+          "halfExtents": [
+            1.55,
+            0.7,
+            0.42
+          ]
+        }
+      ],
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "station_trade_neva_a_root",
+      "requiredNodes": [
+        "station_trade_neva_a_root",
+        "station_trade_neva_a_work_surface",
+        "COL_station_trade_neva_a"
+      ],
+      "readDistanceMeters": 40,
+      "parameters": {
+        "accent": "accent_teal_01",
+        "specialty": "grain"
+      }
+    },
+    {
+      "id": "station_trade_pinewatch_a",
+      "file": "station_trade_pinewatch_a.glb",
+      "family": "prop",
+      "generator": "trading_station",
+      "seed": 9201,
+      "dimensions": {
+        "width": 4.4,
+        "depth": 3.1,
+        "height": 3.4
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "cloth_olive_01",
+        "burlap_grain_01",
+        "metal_brass_01",
+        "stone_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 800,
+        "trianglesTarget": 4500,
+        "trianglesMax": 14000,
+        "materialsMax": 7
+      },
+      "pivot": "ground_center",
+      "collision": "compound",
+      "collisionPrimitives": [
+        {
+          "id": "workbench",
+          "center": [
+            0,
+            0.55,
+            0.55
+          ],
+          "halfExtents": [
+            1.5,
+            0.55,
+            0.45
+          ]
+        },
+        {
+          "id": "stores",
+          "center": [
+            0,
+            0.7,
+            -0.95
+          ],
+          "halfExtents": [
+            1.55,
+            0.7,
+            0.42
+          ]
+        }
+      ],
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "station_trade_pinewatch_a_root",
+      "requiredNodes": [
+        "station_trade_pinewatch_a_root",
+        "station_trade_pinewatch_a_work_surface",
+        "COL_station_trade_pinewatch_a"
+      ],
+      "readDistanceMeters": 40,
+      "parameters": {
+        "accent": "cloth_olive_01",
+        "specialty": "timber"
+      }
+    },
+    {
+      "id": "station_trade_reedhaven_a",
+      "file": "station_trade_reedhaven_a.glb",
+      "family": "prop",
+      "generator": "trading_station",
+      "seed": 9202,
+      "dimensions": {
+        "width": 4.4,
+        "depth": 3.1,
+        "height": 3.4
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "cloth_slate_01",
+        "burlap_grain_01",
+        "metal_brass_01",
+        "stone_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 800,
+        "trianglesTarget": 4500,
+        "trianglesMax": 14000,
+        "materialsMax": 7
+      },
+      "pivot": "ground_center",
+      "collision": "compound",
+      "collisionPrimitives": [
+        {
+          "id": "workbench",
+          "center": [
+            0,
+            0.55,
+            0.55
+          ],
+          "halfExtents": [
+            1.5,
+            0.55,
+            0.45
+          ]
+        },
+        {
+          "id": "stores",
+          "center": [
+            0,
+            0.7,
+            -0.95
+          ],
+          "halfExtents": [
+            1.55,
+            0.7,
+            0.42
+          ]
+        }
+      ],
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "station_trade_reedhaven_a_root",
+      "requiredNodes": [
+        "station_trade_reedhaven_a_root",
+        "station_trade_reedhaven_a_work_surface",
+        "COL_station_trade_reedhaven_a"
+      ],
+      "readDistanceMeters": 40,
+      "parameters": {
+        "accent": "cloth_slate_01",
+        "specialty": "marsh"
+      }
+    },
+    {
+      "id": "station_trade_highridge_a",
+      "file": "station_trade_highridge_a.glb",
+      "family": "prop",
+      "generator": "trading_station",
+      "seed": 9203,
+      "dimensions": {
+        "width": 4.4,
+        "depth": 3.1,
+        "height": 3.4
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "accent_ochre_01",
+        "metal_dark_01",
+        "metal_brass_01",
+        "stone_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 800,
+        "trianglesTarget": 4500,
+        "trianglesMax": 14000,
+        "materialsMax": 7
+      },
+      "pivot": "ground_center",
+      "collision": "compound",
+      "collisionPrimitives": [
+        {
+          "id": "workbench",
+          "center": [
+            0,
+            0.55,
+            0.55
+          ],
+          "halfExtents": [
+            1.5,
+            0.55,
+            0.45
+          ]
+        },
+        {
+          "id": "stores",
+          "center": [
+            0,
+            0.7,
+            -0.95
+          ],
+          "halfExtents": [
+            1.55,
+            0.7,
+            0.42
+          ]
+        }
+      ],
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "station_trade_highridge_a_root",
+      "requiredNodes": [
+        "station_trade_highridge_a_root",
+        "station_trade_highridge_a_work_surface",
+        "COL_station_trade_highridge_a"
+      ],
+      "readDistanceMeters": 40,
+      "parameters": {
+        "accent": "accent_ochre_01",
+        "specialty": "ore"
+      }
+    },
+    {
+      "id": "station_trade_sunreach_a",
+      "file": "station_trade_sunreach_a.glb",
+      "family": "prop",
+      "generator": "trading_station",
+      "seed": 9204,
+      "dimensions": {
+        "width": 4.4,
+        "depth": 3.1,
+        "height": 3.4
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "accent_red_01",
+        "burlap_grain_01",
+        "metal_brass_01",
+        "stone_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 800,
+        "trianglesTarget": 4500,
+        "trianglesMax": 14000,
+        "materialsMax": 7
+      },
+      "pivot": "ground_center",
+      "collision": "compound",
+      "collisionPrimitives": [
+        {
+          "id": "workbench",
+          "center": [
+            0,
+            0.55,
+            0.55
+          ],
+          "halfExtents": [
+            1.5,
+            0.55,
+            0.45
+          ]
+        },
+        {
+          "id": "stores",
+          "center": [
+            0,
+            0.7,
+            -0.95
+          ],
+          "halfExtents": [
+            1.55,
+            0.7,
+            0.42
+          ]
+        }
+      ],
+      "instancing": false,
+      "lod": "medium",
+      "rootNode": "station_trade_sunreach_a_root",
+      "requiredNodes": [
+        "station_trade_sunreach_a_root",
+        "station_trade_sunreach_a_work_surface",
+        "COL_station_trade_sunreach_a"
+      ],
+      "readDistanceMeters": 40,
+      "parameters": {
+        "accent": "accent_red_01",
+        "specialty": "orchard"
+      }
+    },
+    {
+      "id": "boat_trading_ship_a",
+      "file": "boat_trading_ship_a.glb",
+      "family": "boat",
+      "generator": "trading_ship",
+      "seed": 9250,
+      "dimensions": {
+        "width": 5.2,
+        "depth": 12.3,
+        "height": 10.5
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "accent_teal_01",
+        "canvas_cream_01",
+        "metal_dark_01",
+        "metal_brass_01"
+      ],
+      "budget": {
+        "trianglesMin": 2000,
+        "trianglesTarget": 7000,
+        "trianglesMax": 18000,
+        "materialsMax": 6
+      },
+      "pivot": "buoyancy",
+      "collision": "compound",
+      "collisionPrimitives": [
+        {
+          "id": "hull_mid",
+          "center": [
+            0,
+            0.55,
+            0
+          ],
+          "halfExtents": [
+            1.95,
+            0.65,
+            3.5
+          ]
+        },
+        {
+          "id": "hull_stern",
+          "center": [
+            0,
+            0.65,
+            -4.7
+          ],
+          "halfExtents": [
+            1.6,
+            0.65,
+            1
+          ]
+        },
+        {
+          "id": "hull_bow",
+          "center": [
+            0,
+            0.8,
+            4.6
+          ],
+          "halfExtents": [
+            1,
+            0.7,
+            1
+          ]
+        }
+      ],
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "boat_trading_ship_a_root",
+      "requiredNodes": [
+        "boat_trading_ship_a_root",
+        "COL_boat_trading_ship_a",
+        "boat_trading_ship_a_cargo_01",
+        "boat_trading_ship_a_cargo_02",
+        "boat_trading_ship_a_cargo_03",
+        "boat_trading_ship_a_cargo_04",
+        "boat_trading_ship_a_cargo_05",
+        "boat_trading_ship_a_cargo_06",
+        "boat_trading_ship_a_cargo_07",
+        "boat_trading_ship_a_cargo_08",
+        "boat_trading_ship_a_cargo_09",
+        "boat_trading_ship_a_cargo_10",
+        "boat_trading_ship_a_driver_station",
+        "boat_trading_ship_a_fishing_station",
+        "boat_trading_ship_a_helm_grip_left",
+        "boat_trading_ship_a_helm_grip_right",
+        "boat_trading_ship_a_foot_left_socket",
+        "boat_trading_ship_a_foot_right_socket"
+      ],
+      "readDistanceMeters": 100,
+      "parameters": {}
+    },
+    {
+      "id": "building_cart_workshop_a",
+      "file": "building_cart_workshop_a.glb",
+      "family": "architecture",
+      "generator": "cart_workshop",
+      "seed": 9260,
+      "dimensions": {
+        "width": 12.6,
+        "depth": 10.3,
+        "height": 10.7
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_warm_01",
+        "wood_dark_01",
+        "rock_coastal_dark_01",
+        "metal_dark_01",
+        "canvas_cream_01",
+        "roof_deep_red_01",
+        "emissive_lantern_01"
+      ],
+      "budget": {
+        "trianglesMin": 6000,
+        "trianglesTarget": 12000,
+        "trianglesMax": 20000,
+        "materialsMax": 8
+      },
+      "pivot": "ground_center",
+      "collision": "compound",
+      "collisionPrimitives": [
+        {
+          "id": "back_wall",
+          "center": [
+            0,
+            2,
+            -3.7
+          ],
+          "halfExtents": [
+            5.5,
+            2,
+            0.22
+          ]
+        },
+        {
+          "id": "side_left",
+          "center": [
+            -5.25,
+            2.2,
+            0
+          ],
+          "halfExtents": [
+            0.24,
+            2.2,
+            3.7
+          ]
+        },
+        {
+          "id": "store_partition",
+          "center": [
+            0.63,
+            2.2,
+            0
+          ],
+          "halfExtents": [
+            0.24,
+            2.2,
+            3.7
+          ]
+        },
+        {
+          "id": "front_left_leaf",
+          "center": [
+            -4.2,
+            1.6,
+            3.88
+          ],
+          "halfExtents": [
+            0.73,
+            1.6,
+            0.2
+          ]
+        },
+        {
+          "id": "front_right_leaf",
+          "center": [
+            -0.45,
+            1.6,
+            3.88
+          ],
+          "halfExtents": [
+            0.64,
+            1.6,
+            0.2
+          ]
+        },
+        {
+          "id": "bay_front_post",
+          "center": [
+            5.25,
+            1.9,
+            3.7
+          ],
+          "halfExtents": [
+            0.25,
+            1.9,
+            0.25
+          ]
+        },
+        {
+          "id": "repair_cart",
+          "center": [
+            2.4,
+            1.05,
+            -0.85
+          ],
+          "halfExtents": [
+            1.3,
+            1.05,
+            1.35
+          ]
+        },
+        {
+          "id": "workbench",
+          "center": [
+            4.5,
+            0.6,
+            2.55
+          ],
+          "halfExtents": [
+            1.06,
+            0.6,
+            0.7
+          ]
+        },
+        {
+          "id": "plan_board",
+          "center": [
+            4.65,
+            2.36,
+            1.87
+          ],
+          "halfExtents": [
+            1.08,
+            0.8,
+            0.12
+          ]
+        },
+        {
+          "id": "timber_stock",
+          "center": [
+            -5.27,
+            0.77,
+            4.5
+          ],
+          "halfExtents": [
+            1.06,
+            0.77,
+            0.58
+          ]
+        }
+      ],
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "building_cart_workshop_a_root",
+      "requiredNodes": [
+        "building_cart_workshop_a_root",
+        "COL_building_cart_workshop_a",
+        "building_cart_workshop_a_LOD0",
+        "building_cart_workshop_a_LOD1",
+        "building_cart_workshop_a_LOD2"
+      ],
+      "readDistanceMeters": 100,
+      "parameters": {
+        "width": 10.5,
+        "depth": 7.4,
+        "ridgeHeight": 7.35,
+        "bayFraction": 0.44,
+        "roofOverhang": 0.58,
+        "signRadius": 0.59
+      },
+      "lodLevels": [
+        {
+          "node": "building_cart_workshop_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "building_cart_workshop_a_LOD1",
+          "distanceMeters": 45,
+          "triangleRatioMin": 0.25,
+          "triangleRatioMax": 0.68
+        },
+        {
+          "node": "building_cart_workshop_a_LOD2",
+          "distanceMeters": 85,
+          "triangleRatioMin": 0.08,
+          "triangleRatioMax": 0.4
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Authored timber wheelwright workshop with slate roof, open cart repair bay and wheel sign",
+        "sources": [
+          {
+            "id": "owner_workshop",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/cart-workshop/wheelwright-workshop.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "structure",
+              "materials",
+              "detail_density"
+            ],
+            "notes": "Owner-supplied September 27 reference. Reconstruct architecture and trade cues in Three.js; rear elevation inferred. Slate colors use the existing matte coastal-charcoal token."
+          }
+        ],
+        "components": [
+          {
+            "id": "store",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Enclosed wheelwright store and loft",
+            "shape": "Tall asymmetric gabled timber volume",
+            "count": "1",
+            "cues": [
+              "Left mass occupies just over half the post span",
+              "Real open doorway and upper loft hatch"
+            ]
+          },
+          {
+            "id": "repair_bay",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Sheltered cart repair and joinery area",
+            "shape": "Lower open lean-to with braced posts",
+            "count": "1",
+            "cues": [
+              "Open front and side between posts",
+              "Visible cart and workbench beneath roof"
+            ]
+          },
+          {
+            "id": "roof",
+            "parent": "store",
+            "importance": "primary",
+            "role": "Slate weather envelope joining both volumes",
+            "shape": "Steep gable falling into a shallower bay roof",
+            "count": "3 pitches",
+            "cues": [
+              "Broad overlapping charcoal courses with thick eaves",
+              "Ridge runs front to rear"
+            ]
+          },
+          {
+            "id": "frame",
+            "parent": "store",
+            "importance": "secondary",
+            "role": "Load bearing timber construction",
+            "shape": "Chamfered posts, plates and diagonal knee braces",
+            "count": "6 main posts",
+            "cues": [
+              "Warm honey joinery and dark iron straps",
+              "Plates and rafters share post datums"
+            ]
+          },
+          {
+            "id": "cupola",
+            "parent": "roof",
+            "importance": "secondary",
+            "role": "Workshop skyline landmark",
+            "shape": "Open framed cupola with hipped cap and forked pennant",
+            "count": "1",
+            "cues": [
+              "Cupola toward the front gable",
+              "Burgundy pennant above charcoal cap"
+            ]
+          },
+          {
+            "id": "vent",
+            "parent": "roof",
+            "importance": "secondary",
+            "role": "Daylight and ventilation for loft",
+            "shape": "Long shallow framed roof vent",
+            "count": "1",
+            "cues": [
+              "Open vertical clerestory divisions",
+              "Capped weatherproof roof"
+            ]
+          },
+          {
+            "id": "sign",
+            "parent": "store",
+            "importance": "secondary",
+            "role": "Wheelwright identity above entrance",
+            "shape": "Four thick boards with raised spoked wheel and suspension",
+            "count": "1",
+            "cues": [
+              "Oversized wheel silhouette readable from the road",
+              "Dark bracket connects the sign to the facade"
+            ]
+          },
+          {
+            "id": "cart",
+            "parent": "repair_bay",
+            "importance": "secondary",
+            "role": "Explain the workshop trade",
+            "shape": "Two-wheel timber cart on axle and support stand",
+            "count": "1",
+            "cues": [
+              "Real open spaces between spokes",
+              "Body planks supported by axle and rails"
+            ]
+          },
+          {
+            "id": "bench",
+            "parent": "repair_bay",
+            "importance": "secondary",
+            "role": "Wheelmaking work station",
+            "shape": "Heavy joiner bench, vise and cart-pattern board",
+            "count": "1",
+            "cues": [
+              "End vise and solid supported top",
+              "Tools and measured cart drawing"
+            ]
+          },
+          {
+            "id": "stock",
+            "parent": "frame",
+            "importance": "tertiary",
+            "role": "Stored replacement parts",
+            "shape": "Stacked timber, spare wheels, barrels and axle",
+            "count": "cluster",
+            "cues": [
+              "Stock rests on bearers beside the doorway",
+              "Approach lane stays open"
+            ]
+          },
+          {
+            "id": "lanterns",
+            "parent": "frame",
+            "importance": "tertiary",
+            "role": "Warm work-bay accents",
+            "shape": "Iron lantern frames with emissive cores",
+            "count": "2",
+            "cues": [
+              "Suspended from front structural members",
+              "Shared emission material without point lights"
+            ]
+          }
+        ],
+        "silhouette": [
+          "High left gable steps into a lower open repair bay on the right",
+          "Cupola, forked pennant and long clerestory break the roof line",
+          "Oversized wheel sign sits above the open sliding-door entrance"
+        ],
+        "negativeSpace": [
+          "Door opening must remain passable between the two sliding leaves",
+          "Repair bay is open at the front and along its right side",
+          "Cupola and loft vent have actual openings between the timber members"
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Rear has complete boarded walls and continuous bracing, with a practical shutter",
+            "Roof courses have closed thickness and front-to-rear support",
+            "No decorative floor slab or plinth hides the actual terrain contact"
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "wheelwright_read",
+            "componentIds": [
+              "sign",
+              "cart",
+              "bench"
+            ],
+            "requirement": "Wheel sign, repair cart and end-vise bench make the cartwright purpose readable from the display yard",
+            "priority": "must"
+          },
+          {
+            "id": "roof_gesture",
+            "componentIds": [
+              "roof",
+              "cupola",
+              "vent"
+            ],
+            "requirement": "Keep charcoal stepped roof, open cupola and burgundy pennant across every authored detail level",
+            "priority": "must"
+          },
+          {
+            "id": "approach",
+            "componentIds": [
+              "store",
+              "repair_bay",
+              "stock"
+            ],
+            "requirement": "Keep a clear doorway and front bay approach; collision boxes follow solids rather than enclosing the yard",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "width",
+            "componentIds": [
+              "store",
+              "frame",
+              "roof"
+            ],
+            "purpose": "Match the existing workshop post span and keep the replacement inside its reserved yard"
+          },
+          {
+            "parameter": "depth",
+            "componentIds": [
+              "store",
+              "repair_bay",
+              "roof"
+            ],
+            "purpose": "Control front and rear post rows and the uninterrupted approach apron"
+          },
+          {
+            "parameter": "bayFraction",
+            "componentIds": [
+              "repair_bay",
+              "store"
+            ],
+            "purpose": "Allocate the visible open workshop fraction from the measured reference composition"
+          },
+          {
+            "parameter": "ridgeHeight",
+            "componentIds": [
+              "roof",
+              "cupola",
+              "vent"
+            ],
+            "purpose": "Set the steep shop roof silhouette and supported upper details"
+          },
+          {
+            "parameter": "roofOverhang",
+            "componentIds": [
+              "roof"
+            ],
+            "purpose": "Create thick protective eaves around the structural wall datums"
+          },
+          {
+            "parameter": "signRadius",
+            "componentIds": [
+              "sign"
+            ],
+            "purpose": "Preserve the wheel emblem at normal gameplay viewing distances"
+          }
+        ],
+        "failureModes": [
+          "Monochrome wood roof loses the dark slate against warm timber",
+          "Oversized collider turns the open repair bay into an invisible wall",
+          "Unsupported cart or wheels appear to float above the terrain",
+          "Fine shingles or disconnected tiny meshes waste browser draw cost",
+          "Far LOD loses the cupola or closes the important openings"
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      }
+    },
+    {
+      "id": "prop_trade_pack_provisions_a",
+      "file": "prop_trade_pack_provisions_a.glb",
+      "family": "prop",
+      "generator": "crafted_trade_pack",
+      "seed": 8230,
+      "dimensions": {
+        "width": 0.84,
+        "depth": 0.85,
+        "height": 1.04
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "burlap_grain_01",
+        "leather_harness_01",
+        "metal_brass_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 1000,
+        "trianglesTarget": 3500,
+        "trianglesMax": 10000,
+        "materialsMax": 10
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "prop_trade_pack_provisions_a_root",
+      "requiredNodes": [
+        "prop_trade_pack_provisions_a_root",
+        "prop_trade_pack_provisions_a_LOD0",
+        "prop_trade_pack_provisions_a_LOD1"
+      ],
+      "lodLevels": [
+        {
+          "node": "prop_trade_pack_provisions_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "prop_trade_pack_provisions_a_LOD1",
+          "distanceMeters": 16,
+          "triangleRatioMin": 0.2,
+          "triangleRatioMax": 0.95
+        }
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "load": "provisions",
+        "stripeToken": "accent_ochre_01"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Portable provisions shipment on a padded timber carry frame",
+        "sources": [
+          {
+            "id": "pack_reference",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/trade-packs/trout.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "structure",
+              "materials"
+            ],
+            "notes": "Retain the reference timber frame, open cargo well, broad harness loops and front cloth. Replace the pictured fish with authored village freight; contents are a gameplay adaptation."
+          }
+        ],
+        "components": [
+          {
+            "id": "frame",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries basket weight into shoulder harness",
+            "shape": "Tall timber posts with lower runners and crossbars",
+            "count": "1",
+            "cues": [
+              "Rear posts project above open basket",
+              "Chamfered square timber and diagonal braces"
+            ]
+          },
+          {
+            "id": "basket",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Contains and supports the visible shipment",
+            "shape": "Open planked box with folded canvas liner",
+            "count": "1",
+            "cues": [
+              "Thick rolled rim and pointed front cloth",
+              "Cargo stays seated within the open well"
+            ]
+          },
+          {
+            "id": "harness",
+            "parent": "frame",
+            "importance": "secondary",
+            "role": "Makes the load recognizably portable",
+            "shape": "Two arcing leather shoulder straps and padded back",
+            "count": "2 straps",
+            "cues": [
+              "Open shoulder space behind the frame",
+              "Brass buckles attach straps to lower posts"
+            ]
+          },
+          {
+            "id": "cargo",
+            "parent": "basket",
+            "importance": "primary",
+            "role": "Identifies the provisions shipment",
+            "shape": "Tied, slumped provision sacks",
+            "count": "one filled physical load",
+            "cues": [
+              "Contents project above the rim",
+              "Species or crop silhouette remains distinct at distance"
+            ]
+          },
+          {
+            "id": "lashings",
+            "parent": "basket",
+            "importance": "secondary",
+            "role": "Secures joints and identifies working coastal equipment",
+            "shape": "Coarse rope joint wraps and bundle ties",
+            "count": "paired corner wraps",
+            "cues": [
+              "Rope lands on actual structural joints",
+              "No floating decorative micro knots"
+            ]
+          }
+        ],
+        "silhouette": [
+          "Tall paired rear posts extend above the cargo well.",
+          "Wide basket sits on two short runners below the frame.",
+          "Cargo identity projects clearly above the cream canvas rim."
+        ],
+        "negativeSpace": [
+          "Shoulder loops leave open space behind the padded frame.",
+          "The basket has an open top with visible cargo and liner."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Infer a padded rear panel between the two shoulder straps.",
+            "Continue boards and rope joints around hidden basket sides."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "frame",
+            "componentIds": [
+              "frame"
+            ],
+            "requirement": "Timber frame, braces and runners connect through credible load-bearing joints.",
+            "priority": "must"
+          },
+          {
+            "id": "cargo",
+            "componentIds": [
+              "cargo"
+            ],
+            "requirement": "Retain distinct crop or species proportions and palette blocks.",
+            "priority": "must"
+          },
+          {
+            "id": "basket",
+            "componentIds": [
+              "basket"
+            ],
+            "requirement": "Closed thick canvas folds surround an open working basket.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "load",
+            "componentIds": [
+              "cargo"
+            ],
+            "purpose": "Selects family-specific visible cargo"
+          },
+          {
+            "parameter": "stripeToken",
+            "componentIds": [
+              "basket"
+            ],
+            "purpose": "Keeps the freight cloth in its catalog palette"
+          }
+        ],
+        "failureModes": [
+          "A closed cube hides the cargo identity",
+          "The load floats above the floor",
+          "Straps fail to meet the frame",
+          "The load exceeds one wagon bay"
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "prop_trade_pack_textiles_a",
+      "file": "prop_trade_pack_textiles_a.glb",
+      "family": "prop",
+      "generator": "crafted_trade_pack",
+      "seed": 8231,
+      "dimensions": {
+        "width": 0.84,
+        "depth": 0.85,
+        "height": 1.04
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "burlap_grain_01",
+        "leather_harness_01",
+        "metal_brass_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 1000,
+        "trianglesTarget": 3500,
+        "trianglesMax": 10000,
+        "materialsMax": 10
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "prop_trade_pack_textiles_a_root",
+      "requiredNodes": [
+        "prop_trade_pack_textiles_a_root",
+        "prop_trade_pack_textiles_a_LOD0",
+        "prop_trade_pack_textiles_a_LOD1"
+      ],
+      "lodLevels": [
+        {
+          "node": "prop_trade_pack_textiles_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "prop_trade_pack_textiles_a_LOD1",
+          "distanceMeters": 16,
+          "triangleRatioMin": 0.2,
+          "triangleRatioMax": 0.95
+        }
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "load": "textiles",
+        "stripeToken": "canvas_cream_01"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Portable textiles shipment on a padded timber carry frame",
+        "sources": [
+          {
+            "id": "pack_reference",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/trade-packs/trout.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "structure",
+              "materials"
+            ],
+            "notes": "Retain the reference timber frame, open cargo well, broad harness loops and front cloth. Replace the pictured fish with authored village freight; contents are a gameplay adaptation."
+          }
+        ],
+        "components": [
+          {
+            "id": "frame",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries basket weight into shoulder harness",
+            "shape": "Tall timber posts with lower runners and crossbars",
+            "count": "1",
+            "cues": [
+              "Rear posts project above open basket",
+              "Chamfered square timber and diagonal braces"
+            ]
+          },
+          {
+            "id": "basket",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Contains and supports the visible shipment",
+            "shape": "Open planked box with folded canvas liner",
+            "count": "1",
+            "cues": [
+              "Thick rolled rim and pointed front cloth",
+              "Cargo stays seated within the open well"
+            ]
+          },
+          {
+            "id": "harness",
+            "parent": "frame",
+            "importance": "secondary",
+            "role": "Makes the load recognizably portable",
+            "shape": "Two arcing leather shoulder straps and padded back",
+            "count": "2 straps",
+            "cues": [
+              "Open shoulder space behind the frame",
+              "Brass buckles attach straps to lower posts"
+            ]
+          },
+          {
+            "id": "cargo",
+            "parent": "basket",
+            "importance": "primary",
+            "role": "Identifies the textiles shipment",
+            "shape": "Stacked rolls with bound rims and visible cores",
+            "count": "one filled physical load",
+            "cues": [
+              "Contents project above the rim",
+              "Species or crop silhouette remains distinct at distance"
+            ]
+          },
+          {
+            "id": "lashings",
+            "parent": "basket",
+            "importance": "secondary",
+            "role": "Secures joints and identifies working coastal equipment",
+            "shape": "Coarse rope joint wraps and bundle ties",
+            "count": "paired corner wraps",
+            "cues": [
+              "Rope lands on actual structural joints",
+              "No floating decorative micro knots"
+            ]
+          }
+        ],
+        "silhouette": [
+          "Tall paired rear posts extend above the cargo well.",
+          "Wide basket sits on two short runners below the frame.",
+          "Cargo identity projects clearly above the cream canvas rim."
+        ],
+        "negativeSpace": [
+          "Shoulder loops leave open space behind the padded frame.",
+          "The basket has an open top with visible cargo and liner."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Infer a padded rear panel between the two shoulder straps.",
+            "Continue boards and rope joints around hidden basket sides."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "frame",
+            "componentIds": [
+              "frame"
+            ],
+            "requirement": "Timber frame, braces and runners connect through credible load-bearing joints.",
+            "priority": "must"
+          },
+          {
+            "id": "cargo",
+            "componentIds": [
+              "cargo"
+            ],
+            "requirement": "Retain distinct crop or species proportions and palette blocks.",
+            "priority": "must"
+          },
+          {
+            "id": "basket",
+            "componentIds": [
+              "basket"
+            ],
+            "requirement": "Closed thick canvas folds surround an open working basket.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "load",
+            "componentIds": [
+              "cargo"
+            ],
+            "purpose": "Selects family-specific visible cargo"
+          },
+          {
+            "parameter": "stripeToken",
+            "componentIds": [
+              "basket"
+            ],
+            "purpose": "Keeps the freight cloth in its catalog palette"
+          }
+        ],
+        "failureModes": [
+          "A closed cube hides the cargo identity",
+          "The load floats above the floor",
+          "Straps fail to meet the frame",
+          "The load exceeds one wagon bay"
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "prop_trade_pack_workshop_a",
+      "file": "prop_trade_pack_workshop_a.glb",
+      "family": "prop",
+      "generator": "crafted_trade_pack",
+      "seed": 8232,
+      "dimensions": {
+        "width": 0.84,
+        "depth": 0.85,
+        "height": 1.04
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "burlap_grain_01",
+        "leather_harness_01",
+        "metal_brass_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 1000,
+        "trianglesTarget": 3500,
+        "trianglesMax": 10000,
+        "materialsMax": 10
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "prop_trade_pack_workshop_a_root",
+      "requiredNodes": [
+        "prop_trade_pack_workshop_a_root",
+        "prop_trade_pack_workshop_a_LOD0",
+        "prop_trade_pack_workshop_a_LOD1"
+      ],
+      "lodLevels": [
+        {
+          "node": "prop_trade_pack_workshop_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "prop_trade_pack_workshop_a_LOD1",
+          "distanceMeters": 16,
+          "triangleRatioMin": 0.2,
+          "triangleRatioMax": 0.95
+        }
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "load": "workshop",
+        "stripeToken": "leather_harness_01"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Portable workshop shipment on a padded timber carry frame",
+        "sources": [
+          {
+            "id": "pack_reference",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/trade-packs/trout.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "structure",
+              "materials"
+            ],
+            "notes": "Retain the reference timber frame, open cargo well, broad harness loops and front cloth. Replace the pictured fish with authored village freight; contents are a gameplay adaptation."
+          }
+        ],
+        "components": [
+          {
+            "id": "frame",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries basket weight into shoulder harness",
+            "shape": "Tall timber posts with lower runners and crossbars",
+            "count": "1",
+            "cues": [
+              "Rear posts project above open basket",
+              "Chamfered square timber and diagonal braces"
+            ]
+          },
+          {
+            "id": "basket",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Contains and supports the visible shipment",
+            "shape": "Open planked box with folded canvas liner",
+            "count": "1",
+            "cues": [
+              "Thick rolled rim and pointed front cloth",
+              "Cargo stays seated within the open well"
+            ]
+          },
+          {
+            "id": "harness",
+            "parent": "frame",
+            "importance": "secondary",
+            "role": "Makes the load recognizably portable",
+            "shape": "Two arcing leather shoulder straps and padded back",
+            "count": "2 straps",
+            "cues": [
+              "Open shoulder space behind the frame",
+              "Brass buckles attach straps to lower posts"
+            ]
+          },
+          {
+            "id": "cargo",
+            "parent": "basket",
+            "importance": "primary",
+            "role": "Identifies the workshop shipment",
+            "shape": "Bound metal bars and fittings",
+            "count": "one filled physical load",
+            "cues": [
+              "Contents project above the rim",
+              "Species or crop silhouette remains distinct at distance"
+            ]
+          },
+          {
+            "id": "lashings",
+            "parent": "basket",
+            "importance": "secondary",
+            "role": "Secures joints and identifies working coastal equipment",
+            "shape": "Coarse rope joint wraps and bundle ties",
+            "count": "paired corner wraps",
+            "cues": [
+              "Rope lands on actual structural joints",
+              "No floating decorative micro knots"
+            ]
+          }
+        ],
+        "silhouette": [
+          "Tall paired rear posts extend above the cargo well.",
+          "Wide basket sits on two short runners below the frame.",
+          "Cargo identity projects clearly above the cream canvas rim."
+        ],
+        "negativeSpace": [
+          "Shoulder loops leave open space behind the padded frame.",
+          "The basket has an open top with visible cargo and liner."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Infer a padded rear panel between the two shoulder straps.",
+            "Continue boards and rope joints around hidden basket sides."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "frame",
+            "componentIds": [
+              "frame"
+            ],
+            "requirement": "Timber frame, braces and runners connect through credible load-bearing joints.",
+            "priority": "must"
+          },
+          {
+            "id": "cargo",
+            "componentIds": [
+              "cargo"
+            ],
+            "requirement": "Retain distinct crop or species proportions and palette blocks.",
+            "priority": "must"
+          },
+          {
+            "id": "basket",
+            "componentIds": [
+              "basket"
+            ],
+            "requirement": "Closed thick canvas folds surround an open working basket.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "load",
+            "componentIds": [
+              "cargo"
+            ],
+            "purpose": "Selects family-specific visible cargo"
+          },
+          {
+            "parameter": "stripeToken",
+            "componentIds": [
+              "basket"
+            ],
+            "purpose": "Keeps the freight cloth in its catalog palette"
+          }
+        ],
+        "failureModes": [
+          "A closed cube hides the cargo identity",
+          "The load floats above the floor",
+          "Straps fail to meet the frame",
+          "The load exceeds one wagon bay"
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "prop_trade_pack_maritime_a",
+      "file": "prop_trade_pack_maritime_a.glb",
+      "family": "prop",
+      "generator": "crafted_trade_pack",
+      "seed": 8233,
+      "dimensions": {
+        "width": 0.84,
+        "depth": 0.85,
+        "height": 1.04
+      },
+      "palette": [
+        "wood_honey_01",
+        "wood_dark_01",
+        "canvas_cream_01",
+        "burlap_grain_01",
+        "leather_harness_01",
+        "metal_brass_01",
+        "accent_ochre_01"
+      ],
+      "budget": {
+        "trianglesMin": 1000,
+        "trianglesTarget": 3500,
+        "trianglesMax": 10000,
+        "materialsMax": 10
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "prop_trade_pack_maritime_a_root",
+      "requiredNodes": [
+        "prop_trade_pack_maritime_a_root",
+        "prop_trade_pack_maritime_a_LOD0",
+        "prop_trade_pack_maritime_a_LOD1"
+      ],
+      "lodLevels": [
+        {
+          "node": "prop_trade_pack_maritime_a_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "prop_trade_pack_maritime_a_LOD1",
+          "distanceMeters": 16,
+          "triangleRatioMin": 0.2,
+          "triangleRatioMax": 0.95
+        }
+      ],
+      "readDistanceMeters": 15,
+      "parameters": {
+        "load": "maritime",
+        "stripeToken": "burlap_grain_01"
+      },
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Portable maritime shipment on a padded timber carry frame",
+        "sources": [
+          {
+            "id": "pack_reference",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/trade-packs/trout.png",
+            "use": [
+              "form_language",
+              "silhouette",
+              "proportion",
+              "structure",
+              "materials"
+            ],
+            "notes": "Retain the reference timber frame, open cargo well, broad harness loops and front cloth. Replace the pictured fish with authored village freight; contents are a gameplay adaptation."
+          }
+        ],
+        "components": [
+          {
+            "id": "frame",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Carries basket weight into shoulder harness",
+            "shape": "Tall timber posts with lower runners and crossbars",
+            "count": "1",
+            "cues": [
+              "Rear posts project above open basket",
+              "Chamfered square timber and diagonal braces"
+            ]
+          },
+          {
+            "id": "basket",
+            "parent": "frame",
+            "importance": "primary",
+            "role": "Contains and supports the visible shipment",
+            "shape": "Open planked box with folded canvas liner",
+            "count": "1",
+            "cues": [
+              "Thick rolled rim and pointed front cloth",
+              "Cargo stays seated within the open well"
+            ]
+          },
+          {
+            "id": "harness",
+            "parent": "frame",
+            "importance": "secondary",
+            "role": "Makes the load recognizably portable",
+            "shape": "Two arcing leather shoulder straps and padded back",
+            "count": "2 straps",
+            "cues": [
+              "Open shoulder space behind the frame",
+              "Brass buckles attach straps to lower posts"
+            ]
+          },
+          {
+            "id": "cargo",
+            "parent": "basket",
+            "importance": "primary",
+            "role": "Identifies the maritime shipment",
+            "shape": "Coiled rope, packed canvas and a cork float",
+            "count": "one filled physical load",
+            "cues": [
+              "Contents project above the rim",
+              "Species or crop silhouette remains distinct at distance"
+            ]
+          },
+          {
+            "id": "lashings",
+            "parent": "basket",
+            "importance": "secondary",
+            "role": "Secures joints and identifies working coastal equipment",
+            "shape": "Coarse rope joint wraps and bundle ties",
+            "count": "paired corner wraps",
+            "cues": [
+              "Rope lands on actual structural joints",
+              "No floating decorative micro knots"
+            ]
+          }
+        ],
+        "silhouette": [
+          "Tall paired rear posts extend above the cargo well.",
+          "Wide basket sits on two short runners below the frame.",
+          "Cargo identity projects clearly above the cream canvas rim."
+        ],
+        "negativeSpace": [
+          "Shoulder loops leave open space behind the padded frame.",
+          "The basket has an open top with visible cargo and liner."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Infer a padded rear panel between the two shoulder straps.",
+            "Continue boards and rope joints around hidden basket sides."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "frame",
+            "componentIds": [
+              "frame"
+            ],
+            "requirement": "Timber frame, braces and runners connect through credible load-bearing joints.",
+            "priority": "must"
+          },
+          {
+            "id": "cargo",
+            "componentIds": [
+              "cargo"
+            ],
+            "requirement": "Retain distinct crop or species proportions and palette blocks.",
+            "priority": "must"
+          },
+          {
+            "id": "basket",
+            "componentIds": [
+              "basket"
+            ],
+            "requirement": "Closed thick canvas folds surround an open working basket.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "load",
+            "componentIds": [
+              "cargo"
+            ],
+            "purpose": "Selects family-specific visible cargo"
+          },
+          {
+            "parameter": "stripeToken",
+            "componentIds": [
+              "basket"
+            ],
+            "purpose": "Keeps the freight cloth in its catalog palette"
+          }
+        ],
+        "failureModes": [
+          "A closed cube hides the cargo identity",
+          "The load floats above the floor",
+          "Straps fail to meet the frame",
+          "The load exceeds one wagon bay"
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance"
+        ]
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "dock_harbor_main_a",
+      "file": "dock_harbor_main_a.glb",
+      "family": "architecture",
+      "generator": "working_dock",
+      "seed": 233,
+      "dimensions": {
+        "width": 50.2,
+        "depth": 7.8,
+        "height": 3.2
+      },
+      "palette": [
+        "wood_coastal_01",
+        "wood_coastal_dark_01",
+        "accent_red_01",
+        "canvas_cream_01",
+        "wood_dark_01",
+        "stone_coastal_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 500,
+        "trianglesTarget": 6000,
+        "trianglesMax": 18000,
+        "materialsMax": 6
+      },
+      "pivot": "ground_center",
+      "collision": "compound",
+      "instancing": false,
+      "lod": "hero",
+      "rootNode": "dock_harbor_main_a_root",
+      "requiredNodes": [
+        "dock_harbor_main_a_root",
+        "COL_dock_harbor_main_a"
+      ],
+      "readDistanceMeters": 65,
+      "parameters": {
+        "length": 48,
+        "width": 7.2,
+        "canopy": false,
+        "deckPlanks": 72,
+        "pileRows": 15
+      },
+      "collisionPrimitives": [
+        {
+          "id": "deck",
+          "center": [
+            0,
+            2.5,
+            0
+          ],
+          "halfExtents": [
+            24,
+            0.18,
+            3.6
+          ]
+        },
+        {
+          "id": "substructure",
+          "center": [
+            0,
+            1.16,
+            0
+          ],
+          "halfExtents": [
+            24,
+            1.16,
+            3.6
+          ]
+        },
+        {
+          "id": "stair_00",
+          "center": [
+            24.16,
+            2.53,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
+          ]
+        },
+        {
+          "id": "stair_01",
+          "center": [
+            24.5,
+            2.3499999999999996,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
+          ]
+        },
+        {
+          "id": "stair_02",
+          "center": [
+            24.84,
+            2.17,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
+          ]
+        },
+        {
+          "id": "stair_03",
+          "center": [
+            25.18,
+            1.9899999999999998,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
+          ]
+        },
+        {
+          "id": "stair_04",
+          "center": [
+            25.52,
+            1.8099999999999998,
+            0
+          ],
+          "halfExtents": [
+            0.19,
+            0.08,
+            1.7
+          ]
+        }
+      ],
+      "referenceAuthoring": {
+        "status": "ready",
+        "subject": "Long working harbor pier with cargo handling along its edges and three clear vessel berths",
+        "sources": [
+          {
+            "id": "user_coastal_video",
+            "kind": "visual_reference",
+            "uri": "repo://art/references/harbor-coast/rocks-49s.png",
+            "use": [
+              "silhouette",
+              "proportion",
+              "structure",
+              "materials"
+            ],
+            "notes": "Frame extracted from the user supplied 58-second coastal video. Scene relationships and construction are evidence; UI labels are not Neva names."
+          }
+        ],
+        "components": [
+          {
+            "id": "deck",
+            "parent": "root",
+            "importance": "primary",
+            "role": "Walkable landing",
+            "shape": "Separate weathered planks",
+            "count": "1",
+            "cues": [
+              "The deck and stairs retain their gameplay support elevations."
+            ]
+          },
+          {
+            "id": "pilings",
+            "parent": "deck",
+            "importance": "primary",
+            "role": "Water contact and support",
+            "shape": "Paired load-bearing posts",
+            "count": "15 pairs",
+            "cues": [
+              "Open water is visible under the timber landing."
+            ]
+          },
+          {
+            "id": "fittings",
+            "parent": "deck",
+            "importance": "secondary",
+            "role": "Existing harbor function",
+            "shape": "Cleats, ladder and restrained rope",
+            "count": "several",
+            "cues": [
+              "Simple fittings keep the boarding edge readable."
+            ]
+          }
+        ],
+        "silhouette": [
+          "The deck and stairs retain their gameplay support elevations.",
+          "Open water is visible under the timber landing.",
+          "Simple fittings keep the boarding edge readable."
+        ],
+        "negativeSpace": [
+          "Keep the main structural openings readable from the normal gameplay camera.",
+          "Preserve asymmetric gaps rather than filling the bounding volume."
+        ],
+        "hiddenSurfaces": {
+          "strategy": "structural_continuity",
+          "confidence": "medium",
+          "requirements": [
+            "Complete rear and underside construction consistently with the visible reference.",
+            "No fixed sunlight is baked into vertex colors."
+          ]
+        },
+        "criticalFeatures": [
+          {
+            "id": "deck_read",
+            "componentIds": [
+              "deck"
+            ],
+            "requirement": "The deck and stairs retain their gameplay support elevations.",
+            "priority": "must"
+          },
+          {
+            "id": "pilings_read",
+            "componentIds": [
+              "pilings"
+            ],
+            "requirement": "Open water is visible under the timber landing.",
+            "priority": "must"
+          },
+          {
+            "id": "fittings_read",
+            "componentIds": [
+              "fittings"
+            ],
+            "requirement": "Simple fittings keep the boarding edge readable.",
+            "priority": "must"
+          }
+        ],
+        "parameterBindings": [
+          {
+            "parameter": "length",
+            "componentIds": [
+              "deck",
+              "pilings",
+              "fittings"
+            ],
+            "purpose": "Controls authored length and preserves the reference scale relationships."
+          },
+          {
+            "parameter": "width",
+            "componentIds": [
+              "deck",
+              "pilings",
+              "fittings"
+            ],
+            "purpose": "Controls authored width and preserves the reference scale relationships."
+          },
+          {
+            "parameter": "canopy",
+            "componentIds": [
+              "deck",
+              "pilings",
+              "fittings"
+            ],
+            "purpose": "Controls authored canopy and preserves the reference scale relationships."
+          },
+          {
+            "parameter": "deckPlanks",
+            "componentIds": [
+              "deck",
+              "pilings",
+              "fittings"
+            ],
+            "purpose": "Controls authored deckPlanks and preserves the reference scale relationships."
+          },
+          {
+            "parameter": "pileRows",
+            "componentIds": [
+              "deck",
+              "pilings",
+              "fittings"
+            ],
+            "purpose": "Controls authored pileRows and preserves the reference scale relationships."
+          }
+        ],
+        "failureModes": [
+          "Uniform primitive silhouettes without structural hierarchy.",
+          "Inconsistent scale or material gloss beside Neva characters.",
+          "Important openings disappear in the gameplay camera."
+        ],
+        "reviewViews": [
+          "front",
+          "rear",
+          "side",
+          "three_quarter",
+          "gameplay_8m",
+          "gameplay_15m",
+          "gameplay_read_distance",
+          "close_material"
+        ]
+      },
+      "surfaceAuthoring": {
+        "normalPolicy": "authored",
+        "facetColors": "rest_face"
+      }
+    },
+    {
+      "id": "char_npc_tomas_b",
+      "file": "char_npc_tomas_b.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.4901119470596313,
+        "depth": 0.45417483150959015,
+        "height": 1.9490484573031637
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_tomas_b_root",
+      "requiredNodes": [
+        "char_npc_tomas_b_root",
+        "char_npc_tomas_b_rig",
+        "char_npc_tomas_b_body",
+        "char_npc_tomas_b_hand_socket_left",
+        "char_npc_tomas_b_hand_socket_right"
+      ],
+      "rigNode": "char_npc_tomas_b_rig",
+      "socketNodes": [
+        "char_npc_tomas_b_hand_socket_left",
+        "char_npc_tomas_b_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "greet_03",
+          "durationSeconds": 9.083333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "greet_03.001",
+            "sourceDurationSeconds": 9.083333333333334
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "wait",
+          "durationSeconds": 6.0,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wait.001",
+            "sourceDurationSeconds": 6.0
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        },
+        {
+          "name": "wave_goodbye_02",
+          "durationSeconds": 5.875,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wave_goodbye_02.001",
+            "sourceDurationSeconds": 5.875
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_tomas_b.blend",
+        "sourceCollection": "char_npc_tomas_b"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "23e8a64d-49ea-4444-b8a5-ece7f1a15fe4",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_tomas_b.blend",
+        "sourceSha256": "a550239819380847ee4f92d394e413df875e9ba84aeb0ea21a9d09ded1ed9017",
+        "attribution": "Local tomas B-cast Tripo capture, retaining the source rig and all native performances."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_tomas_b.glb",
+        "sourceSha256": "43d56acf7342eda7d097074a29b9937964e69b6e3ae0ccfeca16bd365846e6dc",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_23e8a64d-49ea-4444-b8a5-ece7f1a15fe4",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        },
+        "uniformScale": 1.95
+      }
+    },
+    {
+      "id": "char_npc_ambient_male_01",
+      "file": "char_npc_ambient_male_01.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.421337604522705,
+        "depth": 0.43321290612220764,
+        "height": 1.885132362002409
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_ambient_male_01_root",
+      "requiredNodes": [
+        "char_npc_ambient_male_01_root",
+        "char_npc_ambient_male_01_rig",
+        "char_npc_ambient_male_01_body",
+        "char_npc_ambient_male_01_hand_socket_left",
+        "char_npc_ambient_male_01_hand_socket_right"
+      ],
+      "rigNode": "char_npc_ambient_male_01_rig",
+      "socketNodes": [
+        "char_npc_ambient_male_01_hand_socket_left",
+        "char_npc_ambient_male_01_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "greet_03",
+          "durationSeconds": 9.083333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "greet_03.001",
+            "sourceDurationSeconds": 9.083333333333334
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "wait",
+          "durationSeconds": 6.0,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wait.001",
+            "sourceDurationSeconds": 6.0
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        },
+        {
+          "name": "wave_goodbye_02",
+          "durationSeconds": 5.875,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wave_goodbye_02.001",
+            "sourceDurationSeconds": 5.875
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_male_01.blend",
+        "sourceCollection": "char_npc_ambient_male_01"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "23e8a64d-49ea-4444-b8a5-ece7f1a15fe4",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_male_01.blend",
+        "sourceSha256": "4d313901ceea9e2b4498fa7f96769abb84b10ff826dd167c9488d77d9917a5b6",
+        "attribution": "Local tomas B-cast Tripo capture, retaining the source rig and all native performances. Ambient male_01: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
+      },
+      "skinnedAuthoring": {
+        "uniformScale": 1.86,
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_tomas_b.glb",
+        "sourceSha256": "43d56acf7342eda7d097074a29b9937964e69b6e3ae0ccfeca16bd365846e6dc",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_23e8a64d-49ea-4444-b8a5-ece7f1a15fe4",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        }
+      }
+    },
+    {
+      "id": "char_npc_ada_b",
+      "file": "char_npc_ada_b.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.4164258241653442,
+        "depth": 0.5553688406944275,
+        "height": 1.879082336331237
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_ada_b_root",
+      "requiredNodes": [
+        "char_npc_ada_b_root",
+        "char_npc_ada_b_rig",
+        "char_npc_ada_b_body",
+        "char_npc_ada_b_hand_socket_left",
+        "char_npc_ada_b_hand_socket_right"
+      ],
+      "rigNode": "char_npc_ada_b_rig",
+      "socketNodes": [
+        "char_npc_ada_b_hand_socket_left",
+        "char_npc_ada_b_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "greet_02",
+          "durationSeconds": 5.583333333333333,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "greet_02.001",
+            "sourceDurationSeconds": 5.583333333333333
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "wait",
+          "durationSeconds": 6.0,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wait.001",
+            "sourceDurationSeconds": 6.0
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ada_b.blend",
+        "sourceCollection": "char_npc_ada_b"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "783143b6-95b9-4ca5-bc38-5ff9de3c519b",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ada_b.blend",
+        "sourceSha256": "bf4d4bffb32788ccde8fd3d34df83260805d96f2758ba021570982b2856bad14",
+        "attribution": "Local ada B-cast Tripo capture, retaining the source rig and all native performances."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_ada_b.glb",
+        "sourceSha256": "55c9175a6ff40290c66aed11da6371a628bc95f5e4f05b42a6507a059e7dfd3e",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_783143b6-95b9-4ca5-bc38-5ff9de3c519b",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        },
+        "uniformScale": 1.88
+      }
+    },
+    {
+      "id": "char_npc_ambient_female_01",
+      "file": "char_npc_ambient_female_01.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.3712208271026611,
+        "depth": 0.5256138741970062,
+        "height": 1.8191114267163897
+      },
+      "palette": [
+        "cloth_slate_01",
+        "hair_silver_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_ambient_female_01_root",
+      "requiredNodes": [
+        "char_npc_ambient_female_01_root",
+        "char_npc_ambient_female_01_rig",
+        "char_npc_ambient_female_01_body",
+        "char_npc_ambient_female_01_hand_socket_left",
+        "char_npc_ambient_female_01_hand_socket_right"
+      ],
+      "rigNode": "char_npc_ambient_female_01_rig",
+      "socketNodes": [
+        "char_npc_ambient_female_01_hand_socket_left",
+        "char_npc_ambient_female_01_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "laugh_02",
+          "durationSeconds": 5.583333333333333,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "laugh_02.001",
+            "sourceDurationSeconds": 5.583333333333333
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_female_01.blend",
+        "sourceCollection": "char_npc_ambient_female_01"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "d3df8b51-d9a2-4f1e-a76c-f01dc47bfcb6",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_female_01.blend",
+        "sourceSha256": "67e1420afa3eba3eb458cee6e08f6c635878e967a3dc989a076edfe949b0a269",
+        "attribution": "Local ines B-cast Tripo capture, retaining the source rig and all native performances. Ambient female_01: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
+      },
+      "skinnedAuthoring": {
+        "uniformScale": 1.82,
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_ines_b.glb",
+        "sourceSha256": "e3114eb7f0b9bed647f41e670165164e211d40795d4e46c4455a113d7c6926c3",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_d3df8b51-d9a2-4f1e-a76c-f01dc47bfcb6",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          },
+          "hair_silver_01": {
+            "sourceMaterial": "authored_headwear",
+            "token": "hair_silver_01",
+            "value": 1,
+            "texturePolicy": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "char_npc_ambient_female_02",
+      "file": "char_npc_ambient_female_02.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.437163531780243,
+        "depth": 0.5604927837848663,
+        "height": 1.9358077998077192
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_ambient_female_02_root",
+      "requiredNodes": [
+        "char_npc_ambient_female_02_root",
+        "char_npc_ambient_female_02_rig",
+        "char_npc_ambient_female_02_body",
+        "char_npc_ambient_female_02_hand_socket_left",
+        "char_npc_ambient_female_02_hand_socket_right"
+      ],
+      "rigNode": "char_npc_ambient_female_02_rig",
+      "socketNodes": [
+        "char_npc_ambient_female_02_hand_socket_left",
+        "char_npc_ambient_female_02_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "greet_02",
+          "durationSeconds": 5.583333333333333,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "greet_02.001",
+            "sourceDurationSeconds": 5.583333333333333
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "wait",
+          "durationSeconds": 6.0,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wait.001",
+            "sourceDurationSeconds": 6.0
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        },
+        {
+          "name": "wave_goodbye_02",
+          "durationSeconds": 5.875,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wave_goodbye_02.001",
+            "sourceDurationSeconds": 5.875
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_female_02.blend",
+        "sourceCollection": "char_npc_ambient_female_02"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "4b3ffbaf-2b08-43f0-877f-40db2af23867",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_female_02.blend",
+        "sourceSha256": "d414cf79f29cc0664d334d632f8923e4018b35bf628f6370dd4db2af7c1fd306",
+        "attribution": "Local mara B-cast Tripo capture, retaining the source rig and all native performances. Ambient female_02: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
+      },
+      "skinnedAuthoring": {
+        "uniformScale": 1.91,
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_mara_b.glb",
+        "sourceSha256": "cbd4875b7e9dd6e7a721b869f45775468cb0d748baa5b9e95ebacb070e77e366",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_4b3ffbaf-2b08-43f0-877f-40db2af23867",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        }
+      }
+    },
+    {
+      "id": "char_npc_ambient_female_03",
+      "file": "char_npc_ambient_female_03.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.3410840034484863,
+        "depth": 0.525827944278717,
+        "height": 1.779131055651078
+      },
+      "palette": [
+        "cloth_slate_01",
+        "hair_brown_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_ambient_female_03_root",
+      "requiredNodes": [
+        "char_npc_ambient_female_03_root",
+        "char_npc_ambient_female_03_rig",
+        "char_npc_ambient_female_03_body",
+        "char_npc_ambient_female_03_hand_socket_left",
+        "char_npc_ambient_female_03_hand_socket_right"
+      ],
+      "rigNode": "char_npc_ambient_female_03_rig",
+      "socketNodes": [
+        "char_npc_ambient_female_03_hand_socket_left",
+        "char_npc_ambient_female_03_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "greet_02",
+          "durationSeconds": 5.583333333333333,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "greet_02.001",
+            "sourceDurationSeconds": 5.583333333333333
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "wait",
+          "durationSeconds": 6.0,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wait.001",
+            "sourceDurationSeconds": 6.0
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_female_03.blend",
+        "sourceCollection": "char_npc_ambient_female_03"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "783143b6-95b9-4ca5-bc38-5ff9de3c519b",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_female_03.blend",
+        "sourceSha256": "4924dc65018f58f53a6884c8befd552885887a36467b949a6d39e3f99a16a5b8",
+        "attribution": "Local ada B-cast Tripo capture, retaining the source rig and all native performances. Ambient female_03: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
+      },
+      "skinnedAuthoring": {
+        "uniformScale": 1.78,
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_ada_b.glb",
+        "sourceSha256": "55c9175a6ff40290c66aed11da6371a628bc95f5e4f05b42a6507a059e7dfd3e",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_783143b6-95b9-4ca5-bc38-5ff9de3c519b",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          },
+          "hair_brown_01": {
+            "sourceMaterial": "authored_headwear",
+            "token": "hair_brown_01",
+            "value": 1,
+            "texturePolicy": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "char_npc_ambient_male_02",
+      "file": "char_npc_ambient_male_02.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.5478413701057434,
+        "depth": 0.4186229109764099,
+        "height": 2.0067537491156315
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_ambient_male_02_root",
+      "requiredNodes": [
+        "char_npc_ambient_male_02_root",
+        "char_npc_ambient_male_02_rig",
+        "char_npc_ambient_male_02_body",
+        "char_npc_ambient_male_02_hand_socket_left",
+        "char_npc_ambient_male_02_hand_socket_right"
+      ],
+      "rigNode": "char_npc_ambient_male_02_rig",
+      "socketNodes": [
+        "char_npc_ambient_male_02_hand_socket_left",
+        "char_npc_ambient_male_02_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "wait",
+          "durationSeconds": 6.0,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wait.001",
+            "sourceDurationSeconds": 6.0
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_male_02.blend",
+        "sourceCollection": "char_npc_ambient_male_02"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "93a2df71-a4a2-4c72-933f-7ee25776cb30",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_male_02.blend",
+        "sourceSha256": "5d3a0ce8441e2fcefc5cda92ddbd270ee5e7b603a3c413659ed9cf9bbbfbfc2d",
+        "attribution": "Local rowan B-cast Tripo capture, retaining the source rig and all native performances. Ambient male_02: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
+      },
+      "skinnedAuthoring": {
+        "uniformScale": 1.98,
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_rowan_b.glb",
+        "sourceSha256": "420988597997c10d7aa869d7454dc2cfae631296a86622364fe1e16e440fd26e",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_93a2df71-a4a2-4c72-933f-7ee25776cb30",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        }
+      }
+    },
+    {
+      "id": "char_npc_ambient_male_03",
+      "file": "char_npc_ambient_male_03.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.3836622834205627,
+        "depth": 0.4861031025648117,
+        "height": 1.8445916544989416
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_ambient_male_03_root",
+      "requiredNodes": [
+        "char_npc_ambient_male_03_root",
+        "char_npc_ambient_male_03_rig",
+        "char_npc_ambient_male_03_body",
+        "char_npc_ambient_male_03_hand_socket_left",
+        "char_npc_ambient_male_03_hand_socket_right"
+      ],
+      "rigNode": "char_npc_ambient_male_03_rig",
+      "socketNodes": [
+        "char_npc_ambient_male_03_hand_socket_left",
+        "char_npc_ambient_male_03_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "frustrated_01",
+          "durationSeconds": 3.5416666666666665,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "frustrated_01.001",
+            "sourceDurationSeconds": 3.5416666666666665
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "scratch",
+          "durationSeconds": 13.791666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "scratch.001",
+            "sourceDurationSeconds": 13.791666666666666
+          }
+        },
+        {
+          "name": "sit",
+          "durationSeconds": 7.166666666666667,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "sit.001",
+            "sourceDurationSeconds": 7.166666666666667
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_male_03.blend",
+        "sourceCollection": "char_npc_ambient_male_03"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "48e5390a-84cf-4005-8aa6-b781cb23a7fb",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ambient_male_03.blend",
+        "sourceSha256": "e8c23c192e32c89fd1615add27922280a2814d5a810b315af59b739adb121133",
+        "attribution": "Local silas B-cast Tripo capture, retaining the source rig and all native performances. Ambient male_03: palette outfit, hair and headwear adapted by adapt_npc_variants.py."
+      },
+      "skinnedAuthoring": {
+        "uniformScale": 1.82,
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_silas_b.glb",
+        "sourceSha256": "8c4f7b9cb8d0cbba75169ad2159a988e4620273a73abdd62f0210d6116bf9ca4",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_48e5390a-84cf-4005-8aa6-b781cb23a7fb",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        }
+      }
+    },
+    {
+      "id": "char_npc_barnaby_b",
+      "file": "char_npc_barnaby_b.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.5146487951278687,
+        "depth": 0.4306642860174179,
+        "height": 1.9990236316792647
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_barnaby_b_root",
+      "requiredNodes": [
+        "char_npc_barnaby_b_root",
+        "char_npc_barnaby_b_rig",
+        "char_npc_barnaby_b_body",
+        "char_npc_barnaby_b_hand_socket_left",
+        "char_npc_barnaby_b_hand_socket_right"
+      ],
+      "rigNode": "char_npc_barnaby_b_rig",
+      "socketNodes": [
+        "char_npc_barnaby_b_hand_socket_left",
+        "char_npc_barnaby_b_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "cheer",
+          "durationSeconds": 12.083333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "cheer.001",
+            "sourceDurationSeconds": 12.083333333333334
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "dig",
+          "durationSeconds": 16.374998982747396,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "dig.001",
+            "sourceDurationSeconds": 16.374998982747396
+          }
+        },
+        {
+          "name": "greet_01",
+          "durationSeconds": 3.5,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "greet_01.001",
+            "sourceDurationSeconds": 3.5
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "scratch",
+          "durationSeconds": 13.791666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "scratch.001",
+            "sourceDurationSeconds": 13.791666666666666
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        },
+        {
+          "name": "wave_goodbye_02",
+          "durationSeconds": 5.875,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wave_goodbye_02.001",
+            "sourceDurationSeconds": 5.875
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_barnaby_b.blend",
+        "sourceCollection": "char_npc_barnaby_b"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "a0b21f3b-5408-4883-b3b3-f51457035066",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_barnaby_b.blend",
+        "sourceSha256": "3bb8a784fe6365497b4a253eb6970c5785e7bfd7f5fcde99a190d840c5caf019",
+        "attribution": "Local barnaby B-cast Tripo capture, retaining the source rig and all native performances."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_barnaby_b.glb",
+        "sourceSha256": "9201a7bd27cd70fe72ea483a8560ac1eb23f21dc14c2a8dd1be0f271d8b6231d",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_a0b21f3b-5408-4883-b3b3-f51457035066",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        },
+        "uniformScale": 2
+      }
+    },
+    {
+      "id": "char_npc_elspeth_b",
+      "file": "char_npc_elspeth_b.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.4710690379142761,
+        "depth": 0.7379151582717896,
+        "height": 1.9490478689290711
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_elspeth_b_root",
+      "requiredNodes": [
+        "char_npc_elspeth_b_root",
+        "char_npc_elspeth_b_rig",
+        "char_npc_elspeth_b_body",
+        "char_npc_elspeth_b_hand_socket_left",
+        "char_npc_elspeth_b_hand_socket_right"
+      ],
+      "rigNode": "char_npc_elspeth_b_rig",
+      "socketNodes": [
+        "char_npc_elspeth_b_hand_socket_left",
+        "char_npc_elspeth_b_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "complain_02",
+          "durationSeconds": 8.375000508626302,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "complain_02.001",
+            "sourceDurationSeconds": 8.375000508626302
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "sit",
+          "durationSeconds": 7.166666666666667,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "sit.001",
+            "sourceDurationSeconds": 7.166666666666667
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_elspeth_b.blend",
+        "sourceCollection": "char_npc_elspeth_b"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "39fca6b6-0f2a-4182-980a-6b4928a26a47",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_elspeth_b.blend",
+        "sourceSha256": "f804450fec21311bc48a06c891c3750b51835cc75588d71f53370d31c05db6d7",
+        "attribution": "Local elspeth B-cast Tripo capture, retaining the source rig and all native performances."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_elspeth_b.glb",
+        "sourceSha256": "8e972bdfd8de05dc900ef36aeecde256910aa1997f362638db55bf0ca108cdc4",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_39fca6b6-0f2a-4182-980a-6b4928a26a47",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        },
+        "uniformScale": 1.95
+      }
+    },
+    {
+      "id": "char_npc_ines_b",
+      "file": "char_npc_ines_b.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.4691651463508606,
+        "depth": 0.5608153641223907,
+        "height": 1.9490480168007878
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_ines_b_root",
+      "requiredNodes": [
+        "char_npc_ines_b_root",
+        "char_npc_ines_b_rig",
+        "char_npc_ines_b_body",
+        "char_npc_ines_b_hand_socket_left",
+        "char_npc_ines_b_hand_socket_right"
+      ],
+      "rigNode": "char_npc_ines_b_rig",
+      "socketNodes": [
+        "char_npc_ines_b_hand_socket_left",
+        "char_npc_ines_b_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "laugh_02",
+          "durationSeconds": 5.583333333333333,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "laugh_02.001",
+            "sourceDurationSeconds": 5.583333333333333
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ines_b.blend",
+        "sourceCollection": "char_npc_ines_b"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "d3df8b51-d9a2-4f1e-a76c-f01dc47bfcb6",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_ines_b.blend",
+        "sourceSha256": "a3604f4f9e69946af82f6870a6a7357be38851fa7a436b752ba67b4d865801bc",
+        "attribution": "Local ines B-cast Tripo capture, retaining the source rig and all native performances."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_ines_b.glb",
+        "sourceSha256": "e3114eb7f0b9bed647f41e670165164e211d40795d4e46c4455a113d7c6926c3",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_d3df8b51-d9a2-4f1e-a76c-f01dc47bfcb6",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        },
+        "uniformScale": 1.95
+      }
+    },
+    {
+      "id": "char_npc_maeve_b",
+      "file": "char_npc_maeve_b.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.4219334125518799,
+        "depth": 0.7077535092830658,
+        "height": 1.879082187798474
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_maeve_b_root",
+      "requiredNodes": [
+        "char_npc_maeve_b_root",
+        "char_npc_maeve_b_rig",
+        "char_npc_maeve_b_body",
+        "char_npc_maeve_b_hand_socket_left",
+        "char_npc_maeve_b_hand_socket_right"
+      ],
+      "rigNode": "char_npc_maeve_b_rig",
+      "socketNodes": [
+        "char_npc_maeve_b_hand_socket_left",
+        "char_npc_maeve_b_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "greet_02",
+          "durationSeconds": 5.583333333333333,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "greet_02.001",
+            "sourceDurationSeconds": 5.583333333333333
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "sit",
+          "durationSeconds": 7.166666666666667,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "sit.001",
+            "sourceDurationSeconds": 7.166666666666667
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "wait",
+          "durationSeconds": 6.0,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wait.001",
+            "sourceDurationSeconds": 6.0
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_maeve_b.blend",
+        "sourceCollection": "char_npc_maeve_b"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "458bd3c4-67f1-412f-b093-2373b209580d",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_maeve_b.blend",
+        "sourceSha256": "9fff56449f62576cbacc648d033a37d9de1a08db4803346727de4599f0b2ed77",
+        "attribution": "Local maeve B-cast Tripo capture, retaining the source rig and all native performances."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_maeve_b.glb",
+        "sourceSha256": "f35129b6d97bc951b74907e0e108a3ec0ea0b6a19f1d658eb12f5bcb99d83e05",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_458bd3c4-67f1-412f-b093-2373b209580d",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        },
+        "uniformScale": 1.88
+      }
+    },
+    {
+      "id": "char_npc_mara_b",
+      "file": "char_npc_mara_b.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.4296391010284424,
+        "depth": 0.5575582385063171,
+        "height": 1.899072624767399
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_mara_b_root",
+      "requiredNodes": [
+        "char_npc_mara_b_root",
+        "char_npc_mara_b_rig",
+        "char_npc_mara_b_body",
+        "char_npc_mara_b_hand_socket_left",
+        "char_npc_mara_b_hand_socket_right"
+      ],
+      "rigNode": "char_npc_mara_b_rig",
+      "socketNodes": [
+        "char_npc_mara_b_hand_socket_left",
+        "char_npc_mara_b_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "greet_02",
+          "durationSeconds": 5.583333333333333,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "greet_02.001",
+            "sourceDurationSeconds": 5.583333333333333
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "wait",
+          "durationSeconds": 6.0,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wait.001",
+            "sourceDurationSeconds": 6.0
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        },
+        {
+          "name": "wave_goodbye_02",
+          "durationSeconds": 5.875,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wave_goodbye_02.001",
+            "sourceDurationSeconds": 5.875
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_mara_b.blend",
+        "sourceCollection": "char_npc_mara_b"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "4b3ffbaf-2b08-43f0-877f-40db2af23867",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_mara_b.blend",
+        "sourceSha256": "7eb99abf7ef88cfb2ebcca69b9d188427b70809e4cf144a39d48bf1838dd0198",
+        "attribution": "Local mara B-cast Tripo capture, retaining the source rig and all native performances."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_mara_b.glb",
+        "sourceSha256": "cbd4875b7e9dd6e7a721b869f45775468cb0d748baa5b9e95ebacb070e77e366",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_4b3ffbaf-2b08-43f0-877f-40db2af23867",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        },
+        "uniformScale": 1.9
+      }
+    },
+    {
+      "id": "char_npc_rowan_b",
+      "file": "char_npc_rowan_b.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.5634761452674866,
+        "depth": 0.42285141348838806,
+        "height": 1.9990238642284908
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_rowan_b_root",
+      "requiredNodes": [
+        "char_npc_rowan_b_root",
+        "char_npc_rowan_b_rig",
+        "char_npc_rowan_b_body",
+        "char_npc_rowan_b_hand_socket_left",
+        "char_npc_rowan_b_hand_socket_right"
+      ],
+      "rigNode": "char_npc_rowan_b_rig",
+      "socketNodes": [
+        "char_npc_rowan_b_hand_socket_left",
+        "char_npc_rowan_b_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "clap",
+          "durationSeconds": 13.666666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "clap.001",
+            "sourceDurationSeconds": 13.666666666666666
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "wait",
+          "durationSeconds": 6.0,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "wait.001",
+            "sourceDurationSeconds": 6.0
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_rowan_b.blend",
+        "sourceCollection": "char_npc_rowan_b"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "93a2df71-a4a2-4c72-933f-7ee25776cb30",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_rowan_b.blend",
+        "sourceSha256": "4932a3e650fb2b7170a577d2b8ec1c436ba77aef41e420f50eb3803bfd96ac03",
+        "attribution": "Local rowan B-cast Tripo capture, retaining the source rig and all native performances."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_rowan_b.glb",
+        "sourceSha256": "420988597997c10d7aa869d7454dc2cfae631296a86622364fe1e16e440fd26e",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_93a2df71-a4a2-4c72-933f-7ee25776cb30",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        },
+        "uniformScale": 2
+      }
+    },
+    {
+      "id": "char_npc_silas_b",
+      "file": "char_npc_silas_b.glb",
+      "family": "character",
+      "generator": "imported_blend",
+      "seed": 801,
+      "dimensions": {
+        "width": 1.4444825649261475,
+        "depth": 0.5074702501296997,
+        "height": 1.8990725716627423
+      },
+      "palette": [
+        "cloth_slate_01"
+      ],
+      "budget": {
+        "trianglesMin": 7500,
+        "trianglesTarget": 18000,
+        "trianglesMax": 25000,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "char_npc_silas_b_root",
+      "requiredNodes": [
+        "char_npc_silas_b_root",
+        "char_npc_silas_b_rig",
+        "char_npc_silas_b_body",
+        "char_npc_silas_b_hand_socket_left",
+        "char_npc_silas_b_hand_socket_right"
+      ],
+      "rigNode": "char_npc_silas_b_rig",
+      "socketNodes": [
+        "char_npc_silas_b_hand_socket_left",
+        "char_npc_silas_b_hand_socket_right"
+      ],
+      "animationClips": [
+        {
+          "name": "agree",
+          "durationSeconds": 3.999999745686849,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "agree.001",
+            "sourceDurationSeconds": 3.999999745686849
+          }
+        },
+        {
+          "name": "fold_arms",
+          "durationSeconds": 17.083333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "fold_arms.001",
+            "sourceDurationSeconds": 17.083333333333332
+          }
+        },
+        {
+          "name": "frustrated_01",
+          "durationSeconds": 3.5416666666666665,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "frustrated_01.001",
+            "sourceDurationSeconds": 3.5416666666666665
+          }
+        },
+        {
+          "name": "idle",
+          "durationSeconds": 15.333333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "idle.001",
+            "sourceDurationSeconds": 15.333333333333334
+          }
+        },
+        {
+          "name": "look_around",
+          "durationSeconds": 15.583333333333334,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "look_around.001",
+            "sourceDurationSeconds": 15.583333333333334
+          }
+        },
+        {
+          "name": "scratch",
+          "durationSeconds": 13.791666666666666,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "scratch.001",
+            "sourceDurationSeconds": 13.791666666666666
+          }
+        },
+        {
+          "name": "sit",
+          "durationSeconds": 7.166666666666667,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "sit.001",
+            "sourceDurationSeconds": 7.166666666666667
+          }
+        },
+        {
+          "name": "standing_relax",
+          "durationSeconds": 17.583333333333332,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "standing_relax.001",
+            "sourceDurationSeconds": 17.583333333333332
+          }
+        },
+        {
+          "name": "walk",
+          "durationSeconds": 2.3333333333333335,
+          "loop": false,
+          "motionSource": {
+            "kind": "native",
+            "sourceTimebase": "seconds",
+            "sourceClip": "walk.001",
+            "sourceDurationSeconds": 2.3333333333333335
+          }
+        }
+      ],
+      "readDistanceMeters": 30,
+      "parameters": {
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_silas_b.blend",
+        "sourceCollection": "char_npc_silas_b"
+      },
+      "sourceProvenance": {
+        "provider": "tripo",
+        "modelId": "48e5390a-84cf-4005-8aa6-b781cb23a7fb",
+        "sourceUrl": "https://www.tripo3d.ai/",
+        "author": "Neva project owner",
+        "license": "Tripo-Terms",
+        "licenseUrl": "https://www.tripo3d.ai/terms",
+        "sourceBlend": "art/imported/tripo/npcs/char_npc_silas_b.blend",
+        "sourceSha256": "82cef4ee3991930f6e03e7117d7c6d47e8eec5c9e516247c1a9f4eca3ca5b7f2",
+        "attribution": "Local silas B-cast Tripo capture, retaining the source rig and all native performances."
+      },
+      "skinnedAuthoring": {
+        "sourceFile": "art/imported/tripo/sources/npc-b/char_npc_silas_b.glb",
+        "sourceSha256": "8c4f7b9cb8d0cbba75169ad2159a988e4620273a73abdd62f0210d6116bf9ca4",
+        "adapter": "tools/blender/adapt_npc_variants.py",
+        "materialMap": {
+          "npc_surface": {
+            "sourceMaterial": "tripo_mat_48e5390a-84cf-4005-8aa6-b781cb23a7fb",
+            "token": "cloth_slate_01",
+            "value": 1,
+            "texturePolicy": "preserve"
+          }
+        },
+        "uniformScale": 1.9
+      }
     }
   ]
 }

@@ -5,6 +5,7 @@ import { UI_ACTION, UI_MENU, UI_STATUS, UI_SUPPLIES, UI_TOOLS, UI_WORLD } from "
 import { UI_TIDEBOOK } from "../chrome/uiAtlas.generated";
 import { GuildcraftArt } from "./GuildcraftArt";
 import { playUiSound } from "../audio/uiAudio";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface SmartContextualToolbarProps {
   stance: ContextualStanceId;
@@ -23,6 +24,31 @@ export interface SmartContextualToolbarProps {
 
 const STANCE_LABELS: Record<ContextualStanceId, string> = {
   agronomy: "Agronomy", angling: "Angling", maritime: "Maritime", explorer: "Explorer"
+};
+
+const STANCE_LABELS_TR: Record<ContextualStanceId, string> = {
+  agronomy: "Tarım", angling: "Balıkçılık", maritime: "Denizcilik", explorer: "Keşif"
+};
+
+const TOOL_NAMES_TR: Record<string, string> = {
+  "Hand Tools": "El Aletleri",
+  "Seed Belt": "Tohum Kemeri",
+  "Watering Can": "Sulama Kabı",
+  "Fertilizer": "Gübre",
+  "Harvest": "Hasat",
+  "Fishing Rod": "Olta",
+  "Woven Lure": "Örme Sahte Yem",
+  "Bait Supplies": "Yemlik",
+  "Satchel": "Heybe",
+  "Helm Controls": "Dümen Kontrolleri",
+  "Cargo Hold": "Kargo Ambarı",
+  "Boat Fuel": "Tekne Yakıtı",
+  "Journal": "Saha Günlüğü",
+  "World Map": "Harita",
+  "Compost & Nutrients": "Kompost ve Besin",
+  "Harvest Basket": "Hasat Sepeti",
+  "Stow Gear": "Takımı Kaldır",
+  "Take the Helm": "Dümene Geç"
 };
 
 /**
@@ -61,6 +87,8 @@ function toolPainting(icon: ContextualHotbarSlotDto["icon"]): string {
 export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
   stance, hotbar, activeSlot, onSelectSlot, revealToken = 0, alwaysExpanded = false, className = ""
 }) => {
+  const { locale, translateReason } = useTranslation();
+  const isTr = locale === "tr";
   const [nudge, setNudge] = React.useState(0);
   const [pointerInside, setPointerInside] = React.useState(false);
   const [focusInside, setFocusInside] = React.useState(false);
@@ -100,6 +128,8 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
   // Collapsed, the belt rests on the single tool in hand
   const restingSlot = currentSlot ?? hotbar[0];
 
+  const stanceLabel = isTr ? (STANCE_LABELS_TR[stance] ?? "Keşif") : (STANCE_LABELS[stance] ?? STANCE_LABELS.explorer);
+
   return (
     <div
       className={[
@@ -109,7 +139,7 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
         className
       ].filter(Boolean).join(" ")}
       role="toolbar"
-      aria-label={`${STANCE_LABELS[stance] ?? STANCE_LABELS.explorer} Stance quickbar`}
+      aria-label={isTr ? `${stanceLabel} araç çubuğu` : `${stanceLabel} Stance quickbar`}
       aria-expanded={expanded}
       data-testid="smart-contextual-toolbar"
       data-stance={stance}
@@ -122,11 +152,13 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
       }}
       onWheel={() => setNudge((count) => count + 1)}
     >
-      <div className="guild-tool-slots" role="group" aria-label="Tool slots">
+      <div className="guild-tool-slots" role="group" aria-label={isTr ? "Araç yuvaları" : "Tool slots"}>
         {hotbar.map((slot) => {
           const selected = slot.slot === activeSlot;
           const resting = slot.slot === restingSlot.slot;
-          const slotName = slot.icon === "seeds" ? `${slot.name} (Seeds)` : slot.name;
+          const rawName = isTr ? (TOOL_NAMES_TR[slot.name] ?? slot.name) : slot.name;
+          const slotName = slot.icon === "seeds" ? `${rawName} (${isTr ? "Tohum" : "Seeds"})` : rawName;
+          const slotDetail = isTr ? translateReason(slot.detail) : slot.detail;
 
           // Contextual relevance logic:
           // 1. Tool in hand is always relevant.
@@ -146,8 +178,8 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
                 resting ? "is-resting" : "",
                 isRelevant ? "is-relevant" : "is-irrelevant"
               ].filter(Boolean).join(" ")}
-              aria-label={`${slotName}, ${slot.detail}, slot ${slot.slot}`}
-              title={`${slotName} — ${slot.detail} (${slot.shortcutKey})`}
+              aria-label={`${slotName}, ${slotDetail}, ${isTr ? "yuva" : "slot"} ${slot.slot}`}
+              title={`${slotName} — ${slotDetail} (${slot.shortcutKey})`}
               aria-pressed={selected}
               tabIndex={expanded && isRelevant || resting ? 0 : -1}
               data-testid={`tool-slot-${slot.slot}`} data-ready={slot.ready}
@@ -163,8 +195,8 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
       </div>
       {currentSlot && (
         <div className="guild-tool-readout" aria-live="polite">
-          <strong>{currentSlot.name}</strong>
-          <span className="guild-tool-detail">{currentSlot.detail}</span>
+          <strong>{isTr ? (TOOL_NAMES_TR[currentSlot.name] ?? currentSlot.name) : currentSlot.name}</strong>
+          <span className="guild-tool-detail">{isTr ? translateReason(currentSlot.detail) : currentSlot.detail}</span>
         </div>
       )}
     </div>

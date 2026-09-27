@@ -1,10 +1,15 @@
 import * as THREE from "three";
 import type { CoastalUniforms } from "../water/CoastalOptics";
-import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import type { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
+import {
+  DEFAULT_GRAPHICS_EFFECTS,
+  isNeutralColorFinish,
+  resolveGraphicsEffects,
+  type ResolvedGraphicsEffects
+} from "../config/GraphicsEffectSettings";
 import { GpuFrameTimer, type GpuFrameTimingSnapshot } from "./GpuFrameTimer";
 import { OpaqueWaterSnapshotPass } from "./OpaqueWaterSnapshotPass";
+import type { EnhancedRenderPath } from "./EnhancedRenderPath";
 import type { AtmosphereSky, AtmosphereSkyDiagnostics } from "../atmosphere/AtmosphereSky";
 
 export type CaptureRenderMode = "final" | "no-post";
@@ -22,10 +27,21 @@ export interface RenderTargetDiagnostic {
   estimatedBytes: number;
 }
 
+export type RenderPathState = "direct" | "enhanced" | "enhanced-preparing" | "direct-fallback";
+
 export interface RendererPipelineDiagnostics {
   renderMode: CaptureRenderMode;
   qualityTier: QualityTier;
+  path: RenderPathState;
+  /** Why the enhanced path is unavailable, when it is. */
+  fallbackReason: string | null;
   gtaoActive: boolean;
+  /** Effects the pipeline was asked for, and those actually drawn this frame. */
+  requestedEffects: ResolvedGraphicsEffects;
+  activeEffects: { gtao: boolean; hdrBloom: boolean; fxaa: boolean; colorFinish: boolean };
+  failedStages: readonly string[];
+  renderSize: { width: number; height: number; pixelRatio: number };
+  contextRestores: number;
   atmosphere: AtmosphereSkyDiagnostics | null;
   gpuTiming: GpuFrameTimingSnapshot;
   renderTargets: readonly RenderTargetDiagnostic[];
@@ -33,98 +49,6 @@ export interface RendererPipelineDiagnostics {
     geometries: number;
     textures: number;
   };
-}
-
-interface GtaoPassRuntimeInternals {
-  output: number;
-  blendIntensity: number;
-  pdRenderTarget: THREE.WebGLRenderTarget;
-  copyMaterial: THREE.ShaderMaterial;
-  blendMaterial: THREE.ShaderMaterial;
-  renderToScreen: boolean;
-  renderPass(
-    renderer: THREE.WebGLRenderer,
-    material: THREE.Material,
-    target: THREE.WebGLRenderTarget | null
-  ): void;
-}
-
-interface ComposerRuntimeInternals {
-  renderTarget1: THREE.WebGLRenderTarget;
-  renderTarget2: THREE.WebGLRenderTarget;
-}
-
-export function configureGtaoDistanceLimits(
-  pass: GTAOPass,
-  config: Pick<typeof CANONICAL_RENDER_CONFIG.gtao, "maxDistance" | "fadeDistance">
-): void {
-  // 1. Patch gtaoMaterial to early-out past maxDistance, fade smoothly, and reject sky taps
-  let gtaoFrag = pass.gtaoMaterial.fragmentShader;
-  if (!gtaoFrag.includes("uGtaoMaxDistance")) {
-    gtaoFrag = "uniform float uGtaoMaxDistance;\nuniform float uGtaoFadeDistance;\n" + gtaoFrag;
-    gtaoFrag = gtaoFrag.replace(
-      "vec3 viewPos = getViewPosition(vUv, depth);",
-      "vec3 viewPos = getViewPosition(vUv, depth);\n\t\t\tif (viewPos.z < -uGtaoMaxDistance) {\n\t\t\t\tdiscard;\n\t\t\t\treturn;\n\t\t\t}"
-    );
-    gtaoFrag = gtaoFrag.replaceAll(
-      "if (abs(viewDelta.z) < thickness) {",
-      "if (sampleSceneUvDepth.z < 0.99999 && abs(viewDelta.z) < thickness) {"
-    );
-    gtaoFrag = gtaoFrag.replace(
-      "ao = pow(ao, scale);",
-      "ao = mix(ao, 1.0, smoothstep(uGtaoFadeDistance, uGtaoMaxDistance, -viewPos.z));\n\t\t\tao = pow(ao, scale);"
-    );
-    pass.gtaoMaterial.fragmentShader = gtaoFrag;
-    pass.gtaoMaterial.uniforms.uGtaoMaxDistance = { value: config.maxDistance };
-    pass.gtaoMaterial.uniforms.uGtaoFadeDistance = { value: config.fadeDistance };
-    pass.gtaoMaterial.needsUpdate = true;
-  } else if (pass.gtaoMaterial.uniforms.uGtaoMaxDistance) {
-    pass.gtaoMaterial.uniforms.uGtaoMaxDistance.value = config.maxDistance;
-    pass.gtaoMaterial.uniforms.uGtaoFadeDistance.value = config.fadeDistance;
-  }
-
-  // 2. Patch pdMaterial to discard sky fragments and distant fragments before normal computation
-  let pdFrag = pass.pdMaterial.fragmentShader;
-  if (!pdFrag.includes("uGtaoMaxDistance")) {
-    pdFrag = "uniform float uGtaoMaxDistance;\n" + pdFrag;
-    pdFrag = pdFrag.replace(
-      "vec3 sampleNormal = getViewNormal(sampleUv);",
-      "if (sampleDepth >= 0.99999) return;\n\t\t\tvec3 sampleNormal = getViewNormal(sampleUv);"
-    );
-    const regex = /float depth = getDepth\(vUv\.xy\);[\s\S]*?if \((depth == 1\. \|\| dot\(viewNormal, viewNormal\) == 0\.)\) \{\s*discard;\s*return;\s*\}/;
-    const replacement = `float depth = getDepth(vUv.xy);
-\t\t\tif (depth >= 0.99999) {
-\t\t\t\tdiscard;
-\t\t\t\treturn;
-\t\t\t}
-\t\t\tvec3 viewPos = getViewPosition(vUv, depth);
-\t\t\tif (viewPos.z < -uGtaoMaxDistance) {
-\t\t\t\tdiscard;
-\t\t\t\treturn;
-\t\t\t}
-\t\t\tvec3 viewNormal = getViewNormal(vUv);
-\t\t\tif (dot(viewNormal, viewNormal) == 0.) {
-\t\t\t\tdiscard;
-\t\t\t\treturn;
-\t\t\t}`;
-    pdFrag = pdFrag.replace(regex, replacement);
-    pass.pdMaterial.fragmentShader = pdFrag;
-    pass.pdMaterial.uniforms.uGtaoMaxDistance = { value: config.maxDistance };
-    pass.pdMaterial.needsUpdate = true;
-  } else if (pass.pdMaterial.uniforms.uGtaoMaxDistance) {
-    pass.pdMaterial.uniforms.uGtaoMaxDistance.value = config.maxDistance;
-  }
-}
-
-export function bindGtaoSceneDepth(pass: GTAOPass, source: THREE.WebGLRenderTarget): void {
-  if (!source.depthTexture) throw new Error("GTAO requires the current scene depth texture");
-  const normalModeChanged = pass.gtaoMaterial.defines.NORMAL_VECTOR_TYPE !== 0;
-  pass.setGBuffer(source.depthTexture);
-  pass.depthRenderMaterial.uniforms.tDepth.value = source.depthTexture;
-  if (normalModeChanged) {
-    pass.gtaoMaterial.needsUpdate = true;
-    pass.pdMaterial.needsUpdate = true;
-  }
 }
 
 export function renderTargetDiagnostic(id: string, target: THREE.WebGLRenderTarget): RenderTargetDiagnostic {
@@ -150,33 +74,95 @@ export function renderTargetDiagnostic(id: string, target: THREE.WebGLRenderTarg
 }
 
 /**
- * The only post-processing path. It lazy-loads GTAO on the high tier and
- * renders directly on lower tiers, keeping expensive contact effects out of
- * low-spec sessions and the starter bundle.
+ * Device-pixel ratio the world is rendered at. The enhanced path renders its
+ * scene target at the tier's post-process cap; the direct path renders into the
+ * canvas at the tier's canvas cap. The player's resolution scale applies to
+ * both, never below `renderResolution.minimumPixelRatio`.
+ */
+export function scenePixelRatio(tier: QualityTier, resolutionScale: number, devicePixelRatio: number): number {
+  const quality = CANONICAL_RENDER_CONFIG.quality[tier];
+  const cap = quality.enhancedPostPath ? quality.postProcessPixelRatioCap : quality.pixelRatioCap;
+  return Math.max(
+    CANONICAL_RENDER_CONFIG.postProcessing.renderResolution.minimumPixelRatio,
+    Math.min(devicePixelRatio, cap) * resolutionScale
+  );
+}
+
+/**
+ * Canvas drawing-buffer ratio. The enhanced path presents its scene target at
+ * the unscaled post-process ratio: a larger canvas would only multisample and
+ * upscale a finished image. The direct path draws the scene into the canvas.
+ */
+export function canvasPixelRatio(tier: QualityTier, resolutionScale: number, devicePixelRatio: number): number {
+  const quality = CANONICAL_RENDER_CONFIG.quality[tier];
+  return quality.enhancedPostPath
+    ? Math.min(devicePixelRatio, quality.postProcessPixelRatioCap)
+    : scenePixelRatio(tier, resolutionScale, devicePixelRatio);
+}
+
+function supportsHalfFloatTargets(renderer: THREE.WebGLRenderer): boolean {
+  const extensions = renderer.extensions as { has?: (name: string) => boolean } | undefined;
+  if (!extensions?.has) return true;
+  return extensions.has("EXT_color_buffer_float") || extensions.has("EXT_color_buffer_half_float");
+}
+
+function devicePixelRatio(): number {
+  return typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+}
+
+/**
+ * The only render path owner. Tiers with `enhancedPostPath` render through a
+ * lazily loaded `EnhancedRenderPath` (linear HDR scene target, water snapshot,
+ * optional AO/bloom/FXAA and one final-colour pass); the others render directly
+ * to the canvas and never load or compile those modules. Which optional effects
+ * run is decided from the resolved graphics effects, independently of whether
+ * the path exists: AO off on High keeps the scene target and water optics.
  */
 export class RendererPipeline {
   private sky: AtmosphereSky | null = null;
-  private composer: EffectComposer | null = null;
+  private enhanced: EnhancedRenderPath | null = null;
+  private fallbackReason: string | null = null;
   private opaqueSnapshot: THREE.WebGLRenderTarget | null = null;
   private opaqueSnapshotPass: OpaqueWaterSnapshotPass | null = null;
   private coastalUniforms: CoastalUniforms | null = null;
   private capturedWaterThisFrame = false;
-  private gtaoPass: GTAOPass | null = null;
-  private activeCamera: THREE.Camera | null = null;
   private initialization: Promise<void> | null = null;
   private generation = 0;
   private width = 1;
   private height = 1;
   private qualityTier: QualityTier;
-  private gtaoRefreshThisFrame = true;
-  private gtaoHasReusableFrame = false;
-  private gtaoFramesSinceRefresh = 0;
+  private effects: ResolvedGraphicsEffects;
   private gtaoBlendScale = 1;
-  private readonly lastGtaoCameraPosition = new THREE.Vector3();
-  private readonly lastGtaoCameraQuaternion = new THREE.Quaternion();
-  private hasGtaoCameraSample = false;
   private renderMode: CaptureRenderMode = "final";
-  private readonly gpuTimer: GpuFrameTimer | null;
+  private gpuTimer: GpuFrameTimer | null;
+  private passTimingEnabled = false;
+  private contextLost = false;
+  private contextRestores = 0;
+  private lastCamera: THREE.Camera | null = null;
+  private readonly contextRestoredListeners = new Set<() => void>();
+  private readonly handleContextLost = (): void => {
+    // three.js prevents the default and stops drawing; release what belonged
+    // to the lost context and stop issuing queries until it is restored.
+    this.contextLost = true;
+    this.gpuTimer?.dispose();
+    this.gpuTimer = null;
+  };
+  private readonly handleContextRestored = (): void => {
+    this.contextLost = false;
+    this.contextRestores += 1;
+    this.gpuTimer = this.createGpuTimer();
+    this.gpuTimer?.setPassTimingEnabled(this.passTimingEnabled);
+    // Every GPU object died with the old context. Drop them without deleting
+    // stale handles; the enhanced path and water snapshot rebuild on demand.
+    this.generation += 1;
+    this.initialization = null;
+    this.enhanced = null;
+    this.opaqueSnapshot = null;
+    this.opaqueSnapshotPass = null;
+    this.clearWaterCapture();
+    this.renderer.shadowMap.needsUpdate = true;
+    for (const listener of this.contextRestoredListeners) listener();
+  };
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -184,11 +170,12 @@ export class RendererPipeline {
     initialQuality: QualityTier
   ) {
     this.qualityTier = initialQuality;
+    this.effects = resolveGraphicsEffects(DEFAULT_GRAPHICS_EFFECTS, initialQuality);
     this.renderer.info.autoReset = false;
-    const context = this.renderer.getContext();
-    this.gpuTimer = "createQuery" in context
-      ? new GpuFrameTimer(context as WebGL2RenderingContext)
-      : null;
+    this.gpuTimer = this.createGpuTimer();
+    const canvas = (this.renderer as { domElement?: HTMLCanvasElement }).domElement;
+    canvas?.addEventListener?.("webglcontextlost", this.handleContextLost);
+    canvas?.addEventListener?.("webglcontextrestored", this.handleContextRestored);
   }
 
   /** Capture once after opaque geometry, before any water/translucent effects. */
@@ -208,11 +195,17 @@ export class RendererPipeline {
     sky.setQuality(this.qualityTier);
   }
 
+  /** Called after three.js restores a lost context and this pipeline has reset. */
+  public onContextRestored(listener: () => void): () => void {
+    this.contextRestoredListeners.add(listener);
+    return () => this.contextRestoredListeners.delete(listener);
+  }
+
   private captureOpaqueWaterInput(camera: THREE.Camera): void {
-    if (this.capturedWaterThisFrame || !this.coastalUniforms || !this.composer) return;
+    const enhanced = this.enhanced;
+    if (this.capturedWaterThisFrame || !this.coastalUniforms || !enhanced) return;
     const source = this.renderer.getRenderTarget();
-    const composer = this.composer as unknown as ComposerRuntimeInternals;
-    if (!source?.depthTexture || (source !== composer.renderTarget1 && source !== composer.renderTarget2)) return;
+    if (!source?.depthTexture || source !== enhanced.sceneTarget) return;
     const snapshot = this.ensureOpaqueSnapshot(source);
     const snapshotPass = this.opaqueSnapshotPass ??= new OpaqueWaterSnapshotPass();
     // The capture happens mid-scene, so measure it as an interrupt segment and
@@ -254,8 +247,26 @@ export class RendererPipeline {
     this.qualityTier = tier;
     this.sky?.setQuality(tier);
     this.generation += 1;
-    this.disposeComposer();
+    this.disposeEnhanced();
     this.initialization = null;
+    this.fallbackReason = null;
+  }
+
+  /**
+   * Applies resolved player/Auto effects. Live terms (AO strength, colour
+   * finish) take effect on the next frame through uniforms; pass creation and
+   * target allocation are deferred to the enhanced path's asynchronous
+   * preparation and never run inside the caller.
+   */
+  public setEffects(effects: ResolvedGraphicsEffects): void {
+    const resized = effects.resolutionScale !== this.effects.resolutionScale;
+    this.effects = { ...effects, colorFinish: { ...effects.colorFinish } };
+    this.enhanced?.setEffects(this.effects);
+    if (resized) this.applySize();
+  }
+
+  public get requestedEffects(): Readonly<ResolvedGraphicsEffects> {
+    return this.effects;
   }
 
   /**
@@ -264,61 +275,64 @@ export class RendererPipeline {
    * whole-frame coverage on alternate frames for pass attribution.
    */
   public setPassTimingEnabled(enabled: boolean): void {
+    this.passTimingEnabled = enabled;
     this.gpuTimer?.setPassTimingEnabled(enabled);
+  }
+
+  /** Clears GPU timing samples so a matched measurement window starts clean. */
+  public resetGpuTiming(): void {
+    this.gpuTimer?.resetSamples();
+  }
+
+  /** Recent GPU cost of a whole frame, or null where timer queries cannot say. */
+  public gpuFrameEstimateMs(): number | null {
+    return this.gpuTimer?.recentFrameMilliseconds() ?? null;
   }
 
   /** Fades the high-tier AO contribution at the edge of a quality handoff. */
   public setGtaoBlendScale(scale: number): void {
     this.gtaoBlendScale = THREE.MathUtils.clamp(scale, 0, 1);
-    if (this.gtaoPass) {
-      this.gtaoPass.blendIntensity = CANONICAL_RENDER_CONFIG.gtao.blendIntensity * this.gtaoBlendScale;
-    }
   }
 
   public resize(width: number, height: number): void {
     this.width = Math.max(1, Math.floor(width));
     this.height = Math.max(1, Math.floor(height));
-    if (!this.composer) return;
-    const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
-    this.composer.setPixelRatio(Math.min(window.devicePixelRatio, quality.postProcessPixelRatioCap));
-    this.composer.setSize(this.width, this.height);
-    const aoPixelRatio = Math.min(window.devicePixelRatio, quality.postProcessPixelRatioCap);
-    this.gtaoPass?.setSize(
-      Math.max(1, Math.floor(this.width * aoPixelRatio * CANONICAL_RENDER_CONFIG.gtao.resolutionScale)),
-      Math.max(1, Math.floor(this.height * aoPixelRatio * CANONICAL_RENDER_CONFIG.gtao.resolutionScale))
-    );
-    this.resetGtaoReuse();
+    this.applySize();
   }
 
   public setCaptureRenderMode(mode: CaptureRenderMode): void {
     if (mode === this.renderMode) return;
     this.renderMode = mode;
-    this.resetGtaoReuse();
+    this.enhanced?.invalidateHistory();
   }
 
   public render(camera: THREE.Camera): void {
     this.capturedWaterThisFrame = false;
     if (this.coastalUniforms) this.coastalUniforms.uSceneCaptureEnabled.value = 0;
+    if (this.contextLost) return;
+    this.lastCamera = camera;
     this.renderer.info.reset();
     this.gpuTimer?.beginFrame();
     try {
       this.gpuTimer?.beginPass("atmosphere");
       this.sky?.render(this.renderer, camera);
-      const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
-      if (quality.ambientOcclusion !== "gtao") {
+      if (!this.wantsEnhanced() || this.fallbackReason) {
         this.gpuTimer?.beginPass("scene");
         this.renderer.render(this.scene, camera);
         return;
       }
-      if (!this.composer || this.activeCamera !== camera) {
+      if (!this.enhanced) {
+        // Until the path is compiled, draw directly rather than stall a frame.
         this.gpuTimer?.beginPass("scene");
         this.beginInitialization(camera);
         this.renderer.render(this.scene, camera);
         return;
       }
-      if (this.gtaoPass) this.gtaoPass.enabled = this.renderMode !== "no-post";
-      if (this.gtaoPass?.enabled) this.prepareGtaoFrame(camera);
-      this.composer.render();
+      this.enhanced.render(camera, {
+        noPost: this.renderMode === "no-post",
+        aoIntensity: CANONICAL_RENDER_CONFIG.gtao.blendIntensity * this.gtaoBlendScale * this.effects.aoStrength,
+        beginPass: (name) => this.gpuTimer?.beginPass(name)
+      });
     } finally {
       this.gpuTimer?.endFrame();
     }
@@ -332,15 +346,27 @@ export class RendererPipeline {
 
   public async prepareForEntry(camera: THREE.Camera): Promise<void> {
     await this.sky?.prepare(this.renderer);
-    const quality = CANONICAL_RENDER_CONFIG.quality[this.qualityTier];
-    if (quality.ambientOcclusion === "gtao" && (!this.composer || this.activeCamera !== camera)) {
-      this.beginInitialization(camera);
-      await this.initialization;
+    this.lastCamera = camera;
+    if (this.wantsEnhanced() && !this.fallbackReason) {
+      if (!this.enhanced) {
+        this.beginInitialization(camera);
+        await this.initialization;
+      }
+      await this.enhanced?.prepare(camera);
     }
-    await this.renderer.compileAsync(this.scene, camera);
-    if (this.composer) {
-      const source = (this.composer as unknown as ComposerRuntimeInternals).renderTarget1;
-      const snapshot = this.ensureOpaqueSnapshot(source);
+    const enhanced = this.enhanced;
+    const previousTarget = this.renderer.getRenderTarget();
+    try {
+      // World materials compile per output target: into the linear scene
+      // target they skip tone mapping and sRGB encoding. Warm the variant the
+      // selected path will actually draw.
+      this.renderer.setRenderTarget(enhanced?.sceneTarget ?? null);
+      await this.renderer.compileAsync(this.scene, camera);
+    } finally {
+      this.renderer.setRenderTarget(previousTarget);
+    }
+    if (enhanced) {
+      const snapshot = this.ensureOpaqueSnapshot(enhanced.sceneTarget);
       const snapshotPass = this.opaqueSnapshotPass ??= new OpaqueWaterSnapshotPass();
       await snapshotPass.prepare(this.renderer, snapshot);
     }
@@ -348,43 +374,63 @@ export class RendererPipeline {
   }
 
   public isGtaoActive(): boolean {
-    return Boolean(this.composer && this.gtaoPass && this.renderMode !== "no-post");
+    return Boolean(this.enhanced?.isGtaoRendering(this.renderMode === "no-post"));
+  }
+
+  /** Summary for the settings UI and Auto quality. */
+  public runtimeState(): { path: RenderPathState; preparing: boolean; renderSize: { width: number; height: number; pixelRatio: number } } {
+    return { path: this.pathState(), preparing: this.isPreparing(), renderSize: this.renderSize() };
   }
 
   public diagnostics(): RendererPipelineDiagnostics {
     const targets: RenderTargetDiagnostic[] = [];
     if (this.sky) targets.push(renderTargetDiagnostic("atmosphere.sky", this.sky.target));
     if (this.sky) targets.push(renderTargetDiagnostic("atmosphere.cloudSunlight", this.sky.cloudShadows.target));
-    if (this.composer) {
-      const composer = this.composer as unknown as ComposerRuntimeInternals;
-      targets.push(renderTargetDiagnostic("composer.primary", composer.renderTarget1));
-      targets.push(renderTargetDiagnostic("composer.secondary", composer.renderTarget2));
+    const enhanced = this.enhanced?.targets();
+    if (enhanced) {
+      targets.push(renderTargetDiagnostic("enhanced.scene", enhanced.scene));
+      if (enhanced.output) targets.push(renderTargetDiagnostic("enhanced.output", enhanced.output));
+      if (enhanced.gtao) {
+        targets.push(renderTargetDiagnostic("gtao.gather", enhanced.gtao.gather));
+        targets.push(renderTargetDiagnostic("gtao.denoised", enhanced.gtao.denoised));
+      }
+      enhanced.bloom.forEach((target, level) => targets.push(renderTargetDiagnostic(`bloom.mip${level}`, target)));
     }
     if (this.opaqueSnapshot) targets.push(renderTargetDiagnostic("water.opaqueSnapshot", this.opaqueSnapshot));
-    if (this.gtaoPass) {
-      const gtao = this.gtaoPass as unknown as GtaoPassRuntimeInternals;
-      targets.push(renderTargetDiagnostic("gtao.gather", this.gtaoPass.gtaoRenderTarget));
-      targets.push(renderTargetDiagnostic("gtao.denoised", gtao.pdRenderTarget));
-    }
     this.scene.traverse((object) => {
       if (!(object instanceof THREE.Light) || !object.castShadow) return;
       const shadow = (object as THREE.DirectionalLight).shadow;
       if (shadow?.map) targets.push(renderTargetDiagnostic(`shadow.${object.name || object.uuid}`, shadow.map));
     });
+    const noPost = this.renderMode === "no-post";
+    const path = this.enhanced && !noPost;
     return {
       renderMode: this.renderMode,
       qualityTier: this.qualityTier,
+      path: this.pathState(),
+      fallbackReason: this.fallbackReason,
       gtaoActive: this.isGtaoActive(),
+      requestedEffects: this.effects,
+      activeEffects: {
+        gtao: this.isGtaoActive(),
+        hdrBloom: Boolean(path && enhanced && enhanced.bloom.length > 0 && this.effects.hdrBloom),
+        fxaa: Boolean(path && enhanced?.output && this.effects.fxaa),
+        colorFinish: Boolean(path && !isNeutralColorFinish(this.effects.colorFinish))
+      },
+      failedStages: this.enhanced?.failedStages ?? [],
+      renderSize: this.renderSize(),
+      contextRestores: this.contextRestores,
       atmosphere: this.sky?.diagnostics() ?? null,
       gpuTiming: this.gpuTimer?.snapshot() ?? {
         supported: false,
-        blockedReason: "WebGL2 context unavailable",
+        blockedReason: this.contextLost ? "WebGL context lost" : "WebGL2 context unavailable",
         softwareRenderer: false,
         renderer: "unknown",
         sampleCount: 0,
         disjointCount: 0,
         p50Milliseconds: null,
         p95Milliseconds: null,
+        p99Milliseconds: null,
         passes: []
       },
       renderTargets: targets,
@@ -398,13 +444,52 @@ export class RendererPipeline {
   public dispose(): void {
     this.sky = null;
     this.generation += 1;
-    this.disposeComposer();
+    this.disposeEnhanced();
     this.initialization = null;
     this.gpuTimer?.dispose();
+    this.contextRestoredListeners.clear();
+    const canvas = (this.renderer as { domElement?: HTMLCanvasElement }).domElement;
+    canvas?.removeEventListener?.("webglcontextlost", this.handleContextLost);
+    canvas?.removeEventListener?.("webglcontextrestored", this.handleContextRestored);
+  }
+
+  private createGpuTimer(): GpuFrameTimer | null {
+    const context = this.renderer.getContext();
+    return "createQuery" in context ? new GpuFrameTimer(context as WebGL2RenderingContext) : null;
+  }
+
+  private wantsEnhanced(): boolean {
+    return CANONICAL_RENDER_CONFIG.quality[this.qualityTier].enhancedPostPath;
+  }
+
+  private pathState(): RenderPathState {
+    if (!this.wantsEnhanced()) return "direct";
+    if (this.fallbackReason) return "direct-fallback";
+    if (!this.enhanced) return "enhanced-preparing";
+    return "enhanced";
+  }
+
+  private isPreparing(): boolean {
+    return (this.wantsEnhanced() && !this.fallbackReason && !this.enhanced) || Boolean(this.enhanced?.preparing);
+  }
+
+  private renderSize(): { width: number; height: number; pixelRatio: number } {
+    const pixelRatio = scenePixelRatio(this.qualityTier, this.effects.resolutionScale, devicePixelRatio());
+    return {
+      width: Math.max(1, Math.floor(this.width * pixelRatio)),
+      height: Math.max(1, Math.floor(this.height * pixelRatio)),
+      pixelRatio: Number(pixelRatio.toFixed(3))
+    };
+  }
+
+  private applySize(): void {
+    if (!this.enhanced) return;
+    const size = this.renderSize();
+    this.enhanced.setSize(size.width, size.height);
   }
 
   private beginInitialization(camera: THREE.Camera): void {
-    if (this.initialization || this.composer) return;
+    if (this.initialization || this.enhanced || this.fallbackReason) return;
     const generation = this.generation;
     this.initialization = this.initialize(camera, generation).finally(() => {
       if (generation === this.generation) this.initialization = null;
@@ -412,114 +497,51 @@ export class RendererPipeline {
   }
 
   private async initialize(camera: THREE.Camera, generation: number): Promise<void> {
-    const [{ EffectComposer }, { RenderPass }, { GTAOPass }, { OutputPass }] = await Promise.all([
-      import("three/examples/jsm/postprocessing/EffectComposer.js"),
-      import("three/examples/jsm/postprocessing/RenderPass.js"),
-      import("three/examples/jsm/postprocessing/GTAOPass.js"),
-      import("three/examples/jsm/postprocessing/OutputPass.js")
-    ]);
-    if (generation !== this.generation || CANONICAL_RENDER_CONFIG.quality[this.qualityTier].ambientOcclusion !== "gtao") {
+    const { EnhancedRenderPath } = await import("./EnhancedRenderPath");
+    if (generation !== this.generation || !this.wantsEnhanced()) return;
+    if (!supportsHalfFloatTargets(this.renderer)) {
+      this.fallbackReason = "Half-float render targets are unsupported";
+      console.warn(`[Neva] ${this.fallbackReason}; rendering directly without post-processing.`);
       return;
     }
-
-    const sceneTarget = new THREE.WebGLRenderTarget(1, 1, {
-      type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(1, 1, THREE.UnsignedIntType)
-    });
-    const composer = new EffectComposer(this.renderer, sceneTarget);
-    const renderPass = new RenderPass(this.scene, camera);
-    const renderScenePass = renderPass.render.bind(renderPass);
-    renderPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
-      this.gpuTimer?.beginPass("scene");
-      renderScenePass(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
-    };
-    const gtaoPass = new GTAOPass(this.scene, camera, this.width, this.height);
-    bindGtaoSceneDepth(gtaoPass, sceneTarget);
-    const config = CANONICAL_RENDER_CONFIG.gtao;
-    gtaoPass.blendIntensity = config.blendIntensity * this.gtaoBlendScale;
-    gtaoPass.updateGtaoMaterial({
-      radius: config.radius,
-      thickness: config.thickness,
-      distanceFallOff: config.distanceFallOff,
-      samples: config.samples,
-      screenSpaceRadius: false
-    });
-    gtaoPass.updatePdMaterial({ samples: config.denoiseSamples, radius: 6, rings: 2 });
-    configureGtaoDistanceLimits(gtaoPass, config);
-    // GTAOPass retains its denoised target but normally rebuilds it every
-    // frame. Reuse that target while still compositing the current diffuse
-    // frame, so motion never freezes when AO refreshes are skipped.
-    const renderFreshGtao = gtaoPass.render.bind(gtaoPass);
-    gtaoPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
-      this.gpuTimer?.beginPass("gtao");
-      bindGtaoSceneDepth(gtaoPass, readBuffer);
-      if (this.gtaoRefreshThisFrame || gtaoPass.output !== 0) {
-        renderFreshGtao(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
-        return;
-      }
-      const retained = gtaoPass as unknown as GtaoPassRuntimeInternals;
-      const target = retained.renderToScreen ? null : writeBuffer;
-      retained.copyMaterial.uniforms.tDiffuse.value = readBuffer.texture;
-      retained.copyMaterial.blending = THREE.NoBlending;
-      retained.renderPass(renderer, retained.copyMaterial, target);
-      retained.blendMaterial.uniforms.intensity.value = retained.blendIntensity;
-      retained.blendMaterial.uniforms.tDiffuse.value = retained.pdRenderTarget.texture;
-      retained.renderPass(renderer, retained.blendMaterial, target);
-    };
-    composer.addPass(renderPass);
-    composer.addPass(gtaoPass);
-    const outputPass = new OutputPass();
-    const renderOutputPass = outputPass.render.bind(outputPass);
-    outputPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
-      this.gpuTimer?.beginPass("post");
-      renderOutputPass(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
-    };
-    composer.addPass(outputPass);
-    this.composer = composer;
-    this.gtaoPass = gtaoPass;
-    this.activeCamera = camera;
-    this.resize(this.width, this.height);
-  }
-
-  private prepareGtaoFrame(camera: THREE.Camera): void {
-    const moved = !this.hasGtaoCameraSample
-      || camera.position.distanceToSquared(this.lastGtaoCameraPosition) > 0.0004
-      || 1 - Math.abs(camera.quaternion.dot(this.lastGtaoCameraQuaternion)) > 0.000002;
-    const config = CANONICAL_RENDER_CONFIG.gtao;
-    const refreshFrames = moved ? config.movingRefreshFrames : config.settledRefreshFrames;
-    this.gtaoFramesSinceRefresh += 1;
-    this.gtaoRefreshThisFrame = !this.gtaoHasReusableFrame
-      || this.gtaoFramesSinceRefresh >= refreshFrames;
-    if (this.gtaoRefreshThisFrame) {
-      this.gtaoHasReusableFrame = true;
-      this.gtaoFramesSinceRefresh = 0;
+    const path = new EnhancedRenderPath(this.renderer, this.scene);
+    const size = this.renderSize();
+    path.setSize(size.width, size.height);
+    path.setEffects(this.effects);
+    try {
+      await path.prepare(camera);
+    } catch (error) {
+      path.dispose();
+      if (generation !== this.generation) return;
+      this.fallbackReason = error instanceof Error ? error.message : String(error);
+      console.warn("[Neva] Enhanced render path unavailable; rendering directly.", error);
+      return;
     }
-    this.lastGtaoCameraPosition.copy(camera.position);
-    this.lastGtaoCameraQuaternion.copy(camera.quaternion);
-    this.hasGtaoCameraSample = true;
+    if (generation !== this.generation || this.contextLost) {
+      path.dispose();
+      return;
+    }
+    // Effects or size may have changed while the path compiled.
+    path.setEffects(this.effects);
+    const current = this.renderSize();
+    path.setSize(current.width, current.height);
+    this.enhanced = path;
   }
 
-  private resetGtaoReuse(): void {
-    this.gtaoRefreshThisFrame = true;
-    this.gtaoHasReusableFrame = false;
-    this.gtaoFramesSinceRefresh = 0;
-    this.hasGtaoCameraSample = false;
+  private clearWaterCapture(): void {
+    if (!this.coastalUniforms) return;
+    this.coastalUniforms.uOpaqueColor.value = null;
+    this.coastalUniforms.uOpaqueDepth.value = null;
+    this.coastalUniforms.uSceneCaptureEnabled.value = 0;
   }
 
-  private disposeComposer(): void {
+  private disposeEnhanced(): void {
     this.opaqueSnapshotPass?.dispose();
     this.opaqueSnapshotPass = null;
     this.opaqueSnapshot?.dispose();
     this.opaqueSnapshot = null;
-    if (this.coastalUniforms) {
-      this.coastalUniforms.uOpaqueColor.value = null;
-      this.coastalUniforms.uOpaqueDepth.value = null;
-      this.coastalUniforms.uSceneCaptureEnabled.value = 0;
-    }
-    this.gtaoPass?.dispose();
-    this.composer?.dispose();
-    this.gtaoPass = null;
-    this.composer = null;
-    this.activeCamera = null;
-    this.resetGtaoReuse();
+    this.clearWaterCapture();
+    this.enhanced?.dispose();
+    this.enhanced = null;
   }
 }

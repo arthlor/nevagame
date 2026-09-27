@@ -149,6 +149,7 @@ export interface MarketDemandSignal {
   success: boolean;
   marketId: MarketId;
   itemId?: ItemId;
+  tradePackId?: string;
   itemName?: string;
   demandLabel?: "Wanted" | "Steady" | "Plentiful";
   reason?: string;
@@ -187,6 +188,15 @@ export interface MarketFishRowDto {
   reason?: string;
 }
 
+export interface MarketTradePackRowDto extends Omit<MarketFishRowDto, "quality" | "breakdown"> {
+  kind: "fish" | "farm";
+  itemId?: ItemId;
+  tradePackId?: string;
+  canRecoverPlantMatter?: boolean;
+  quality: FishQuality | CropQuality;
+  breakdown?: import("../economy/calculateFishValue").FishPriceBreakdown | import("../cargo/farmPacks").FarmPackPriceBreakdown;
+}
+
 export interface MarketRodRowDto {
   rodId: RodId;
   name: string;
@@ -216,6 +226,7 @@ export interface MarketContractRowDto {
   quantityRequired: number;
   remaining: number;
   itemId?: ItemId;
+  tradePackId?: string;
   ownedItems: number;
   deliverableItems: number;
   eligibleCargoIds: FishCargoId[];
@@ -233,7 +244,7 @@ export interface MarketBoardDto {
   sellRows: MarketSellRowDto[];
   fishRows: MarketFishRowDto[];
   /** Physical sport-fish/basic-catch packs already carried by the player. */
-  tradePackRows: MarketFishRowDto[];
+  tradePackRows: MarketTradePackRowDto[];
   rodRows: MarketRodRowDto[];
   contractRows: MarketContractRowDto[];
   bulkProduce: BulkSaleQuote;
@@ -253,11 +264,14 @@ export interface FarmForecastDto {
 }
 
 export interface WorldHudCargoDto {
+  kind?: "fish" | "farm";
+  itemId?: ItemId;
+  tradePackId?: string;
   cargoId: FishCargoId;
   speciesId: FishSpeciesId;
   name: string;
   weightKg: number;
-  quality: FishQuality;
+  quality: FishQuality | CropQuality;
   freshnessPercent: number;
   freshnessTone: "fresh" | "medium" | "stale";
   /** Size band of the physical pack, which sets what carrying it costs. */
@@ -399,6 +413,7 @@ export interface ContextualHotbarSlotDto {
 
 export interface WorldHudBoatDto {
   boatId: BoatId;
+  boatTypeId: string;
   name: string;
   speedKnots: number;
   isDocked?: boolean;
@@ -976,6 +991,7 @@ export type InteractionAction =
   | "dismount"
   | "dock"
   | "purchase-boat"
+  | "purchase-trade-vehicle"
   | "chum"
   | "hook"
   | "start-processing"
@@ -1105,6 +1121,7 @@ export interface ProcessingJobInspectionDto {
   recipeId: RecipeId;
   recipeName: string;
   outputName: string;
+  tradePackId?: string;
   status: "active" | "complete";
   remainingMinutes: number;
   readyClockLabel: string;
@@ -1115,11 +1132,16 @@ export interface ProcessingJobInspectionDto {
 }
 
 export interface ProcessingRecipeRowDto {
+  costMoney?: number;
+  replacementCost?: number | null;
+  tradeTier?: import("./types").TradePackTier;
+  decayPerMinute?: number;
   recipeId: RecipeId;
   name: string;
+  tradeDestinations?: ReadonlyArray<{ marketId: string; name: string; routeMeters: number; gold: number; tradingXp: number; estimatedMargin?: number | null; demandPercent?: number }>;
   result: RecipeResult;
   outputLabel: string;
-  inputs: ReadonlyArray<{ itemId: ItemId; name: string; required: number; owned: number; enough: boolean }>;
+  inputs: ReadonlyArray<{ itemId: ItemId; name: string; required: number; owned: number; enough: boolean; sources?: ReadonlyArray<{ marketId: string; name: string; stock: number; cost: number }> }>;
   work: WorkCostQuote;
   /** Processing XP paid on collection, independent of a Work discount. */
   xpReward: number;
@@ -1191,6 +1213,7 @@ export type GameCommand =
   | { type: "mount.board"; mountId: MountId }
   | { type: "mount.dismount" }
   | { type: "boat.purchase-skiff" }
+  | { type: "vehicle.purchase"; vehicleTypeId: string }
   | { type: "crop.plant"; request: CropPlacementRequest }
   | { type: "crop.plant-near"; farmId: FarmId; cropId: string }
   | { type: "crop.water"; placedCropId: PlacedCropId }
@@ -1332,3 +1355,15 @@ export type GameQueryResult =
   | { success: boolean; x?: number; z?: number; reason?: string }
   | import("./QuestTypes").ActiveQuestDto
   | import("./QuestTypes").NpcId;
+
+export interface TradeVehicleOfferDto {
+  typeId: string;
+  name: string;
+  cargoSlots: number;
+  cost: number;
+  requiredTradingXp: number;
+  owned: boolean;
+  canPurchase: boolean;
+  reason: string | null;
+  position: { x: number; y: number; z: number };
+}

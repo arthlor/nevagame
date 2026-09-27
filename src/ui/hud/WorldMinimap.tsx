@@ -6,6 +6,8 @@ import { WorldChartTerrain } from "../components/WorldChartTerrain";
 import { GuildcraftArt } from "./GuildcraftArt";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForMapNode } from "../chrome/uiAtlas";
+import { placeLabel } from "../../i18n/placesTr";
+import { useTranslation } from "../../i18n/useTranslation";
 
 /** Chart units from the player before a mark falls outside the dial. */
 const VIEW_RADIUS = 78;
@@ -59,20 +61,28 @@ export const WorldMinimap: React.FC<{
   compass: WorldHudDto["compass"];
   onOpenMap?: () => void;
 }> = ({ player, compass, onOpenMap }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
+  const region = placeLabel(compass.subRegionTitle, locale);
   const at = worldPointToMapSvg(player);
   const questMarkers = compass.nearbyMarkers.filter(
     (marker) => marker.kind === "quest" || marker.kind === "quest-secondary"
   );
   const waypointMarker = compass.nearbyMarkers.find((marker) => marker.kind === "waypoint");
+  const questName = questMarkers[0] ? placeLabel(questMarkers[0].label, locale) : "";
   const questLabel = questMarkers[0]
-    ? ` Objective ${questMarkers[0].label}, ${questMarkers[0].distanceMeters} metres.`
+    ? isTr
+      ? ` Hedef ${questName}, ${questMarkers[0].distanceMeters} metre.`
+      : ` Objective ${questMarkers[0].label}, ${questMarkers[0].distanceMeters} metres.`
     : "";
   const waypointLabel = waypointMarker
-    ? ` Waypoint ${waypointMarker.distanceMeters} metres.`
+    ? isTr
+      ? ` İşaret ${waypointMarker.distanceMeters} metre.`
+      : ` Waypoint ${waypointMarker.distanceMeters} metres.`
     : "";
   return <button type="button" disabled={!onOpenMap} className="guild-minimap" data-testid="world-minimap"
-    onClick={onOpenMap} aria-label={`${onOpenMap ? "Open nautical chart. " : "Current position. "}${compass.subRegionTitle}.${questLabel}${waypointLabel}`}
-    title={`${compass.subRegionTitle}${onOpenMap ? " · Open chart (M)" : ""}`}>
+    onClick={onOpenMap} aria-label={`${onOpenMap ? (isTr ? "Deniz haritasını aç. " : "Open nautical chart. ") : (isTr ? "Bulunduğun yer. " : "Current position. ")}${region}.${questLabel}${waypointLabel}`}
+    title={`${region}${onOpenMap ? (isTr ? " · Haritayı aç (M)" : " · Open chart (M)") : ""}`}>
     <svg className="guild-minimap-chart" viewBox={`${at.x - 84} ${at.y - 84} 168 168`}
       aria-hidden="true" focusable="false">
       <WorldChartTerrain />

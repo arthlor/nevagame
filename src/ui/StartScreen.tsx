@@ -16,6 +16,7 @@ import type { IntroVideoHandle } from "./IntroVideo";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { UI_MENU, UI_STATUS, UI_WORLD } from "./chrome/uiAtlas";
 import { playUiSound } from "./audio/uiAudio";
+import { useTranslation } from "../i18n/useTranslation";
 
 const PwaInstallPromptModal = React.lazy(async () => ({ default: (await import("./components/PwaInstallPromptModal")).PwaInstallPromptModal }));
 
@@ -50,6 +51,20 @@ const REGION_LABELS: Record<string, string> = {
   "region.offshore": "Open Waters"
 };
 
+const REGION_LABELS_TR: Record<string, string> = {
+  "region.farm": "Ata Çiftliği & Mera",
+  "region.village": "Neva Köyü",
+  "region.coast": "Kayalık Kıyı & Deniz Feneri",
+  "region.offshore": "Açık Deniz"
+};
+
+const SEASON_TR: Record<string, string> = {
+  spring: "İlkbahar",
+  summer: "Yaz",
+  autumn: "Sonbahar",
+  winter: "Kış"
+};
+
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
@@ -65,7 +80,7 @@ const START_OPTIONS_PAGES: ReadonlyArray<{ id: StartOptionsPage; label: string }
   { id: "controls", label: "Controls" }
 ];
 
-const formatSavedDate = (savedAtUtcMs: number, now: number = Date.now()): string | null => {
+const formatSavedDate = (savedAtUtcMs: number, now: number = Date.now(), locale?: string): string | null => {
   if (!Number.isFinite(savedAtUtcMs) || savedAtUtcMs <= 0) return null;
   try {
     const saved = new Date(savedAtUtcMs);
@@ -75,12 +90,13 @@ const formatSavedDate = (savedAtUtcMs: number, now: number = Date.now()): string
       new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
     const dayGap = Math.round((startOfDay(new Date(now)) - startOfDay(saved)) / 86_400_000);
 
-    if (dayGap === 0) return `today at ${time}`;
-    if (dayGap === 1) return `yesterday at ${time}`;
-    if (dayGap > 1 && dayGap < 7) return `${dayGap} days ago at ${time}`;
+    const isTr = locale === "tr";
+    if (dayGap === 0) return isTr ? `bugün, saat ${time}` : `today at ${time}`;
+    if (dayGap === 1) return isTr ? `dün, saat ${time}` : `yesterday at ${time}`;
+    if (dayGap > 1 && dayGap < 7) return isTr ? `${dayGap} gün önce, saat ${time}` : `${dayGap} days ago at ${time}`;
 
     const date = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(saved);
-    return `${date} at ${time}`;
+    return isTr ? `${date}, saat ${time}` : `${date} at ${time}`;
   } catch {
     return null;
   }
@@ -91,15 +107,14 @@ const PREPARATION_STEP: Record<StartupState["phase"], number> = {
   physics: 4, presentation: 5, commit: 6, complete: 6
 };
 
-/** Wall-clock feedback, not a prediction of remaining work. */
-const LoadingElapsed: FC = () => {
+const LoadingElapsed: FC<{ isTr?: boolean }> = ({ isTr }) => {
   const [startedAt] = useState(() => performance.now());
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
     const timer = window.setInterval(() => setSeconds(Math.floor((performance.now() - startedAt) / 1000)), 1000);
     return () => window.clearInterval(timer);
   }, [startedAt]);
-  return <span aria-live="off">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")} elapsed</span>;
+  return <span aria-live="off">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")} {isTr ? "geçti" : "elapsed"}</span>;
 };
 
 export const StartScreen: FC<StartScreenProps> = ({
@@ -130,6 +145,7 @@ export const StartScreen: FC<StartScreenProps> = ({
   const lastFocusedElement = useRef<HTMLElement | null>(null);
   const pwa = usePwaInstall();
   const introSkipRef = useRef<HTMLButtonElement>(null);
+  const { t, locale } = useTranslation();
 
   const dialogOpen = optionsOpen || newGameConfirmationOpen || withoutSavingConfirmationOpen;
   const isLoading = startup.status === "loading" || startup.status === "revealing";
@@ -139,7 +155,7 @@ export const StartScreen: FC<StartScreenProps> = ({
   const loadedAssets = clamp(startup.loadedAssets, 0, Math.max(1, startup.totalAssets));
   const progressMax = Math.max(1, startup.totalAssets);
   const progressPercent = Math.max(0, Math.min(100, (loadedAssets / progressMax) * 100));
-  const savedDate = startup.saveSummary ? formatSavedDate(startup.saveSummary.savedAtUtcMs) : null;
+  const savedDate = startup.saveSummary ? formatSavedDate(startup.saveSummary.savedAtUtcMs, Date.now(), locale) : null;
 
   // Keep the first-paint shell until the menu (or a recovery state) is committed.
   // Removing it before paint avoids two translucent title screens overlapping.
@@ -264,12 +280,12 @@ export const StartScreen: FC<StartScreenProps> = ({
         return;
       }
       if (typeof document.documentElement.requestFullscreen !== "function") {
-        setFullscreenMessage("Fullscreen is not available on this device.");
+        setFullscreenMessage(locale === "tr" ? "Bu cihazda tam ekran kullanılamıyor." : "Fullscreen is not available on this device.");
         return;
       }
       await document.documentElement.requestFullscreen();
     } catch {
-      setFullscreenMessage("Fullscreen could not be enabled here.");
+      setFullscreenMessage(locale === "tr" ? "Tam ekran burada etkinleştirilemedi." : "Fullscreen could not be enabled here.");
     }
   };
 
@@ -294,16 +310,18 @@ export const StartScreen: FC<StartScreenProps> = ({
   };
 
   const primaryLabel = startup.status !== "title"
-    ? startup.status === "revealing" ? "Entering the coast…" : "Preparing the coast…"
+    ? startup.status === "revealing"
+      ? (locale === "tr" ? "Kıyıya giriliyor…" : "Entering the coast…")
+      : (locale === "tr" ? "Kıyı hazırlanıyor…" : "Preparing the coast…")
     : startup.saveStatus === "checking"
-      ? "Reading harbor log…"
+      ? (locale === "tr" ? "Kayıt defteri okunuyor…" : "Reading harbor log…")
       : startup.saveStatus === "available"
-        ? "Continue"
+        ? t("start.continueGame")
         : startup.saveStatus === "corrupt" || startup.saveStatus === "incompatible"
-          ? "Start a new game"
+          ? t("start.newGame")
           : startup.saveStatus === "unavailable"
-            ? "Continue without saving"
-            : "Begin";
+            ? t("start.playWithoutSaving")
+            : (locale === "tr" ? "Başla" : "Begin");
 
   const primaryDisabled = isLoading || isCheckingSave;
   const showUtilities = showPwaInstallUtility || startup.status === "error";
@@ -336,7 +354,7 @@ export const StartScreen: FC<StartScreenProps> = ({
               type="button"
               className="start-screen__utility-button"
               data-testid="startup-pwa-install-button"
-              aria-label="Install app"
+              aria-label={locale === "tr" ? "Uygulamayı yükle" : "Install app"}
               aria-haspopup="dialog"
               onClick={() => {
                 rememberFocus();
@@ -345,14 +363,14 @@ export const StartScreen: FC<StartScreenProps> = ({
               }}
             >
               <AtlasImage src={UI_WORLD.sprout} alt="" size={22} aria-hidden="true" />
-              <span className="start-screen__utility-label">Install app</span>
+              <span className="start-screen__utility-label">{locale === "tr" ? "Uygulamayı yükle" : "Install app"}</span>
             </button>
           )}
           {startup.status === "error" && (
             <button
               type="button"
               className="start-screen__utility-button"
-              aria-label="Options"
+              aria-label={t("start.options")}
               aria-controls="start-screen-options"
               aria-expanded={optionsOpen}
               onClick={() => {
@@ -362,7 +380,7 @@ export const StartScreen: FC<StartScreenProps> = ({
               }}
             >
               <AtlasImage src={UI_MENU.compass} alt="" size={22} aria-hidden="true" />
-              <span className="start-screen__utility-label">Options</span>
+              <span className="start-screen__utility-label">{t("start.options")}</span>
             </button>
           )}
         </div>
@@ -371,8 +389,8 @@ export const StartScreen: FC<StartScreenProps> = ({
       <div className="start-screen__content" {...(dialogOpen ? { inert: "" } : {})} aria-hidden={dialogOpen || undefined}>
         <div className="start-screen__brand-lockup">
           <span className="start-screen__brand-rule" aria-hidden="true" />
-          <h1 id="start-screen-title">Neva Land</h1>
-          <p id="start-screen-description" className="start-screen__tagline">Grow a home. Follow the tide.</p>
+          <h1 id="start-screen-title">{t("start.brandName")}</h1>
+          <p id="start-screen-description" className="start-screen__tagline">{t("start.tagline")}</p>
         </div>
 
 
@@ -386,7 +404,7 @@ export const StartScreen: FC<StartScreenProps> = ({
               if (!introVideoRef.current?.skip()) onSkipIntro?.();
             }}
           >
-            Skip intro · Esc
+            {locale === "tr" ? "Girişi atla · Esc" : "Skip intro · Esc"}
           </button>
         ) : startup.status === "error" ? (
           <div
@@ -395,12 +413,18 @@ export const StartScreen: FC<StartScreenProps> = ({
             data-startup-error-phase={startup.errorPhase ?? undefined}
           >
             <GameSheet className="start-screen__tray start-screen__recovery" tone="ghost">
-              <h2>{startup.recovery === "save" ? "Your world is ready" : "The coast did not open"}</h2>
+              <h2>
+                {startup.recovery === "save"
+                  ? (locale === "tr" ? "Dünyanız hazır" : "Your world is ready")
+                  : (locale === "tr" ? "Kıyı açılamadı" : "The coast did not open")}
+              </h2>
               <p className="start-screen__error" role="alert">
                 <span className="start-screen__icon-well" aria-hidden="true">
                   <AtlasImage src={UI_STATUS.warning} size={18} />
                 </span>
-                <span>{startup.errorMessage ?? "We couldn’t prepare the world. Try again."}</span>
+                <span>
+                  {startup.errorMessage ?? (locale === "tr" ? "Dünya hazırlanamadı. Lütfen tekrar deneyin." : "We couldn’t prepare the world. Try again.")}
+                </span>
               </p>
               <ChromeButton
                 variant="gold"
@@ -408,14 +432,22 @@ export const StartScreen: FC<StartScreenProps> = ({
                 data-testid="startup-retry-button"
                 onClick={onRetry}
               >
-                <span>{startup.recovery === "save" ? "Retry save" : "Reload game"}</span>
+                <span>
+                  {startup.recovery === "save"
+                    ? (locale === "tr" ? "Kaydı Yeniden Dene" : "Retry save")
+                    : (locale === "tr" ? "Oyunu Yenile" : "Reload game")}
+                </span>
               </ChromeButton>
-              {startup.recovery === "save" && <ChromeButton className="start-screen__button" onClick={() => setWithoutSavingConfirmationOpen(true)}>Play without saving</ChromeButton>}
+              {startup.recovery === "save" && (
+                <ChromeButton className="start-screen__button" onClick={() => setWithoutSavingConfirmationOpen(true)}>
+                  {locale === "tr" ? "Kayıtsız Oyna" : "Play without saving"}
+                </ChromeButton>
+              )}
               {(startup.errorCode || startup.errorPhase) && (
                 <details className="start-screen__diagnostics">
-                  <summary>Diagnostics</summary>
-                  <span>Phase: {startup.errorPhase ?? "unknown"}</span>
-                  <span>Code: {startup.errorCode ?? "startup-failed"}</span>
+                  <summary>{locale === "tr" ? "Tanılama Bilgileri" : "Diagnostics"}</summary>
+                  <span>{locale === "tr" ? "Aşama" : "Phase"}: {startup.errorPhase ?? (locale === "tr" ? "bilinmiyor" : "unknown")}</span>
+                  <span>{locale === "tr" ? "Kod" : "Code"}: {startup.errorCode ?? "startup-failed"}</span>
                   {startup.errorDetail && (
                     <span className="start-screen__diagnostic-detail">{startup.errorDetail}</span>
                   )}
@@ -441,7 +473,7 @@ export const StartScreen: FC<StartScreenProps> = ({
 
                   {startup.slow && (
                     <p className="start-screen__slow-notice">
-                      Still preparing…
+                      {locale === "tr" ? "Hâlâ hazırlanıyor…" : "Still preparing…"}
                     </p>
                   )}
 
@@ -456,32 +488,38 @@ export const StartScreen: FC<StartScreenProps> = ({
                       data-testid="startup-progress"
                       value={hasMeasuredProgress ? loadedAssets : undefined}
                       max={progressMax}
-                      aria-label="Preparing the Neva Land world"
-                      aria-valuetext={hasMeasuredProgress ? `${startup.loadedAssets} of ${startup.totalAssets} scenery assets` : startup.message}
+                      aria-label={locale === "tr" ? "Neva Diyarı dünyası hazırlanıyor" : "Preparing the Neva Land world"}
+                      aria-valuetext={hasMeasuredProgress ? (locale === "tr" ? `${startup.loadedAssets} / ${startup.totalAssets} manzara varlığı` : `${startup.loadedAssets} of ${startup.totalAssets} scenery assets`) : startup.message}
                     />
                   </div>
                   <div className="start-screen__loading-detail">
-                    <span>Step {PREPARATION_STEP[startup.phase]} of 6</span>
-                    <LoadingElapsed />
+                    <span>{locale === "tr" ? `Aşama ${PREPARATION_STEP[startup.phase]} / 6` : `Step ${PREPARATION_STEP[startup.phase]} of 6`}</span>
+                    <LoadingElapsed isTr={locale === "tr"} />
                   </div>
                 </div>
               ) : isTitle && startup.saveStatus === "corrupt" ? (
                 <p className="start-screen__save-warning" role="status">
-                  Your harbor log could not be read. Start a new game to begin again.
+                  {locale === "tr"
+                    ? "Kıyı kaydı okunamadı. Baştan başlamak için yeni bir oyun başlatın."
+                    : "Your harbor log could not be read. Start a new game to begin again."}
                 </p>
               ) : isTitle && startup.saveStatus === "incompatible" ? (
                 <p className="start-screen__save-warning" role="status">
-                  This harbor log cannot open on the present coast. Start a new game to begin again.
+                  {locale === "tr"
+                    ? "Bu kıyı kaydı mevcut kıyıda açılamıyor. Baştan başlamak için yeni bir oyun başlatın."
+                    : "This harbor log cannot open on the present coast. Start a new game to begin again."}
                 </p>
               ) : isTitle && startup.saveStatus === "unavailable" ? (
                 <p className="start-screen__save-warning" role="status">
-                  Save storage is unavailable. You can play, but this session won’t be saved.
+                  {locale === "tr"
+                    ? "Kayıt alanı kullanılamıyor. Oynayabilirsiniz ancak bu oturum kaydedilmeyecek."
+                    : "Save storage is unavailable. You can play, but this session won’t be saved."}
                 </p>
               ) : null}
 
               {isCheckingSave && (
                 <div className="start-screen__loading" role="status">
-                  <span className="start-screen__progress-label">Opening the coast…</span>
+                  <span className="start-screen__progress-label">{t("start.openingCoast")}</span>
                   <div className="start-screen__meter is-indeterminate" aria-hidden="true">
                     <span className="start-screen__meter-fill" />
                   </div>
@@ -489,14 +527,24 @@ export const StartScreen: FC<StartScreenProps> = ({
               )}
 
               {isTitle && startup.saveStatus === "available" && startup.saveSummary && (
-                <div className="start-screen__save-scroll-card" aria-label="Saved game summary">
+                <div className="start-screen__save-scroll-card" aria-label={locale === "tr" ? "Kayıtlı oyun özeti" : "Saved game summary"}>
                   <div className="save-scroll-details">
-                    {/* dayCount is the absolute day since the save began; the day *within*
-                        the season is what "Day N of Spring" claims to show. */}
-                    <span className="save-scroll-tag">Day {dayOfSeason(startup.saveSummary.dayCount)} of {titleCase(startup.saveSummary.season)}</span>
+                    <span className="save-scroll-tag">
+                      {locale === "tr"
+                        ? `${SEASON_TR[startup.saveSummary.season.toLowerCase()] ?? startup.saveSummary.season}, ${dayOfSeason(startup.saveSummary.dayCount)}. Gün`
+                        : `Day ${dayOfSeason(startup.saveSummary.dayCount)} of ${titleCase(startup.saveSummary.season)}`}
+                    </span>
                     <span className="save-scroll-sep">·</span>
-                    <span className="save-scroll-location">{REGION_LABELS[startup.saveSummary.regionId] ?? "The coast"}</span>
-                    {savedDate && <span className="save-scroll-date">Recorded {savedDate}</span>}
+                    <span className="save-scroll-location">
+                      {locale === "tr"
+                        ? (REGION_LABELS_TR[startup.saveSummary.regionId] ?? "Kıyı")
+                        : (REGION_LABELS[startup.saveSummary.regionId] ?? "The coast")}
+                    </span>
+                    {savedDate && (
+                      <span className="save-scroll-date">
+                        {locale === "tr" ? `Kayıt: ${savedDate}` : `Recorded ${savedDate}`}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -521,7 +569,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                       data-testid="startup-new-game-button"
                       onClick={requestNewGame}
                     >
-                      Start a new game
+                      {t("start.newGame")}
                     </ChromeButton>
                   )}
                   <button
@@ -537,7 +585,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                     }}
                   >
                     <AtlasImage src={UI_MENU.compass} alt="" size={18} aria-hidden="true" />
-                    <span>Options</span>
+                    <span>{t("start.options")}</span>
                   </button>
                 </div>
               )}
@@ -565,18 +613,18 @@ export const StartScreen: FC<StartScreenProps> = ({
             onKeyDown={(event) => trapDialogFocus(event, closeOptions)}
           >
             <div className="start-screen__dialog-header">
-              <h2 id="start-screen-options-title">Settings</h2>
+              <h2 id="start-screen-options-title">{t("start.options")}</h2>
               <ChromeClose
                 ref={optionsCloseRef}
                 className="start-screen__dialog-close"
                 data-testid="startup-options-close"
-                label="Close options"
+                label={t("common.close")}
                 onClick={closeOptions}
               />
             </div>
 
             <div className="start-screen__options-layout">
-              <nav className="start-screen__options-pages" aria-label="Settings pages">
+              <nav className="start-screen__options-pages" aria-label={locale === "tr" ? "Ayar sayfaları" : "Settings pages"}>
                 {START_OPTIONS_PAGES.map((entry) => (
                   <button
                     type="button"
@@ -585,7 +633,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                     aria-current={optionsPage === entry.id ? "page" : undefined}
                     onClick={() => setOptionsPage(entry.id)}
                   >
-                    {entry.label}
+                    {t(`start.tabs.${entry.id}`)}
                   </button>
                 ))}
               </nav>
@@ -602,9 +650,13 @@ export const StartScreen: FC<StartScreenProps> = ({
                       data-testid="startup-fullscreen-button"
                       onClick={() => void toggleFullscreen()}
                     >
-                      {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                      {isFullscreen
+                        ? (locale === "tr" ? "Tam ekrandan çık" : "Exit fullscreen")
+                        : (locale === "tr" ? "Tam ekrana geç" : "Enter fullscreen")}
                     </ChromeButton>
-                    <p className="start-screen__option-note">Reduced motion follows your device setting.</p>
+                    <p className="start-screen__option-note">
+                      {locale === "tr" ? "Azaltılmış hareket cihaz ayarınızı takip eder." : "Reduced motion follows your device setting."}
+                    </p>
                     {fullscreenMessage && <p className="start-screen__option-message" role="status">{fullscreenMessage}</p>}
                   </div>
                 )}
@@ -612,7 +664,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                 {optionsPage === "interface" && <InterfaceSettings />}
                 {optionsPage === "controls" && (
                   <section className="start-screen__options-section" aria-labelledby="start-screen-controls-title">
-                    <h3 id="start-screen-controls-title">Controls</h3>
+                    <h3 id="start-screen-controls-title">{t("start.tabs.controls")}</h3>
                     <ControlsReference className="start-screen__controls" />
                   </section>
                 )}
@@ -641,19 +693,25 @@ export const StartScreen: FC<StartScreenProps> = ({
             onKeyDown={(event) => trapDialogFocus(event, closeNewGameConfirmation)}
           >
             <div className="start-screen__dialog-header">
-              <h2 id="start-screen-new-game-title">Replace this harbor log?</h2>
+              <h2 id="start-screen-new-game-title">
+                {locale === "tr" ? "Bu kıyı kaydının üzerine yazılsın mı?" : "Replace this harbor log?"}
+              </h2>
               <ChromeClose
                 className="start-screen__dialog-close"
-                label="Keep current game"
+                label={locale === "tr" ? "Mevcut oyunu koru" : "Keep current game"}
                 onClick={closeNewGameConfirmation}
               />
             </div>
             <p id="start-screen-new-game-description" className="start-screen__dialog-copy">
-              {startup.saveStatus === "available"
-                ? `Day ${startup.saveSummary?.dayCount ?? "—"} at ${REGION_LABELS[startup.saveSummary?.regionId ?? ""] ?? "the coast"} will be replaced once the new world is ready.`
-                : startup.saveStatus === "incompatible" || startup.saveStatus === "corrupt"
-                  ? "The unreadable harbor log will remain untouched until you confirm. A new game will replace it once the coast is ready."
-                  : "The existing harbor log remains untouched until you confirm. A new game will replace it once the coast is ready."}
+              {locale === "tr"
+                ? (startup.saveStatus === "available"
+                    ? `Yeni dünya hazır olduğunda ${REGION_LABELS_TR[startup.saveSummary?.regionId ?? ""] ?? "kıyıdaki"} ${startup.saveSummary?.dayCount ?? "—"}. Gün kaydının üzerine yazılacak.`
+                    : "Mevcut kıyı kaydına siz onaylayana dek dokunulmaz. Yeni kıyı hazır olduğunda üzerine yazılacaktır.")
+                : (startup.saveStatus === "available"
+                    ? `Day ${startup.saveSummary?.dayCount ?? "—"} at ${REGION_LABELS[startup.saveSummary?.regionId ?? ""] ?? "the coast"} will be replaced once the new world is ready.`
+                    : startup.saveStatus === "incompatible" || startup.saveStatus === "corrupt"
+                      ? "The unreadable harbor log will remain untouched until you confirm. A new game will replace it once the coast is ready."
+                      : "The existing harbor log remains untouched until you confirm. A new game will replace it once the coast is ready.")}
             </p>
             <div className="start-screen__dialog-actions">
               <ChromeButton
@@ -662,7 +720,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                 data-testid="startup-new-game-cancel"
                 onClick={closeNewGameConfirmation}
               >
-                Keep current game
+                {locale === "tr" ? "Mevcut oyunu koru" : "Keep current game"}
               </ChromeButton>
               <ChromeButton
                 variant="gold"
@@ -674,7 +732,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                   onStartNewGame();
                 }}
               >
-                Start a new game
+                {locale === "tr" ? "Yeni bir oyun başlat" : "Start a new game"}
               </ChromeButton>
             </div>
           </GameSheet>
@@ -700,11 +758,15 @@ export const StartScreen: FC<StartScreenProps> = ({
             onKeyDown={(event) => trapDialogFocus(event, closeWithoutSavingConfirmation)}
           >
             <div className="start-screen__dialog-header">
-              <h2 id="start-screen-no-save-title">Continue without saving?</h2>
-              <ChromeClose label="Cancel" onClick={closeWithoutSavingConfirmation} />
+              <h2 id="start-screen-no-save-title">
+                {locale === "tr" ? "Kayıtsız devam edilsin mi?" : "Continue without saving?"}
+              </h2>
+              <ChromeClose label={locale === "tr" ? "Vazgeç" : "Cancel"} onClick={closeWithoutSavingConfirmation} />
             </div>
             <p id="start-screen-no-save-description" className="start-screen__dialog-copy">
-              Save storage is unavailable. Progress from this session will be lost when you leave or reload.
+              {locale === "tr"
+                ? "Kayıt alanı kullanılamıyor. Oyundan ayrıldığınızda veya sayfayı yenilediğinizde bu oturumdaki ilerleme kaybolacak."
+                : "Save storage is unavailable. Progress from this session will be lost when you leave or reload."}
             </p>
             <div className="start-screen__dialog-actions">
               <ChromeButton
@@ -712,7 +774,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                 className="start-screen__secondary-button start-screen__secondary-button--dialog"
                 onClick={closeWithoutSavingConfirmation}
               >
-                Cancel
+                {locale === "tr" ? "Vazgeç" : "Cancel"}
               </ChromeButton>
               <ChromeButton
                 variant="danger"
@@ -723,7 +785,7 @@ export const StartScreen: FC<StartScreenProps> = ({
                   onStartWithoutSaving();
                 }}
               >
-                Continue without saving
+                {locale === "tr" ? "Kayıtsız devam et" : "Continue without saving"}
               </ChromeButton>
             </div>
           </GameSheet>

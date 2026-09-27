@@ -1,3 +1,4 @@
+import { ASSET_BY_ID, boatAssetId } from "../assets/AssetCatalog";
 import * as THREE from "three";
 import type { CameraInputIntent } from "../../input/InputRouter";
 import type {
@@ -23,6 +24,7 @@ export interface CameraMotionInput {
   /** Authored-world openness after working-area and active-interaction suppression. */
   explorationWeight?: number;
   boat?: BoatMotionSample;
+  boatTypeId?: string;
   discontinuityReason?: PresentationDiscontinuityReason;
   discontinuitySequence?: number;
   lookHint?: { x: number; y: number; z: number };
@@ -270,6 +272,11 @@ export class GameCamera {
     this.camera.lookAt(this.currentLookAt);
   }
 
+  public snapYaw(yaw: number): void {
+    this.desiredYaw = wrapAngle(yaw);
+    this.currentYaw = this.desiredYaw;
+  }
+
   /**
    * Applies presentation input before fixed-step movement so WASD uses the
    * exact view basis the player sees in the same render frame.
@@ -327,6 +334,7 @@ export class GameCamera {
     motionInput?: CameraMotionInput
   ): void {
     const dt = Math.min(0.1, Math.max(0, deltaSeconds));
+    this.activeBoatTypeId = motionInput?.boatTypeId;
     if (input) this.applyInput(mode, input);
     const isInterior = WorldLayout.isInterior(targetPos.x, targetPos.z);
     const profile = this.activateMode(mode, isInterior, motionInput?.fightReachMeters ?? 0);
@@ -816,9 +824,30 @@ export class GameCamera {
   private sportDistanceBias = 0;
   private sportPitchBias = 0;
 
+  private activeBoatTypeId: string | undefined;
+  private readonly vesselProfiles = new Map<string, CameraProfile>();
+
+  private vesselProfile(typeId: string): CameraProfile {
+    const existing = this.vesselProfiles.get(typeId);
+    if (existing) return existing;
+    const dimensions = ASSET_BY_ID.get(boatAssetId(typeId))!.dimensions;
+    const base = CAMERA_PROFILES["boat-driving"];
+    // Larger decks need their full load and mast in the default composition.
+    const profile = dimensions.depth <= 8 ? base : {
+      ...base, distance: Math.max(base.distance, dimensions.depth * 2.4),
+      minDistance: Math.max(base.minDistance, dimensions.depth * .7),
+      maxDistance: Math.max(base.maxDistance, dimensions.depth * 3),
+      focusHeight: Math.max(base.focusHeight, dimensions.height * .3),
+      lookAhead: Math.min(base.lookAhead, dimensions.depth * .2)
+    };
+    this.vesselProfiles.set(typeId, profile);
+    return profile;
+  }
+
   private activateMode(mode: GameMode, isInterior = false, fightReachMeters = 0): CameraProfile {
     const activeMode = mode === "menu" || mode === "paused" ? this.currentMode : mode;
     let nextProfile = CAMERA_PROFILES[activeMode] ?? ON_FOOT_PROFILE;
+    if (activeMode === "boat-driving" && this.activeBoatTypeId) nextProfile = this.vesselProfile(this.activeBoatTypeId);
     if (activeMode === "on-foot" && isInterior) {
       nextProfile = INTERIOR_CAMERA_PROFILE;
     }

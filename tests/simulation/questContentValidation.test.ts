@@ -74,7 +74,7 @@ describe("quest content validation", () => {
 
   it("rejects cycles and unreachable entries", () => {
     const cycle = copyQuests();
-    cycle[cycle.length - 1].nextQuestId = cycle[0].id;
+    cycle.find(quest => quest.trackId === "track.main" && !quest.nextQuestId)!.nextQuestId = "quest.act1_welcome";
     expect(() => ContentRegistry.validateQuestDefinitions(cycle)).toThrow(/cycle/);
 
     const unreachable = copyQuests();

@@ -1,3 +1,12 @@
+import { TRADE_PACKS } from '../../content/tradePacks';
+import { quoteCraftedTradePack, snapshotTradePack } from '../economy/TradePackEconomy';
+import { quoteMarketRetail } from '../economy/retailQuote';
+import { validTradePackSnapshot } from '../cargo/farmPacks';
+import { quoteVillageTradePack } from "../economy/VillageTrade";
+import { VILLAGE_TRADE_STATIONS } from "../../world/VillageTradeLayout";
+import { VILLAGE_TRADE_GOODS, isVillageTradeOrigin } from "../../content/villageTrade";
+import { FARM_PACK_WEIGHT_KG } from "../../content/farmPacks";
+import { farmPackQuality, validFarmPackLots } from "../cargo/farmPacks";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { isProcessingRecipeUnlocked, PROFICIENCY_RANKS } from "../../content/progression";
 import { LIVE_RECIPE_IDS } from "../../content/recipes";
@@ -62,6 +71,7 @@ export function isValidProcessingJobEconomicSnapshot(job: ProcessingJobState): b
   const workTier = job.workTier as ProcessingWorkTier;
   if (
     !Object.hasOwn(PROCESSING_WORK_BY_TIER, workTier) ||
+    !Number.isSafeInteger(job.chargedMoney ?? 0) || (job.chargedMoney ?? 0) < 0 ||
     !Number.isSafeInteger(job.baseWork) ||
     job.baseWork !== PROCESSING_WORK_BY_TIER[workTier] ||
     !Number.isSafeInteger(job.chargedWork) ||
@@ -77,6 +87,12 @@ export function isValidProcessingJobEconomicSnapshot(job: ProcessingJobState): b
     job.completesAtMinute - job.startedAtMinute !== job.effectiveDurationMinutes
   ) return false;
   if (job.result.kind === "equipment") return ContentRegistry.equipment.has(job.result.equipmentId);
+  if (job.result.kind === "farm-pack" && (job.result.tradePack || job.result.tradePackId)) return validTradePackSnapshot(job.result.tradePack, job.result.lots, job.result.sourceMarketId)
+    && Number.isSafeInteger(job.chargedMoney)
+    && job.result.tradePackId === job.result.tradePack.definitionId
+    && job.result.itemId === TRADE_PACKS[job.result.tradePack.definitionId].iconItemId
+    && job.result.quantity === job.result.lots!.reduce((sum, lot) => sum + lot.quantity, 0);
+  if (job.result.kind === "farm-pack") return validFarmPackLots(job.result.itemId, job.result.quantity, job.result.lots) && (job.result.sourceMarketId === undefined || isVillageTradeOrigin(job.result.sourceMarketId));
   if (
     job.result.kind !== "items" ||
     !Array.isArray(job.result.stacks) ||
@@ -102,6 +118,8 @@ export function recipeOutputLabel(result: RecipeResult): string {
   if (result.kind === "equipment") {
     return ContentRegistry.equipment.get(result.equipmentId)?.name ?? "Equipment";
   }
+  if (result.kind === "farm-pack" && result.tradePackId) return result.tradePack?.name ?? TRADE_PACKS[result.tradePackId]?.name ?? result.tradePackId;
+  if (result.kind === "farm-pack") return `${result.quantity} ${ContentRegistry.items.get(result.itemId)?.name ?? result.itemId} trade pack`;
   return result.stacks.map((stack) => {
     const name = ContentRegistry.items.get(stack.itemId)?.name ?? stack.itemId;
     return stack.quantity > 1 ? `${stack.quantity} ${name}` : name;
@@ -113,13 +131,14 @@ export function processingJobOutputName(result: RecipeResult): string {
   if (result.kind === "equipment") {
     return ContentRegistry.equipment.get(result.equipmentId)?.name ?? "Equipment";
   }
+  if (result.kind === "farm-pack") return recipeOutputLabel(result);
   return result.stacks.map((stack) => ContentRegistry.items.get(stack.itemId)?.name ?? stack.itemId).join(", ");
 }
 
 function cloneResult(result: RecipeResult): RecipeResult {
-  return result.kind === "equipment"
-    ? { ...result }
-    : { kind: "items", stacks: result.stacks.map((stack) => ({ ...stack })) };
+  if (result.kind === "items") return { kind: "items", stacks: result.stacks.map((stack) => ({ ...stack })) };
+  if (result.kind === "farm-pack") return { ...result, tradePack: result.tradePack ? { ...result.tradePack } : undefined, lots: result.lots?.map((lot) => ({ ...lot })) };
+  return { ...result };
 }
 
 /** First unlocked recipe the satchel can actually start, else the first unlocked recipe. */
@@ -165,6 +184,7 @@ export class ProcessingDomain {
     if (station.type !== recipe.stationType) {
       return { success: false, reason: `This recipe requires a ${recipe.stationType}` };
     }
+    if (!this.stationMakesRecipe(stationId, recipe)) return { success: false, reason: "This village packs its own local specialties" };
     if (Object.values(state.processingJobs).some((job) => job.stationId === stationId)) {
       return { success: false, reason: "Station is already in use" };
     }
@@ -176,20 +196,32 @@ export class ProcessingDomain {
     if (!InventoryManager.hasItems(inventory, recipe.inputs)) {
       return { success: false, reason: "Missing required ingredients" };
     }
+    const costMoney = recipe.costMoney ?? 0;
+    if (state.player.money < costMoney) return { success: false, reason: `Need ${costMoney} G for packing` };
+    const capturedResult = cloneResult(recipe.result);
+    if (capturedResult.kind === "farm-pack") {
+      const lots = recipe.inputs.flatMap(input => InventoryManager.planItemRemoval(inventory, input.itemId, input.quantity) ?? []);
+      if (lots.reduce((sum, lot) => sum + lot.quantity, 0) !== capturedResult.quantity) return { success: false, reason: "Not enough ingredients to pack" };
+      capturedResult.lots = lots;
+      if (capturedResult.tradePackId) capturedResult.tradePack = snapshotTradePack(TRADE_PACKS[capturedResult.tradePackId], lots);
+      capturedResult.sourceMarketId = VILLAGE_TRADE_STATIONS.find(station => station.id === stationId)!.marketId;
+    }
     // Item outputs remain at the station, so current satchel space is checked
     // only at collection. Equipment capacity is reserved above because it has
     // a separate permanent-storage contract.
     const baseWork = processingWorkForRecipe(recipe);
     const workQuote = this.progression.quoteWorkCost(baseWork, "processing", "processing.start");
     if (!workQuote.affordable) return this.progression.insufficientWorkResult(workQuote, "Processing");
+    const originalSlots = inventory.slots.map(slot => ({ ...slot }));
     if (!InventoryManager.removeItemsAtomically(inventory, recipe.inputs)) {
       return { success: false, reason: "The ingredients changed before the job began" };
     }
     const work = this.progression.trySpendWork(baseWork, "processing", "Processing", "processing.start");
     if (!work.success) {
-      InventoryManager.addItemsAtomically(inventory, recipe.inputs);
+      inventory.slots = originalSlots;
       return work;
     }
+    state.player.money -= costMoney;
     const effectiveDuration = effectiveRecipeDurationMinutes(recipe, stationId, state.quests);
     const jobId = this.context.nextEntityId("job");
     state.processingJobs[jobId] = {
@@ -201,11 +233,12 @@ export class ProcessingDomain {
       status: "active",
       recipeName: recipe.name,
       outputLabel: processingJobOutputName(recipe.result),
-      result: cloneResult(recipe.result),
+      result: capturedResult,
       workTier: recipe.workTier,
       presentationKind: recipe.presentationKind,
       baseWork,
       chargedWork: work.cost,
+      chargedMoney: costMoney,
       xpReward: processingXpForRecipe(recipe),
       effectiveDurationMinutes: effectiveDuration
     };
@@ -239,6 +272,19 @@ export class ProcessingDomain {
       if (!InventoryManager.addItemsAtomically(inventory, job.result.stacks)) {
         return { success: false, reason: "The satchel changed before collection" };
       }
+    } else if (job.result.kind === "farm-pack") {
+      const lots = job.result.lots!;
+      const cargoId = this.context.nextEntityId("cargo");
+      state.fishCargo[cargoId] = {
+        id: cargoId, kind: "farm", itemId: job.result.itemId, sourceMarketId: job.result.sourceMarketId,
+        tradePack: job.result.tradePack ? { ...job.result.tradePack } : undefined,
+        lots: lots.map((lot) => ({ ...lot })), quality: farmPackQuality(lots),
+        weightKg: FARM_PACK_WEIGHT_KG, cargoClass: "medium",
+        caughtAtMinute: state.clock.currentMinute, freshness: 100,
+        location: { type: "player", containerId: "player" }
+      };
+      state.player.carriedFishCargoId = cargoId;
+      this.context.persistRng();
     } else {
       const grant = this.equipment.grantCrafted(job.result.equipmentId);
       if (!grant.success) return grant;
@@ -286,6 +332,7 @@ export class ProcessingDomain {
       recipeId: job.recipeId,
       recipeName: job.recipeName,
       outputName: job.outputLabel,
+      tradePackId: job.result.kind === "farm-pack" ? job.result.tradePackId : undefined,
       status: job.status,
       remainingMinutes: job.status === "complete" ? 0 : remainingMinutes,
       readyClockLabel,
@@ -302,7 +349,7 @@ export class ProcessingDomain {
     const inventory = state.inventories[state.player.inventoryId];
     const questTargets = this.activeCraftRecipeTargets();
     const rows = [...ContentRegistry.recipes.values()]
-      .filter((recipe) => recipe.stationType === station.type && LIVE_RECIPE_IDS.has(recipe.id))
+      .filter((recipe) => recipe.stationType === station.type && LIVE_RECIPE_IDS.has(recipe.id) && this.stationMakesRecipe(stationId, recipe))
       .map((recipe, contentOrder) => {
         const lockedReason = this.recipeLockReason(recipe);
         const inputs = recipe.inputs.map((input) => {
@@ -312,7 +359,8 @@ export class ProcessingDomain {
             name: ContentRegistry.items.get(input.itemId)?.name ?? input.itemId,
             required: input.quantity,
             owned,
-            enough: owned >= input.quantity
+            enough: owned >= input.quantity,
+            sources: recipe.stationType === "trading-station" ? this.inputSources(input.itemId, input.quantity) : undefined
           };
         });
         const blockers: string[] = [];
@@ -328,6 +376,7 @@ export class ProcessingDomain {
           }
         }
         const work = this.progression.quoteWorkCost(processingWorkForRecipe(recipe), "processing", "processing.start");
+        if (state.player.money < (recipe.costMoney ?? 0)) blockers.push(`Need ${recipe.costMoney} G for packing`);
         if (!lockedReason && !work.affordable) blockers.push(`Need ${work.cost} Work`);
         const questTarget = questTargets.has(recipe.id);
         const stateLabel: ProcessingRecipeRowDto["state"] = lockedReason
@@ -342,6 +391,11 @@ export class ProcessingDomain {
           row: {
             recipeId: recipe.id,
             name: recipe.name,
+            tradeDestinations: this.tradeDestinations(stationId, recipe),
+            costMoney: recipe.costMoney ?? 0,
+            replacementCost: this.replacementCost(recipe),
+            tradeTier: recipe.result.kind === "farm-pack" && recipe.result.tradePackId ? TRADE_PACKS[recipe.result.tradePackId].tier : undefined,
+            decayPerMinute: recipe.result.kind === "farm-pack" && recipe.result.tradePackId ? TRADE_PACKS[recipe.result.tradePackId].decayPerMinute : undefined,
             result: cloneResult(recipe.result),
             outputLabel: recipeOutputLabel(recipe.result),
             inputs,
@@ -380,7 +434,55 @@ export class ProcessingDomain {
     }
   }
 
+  private tradeDestinations(stationId: string, recipe: RecipeDefinition): ProcessingRecipeRowDto["tradeDestinations"] {
+    if (recipe.result.kind !== "farm-pack") return undefined;
+    const { state } = this.context;
+    const origin = VILLAGE_TRADE_STATIONS.find(station => station.id === stationId)?.marketId;
+    if (!origin) return undefined;
+    const result = recipe.result;
+    const inventory = state.inventories[state.player.inventoryId];
+    const lots = recipe.inputs.flatMap(input => InventoryManager.planItemRemoval(inventory, input.itemId, input.quantity) ?? [{ ...input }]);
+    const pack = result.tradePackId ? snapshotTradePack(TRADE_PACKS[result.tradePackId], lots) : undefined;
+    const replacementCost = this.replacementCost(recipe);
+    return Object.keys(VILLAGE_TRADE_GOODS).filter(id => id !== origin).map(marketId => {
+      const quote = pack ? quoteCraftedTradePack(pack, result.quantity, 100, origin, state.markets[marketId], state.clock.currentMinute, state.worldSeed)
+        : quoteVillageTradePack(state.markets[marketId].commodities[result.itemId], lots, 100, origin, marketId,
+        { absoluteHour: state.clock.currentMinute / 60, worldSeed: state.worldSeed });
+      return { marketId, name: ContentRegistry.markets.get(marketId)!.name, routeMeters: quote.routeMeters, gold: quote.finalPrice, tradingXp: quote.tradingXp,
+        estimatedMargin: replacementCost === null ? null : quote.finalPrice - replacementCost,
+        demandPercent: Math.round((quote.demandModifier ?? 1) * 100) };
+    }).sort((a, b) => b.gold - a.gold);
+  }
+
+  private inputSources(itemId: string, quantity: number) {
+    const { state } = this.context;
+    return [...ContentRegistry.markets.values()].filter(market => market.retail.itemIds.includes(itemId)).map(market => {
+      const commodity = state.markets[market.id].commodities[itemId];
+      return { marketId: market.id, name: market.name, stock: Math.floor(commodity.localSupply),
+        cost: quoteMarketRetail(state, market.id, commodity, quantity).total };
+    }).sort((a, b) => a.cost - b.cost);
+  }
+
+  private replacementCost(recipe: RecipeDefinition): number | null {
+    if (recipe.stationType !== 'trading-station') return null;
+    let total = recipe.costMoney ?? 0;
+    for (const input of recipe.inputs) {
+      const source = this.inputSources(input.itemId, input.quantity).find(source => source.stock >= input.quantity);
+      if (!source) return null;
+      total += source.cost;
+    }
+    return total;
+  }
+
+  private stationMakesRecipe(stationId: string, recipe: RecipeDefinition): boolean {
+    if (recipe.result.kind !== "farm-pack") return true;
+    const station = VILLAGE_TRADE_STATIONS.find(candidate => candidate.id === stationId);
+    if (recipe.result.tradePackId) return TRADE_PACKS[recipe.result.tradePackId]?.originMarketId === station?.marketId;
+    return Boolean(station && VILLAGE_TRADE_GOODS[station.marketId]?.includes(recipe.result.itemId));
+  }
+
   private recipeLockReason(recipe: RecipeDefinition): string | null {
+    if (this.context.state.player.proficiencies.trading < (recipe.minimumTradingXp ?? 0)) return `Requires ${recipe.minimumTradingXp} Trading XP`;
     const processingXp = this.context.state.player.proficiencies.processing;
     if (!isProcessingRecipeUnlocked(processingXp, recipe.id)) {
       const rank = PROFICIENCY_RANKS.find((candidate) => candidate.processingUnlocks.includes(recipe.id));

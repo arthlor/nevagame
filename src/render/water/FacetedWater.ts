@@ -4,8 +4,8 @@ import { createCoastalUniforms, WATER_OUTPUT_GLSL, type CoastalUniforms } from "
 import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRenderConfig";
 import type { LightingFrame } from "../lighting/LightingRig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
-import { WATER_SURFACE } from "../../world/WorldLayout";
-import { NEVA_HEADWATERS } from "../../world/NevaHeadwaters";
+import { WATER_SURFACE, WorldLayout } from "../../world/WorldLayout";
+import { NEVA_HEADWATERS, headwaterElevationAt } from "../../world/NevaHeadwaters";
 import {
   bandDirection,
   createWaveUniforms,
@@ -36,6 +36,8 @@ import {
   WATER_NOISE_GLSL
 } from "./waveGlsl";
 import { WATER_SHADING_UNIFORMS_GLSL, WATER_SURFACE_SHADING_GLSL } from "./waterShadingGlsl";
+import { createRiverFeatureFoamField } from "./RiverFeatureFoam";
+import { RiverMist } from "./RiverMist";
 import { WATER_LOD_VERTEX_GLSL, WaterLodSurface } from "./WaterLod";
 import { HeadwaterFall } from "./HeadwaterFall";
 import { waterDetailNormalTexture } from "./WaterDetailNormals";
@@ -274,9 +276,15 @@ export function createWaterGeometry(
       const distanceToBand = mid < fall.lipZ ? fall.lipZ - mid
         : mid > fall.landingZ ? mid - fall.landingZ : 0;
       const feather = THREE.MathUtils.smoothstep(distanceToBand, 0, 2.5);
+      // The outlet cascade's steps are steep segments of the same profile;
+      // they need their own fine rows, but only across the step itself.
+      const grade = Math.abs(headwaterElevationAt(start) - headwaterElevationAt(end)) / Math.max(0.001, end - start);
+      const bandSpacing = grade > 0.4
+        ? Math.min(headwaterConfig.maxRowSpacingMeters, headwaterConfig.stepRowSpacingMeters)
+        : headwaterConfig.maxRowSpacingMeters;
       return THREE.MathUtils.lerp(
-        Math.min(headwaterConfig.maxRowSpacingMeters, headwaterConfig.fallRowSpacingMeters),
-        headwaterConfig.maxRowSpacingMeters,
+        Math.min(bandSpacing, headwaterConfig.fallRowSpacingMeters),
+        bandSpacing,
         feather
       );
     };
@@ -359,6 +367,8 @@ export class FacetedWater {
   /** Uniform objects shared by every water material, the fall and its mist. */
   public readonly uniforms: Record<string, THREE.IUniform>;
   public readonly headwaterFall: HeadwaterFall;
+  /** Low mist over the river, driven by the lighting frame's `riverMist` share. */
+  public readonly riverMist: RiverMist;
   private qualityTier: QualityTier = CANONICAL_RENDER_CONFIG.qualityTier;
   private conditions: WaterConditions = {
     seaRoughness: 0.2,
@@ -404,6 +414,9 @@ export class FacetedWater {
     this.coastalUniforms = createCoastalUniforms(this.depthMap, bounds);
     const surface = CANONICAL_RENDER_CONFIG.waterSurface;
     const headwaters = surface.headwaters;
+    const fallLip = WorldLayout.riverSectionAt(NEVA_HEADWATERS.fall.lipZ);
+    const fallLandingWidth = 1 + headwaters.fall.widthSpread;
+    const riverFeatureFoam = createRiverFeatureFoamField();
     this.uniforms = {
       ...createHeadwaterUniforms(),
       // The wave field first, so the shared coastal uniforms keep ownership
@@ -470,10 +483,19 @@ export class FacetedWater {
       uRiverEdgeOpacity: { value: headwaters.riverEdgeOpacity },
       uRiverEdgeFoamStrength: { value: headwaters.riverEdgeFoamStrength },
       uRiverEdgeFoamScale: { value: headwaters.riverEdgeFoamScaleMeters },
+      uRiverFeatureFoam: { value: riverFeatureFoam.texture },
+      uRiverFeatureFoamBounds: { value: riverFeatureFoam.bounds },
+      uRiverFeatureFoamStrength: { value: headwaters.featureFoamStrength },
       uPlungeRingSpeed: { value: headwaters.plungeRingSpeedMetersPerSecond },
       uPlungeRingWavelength: { value: headwaters.plungeRingWavelengthMeters },
       uPlungeRingStrength: { value: headwaters.plungeRingStrength },
       uPlungeRingSpan: { value: headwaters.plungeRingSpanMeters },
+      uPlungeBoil: { value: new THREE.Vector4(
+        fallLip.leftWaterWidth * fallLandingWidth + headwaters.plungeBoilOverhangMeters,
+        fallLip.rightWaterWidth * fallLandingWidth + headwaters.plungeBoilOverhangMeters,
+        headwaters.plungeBoilRunMeters,
+        headwaters.plungeBoilStrength
+      ) },
       // Per-surface hull state for the shared contact-energy function.
       uBodyCount: { value: 0 },
       uBodies: { value: Array.from({ length: 16 }, () => new THREE.Vector4(0, 0, 0, 0)) },
@@ -530,6 +552,8 @@ export class FacetedWater {
     // drives the channel, the pool and the fall together.
     this.headwaterFall = new HeadwaterFall({ sharedUniforms: this.uniforms });
     this.group.add(this.headwaterFall.group);
+    this.riverMist = new RiverMist({ sharedUniforms: this.uniforms, tier: this.qualityTier });
+    this.group.add(this.riverMist.group);
     this.group.name = "faceted_water";
     this.setQuality(this.qualityTier);
   }
@@ -548,6 +572,7 @@ export class FacetedWater {
     );
     this.lod.setQuality(tier);
     this.headwaterFall.setQuality(tier);
+    this.riverMist.setQuality(tier);
   }
 
   /**
@@ -636,6 +661,7 @@ export class FacetedWater {
     (uniforms.uSkyHorizonColor.value as THREE.Color).copy(frame.skyHorizonColor);
     uniforms.uFogNear.value = frame.fogNear;
     uniforms.uFogFar.value = frame.fogFar;
+    this.riverMist.setAmount(frame.riverMist);
   }
 
   public sample(x: number, z: number, timeSeconds: number): ReturnType<typeof WaterSurface.sample> {
@@ -655,5 +681,6 @@ export class FacetedWater {
     this.headwaterSurface.geometry.dispose();
     this.headwaterSurface.material.dispose();
     this.headwaterFall.dispose();
+    this.riverMist.dispose();
   }
 }

@@ -1,16 +1,22 @@
+import { InventoryManager } from "../../simulation/inventory/InventoryManager";
+import { getProcessingStationFrontPosition } from "../../world/ProcessingStationApproach";
 import type { Simulation } from "../../simulation/Simulation";
 import { SPORT_FISHING_REVIEW_POINTS } from "../../simulation/domains/FishingDomain";
 import { STARTER_FARM_LAYOUT } from "../../world/FarmLayout";
-import { HARBOR_DOCK, WORLD_SPAWN } from "../../world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_TRADE_MOORING, WORLD_SPAWN } from "../../world/WorldAnchors";
 import { WorldLayout } from "../../world/WorldLayout";
 
 export type DebugStartScenario =
   | "farm"
+  | "farm-trade"
+  | "village-trade"
+  | "trade-economy"
   | "farm-art"
   | "motion-capture"
   | "farmhouse-north"
   | "farmhouse-south"
   | "harbor"
+  | "harbor-fleet"
   | "harbor-skiff"
   | "boat-driving"
   | "storm-skiff"
@@ -18,11 +24,15 @@ export type DebugStartScenario =
 
 export const DEBUG_START_SCENARIOS = new Set<DebugStartScenario>([
   "farm",
+  "farm-trade",
+  "village-trade",
+  "trade-economy",
   "farm-art",
   "motion-capture",
   "farmhouse-north",
   "farmhouse-south",
   "harbor",
+  "harbor-fleet",
   "harbor-skiff",
   "boat-driving",
   "storm-skiff",
@@ -40,6 +50,27 @@ export function applyDebugStartScenario(sim: Simulation, scenario: DebugStartSce
     case "farm":
       sim.setDebugPlayerPose(poseFor(WORLD_SPAWN.playerPosition.x, WORLD_SPAWN.playerPosition.z));
       break;
+    case "trade-economy":
+    case "village-trade":
+      // Persistence-disabled QA: gates can be exercised through the real purchase actions.
+      sim.state.player.money = 240000;
+      sim.state.player.proficiencies.trading = 30000;
+      if (scenario === "trade-economy") sim.state.player.proficiencies.processing = 3000;
+      InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [{ itemId: "produce.wheat", quantity: 100 }]);
+      sim.setDebugPlayerPose(poseFor(88, -24));
+      break;
+    case "farm-trade": {
+      // Unsaved review session: exercise the ordinary start/wait/collect UI.
+      const station = sim.state.world.structures["struct.trade_neva"];
+      const front = getProcessingStationFrontPosition("struct.trade_neva", station);
+      if (!front) throw new Error("Farm trade review needs the Neva packing yard approach");
+      InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+        { itemId: "produce.wheat", quantity: 4, quality: "common" },
+        { itemId: "produce.wheat", quantity: 6, quality: "fine" }
+      ]);
+      sim.setDebugPlayerPose(poseFor(front.x, front.z));
+      break;
+    }
     case "farm-art":
       sim.prepareDebugStarterTrioArtReview();
       sim.setDebugPlayerPose(poseFor(STARTER_FARM_LAYOUT.origin.x, STARTER_FARM_LAYOUT.origin.z - 5.4));
@@ -60,6 +91,16 @@ export function applyDebugStartScenario(sim: Simulation, scenario: DebugStartSce
     }
     case "harbor":
       sim.prepareDebugHarborBoarding();
+      break;
+    case "harbor-fleet":
+      sim.prepareDebugHarborBoarding();
+      if (!sim.prepareDebugSkiffReview()) throw new Error("Could not prepare the harbor review skiff");
+      sim.state.player.money = 200000;
+      sim.state.player.proficiencies.trading = 30000;
+      sim.setDebugPlayerPose(poseFor(HARBOR_TRADE_MOORING.purchasePosition.x, HARBOR_TRADE_MOORING.purchasePosition.z));
+      if (!sim.execute({ type: "vehicle.purchase", vehicleTypeId: "boat.trading_ship" }).success)
+        throw new Error("Could not prepare the harbor review coaster");
+      sim.setDebugPlayerPose(poseFor(HARBOR_DOCK.playerPosition.x, HARBOR_DOCK.playerPosition.z));
       break;
     case "harbor-skiff":
       if (!sim.prepareDebugSkiffReview()) {

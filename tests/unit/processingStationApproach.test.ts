@@ -1,3 +1,4 @@
+import { VILLAGE_TRADE_STATIONS } from "../../src/world/VillageTradeLayout";
 import { describe, expect, it } from "vitest";
 import { farmLocalToWorld, STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
@@ -61,6 +62,7 @@ describe("processing station front approach", () => {
     // added or dropped without anyone noticing. Sunreach contributed three;
     // the farm kitchen contributes the fourth new entry.
     expect(PROCESSING_STATION_IDS).toEqual([
+      ...VILLAGE_TRADE_STATIONS.map(station => station.id),
       "struct.starter_mill",
       "struct.workbench",
       "struct.starter_compost",

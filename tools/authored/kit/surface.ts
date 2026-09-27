@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { ConvexHull } from "three/examples/jsm/math/ConvexHull.js";
 
 import { tokenLinearColor, tokenMaterial } from "./palette";
 import type { V3, Weights } from "./types";
@@ -282,6 +283,37 @@ export class SurfaceBuilder {
       sides: 4, phase: Math.PI / 4, ref: options.ref ?? [0, 1, 0], capStart: 0, capEnd: 0,
       flat: true, token: options.token, bones: options.bones, shade: options.shade
     });
+  }
+
+  /**
+   * Faceted convex solid around a point cloud: every hull face is one flat facet. Stones and cut
+   * blocks get their broad planes from where the points lie (points projected onto a fracture plane
+   * become one facet), not from a lofted section. Concave masses are several overlapping hulls.
+   * `token` and `shade` see each face's centroid and outward normal (`u` and `theta` are 0).
+   */
+  public addHull(points: readonly V3[], options: { token: TokenRule; shade?: LoftOptions["shade"]; bones?: Weights }): void {
+    const hull = new ConvexHull().setFromPoints(points.map((point) => new THREE.Vector3(...point)));
+    for (const face of hull.faces) {
+      const loop: THREE.Vector3[] = [];
+      let edge = face.edge;
+      do {
+        loop.push(edge.head().point.clone());
+        edge = edge.next;
+      } while (edge !== face.edge);
+      if (loop.length < 3) continue;
+      const centroid = loop.reduce((sum, point) => sum.add(point), new THREE.Vector3()).multiplyScalar(1 / loop.length);
+      const context: FaceContext = { u: 0, theta: 0, centroid, normal: face.normal.clone() };
+      const token = typeof options.token === "function" ? options.token(context) : options.token;
+      const shade = clampShade(typeof options.shade === "function" ? options.shade(context) : options.shade ?? 1);
+      const first = this.vertices.length;
+      for (const point of loop) this.vertices.push({ p: point, weights: options.bones ?? {} });
+      for (let k = 1; k < loop.length - 1; k += 1) {
+        const n = new THREE.Vector3().subVectors(loop[k], loop[0]).cross(new THREE.Vector3().subVectors(loop[k + 1], loop[0]));
+        if (n.lengthSq() < 1e-16) continue;
+        const [b, c] = n.dot(face.normal) >= 0 ? [first + k, first + k + 1] : [first + k + 1, first + k];
+        this.triangles.push({ a: first, b, c, token, flat: true, shade });
+      }
+    }
   }
 
   /** Small closed ellipsoid for eyes, noses and pads, stacked along +Z. */

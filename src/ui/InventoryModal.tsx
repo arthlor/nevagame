@@ -15,6 +15,8 @@ import {
 import { IconFish, IconSatchel, IconSprout, IconTools } from "./components/HudIcons";
 import { GameSheet, ItemSlot } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
+import { useTranslation } from "../i18n/useTranslation";
+import { TR_ITEMS } from "../i18n/locales/tr/items";
 
 interface InventoryModalProps {
   satchel: SatchelDto;
@@ -94,6 +96,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   const [draggingSlotIndex, setDraggingSlotIndex] = useState<number | null>(null);
   const [organizeOpen, setOrganizeOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory>("all");
+  const { t, locale } = useTranslation();
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(() => {
     const firstOccupied = satchel.slots.findIndex((slot) => slot.itemId !== null && slot.quantity > 0);
     return firstOccupied >= 0 ? firstOccupied : null;
@@ -166,7 +169,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     playUiSound(result.success ? "confirm" : "click");
     // The satchel is re-read from the simulation on the next render, so the
     // notice is the only thing this component has to hold onto.
-    setSortNotice(result.success ? "Satchel tidied" : result.reason ?? "Nothing to tidy");
+    setSortNotice(result.success ? (locale === "tr" ? "Heybe düzenlendi" : "Satchel tidied") : result.reason ?? (locale === "tr" ? "Düzenlenecek bir şey yok" : "Nothing to tidy"));
     setSelectedSlotIndex(null);
   };
 
@@ -196,8 +199,8 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     playUiSound(result.success ? "confirm" : "click");
     setDiscardNotice(
       result.success
-        ? `Discarded ${slotToDiscard.quantity} ${slotToDiscard.name}`
-        : result.reason ?? "Could not discard that"
+        ? (locale === "tr" ? `${slotToDiscard.quantity} adet ${slotToDiscard.name} atıldı` : `Discarded ${slotToDiscard.quantity} ${slotToDiscard.name}`)
+        : result.reason ?? (locale === "tr" ? "Bu atılamaz" : "Could not discard that")
     );
     if (result.success) setSelectedSlotIndex(null);
   };
@@ -271,20 +274,20 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
         <header className="modal-header">
           <div className="modal-header-title-group inventory-header-meta">
             <span id="inventory-title" className="modal-heading-with-mark">
-              <IconSatchel size={22} aria-hidden="true" /> Satchel
+              <IconSatchel size={22} aria-hidden="true" /> {t("satchel.title")}
             </span>
             {/* One capacity readout. The meter beneath said the same thing and
                 was already hidden under the Guildcraft skin. */}
             <span className="inventory-capacity-pill" data-testid="inventory-capacity">
-              {satchel.occupiedSlots} / {satchel.totalSlots} Slots
+              {satchel.occupiedSlots} / {satchel.totalSlots} {locale === "tr" ? "Göz" : "Slots"}
             </span>
           </div>
 
-          <ChromeClose onClick={onClose} label="Close satchel" />
+          <ChromeClose onClick={onClose} label={t("common.close")} />
         </header>
 
         <div className="inventory-nav-bar">
-          <div className="inventory-category-tabs mm-ribbon-tabs" role="tablist" aria-label="Item categories" onKeyDown={handleTabListKeyDown}>
+          <div className="inventory-category-tabs mm-ribbon-tabs" role="tablist" aria-label={locale === "tr" ? "Eşya kategorileri" : "Item categories"} onKeyDown={handleTabListKeyDown}>
             <button
               type="button"
               id="inventory-tab-all"
@@ -295,7 +298,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               className={`inventory-tab-btn ${activeCategory === "all" ? "is-active" : ""}`}
               onClick={() => selectCategory("all")}
             >
-              All
+              {t("satchel.filterAll")}
             </button>
             <button
               type="button"
@@ -307,7 +310,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               className={`inventory-tab-btn ${activeCategory === "farming" ? "is-active" : ""}`}
               onClick={() => selectCategory("farming")}
             >
-              <IconSprout size={14} aria-hidden="true" /> Field
+              <IconSprout size={14} aria-hidden="true" /> {locale === "tr" ? "Tarla" : "Field"}
             </button>
             <button
               type="button"
@@ -319,7 +322,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               className={`inventory-tab-btn ${activeCategory === "fishing" ? "is-active" : ""}`}
               onClick={() => selectCategory("fishing")}
             >
-              <IconFish size={14} aria-hidden="true" /> Fishing
+              <IconFish size={14} aria-hidden="true" /> {t("satchel.filterFish")}
             </button>
             <button
               type="button"
@@ -331,7 +334,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               className={`inventory-tab-btn ${activeCategory === "supplies" ? "is-active" : ""}`}
               onClick={() => selectCategory("supplies")}
             >
-              <IconTools size={14} aria-hidden="true" /> Supplies
+              <IconTools size={14} aria-hidden="true" /> {locale === "tr" ? "Malzeme" : "Supplies"}
             </button>
           </div>
 
@@ -344,7 +347,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               aria-controls="inventory-organize-tools"
               onClick={() => setOrganizeOpen((open) => !open)}
             >
-              Organize
+              {locale === "tr" ? "Düzenle" : "Organize"}
             </ChromeButton>
           </div>
         </div>
@@ -355,13 +358,13 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
           hidden={!organizeOpen}
         >
           <label className="inventory-search" htmlFor="inventory-search-input">
-            <span className="inventory-search-label">Search</span>
+            <span className="inventory-search-label">{locale === "tr" ? "Ara" : "Search"}</span>
             <input
               id="inventory-search-input"
               type="search"
               className="inventory-search-input"
               data-testid="inventory-search"
-              placeholder="Find in satchel"
+              placeholder={locale === "tr" ? "Heybede ara..." : "Find in satchel"}
               value={searchTerm}
               autoComplete="off"
               onChange={(event) => setSearchTerm(event.target.value)}
@@ -372,10 +375,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               className="inventory-sort-btn"
               soundCue="click"
               data-testid="inventory-sort"
-              aria-label="Tidy the satchel: merge stacks and group by kind"
+              aria-label={locale === "tr" ? "Heybeyi düzenle: yığınları birleştir ve türe göre sırala" : "Tidy the satchel: merge stacks and group by kind"}
               onClick={handleSortSatchel}
             >
-              Tidy
+              {locale === "tr" ? "Toparla" : "Tidy"}
             </ChromeButton>
           )}
         </div>
@@ -392,23 +395,31 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             {isFilterActive && (
               <div className="inventory-filter-banner" role="status">
                 <span className="inventory-filter-status">
-                  {`${matchingEntries.length} ${matchingEntries.length === 1 ? "item" : "items"}${query ? ` matching “${searchTerm.trim()}”` : " in this section"}`}
+                  {locale === "tr"
+                    ? `${matchingEntries.length} eşya${query ? ` “${searchTerm.trim()}” ile eşleşiyor` : " bu bölümde"}`
+                    : `${matchingEntries.length} ${matchingEntries.length === 1 ? "item" : "items"}${query ? ` matching “${searchTerm.trim()}”` : " in this section"}`}
                 </span>
                 {query && (
                   <button
                     type="button"
                     className="inventory-clear-search-btn"
                     onClick={() => setSearchTerm("")}
-                    aria-label="Clear search"
+                    aria-label={locale === "tr" ? "Aramayı temizle" : "Clear search"}
                   >
-                    Clear
+                    {locale === "tr" ? "Temizle" : "Clear"}
                   </button>
                 )}
               </div>
             )}
             {isFilterActive && matchingEntries.length === 0 && (
               <p className="guild-empty-search" role="status">
-                {query ? "No items match your search. Try another name or clear the search." : "Your satchel has nothing in this section yet."}
+                {query
+                  ? (locale === "tr"
+                      ? "Aramanızla eşleşen eşya yok. Başka bir isim deneyin veya aramayı temizleyin."
+                      : "No items match your search. Try another name or clear the search.")
+                  : (locale === "tr"
+                      ? "Heybenin bu bölümünde henüz bir şey yok."
+                      : "Your satchel has nothing in this section yet.")}
               </p>
             )}
             <div
@@ -416,7 +427,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               id="inventory-items"
               ref={gridRef}
               role="listbox"
-              aria-label={isFilterActive ? `Satchel items, ${matchingEntries.length} matching in ${activeCategory}` : "Satchel items"}
+              aria-label={isFilterActive
+                ? (locale === "tr"
+                    ? `Heybe eşyaları, ${activeCategory} kategorisinde ${matchingEntries.length} eşleşme`
+                    : `Satchel items, ${matchingEntries.length} matching in ${activeCategory}`)
+                : (locale === "tr" ? "Heybe eşyaları" : "Satchel items")}
               aria-labelledby={`inventory-tab-${activeCategory}`}
               onKeyDown={handleGridKeyDown}
             >
@@ -432,7 +447,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                       aria-selected={false}
                       aria-disabled="true"
                       tabIndex={-1}
-                      label="Empty slot"
+                      label={locale === "tr" ? "Boş göz" : "Empty slot"}
                     />
                   );
                 }
@@ -461,8 +476,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                       : undefined}
                     onDragEnd={canDragToDiscard ? () => setDraggingSlotIndex(null) : undefined}
                     label={isSelectable
-                      ? `${slot.name}, ${slot.quality ? `${slot.quality} quality, ` : ""}count ${slot.quantity}${canDragToDiscard ? ", drag out to destroy" : ""}`
-                      : `${slot.name}, hidden by the active filter`}
+                      ? (locale === "tr"
+                          ? `${slot.name}, ${slot.quality ? `${slot.quality} kalite, ` : ""}adet ${slot.quantity}${canDragToDiscard ? ", atmak için dışarı sürükle" : ""}`
+                          : `${slot.name}, ${slot.quality ? `${slot.quality} quality, ` : ""}count ${slot.quantity}${canDragToDiscard ? ", drag out to destroy" : ""}`)
+                      : (locale === "tr"
+                          ? `${slot.name}, etkin filtre nedeniyle gizli`
+                          : `${slot.name}, hidden by the active filter`)}
                     role="option"
                     aria-selected={isSelectable && isSelected}
                     aria-disabled={isSelectable ? undefined : "true"}
@@ -500,9 +519,9 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 </div>
 
                 <div className="inventory-selected-strip">
-                  <span>{selectedSlot.categoryLabel ?? "item"}</span>
+                  <span>{selectedSlot.categoryLabel ?? (locale === "tr" ? "eşya" : "item")}</span>
                   {selectedSlot.quality && <ChromeQuality quality={selectedSlot.quality} />}
-                  <strong>{selectedSlot.quantity} carried</strong>
+                  <strong>{locale === "tr" ? `${selectedSlot.quantity} adet taşınıyor` : `${selectedSlot.quantity} carried`}</strong>
                 </div>
 
                 {selectedSlot.cropId && planting?.valid && (
@@ -514,13 +533,13 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                       data-testid="inventory-plant-action"
                       onClick={handlePlantSelected}
                     >
-                      <IconSprout size={16} aria-hidden="true" /> Plant {selectedSlot.cropName ?? selectedSlot.name}
+                      <IconSprout size={16} aria-hidden="true" /> {locale === "tr" ? `${selectedSlot.cropName ?? selectedSlot.name} Ek` : `Plant ${selectedSlot.cropName ?? selectedSlot.name}`}
                     </ChromeButton>
                   </div>
                 )}
                 {selectedSlot.cropId && planting && !planting.valid && (
                   <ChromeAlert tone="caution" className="inventory-plant-blocker">
-                    {planting.reason ?? "Planting is not available here"}
+                    {planting.reason ?? (locale === "tr" ? "Buraya ekim yapılamaz" : "Planting is not available here")}
                   </ChromeAlert>
                 )}
 
@@ -534,11 +553,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                       disabled={!selectedInspection.provisions.edible}
                       onClick={handleConsumeSelected}
                     >
-                      Eat · restores {selectedInspection.provisions.restoresWork} Work
+                      {locale === "tr" ? `Ye · ${selectedInspection.provisions.restoresWork} Emek tazeler` : `Eat · restores ${selectedInspection.provisions.restoresWork} Work`}
                     </ChromeButton>
                     {!selectedInspection.provisions.edible && (
                       <ChromeAlert tone="caution" className="inventory-consume-blocker">
-                        {selectedInspection.provisions.blockerReason ?? "You cannot eat that right now"}
+                        {selectedInspection.provisions.blockerReason ?? (locale === "tr" ? "Bunu şu an yiyemezsin" : "You cannot eat that right now")}
                       </ChromeAlert>
                     )}
                   </div>
@@ -554,7 +573,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         data-testid="inventory-discard-confirm"
                         onClick={() => discardSlot(selectedSlot.index)}
                       >
-                        Destroy {selectedSlot.quantity} {selectedSlot.name}?
+                        {locale === "tr" ? `${selectedSlot.quantity} adet ${selectedSlot.name} imha edilsin mi?` : `Destroy ${selectedSlot.quantity} ${selectedSlot.name}?`}
                       </ChromeButton>
                     ) : (
                       <ChromeButton
@@ -564,24 +583,30 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         data-testid="inventory-discard-action"
                         onClick={() => setDiscardArmedKey(selectedLotKey)}
                       >
-                        Discard {selectedSlot.quantity > 1 ? `stack of ${selectedSlot.quantity}` : "item"}
+                        {locale === "tr" ? (selectedSlot.quantity > 1 ? `${selectedSlot.quantity} adet at` : "Eşyayı at") : `Discard ${selectedSlot.quantity > 1 ? `stack of ${selectedSlot.quantity}` : "item"}`}
                       </ChromeButton>
                     )}
                     <p className="inventory-discard-hint">
                       {discardArmed
-                        ? "This destroys the stack for good."
-                        : "Or drag a slot out of the satchel to destroy it in one gesture."}
+                        ? (locale === "tr" ? "Bu işlem yığını tamamen yok eder." : "This destroys the stack for good.")
+                        : (locale === "tr" ? "Veya eşyayı heybenin dışına sürükleyip doğrudan atabilirsin." : "Or drag a slot out of the satchel to destroy it in one gesture.")}
                     </p>
                   </div>
                 )}
 
-                {selectedSlot.description && <p className="details-description">{selectedSlot.description}</p>}
+                {selectedSlot.description && (
+                  <p className="details-description">
+                    {locale === "tr" && TR_ITEMS[selectedSlot.itemId]?.description
+                      ? TR_ITEMS[selectedSlot.itemId].description
+                      : selectedSlot.description}
+                  </p>
+                )}
 
                 {/* Agronomy and other numbers are for players who go looking;
                     the default view answers "what is this and what is it for". */}
                 {selectedInspection && (
                   <details className="inventory-item-details" data-testid="inventory-item-details">
-                    <summary>Details</summary>
+                    <summary>{locale === "tr" ? "Ayrıntılar" : "Details"}</summary>
                     <ItemInspectCard item={selectedInspection} detailsOnly />
                   </details>
                 )}
@@ -601,25 +626,25 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 </div>
                 <h3 className="details-placeholder-title">
                   {query
-                    ? "No Search Matches"
+                    ? (locale === "tr" ? "Aramaya Uygun Eşya Bulunamadı" : "No Search Matches")
                     : activeCategory === "farming"
-                    ? "No Field Items"
+                    ? (locale === "tr" ? "Tarla Eşyası Yok" : "No Field Items")
                     : activeCategory === "fishing"
-                    ? "No Fishing Goods"
+                    ? (locale === "tr" ? "Balıkçılık Malzemesi Yok" : "No Fishing Goods")
                     : activeCategory === "supplies"
-                    ? "No Supplies"
-                    : "Choose an item"}
+                    ? (locale === "tr" ? "Malzeme Yok" : "No Supplies")
+                    : (locale === "tr" ? "Bir eşya seç" : "Choose an item")}
                 </h3>
                 <p className="details-placeholder-desc">
                   {query
-                    ? `No items match “${searchTerm.trim()}”. Clear search to view your satchel.`
+                    ? (locale === "tr" ? `“${searchTerm.trim()}” ile eşleşen bir şey bulunamadı.` : `No items match “${searchTerm.trim()}”. Clear search to view your satchel.`)
                     : activeCategory === "farming"
-                    ? "No seeds, fertilizer, or harvest crops carried right now."
+                    ? (locale === "tr" ? "Şu an heybende tohum, gübre ya da hasat ürünü yok." : "No seeds, fertilizer, or harvest crops carried right now.")
                     : activeCategory === "fishing"
-                    ? "No bait, lures, or fish carried right now."
+                    ? (locale === "tr" ? "Şu an heybende yem ya da balık yok." : "No bait, lures, or fish carried right now.")
                     : activeCategory === "supplies"
-                    ? "No crafting materials, provisions, or tools carried right now."
-                    : "Select an occupied slot in your satchel to inspect details."}
+                    ? (locale === "tr" ? "Şu an heybende zanaat malzemesi veya alet yok." : "No crafting materials, provisions, or tools carried right now.")
+                    : (locale === "tr" ? "Ayrıntılarını görmek için heybenden dolu bir göze tıkla." : "Select an occupied slot in your satchel to inspect details.")}
                 </p>
                 {isFilterActive && (
                   <button
@@ -630,7 +655,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                       setSearchTerm("");
                     }}
                   >
-                    View All Items
+                    {locale === "tr" ? "Tüm Eşyaları Göster" : "View All Items"}
                   </button>
                 )}
               </div>
@@ -658,15 +683,19 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               discardSlot(draggingSlotIndex);
             }}
           >
-            <span className="inventory-discard-zone-label">Release to destroy</span>
+            <span className="inventory-discard-zone-label">{locale === "tr" ? "İmha etmek için bırak" : "Release to destroy"}</span>
           </div>
         )}
 
         <footer className="modal-footer">
           {showFooterTip && (
-            <span className="satchel-footer-tip" data-testid="satchel-footer-tip">Arrow keys move through slots · Enter selects an item</span>
+            <span className="satchel-footer-tip" data-testid="satchel-footer-tip">
+              {locale === "tr"
+                ? "Yön tuşları gözler arasında dolaşır · Enter eşyayı seçer"
+                : "Arrow keys move through slots · Enter selects an item"}
+            </span>
           )}
-          <ChromeButton onClick={onClose}>Close</ChromeButton>
+          <ChromeButton onClick={onClose}>{locale === "tr" ? "Kapat" : "Close"}</ChromeButton>
         </footer>
       </GameSheet>
     </div>

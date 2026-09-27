@@ -2,6 +2,7 @@ import React from "react";
 import type { WeatherTag } from "../simulation/core/types";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForWeather } from "./chrome/uiAtlas";
+import { localeStore } from "../i18n/localeStore";
 
 type WeatherType = WeatherTag | string;
 
@@ -16,6 +17,17 @@ const WEATHER_LABELS: Record<WeatherTag, string> = {
   drought: "Drought"
 };
 
+const WEATHER_LABELS_TR: Record<WeatherTag, string> = {
+  clear: "Açık Gökyüzü",
+  cloudy: "Bulutlu",
+  "light-rain": "Çisenti",
+  "heavy-rain": "Sağanak Yağış",
+  windy: "Rüzgârlı",
+  fog: "Sisli",
+  storm: "Fırtına",
+  drought: "Kuraklık"
+};
+
 function normalizeWeatherType(type: WeatherType): string {
   return type.toLowerCase().replaceAll("_", "-");
 }
@@ -27,8 +39,13 @@ function fallbackWeatherLabel(type: WeatherType): string {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-export function formatWeatherLabel(type: WeatherType): string {
-  return WEATHER_LABELS[normalizeWeatherType(type) as WeatherTag] ?? fallbackWeatherLabel(type);
+export function formatWeatherLabel(type: WeatherType, locale?: string): string {
+  const norm = normalizeWeatherType(type) as WeatherTag;
+  const currentLocale = locale ?? localeStore.current;
+  if (currentLocale === "tr" && WEATHER_LABELS_TR[norm]) {
+    return WEATHER_LABELS_TR[norm];
+  }
+  return WEATHER_LABELS[norm] ?? fallbackWeatherLabel(type);
 }
 
 function timeOfDayFromHour(hour?: number): "dawn" | "day" | "dusk" | "night" | undefined {

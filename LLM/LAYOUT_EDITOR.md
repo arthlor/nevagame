@@ -20,7 +20,7 @@ It is **not**:
 - a GLB generator (that remains catalog → registered generator or committed authored GLB → `art:generate`)
 - a license to invent weapons, combat, or extra HUD dashboards
 
-Simulation still owns canonical gameplay. A drop writes **layout source**. The same session also debug-relocates a few interact/sim poses so you can keep playing without a refresh. A drop does not migrate other saves. Before promoting a layout edit that changes reachability, collision, saved structure coordinates or canonical topology, apply the `01` §6/§6.1 preservation and migration protocol; a successful editor commit is not that proof.
+Simulation still owns canonical gameplay. A drop writes **layout source**. Gameplay-bearing prefabs use the shared `InteractionPlacements` pose and attachment contract; the same session updates simulation-owned station and berthed-boat poses through guarded debug methods. A drop does not migrate other saves. Before promoting a layout edit that changes reachability, collision, saved structure coordinates or canonical topology, apply the `01` §6/§6.1 preservation and migration protocol; a successful editor commit is not that proof.
 
 ---
 
@@ -77,7 +77,7 @@ Shared contract (kinds, commit JSON, source file map, duplicate/delete policy) l
 | Layer | Owner | Persistence |
 | --- | --- | --- |
 | Mesh pose while dragging | Three.js presentation | none |
-| Interact / station / market this session | `layoutEditLiveSession` + `sim.debugRelocate*` | session only |
+| Attached points / station poses this session | `InteractionPlacements` getters + `layoutEditLiveSession` + guarded `sim.debugRelocate*` | source pose override; simulation pose in current session |
 | Rapier static colliders this session | `PhysicsWorld.replaceStaticCollision` | session only |
 | Pose after a successful drop | layout TypeScript | git source |
 | Player save | unchanged | not rewritten by the editor |
@@ -112,23 +112,24 @@ Each spawned discrete object gets `userData.layoutEdit` (`LAYOUT_EDIT_USERDATA_K
 
 | Kind | Examples | Source | Copy / delete |
 | --- | --- | --- | --- |
-| `farmstead` | farmhouse, well | `FarmLayout.ts` (farm-local xz) | no |
+| `interaction-placement` | registered stations, markets, home, pumps, chore props, notice board, workshop and berths | `InteractionPlacements.ts` world pose overrides | no |
+| `farmstead` | legacy farmhouse/well commits | `FarmLayout.ts` (farm-local xz) | no |
 | `farm-prop` | starter crates, farm props | `STARTER_PROP_ANCHORS` | yes |
 | `farm-fence` | generated posts | `FARM_FENCE_OVERRIDES` / `FARM_FENCE_EXTRAS` | yes |
-| `farm-structure` | mill, workbench, compost | `FarmLayout.ts`; yaw stored as visual − π | no |
+| `farm-structure` | legacy station commits | `FarmLayout.ts`; yaw stored as visual − π | no |
 | `architecture-pad` | village dwellings, orchard outbuildings, farm outhouse | `WorldLayout.ts` pad `center` | no |
-| `landmark` | bridge, dock, lighthouse, fish-market, produce-stall | `WorldLayout.ts` or `WorldAnchors.ts` | no |
-| `world-anchor` | harbor fish table | `WorldAnchors.ts` | no |
-| `authored-detail` | authored trees, rocks, harbor posts | `authoredPlacement(...)` in `WorldEnvironmentLayout.ts` | yes |
-| `environment-override` | seeded/layout-derived instance after a move | `PLACEMENT_OVERRIDES` | paste as **authored** pin; delete via `PLACEMENT_REMOVED` |
+| `landmark` | bridge, lighthouse; legacy dock/market commits | `WorldLayout.ts` or `WorldAnchors.ts` | no |
+| `world-anchor` | legacy harbor fish-table commits | `WorldAnchors.ts` | no |
+| `authored-detail` | pasted authored pins; legacy literal placement commits | `authoredPlacement(...)` in `WorldEnvironmentLayout.ts` | yes |
+| `environment-override` | non-interactive environment instances, including computed authored families | `PLACEMENT_OVERRIDES` | paste as **authored** pin; delete via `PLACEMENT_REMOVED` |
 | `interior-prop` | farmhouse furniture | `FarmhouseInterior.ts` (keeps Y) | yes |
 | `npc` | Named NPCs and their scheduled stops | `npcs.ts`; home harbor xz also in `WorldAnchors.ts` | no |
 
 Farm kinds are authored in **farm-local** coordinates (`world − STARTER_FARM_LAYOUT.origin`). The HUD shows **world** xz.
 
-Moving the farmhouse also follows `FARMHOUSE_OUTSIDE_DOOR` (and its exit spawn) in `FarmhouseInterior.ts`. Farm **paths are not** auto-rerouted.
+The farmhouse door and exit spawn retain their local offsets and facing through translation and rotation. Both the current session and reload resolve them from the parent override. Farm **paths are not** auto-rerouted.
 
-Processing stations (mill, workbench, compost, harbor fish table) write yaw as `visualRotationY - π` so the approach marker stays in front of the working face.
+Interactive pose overrides store visual world yaw. Station bindings convert it to approach yaw (`visualRotationY - π`); the approach uses the current structure facing, with the authored facing only for a legacy structure lacking yaw. Startup places station models and their collision at the same saved pose used by interactions. DEV startup applies explicit authored station overrides to the current session, so reloading an editor change cannot revive an old station pose from a save. Other saved stations are preserved.
 
 Objects with catalog `grounding` half-extents refuse a write if the footprint is unstable (`isPlacementFootprintStable`). The banner says so; move onto flatter ground.
 
@@ -155,7 +156,7 @@ Paste:
 5. Contact grounding discs are rebuilt from live tagged **world** poses so a pasted tree is not a hollow shadow at the old spot.
 6. Paste/delete/drop while a write is in flight are queued. Extra ⌘/Ctrl+V taps increment a paste count (they are not dropped). Copy is blocked while a write is in flight so a queued paste cannot silently switch clipboard. Delete targets the object selected when Delete was pressed, not the clone that paste may select afterward.
 7. Copy, then delete the original, then paste still works: authored pins rebuild from commit fields; farm props use `propType`; interior props use `assetId` / `y`.
-8. Exiting Place (F2) while a paste is in flight still instantiates the object that already wrote to source, but does not leave a yellow helper up after the editor is off. Queued extra pastes are discarded on exit.
+8. F2/Escape cannot leave a write in flight. Finish the write before exiting. Outside a write, Escape or F2 cancels an unfinished drag/rotation and restores the last committed model, interaction and collision pose; queued extra pastes are discarded on exit.
 
 Delete:
 
@@ -170,7 +171,7 @@ stable allocated ID needed to restore a removed copy. Undo/redo is serialized
 with layout writes, preserves the stack when a commit fails, clears redo after
 a new edit, and retains the latest 100 items. History is session-only; its
 commands rewrite the allowlisted source just like the original operation and
-never enter `GameState`.
+never enter `GameState`. A rejected write or unstable drop restores the pre-gesture pose and adds no history item. Dragging retains the grabbed offset instead of jumping the model origin to the cursor.
 
 ---
 
@@ -183,17 +184,19 @@ On drag, rotate, drop, paste, delete, Escape deselect, and F2 exit:
 3. **Practical lights** — In DEV, PointLights are parented to `_glow` / `_beacon` nodes (or the root for AABB fallback) so they follow drag. Production keeps scene-rooted lights so mesh merge cannot strip them. Quality budget uses world position. Paste registers a new light; delete disposes it.
 4. **Shadows (active DEV editor)** — colliding props self-cast so shadows follow their poses. Leaving Place restores the family shadow policy and shared static batches; both transitions invalidate shadow-caster classification.
 5. **Fauna** — paste registers a new mixer on the duplicated cow/chicken/rabbit; delete stops and uncaches that mixer.
-6. **Interact (unique objects only)** — `applyLayoutEditLiveSession` on move of objects that cannot be copied:
-   - produce stall → `VILLAGE_MARKET` + `market.village` interaction
-   - fish-market landmark → `HARBOR_MARKET` + `market.harbor` interaction
-   - mill / workbench / compost / fish table → `sim.debugRelocateStructure` + processing-station approach
-   - NPCs → addressed content anchor + `relocateNpcPresentation`; IDs ending in `.dawn`, `.day`, `.dusk` or `.night` edit only that scheduled stop in `npcs.ts`. Unsuffixed IDs edit home, including shared harbor anchors. The visible stop supplies the editor address, so moving it cannot overwrite home.
+6. **Attached interactions** — `INTERACTION_PLACEMENTS` declares gameplay-bearing prefab IDs. Their tags are promoted to `interaction-placement` before generic scenery can copy/delete them. `bindInteractionPose` and `bindInteractionPoint` resolve absolute authored poses and parent-relative working/boarding offsets without Three.js state:
+   - Every processing and packing station shares its position and facing with the simulation approach and job effects.
+   - Every market prompt and market transaction reads `WORLD_MARKET_LOCATIONS`; content keeps live getters rather than copied coordinates.
+   - The farmhouse door/exit, field pumps, chore working faces and notice board follow their own prop.
+   - The cart workshop carries its unpurchased display bays and headings. Purchased vehicles remain independent.
+   - Main harbor and Sunreach berth points follow their dock; guarded simulation updates move only hulls berthed at the prior point. The main pier support query transforms into the same rotated local frame.
+   - NPCs retain their separate addressed content anchor and `relocateNpcPresentation`; scheduled stop IDs edit only the selected stop, never home.
 
 Duplicated crates, lamps, trees, fences, and interior furniture do not gain new E-to-interact points. They keep pick tags, catalog collision, and the spawn presentation of the original (light, animation, grounding, shadows).
 
 While the editor is active, gameplay interact rings and quest waypoints are cleared so a stale teal ring does not sit on the old pose.
 
-These session mutations are **not** the save. Closing the tab without a successful drop leaves source unchanged.
+Source writes and gameplay saves remain distinct: overrides persist in TypeScript, while debug station/hull relocation changes the current simulation state and may be captured by its ordinary save path. No schema or layout revision is bumped by a drop. Source reload reapplies explicit station overrides only in DEV; release promotion still needs the migration protocol in §1. Closing or cancelling before a successful drop cannot commit source.
 
 ---
 
@@ -230,7 +233,7 @@ Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short ta
    every shipped build for a tool that cannot run there.
 1. **In-game posing instead of hand-editing TypeScript** — walk to the object, drop, get a git-visible layout change.
 2. **No new gameplay mode** — F2 is a DEV overlay. Simulation modes stay on-foot / farm-placement / boat / fishing.
-3. **Allowlisted source patcher** — only the six layout files below; numeric fields only; unsafe expressions rejected.
+3. **Allowlisted source patcher** — only the allowlisted layout files below; numeric fields only; unsafe expressions rejected.
 4. **Vite serve plugin** — `POST /__neva_layout_editor/commit`, localhost + same-origin JSON only, serialized commits, HMR suppression after write.
 5. **Presentation tags** — `userData.layoutEdit` on discrete roots; grass scatter stays untagged.
 6. **Select vs write** — click selects; source writes only on a real move, rotate, paste, or delete.
@@ -248,7 +251,8 @@ Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short ta
 | Path | Role |
 | --- | --- |
 | `src/layout-editor/layoutEdit.ts` | kinds, tags, commit JSON, snap/format, duplicate ids |
-| `src/layout-editor/layoutEditLiveSession.ts` | session market / station overlays |
+| `src/layout-editor/layoutEditLiveSession.ts` | station/berth live sync and DEV source-override restoration |
+| `src/world/InteractionPlacements.ts` | renderer-free parent poses, attachment transforms and interactive registry |
 | `src/app/PlacementEditor.ts` | pick, drag, rotate, copy/paste/delete, POST |
 | `src/app/GameApp.ts` | F2, input, live sync, collider rebuild, HUD |
 | `src/input/InputRouter.ts` | layout LMB capture, pick queue, suppress use-primary |
@@ -262,6 +266,7 @@ Clicks are queued on **pointerdown** (`consumeLayoutPrimaryPress`) so a short ta
 
 Allowlisted write targets:
 
+- `src/world/InteractionPlacements.ts`
 - `src/world/FarmLayout.ts`
 - `src/world/WorldLayout.ts`
 - `src/world/WorldAnchors.ts`
@@ -284,6 +289,8 @@ the simulation predicate and the visual cue must agree.
 ---
 
 # 10. Tests
+
+`tests/unit/interactionPlacements.test.ts` covers each registered parent against the real source patcher, all station and market bindings, rotated door/chore/transport offsets, pump/notice points, and main-pier support. `tests/unit/placementEditorTransactions.test.ts` covers grab offsets, cancelled previews, rejected writes, pending-write exit guards, undo/redo, and unique-object protection. Generic computed placements use the final shared override/removal pass rather than requiring a literal source call.
 
 Select coverage by the changed contract (`03` §4). The command below covers
 source patching/round-trip behavior. Add terrain snapping, history, stress or

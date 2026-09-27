@@ -8,7 +8,7 @@ import type { WorldPoint } from "./WorldLayout";
  * water in a cut gravel bed. It is terrain and presentation, not canonical
  * water: it is walkable and wadeable, holds no fishing habitat and never
  * blocks a route. The bed falls monotonically downstream and meets its trunk
- * or the water level at the mouth.
+ * or the waterline at the mouth; no channel is cut below the water.
  */
 export interface MainlandBrookSample {
   id: string;
@@ -27,8 +27,8 @@ export interface MainlandBrookSample {
 
 /** Catchment at which the tracer starts a brook; widths and depths scale from it. */
 const SOURCE_HECTARES = 0.15;
-const HALF_WIDTH_BASE_METERS = 0.45;
-const HALF_WIDTH_GAIN_METERS = 0.22;
+const HALF_WIDTH_BASE_METERS = 0.3;
+const HALF_WIDTH_GAIN_METERS = 0.16;
 const DEPTH_BASE_METERS = 0.16;
 const DEPTH_GAIN_METERS = 0.06;
 const DEPTH_MAX_METERS = 0.42;
@@ -48,6 +48,11 @@ const BANK_ROUNDING_METERS = 0.8;
 const EMBANKMENT_GRADE = 0.45;
 /** Metres of embankment a segment gives up for each metre it is farther than the nearest. */
 const EMBANKMENT_PREFERENCE = 1.5;
+/**
+ * No cut lowers the ground below this height over the shared water datum:
+ * the sea, the lake and the river stand at the datum and would flood it.
+ */
+const DRY_FLOOR_METERS = 0.05;
 /** Nothing beyond this distance from the floor's edge is reshaped; the cut eases out from the start distance. */
 const REACH_METERS = 10;
 const REACH_FADE_START_METERS = 3;
@@ -88,13 +93,15 @@ const SEGMENTS: BrookSegment[] = MAINLAND_BROOK_COURSES.flatMap(course => {
     const a = course.knots[i - 1], b = course.knots[i];
     return Math.max(0, (a[2] - b[2]) / Math.max(1e-6, Math.hypot(b[0] - a[0], b[1] - a[1])));
   };
-  return course.knots.slice(1).map((b, index) => {
+  return course.knots.slice(1).flatMap((b, index) => {
     const a = course.knots[index];
+    // A zero-length segment has no direction or projection.
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-3) return [];
     const dx = b[0] - a[0], dz = b[1] - a[1], length = Math.max(1e-9, Math.hypot(dx, dz));
-    return { id: course.id, ax: a[0], az: a[1], bx: b[0], bz: b[1], aBed: a[2], bBed: b[2],
+    return [{ id: course.id, ax: a[0], az: a[1], bx: b[0], bz: b[1], aBed: a[2], bBed: b[2],
       aHectares: a[3], bHectares: b[3], lengthSquared: dx * dx + dz * dz,
       direction: { x: dx / length, z: dz / length },
-      riseGrade: Math.max(grade(index + 1), index > 0 ? grade(index) : 0) };
+      riseGrade: Math.max(grade(index + 1), index > 0 ? grade(index) : 0) }];
   });
 });
 
@@ -205,7 +212,8 @@ export function mainlandBrookCarvedHeight(
   if (channel === Infinity) return ground;
   const deck = deckAt ? deckAt(x, z) : 0;
   if (deck >= 1) return ground;
-  const carved = Math.max(smoothMin(ground, channel, BANK_ROUNDING_METERS), Math.min(embankment, channel));
+  const carved = Math.max(smoothMin(ground, channel, BANK_ROUNDING_METERS), Math.min(embankment, channel),
+    Math.min(ground, DRY_FLOOR_METERS));
   return ground + (carved - ground) * (1 - deck);
 }
 

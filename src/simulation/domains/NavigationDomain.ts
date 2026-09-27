@@ -1,8 +1,14 @@
-import { isCarriage, carriagePoint, CARRIAGE_TUNING, canReachCarriageRear } from "../mounts/Carriage";
+import { TRADE_VEHICLES, isTradeCarriageType } from "../../content/villageTrade";
+import { HARBOR_TRADE_MOORING } from "../../world/WorldAnchors";
+import { workshopCarriagePoses } from "../mounts/Carriage";
+import type { TradeVehicleOfferDto } from "../core/contracts";
+import { boatMeetsSailingRequirement } from "../../content/boats";
+import { isWithinMarketReach } from "./domainRules";
+import { isCarriage, carriagePoint, carriageTuning, CARRIAGE_TUNING, canReachCarriageRear } from "../mounts/Carriage";
 import type { ResolvedPhysicsFrame } from "../core/PhysicsAdapter";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
-import type { BoatId, BoatState, FishCargoState, GameState, MarketId, MountId } from "../core/types";
+import type { BoatId, BoatState, CargoState, GameState, MarketId, MountId } from "../core/types";
 import {
   HARBOR_SKIFF_MOORING,
   WORLD_SPAWN,
@@ -169,7 +175,7 @@ export class NavigationDomain {
       const requirement = WorldLayout.navigationRequirementAt(activeBoatPose.x, activeBoatPose.z)
         ?? WorldLayout.navigationRequirementAt(boat.x, boat.z)
         ?? WorldLayout.navigationRequirementAt(approachX, approachZ);
-      if (requirement && boat.boatTypeId !== requirement.requiredBoatTypeId) {
+      if (requirement && !boatMeetsSailingRequirement(boat.boatTypeId, requirement.requiredBoatTypeId)) {
         if (!this.openChannelNoticeShown) {
           this.context.events.emit("Notification", {
             title: "Open channel ahead",
@@ -387,7 +393,7 @@ export class NavigationDomain {
     if (state.player.traversal.isGrounded !== true) return "Land before mounting";
     if (!isValidPlayerMountGround(state.player)) return "Move onto dry, walkable ground first";
     if (!isValidMountPose(mount)) return "The transport is not on stable ground";
-    const boardingPoint = isCarriage(mount) ? carriagePoint(mount, 0, CARRIAGE_TUNING.boardOffset) : mount;
+    const boardingPoint = isCarriage(mount) ? carriagePoint(mount, 0, carriageTuning(mount).boardOffset) : mount;
     if (distance2d(state.player, boardingPoint) > (isCarriage(mount) ? CARRIAGE_TUNING.interactionReach : MOUNT_TUNING.boardRadiusMeters)) return isCarriage(mount) ? "Move closer to the driver’s bench" : "Move closer to the donkey";
     return null;
   }
@@ -470,6 +476,7 @@ export class NavigationDomain {
       x: mooring.boatPosition.x,
       y: mooring.boatPosition.y,
       z: mooring.boatPosition.z,
+      headingRadians: mooring.marketId === "market.harbor" ? 0 : boat.headingRadians,
       speed: 0,
       isDocked: true,
       dockedMarketId: mooring.marketId
@@ -577,6 +584,7 @@ export class NavigationDomain {
       x: mooring.boatPosition.x,
       y: mooring.boatPosition.y,
       z: mooring.boatPosition.z,
+      headingRadians: mooring.marketId === "market.harbor" ? 0 : boat.headingRadians,
       speed: 0,
       isDocked: true,
       dockedMarketId: mooring.marketId
@@ -709,6 +717,51 @@ export class NavigationDomain {
     return { success: true };
   }
 
+  public inspectTradeVehicle(typeId: string): TradeVehicleOfferDto | null {
+    const { state } = this.context;
+    const cart = isTradeCarriageType(typeId) ? TRADE_VEHICLES[typeId] : null;
+    const ship = typeId === "boat.trading_ship" ? ContentRegistry.boats.get(typeId) : null;
+    if (!cart && !ship) return null;
+    const display = cart ? workshopCarriagePoses().find(pose => pose.mountTypeId === typeId)! : null;
+    const position = display ? carriagePoint(display, 0, carriageTuning(display).rearOffset) : HARBOR_TRADE_MOORING.purchasePosition;
+    const name = cart?.name ?? ship!.name, cost = cart?.costMoney ?? ship!.costMoney;
+    const requiredTradingXp = cart?.requiredTradingXp ?? ship!.requiredSkillXp!.xp;
+    const owned = Boolean(cart ? state.mounts[typeId] : state.boats["boat.player_trading_ship"]);
+    let reason: string | null = null;
+    if (owned) reason = "You already own this transport";
+    else if (state.player.activeMountId || state.player.activeBoatId || state.basicFishing || state.sportFishing || state.player.carriedFishCargoId || !state.player.traversal.isGrounded) reason = "Approach on foot with empty hands";
+    else if (distance2d(state.player, position) > 3) reason = "Move closer to the transport's sale marker";
+    else if (state.player.proficiencies.trading < requiredTradingXp) reason = `Requires ${requiredTradingXp.toLocaleString()} Trading XP`;
+    else if (state.player.money < cost) reason = `Requires ${cost.toLocaleString()} G`;
+    if (!reason && display && Object.values(state.mounts).some(mount => Math.hypot(mount.x - display.x, mount.z - display.z) < 4)) reason = "Move your parked vehicle out of the display bay first";
+    return { typeId, name, cargoSlots: cart?.cargoSlots ?? ship!.fishCargoSlots.length, cost, requiredTradingXp,
+      owned, canPurchase: reason === null, reason, position: { ...position, y: WorldLayout.traversalSurfaceHeight(position.x, position.z) } };
+  }
+
+  public purchaseTradeVehicle(typeId: string): { success: boolean; reason?: string; cost?: number } {
+    const offer = this.inspectTradeVehicle(typeId);
+    if (!offer || !offer.canPurchase) return { success: false, reason: offer?.reason ?? "Unknown transport" };
+    const { state, events } = this.context;
+    if (isTradeCarriageType(typeId)) {
+      const mount = workshopCarriagePoses().find(pose => pose.mountTypeId === typeId)!;
+      state.player.money -= offer.cost;
+      state.mounts[mount.id] = mount;
+      events.emit("CarriagePurchased", { mountId: mount.id, mountTypeId: typeId, cost: offer.cost, minute: state.clock.currentMinute });
+    } else {
+      const definition = ContentRegistry.boats.get(typeId)!;
+      const id = "boat.player_trading_ship", supplyInventoryId = "inv.trading_ship_supply";
+      if (state.inventories[supplyInventoryId]) return { success: false, reason: "The ship supply store is already registered" };
+      const inventory = InventoryManager.createInventory(supplyInventoryId, definition.supplySlotCount);
+      state.player.money -= offer.cost;
+      state.inventories[supplyInventoryId] = inventory;
+      state.boats[id] = { id, boatTypeId: typeId, ...HARBOR_TRADE_MOORING.boatPosition, headingRadians: 0, speed: 0,
+        fuel: definition.fuelCapacity, durability: definition.durabilityMax, fishCargoSlotIds: definition.fishCargoSlots.map(() => null),
+        supplyInventoryId, upgrades: [], isDocked: true, dockedMarketId: HARBOR_TRADE_MOORING.marketId };
+      events.emit("BoatPurchased", { boatId: id, boatTypeId: typeId, cost: offer.cost, minute: state.clock.currentMinute });
+    }
+    return { success: true, cost: offer.cost };
+  }
+
   public purchaseSkiff(): { success: boolean; reason?: string; cost?: number } {
     const { state, events } = this.context;
     const boatId = "boat.player_skiff";
@@ -760,7 +813,7 @@ export class NavigationDomain {
     return { success: true, cost: definition.costMoney };
   }
 
-  public canAccessFishCargo(cargo: FishCargoState, marketId?: MarketId): boolean {
+  public canAccessFishCargo(cargo: CargoState, marketId?: MarketId): boolean {
     const { state } = this.context;
     if (cargo.location.type === "player") return state.player.carriedFishCargoId === cargo.id;
     if (cargo.location.type === "carriage") return canReachCarriageRear(state, state.mounts[cargo.location.containerId]);
@@ -769,7 +822,10 @@ export class NavigationDomain {
     const boat = state.boats[cargo.location.containerId];
     if (!boat) return false;
     if (state.player.activeBoatId === boat.id) return true;
-    return Boolean(marketId && boat.isDocked && boat.dockedMarketId === marketId);
+    if (this.canAccessBoatStores(boat.id)) return true;
+    const market = marketId ? ContentRegistry.markets.get(marketId) : undefined;
+    return Boolean(market && boat.isDocked && boat.dockedMarketId === marketId
+      && isWithinMarketReach(state.player, market));
   }
 
   /**
@@ -779,7 +835,7 @@ export class NavigationDomain {
    * at-the-counter gate. Mounted, sailing and mid-fishing players cannot reach
    * it, so a drop can never be collected through a vehicle or a cast.
    */
-  public canReachGroundCargo(cargo: FishCargoState): boolean {
+  public canReachGroundCargo(cargo: CargoState): boolean {
     const { state } = this.context;
     if (cargo.location.type !== "ground") return false;
     const { x, z } = cargo.location;

@@ -18,7 +18,7 @@ function dockCollision(): StaticCollisionProxy[] {
   root.position.set(layout.x, WorldLayout.terrainHeight(layout.x, layout.z) + layout.yOffset, layout.z);
   root.rotation.y = layout.rotationY;
   root.scale.setScalar(layout.scale);
-  return projectAssetCollision(ASSET_IDS.DOCK_STRAIGHT_A, root, "dock");
+  return projectAssetCollision(ASSET_IDS.DOCK_HARBOR_MAIN_A, root, "dock");
 }
 
 /** A fence wall wide enough that a galloping mount cannot steer around it. */

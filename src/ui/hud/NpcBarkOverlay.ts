@@ -1,6 +1,9 @@
 import type { Camera } from "three";
 import type { NpcBarkDto } from "../../simulation/presentation/NpcPresentation";
 import { projectWorldToScreen } from "./worldScreenProjection";
+import { localeStore } from "../../i18n/localeStore";
+import { getLocalizedNpc } from "../../i18n/i18n";
+import { ContentRegistry } from "../../content/ContentRegistry";
 
 /** A single reusable bubble; cooldowns are presentation time, never save data. */
 export class NpcBarkOverlay {
@@ -46,12 +49,37 @@ export class NpcBarkOverlay {
         break;
       }
       if (active && projected) {
-        const index = this.lineIndices.get(active.npcId) ?? 0;
-        const line = active.lines[index % active.lines.length];
-        this.lineIndices.set(active.npcId, index + 1);
-        this.name.textContent = active.name;
+        const speakingNpc = active;
+        const index = this.lineIndices.get(speakingNpc.npcId) ?? 0;
+        let line = speakingNpc.lines[index % speakingNpc.lines.length];
+        this.lineIndices.set(speakingNpc.npcId, index + 1);
+
+        let displayName = speakingNpc.name;
+        if (localeStore.current === "tr") {
+          const trNpc = getLocalizedNpc(speakingNpc.npcId, "tr");
+          displayName = trNpc.name;
+          const baseNpc = ContentRegistry.npcs.get(speakingNpc.npcId);
+          if (baseNpc) {
+            const lineIndex = index % speakingNpc.lines.length;
+            if (baseNpc.beckonLines && baseNpc.beckonLines === speakingNpc.lines && trNpc.beckonLines?.length) {
+              line = trNpc.beckonLines[lineIndex % trNpc.beckonLines.length] ?? line;
+            } else if (baseNpc.idleDialogue === speakingNpc.lines && trNpc.idleDialogue?.length) {
+              line = trNpc.idleDialogue[lineIndex % trNpc.idleDialogue.length] ?? line;
+            } else if (baseNpc.recognitionDialogue && trNpc.recognitionDialogue) {
+              const matchedRec = baseNpc.recognitionDialogue.find((rec) => rec.lines === speakingNpc.lines);
+              if (matchedRec) {
+                const trRec = trNpc.recognitionDialogue.find((rec) => rec.id === matchedRec.id);
+                if (trRec && trRec.lines.length > 0) {
+                  line = trRec.lines[lineIndex % trRec.lines.length] ?? line;
+                }
+              }
+            }
+          }
+        }
+
+        this.name.textContent = displayName;
         this.line.textContent = line;
-        this.activeId = active.npcId;
+        this.activeId = speakingNpc.npcId;
         this.expiresAt = nowMs + Math.min(11000, Math.max(5500, line.length * 65));
         this.nextBubbleAt = this.expiresAt + 3500;
         this.nextAllowed.set(active.npcId, nowMs + 45000);

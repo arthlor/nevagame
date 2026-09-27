@@ -8,6 +8,7 @@ import { atlasForFish } from "../chrome/uiAtlas";
 import { ChromeButton, ChromeQuality } from "../chrome/Chrome";
 import { GameSheet, KeyHint, Meter } from "../coastal/CoastalUI";
 import { playUiSound } from "../audio/uiAudio";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface BasicFishingMinigameWidgetProps {
   fishingState: Readonly<BasicFishingState>;
@@ -26,6 +27,9 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   onOpenSatchel,
   onDiscardCatch
 }) => {
+  const { locale, getLocalizedFish } = useTranslation();
+  const isTr = locale === "tr";
+
   const {
     phase,
     castPower = 0.5,
@@ -43,7 +47,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   } = fishingState;
 
   const species = catchItemId ? ContentRegistry.fishSpecies.get(catchItemId) : undefined;
-  const speciesName = species?.name || "Fish";
+  const speciesName = (isTr && catchItemId ? getLocalizedFish(catchItemId).name : null) || species?.name || (isTr ? "Balık" : "Fish");
 
   const { good: CAST_GOOD, prime: CAST_PRIME } = BasicFishingMinigame.CAST_QUALITY_THRESHOLDS;
   const castBand: "short" | "good" | "prime" =
@@ -94,10 +98,10 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
     return (
       <div className="basic-fishing-container basic-fishing-container--charging-cast">
         <GameSheet family="ink" tone="slate" corners className="cast-power-card">
-          <div className="cast-title">Cast power</div>
+          <div className="cast-title">{isTr ? "Savurma gücü" : "Cast power"}</div>
           <Meter
             className="cast-power-meter"
-            label="Cast power"
+            label={isTr ? "Savurma gücü" : "Cast power"}
             showLabel={false}
             value={castPower}
             max={1}
@@ -129,24 +133,30 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
               className={`cast-zone${castBand === "short" ? " is-active" : ""}`}
               data-testid="cast-band-short"
             >
-              Short
+              {isTr ? "Kısa" : "Short"}
             </span>
             <span
               className={`cast-zone is-good${castBand === "good" ? " is-active" : ""}`}
               data-testid="cast-band-good"
             >
-              Good
+              {isTr ? "İyi" : "Good"}
             </span>
             <span
               className={`cast-zone is-prime${castBand === "prime" ? " is-active" : ""}`}
               data-testid="cast-band-prime"
             >
-              Prime
+              {isTr ? "Kusursuz" : "Prime"}
             </span>
           </div>
           <div className="cast-hint">
-            <span className="hint-desktop">Release <KeyHint keyName="E / LMB" glow /> to cast · <KeyHint keyName="Esc" /> cancel</span>
-            <span className="hint-touch">Tap [Cast] to release</span>
+            <span className="hint-desktop">
+              {isTr ? (
+                <>Savurmak için <KeyHint keyName="E / LMB" glow /> bırak · <KeyHint keyName="Esc" /> iptal</>
+              ) : (
+                <>Release <KeyHint keyName="E / LMB" glow /> to cast · <KeyHint keyName="Esc" /> cancel</>
+              )}
+            </span>
+            <span className="hint-touch">{isTr ? "Bırakmak için [Savur]'a dokun" : "Tap [Cast] to release"}</span>
           </div>
         </GameSheet>
       </div>
@@ -163,12 +173,20 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
             <span className="bite-bobber-float" />
           </div>
           <div className="bite-exclamation">!</div>
-          <div className="bite-text">Bite!</div>
+          <div className="bite-text">{isTr ? "Vurdu!" : "Bite!"}</div>
           <div className="cast-hint">
-            <span className="hint-desktop">Hook set — press <KeyHint keyName="Space" glow /></span>
-            <span className="hint-touch">Fish on line — tap Hook!</span>
+            <span className="hint-desktop">
+              {isTr ? (
+                <>Tasmala — <KeyHint keyName="Space" glow /> tuşuna bas</>
+              ) : (
+                <>Hook set — press <KeyHint keyName="Space" glow /></>
+              )}
+            </span>
+            <span className="hint-touch">{isTr ? "Balık oltada — Tasmala'ya dokun!" : "Fish on line — tap Hook!"}</span>
           </div>
-          <ChromeButton variant="gold" soundCue="confirm" onClick={onHookBite}>Hook fish</ChromeButton>
+          <ChromeButton variant="gold" soundCue="confirm" onClick={onHookBite}>
+            {isTr ? "Tasmala" : "Hook fish"}
+          </ChromeButton>
         </GameSheet>
       </div>
     );
@@ -186,8 +204,8 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           {...minigameHoldProps}
         >
           <div className="minigame-header">
-            <span className="minigame-species-name">Reeling Fish</span>
-            {isPerfect && <span className="perfect-badge">Perfect</span>}
+            <span className="minigame-species-name">{isTr ? "Balık Çekiliyor" : "Reeling Fish"}</span>
+            {isPerfect && <span className="perfect-badge">{isTr ? "Kusursuz" : "Perfect"}</span>}
           </div>
 
           <div className="minigame-board">
@@ -210,7 +228,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
                     opacity: treasureCaught ? 0.3 : 1.0
                   }}
                 >
-                  <span className="treasure-mark" aria-label="Sunken treasure">◆</span>
+                  <span className="treasure-mark" aria-label={isTr ? "Batık hazine" : "Sunken treasure"}>◆</span>
                   {!treasureCaught && (
                     <div className="treasure-progress-ring">
                       <div
@@ -240,7 +258,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
               aria-valuenow={Math.round(catchProgress * 100)}
               aria-valuemin={0}
               aria-valuemax={100}
-              title={`Catch Progress: ${Math.round(catchProgress * 100)}%`}
+              title={isTr ? `Av İlerlemesi: %${Math.round(catchProgress * 100)}` : `Catch Progress: ${Math.round(catchProgress * 100)}%`}
             >
               <div
                 className={`catch-progress-fill${catchProgress < 0.25 ? " is-critical-risk" : ""}`}
@@ -250,8 +268,16 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           </div>
 
           <div className="minigame-footer-hint">
-            <span className="hint-desktop">Hold the card or <KeyHint keyName="Space" glow /> to keep pressure · <KeyHint keyName="Esc" /> cancel</span>
-            <span className="hint-touch">Hold [Reel] or card to keep pressure</span>
+            <span className="hint-desktop">
+              {isTr ? (
+                <>Baskıyı korumak için karta basılı tut ya da <KeyHint keyName="Space" glow /> bas · <KeyHint keyName="Esc" /> iptal</>
+              ) : (
+                <>Hold the card or <KeyHint keyName="Space" glow /> to keep pressure · <KeyHint keyName="Esc" /> cancel</>
+              )}
+            </span>
+            <span className="hint-touch">
+              {isTr ? "Baskıyı korumak için [Sar] veya karta basılı tut" : "Hold [Reel] or card to keep pressure"}
+            </span>
           </div>
         </GameSheet>
       </div>
@@ -262,7 +288,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
     return (
       <div className="basic-fishing-container basic-fishing-container--caught">
         <GameSheet family="ink" tone="slate" corners className="catch-summary-card result-stamp" data-testid="catch-landed">
-          <div className="catch-summary-header">Fish landed</div>
+          <div className="catch-summary-header">{isTr ? "Balık karada" : "Fish landed"}</div>
           <div className="catch-item-preview">
             <div className="catch-item-emoji">
               <AtlasImage src={atlasForFish(catchItemId)} alt="" size={72} />
@@ -274,20 +300,26 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
           {isPerfect && (
             <div className="perfect-badge perfect-badge--summary">
-              Perfect catch
+              {isTr ? "Kusursuz av" : "Perfect catch"}
             </div>
           )}
 
           {hasTreasure && treasureCaught && (
             <div className="treasure-summary-tag">
-              Sunken treasure recovered
+              {isTr ? "Batık hazine kurtarıldı" : "Sunken treasure recovered"}
             </div>
           )}
 
           <p className="catch-storage-line">
-            {inventoryBlocked ? "Storage · Waiting in hand" : "Storage · Satchel on collect"}
+            {isTr
+              ? (inventoryBlocked ? "Depo · Elde bekliyor" : "Depo · Alınınca heybeye")
+              : (inventoryBlocked ? "Storage · Waiting in hand" : "Storage · Satchel on collect")}
           </p>
-          {inventoryBlocked && <p className="catch-storage-blocker">The satchel is full. Make room or discard this catch.</p>}
+          {inventoryBlocked && (
+            <p className="catch-storage-blocker">
+              {isTr ? "Heybe tamamen dolu. Yer aç ya da bu avı bırak." : "The satchel is full. Make room or discard this catch."}
+            </p>
+          )}
           <div className="catch-result-actions">
             <ChromeButton
               className="dismiss-button"
@@ -296,13 +328,17 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
               autoFocus={inventoryBlocked}
               onClick={collectCatch}
             >
-              Collect <KeyHint keyName="Space" />
+              {isTr ? "Topla" : "Collect"} <KeyHint keyName="Space" />
             </ChromeButton>
             {inventoryBlocked && onOpenSatchel && (
-              <ChromeButton onClick={onOpenSatchel}>Open satchel</ChromeButton>
+              <ChromeButton onClick={onOpenSatchel}>
+                {isTr ? "Heybeyi aç" : "Open satchel"}
+              </ChromeButton>
             )}
             {inventoryBlocked && onDiscardCatch && (
-              <ChromeButton variant="danger" onClick={onDiscardCatch}>Discard catch</ChromeButton>
+              <ChromeButton variant="danger" onClick={onDiscardCatch}>
+                {isTr ? "Avı bırak" : "Discard catch"}
+              </ChromeButton>
             )}
           </div>
         </GameSheet>
@@ -314,17 +350,21 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
     return (
       <div className="basic-fishing-container basic-fishing-container--escaped">
         <GameSheet family="ink" tone="slate" corners className="catch-summary-card result-stamp escaped-card" data-testid="catch-escaped">
-          <div className="catch-summary-header">Got away</div>
+          <div className="catch-summary-header">{isTr ? "Kaçırdın" : "Got away"}</div>
           <div className="catch-item-preview">
             <div className="catch-item-emoji">
               <AtlasImage src={atlasForFish(catchItemId)} alt="" size={72} />
               {!atlasForFish(catchItemId) && <IconFish size={22} aria-hidden="true" />}
             </div>
-            <p className="cast-hint">The fish slipped the hook.</p>
-            <p className="escape-tip">Try keeping the green bar over the fish and matching its movement.</p>
+            <p className="cast-hint">{isTr ? "Balık iğneden kurtuldu." : "The fish slipped the hook."}</p>
+            <p className="escape-tip">
+              {isTr
+                ? "Yeşil çubuğu balığın üzerinde tutup hareketini takip etmeye çalış."
+                : "Try keeping the green bar over the fish and matching its movement."}
+            </p>
           </div>
           <ChromeButton className="dismiss-button dismiss-secondary" onClick={onDismissModal}>
-            Dismiss
+            {isTr ? "Kapat" : "Dismiss"}
           </ChromeButton>
         </GameSheet>
       </div>

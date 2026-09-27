@@ -19,6 +19,8 @@ import type { GraphicsQualityPreference } from "../render/config/GraphicsQuality
 import type { QualityTier } from "../render/config/VisualRenderConfig";
 import { ControlsReference } from "./components/ControlsReference";
 import { GameSheet, KeyHint, Meter } from "./coastal/CoastalUI";
+import { formatPauseDate, placeLabel } from "../i18n/placesTr";
+import { useTranslation } from "../i18n/useTranslation";
 
 export interface EscapeMenuModalProps {
   pause: PauseSummaryDto;
@@ -70,9 +72,12 @@ const IconPin: React.FC<{ size?: number }> = ({ size = 14 }) => (
  * Total play time is display-only. PauseSummaryDto does not carry it, so when
  * the field is absent the line is omitted rather than invented.
  */
-const formatPlayTime = (totalMinutes: number): string => {
+const formatPlayTime = (totalMinutes: number, locale?: string): string => {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = Math.floor(totalMinutes % 60);
+  if (locale === "tr") {
+    return hours > 0 ? `Denizde ${hours} sa ${minutes} dk` : `Denizde ${minutes} dk`;
+  }
   return hours > 0 ? `${hours}h ${minutes}m at sea` : `${minutes}m at sea`;
 };
 
@@ -102,6 +107,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
   const [towNotice, setTowNotice] = useState<string | null>(null);
   const [page, setPage] = useState<PausePage>("menu");
   const towQuote = onInspectEmergencyTowQuote?.();
+  const { locale } = useTranslation();
   useModalAccessibility(modalRef, onClose);
 
   useEffect(() => {
@@ -109,19 +115,21 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
   }, [page]);
 
   const lastSaved = savingAvailable
-    ? formatLastSaved(pause.lastSavedUtcMs)
-    : "This session is not being saved";
+    ? formatLastSaved(pause.lastSavedUtcMs, locale)
+    : (locale === "tr" ? "Bu oturum kaydedilmiyor" : "This session is not being saved");
   const playTimeLabel =
     Number.isFinite(pause.totalPlayMinutes) && pause.totalPlayMinutes >= 0
-      ? formatPlayTime(pause.totalPlayMinutes)
+      ? formatPlayTime(pause.totalPlayMinutes, locale)
       : null;
   const pageTitle = page === "menu"
-    ? "Paused"
+    ? (locale === "tr" ? "Duraklatıldı" : "Paused")
     : page === "safe-return"
-      ? "Safe Return"
+      ? (locale === "tr" ? "Güvenli Dönüş" : "Safe Return")
       : page === "emergency-tow"
-        ? "Emergency Tow"
-      : SETTINGS_PAGES.find((entry) => entry.id === page)?.label ?? "Settings";
+        ? (locale === "tr" ? "Acil Çekici" : "Emergency Tow")
+      : (locale === "tr"
+          ? (page === "graphics" ? "Grafik Ayarları" : page === "audio" ? "Ses Ayarları" : page === "interface" ? "Arayüz Ayarları" : "Kontroller")
+          : SETTINGS_PAGES.find((entry) => entry.id === page)?.label ?? "Settings");
 
   return (
     <div className="modal-overlay pause-overlay interactive" onClick={onClose}>
@@ -142,12 +150,12 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
           <div className="pause-heading">
             {page !== "menu" && (
               <button type="button" className="pause-back" onClick={() => setPage("menu")}>
-                ← Back
+                {locale === "tr" ? "← Geri" : "← Back"}
               </button>
             )}
             <span id="pause-title" className="modal-heading-with-mark">{pageTitle}</span>
           </div>
-          <ChromeClose onClick={onClose} label="Resume game" />
+          <ChromeClose onClick={onClose} label={locale === "tr" ? "Oyuna Devam Et" : "Resume game"} />
         </header>
 
         <div className="modal-body pause-body">
@@ -156,13 +164,13 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
               <div className="pause-menu-info">
                 <div className="pause-vignette-status">
                   <div>
-                    <strong className="pause-region-title">{pause.regionLabel}</strong>
-                    <span className="pause-date-sub">{pause.dateTimeLabel}</span>
+                    <strong className="pause-region-title">{placeLabel(pause.regionLabel, locale)}</strong>
+                    <span className="pause-date-sub">{formatPauseDate(pause.dateTimeLabel, locale)}</span>
                     {playTimeLabel && <span className="pause-playtime-line">{playTimeLabel}</span>}
                   </div>
                   <Meter
                     className="pause-labor-meter"
-                    label="Work"
+                    label={locale === "tr" ? "İş Gücü" : "Work"}
                     icon={<IconEnergy size={16} aria-hidden="true" />}
                     value={pause.work.current}
                     max={pause.work.maximum}
@@ -172,16 +180,16 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
 
                 <div className="pause-save-line" aria-live="polite">
                   <div>
-                    <strong>Harbor log</strong>
+                    <strong>{locale === "tr" ? "Kıyı Kaydı" : "Harbor log"}</strong>
                     <span>{lastSaved}</span>
                   </div>
                   <ChromeButton size="sm" onClick={onQuickSave} disabled={!savingAvailable}>
-                    {savingAvailable ? "Save now" : "Saving unavailable"}
+                    {savingAvailable ? (locale === "tr" ? "Şimdi kaydet" : "Save now") : (locale === "tr" ? "Kayıt Kullanılamaz" : "Saving unavailable")}
                   </ChromeButton>
                 </div>
 
                 <details className="pause-recovery-disclosure">
-                  <summary>Recovery options</summary>
+                  <summary>{locale === "tr" ? "Kurtarma seçenekleri" : "Recovery options"}</summary>
                   <div className="pause-critical-actions-row">
                     <ChromeButton
                       variant="secondary"
@@ -189,7 +197,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                       className="pause-safe-return-btn"
                       onClick={() => setPage("safe-return")}
                     >
-                      <IconPin size={14} /> Safe Return
+                      <IconPin size={14} /> {locale === "tr" ? "Güvenli Dönüş" : "Safe Return"}
                     </ChromeButton>
 
                     {onEmergencyTow && towQuote?.ok && (
@@ -200,45 +208,45 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                         data-testid="pause-emergency-tow"
                         onClick={() => setPage("emergency-tow")}
                       >
-                        <IconBoat size={14} /> Emergency Tow
+                        <IconBoat size={14} /> {locale === "tr" ? "Acil Çekici" : "Emergency Tow"}
                       </ChromeButton>
                     )}
                   </div>
                 </details>
               </div>
 
-              <nav className="pause-actions pause-menu-nav" aria-label="Pause menu actions">
+              <nav className="pause-actions pause-menu-nav" aria-label={locale === "tr" ? "Duraklatma menüsü eylemleri" : "Pause menu actions"}>
                 <ChromeButton variant="primary" soundCue="confirm" onClick={onClose}>
-                  Resume <KeyHint keyName="Esc" />
+                  {locale === "tr" ? "Devam Et" : "Resume"} <KeyHint keyName="Esc" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenInventory}>
-                  <IconSatchel size={20} aria-hidden="true" /> Satchel <KeyHint keyName="I" />
+                  <IconSatchel size={20} aria-hidden="true" /> {locale === "tr" ? "Heybe" : "Satchel"} <KeyHint keyName="I" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenJournal}>
-                  <IconJournal size={20} aria-hidden="true" /> Field Journal <KeyHint keyName="J" />
+                  <IconJournal size={20} aria-hidden="true" /> {locale === "tr" ? "Seyir Defteri" : "Field Journal"} <KeyHint keyName="J" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenMap}>
-                  <IconCompass size={20} aria-hidden="true" /> Nautical Chart <KeyHint keyName="M" />
+                  <IconCompass size={20} aria-hidden="true" /> {locale === "tr" ? "Deniz Haritası" : "Nautical Chart"} <KeyHint keyName="M" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenLedger}>
-                  <IconLedger size={20} aria-hidden="true" /> Hold &amp; Stores <KeyHint keyName="L" />
+                  <IconLedger size={20} aria-hidden="true" /> {locale === "tr" ? "Ambar ve Depo" : <>Hold &amp; Stores</>} <KeyHint keyName="L" />
                 </ChromeButton>
                 {expeditionUnlocked && (
                   <ChromeButton onClick={onOpenExpedition}>
-                    <IconExpedition size={20} aria-hidden="true" /> Expedition Board <KeyHint keyName="P" />
+                    <IconExpedition size={20} aria-hidden="true" /> {locale === "tr" ? "Sefer Masası" : "Expedition Board"} <KeyHint keyName="P" />
                   </ChromeButton>
                 )}
                 {onOpenGuide && (
                   <ChromeButton onClick={onOpenGuide}>
-                    <IconCompass size={20} aria-hidden="true" /> Guide
+                    <IconCompass size={20} aria-hidden="true" /> {locale === "tr" ? "Rehber" : "Guide"}
                   </ChromeButton>
                 )}
                 {onPromptPwaInstall && !isStandalone && (
                   <ChromeButton onClick={onPromptPwaInstall}>
-                    <IconSprout size={20} aria-hidden="true" /> Add to Home Screen
+                    <IconSprout size={20} aria-hidden="true" /> {locale === "tr" ? "Ana Ekrana Ekle" : "Add to Home Screen"}
                   </ChromeButton>
                 )}
-                <ChromeButton onClick={() => setPage("graphics")}>Settings</ChromeButton>
+                <ChromeButton onClick={() => setPage("graphics")}>{locale === "tr" ? "Ayarlar" : "Settings"}</ChromeButton>
               </nav>
             </div>
           ) : page === "safe-return" ? (
@@ -247,13 +255,15 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
               aria-labelledby="pause-safe-return-title"
               aria-describedby="pause-safe-return-description"
             >
-              <h2 id="pause-safe-return-title">Return to safety?</h2>
+              <h2 id="pause-safe-return-title">{locale === "tr" ? "Güvenli limana dön?" : "Return to safety?"}</h2>
               <p id="pause-safe-return-description">
-                This moves you to the nearest safe landing immediately: the Starter Garden, or the Sunreach dock when sailing distant waters. Physical fish cargo must be landed first; money and progress remain with you.
+                {locale === "tr"
+                  ? "Sizi derhal en yakın güvenli kıyıya taşır: Başlangıç Bahçesi veya açık sulardaysanız Günışığı iskelesi. Taşınan balık yüklerinin önce karaya indirilmesi gerekir; paranız ve ilerlemeniz korunur."
+                  : "This moves you to the nearest safe landing immediately: the Starter Garden, or the Sunreach dock when sailing distant waters. Physical fish cargo must be landed first; money and progress remain with you."}
               </p>
               <div className="pause-critical-actions">
                 <ChromeButton ref={safeReturnCancelRef} onClick={() => setPage("menu")}>
-                  Stay here
+                  {locale === "tr" ? "Burada Kal" : "Stay here"}
                 </ChromeButton>
                 <ChromeButton
                   variant="danger"
@@ -261,7 +271,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                   data-testid="pause-confirm-return"
                   onClick={onResetPlayerToSafePlace}
                 >
-                  Use Safe Return
+                  {locale === "tr" ? "Güvenli Dönüşü Kullan" : "Use Safe Return"}
                 </ChromeButton>
               </div>
             </section>
@@ -271,12 +281,19 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
               aria-labelledby="pause-emergency-tow-title"
               aria-describedby="pause-emergency-tow-description"
             >
-              <h2 id="pause-emergency-tow-title">Arrange a tow?</h2>
+              <h2 id="pause-emergency-tow-title">{locale === "tr" ? "Yedek çekici çağrılsın mı?" : "Arrange a tow?"}</h2>
               <p id="pause-emergency-tow-description">
-                A harbor crew takes your vessel to {towQuote?.destinationLabel ?? "a serviced mooring"}.
-                {towQuote?.cost === 0 ? " The fee is waived." : ` The fee is ${towQuote?.cost.toLocaleString() ?? "—"} G.`}
-                {towQuote?.wrecked ? " Silas can repair the hull there." : ""}
-                {` The trip advances ${towQuote?.travelMinutes ?? 0} in-game minutes, so fish lose freshness. Your cargo and fuel stay aboard.`}
+                {locale === "tr"
+                  ? `Liman mürettebatı teknenizi ${towQuote?.destinationLabel ?? "hizmetli bir iskeleye"} çeker.${
+                      towQuote?.cost === 0 ? " Ücret alınmaz." : ` Çekici ücreti ${towQuote?.cost.toLocaleString() ?? "—"} akçedir.`
+                    }${
+                      towQuote?.wrecked ? " Silas gövdeyi orada tamir edebilir." : ""
+                    } Sefer ${towQuote?.travelMinutes ?? 0} oyun dakikası sürer, bu yüzden balıklar tazeliğini kaybedebilir. Kargonuz ve yakıtınız teknede kalır.`
+                  : `A harbor crew takes your vessel to ${towQuote?.destinationLabel ?? "a serviced mooring"}.${
+                      towQuote?.cost === 0 ? " The fee is waived." : ` The fee is ${towQuote?.cost.toLocaleString() ?? "—"} G.`
+                    }${
+                      towQuote?.wrecked ? " Silas can repair the hull there." : ""
+                    } The trip advances ${towQuote?.travelMinutes ?? 0} in-game minutes, so fish lose freshness. Your cargo and fuel stay aboard.`}
               </p>
               {towNotice && (
                 <p className="pause-critical-notice" role="status" data-testid="pause-tow-notice">
@@ -285,7 +302,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
               )}
               <div className="pause-critical-actions">
                 <ChromeButton ref={safeReturnCancelRef} onClick={() => setPage("menu")}>
-                  Not now
+                  {locale === "tr" ? "Şimdi Değil" : "Not now"}
                 </ChromeButton>
                 <ChromeButton
                   variant="danger"
@@ -297,16 +314,16 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                     // A refused tow keeps the sheet open with the reason, so the
                     // player is not dropped back to the menu without an answer.
                     if (result.success) setPage("menu");
-                    else setTowNotice(result.reason ?? "That tow could not be arranged");
+                    else setTowNotice(result.reason ?? (locale === "tr" ? "Çekici ayarlanamadı" : "That tow could not be arranged"));
                   }}
                 >
-                  Call for a tow
+                  {locale === "tr" ? "Çekici Çağır" : "Call for a tow"}
                 </ChromeButton>
               </div>
             </section>
           ) : (
             <div className="pause-settings-layout">
-              <nav className="pause-settings-pages" aria-label="Settings pages">
+              <nav className="pause-settings-pages" aria-label={locale === "tr" ? "Ayar sayfaları" : "Settings pages"}>
                 {SETTINGS_PAGES.map((entry) => (
                   <button
                     type="button"
@@ -315,7 +332,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                     aria-current={page === entry.id ? "page" : undefined}
                     onClick={() => setPage(entry.id)}
                   >
-                    {entry.label}
+                    {locale === "tr" ? (entry.id === "graphics" ? "Grafik" : entry.id === "audio" ? "Ses" : entry.id === "interface" ? "Arayüz" : "Kontroller") : entry.label}
                   </button>
                 ))}
               </nav>
@@ -337,7 +354,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                         variant="secondary"
                         onClick={() => uiScale.set("auto")}
                       >
-                        Reset to defaults
+                        {locale === "tr" ? "Varsayılana Sıfırla" : "Reset to defaults"}
                       </ChromeButton>
                     </div>
                   </>
@@ -362,14 +379,17 @@ const SETTINGS_PAGES: ReadonlyArray<{ id: SettingsPage; label: string }> = [
   { id: "controls", label: "Controls" }
 ];
 
-const formatLastSaved = (timestamp: number): string => {
-  if (!Number.isFinite(timestamp) || timestamp <= 0) return "Not saved yet";
+const formatLastSaved = (timestamp: number, locale?: string): string => {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) {
+    return locale === "tr" ? "Henüz kaydedilmedi" : "Not saved yet";
+  }
   try {
-    return `Last saved ${new Intl.DateTimeFormat(undefined, {
+    const formatted = new Intl.DateTimeFormat(undefined, {
       hour: "numeric",
       minute: "2-digit"
-    }).format(new Date(timestamp))}`;
+    }).format(new Date(timestamp));
+    return locale === "tr" ? `Son kayıt: ${formatted}` : `Last saved ${formatted}`;
   } catch {
-    return "Last save recorded";
+    return locale === "tr" ? "Son kayıt alındı" : "Last save recorded";
   }
 };

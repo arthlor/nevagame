@@ -1,8 +1,10 @@
+import { bindInteractionPose } from "./InteractionPlacements";
 import { nevaBaseGroundHeight } from "./NevaLandforms";
+import { harborWorkingPierAt, harborPierRootY, harborWorkWearAt } from "./HarborDistrictLayout";
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS, oceanIsletAt, isletShoreDistance, isletTerrainHeight } from "./OceanIslets";
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { sunreachRoadEarthworkScale } from "./SunreachLivingLayout";
-import { MAINLAND_ROUTES, mainlandBlendAt, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandMountainExposureAt, mainlandNaturalHeight, mainlandShoreCharacterAt, mainlandRegionAt, mainlandWaterSample, mainlandRoadBenchAt } from "./NevaMainland";
+import { MAINLAND_ROUTES, mainlandBrookRoadCrossings, mainlandRouteGroundAt, mainlandBlendAt, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandMountainExposureAt, mainlandNaturalHeight, mainlandShoreCharacterAt, mainlandRegionAt, mainlandWaterSample, mainlandRoadBenchAt } from "./NevaMainland";
 import { isInsideLoop, type LoopSegmentIndex } from "./WorldGeometry";
 import { MAINLAND_ARCHITECTURE_PADS } from "./MainlandSettlementLayout";
 import { surfaceFieldAttributeSteps } from "../render/materials/SurfaceFieldAttributes";
@@ -25,7 +27,7 @@ import {
   HARBOR_MARKET,
   HARBOR_MARKET_APRON,
   HARBOR_PIER_DECK,
-  HARBOR_SKIFF_MOORING,
+  HARBOR_MAIN_PIER,
   RIVER_CROSSING,
   VILLAGE_CROSSING,
   VILLAGE_MARKET,
@@ -38,12 +40,14 @@ import {
   sampleRoadCrossSection,
   type RoadCrossSectionSample
 } from "./RoadGeometry";
+import { ROAD_CLASS_PROFILES, roadClassWidth, type RoadClassId, type RoadClassProfile } from "./RoadClasses";
+import { MAINLAND_ROAD_NETWORK } from "./MainlandRoadNetwork.generated";
 import { roadTerrainConformitySteps } from "./RoadTerrainConformity";
 import { FARMHOUSE_INTERIOR_BOUNDS, FARMHOUSE_INTERIOR_ORIGIN, isInsideFarmhouseInterior } from "./FarmhouseInterior";
 import { NEVA_FOOTHILL_TRAILS, nevaTrailBenchAt, sampleNevaLandforms } from "./NevaLandforms";
-import { mainlandBrookAt } from "./MainlandBrooks";
+import { mainlandBrookAt, mainlandBrookFloorHalfWidth } from "./MainlandBrooks";
 import { mainlandWorkSiteWearAt } from "./MainlandWorkSites";
-import { NEVA_HEADWATERS, headwaterElevationAt, headwaterSpringInfluence, isInHeadwaterBounds } from "./NevaHeadwaters";
+import { NEVA_HEADWATERS, headwaterCascadeBedOffset, headwaterCascadeInfluence, headwaterElevationAt, headwaterSpringInfluence, isInHeadwaterBounds } from "./NevaHeadwaters";
 import { getProcessingStationRuntimeRotationY } from "./ProcessingStationApproach";
 import {
   writeSurfaceFieldAttributes,
@@ -233,6 +237,12 @@ export interface RiverSectionProfile {
   rightErosion: number;
   leftDeposition: number;
   rightDeposition: number;
+  /**
+   * 0..1 shallow coarse-bed crossing between bends (pool-riffle rhythm). The
+   * bed rises and breaks the surface into broken water; the pool bed stays
+   * `bedElevation`. Zero through the headwaters, bridge and estuary.
+   */
+  riffle: number;
   estuaryInfluence: number;
 }
 
@@ -281,13 +291,14 @@ export interface RiverFishingAccessReserve {
 
 export type FishingHabitatId = "river" | "lake" | "coast" | "offshore";
 
-export type WorldRouteKind = "arterial" | "lane" | "trail";
+export type WorldRouteKind = RoadClassId;
 export type WorldRouteScope = "regional" | "farmstead";
 
 export interface WorldRoute {
   id: string;
   scope: WorldRouteScope;
   kind: WorldRouteKind;
+  /** Always the class width from `RoadClasses`; carried for the consumers that read a route alone. */
   widthMeters: number;
   points: readonly WorldPoint[];
   /** Route segments that must remain linear, such as the bridge approach/deck. */
@@ -322,15 +333,8 @@ export interface WorldRouteJunction {
   routeIds: readonly string[];
 }
 
-export interface WorldRouteProfile {
-  crownMeters: number;
-  rutDepthMeters: number;
-  shoulderDropMeters: number;
-  shoulderWidthMeters: number;
-  /** Outer corridor distance over which the graded shoulder feathers into the meadow. */
-  terrainFeatherMeters: number;
-  gradingStrength: number;
-}
+/** A road class's cross-section; `RoadClasses` owns the numbers. */
+export type WorldRouteProfile = RoadClassProfile;
 
 export interface WorldLayoutDescriptor {
   revision: typeof WORLD_LAYOUT_REVISION;
@@ -419,6 +423,11 @@ const RIVER_BENDS = [
   { start: 44, end: 77, offset: 3.6, widen: -0.12 }
 ] as const;
 
+/** Half-width of the triangle window the meander response averages curvature over. */
+const RIVER_MEANDER_WINDOW_METERS = 7;
+/** Wider window for the valley floor, which follows the meander belt rather than each apex. */
+const RIVER_VALLEY_WINDOW_METERS = 20;
+
 function riverBendEnvelope(z: number, start: number, end: number): number {
   if (z <= start || z >= end) return 0;
   const t = (z - start) / (end - start);
@@ -469,34 +478,20 @@ export const RIVER_FISHING_ACCESS_RESERVES: readonly RiverFishingAccessReserve[]
   { id: "lower-river-west", z: 38, side: "left", halfLengthMeters: 7.5, approachDepthMeters: 8.5 }
 ];
 
+/** 1 along a reserved fishing approach's bank, fading over 6 m beyond it. */
+function riverFishingReserveWeight(z: number, side: RiverSide): number {
+  let weight = 0;
+  for (const reserve of RIVER_FISHING_ACCESS_RESERVES) {
+    if (reserve.side !== side) continue;
+    weight = Math.max(weight, 1 - smoothstep(reserve.halfLengthMeters, reserve.halfLengthMeters + 6,
+      Math.abs(z - reserve.z)));
+  }
+  return weight;
+}
+
 const RIVER_MOUTH = Object.freeze({ x: 15, z: 82 });
 
-export const WORLD_ROUTE_PROFILES: Readonly<Record<WorldRouteKind, Readonly<WorldRouteProfile>>> = Object.freeze({
-  arterial: Object.freeze({
-    crownMeters: 0.095,
-    rutDepthMeters: 0.038,
-    shoulderDropMeters: 0.014,
-    shoulderWidthMeters: 1.55,
-    terrainFeatherMeters: 1.25,
-    gradingStrength: 0.9
-  }),
-  lane: Object.freeze({
-    crownMeters: 0.068,
-    rutDepthMeters: 0.027,
-    shoulderDropMeters: 0.011,
-    shoulderWidthMeters: 1.25,
-    terrainFeatherMeters: 1.1,
-    gradingStrength: 0.78
-  }),
-  trail: Object.freeze({
-    crownMeters: 0.03,
-    rutDepthMeters: 0.012,
-    shoulderDropMeters: 0.006,
-    shoulderWidthMeters: 0.85,
-    terrainFeatherMeters: 0.9,
-    gradingStrength: 0.58
-  })
-});
+export const WORLD_ROUTE_PROFILES: Readonly<Record<WorldRouteKind, Readonly<WorldRouteProfile>>> = ROAD_CLASS_PROFILES;
 
 const BRIDGE_CENTER = Object.freeze({ x: -15.3, z: -6});
 export const BRIDGE_WORLD_PROFILE = Object.freeze({
@@ -507,7 +502,7 @@ export const BRIDGE_WORLD_PROFILE = Object.freeze({
   // gateway geometry must meet at this entry height.
   entrySurfaceY: 1.2178505,
   approachLength: 8,
-  lateralBlendWidth: 3.6,
+  lateralBlendWidth: 7.2,
   westBankSurfaceY: 1.68,
   eastBankSurfaceY: 2.05,
   gatewayDepthMeters: 1.25,
@@ -538,13 +533,13 @@ const BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y = Object.freeze([
   2.708
 ]);
 // The dock stairs are an authored compound collision too, not a ramp. Mirror
-// the catalog `dock_straight_a` stair primitives so the kinematic actor stands
+// the catalog `dock_harbor_main_a` stair primitives so the kinematic actor stands
 // on the same discrete tread tops the physical boxes present; the ramp this
 // replaced floated up to 0.16 m above them in the middle of each tread. Asset
 // space runs +X south along world -Z after the landmark's half-pi yaw, so the
 // asset abscissa of a world point is `dock.z - z`.
 const PIER_STAIR_TREAD_TOPS_ASSET_Y = Object.freeze([2.61, 2.43, 2.25, 2.07, 1.89]);
-const PIER_STAIR_FIRST_TREAD_CENTER_ASSET_X = 7.16;
+const PIER_STAIR_FIRST_TREAD_CENTER_ASSET_X = HARBOR_PIER_DECK.halfLengthZ + 0.16;
 const PIER_STAIR_TREAD_SPACING_METERS = 0.34;
 const PIER_STAIR_TREAD_HALF_DEPTH_METERS = 0.19;
 
@@ -612,6 +607,15 @@ function sampleTraversalBasePlane(x: number, z: number): number {
   const patch = WorldLayout.terrainPatchAt(x, z);
   if (!patch) return WorldLayout.terrainBaseHeight(x, z);
   const heightfield = WorldLayout.terrainBaseHeightfieldForPatch(patch.id);
+  const stride = patch.resolution + 1;
+  return interpolatePatchGrid(patch, x, z, (gridX, gridZ) => heightfield[gridX * stride + gridZ]);
+}
+
+/** A patch grid's triangle through its vertex heights at a point, split as the terrain mesh splits it. */
+function interpolatePatchGrid(
+  patch: Readonly<WorldTerrainPatchDefinition>, x: number, z: number,
+  height: (gridX: number, gridZ: number) => number
+): number {
   const resolution = patch.resolution;
   const stepMeters = patch.sizeMeters / resolution;
   const minimumX = patch.center.x - patch.sizeMeters * 0.5;
@@ -631,9 +635,6 @@ function sampleTraversalBasePlane(x: number, z: number): number {
   const cellZ = minimumZ + row * stepMeters;
   const u = THREE.MathUtils.clamp((x - cellX) / stepMeters, 0, 1);
   const v = THREE.MathUtils.clamp((z - cellZ) / stepMeters, 0, 1);
-  const stride = resolution + 1;
-  const height = (gridX: number, gridZ: number): number =>
-    heightfield[gridX * stride + gridZ];
   const a = height(column, row);
   const b = height(column, row + 1);
   const c = height(column + 1, row + 1);
@@ -736,7 +737,7 @@ const BRIDGE_EAST_APPROACH_END = Object.freeze({
   z: BRIDGE_CENTER.z
 });
 const LIGHTHOUSE_GATEWAY = Object.freeze({ x: -92, z: 74 });
-const STARTER_MILL_WORLD = starterStructureAnchor("struct.starter_mill")!;
+const STARTER_MILL_WORLD = { ...starterStructureAnchor("struct.starter_mill")! };
 
 const starterFarmEntryPath = STARTER_FARM_LAYOUT.paths.find((path) => path.id === "farm-entry");
 const STARTER_FARM_YARD_GATE = farmLocalToWorld(
@@ -754,9 +755,8 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     id: "farm-village",
     scope: "regional",
     kind: "arterial",
-    // Narrower than the bridge deck so the village approach reads as a country
-    // road rather than a paved field; the deck itself stays 3.8 m.
-    widthMeters: 3.2,
+    // A cart road, narrower than the 3.8 m bridge deck it crosses.
+    widthMeters: roadClassWidth("arterial"),
     points: [
       STARTER_FARM_YARD_GATE,
       { x: -49, z: -66 },
@@ -780,7 +780,7 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     id: "village-homestead",
     scope: "regional",
     kind: "lane",
-    widthMeters: 2.6,
+    widthMeters: roadClassWidth("lane"),
     points: [
       VILLAGE_CROSSING,
       { x: 57, z: -56 },
@@ -790,12 +790,14 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     ]
   },
   {
+    // Leaves the farm road just before the village square, rather than
+    // running beside it from the square for twenty metres.
     id: "village-harbor",
     scope: "regional",
     kind: "arterial",
-    widthMeters: 3.2,
+    widthMeters: roadClassWidth("arterial"),
     points: [
-      VILLAGE_CROSSING,
+      { x: 46, z: -44 },
       { x: 56, z: -28 },
       { x: 58, z: -4 },
       { x: 60, z: 20 },
@@ -804,61 +806,60 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
     ]
   },
   {
+    // Branches from the farm road where it turns onto the bridge's west
+    // approach; the village-to-bridge stretch and the bridge belong to the
+    // farm road alone, so no two roads are laid along each other.
     id: "village-lighthouse",
     scope: "regional",
     kind: "lane",
-    widthMeters: 2.6,
+    widthMeters: roadClassWidth("lane"),
     points: [
-      VILLAGE_CROSSING,
-      { x: 38, z: -36 },
-      { x: 18, z: -20 },
-      RIVER_CROSSING,
-      BRIDGE_EAST_APPROACH_END,
-      BRIDGE_EAST_DECK_EDGE,
-      BRIDGE_CENTER,
-      BRIDGE_WEST_DECK_EDGE,
       BRIDGE_WEST_APPROACH_START,
       { x: -20, z: 14 },
       { x: -43, z: 34 },
       { x: -68, z: 54 },
       LIGHTHOUSE_GATEWAY
-    ],
-    linearSegmentIndices: [4, 5, 6, 7]
+    ]
   },
   {
     id: "cliffside-coastal-walk",
     scope: "regional",
     kind: "trail",
-    widthMeters: 2.6,
-    // Stay on dry banks: the river mouth between the headland and harbor is not fordable,
-    // so the trail follows the west shore, crosses the stone bridge, then climbs the east bank.
+    widthMeters: roadClassWidth("trail"),
+    // Leaves the farm road at the river crossing and climbs the east bank's
+    // cliffs to the harbor; the river mouth between them is not fordable.
+    points: [
+      RIVER_CROSSING,
+      { x: 18, z: 8 },
+      { x: 32, z: 28 },
+      { x: 48, z: 46 },
+      { x: 58, z: 54 },
+      HARBOR_MARKET_APRON
+    ]
+  },
+  { id: "harbor-beach-path", scope: "regional", kind: "trail", widthMeters: roadClassWidth("trail"), points: [...HARBOR_BEACH_PATH] },
+  { id: "harbor-rocky-landing", scope: "regional", kind: "trail", widthMeters: roadClassWidth("trail"), points: [...HARBOR_LANDING_PATH] },
+  {
+    // The west shore's half of the old coastal walk: from the lighthouse along
+    // the headland to the lighthouse lane, which takes walkers to the bridge.
+    id: "headland-coastal-walk",
+    scope: "regional",
+    kind: "trail",
+    widthMeters: roadClassWidth("trail"),
     points: [
       { x: -92, z: 74 },
       { x: -68, z: 70 },
       { x: -40, z: 68 },
       { x: -16, z: 62 },
       { x: -22, z: 34 },
-      { x: -20, z: 14 },
-      BRIDGE_WEST_APPROACH_START,
-      BRIDGE_WEST_DECK_EDGE,
-      BRIDGE_CENTER,
-      BRIDGE_EAST_DECK_EDGE,
-      BRIDGE_EAST_APPROACH_END,
-      { x: 18, z: 8 },
-      { x: 32, z: 28 },
-      { x: 48, z: 46 },
-      { x: 58, z: 54 },
-      HARBOR_MARKET_APRON
-    ],
-    linearSegmentIndices: [6, 7, 8, 9]
+      { x: -20, z: 14 }
+    ]
   },
-  { id: "harbor-beach-path", scope: "regional", kind: "trail", widthMeters: 2.8, points: [...HARBOR_BEACH_PATH] },
-  { id: "harbor-rocky-landing", scope: "regional", kind: "trail", widthMeters: 2.8, points: [...HARBOR_LANDING_PATH] },
   ...NEVA_FOOTHILL_TRAILS.map((trail): WorldRoute => ({
     id: trail.id,
     scope: "regional",
     kind: "trail",
-    widthMeters: trail.id === "farm-headwater-trail" || trail.id === "northern-bluff-trail" ? 1.65 : 2.2,
+    widthMeters: roadClassWidth("trail"),
     points: trail.points.map(({ x, z }) => ({ x, z })),
     linearSegmentIndices: trail.points.slice(1).map((_, index) => index)
   }))
@@ -873,7 +874,7 @@ export const FARM_ROUTES: readonly WorldRoute[] = STARTER_FARM_LAYOUT.paths.map(
   id: path.id,
   scope: "farmstead",
   kind: FARM_PATH_KIND_TO_WORLD_KIND[path.kind],
-  widthMeters: path.widthMeters,
+  widthMeters: roadClassWidth(FARM_PATH_KIND_TO_WORLD_KIND[path.kind]),
   points: path.points.map((point) => farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, point))
 }));
 
@@ -885,7 +886,106 @@ export const WORLD_ROUTE_NETWORK: readonly WorldRoute[] = [
   ...MAINLAND_ROUTES
 ];
 
-export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
+/**
+ * A knot two mainland roads share is a junction: the network planner leaves
+ * a road only at a shared knot, and a gateway connector shares its first
+ * knot with the starter district's route there.
+ */
+function mainlandSharedRouteJunctions(): WorldRouteJunction[] {
+  const nodeKey = (point: WorldPoint): string => `${point.x}:${point.z}`;
+  const mainlandNodes = new Map<string, WorldPoint>();
+  for (const road of MAINLAND_ROAD_NETWORK) {
+    for (const [x, z] of road.knots) mainlandNodes.set(nodeKey({ x, z }), { x, z });
+  }
+
+  const routesAtNode = new Map<string, string[]>();
+  for (const route of WORLD_ROUTE_NETWORK) {
+    const knots = route.id.startsWith("mainland-")
+      ? MAINLAND_ROAD_NETWORK.find((road) => road.id === route.id)?.knots.map(([x, z]) => ({ x, z })) ?? []
+      : route.points;
+    for (const point of knots) {
+      const key = nodeKey(point);
+      if (!mainlandNodes.has(key)) continue;
+      const routeIds = routesAtNode.get(key) ?? [];
+      if (!routeIds.includes(route.id)) routeIds.push(route.id);
+      routesAtNode.set(key, routeIds);
+    }
+  }
+
+  return [...mainlandNodes].flatMap(([key, center]) => {
+    const routeIds = routesAtNode.get(key) ?? [];
+    if (routeIds.length < 2) return [];
+    const widestRoute = Math.max(...routeIds.map((id) =>
+      WORLD_ROUTE_NETWORK.find((route) => route.id === id)!.widthMeters
+    ));
+    return [{
+      id: `mainland-junction:${key}`,
+      center,
+      radiusMeters: Math.max(1.9, Math.min(3, widestRoute * 0.6)),
+      blendLengthMeters: 1.35,
+      surface: "landmark-gateway" as const,
+      routeIds
+    }];
+  });
+}
+
+/** Wheel tracks fade back in over this distance beyond a junction's apron. */
+const JUNCTION_TRACK_FADE_METERS = 3.5;
+
+/** Passing places on the one-cart mainland roads: one bay per stretch this long. */
+const PASSING_PLACE_SPACING_METERS = 180;
+const PASSING_PLACE_CLEARANCE_METERS = 40;
+
+/**
+ * A cart road carries one carriage, so each long stretch of one gets a
+ * passing place: a widened bay where the ground is flattest and dry, clear of
+ * junctions, culverts and water. The bay is an apron like a junction's.
+ */
+function mainlandPassingPlaces(junctions: readonly WorldRouteJunction[]): WorldRouteJunction[] {
+  const crossings = mainlandBrookRoadCrossings();
+  const places: WorldRouteJunction[] = [];
+  for (const road of MAINLAND_ROUTES) {
+    if (road.kind !== "arterial") continue;
+    const arc = [0];
+    for (let i = 1; i < road.points.length; i++) {
+      arc.push(arc[i - 1] + Math.hypot(road.points[i].x - road.points[i - 1].x, road.points[i].z - road.points[i - 1].z));
+    }
+    const total = arc[arc.length - 1];
+    const windows = Math.floor(total / PASSING_PLACE_SPACING_METERS);
+    for (let window = 0; window < windows; window++) {
+      const start = (total - windows * PASSING_PLACE_SPACING_METERS) * 0.5 + window * PASSING_PLACE_SPACING_METERS;
+      let best = -1, bestScore = Infinity;
+      for (let i = 1; i < road.points.length - 1; i++) {
+        if (arc[i] < start + 20 || arc[i] > start + PASSING_PLACE_SPACING_METERS - 20) continue;
+        const point = road.points[i];
+        const clear = (center: WorldPoint) => Math.hypot(center.x - point.x, center.z - point.z) > PASSING_PLACE_CLEARANCE_METERS;
+        if (!junctions.every((junction) => clear(junction.center)) || !crossings.every((crossing) => clear(crossing.point))
+          || !places.every((place) => clear(place.center))) continue;
+        if (mainlandWaterSample(point.x, point.z).signedDistance > -15 || signedDistanceToNevaCoast(point.x, point.z) > -15) continue;
+        const tangent = { x: road.points[i + 1].x - road.points[i - 1].x, z: road.points[i + 1].z - road.points[i - 1].z };
+        const length = Math.hypot(tangent.x, tangent.z);
+        const nx = -tangent.z / length, nz = tangent.x / length;
+        const across = Math.abs(mainlandRouteGroundAt(point.x + nx * 5, point.z + nz * 5)
+          - mainlandRouteGroundAt(point.x - nx * 5, point.z - nz * 5)) / 10;
+        const along = Math.abs(road.elevations[i + 1] - road.elevations[i - 1]) / length;
+        const score = across + along * 0.5;
+        if (score < bestScore) { bestScore = score; best = i; }
+      }
+      if (best < 0 || bestScore > 0.12) continue;
+      places.push({
+        id: `mainland-passing:${road.id}:${window}`,
+        center: road.points[best],
+        radiusMeters: 3,
+        blendLengthMeters: 1.4,
+        surface: "field",
+        routeIds: [road.id]
+      });
+    }
+  }
+  return places;
+}
+
+const AUTHORED_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
   {
     id: "starter-farm-field",
     center: farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x: 0, z: -7 }),
@@ -903,6 +1003,17 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
     routeIds: ["farm-village", "farm-entry", "farm-home"]
   },
   {
+    id: "farm-foothill-gateway",
+    center: {
+      x: NEVA_FOOTHILL_TRAILS[0].points[0].x,
+      z: NEVA_FOOTHILL_TRAILS[0].points[0].z
+    },
+    radiusMeters: 2.05,
+    blendLengthMeters: 1.2,
+    surface: "landmark-gateway",
+    routeIds: ["farm-work-zone", "farm-headwater-trail"]
+  },
+  {
     id: "village-market",
     center: VILLAGE_CROSSING,
     // A compact court: the four routes meet in a small square instead of a
@@ -910,7 +1021,15 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
     radiusMeters: 6.0,
     blendLengthMeters: 1.6,
     surface: "village-market",
-    routeIds: ["farm-village", "village-homestead", "village-harbor", "village-lighthouse"]
+    routeIds: ["farm-village", "village-homestead"]
+  },
+  {
+    id: "harbor-road-fork",
+    center: { x: 46, z: -44 },
+    radiusMeters: 2.4,
+    blendLengthMeters: 1.3,
+    surface: "landmark-gateway",
+    routeIds: ["farm-village", "village-harbor"]
   },
   {
     id: "village-market-apron",
@@ -933,18 +1052,35 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
   {
     id: "river-crossing",
     center: RIVER_CROSSING,
-    radiusMeters: 3.2,
-    blendLengthMeters: 1.4,
+    radiusMeters: 2.6,
+    blendLengthMeters: 1.3,
+    surface: "landmark-gateway",
+    routeIds: ["farm-village", "cliffside-coastal-walk"]
+  },
+  {
+    // The lighthouse lane leaves the farm road as it turns onto the bridge.
+    id: "bridge-west-fork",
+    center: BRIDGE_WEST_APPROACH_START,
+    radiusMeters: 2.2,
+    blendLengthMeters: 1.3,
     surface: "landmark-gateway",
     routeIds: ["farm-village", "village-lighthouse"]
   },
   {
+    id: "headland-walk-fork",
+    center: { x: -20, z: 14 },
+    radiusMeters: 1.9,
+    blendLengthMeters: 1.2,
+    surface: "field",
+    routeIds: ["village-lighthouse", "headland-coastal-walk"]
+  },
+  {
     id: "lighthouse-gateway",
     center: LIGHTHOUSE_GATEWAY,
-    radiusMeters: 2.65,
-    blendLengthMeters: 1.35,
+    radiusMeters: 2.4,
+    blendLengthMeters: 1.3,
     surface: "landmark-gateway",
-    routeIds: ["village-lighthouse", "cliffside-coastal-walk"]
+    routeIds: ["village-lighthouse", "headland-coastal-walk"]
   },
   {
     id: "harbor-market-gateway",
@@ -953,7 +1089,21 @@ export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
     blendLengthMeters: 1.45,
     surface: "landmark-gateway",
     routeIds: ["village-harbor", "cliffside-coastal-walk", "harbor-beach-path"]
-  }
+  },
+  {
+    id: "harbor-landing-fork",
+    center: HARBOR_LANDING_PATH[0],
+    radiusMeters: 1.9,
+    blendLengthMeters: 1.2,
+    surface: "field",
+    routeIds: ["harbor-beach-path", "harbor-rocky-landing"]
+  },
+  ...mainlandSharedRouteJunctions()
+];
+
+export const WORLD_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
+  ...AUTHORED_ROUTE_JUNCTIONS,
+  ...mainlandPassingPlaces(AUTHORED_ROUTE_JUNCTIONS)
 ];
 
 function villageArchitectureRotation(center: WorldPoint): number {
@@ -968,7 +1118,7 @@ function villageArchitectureRotation(center: WorldPoint): number {
 export const WORLD_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] = [
   ...MAINLAND_ARCHITECTURE_PADS,
   // Orchard outbuildings and the roadside stall; existing terrain, no new gameplay anchors.
-  { id: "orchard.tool-shed", center: { x: 50.3, z: -64.9}, rotationY: -0.7854, envelope: [1.55, 1.4], frontageClearanceMeters: 3, frontApproachMeters: 2.5 },
+  { id: "orchard.tool-shed", center: { x: 71.1, z: -83}, rotationY: -0.7854, envelope: [1.55, 1.4], frontageClearanceMeters: 3, frontApproachMeters: 2.5 },
   { id: "orchard.outhouse", center: { x: 73.4, z: -31.2}, rotationY: -0.9572, envelope: [1.1, 1.5], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
   { id: "village.roadside-stall", center: { x: 52.7, z: -14}, rotationY: 1.5708, envelope: [1.25, 0.85], frontageClearanceMeters: 2.5, frontApproachMeters: 2 },
   {
@@ -1094,21 +1244,6 @@ export const WORLD_LAYOUT_V5: WorldLayoutDescriptor = {
 
 function clamp01(value: number): number {
   return THREE.MathUtils.clamp(value, 0, 1);
-}
-
-function pointToSegmentDistance(
-  px: number,
-  pz: number,
-  ax: number,
-  az: number,
-  bx: number,
-  bz: number
-): number {
-  const abx = bx - ax;
-  const abz = bz - az;
-  const lengthSq = abx * abx + abz * abz;
-  const t = lengthSq <= 1e-12 ? 0 : THREE.MathUtils.clamp(((px - ax) * abx + (pz - az) * abz) / lengthSq, 0, 1);
-  return Math.hypot(px - (ax + abx * t), pz - (az + abz * t));
 }
 
 function smoothstep(edge0: number, edge1: number, value: number): number {
@@ -1513,20 +1648,18 @@ function normalizedSurfaceWeights(weights: TerrainSurfaceWeights): TerrainSurfac
 }
 
 function routeJunctionInfluence(x: number, z: number): number {
-  return WORLD_ROUTE_JUNCTIONS.reduce(
-    (strongest, junction) => Math.max(
-      strongest,
-      radialWeight(
-        x,
-        z,
-        junction.center.x,
-        junction.center.z,
-        junction.radiusMeters,
-        junction.blendLengthMeters
-      )
-    ),
-    0
-  );
+  let strongest = 0;
+  for (const junction of WORLD_ROUTE_JUNCTIONS) {
+    const dx = x - junction.center.x;
+    const dz = z - junction.center.z;
+    const reach = junction.radiusMeters + junction.blendLengthMeters;
+    if (dx * dx + dz * dz >= reach * reach) continue;
+    strongest = Math.max(strongest, radialWeight(
+      x, z, junction.center.x, junction.center.z,
+      junction.radiusMeters, junction.blendLengthMeters
+    ));
+  }
+  return strongest;
 }
 
 /** Canonical authored-region geography shared by simulation, physics, and presentation. */
@@ -1549,6 +1682,8 @@ export class WorldLayout {
   }
 
   public static islandAt(x: number, z: number): WorldIslandId | null {
+    const workingPier = harborWorkingPierAt(x, z);
+    if (workingPier) return workingPier.pier.islandId;
     const islet = oceanIsletAt(x, z);
     if (islet && isletShoreDistance(islet, x, z) <= 0) return islet.id;
     const sunreach = WORLD_ISLAND_DEFINITIONS["island.sunreach"];
@@ -1753,8 +1888,16 @@ export class WorldLayout {
     const nextCenterX = this.riverCenterX(z + derivativeStep);
     const dx = (nextCenterX - previousCenterX) / (derivativeStep * 2);
     const tangentLength = Math.max(0.0001, Math.hypot(dx, 1));
-    const curvature = (nextCenterX - centerX * 2 + previousCenterX)
-      / Math.pow(1 + dx * dx, 1.5);
+    // Meander response reads the bend a channel actually feels, not the
+    // pointwise second derivative. The authored centreline is C1 but its
+    // curvature jumps where each bend envelope starts or ends, and a pointwise
+    // curvature flipped the eroding/depositing side across one terrain row,
+    // stepping the floodplain edge ~10 m and leaving 4 m walls in the meadow.
+    // A wide second difference is the curvature averaged over a triangle
+    // window of ±h, which is continuous everywhere.
+    const meanderWindow = RIVER_MEANDER_WINDOW_METERS;
+    const curvature = (this.riverCenterX(z + meanderWindow) - centerX * 2 + this.riverCenterX(z - meanderWindow))
+      / (meanderWindow * meanderWindow) / Math.pow(1 + dx * dx, 1.5);
     const bend = THREE.MathUtils.clamp(curvature * 42, -1, 1);
     const bendStrength = smoothstep(0.04, 0.35, Math.abs(bend));
     const bridgeLock = 1 - smoothstep(5, 12, Math.abs(z - BRIDGE_CENTER.z));
@@ -1770,43 +1913,47 @@ export class WorldLayout {
       5.55,
       bridgeLock
     );
-    const leftOutside = smoothstep(0.04, 0.35, bend);
-    const rightOutside = smoothstep(0.04, 0.35, -bend);
+    // Exactly one side can be outside a bend; both weights are continuous and
+    // cross over gradually, since the bank a bend erodes changes along its
+    // length, not at one station.
+    const leftOutside = smoothstep(0.04, 0.5, bend);
+    const rightOutside = smoothstep(0.04, 0.5, -bend);
+    // The valley floor follows the meander belt, not each apex: floodplain
+    // shelves respond to curvature averaged over the whole bend, except where
+    // the local bend is strong enough to own its outside bank outright.
+    const valleyWindow = RIVER_VALLEY_WINDOW_METERS;
+    const valleyBend = (this.riverCenterX(z + valleyWindow) - centerX * 2 + this.riverCenterX(z - valleyWindow))
+      / (valleyWindow * valleyWindow) * 42;
+    const floodplainBend = THREE.MathUtils.lerp(valleyBend, bend, smoothstep(0.04, 0.25, Math.abs(bend)));
+    const leftValleyOutside = smoothstep(0.02, 0.75, floodplainBend);
+    const rightValleyOutside = smoothstep(0.02, 0.75, -floodplainBend);
     const authoredLeftBankRun = interpolateRiverProfileKnot(z, "leftBankRun");
     const authoredRightBankRun = interpolateRiverProfileKnot(z, "rightBankRun");
     const steepBankRun = Math.min(authoredLeftBankRun, authoredRightBankRun, 4.8);
     const shelfBankRun = Math.max(authoredLeftBankRun, authoredRightBankRun, 8.2);
-    const curvedLeftBankRun = THREE.MathUtils.lerp(
-      authoredLeftBankRun,
-      bend >= 0 ? steepBankRun : shelfBankRun,
-      bendStrength
-    );
-    const curvedRightBankRun = THREE.MathUtils.lerp(
-      authoredRightBankRun,
-      bend >= 0 ? shelfBankRun : steepBankRun,
-      bendStrength
-    );
+    const curvedLeftBankRun = authoredLeftBankRun
+      + (steepBankRun - authoredLeftBankRun) * leftOutside
+      + (shelfBankRun - authoredLeftBankRun) * rightOutside;
+    const curvedRightBankRun = authoredRightBankRun
+      + (steepBankRun - authoredRightBankRun) * rightOutside
+      + (shelfBankRun - authoredRightBankRun) * leftOutside;
     const leftBankRun = THREE.MathUtils.lerp(curvedLeftBankRun, 6, bridgeLock);
     const rightBankRun = THREE.MathUtils.lerp(curvedRightBankRun, 6, bridgeLock);
     const authoredLeftFloodplain = interpolateRiverProfileKnot(z, "leftFloodplainWidth");
     const authoredRightFloodplain = interpolateRiverProfileKnot(z, "rightFloodplainWidth");
     const narrowFloodplain = Math.min(authoredLeftFloodplain, authoredRightFloodplain, 3.2);
     const wideFloodplain = Math.max(authoredLeftFloodplain, authoredRightFloodplain, 8);
-    const curvedLeftFloodplain = THREE.MathUtils.lerp(
-      authoredLeftFloodplain,
-      bend >= 0 ? narrowFloodplain : wideFloodplain,
-      bendStrength
-    );
-    const curvedRightFloodplain = THREE.MathUtils.lerp(
-      authoredRightFloodplain,
-      bend >= 0 ? wideFloodplain : narrowFloodplain,
-      bendStrength
-    );
+    const curvedLeftFloodplain = authoredLeftFloodplain
+      + (narrowFloodplain - authoredLeftFloodplain) * leftValleyOutside
+      + (wideFloodplain - authoredLeftFloodplain) * rightValleyOutside;
+    const curvedRightFloodplain = authoredRightFloodplain
+      + (narrowFloodplain - authoredRightFloodplain) * rightValleyOutside
+      + (wideFloodplain - authoredRightFloodplain) * leftValleyOutside;
     const leftFloodplainWidth = THREE.MathUtils.lerp(curvedLeftFloodplain, 4, bridgeLock);
     const rightFloodplainWidth = THREE.MathUtils.lerp(curvedRightFloodplain, 4, bridgeLock);
     const authoredBedElevation = interpolateRiverProfileKnot(z, "bedElevation");
     const bedElevation = authoredBedElevation - Math.max(0, widthScale - 1) * 2
-      + THREE.MathUtils.lerp(0.055, -0.045, bendStrength) * (1 - bridgeLock);
+      + THREE.MathUtils.lerp(0.04, -0.035, bendStrength) * (1 - bridgeLock);
     const authoredThalwegMagnitude = Math.abs(interpolateRiverProfileKnot(z, "thalwegOffset"));
     const maximumThalwegOffset = Math.min(leftWaterWidth, rightWaterWidth) * 0.35;
     const thalwegMagnitude = Math.min(
@@ -1819,6 +1966,8 @@ export class WorldLayout {
     const estuaryInfluence = mouthDistance >= 0
       ? 1 - smoothstep(16, 30, mouthDistance)
       : 1 - smoothstep(25, 39, -mouthDistance);
+    const coastalOpening = smoothstep(52, RIVER_MOUTH.z, z);
+    const meadowOpening = smoothstep(NEVA_HEADWATERS.endZ, -100, z) * (1 - bridgeLock);
     const headwaterBlend = 1 - smoothstep(-136, NEVA_HEADWATERS.endZ, z);
     const surfaceElevation = z < NEVA_HEADWATERS.endZ ? headwaterElevationAt(z) : 0;
     // Valley shoulders share the section owner with bank dressing and wetness.
@@ -1836,15 +1985,25 @@ export class WorldLayout {
       ? 1 - smoothstep(0, pool.halfLengthMeters, pool.centerZ - z)
       : 1 - smoothstep(pool.centerZ, NEVA_HEADWATERS.endZ, z);
     const lipContraction = 1 - smoothstep(0, 4, Math.abs(z - NEVA_HEADWATERS.fall.lipZ));
+    // The pool leaves through a rock-confined step-pool staircase.
+    const cascadeConfinement = headwaterCascadeInfluence(z) * NEVA_HEADWATERS.cascade.confinementMeters;
+    // Pool-riffle rhythm: the bed shoals at the crossings between bends, where
+    // the thalweg changes banks, and deepens again into the next bend pool.
+    // It starts at the cascade's tail and stays clear of the engineered
+    // crossing and the estuary, whose support and navigation are authored.
+    const riffleReach = smoothstep(-117, -112, z)
+      * smoothstep(9, 18, Math.abs(z - BRIDGE_CENTER.z))
+      * (1 - smoothstep(38, 54, z));
+    const riffle = riffleReach * (1 - smoothstep(0.1, 0.42, Math.abs(bend)));
     return {
       z,
       centerX,
       tangent: { x: dx / tangentLength, z: 1 / tangentLength },
       curvature,
       leftWaterWidth: THREE.MathUtils.lerp(leftWaterWidth, NEVA_HEADWATERS.sourceRadiusMeters, headwaterBlend)
-        + pool.widenMeters * poolInfluence * 0.78 - lipContraction * 0.45,
+        + pool.widenMeters * poolInfluence * 0.78 - lipContraction * 0.45 - cascadeConfinement,
       rightWaterWidth: THREE.MathUtils.lerp(rightWaterWidth, NEVA_HEADWATERS.sourceRadiusMeters, headwaterBlend)
-        + pool.widenMeters * poolInfluence * 1.16 - lipContraction * 0.2,
+        + pool.widenMeters * poolInfluence * 1.16 - lipContraction * 0.2 + coastalOpening * 2.4 - cascadeConfinement,
       surfaceElevation,
       bedElevation: surfaceElevation + THREE.MathUtils.lerp(bedElevation, -0.75, headwaterBlend)
         - pool.depthMeters * poolDepthInfluence
@@ -1852,14 +2011,17 @@ export class WorldLayout {
         // only at an analytic point between its rows.
         - 1.8 * (1 - smoothstep(0.5, 3, Math.abs(z - NEVA_HEADWATERS.fall.landingZ))),
       thalwegOffset: THREE.MathUtils.lerp(bendThalwegOffset, 0, bridgeLock),
-      leftBankRun: THREE.MathUtils.lerp(leftBankRun, 3.5, headwaterBlend) + poolInfluence * 0.9,
-      rightBankRun: THREE.MathUtils.lerp(rightBankRun, 3, headwaterBlend) + poolInfluence * 0.9,
-      leftFloodplainWidth: THREE.MathUtils.lerp(leftFloodplainWidth, 8, headwaterBlend) + poolInfluence * 1.4 + upperValley * 8,
-      rightFloodplainWidth: THREE.MathUtils.lerp(rightFloodplainWidth, 6, headwaterBlend) + poolInfluence * 1.4 + upperValley * 10,
+      leftBankRun: THREE.MathUtils.lerp(THREE.MathUtils.lerp(leftBankRun, 3.5, headwaterBlend) + poolInfluence * 0.9, 6, coastalOpening),
+      rightBankRun: THREE.MathUtils.lerp(THREE.MathUtils.lerp(rightBankRun, 3, headwaterBlend) + poolInfluence * 0.9, 11, coastalOpening),
+      leftFloodplainWidth: THREE.MathUtils.lerp(THREE.MathUtils.lerp(leftFloodplainWidth, 8, headwaterBlend)
+        + poolInfluence * 1.4 + upperValley * 8 + meadowOpening * leftFloodplainWidth * 1.3, 12, coastalOpening),
+      rightFloodplainWidth: THREE.MathUtils.lerp(THREE.MathUtils.lerp(rightFloodplainWidth, 6, headwaterBlend)
+        + poolInfluence * 1.4 + upperValley * 10 + meadowOpening * rightFloodplainWidth * 1.3, 28, coastalOpening),
       leftErosion: THREE.MathUtils.lerp(0.16 + leftOutside * 0.84, 0.18, bridgeLock),
       rightErosion: THREE.MathUtils.lerp(0.16 + rightOutside * 0.84, 0.18, bridgeLock),
       leftDeposition: THREE.MathUtils.lerp(0.18 + rightOutside * 0.82, 0.2, bridgeLock),
       rightDeposition: THREE.MathUtils.lerp(0.18 + leftOutside * 0.82, 0.2, bridgeLock),
+      riffle,
       estuaryInfluence: clamp01(estuaryInfluence)
     };
   }
@@ -2274,60 +2436,39 @@ export class WorldLayout {
     );
   }
 
-  /** Walkable harbor pier plus mooring slips. Hull water stays sailable. */
   /** Authoring bounds for the timber stairs climbing from the harbor apron onto the pier deck. */
   public static isPierStairs(x: number, z: number): boolean {
+    if (harborWorkingPierAt(x, z)?.stairs) return true;
     const dock = this.landmark("dock");
-    const southEdge = dock.z - HARBOR_PIER_DECK.halfLengthZ;
+    const angle = dock.rotationY - Math.PI / 2;
+    const dx = x - dock.x, dz = z - dock.z;
+    const localX = dx * Math.cos(angle) - dz * Math.sin(angle);
+    const localZ = dx * Math.sin(angle) + dz * Math.cos(angle);
+    const southEdge = -HARBOR_PIER_DECK.halfLengthZ;
     const stairBottomZ = southEdge - HARBOR_PIER_DECK.stairRun - 1.4;
     return (
-      Math.abs(x - dock.x) <= HARBOR_PIER_DECK.stairHalfWidthX &&
-      z <= southEdge + 0.05 &&
-      z >= stairBottomZ
+      Math.abs(localX) <= HARBOR_PIER_DECK.stairHalfWidthX &&
+      localZ <= southEdge + 0.05 &&
+      localZ >= stairBottomZ
     );
   }
 
-  /** Walkable harbor pier deck. Shore stairs and rowboat slip are included; skiff mooring is on natural beach. */
+  /** Support follows the published planks and shore stairs; berth water stays sailable. */
   public static isPierDeck(x: number, z: number): boolean {
-    const slipWidth = 2.35;
-    const hullKeepout = HARBOR_PIER_DECK.hullKeepout;
+    if (harborWorkingPierAt(x, z)) return true;
     const dock = this.landmark("dock");
+    const angle = dock.rotationY - Math.PI / 2;
+    const dx = x - dock.x, dz = z - dock.z;
     const onVisualPier =
-      Math.abs(x - dock.x) <= HARBOR_PIER_DECK.halfWidthX &&
-      Math.abs(z - dock.z) <= HARBOR_PIER_DECK.halfLengthZ &&
-      Math.hypot(x - HARBOR_DOCK.boatPosition.x, z - HARBOR_DOCK.boatPosition.z) > hullKeepout &&
-      Math.hypot(x - HARBOR_SKIFF_MOORING.boatPosition.x, z - HARBOR_SKIFF_MOORING.boatPosition.z) > hullKeepout;
-    return (
-      onVisualPier
-      || this.isPierStairs(x, z)
-      || this.isPierSlip(x, z, HARBOR_DOCK.playerPosition, HARBOR_DOCK.boatPosition, slipWidth, hullKeepout)
-    );
+      Math.abs(dx * Math.cos(angle) - dz * Math.sin(angle)) <= HARBOR_PIER_DECK.halfWidthX &&
+      Math.abs(dx * Math.sin(angle) + dz * Math.cos(angle)) <= HARBOR_PIER_DECK.halfLengthZ;
+    return onVisualPier || this.isPierStairs(x, z);
   }
 
   /** Walkable plank top of the harbor pier in world Y. */
   public static pierDeckSurfaceY(): number {
     const dock = this.landmark("dock");
     return this.terrainHeight(dock.x, dock.z) + dock.yOffset + HARBOR_PIER_DECK.deckSurfaceAssetY;
-  }
-
-  private static isPierSlip(
-    x: number,
-    z: number,
-    apron: { x: number; z: number },
-    hull: { x: number; z: number },
-    halfWidth: number,
-    hullKeepout: number
-  ): boolean {
-    const spanX = hull.x - apron.x;
-    const spanZ = hull.z - apron.z;
-    const span = Math.hypot(spanX, spanZ);
-    if (span <= hullKeepout) return false;
-    if (Math.hypot(x - hull.x, z - hull.z) <= hullKeepout) return false;
-    // End the walkway before the hull so the keepout circle is not ringed by
-    // an unsailable slip band that traps a departing boat.
-    const endX = hull.x - (spanX / span) * hullKeepout;
-    const endZ = hull.z - (spanZ / span) * hullKeepout;
-    return pointToSegmentDistance(x, z, apron.x, apron.z, endX, endZ) <= halfWidth;
   }
 
   public static isWater(x: number, z: number): boolean {
@@ -2497,15 +2638,19 @@ export class WorldLayout {
         reason: "bridge"
       };
     }
+    const workingPier = harborWorkingPierAt(x, z);
     if (this.isPierDeck(x, z)) {
-      return {
-        habitat: "coast",
-        accessible: true,
-        target: { x, z: this.coastlineZ(x) + Math.min(2, reachMeters) },
-        distanceMeters: 0,
-        side: null,
-        reason: "pier"
-      };
+      // Either side of a wharf can face open water, including Sunreach's
+      // west-facing piers. The original Neva coastlineZ shortcut is not valid here.
+      for (let distance = 0.5; distance <= reachMeters; distance += 0.5) {
+        for (let side = 0; side < 8; side++) {
+          const angle = (workingPier?.pier.rotationY ?? Math.PI / 2) + side * Math.PI / 4;
+          const target = { x: x + Math.sin(angle) * distance, z: z + Math.cos(angle) * distance };
+          if (!this.isWater(target.x, target.z) || !this.coastalCastSegmentIsClear(x, z, target.x, target.z)) continue;
+          return { habitat: "coast", accessible: true, target, distanceMeters: distance, side: null, reason: "pier" };
+        }
+      }
+      return { habitat: null, accessible: false, target: null, distanceMeters: reachMeters, side: null, reason: "blocked" };
     }
     const direct = this.fishingHabitatAt(x, z);
     if (direct) {
@@ -2849,8 +2994,14 @@ export class WorldLayout {
       ? riverSection.leftFloodplainWidth
       : riverSection.rightFloodplainWidth;
     const riverDeposition = riverSide === "left" ? riverSection.leftDeposition : riverSection.rightDeposition;
+    const riverErosion = riverSide === "left" ? riverSection.leftErosion : riverSection.rightErosion;
     const thalwegDistance = Math.abs(riverSignedLateral - riverSection.thalwegOffset);
     const riverBed = riverSection.bedElevation
+      // Step-pool sills and scour pools through the headwater staircase.
+      + headwaterCascadeBedOffset(z, riverSection.surfaceElevation - riverSection.bedElevation)
+      // The jet's own impact hole, tighter than the section's pool scour, so
+      // the triangulated bed stays under the landing next to the tall face row.
+      - 0.6 * (1 - smoothstep(0.3, 1.8, Math.abs(z - NEVA_HEADWATERS.fall.landingZ)))
       - (1 - smoothstep(0.25, Math.max(1.8, riverWidth * 0.48), thalwegDistance)) * 0.24
       // Feather the plunge-basin deepening laterally back toward the channel
       // bed, so the basin relaxes at its section edges instead of stepping at
@@ -2874,9 +3025,18 @@ export class WorldLayout {
       ? headwaterElevationAt(THREE.MathUtils.lerp(z + bankRetreat, bankFallStation,
         smoothstep(NEVA_HEADWATERS.source.z - 2, -139, z) * (1 - smoothstep(-129, -121, z))))
       : riverSection.surfaceElevation;
+    const valleyOpening = smoothstep(-126, -108, z)
+      * smoothstep(12, 24, Math.abs(z - BRIDGE_CENTER.z));
+    const coastalOpening = smoothstep(52, RIVER_MOUTH.z, z);
+    // A depositional bank has a low meadow behind it; the opposite cut bank
+    // reaches a higher terrace. Neither shelf is the hill's blending ramp.
+    const terraceRise = THREE.MathUtils.lerp(1.25, 0.48, riverDeposition);
+    const coastalRise = riverSide === "right" ? 0.32 : 0.85;
     const riverBankTop = Math.min(
       height,
-      bankSurfaceElevation + 0.42 + riverDeposition * 0.32 + smoothstep(-180, 82, z) * 0.2
+      bankSurfaceElevation + THREE.MathUtils.lerp(
+        THREE.MathUtils.lerp(0.42 + riverDeposition * 0.32 + smoothstep(-180, 82, z) * 0.2,
+          terraceRise, valleyOpening), coastalRise, coastalOpening)
     );
     if (riverDistance <= riverWidth + riverBankRun + riverFloodplain) {
       const bankRise = smoothstep(riverWidth - 0.35, riverWidth + riverBankRun, riverDistance);
@@ -2884,17 +3044,56 @@ export class WorldLayout {
       // The declared shoreline is the bed/surface intersection, not an
       // invisible clip through a still-submerged bank. Keep the engineered
       // crossing and estuary tie-in while reconciling the natural reaches.
-      const naturalBank = riverDistance < riverWidth
-        ? THREE.MathUtils.lerp(riverBed, riverSection.surfaceElevation, smoothstep(0, riverWidth, riverDistance))
-        : THREE.MathUtils.lerp(riverSection.surfaceElevation, riverBankTop,
-          smoothstep(riverWidth, riverWidth + riverBankRun, riverDistance));
+      //
+      // Natural reaches take their cross-section from the bend: 0 is the
+      // eroding cut bank outside a bend, 1 the depositional point bar inside
+      // it. Reserved fishing approaches always keep the gentle bar.
+      const surface = riverSection.surfaceElevation;
+      const barCharacter = Math.max(
+        riverFishingReserveWeight(z, riverSide),
+        clamp01(0.5 + (riverDeposition - riverErosion) * 0.72)
+      );
+      let naturalBank: number;
+      if (riverDistance < riverWidth) {
+        const t = riverDistance / Math.max(0.001, riverWidth);
+        // A cut bank holds its depth to a steep underwater wall; a point bar
+        // shoals early into a broad shallow margin.
+        const cutShape = t * t * Math.sqrt(t);
+        const barShape = 1 - (1 - t) * (1 - t);
+        // Riffles lift the bed toward a shallow coarse crossing.
+        const channelBed = THREE.MathUtils.lerp(riverBed, surface - 0.62, riverSection.riffle * 0.82);
+        naturalBank = THREE.MathUtils.lerp(channelBed, surface,
+          THREE.MathUtils.lerp(cutShape, barShape, barCharacter));
+      } else {
+        const bank = riverDistance - riverWidth;
+        // Cut bank: a short steep soil face from the waterline to the terrace
+        // lip. Point bar: a low gravel bar rising gently from the water, then a
+        // soft step onto the meadow. Both end at the same bank top.
+        const cutRun = Math.max(1.3, riverBankRun * 0.34);
+        const cutU = Math.min(1, bank / cutRun);
+        const cutBank = THREE.MathUtils.lerp(surface, riverBankTop, 1 - (1 - cutU) * (1 - cutU));
+        const barRun = riverBankRun * 0.7;
+        const barTop = surface + Math.min(0.38, Math.max(0, riverBankTop - surface) * 0.5);
+        const pointBar = bank < barRun
+          ? surface + (barTop - surface) * Math.pow(bank / Math.max(0.001, barRun), 1.25)
+          : THREE.MathUtils.lerp(barTop, riverBankTop, smoothstep(barRun, riverBankRun, bank));
+        naturalBank = THREE.MathUtils.lerp(cutBank, pointBar, barCharacter);
+      }
       const naturalBankWeight = smoothstep(12, 24, Math.abs(z + 6)) * (1 - smoothstep(68, 80, z));
       const lowerToUpper = THREE.MathUtils.lerp(legacyBank, naturalBank, naturalBankWeight);
-      const floodplainBlend = smoothstep(
-        riverWidth + riverBankRun,
-        riverWidth + riverBankRun + riverFloodplain,
-        riverDistance
+      // The valley side climbs from the floodplain to the surrounding land over
+      // a run sized to the height it has to gain (about 23°), taken out of the
+      // flat shelf. A fixed share of a narrow shelf put a 4 m rise into 2 m and
+      // read as a retaining wall. Where the shelf is too narrow for the full
+      // run, the outside of a bend undercuts the valley side into a bluff.
+      const valleyEdge = riverWidth + riverBankRun + riverFloodplain;
+      const valleyRise = Math.max(0, height - riverBankTop);
+      const valleySideRun = THREE.MathUtils.clamp(valleyRise * 2.4, 4, 13);
+      const valleySideStart = Math.max(
+        riverWidth + riverBankRun * 0.6,
+        Math.min(valleyEdge - valleySideRun, riverWidth + riverBankRun + riverFloodplain * 0.62 * valleyOpening)
       );
+      const floodplainBlend = smoothstep(valleySideStart, valleyEdge, riverDistance);
       height = THREE.MathUtils.lerp(lowerToUpper, height, floodplainBlend);
       if (z < NEVA_HEADWATERS.endZ) {
         // The declared edge meets the elevated water surface, rather than leaving
@@ -2905,12 +3104,45 @@ export class WorldLayout {
         const bankHeight = THREE.MathUtils.lerp(riverSection.surfaceElevation,
           bankSurfaceElevation + 0.65,
           smoothstep(riverWidth, riverWidth + riverBankRun, riverDistance));
+        // The ledge belongs beside the channel. Raising the outer floodplain
+        // back to its upstream elevation made isolated needles below the fall.
         const headwaterHeight = THREE.MathUtils.lerp(
           riverDistance < riverWidth ? channelHeight : bankHeight,
-          Math.max(height, bankSurfaceElevation + 0.65), floodplainBlend
+          height, floodplainBlend
         );
         height = THREE.MathUtils.lerp(height, headwaterHeight, headwaterBlend);
       }
+    }
+    const riverProfileHeight = height;
+
+    const bridgeChannel = (1 - smoothstep(4, 14, Math.abs(z - BRIDGE_CENTER.z)))
+      * (1 - smoothstep(1.1, 2.5, Math.abs(x - (BRIDGE_CENTER.x - 3.3))));
+    height -= bridgeChannel * 0.55;
+
+    // Two drainage scars cut down the exposed sides of the fall into the
+    // boulder shelves. Keep the wet chute and its stable rock lip untouched;
+    // this is canonical terrain, so mesh, support and collision share it.
+    if (z > -143 && z < -126 && x > -53 && x < -5) {
+      const face = smoothstep(-143, -137, z) * (1 - smoothstep(-135, -132, z));
+      const dryBank = smoothstep(6, 10, riverDistance);
+      const westGully = Math.exp(-Math.pow((x + 43) / 5, 2));
+      const eastGully = Math.exp(-Math.pow((x + 14) / 4.5, 2));
+      height -= face * dryBank * (westGully * 2.7 + eastGully * 3.5);
+
+      // The resistant spurs between the gullies protrude as short rock ribs.
+      // They die out before the lip and pool so the watercourse stays level.
+      const rockRibs = smoothstep(-141, -138, z) * (1 - smoothstep(-136, -132, z));
+      const westRib = Math.exp(-Math.pow((x + 37) / 4, 2));
+      const eastRib = Math.exp(-Math.pow((x + 21) / 3.8, 2));
+      height += rockRibs * dryBank * (westRib * 2.1 + eastRib * 1.8);
+
+      // Rock fallen from the wall forms a broad toe: thick beside the chute,
+      // thinning out across each dry flank before the level pool shelf.
+      const pileHeight = 2.5 + 7.5 * (1 - smoothstep(9, 16, riverDistance));
+      const apron = smoothstep(-138, -134, z) * (1 - smoothstep(-134, -129, z));
+      const bankApron = smoothstep(7, 10, riverDistance)
+        * (1 - smoothstep(19, 24, riverDistance));
+      height += pileHeight * apron * bankApron;
     }
 
     const loopDistance = signedDistanceToNevaCoast(x, z);
@@ -3046,7 +3278,10 @@ export class WorldLayout {
         height = THREE.MathUtils.lerp(height, Math.min(height, siltHeight), siltBlend);
 
         const channelRestoration = 1 - smoothstep(riverWidth - 0.4, riverWidth + 3.8, riverDistance);
-        height = THREE.MathUtils.lerp(height, riverBed, channelRestoration);
+        // Restore the river's own cross-section, not a flat bed: pulling the
+        // first metres of dry bank down to the bed left land below the water
+        // line beside the lower river.
+        height = THREE.MathUtils.lerp(height, riverProfileHeight, channelRestoration);
       }
     }
 
@@ -3186,6 +3421,21 @@ export class WorldLayout {
     return sampleTraversalBasePlane(x, z);
   }
 
+  /**
+   * The ground the terrain mesh renders at a point, as `terrainBaseSurfaceHeight`,
+   * but from the graded landform at the grid's vertices rather than the cached
+   * heightfield, so a placement can sit on it without building a whole patch.
+   */
+  public static terrainGridSurfaceHeight(x: number, z: number): number {
+    const patch = this.terrainPatchAt(x, z);
+    if (!patch) return this.terrainBaseHeight(x, z);
+    const stepMeters = patch.sizeMeters / patch.resolution;
+    const minimumX = patch.center.x - patch.sizeMeters * 0.5;
+    const minimumZ = patch.center.z - patch.sizeMeters * 0.5;
+    return interpolatePatchGrid(patch, x, z, (gridX, gridZ) => Math.fround(terrainPatchVertexHeight(patch,
+      minimumX + gridX * stepMeters, minimumZ + gridZ * stepMeters, (sampleX, sampleZ) => this.terrainBaseHeight(sampleX, sampleZ))));
+  }
+
   /** Graded landform without the exact worked-road relief collider. */
   public static terrainBaseHeight(x: number, z: number): number {
     if (this.isInteriorTerrainPad(x, z)) {
@@ -3196,7 +3446,7 @@ export class WorldLayout {
     if (cultivationScale === 0) return naturalHeight;
     const route = this.nearestRouteDistance(x, z);
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];
-    const gradingRadius = route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters;
+    const gradingRadius = route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters + profile.benchMeters;
     const bridgeCorridor =
       x >= BRIDGE_WEST_APPROACH_START.x &&
       x <= BRIDGE_EAST_APPROACH_END.x &&
@@ -3235,12 +3485,9 @@ export class WorldLayout {
     const route = this.nearestRouteDistance(x, z);
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];
     const sample = sampleRoadCrossSection({
-      routeId: route.route.id,
-      routeKind: route.route.kind,
       profile,
       halfWidthMeters: route.halfWidth,
-      lateralDistanceMeters: route.distance,
-      distanceAlongRouteMeters: route.distanceAlongRoute
+      lateralDistanceMeters: route.distance
     });
     if (
       cultivationScale === 0
@@ -3289,6 +3536,13 @@ export class WorldLayout {
           + BRIDGE_ROOT_Y_OFFSET
           + BRIDGE_DECK_COLLISION_TOPS_LOCAL_Y[segmentIndex],
         source: "bridge"
+      };
+    }
+    const workingPier = harborWorkingPierAt(x, z);
+    if (workingPier) {
+      return {
+        height: Math.max(sampleTraversalBasePlane(x, z), harborPierRootY(workingPier.pier, (px, pz) => this.terrainHeight(px, pz)) + workingPier.top),
+        source: "pier"
       };
     }
     if (this.isPierStairs(x, z)) {
@@ -3679,10 +3933,15 @@ export class WorldLayout {
       * (1 - Math.max(path, shoulder) * 0.94);
     // Mainland work sites wear their ground.
     const workWear = mainlandWeight > 0 ? mainlandWorkSiteWearAt(x, z) : 0;
-    // Mainland brooks run on washed gravel between damp banks.
-    const brook = mainlandWeight > 0 ? mainlandBrookAt(x, z, 4) : null;
-    const brookBed = brook ? 1 - smoothstep(brook.halfWidth - 0.15, brook.halfWidth + 0.45, brook.distance) : 0;
-    const brookBank = brook ? 1 - smoothstep(brook.halfWidth + 0.4, brook.halfWidth + 3.4, brook.distance) : 0;
+    // Mainland brooks run on washed gravel between damp banks. The water
+    // wanders across its floor, so the whole floor is bed: clean gravel
+    // near the water, grassing over toward the floor's edge.
+    const brook = mainlandWeight > 0 ? mainlandBrookAt(x, z, 5) : null;
+    const brookFloor = brook ? mainlandBrookFloorHalfWidth(brook.hectares) : 0;
+    const brookBed = brook ? Math.max(
+      0.9 * (1 - smoothstep(brook.halfWidth + 0.3, brook.halfWidth + 1.2, brook.distance)),
+      0.55 * (1 - smoothstep(brookFloor - 0.9, brookFloor, brook.distance))) : 0;
+    const brookBank = brook ? 1 - smoothstep(brookFloor - 0.4, brookFloor + 2.6, brook.distance) : 0;
     const cliff = clamp01(
       coastBand * cliffProp * (0.28 + slopeCliff * 0.92)
       + coastBand * rockShelfProp * slopeCliff * 0.48
@@ -3704,8 +3963,26 @@ export class WorldLayout {
       + Math.sin(x * 0.036 - z * 0.027) * 0.23
       + Math.sin((x + z) * 0.014 + 1.4) * 0.17
     );
+    // The river sorts its own margin: the slack inside of a bend dries out as
+    // a washed gravel point bar above the waterline, the eroding outside bank
+    // shows bare earth where the current undercuts it, and the confined
+    // cascade is walled in water-scoured rock.
+    const riverMargin = waterDistance <= 0 ? (1 - estuary) * (1 - Math.max(path, shoulder)) : 0;
+    const pointBar = riverMargin * (1 - smoothstep(1.2, 3.4, -waterDistance))
+      * smoothstep(0.4, 0.85, river.deposition);
+    const cutBankEarth = riverMargin * (1 - smoothstep(0.6, 2.4, -waterDistance))
+      * smoothstep(0.4, 0.85, river.erosion);
+    const cascadeRock = riverMargin * headwaterCascadeInfluence(z) * (1 - smoothstep(1.2, 3.6, -waterDistance));
+    // At the mouth the swell piles sand on the low eastern shoulder, and the
+    // west bank ends in a rocky point the ebb scours bare.
+    const mouthReach = waterDistance <= 0
+      ? estuary * (1 - smoothstep(6, 20, this.coastlineZ(x) - z)) * (1 - Math.max(path, shoulder))
+      : 0;
+    const eastOfMouth = x > river.section.centerX;
+    const mouthSand = eastOfMouth ? mouthReach * (1 - smoothstep(5, 14, -waterDistance)) : 0;
+    const mouthRock = eastOfMouth ? 0 : mouthReach * (1 - smoothstep(2, 6, -waterDistance));
     const drySoil = Math.max(farm * (1 - wet * 0.35), forestLitter * 0.64, uplandHeath * 0.28,
-      workWear * 0.82);
+      workWear * 0.82, harborWorkWearAt(x, z) * dryRoute * 0.98, cutBankEarth * 0.72);
     const dampSoil = Math.max(
       farm * wet * 0.55,
       riverFringe * (0.48 + river.deposition * 0.28),
@@ -3717,20 +3994,20 @@ export class WorldLayout {
     );
     const riverbed = waterDistance > 0
       ? 0.82 + estuary * 0.12 + river.channel * 0.04 + river.erosion * 0.02
-      : brookBed * 0.9 * (1 - path);
-    // Plunge-basin bedrock: a scoured basin floor reads as dark rock, not
-    // pale bed. The pale basin shows every heightfield facet through clear
-    // shallow water as hard-edged rectangles; deep rock cures it and is
-    // geologically right (bedrock scour here, gravel runs downstream stay
-    // pale). Lateral variation comes free: margins stay shallow and sandy.
+      : Math.max(brookBed * (1 - path), pointBar * 0.8);
+    // Impact scour reaches the shallow pool margins as well as the thalweg.
+    // Leaving the waterline's first half-metre as pale gravel exposed the
+    // heightfield triangles as a broad V beside the falling sheet.
     const poolBasin = NEVA_HEADWATERS.pool;
     const basinZone = 1 - smoothstep(poolBasin.halfLengthMeters, poolBasin.halfLengthMeters + 2,
       Math.abs(z - poolBasin.centerZ));
     const basinDepth = river.section.surfaceElevation - this.terrainHeight(x, z);
     const basinRock = waterDistance > 0
-      ? basinZone * smoothstep(0.8, 1.5, basinDepth) * 0.7
+      ? basinZone * smoothstep(0.02, 0.35, basinDepth) * 0.82
       : 0;
-    const remaining = clamp01(1 - Math.max(path, shoulder, drySoil, dampSoil, beach, riverbed, cliff));
+    const bankRock = Math.max(cliff, cascadeRock * 0.78, mouthRock * 0.72);
+    const mouthBeach = Math.max(beach, mouthSand * 0.9);
+    const remaining = clamp01(1 - Math.max(path, shoulder, drySoil, dampSoil, mouthBeach, riverbed, bankRock));
     const sandCover = harborSandInfluence(x, z, this.coastlineZ(x));
     const oldWeights = normalizedSurfaceWeights({
         grass: remaining * (1 - meadowPattern * 0.44) * (1 - siltShelf * 0.58),
@@ -3739,10 +4016,10 @@ export class WorldLayout {
         dampSoil,
         path,
         shoulder,
-        beach,
+        beach: mouthBeach,
         riverbed: riverbed * (1 - basinRock),
         wetShoreline: wet * (0.56 + coastProfile.rockShelf * 0.22 + estuary * 0.22),
-        cliff: clamp01(cliff + basinRock * riverbed)
+        cliff: clamp01(bankRock + basinRock * riverbed)
       });
     const coastalWeights = Object.fromEntries(Object.entries(oldWeights).map(([key, value]) =>
       [key, value * (1 - sandCover) + (key === "beach" ? sandCover : 0)]
@@ -3840,6 +4117,7 @@ export class WorldLayout {
     );
     const drySoil = clamp01(Math.max(
       farm * (1 - drainage.moisturePotential * 0.28),
+      harborWorkWearAt(x, z) * dryRoute * 0.98,
       (0.22 + drainage.saltExposure * 0.24) * dryRoute * (1 - path)
     ));
     const dampSoil = clamp01(
@@ -3933,9 +4211,11 @@ export class WorldLayout {
         rotationY: VILLAGE_MARKET.rotationY,
         scale: 1
       },
-      dock: { x: 75.5, z: 71.6, yOffset: 0, rotationY: 1.5708, scale: 1 }
+      dock: { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z,
+        yOffset: this.terrainHeight(HARBOR_MAIN_PIER.supportDatum.x, HARBOR_MAIN_PIER.supportDatum.z) - this.terrainHeight(HARBOR_MAIN_PIER.x, HARBOR_MAIN_PIER.z),
+        rotationY: Math.PI / 2, scale: 1 }
     };
-    return { id, ...layouts[id] };
+    return bindInteractionPose(id, { id, ...layouts[id] });
   }
 
   private static buildTerrainHeightfield(
@@ -4030,7 +4310,11 @@ export class WorldLayout {
    */
   public static buildPathCollisionGeometry(): THREE.BufferGeometry {
     pathCollisionGeometryCache ??= this.buildPathGeometryBase();
-    return pathCollisionGeometryCache.clone();
+    const geometry = pathCollisionGeometryCache.clone();
+    // The road frame and class feed only the render template.
+    geometry.deleteAttribute("roadFrame");
+    geometry.deleteAttribute("roadClass");
+    return geometry;
   }
 
   public static async buildPathGeometryAsync(signal?: AbortSignal, onProgress?: () => void): Promise<THREE.BufferGeometry> {
@@ -4045,13 +4329,17 @@ export class WorldLayout {
   private static *pathGeometryTemplateSteps(): Generator<void, THREE.BufferGeometry, void> {
     // Surface fields are added to a copy so the field-free base stays reusable
     // for collision and traversal.
-    const geometry = this.buildPathCollisionGeometry();
+    pathCollisionGeometryCache ??= this.buildPathGeometryBase();
+    const geometry = pathCollisionGeometryCache.clone();
     let completed = false;
     try {
     const positions = geometry.getAttribute("position");
     const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
-    // Preserve canonical wear/shoulder identity through the supporting maps.
-    const roadProfile = new Uint8Array(positions.count * 3);
+    const classes = geometry.getAttribute("roadClass");
+    // Render-only context the material reads beside the exact road frame:
+    // x = class code / 3 (cart road, lane, footpath, shared surface),
+    // y = loose shoulder, z = junction traffic, which wears the tracks out.
+    const roadContext = new Uint8Array(positions.count * 3);
     // Evaluate the joined footprint after conformity has inserted terrain-grid
     // vertices. Junction arms otherwise carry alpha=1 out to their square ends.
     // Only this render clone changes; collision positions and indices stay exact.
@@ -4059,42 +4347,41 @@ export class WorldLayout {
       if (index % 32 === 0) yield;
       const x = positions.getX(index);
       const z = positions.getZ(index);
+      const classCode = Math.round(classes.getX(index));
+      roadContext[index * 3] = Math.round(classCode * 85);
       if (this.isBridgeDeck(x, z)) continue;
       const route = this.nearestRouteDistance(x, z);
       const section = sampleRoadCrossSection({
-        routeId: route.route.id,
-        routeKind: route.route.kind,
         profile: WORLD_ROUTE_PROFILES[route.route.kind],
         halfWidthMeters: route.halfWidth,
-        lateralDistanceMeters: route.distance,
-        distanceAlongRouteMeters: route.distanceAlongRoute
+        lateralDistanceMeters: route.distance
       });
       let coverage = 1 - smoothstep(0.08, 0.92, section.edgeGrassAmount);
       let junctionTraffic = 0;
       for (const junction of WORLD_ROUTE_JUNCTIONS) {
+        const dx = x - junction.center.x;
+        const dz = z - junction.center.z;
+        // Churned ground runs a few metres past the apron, so wheel tracks
+        // fade in beyond the junction arms rather than starting at their ends.
+        const reach = junction.radiusMeters + junction.blendLengthMeters + JUNCTION_TRACK_FADE_METERS;
+        if (dx * dx + dz * dz >= reach * reach) continue;
+        const distance = Math.sqrt(dx * dx + dz * dz);
         junctionTraffic = Math.max(junctionTraffic, 1 - smoothstep(
-          junction.radiusMeters, junction.radiusMeters + junction.blendLengthMeters,
-          Math.hypot(x - junction.center.x, z - junction.center.z)
+          junction.radiusMeters, reach,
+          distance
         ));
         const radius = Math.max(0.72, junction.radiusMeters * 0.74);
         coverage = Math.max(coverage, 1 - smoothstep(
           radius * 0.68, radius,
-          Math.hypot(x - junction.center.x, z - junction.center.z)
+          distance
         ));
       }
       colors.setW(index, coverage);
-      const wear = route.route.kind === "trail"
-        ? 1 - smoothstep(0.1, 0.8, section.normalizedCoreDistance)
-        : clamp01(section.wheelBand / 0.2);
-      roadProfile[index * 3] = Math.round(wear * 255);
-      roadProfile[index * 3 + 1] = Math.round(section.shoulderAmount * 255);
-      // A less-used crown survives between cart tracks, but shared junctions
-      // and walking trails are compacted across the middle.
-      const crown = route.route.kind === "trail" ? 0
-        : (1 - smoothstep(0.08, 0.3, section.normalizedCoreDistance)) * (1 - junctionTraffic);
-      roadProfile[index * 3 + 2] = Math.round(crown * 255);
+      roadContext[index * 3 + 1] = Math.round(section.shoulderAmount * 255);
+      roadContext[index * 3 + 2] = Math.round(junctionTraffic * 255);
     }
-    geometry.setAttribute("roadProfile", new THREE.Uint8BufferAttribute(roadProfile, 3, true));
+    geometry.deleteAttribute("roadClass");
+    geometry.setAttribute("roadContext", new THREE.Uint8BufferAttribute(roadContext, 3, true));
     yield* surfaceFieldAttributeSteps(
       geometry,
       (x, z, sampledNormalY) => this.terrainSurfaceSample(x, z, sampledNormalY)
@@ -4218,6 +4505,7 @@ export class WorldLayout {
     const indexedTerrainShoreWeights = new Uint8Array(indexedPositions.count * 3);
     const indexedFaceting = new Float32Array(indexedPositions.count);
     const indexedDryClimate = new Uint8Array(indexedPositions.count);
+    const indexedMountainStrata = new Uint8Array(indexedPositions.count);
     const surfaceSamples = new Array<TerrainSurfaceSample>(indexedPositions.count);
     const palette: Record<keyof TerrainSurfaceWeights, THREE.Color> = {
       grass: this.tokenColor("foliage_sage_01"),
@@ -4263,10 +4551,16 @@ export class WorldLayout {
       // to cliff through withExposedRock (canonical weights stay untouched) and
       // drive a separate dry-climate tint for ochre crests and warm stone.
       const mainlandBakeWeight = mainlandBlendAt(x, z);
+      const nevaLandform = sampleNevaLandforms(x, z);
       const mountainExposure = Math.max(
-        sampleNevaLandforms(x, z).exposure,
+        nevaLandform.exposure,
         mainlandBakeWeight > 0 ? mainlandMountainExposureAt(x, z) * mainlandBakeWeight : 0
       );
+      const headwaterFace = (1 - smoothstep(15, 26, Math.abs(x + 30)))
+        * smoothstep(-145, -139, z) * (1 - smoothstep(-128, -122, z));
+      indexedMountainStrata[index] = Math.round(Math.max(
+        smoothstep(0.08, 0.3, nevaLandform.mountain), headwaterFace
+      ) * 255);
       const mountainSlope = 1 - smoothstep(0.55, 0.9, normalY);
       const mountainRockExposure = mountainExposure
         * (0.28 + mountainSlope * 0.72)
@@ -4376,6 +4670,7 @@ export class WorldLayout {
     );
     indexed.setAttribute("terrainFaceting", new THREE.BufferAttribute(indexedFaceting, 1));
     indexed.setAttribute("terrainDryClimate", new THREE.Uint8BufferAttribute(indexedDryClimate, 1, true));
+    indexed.setAttribute("terrainMountainStrata", new THREE.Uint8BufferAttribute(indexedMountainStrata, 1, true));
     writeSurfaceFieldAttributes(indexed, surfaceSamples);
 
     // Keep the terrain indexed. The regular grid shares nearly every vertex;

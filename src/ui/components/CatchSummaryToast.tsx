@@ -9,6 +9,7 @@ import { atlasForFish } from "../chrome/uiAtlas";
 import { ChromeClose, ChromeQuality } from "../chrome/Chrome";
 import { GameSheet } from "../coastal/CoastalUI";
 import { playUiSound } from "../audio/uiAudio";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface CatchSummaryToastProps {
   cargo?: FishCargoState | null;
@@ -18,6 +19,15 @@ export interface CatchSummaryToastProps {
   className?: string;
 }
 
+function localizeStorageLabel(label: string, locale: string): string {
+  if (locale !== "tr") return label;
+  if (label.includes("Satchel")) return "Heybe";
+  if (label.includes("Boat hold") || label.includes("hold")) return "Tekne ambarı";
+  if (label.includes("Farm storage")) return "Çiftlik deposu";
+  if (label.includes("Waiting in hand")) return "Elde bekliyor";
+  return label;
+}
+
 export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
   cargo,
   catchData,
@@ -25,6 +35,7 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
   onClick,
   className = ""
 }) => {
+  const { locale, getLocalizedFish } = useTranslation();
   const [visible, setVisible] = useState(true);
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
@@ -35,8 +46,9 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
   const quality = catchData?.quality ?? cargo?.quality ?? "common";
   const freshness = catchData?.freshnessPercent ?? (cargo ? Math.round(cargo.freshness) : 100);
 
-  const storageLabel =
+  const rawStorageLabel =
     catchData?.storageLocationLabel ?? catchStorageLabel(cargo?.location.type ?? "player");
+  const storageLabel = localizeStorageLabel(rawStorageLabel, locale);
 
   useEffect(() => {
     setVisible(true);
@@ -51,7 +63,9 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
   if (!visible) return null;
 
   const species = ContentRegistry.fishSpecies.get(speciesId);
-  const speciesName = catchData?.speciesName ?? species?.name ?? "Sport fish";
+  const rawSpeciesName = catchData?.speciesName ?? species?.name ?? (locale === "tr" ? "Sportif balık" : "Sport fish");
+  const speciesName = (locale === "tr" ? getLocalizedFish(speciesId).name : null) || rawSpeciesName;
+
   const summary = (
     <>
       <div className="catch-summary-icon" aria-hidden="true">
@@ -64,8 +78,12 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
           {weightKg.toFixed(1)} kg · <ChromeQuality quality={quality} /> · {storageLabel}
         </span>
         <div className="catch-summary-subline">
-          <small>{freshness}% fresh</small>
-          {onClick && <span className="catch-summary-inspect-hint">Inspect catch</span>}
+          <small>{locale === "tr" ? `%${freshness} taze` : `${freshness}% fresh`}</small>
+          {onClick && (
+            <span className="catch-summary-inspect-hint">
+              {locale === "tr" ? "Avı incele" : "Inspect catch"}
+            </span>
+          )}
         </div>
       </div>
     </>
@@ -86,7 +104,7 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
         <button
           type="button"
           className="catch-summary-open"
-          aria-label={`Inspect ${speciesName} catch`}
+          aria-label={locale === "tr" ? `${speciesName} avını incele` : `Inspect ${speciesName} catch`}
           onClick={onClick}
         >
           {summary}
@@ -99,7 +117,7 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
           e.stopPropagation();
           onDismiss();
         }}
-        label="Dismiss catch summary"
+        label={locale === "tr" ? "Av özetini kapat" : "Dismiss catch summary"}
         className="catch-summary-close"
       />
     </GameSheet>

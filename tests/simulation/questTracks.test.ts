@@ -363,14 +363,14 @@ describe("the cove commons side track", () => {
       .toEqual(["knowledge.family_ledger"]);
   });
 
-  it("carries three threads at once without them interfering", () => {
+  it("carries four threads at once without them interfering", () => {
     ContentRegistry.initializeAndValidate();
     const sim = new Simulation();
     sim.state.quests.completedQuestIds.push("quest.act2_harvest_and_compost", "quest.act5_maiden_voyage");
     sim.questDomain.evaluateTrackUnlocks();
 
     const active = activeQuestTrackIds(sim.state.quests).sort();
-    expect(active).toEqual(["track.homestead", "track.main", "track.tides"]);
+    expect(active).toEqual(["track.caravans", "track.homestead", "track.main", "track.tides"]);
 
     // A commons planting advances only the chain that asked for it: the
     // spine is on its own quest and the tides track wants a fish.

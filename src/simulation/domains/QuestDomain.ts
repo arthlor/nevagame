@@ -1,3 +1,5 @@
+import { isTradeCarriageType, TRADE_VEHICLES } from "../../content/villageTrade";
+import type { DomainEvents } from "../core/EventBus";
 // src/simulation/domains/QuestDomain.ts
 
 import { ContentRegistry } from "../../content/ContentRegistry";
@@ -126,6 +128,7 @@ export function reconcileSatisfiedQuestObjectives(state: GameState, trackId?: Qu
         // refuses to sell one twice — so a player who bought the offshore rod
         // before Act 9 asked for it could never fire RodPurchased again and
         // the spine stopped dead one quest short of Act 10.
+        || Object.values(state.mounts).some(mount => mount.id === objective.targetId || mount.mountTypeId === objective.targetId)
         || state.player.ownedRodIds.includes(objective.targetId)
       ));
     if (!alreadySatisfied) break;
@@ -373,6 +376,8 @@ export class QuestDomain {
       events.on("IrrigationInstalled", (e) => this.onObjectiveEvent("install-irrigation", e.featureId, 1, { kind: "farm", id: e.farmId })),
       events.on("FarmIrrigated", (e) => this.onObjectiveEvent("irrigate-farm", e.farmId, 1, { kind: "farm", id: e.farmId })),
       events.on("RodPurchased", (e) => this.onPurchaseUpgrade([e.rodId])),
+      events.on("TradePackSold", e => this.onObjectiveEvent("sell-trade-pack", e.itemId, 1, { kind: "market", id: e.marketId })),
+      events.on("CarriagePurchased", e => this.onPurchaseUpgrade([e.mountTypeId, e.mountId])),
       events.on("BoatPurchased", (e) => this.onPurchaseUpgrade([e.boatTypeId, e.boatId])),
       // `talk-npc` is credited inside `talkToNpc`, only for the thread whose
       // words were actually spoken. Crediting every track from `NpcTalked`
@@ -573,6 +578,8 @@ export class QuestDomain {
       return requirements.length > 0 ? requirements : undefined;
     }
     if (objective.type !== "purchase-upgrade" || !objective.targetId) return undefined;
+    const cart = isTradeCarriageType(objective.targetId) ? TRADE_VEHICLES[objective.targetId] : null;
+    if (cart) { const current = Math.floor(player.proficiencies.trading); requirements.push({ kind: "amount", label: "Trading XP", current, required: cart.requiredTradingXp, met: current >= cart.requiredTradingXp }); }
     const boat = ContentRegistry.boats.get(objective.targetId);
     const rod = boat ? undefined : ContentRegistry.rods.get(objective.targetId);
     if (boat?.requiredSkillXp) {
@@ -593,7 +600,7 @@ export class QuestDomain {
         requirements.push({ kind: "amount", label: "Fishing XP", current, required: xp, met: current >= xp });
       }
     }
-    const price = boat?.costMoney ?? rod?.costMoney;
+    const price = cart?.costMoney ?? boat?.costMoney ?? rod?.costMoney;
     if (price !== undefined && price > 0) {
       requirements.push({ kind: "amount", label: "Gold", current: Math.floor(player.money), required: price, met: player.money >= price });
     }
@@ -1050,7 +1057,7 @@ export class QuestDomain {
     this.consumeQuestTurnIn(quest);
 
     // Award Rewards
-    this.distributeRewards(quest);
+    const rankEvents = this.distributeRewards(quest);
 
     state.quests.completedQuestIds.push(questId);
 
@@ -1058,6 +1065,8 @@ export class QuestDomain {
     // persistence and presentation listeners can only observe a coherent
     // completed/current-quest pair.
     const transition = this.advanceToNextQuest(quest);
+
+    for (const event of rankEvents) events.emit("ProficiencyLeveledUp", event);
 
     events.emit("QuestCompleted", {
       questId: quest.id,
@@ -1088,8 +1097,9 @@ export class QuestDomain {
     };
   }
 
-  private distributeRewards(quest: QuestDefinition): void {
+  private distributeRewards(quest: QuestDefinition): DomainEvents["ProficiencyLeveledUp"][] {
     const { state } = this.context;
+    const rankEvents: DomainEvents["ProficiencyLeveledUp"][] = [];
 
     // Coins
     if (quest.rewards.money && quest.rewards.money > 0) {
@@ -1105,7 +1115,9 @@ export class QuestDomain {
     // Skill XP
     if (quest.rewards.skillXp) {
       for (const { skill, xp } of quest.rewards.skillXp) {
-        this.progressionDomain.addProficiencyXp(skill, xp);
+        // Publish only after rewards and quest cursor commit atomically.
+        const event = this.progressionDomain.addProficiencyXp(skill, xp, false);
+        if (event) rankEvents.push(event);
       }
     }
 
@@ -1123,6 +1135,7 @@ export class QuestDomain {
       if (!resolved || state.journal.unlockedKnowledge.includes(resolved)) continue;
       state.journal.unlockedKnowledge.push(resolved);
     }
+    return rankEvents;
   }
 
   private advanceToNextQuest(completedQuest: QuestDefinition): {

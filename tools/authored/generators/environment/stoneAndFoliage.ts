@@ -15,26 +15,26 @@ export function createStoneModel({ spec, parameters: p, seed }: GeneratorContext
     const width = Number(p.width ?? spec.dimensions.width);
     const depth = Number(p.depth ?? spec.dimensions.depth);
     const height = Number(p.height ?? spec.dimensions.height);
-    const count = pebble ? Number(p.count) : tall ? 5 : shape === "cleft" ? 3 : 3;
+    const count = pebble ? Number(p.count) : tall ? 3 : shape === "cleft" ? 3 : 3;
     for (let i = 0; i < count; i++) {
       const angle = i * 2.399963 + random() * .24;
       const size = pebble ? Number(p.size) * (.65 + random() * .4) : 1;
       const radius = pebble ? Number(p.spread) * (.2 + .65 * i / Math.max(1, count - 1)) : 0;
-      const x = pebble ? Math.cos(angle) * radius : tall ? width * .055 * Math.sin(i * 1.7) : (i - 1) * width * .22;
+      const x = pebble ? Math.cos(angle) * radius : tall ? width * (i-1)*.22 : (i - 1) * width * .22;
       const z = pebble ? Math.sin(angle) * radius * .7 : depth * .055 * Math.cos(i * 2.1);
-      const y = pebble ? 0 : tall ? height * i * .17 : 0;
-      const w = pebble ? size : tall ? width * (.46 - i * .055) : width * (i === 1 ? .36 : .27);
-      const d = pebble ? size * (.62 + random() * .18) : depth * (tall ? .44 - i * .045 : .44);
-      const h = pebble ? size * .65 : tall ? height * .32 : height * (i === 1 ? .96 : i === 0 ? .69 : .49);
+      const y = pebble ? 0 : 0;
+      const w = pebble ? size : tall ? width * (i===1?.37:.29) : width * (i === 1 ? .36 : .27);
+      const d = pebble ? size * (.62 + random() * .18) : depth * (tall ? .39-i*.015 : .44);
+      const h = pebble ? size * .65 : tall ? height * (i===1?1:i===0?.62:.38) : height * (i === 1 ? .96 : i === 0 ? .69 : .49);
       const shear = Number(p.shear ?? p.tilt ?? .07);
-      const rings = lod ? [[0,.90],[1,.68]] : pebble ? [[0,.85],[.35,1],[1,.66]] : [[0,.9],[.08,1],[.43,.95],[.49,.88],[.88,.80],[1,.68]];
-      surface.addLoft(rings.map(([t, k]) => ({ p: [x + h*t*shear, y+h*t, z+h*t*.045] as V3, w:w*k, h:d*k, n:pebble ? 2.4 : 4.2 })), {
+      const rings = lod ? [[0,.90],[1,.68]] : pebble ? [[0,.85],[.35,1],[1,.66]] : [[0,.88],[.12,1],[.38,.97],[.64,.91],[.87,.75],[1,.57]];
+      surface.addLoft(rings.map(([t, k]) => ({ p: [x + h*t*shear, y+h*t, z+h*t*.045] as V3, w:w*k, h:d*k, n:pebble ? 2.4 : 2.7 })), {
         sides: lod ? 5 : pebble ? 6 : 8, ref:[0,0,1], capStart:0, capEnd:0, flat:true,
-        radial: (_, theta) => 1 + .08*Math.sin(theta*3+angle) + .035*Math.cos(theta*5-angle),
+        radial: (ring, theta) => 1 + .15*Math.sin(theta*3+angle) + .08*Math.cos(theta*5-angle+ring*.8),
         token: ({u, normal}) => {
           if (spec.palette.length === 1) return 0;
           if (spec.palette.length > 2 && normal.y > .65 && i === count-1) return 2;
-          return u < 1 ? 0 : i % 2;
+          return pebble ? i % 2 : normal.x > .7 && u>1 ? 1 : 0;
         },
         shade: ({u}) => u < 1 ? .79 : .92 + .07*(i % 3)/2,
       });
@@ -42,6 +42,14 @@ export function createStoneModel({ spec, parameters: p, seed }: GeneratorContext
     const mesh = surface.buildMesh(`${spec.id}_LOD${lod}_stone`);
     // Preserve the catalog's placement footprint without allowing incidental talus
     // or palette accents to determine gameplay collision.
+    const positions = mesh.geometry.getAttribute('position');
+    if (!pebble) {
+      for (let k=0;k<positions.count;k++) {
+        const x=positions.getX(k), y=positions.getY(k), z=positions.getZ(k);
+        positions.setY(k,y*(1+.14*x/width-.11*z/depth+.06*Math.sin(x*3/width+z*4/depth)));
+      }
+      mesh.geometry.computeVertexNormals();
+    }
     mesh.geometry.computeBoundingBox(); const box = mesh.geometry.boundingBox!;
     const size = box.getSize(new THREE.Vector3()); const center = box.getCenter(new THREE.Vector3());
     mesh.geometry.translate(-center.x,-box.min.y,-center.z);

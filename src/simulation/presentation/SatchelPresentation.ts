@@ -117,7 +117,7 @@ export function buildItemInspectionDto(state: GameState, itemId: string): ItemIn
   let carried: { freshness: number; location: CarryLocationType; hasIce: boolean } | null = null;
   if (fish) {
     for (const cargo of Object.values(state.fishCargo)) {
-      if (cargo.speciesId !== itemId) continue;
+      if (cargo.kind === "farm" || cargo.speciesId !== itemId) continue;
       if (cargo.location.type !== "player") continue;
       if (carried === null || cargo.freshness < carried.freshness) {
         carried = {

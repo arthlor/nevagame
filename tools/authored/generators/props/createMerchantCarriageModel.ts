@@ -8,6 +8,7 @@ const TOKENS = ["wood_honey_01", "wood_dark_01", "accent_teal_01", "metal_dark_0
 export function createMerchantCarriageModel(context: GeneratorContext): AuthoredModel {
   const { spec, parameters: p } = context;
   const id = spec.id, width = Number(p.bedWidth), length = Number(p.bedLength), radius = Number(p.wheelRadius);
+  const cargoSlots = Number(p.cargoSlots ?? 2);
   const bed = radius + 0.22;
   const root = new THREE.Group(); root.name = `${id}_root`;
   const group = (suffix: string, parent: THREE.Object3D, at: V3 = [0, 0, 0]) => {
@@ -49,17 +50,71 @@ export function createMerchantCarriageModel(context: GeneratorContext): Authored
   // A real footboard ahead of the bench, above the rotating forecarriage.
   box(surface, [0, bed + 0.18, length * 0.4 + 0.49], [0.78, 0.075, 0.45], 1);
   for (const side of [-1, 1]) box(surface, [side * 0.34, bed + 0.05, length * 0.4 + 0.45], [0.06, 0.28, 0.07], 3);
+  if (cargoSlots >= 4) {
+    // Freight variants add braced side panels and lashing eyes outside the
+    // load envelope. Keep the legacy cart, animated pivots and grips intact.
+    for (const side of [-1, 1]) {
+      for (const z of [-length * 0.25, length * 0.23]) {
+        timber(surface, [side * (width / 2 + 0.065), bed + 0.07, z - length * 0.20],
+          [side * (width / 2 + 0.065), bed + 0.52, z + length * 0.20], [0.032, 0.045], 1);
+      }
+      for (let row = 0; row < cargoSlots / 2; row++) {
+        const z = -length * 0.36 + row * 0.85;
+        surface.addLoft(Array.from({ length: 13 }, (_, i) => {
+          const angle = i / 12 * Math.PI * 2;
+          return { p: [side * (width / 2 + 0.12), bed + 0.46 + Math.cos(angle) * 0.062, z + Math.sin(angle) * 0.062] as V3, w: 0.012, h: 0.012 };
+        }), { sides: 5, ref: [1, 0, 0], token: 4 });
+      }
+      // Laminated springs span the axle saddles; no rigid fender enters the
+      // front wheel's steering envelope.
+      for (const z of [-length * 0.37, length * 0.39]) for (let layer = 0; layer < 3; layer++) {
+        const half = 0.38 - layer * 0.065;
+        surface.addLoft(Array.from({ length: 7 }, (_, i) => {
+          const t = i / 6 * 2 - 1;
+          return { p: [side * width * 0.33, bed - 0.24 - layer * 0.025 - 0.10 * (1 - t * t), z + t * half] as V3, w: 0.042, h: 0.012 };
+        }), { sides: 4, phase: Math.PI / 4, ref: [0, 1, 0], capStart: 0, capEnd: 0, flat: true, token: 3 });
+      }
+      box(surface, [side * (width / 2 + 0.108), bed + 0.4, -length * 0.44], [0.045, 0.19, 0.15], 4);
+    }
+    // A bound weather cover is stored behind the driver's backrest, not in a
+    // cargo socket. The larger hauler carries the heavier double-bound roll.
+    surface.addLoft([{ p: [-width * 0.39, bed + 1.24, length * 0.27], w: 0.1, h: 0.1 },
+      { p: [width * 0.39, bed + 1.24, length * 0.27], w: 0.1, h: 0.1 }],
+    { sides: 10, ref: [0, 1, 0], capStart: 0.15, capEnd: 0.15, token: 2 });
+    for (const x of [-width * 0.26, width * 0.26]) surface.addLoft(Array.from({ length: 13 }, (_, i) => {
+      const a = i / 12 * Math.PI * 2;
+      return { p: [x, bed + 1.24 + Math.cos(a) * 0.11, length * 0.27 + Math.sin(a) * 0.11] as V3, w: 0.017, h: 0.017 };
+    }), { sides: 5, ref: [1, 0, 0], token: 1 });
+    if (cargoSlots === 6) for (const side of [-1, 1]) {
+      box(surface, [side * (width / 2 + 0.08), bed + 0.54, 0], [0.035, 0.055, length * 0.88], 4);
+      for (const z of [-length * 0.29, length * 0.27]) box(surface, [side * (width / 2 + 0.07), bed + 0.26, z], [0.06, 0.58, 0.10], 1);
+    }
+  }
   body.add(surface.buildMesh(`${id}_body_mesh`));
   const seat = addMarker(`${id}_driver_socket`, [0, bed + 0.85, length * 0.4], "socket", body);
   for (const [side, sign] of [["left", 1], ["right", -1]] as const) {
     addMarker(`${id}_foot_${side}`, [sign * 0.19, bed + 0.218, length * 0.4 + 0.49], "socket", body);
     addGripMarker(`${id}_rein_grip_${side}`, [sign * 0.20, 0.28, 0.38], [0, -0.95, 0.31], [-sign, 0, 0], seat);
   }
-  for (const [index, z] of [[1, 0.08], [2, -length * 0.29]]) addMarker(`${id}_cargo_0${index}`, [0, bed + 0.049, z], "socket", body);
+  if (cargoSlots === 2) {
+    for (const [index, z] of [[1, 0.08], [2, -length * 0.29]]) addMarker(`${id}_cargo_0${index}`, [0, bed + 0.049, z], "socket", body);
+  } else {
+    for (let index = 0; index < cargoSlots; index++) {
+      const z = -length * 0.36 + Math.floor(index / 2) * 0.85;
+      addMarker(`${id}_cargo_${String(index + 1).padStart(2, "0")}`, [(index % 2 ? 1 : -1) * width * 0.25, bed + 0.049, z], "socket", body);
+    }
+  }
   const gate = group("tailgate", body, [0, bed + 0.06, -length / 2]);
   const gateSurface = new SurfaceBuilder(TOKENS);
   box(gateSurface, [0, 0.21, 0], [width, 0.42, 0.075], 2);
   for (const side of [-1, 1]) box(gateSurface, [side * width * 0.34, 0.20, -0.045], [0.075, 0.44, 0.025], 3);
+  if (cargoSlots >= 4) {
+    box(gateSurface, [0, 0.45, 0], [width + 0.06, 0.065, 0.10], 1);
+    for (const x of [-width * 0.34, width * 0.34]) {
+      timber(gateSurface, [x - 0.1, -0.01, -0.055], [x + 0.1, -0.01, -0.055], [0.028, 0.028], 3);
+      for (const y of [0.10, 0.34]) box(gateSurface, [x, y, -0.067], [0.037, 0.037, 0.022], 4);
+    }
+  }
   gate.add(gateSurface.buildMesh(`${id}_tailgate_mesh`));
   const wheels: THREE.Object3D[] = [];
   for (const [axle, z] of [["front", length * 0.39], ["rear", -length * 0.37]] as const) {
@@ -111,7 +166,8 @@ export function createMerchantCarriageModel(context: GeneratorContext): Authored
   }
   // Separate harness parts are docked to the horse body/head bones by the
   // assembly. The collar and traces show how the horse pulls the shafts.
-  const harness = group("harness_body", root, [0, 0, 3.5]);
+  const horseOffset = length * 0.5 + Number(p.shaftLength);
+  const harness = group("harness_body", root, [0, 0, horseOffset]);
   const leather = new SurfaceBuilder(TOKENS);
   const loop = (cx: number, cy: number, cz: number, rx: number, ry: number, tilt: number, thickness: number) => {
     leather.addLoft(Array.from({ length: 25 }, (_, i) => {
@@ -129,14 +185,17 @@ export function createMerchantCarriageModel(context: GeneratorContext): Authored
     addMarker(`${id}_shaft_tug_${side}`, [sign * .48, 1.33, 0], "socket", harness);
   }
   harness.add(leather.buildMesh(`${id}_harness_body_mesh`));
-  const bridle = group("harness_head", root, [0, 0, 3.5]), headLeather = new SurfaceBuilder(TOKENS);
+  const bridle = group("harness_head", root, [0, 0, horseOffset]), headLeather = new SurfaceBuilder(TOKENS);
   for (const sign of [-1, 1]) rope(headLeather, [[sign * 0.16, 1.91, 1.51], [sign * 0.20, 2.16, 1.35], [sign * 0.21, 2.46, 1.16], [0.02, 2.57, 1.13]], 0.018, 1, { sides: 6 });
   headLeather.addLoft(([[-0.16, 1.91, 1.51], [-0.12, 1.84, 1.56], [0.13, 1.84, 1.58], [0.23, 1.94, 1.53], [0.18, 2.02, 1.50], [-0.11, 2.02, 1.47], [-0.16, 1.91, 1.51]] as V3[]).map(p => ({ p, w: 0.020, h: 0.020 })), { sides: 6, ref: [0, 0, 1], token: 1 });
   bridle.add(headLeather.buildMesh(`${id}_harness_head_mesh`));
   const clips = (spec.animationClips ?? []).map(c => {
     const d = c.durationSeconds, tracks: THREE.KeyframeTrack[] = [];
     tracks.push(posTrack(body.name, [0, 0, 0], Array.from({ length: 25 }, (_, i) => [i / 24 * d, 0, c.name === "idle" ? 0 : 0.006 * Math.sin(i / 24 * Math.PI * 2), 0] as const)));
-    if (c.name === "load") tracks.push(rotTrack(gate.name, [[0, 0, 0, 0], [d * 0.5, 90, 0, 0], [d, 90, 0, 0]]));
+    if (c.name === "load") {
+      const openAngle = cargoSlots >= 4 ? -90 : 90;
+      tracks.push(rotTrack(gate.name, [[0, 0, 0, 0], [d * 0.5, openAngle, 0, 0], [d, openAngle, 0, 0]]));
+    }
     else for (const w of wheels) tracks.push(rotTrack(w.name, Array.from({ length: 49 }, (_, i) => [i / 48 * d, (c.referenceSpeedMetersPerSecond ?? 0) * i / 48 * d / Number(w.userData.neva_wheel_radius) * 180 / Math.PI, 0, 0] as const)));
     return new THREE.AnimationClip(c.name, d, tracks);
   });

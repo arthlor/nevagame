@@ -6,6 +6,7 @@ import { atlasForBehavior, atlasForFish } from "./chrome/uiAtlas";
 import { ChromeButton } from "./chrome/Chrome";
 import { GuildcraftArt } from "./hud/GuildcraftArt";
 import { GameSheet, KeyHint } from "./coastal/CoastalUI";
+import { useTranslation } from "../i18n/useTranslation";
 
 interface FishingHUDProps {
   hud: SportFishingHudDto;
@@ -34,11 +35,39 @@ const EMPTY_HOLD: FishingHoldState = {
   isBracing: false
 };
 
-const DRAG_LABEL: Record<0 | 1 | 2, string> = {
+const DRAG_LABEL_EN: Record<0 | 1 | 2, string> = {
   0: "Light",
   1: "Balanced",
   2: "Heavy"
 };
+
+const DRAG_LABEL_TR: Record<0 | 1 | 2, string> = {
+  0: "Hafif",
+  1: "Dengeli",
+  2: "Sıkı"
+};
+
+function localizeFishAction(action: string, isTr: boolean): string {
+  if (!isTr) return action;
+  if (/surging/i.test(action)) return "Hırçın dalış";
+  if (/running/i.test(action)) return "Uzaklaşıyor";
+  if (/thrashing/i.test(action)) return "Çırpınıyor";
+  if (/tiring/i.test(action)) return "Yoruluyor";
+  if (/surfaced/i.test(action)) return "Su yüzeyinde";
+  if (/resting/i.test(action)) return "Dinleniyor";
+  return action;
+}
+
+function localizeResponse(response: string, isTr: boolean): string {
+  if (!isTr) return response;
+  if (/reel/i.test(response)) return "Kendine doğru sar";
+  if (/slack/i.test(response)) return "Misinayı sal";
+  if (/brace/i.test(response)) return "Kamışı destekle";
+  if (/left/i.test(response)) return "Sola çek";
+  if (/right/i.test(response)) return "Sağa çek";
+  if (/steady/i.test(response)) return "Dengede tut";
+  return response;
+}
 
 export const FishingHUD: React.FC<FishingHUDProps> = ({
   hud,
@@ -47,6 +76,11 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
   onKeepCatch,
   onReleaseCatch
 }) => {
+  const { locale, getLocalizedFish } = useTranslation();
+  const isTr = locale === "tr";
+  const dragLabels = isTr ? DRAG_LABEL_TR : DRAG_LABEL_EN;
+  const speciesDisplayName = (isTr ? getLocalizedFish(hud.speciesId).name : null) || hud.speciesName;
+
   const holdRef = useRef<FishingHoldState>(EMPTY_HOLD);
   const onSetInputRef = useRef(onSetInput);
   const hudRef = useRef(hud);
@@ -143,20 +177,23 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
           ? holdButtonProps("isBracing")
           : holdButtonProps("isReeling");
 
+  const localizedDecisionResponse = localizeResponse(decision.response, isTr);
+  const localizedFishAction = localizeFishAction(decision.fishAction, isTr);
+
   return (
     <>
-    <section className="guild-fish-target" aria-label="Hooked fish">
+    <section className="guild-fish-target" aria-label={isTr ? "İğnedeki balık" : "Hooked fish"}>
       <header className="fishing-target-row">
         <span className="guild-fish-portrait"><AtlasImage src={atlasForFish(hud.speciesId)} alt="" size={60} /><GuildcraftArt art="ring" /></span>
         {!atlasForFish(hud.speciesId) && <IconFish size={20} aria-hidden="true" />}
         <div className="fishing-target-copy">
-          <strong className="fishing-target-name">{hud.speciesName}</strong>
-          <span>Fish energy</span>
+          <strong className="fishing-target-name">{speciesDisplayName}</strong>
+          <span>{isTr ? "Balık gücü" : "Fish energy"}</span>
         </div>
         <strong className="fishing-energy-value">{hud.energyPercent}%</strong>
       </header>
 
-      <div className="fishing-energy-track" data-testid="fish-stamina" role="meter" aria-label="Fish energy" aria-valuemin={0} aria-valuemax={100} aria-valuenow={hud.energyPercent}>
+      <div className="fishing-energy-track" data-testid="fish-stamina" role="meter" aria-label={isTr ? "Balık enerjisi" : "Fish energy"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={hud.energyPercent}>
         <div className="fishing-energy-fill" style={{ width: `${hud.energyPercent}%` }} />
       </div>
 
@@ -165,16 +202,20 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
       family="ink"
       className={`fishing-hud-container fishing-hud-simple interactive${hud.tensionTone === "danger" ? " fishing-tension-danger" : ""}`}
       role="region"
-      aria-label="Sport fishing fight"
+      aria-label={isTr ? "Sportif balıkçılık mücadelesi" : "Sport fishing fight"}
       data-testid="sport-fishing-hud"
     >
       {hud.awaitingLandingChoice ? (
-        <section className="fishing-landing-choice" aria-label="Landing choice" data-testid="fishing-landing-choice">
-          <strong>The fish is beaten</strong>
+        <section className="fishing-landing-choice" aria-label={isTr ? "Karaya çıkarma seçimi" : "Landing choice"} data-testid="fishing-landing-choice">
+          <strong>{isTr ? "Balık yoruldu" : "The fish is beaten"}</strong>
           <p>
-            {hud.keepAvailable
-              ? "Stow the catch, or let it go."
-              : "No room in the hold — release it, or clear a slot and keep it."}
+            {isTr
+              ? (hud.keepAvailable
+                  ? "Avı ambarına koy ya da suya bırak."
+                  : "Ambarda yer yok — balığı salıver ya da yer açıp sakla.")
+              : (hud.keepAvailable
+                  ? "Stow the catch, or let it go."
+                  : "No room in the hold — release it, or clear a slot and keep it.")}
           </p>
           <div className="fishing-landing-choice-actions">
             <ChromeButton
@@ -183,16 +224,22 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
               disabled={!hud.keepAvailable}
               onClick={() => onKeepCatch?.()}
             >
-              Keep
+              {isTr ? "Sakla" : "Keep"}
             </ChromeButton>
             <ChromeButton soundCue="cancel" onClick={() => onReleaseCatch?.()}>
-              Release
+              {isTr ? "Salıver" : "Release"}
             </ChromeButton>
           </div>
         </section>
       ) : (
         <>
-          {hud.showFirstTip && <p className="fishing-first-tip">{isCoarsePointer ? "Match the highlighted button to the fish." : "Match the highlighted key to the fish."}</p>}
+          {hud.showFirstTip && (
+            <p className="fishing-first-tip">
+              {isTr
+                ? (isCoarsePointer ? "Vurgulanan butona balığın hareketine göre bas." : "Vurgulanan tuşa balığın hareketine göre bas.")
+                : (isCoarsePointer ? "Match the highlighted button to the fish." : "Match the highlighted key to the fish.")}
+            </p>
+          )}
       {hud.signatureMoment && (
         <p className="fishing-signature-moment" aria-live="polite" key={hud.signatureMoment.id}>
           {hud.signatureMoment.copy}
@@ -202,17 +249,38 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
       <section className={`fishing-decision fishing-decision-${decision.tone}`} aria-live="polite">
         <AtlasImage className="fishing-decision-icon" src={atlasForBehavior(decision.icon)} alt="" size={30} />
         <div className="fishing-decision-copy">
-          <span>{decision.fishAction}</span>
-          <strong>{decision.response}</strong>
+          <span>{localizedFishAction}</span>
+          <strong>{localizedDecisionResponse}</strong>
         </div>
         {decision.key && <KeyHint keyName={decision.key} glow />}
       </section>
 
-      <section className="fishing-tension" aria-label={`Line tension ${hud.tensionWord.toLowerCase()}`}>
+      <section
+        className="fishing-tension"
+        aria-label={
+          isTr
+            ? `Misina gerginliği: ${
+                hud.tensionWord.toLowerCase() === "danger"
+                  ? "tehlikeli"
+                  : hud.tensionWord.toLowerCase() === "slack"
+                    ? "boşta"
+                    : "güvenli"
+              }`
+            : `Line tension ${hud.tensionWord.toLowerCase()}`
+        }
+      >
         <div className="fishing-tension-head">
           <IconRod size={13} aria-hidden="true" />
-          <span>Line tension</span>
-          <strong className={`fishing-tension-word fishing-tension-word-${hud.tensionTone}`}>{hud.tensionWord.toUpperCase()}</strong>
+          <span>{isTr ? "Misina gerginliği" : "Line tension"}</span>
+          <strong className={`fishing-tension-word fishing-tension-word-${hud.tensionTone}`}>
+            {isTr
+              ? (hud.tensionWord.toLowerCase() === "danger"
+                  ? "TEHLİKELİ"
+                  : hud.tensionWord.toLowerCase() === "slack"
+                    ? "BOŞTA"
+                    : "GÜVENLİ")
+              : hud.tensionWord.toUpperCase()}
+          </strong>
         </div>
         <div
           className="fishing-tension-track"
@@ -230,20 +298,20 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
           <span className="fishing-tension-needle" style={{ left: `${hud.tensionPercent}%` }} />
         </div>
         <div className="fishing-tension-labels" aria-hidden="true">
-          <span>Slack</span>
-          <span>Safe</span>
-          <span>Danger</span>
+          <span>{isTr ? "Boşta" : "Slack"}</span>
+          <span>{isTr ? "Güvenli" : "Safe"}</span>
+          <span>{isTr ? "Tehlikeli" : "Danger"}</span>
         </div>
       </section>
 
       <section
         className="fishing-telemetry"
-        aria-label="Fight telemetry"
+        aria-label={isTr ? "Mücadele telemetrisi" : "Fight telemetry"}
         data-testid="fishing-telemetry"
       >
         <div className="fishing-telemetry-run">
           <div className="fishing-telemetry-run-head">
-            <span>Run</span>
+            <span>{isTr ? "Mesafe" : "Run"}</span>
             <strong data-testid="fishing-run-distance">
               {`${telemetry.runDistanceMeters.toFixed(1)} m`}
             </strong>
@@ -262,24 +330,26 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
           </div>
           <span className="fishing-telemetry-run-note">
             {inLandingRange
-              ? "Within reach"
-              : `Landing at ${telemetry.landingDistanceMeters} m`}
+              ? (isTr ? "Uzanma menzilinde" : "Within reach")
+              : (isTr ? `${telemetry.landingDistanceMeters} m mesafede karaya çekilir` : `Landing at ${telemetry.landingDistanceMeters} m`)}
           </span>
         </div>
 
         <dl className="fishing-telemetry-grid">
           <div className="fishing-telemetry-cell fishing-telemetry-depth">
-            <dt>Depth</dt>
+            <dt>{isTr ? "Derinlik" : "Depth"}</dt>
             <dd data-testid="fishing-depth">
               {telemetry.waterDepthMeters <= 0
-                ? "Surfaced"
+                ? (isTr ? "Yüzeyde" : "Surfaced")
                 : `${telemetry.waterDepthMeters.toFixed(1)} m`}
             </dd>
           </div>
           <div className="fishing-telemetry-cell fishing-telemetry-rod">
-            <dt>Rod</dt>
+            <dt>{isTr ? "Kamış" : "Rod"}</dt>
             <dd data-testid="fishing-rod-deflection">
-              {rodLay === 0 ? "Centred" : `${rodLay > 0 ? "Right" : "Left"} ${Math.abs(rodLay)}%`}
+              {rodLay === 0
+                ? (isTr ? "Ortada" : "Centred")
+                : `${rodLay > 0 ? (isTr ? "Sağ" : "Right") : (isTr ? "Sol" : "Left")} ${Math.abs(rodLay)}%`}
             </dd>
           </div>
         </dl>
@@ -291,7 +361,7 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
           data-testid="fishing-counter-swing"
           data-tone={counterSwingTone}
         >
-          <span className="fishing-counter-swing-label">Counter</span>
+          <span className="fishing-counter-swing-label">{isTr ? "Karşı Hamle" : "Counter"}</span>
           <div className="fishing-counter-swing-track" aria-hidden="true">
             <span className="fishing-counter-swing-centre" />
             <span
@@ -306,10 +376,14 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
           {telemetry.counterSwingCue ? (
             <span className="fishing-counter-swing-cue">
               <KeyHint keyName={telemetry.counterSwingCue === "left" ? "A" : "D"} glow={counterSwingTone === "danger"} />
-              <span>{telemetry.counterSwingCue === "left" ? "Swing left" : "Swing right"}</span>
+              <span>
+                {isTr
+                  ? (telemetry.counterSwingCue === "left" ? "Sola yatır" : "Sağa yatır")
+                  : (telemetry.counterSwingCue === "left" ? "Swing left" : "Swing right")}
+              </span>
             </span>
           ) : (
-            <span className="fishing-counter-swing-cue is-idle">Holding</span>
+            <span className="fishing-counter-swing-cue is-idle">{isTr ? "Dengede" : "Holding"}</span>
           )}
         </div>
       </section>
@@ -317,15 +391,19 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
       {hud.showLineWarning && (
         <div className={`fishing-line-warning${hud.lineIntegrityPercent <= 20 ? " is-critical" : ""}`} data-testid="fish-integrity">
           <IconWarning size={13} aria-hidden="true" />
-          <span>Line damaged</span>
+          <span>{isTr ? "Misina yıprandı" : "Line damaged"}</span>
           <strong>{hud.lineIntegrityPercent}%</strong>
         </div>
       )}
 
       {hud.landingProgress !== null && (
-        <section className="fishing-landing" aria-label="Landing progress">
+        <section className="fishing-landing" aria-label={isTr ? "Karaya çıkarma ilerlemesi" : "Landing progress"}>
           <div className="fishing-landing-label">
-            <strong>{hud.landingProgress > 0 ? "LANDING" : "HOLD STEADY"}</strong>
+            <strong>
+              {hud.landingProgress > 0
+                ? (isTr ? "ÇEKİLİYOR" : "LANDING")
+                : (isTr ? "SABİT TUT" : "HOLD STEADY")}
+            </strong>
           </div>
           <div className="fishing-landing-track">
             <div className="fishing-landing-fill" style={{ width: `${hud.landingProgress * 100}%` }} />
@@ -333,24 +411,26 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
         </section>
       )}
 
-      <div className="guild-fishing-bindings" aria-label="Fishing controls">
-        <span><KeyHint keyName="W" /> Reel</span><span><KeyHint keyName="S" /> Ease line</span><span><KeyHint keyName="Space" /> Brace</span>
+      <div className="guild-fishing-bindings" aria-label={isTr ? "Balıkçılık kontrolleri" : "Fishing controls"}>
+        <span><KeyHint keyName="W" /> {isTr ? "Sar" : "Reel"}</span>
+        <span><KeyHint keyName="S" /> {isTr ? "Misinayı sal" : "Ease line"}</span>
+        <span><KeyHint keyName="Space" /> {isTr ? "Destekle" : "Brace"}</span>
       </div>
       {isCoarsePointer && decision.action !== "neutral" && (
-        <div className="fishing-touch-controls" aria-label="Fishing touch controls">
+        <div className="fishing-touch-controls" aria-label={isTr ? "Dokunmatik balıkçılık kontrolleri" : "Fishing touch controls"}>
           <ChromeButton className="fishing-touch-control" {...decisionTouchProps}>
-            {decision.response}
+            {localizedDecisionResponse}
           </ChromeButton>
         </div>
       )}
         </>
       )}
     </GameSheet>
-    {onSetDrag && !hud.awaitingLandingChoice && <div className="guild-drag-control interactive" role="group" aria-label="Fishing drag">
-      <span>Drag</span><div className="guild-drag-notches">
+    {onSetDrag && !hud.awaitingLandingChoice && <div className="guild-drag-control interactive" role="group" aria-label={isTr ? "Kalama ayarı" : "Fishing drag"}>
+      <span>{isTr ? "Kalama" : "Drag"}</span><div className="guild-drag-notches">
         {([0, 1, 2] as const).map((notch) => <ChromeButton key={notch} size="sm" aria-pressed={hud.dragNotch === notch}
           className={`guild-drag-notch ${hud.dragNotch === notch ? "is-selected" : ""}`}
-          onClick={() => onSetDrag(notch)}>{DRAG_LABEL[notch]}</ChromeButton>)}
+          onClick={() => onSetDrag(notch)}>{dragLabels[notch]}</ChromeButton>)}
       </div>
     </div>}
     </>

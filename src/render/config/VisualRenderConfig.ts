@@ -293,6 +293,13 @@ export interface VisualRenderConfig {
       pixelRatioCap: number;
       dynamicContactShadows: boolean;
       ambientOcclusion: "off" | "contact" | "gtao";
+      /**
+       * Renders through the linear HDR scene target and final-colour pass. The
+       * tier's water optics need that scene colour/depth snapshot, and optional
+       * full-screen effects are offered only on this path; the others render
+       * directly to the canvas with its native antialiasing.
+       */
+      enhancedPostPath: boolean;
       postProcessPixelRatioCap: number;
       practicalLightBudget: number;
       lodDistanceScale: number;
@@ -380,6 +387,11 @@ export interface VisualRenderConfig {
     dryRidgeExposureStrength: number;
     mountainRockExposureStrength: number;
     mountainDryClimateStrength: number;
+    mountainStrata: {
+      periodMeters: number;
+      warpMeters: number;
+      contrast: number;
+    };
     polygonVariationStrength: number;
     polygonJaggedStrength: number;
     polygonFacetLightingStrength: number;
@@ -438,10 +450,42 @@ export interface VisualRenderConfig {
       /** Attenuates fine-map color, roughness, and relief without losing meso wear. */
       fineDetailStrength: number;
     };
-    polygonCellScaleMeters: number;
     polygonEdgeCellScaleMeters: number;
-    wearColorMix: number;
-    crownGrassMix: number;
+    /** Share of browner dry soil in the dusty packed-earth colour. */
+    earthBrownness: number;
+    /** Separates compact freight roads, working lanes, and foot trails. */
+    routeIdentityColorMix: number;
+    /** Carries the surrounding damp soil and exposed mineral into worked ground. */
+    localGroundColorMix: number;
+    /** Roughness gap between compacted freight cores and loose trail shoulders. */
+    routeRoughnessContrast: number;
+    shoulderGrowthContrast: number;
+    /**
+     * Wheel tracks, drawn from each road's own across/along frame at the
+     * carriage's wheel spacing (`RoadClasses.ROAD_WHEEL_GAUGE_METERS`). Both
+     * tracks drift together, so their spacing never changes.
+     */
+    wheelTracks: {
+      halfWidthMeters: number;
+      driftMeters: number;
+      driftWavelengthsMeters: readonly [number, number];
+      /** Length scale and share of the stretches where a track has filled in or grassed over. */
+      breakupScaleMeters: number;
+      breakup: number;
+      colorMix: number;
+      /** Lighting-only groove depth relative to `reliefNormalStrength`. */
+      reliefStrength: number;
+      /** Rain gathers in the tracks' low spots. */
+      puddleStrength: number;
+      puddleRoughness: number;
+    };
+    /** Farm lanes grow a grass strip between their tracks; cart roads keep a dusty crown. */
+    laneMedianGrassMix: number;
+    medianPatchScaleMeters: number;
+    crownDustMix: number;
+    /** A footpath is worn to one line down its middle. */
+    footLineHalfWidthMeters: number;
+    footLineColorMix: number;
     reliefNormalStrength: number;
     wearRoughnessReduction: number;
     shoulderColorMix: number;
@@ -578,6 +622,34 @@ export interface VisualRenderConfig {
     depthRampStartMeters: number;
     depthRampEndMeters: number;
     depthColorStrength: number;
+    /**
+     * Low mist drifting over the river (`RiverMist.ts`). The lighting frame's
+     * `riverMist` share drives it: the dawn valley mist, a lighter evening
+     * layer, and fog weather all day, torn away by wind, rain and storms.
+     */
+    riverMist: {
+      /** Puffs per tier along the channel. */
+      count: Record<QualityTier, number>;
+      /** Puff half-width, and its half-height as a share of that. */
+      sizeMeters: number;
+      heightRatio: number;
+      /** Puff centre height above the local water surface. */
+      liftMeters: number;
+      /** Peak opacity of one puff at full mist. */
+      opacity: number;
+      /** Downstream travel over one life cycle, and the cycle length. */
+      driftMeters: number;
+      cycleSeconds: number;
+      /** How far puffs spread past the water's edge over the low banks. */
+      bankOverhangMeters: number;
+      /** Evening envelope (start, peak, end clock minutes) and its share of full mist. */
+      eveningMinutes: readonly [number, number, number];
+      eveningShare: number;
+      /** Weather visibility at which fog mist begins, and where it is full. */
+      fogVisibility: readonly [number, number];
+      /** Wind speeds (m/s) over which the mist is torn away. */
+      calmWindMetersPerSecond: readonly [number, number];
+    };
     headwaters: {
       /** Only the bounded headwater band receives these extra water rows. */
       maxRowSpacingMeters: number;
@@ -589,6 +661,12 @@ export interface VisualRenderConfig {
        * proportionally finer rows.
        */
       fallRowSpacingMeters: number;
+      /**
+       * Row spacing across each step of the outlet cascade. A step drops about
+       * a metre over one, so it needs rows far finer than the pool shelf but
+       * nowhere near the fall face's.
+       */
+      stepRowSpacingMeters: number;
       rapidsFoamStrength: number;
       rapidsGradeStart: number;
       rapidsGradeFull: number;
@@ -617,11 +695,22 @@ export interface VisualRenderConfig {
       /** Broken foam lace that travels with the current at the water's edge. */
       riverEdgeFoamStrength: number;
       riverEdgeFoamScaleMeters: number;
+      /**
+       * White water the channel's own features raise (`RiverFeatureFoam`):
+       * aprons below cascade steps, chute tongues, rock collars and wakes,
+       * riffle froth. Peak whiteness, and the baked field's texel size.
+       */
+      featureFoamStrength: number;
+      featureFoamTexelMeters: number;
       /** Radial rings that leave the fall landing and spread into the pool. */
       plungeRingSpeedMetersPerSecond: number;
       plungeRingWavelengthMeters: number;
       plungeRingStrength: number;
       plungeRingSpanMeters: number;
+      /** Dense impact foam extends past the falling sheet before breaking up in the pool. */
+      plungeBoilOverhangMeters: number;
+      plungeBoilRunMeters: number;
+      plungeBoilStrength: number;
       /**
        * Dedicated presentation for the authored falling segment. Geometry,
        * foam and streak tuning live here; the topology itself stays owned by
@@ -707,23 +796,59 @@ export interface VisualRenderConfig {
           opacity: number;
           /** Edge erosion so the puffs never read as soft discs. */
           erosion: number;
+          /**
+           * Smaller spray thrown up at the foot of each cascade step: puffs
+           * per step and tier, with their own size, rise, drift and opacity.
+           */
+          cascade: {
+            perStep: Record<QualityTier, number>;
+            sizeMeters: number;
+            riseMeters: number;
+            driftMeters: number;
+            opacity: number;
+          };
         };
       };
     };
     /**
      * Mainland brooks (`BrookSurface.ts`): a thin ribbon of running water on
-     * each traced course, over the gravel bed `MainlandBrooks` cuts. Detail
-     * scrolls downstream faster on steeper reaches, which break into foam.
+     * each traced course, edged by a band of washed gravel over the floor
+     * `MainlandBrooks` cuts. Detail scrolls downstream faster on steeper
+     * reaches, which break into foam.
      */
     brooks: {
       /** Knot spacing of the ribbon along its course. */
       spacingMeters: number;
-      /** The ribbon's soft edge runs this far past the water's width. */
-      edgeOverlapMeters: number;
+      /** Along-course distance each side over which a point's bed grade is measured. */
+      gradeReachMeters: number;
+      /** The gravel bank runs this far past the water's edge, its stones thinning outward. */
+      bankMeters: number;
+      /** Size of a bank stone, and the share of the bank's grit that shows between them. */
+      pebbleMeters: number;
+      gritOpacity: number;
+      /** Share of the gravel's colour the shallows show through clear water. */
+      bedTint: number;
       /** Opacity eases in from the source and out into the water a brook joins. */
       sourceFadeMeters: number;
       mouthFadeMeters: number;
-      confluenceFadeMeters: number;
+      /** Share the water widens by as it runs out across a shore into open water. */
+      mouthSpread: number;
+      /**
+       * The water wanders across its floor: share of the floor's spare width
+       * it may use, and the wavelength of the wander. Width varies by the
+       * given share and swells into a pool below a steep reach.
+       */
+      meanderShare: number;
+      meanderWavelengthMeters: number;
+      widthVariation: number;
+      poolWidening: number;
+      /**
+       * At a culvert the water runs straight into the pipe: the wander eases
+       * out between these distances from the road crossing, and the ribbon
+       * stops this far inside the headwall's face.
+       */
+      culvertCalmMeters: readonly [number, number];
+      culvertTuckMeters: number;
       flowMetersPerSecond: number;
       /** Extra flow speed per unit of bed grade. */
       gradeFlowGain: number;
@@ -732,8 +857,14 @@ export interface VisualRenderConfig {
       rapidsGradeStart: number;
       rapidsGradeFull: number;
       rapidsFoamStrength: number;
+      /** White water where the bed starts to fall more steeply. */
+      dropFoamStrength: number;
       edgeFoamStrength: number;
-      opacity: number;
+      /** Clear shallows over the gravel, colour held in the deeper middle. */
+      shallowOpacity: number;
+      deepOpacity: number;
+      streakStrength: number;
+      glintStrength: number;
       roughness: number;
     };
     quality: Record<QualityTier, WaterSurfaceTierQuality>;
@@ -811,22 +942,69 @@ export interface VisualRenderConfig {
     distanceDesaturation: number;
   };
   /**
-   * Emissive response. Drawn as additive glow sprites parented to the practical
-   * lights rather than a fullscreen bloom pass: low and medium tiers render with
-   * no `EffectComposer` at all, so a real bloom chain would cost a pass and a
-   * render target on exactly the hardware that can least afford one. The sprites
-   * are capped by `quality[tier].practicalLightBudget`, so this is at most four
-   * extra draws on high. There is no luminance threshold in this approach.
+   * Practical-light glow: additive sprites parented to the practical lights,
+   * the default emissive response on every tier. Low and medium render with no
+   * post-processing targets at all, so a real bloom chain would cost a pass and
+   * a render target on exactly the hardware that can least afford one. The
+   * sprites are capped by `quality[tier].practicalLightBudget`, so this is at
+   * most four extra draws on high, with no luminance threshold. The optional
+   * High-only HDR bloom (`postProcessing.hdrBloom`) replaces them while active.
    */
   bloom: {
     enabled: boolean;
     strength: number;
     glowSizeMeters: number;
   };
-  grade: {
-    saturation: number;
-    contrast: number;
-    warmth: number;
+  /**
+   * Player-adjustable post-processing on the enhanced path, plus the bounds
+   * every player choice is clamped to. Defaults are neutral: with them the
+   * final-colour pass reproduces the calibrated exposure → ACES → sRGB image.
+   */
+  postProcessing: {
+    /** Multiplies the lighting rig's time/weather exposure; 1 is the baseline. */
+    brightness: { min: number; max: number };
+    ambientOcclusion: {
+      /** Multiplier on `gtao.blendIntensity`. */
+      strength: { min: number; max: number };
+      /** Gather/denoise scale Auto uses under sustained GPU pressure. */
+      reducedResolutionScale: number;
+      /**
+       * Relative view-depth difference over which a low-resolution AO texel
+       * stops contributing to a full-resolution pixel, so AO does not bleed
+       * across silhouettes when it is upsampled in the final pass.
+       */
+      edgeDepthTolerance: number;
+    };
+    /** Applied after tone mapping and before sRGB encoding. */
+    colorFinish: {
+      saturation: { min: number; max: number };
+      contrast: { min: number; max: number };
+      warmth: { min: number; max: number };
+    };
+    renderResolution: {
+      /** Manual shares of the tier's scene pixel ratio, largest first. */
+      manualScales: readonly number[];
+      /** Auto frame pacing steps the scene scale down to this floor before dropping a tier. */
+      autoScales: readonly number[];
+      /** Never render the scene below this device-pixel ratio. */
+      minimumPixelRatio: number;
+    };
+    /**
+     * Optional High-only highlight bloom in linear HDR before tone mapping.
+     * Replaces the practical-light glow sprites while active so the two never
+     * double up.
+     */
+    hdrBloom: {
+      /** Exposed linear luminance where highlights begin to bloom. */
+      threshold: number;
+      /** Soft-knee width below the threshold. */
+      knee: number;
+      strength: number;
+      /** Mip levels in the chain, the first at half the scene resolution. */
+      levels: number;
+      /** Share each coarser level contributes when it is added back up the chain. */
+      scatter: number;
+    };
   };
   /** Opaque main-view foliage coverage around the camera and toward the player. */
   foliageObstruction: {
@@ -1044,7 +1222,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     daylightZeroSolarHeight: -0.1,
     // Gold alone read as pale amber once ACES rolled it off; the last minutes
     // either side of the horizon carry a deeper, redder ember.
-    ember: { hueOffset: -0.018, saturationLift: 0.12, lightnessOffset: -0.05, solarWidth: 0.09 },
+    ember: { hueOffset: -0.008, saturationLift: 0.06, lightnessOffset: -0.05, solarWidth: 0.09 },
     goldenKeyLift: 0.35
   },
   moon: {
@@ -1087,7 +1265,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     twilightCoolFillMix: 0.5,
     twilightWarmBounceMix: 0.55,
     nightHueOffset: 0.045,
-    twilightFillScale: 0.62,
+    twilightFillScale: 0.72,
     twilightHorizonScale: 0.3,
     twilightExposureLift: 0.08
   },
@@ -1133,7 +1311,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       dawnMistMinutes: [270, 390, 560]
     },
     sky: {
-      sunwardGlow: 1.3,
+      sunwardGlow: 1.1,
       sunwardGlowFalloff: 5.5,
       antiTwilightBand: 0.55,
       horizonBand: 0.1,
@@ -1147,7 +1325,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       cloudTwilightGlow: 0.55
     },
     lightningBolt: {
-      distanceMeters: 900,
+      distanceMeters: 700,
       widthRadians: 0.0022,
       jitterRadians: 0.018,
       intensity: 14
@@ -1209,6 +1387,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       pixelRatioCap: 0.85,
       dynamicContactShadows: false,
       ambientOcclusion: "off",
+      enhancedPostPath: false,
       postProcessPixelRatioCap: 1,
       practicalLightBudget: 1,
       lodDistanceScale: 0.55,
@@ -1240,6 +1419,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       pixelRatioCap: 1.15,
       dynamicContactShadows: true,
       ambientOcclusion: "contact",
+      enhancedPostPath: false,
       postProcessPixelRatioCap: 1.25,
       practicalLightBudget: 3,
       lodDistanceScale: 0.8,
@@ -1273,6 +1453,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       pixelRatioCap: 1.5,
       dynamicContactShadows: false,
       ambientOcclusion: "gtao",
+      enhancedPostPath: true,
       postProcessPixelRatioCap: 1.2,
       practicalLightBudget: 4,
       lodDistanceScale: 1.15,
@@ -1356,6 +1537,11 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     dryRidgeExposureStrength: 0.72,
     mountainRockExposureStrength: 0.88,
     mountainDryClimateStrength: 0.72,
+    mountainStrata: {
+      periodMeters: 14,
+      warpMeters: 1.1,
+      contrast: 0.3
+    },
     polygonVariationStrength: 0.24,
     polygonJaggedStrength: 0.14,
     polygonFacetLightingStrength: 0.04,
@@ -1409,20 +1595,38 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       mesoSampleScaleMeters: 8.5,
       rotationRadians: 0.37,
       lodBias: 0.2,
-      colorStrength: 0.72,
+      colorStrength: 0.82,
       roughnessStrength: 1,
-      fineDetailStrength: 0.3
+      fineDetailStrength: 0.1
     },
-    polygonCellScaleMeters: 0.75,
-    polygonEdgeCellScaleMeters: 1.2,
-    wearColorMix: 0.62,
-    crownGrassMix: 0.28,
+    polygonEdgeCellScaleMeters: 0.9,
+    earthBrownness: 0.48,
+    routeIdentityColorMix: 0.35,
+    localGroundColorMix: 0.34,
+    routeRoughnessContrast: 0.045,
+    shoulderGrowthContrast: 0.46,
+    wheelTracks: {
+      halfWidthMeters: 0.16,
+      driftMeters: 0.05,
+      driftWavelengthsMeters: [43, 101],
+      breakupScaleMeters: 6,
+      breakup: 0.3,
+      colorMix: 0.58,
+      reliefStrength: 0.3,
+      puddleStrength: 0.8,
+      puddleRoughness: 0.3
+    },
+    laneMedianGrassMix: 0.85,
+    medianPatchScaleMeters: 4.5,
+    crownDustMix: 0.16,
+    footLineHalfWidthMeters: 0.28,
+    footLineColorMix: 0.32,
     reliefNormalStrength: 0.065,
     wearRoughnessReduction: 0.075,
-    shoulderColorMix: 0.4,
+    shoulderColorMix: 0.2,
     edgeGrassMix: 0.68,
     polygonVariationStrength: 0.08,
-    polygonJaggedStrength: 0.22,
+    polygonJaggedStrength: 0.18,
     polygonFacetLightingStrength: 0.016,
     edgeFadeStart: 0.16,
     edgeFadeFull: 0.72,
@@ -1487,12 +1691,28 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     depthRampStartMeters: 1.4,
     depthRampEndMeters: 8,
     depthColorStrength: 0.82,
+    riverMist: {
+      count: { low: 40, medium: 90, high: 150 },
+      sizeMeters: 2.6,
+      heightRatio: 0.38,
+      liftMeters: 0.7,
+      opacity: 0.17,
+      driftMeters: 7,
+      cycleSeconds: 42,
+      bankOverhangMeters: 1.5,
+      eveningMinutes: [1110, 1230, 1380],
+      eveningShare: 0.45,
+      fogVisibility: [0.8, 0.4],
+      calmWindMetersPerSecond: [4.5, 9]
+    },
     headwaters: {
       maxRowSpacingMeters: 0.75,
       surfaceColumnSpacingMeters: 0.75,
       // Finer than the sheet rows: the landing's smoothstep curvature still
       // exceeds a 0.03 m chord budget at 0.06 m spacing on the 27.5 m drop.
       fallRowSpacingMeters: 0.03,
+      // Holds the same 0.03 m chord budget on a 1.25 m step over 1.1 m.
+      stepRowSpacingMeters: 0.15,
       rapidsFoamStrength: 0.4,
       rapidsGradeStart: 0.15,
       rapidsGradeFull: 0.65,
@@ -1507,10 +1727,15 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       riverEdgeOpacity: 0.18,
       riverEdgeFoamStrength: 0.11,
       riverEdgeFoamScaleMeters: 1.7,
+      featureFoamStrength: 0.82,
+      featureFoamTexelMeters: 0.5,
       plungeRingSpeedMetersPerSecond: 1.7,
       plungeRingWavelengthMeters: 2,
-      plungeRingStrength: 0.22,
+      plungeRingStrength: 0.12,
       plungeRingSpanMeters: 5.2,
+      plungeBoilOverhangMeters: 1.7,
+      plungeBoilRunMeters: 8,
+      plungeBoilStrength: 0.96,
       fall: {
         rows: { low: 12, medium: 20, high: 30 },
         acrossSegments: 14,
@@ -1555,33 +1780,54 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
         apronFoamStrength: 0.42,
         apronMeters: 1.6,
         mist: {
-          count: { low: 6, medium: 12, high: 20 },
-          sizeMeters: 1.0,
-          spreadMeters: 1.9,
-          riseMeters: 2.6,
-          driftMeters: 1.3,
+          count: { low: 10, medium: 20, high: 32 },
+          sizeMeters: 1.3,
+          spreadMeters: 3.0,
+          riseMeters: 2.1,
+          driftMeters: 1.2,
           cycleSeconds: 5.2,
-          opacity: 0.34,
-          erosion: 0.85
+          opacity: 0.53,
+          erosion: 0.85,
+          cascade: {
+            perStep: { low: 3, medium: 5, high: 8 },
+            sizeMeters: 0.75,
+            riseMeters: 0.9,
+            driftMeters: 0.8,
+            opacity: 0.34
+          }
         }
       }
     },
     brooks: {
       spacingMeters: 1.5,
-      edgeOverlapMeters: 0.1,
+      gradeReachMeters: 4.5,
+      bankMeters: 1.2,
+      pebbleMeters: 0.3,
+      gritOpacity: 0.55,
+      bedTint: 0.32,
       sourceFadeMeters: 4,
       mouthFadeMeters: 5,
-      confluenceFadeMeters: 2.5,
+      mouthSpread: 0.8,
+      meanderShare: 0.7,
+      meanderWavelengthMeters: 11,
+      widthVariation: 0.22,
+      poolWidening: 0.55,
+      culvertCalmMeters: [4, 11],
+      culvertTuckMeters: 0.15,
       flowMetersPerSecond: 0.9,
       gradeFlowGain: 3.2,
       rippleScaleMeters: 0.9,
-      rippleStrength: 0.34,
+      rippleStrength: 0.2,
       rapidsGradeStart: 0.12,
       rapidsGradeFull: 0.45,
       rapidsFoamStrength: 0.55,
-      edgeFoamStrength: 0.22,
-      opacity: 0.78,
-      roughness: 0.14
+      dropFoamStrength: 0.7,
+      edgeFoamStrength: 0.14,
+      shallowOpacity: 0.55,
+      deepOpacity: 0.84,
+      streakStrength: 0.16,
+      glintStrength: 0.4,
+      roughness: 0.2
     },
     quality: {
       low: {
@@ -1681,10 +1927,32 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     strength: 0.3,
     glowSizeMeters: 1.35
   },
-  grade: {
-    saturation: 1,
-    contrast: 1,
-    warmth: 0.04
+  postProcessing: {
+    brightness: { min: 0.8, max: 1.25 },
+    ambientOcclusion: {
+      strength: { min: 0.5, max: 1.5 },
+      reducedResolutionScale: 0.45,
+      edgeDepthTolerance: 0.05
+    },
+    // Restrained: enough to settle a scene warmer or quieter, never enough to
+    // clip cream plaster and foam or push teal water and crops off-palette.
+    colorFinish: {
+      saturation: { min: 0.85, max: 1.15 },
+      contrast: { min: 0.9, max: 1.1 },
+      warmth: { min: -0.04, max: 0.04 }
+    },
+    renderResolution: {
+      manualScales: [1, 0.85, 0.7],
+      autoScales: [1, 0.9, 0.8],
+      minimumPixelRatio: 0.5
+    },
+    hdrBloom: {
+      threshold: 1.35,
+      knee: 0.55,
+      strength: 0.14,
+      levels: 4,
+      scatter: 0.68
+    }
   },
   foliageObstruction: {
     nearCameraInnerMeters: 0.6,

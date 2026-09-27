@@ -256,6 +256,7 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
     it("renders MaritimeVesselConsole with deeply frozen WorldHudBoatDto without mutating slots or stats", () => {
       const boat: WorldHudBoatDto = deepFreeze({
         boatId: "boat.skiff.01",
+      boatTypeId: "boat.skiff",
         name: "Seafarer II",
         speedKnots: 8.5,
         seaState: "Swell",
@@ -519,6 +520,7 @@ describe("Empirical Challenger M2 Audit — Viewport, Purity, Listeners & Respon
         React.createElement(MaritimeVesselConsole, {
           boat: {
             boatId: "boat.rowboat.01",
+      boatTypeId: "boat.rowboat",
             name: "Dory",
             speedKnots: 3.2,
             seaState: "Calm",

@@ -1,3 +1,6 @@
+import { bindInteractionPose, bindInteractionPoint, placementForStation } from "./InteractionPlacements";
+import { MAINLAND_SETTLEMENT_BUILDINGS } from "./MainlandSettlementLayout";
+import { VILLAGE_TRADE_STATIONS } from "./VillageTradeLayout";
 import { MAINLAND_VILLAGES } from "./NevaMainland";
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "./OceanIslets";
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
@@ -28,7 +31,7 @@ export interface WorldFarmDefinition {
 export interface WorldStationDefinition {
   id: string;
   islandId: WorldIslandId;
-  type: "hand-mill" | "workbench" | "fish-table" | "compost-bin" | "kitchen";
+  type: "hand-mill" | "workbench" | "fish-table" | "compost-bin" | "kitchen" | "trading-station";
   position: Readonly<{ x: number; z: number }>;
   rotationY: number;
   approachDistanceMeters: number;
@@ -139,7 +142,11 @@ const starterWorkbench = starterStructureAnchor("struct.workbench")!;
 const starterCompost = starterStructureAnchor("struct.starter_compost")!;
 const starterKitchen = starterStructureAnchor("struct.kitchen")!;
 
-export const WORLD_STATION_DEFINITIONS: Readonly<Record<string, Readonly<WorldStationDefinition>>> = Object.freeze({
+const BASE_WORLD_STATION_DEFINITIONS: Readonly<Record<string, Readonly<WorldStationDefinition>>> = Object.freeze({
+  ...Object.fromEntries(VILLAGE_TRADE_STATIONS.map(station => [station.id, {
+    id: station.id, islandId: station.islandId as WorldIslandId, type: "trading-station" as const,
+    position: station.position, rotationY: station.rotationY, approachDistanceMeters: 1.75
+  }])),
   [starterMill.id]: Object.freeze({
     id: starterMill.id,
     islandId: "island.neva",
@@ -206,7 +213,14 @@ export const WORLD_STATION_DEFINITIONS: Readonly<Record<string, Readonly<WorldSt
   })
 });
 
-export const WORLD_MARKET_LOCATIONS: Readonly<Record<string, Readonly<WorldMarketLocation>>> = Object.freeze({
+export const WORLD_STATION_DEFINITIONS = Object.fromEntries(Object.entries(BASE_WORLD_STATION_DEFINITIONS).map(([id, station]) => {
+  const placementId = placementForStation(id);
+  if (!placementId) throw new Error(`Missing station placement binding: ${id}`);
+  const pose = bindInteractionPose(placementId, { ...station.position, rotationY: station.rotationY }, Math.PI);
+  return [id, { ...station, position: pose, get rotationY() { return pose.rotationY; } }];
+})) as Readonly<Record<string, Readonly<WorldStationDefinition>>>;
+
+const BASE_WORLD_MARKET_LOCATIONS: Readonly<Record<string, Readonly<WorldMarketLocation>>> = Object.freeze({
   ...Object.fromEntries(Object.values(MAINLAND_VILLAGES).map((village) => [village.marketId, {
     id: village.marketId, islandId: "island.neva", regionId: village.regionId, position: village.market, radiusMeters: 7
   } satisfies WorldMarketLocation])),
@@ -232,6 +246,15 @@ export const WORLD_MARKET_LOCATIONS: Readonly<Record<string, Readonly<WorldMarke
     radiusMeters: 7
   })
 });
+
+export const WORLD_MARKET_LOCATIONS = Object.fromEntries(Object.entries(BASE_WORLD_MARKET_LOCATIONS).map(([id, market]) => {
+  const mainland = MAINLAND_SETTLEMENT_BUILDINGS.find(b => `market.${b.villageId}` === id && b.pad.id.endsWith(".market"));
+  const parent = mainland ? { id: `authored.mainland.${mainland.villageId}.market`, ...mainland.pad.center, rotationY: mainland.pad.rotationY }
+    : id === "market.sunreach_cove" ? { id: "authored.sunreach.cove-market", x: 373 + SUNREACH_OFFSET_X, z: 56, rotationY: -Math.PI / 2 }
+      : id === "market.village" ? { id: "produce-stall", ...VILLAGE_MARKET.position, rotationY: VILLAGE_MARKET.rotationY }
+        : { id: "fish-market", ...HARBOR_MARKET.position, rotationY: HARBOR_MARKET.rotationY };
+  return [id, { ...market, position: bindInteractionPoint(parent.id, { ...market.position }, parent) }];
+})) as Readonly<Record<string, Readonly<WorldMarketLocation>>>;
 
 export const WORLD_CHART_NODES: readonly Readonly<WorldChartNode>[] = Object.freeze([
   ...Object.values(MAINLAND_VILLAGES).map((village): WorldChartNode => ({

@@ -1,5 +1,6 @@
 import React from "react";
 import type { MarketDemandTrendDto } from "../../simulation/core/contracts";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface MarketDemandTrendProps {
   trend: MarketDemandTrendDto;
@@ -17,6 +18,12 @@ const DIRECTION_LABEL: Record<MarketDemandTrendDto["direction"], string> = {
   falling: "Falling"
 };
 
+const DIRECTION_LABEL_TR: Record<MarketDemandTrendDto["direction"], string> = {
+  rising: "Yükseliyor",
+  steady: "Dengeli",
+  falling: "Düşüyor"
+};
+
 /** Maps a demand percentage onto the plot's vertical axis. */
 export function demandPlotY(demandPercent: number): number {
   const span = DEMAND_CEILING - DEMAND_FLOOR;
@@ -25,6 +32,8 @@ export function demandPlotY(demandPercent: number): number {
 }
 
 export const MarketDemandTrend: React.FC<MarketDemandTrendProps> = ({ trend }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
   const { points } = trend;
   const step = points.length > 1 ? VIEW_WIDTH / (points.length - 1) : 0;
   const path = points
@@ -33,17 +42,22 @@ export const MarketDemandTrend: React.FC<MarketDemandTrendProps> = ({ trend }) =
   // The 100% line is where price sits at the stall's target stock.
   const parY = demandPlotY(100);
 
+  const directionText = isTr ? DIRECTION_LABEL_TR[trend.direction] : DIRECTION_LABEL[trend.direction];
+  const ariaLabel = isTr
+    ? `${trend.itemName} talep görünümü: ${directionText.toLowerCase()}, şu an %${trend.currentDemandPercent}`
+    : `${trend.itemName} demand outlook: ${directionText.toLowerCase()}, now ${trend.currentDemandPercent}%`;
+
   return (
     <section
       className={`market-demand-trend direction--${trend.direction}`}
       data-testid="market-demand-trend"
       data-direction={trend.direction}
-      aria-label={`${trend.itemName} demand outlook: ${DIRECTION_LABEL[trend.direction].toLowerCase()}, now ${trend.currentDemandPercent}%`}
+      aria-label={ariaLabel}
     >
       <header className="market-demand-trend-head">
-        <span>Demand outlook</span>
-        <strong data-testid="market-demand-now">{`${trend.currentDemandPercent}%`}</strong>
-        <span className="market-demand-direction">{DIRECTION_LABEL[trend.direction]}</span>
+        <span>{isTr ? "Talep Görünümü" : "Demand outlook"}</span>
+        <strong data-testid="market-demand-now">{isTr ? `%${trend.currentDemandPercent}` : `${trend.currentDemandPercent}%`}</strong>
+        <span className="market-demand-direction">{directionText}</span>
       </header>
 
       <svg
@@ -60,7 +74,9 @@ export const MarketDemandTrend: React.FC<MarketDemandTrendProps> = ({ trend }) =
       </svg>
 
       <p className="market-demand-trend-note">
-        {`Next ${points.length} days at today's stock (${trend.localSupply} of ${trend.targetSupply} target)`}
+        {isTr
+          ? `Gelecek ${points.length} gün için bugünkü stok tahmini (hedef ${trend.targetSupply} / mevcut ${trend.localSupply})`
+          : `Next ${points.length} days at today's stock (${trend.localSupply} of ${trend.targetSupply} target)`}
       </p>
     </section>
   );

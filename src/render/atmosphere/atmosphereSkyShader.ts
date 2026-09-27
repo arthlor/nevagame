@@ -36,9 +36,14 @@ varying vec2 vUv;
 
 ${CLOUD_FIELD_GLSL}
 ${SKY_RADIANCE_GLSL}
-// Per-pixel share of the view that faces the sun's azimuth, set before marching.
-float cloudSunward = 0.5;
-vec3 cloudLight(vec3 position, vec3 ray, float density, bool volume) {
+// Terms that depend only on the view ray, set once per pixel before marching
+// rather than on every sample: forward and silver-lining lobes, the storm
+// flash lobe and the sunward share that carries the base glow.
+float cloudForward = 0.0;
+float cloudSilver = 0.0;
+float cloudFlash = 0.0;
+float cloudBaseGlow = 0.3;
+vec3 cloudLight(vec3 position, float density, bool volume) {
   float height = clamp((position.y - uCloudLayer.x) / uCloudLayer.y, 0.0, 1.0);
   // A high sun lights the deck from above, so bases carry more of its depth
   // than tops; a low sun lights it from the side and the bias fades out.
@@ -54,23 +59,18 @@ vec3 cloudLight(vec3 position, vec3 ray, float density, bool volume) {
     }
   #endif
   float sunlight = exp(-opticalDepth * uCloudLayer.w);
-  float toSun = max(0.0, dot(ray, uSunDirection));
-  float toSun4 = toSun * toSun;
-  toSun4 *= toSun4;
-  float forward = toSun4 * toSun4 * toSun4;
   // Thin, sunward edges scatter a bright rim: the silver lining.
-  float silver = forward * forward * forward * uCloudShape.x * exp(-density * 3.0);
+  float silver = cloudSilver * exp(-density * 3.0);
   float daylight = uSkyState.x;
   // Tops see the zenith, bases the horizon and the land below. By day the
   // deck is whitened; at twilight it keeps the sky's own colours.
   float whiten = mix(0.5, 0.12, uCloudShape.z);
   vec3 skyAmbient = mix(mix(uHorizon, vec3(1.0), whiten) * 0.9, mix(uZenith, vec3(1.0), whiten + 0.1), height);
   vec3 ambient = mix(uMoonColor * 0.055, skyAmbient * 0.48, daylight);
-  vec3 direct = uCloudSun * daylight * (0.62 + forward * 0.65 + silver) * sunlight;
-  vec3 underGlow = uCloudSun * uCloudShape.w * (1.0 - height) * (0.3 + 0.7 * cloudSunward * cloudSunward);
+  vec3 direct = uCloudSun * daylight * (0.62 + cloudForward * 0.65 + silver) * sunlight;
+  vec3 underGlow = uCloudSun * uCloudShape.w * (1.0 - height) * cloudBaseGlow;
   vec3 radiance = (ambient + direct + underGlow) * mix(1.0, 0.72, uWeather.y);
-  float flash = pow(max(0.0, dot(ray, uLightningDirection)), 14.0) * uWeather.z;
-  return radiance + uLightningColor * flash * 2.0;
+  return radiance + uLightningColor * cloudFlash;
 }
 
 float boltHash(float value) {
@@ -146,9 +146,16 @@ void main() {
   sky += uMoonColor * moonHalo * moonHalo * moonHalo * uSkyState.z * uSkyShape.z * (1.0 - uWeather.x * 0.6);
   #endif
   float starTransmittance = 1.0 - moonDisc;
-  cloudSunward = 0.5 + 0.5 * dot(ray.xz / max(0.0001, length(ray.xz)),
-    uSunDirection.xz / max(0.0001, length(uSunDirection.xz)));
   if (ray.y > 0.015) {
+    float cloudToSun = max(0.0, sunAngle);
+    float cloudToSun4 = cloudToSun * cloudToSun;
+    cloudToSun4 *= cloudToSun4;
+    cloudForward = cloudToSun4 * cloudToSun4 * cloudToSun4;
+    cloudSilver = cloudForward * cloudForward * cloudForward * uCloudShape.x;
+    cloudFlash = uWeather.z > 0.0 ? pow(max(0.0, dot(ray, uLightningDirection)), 14.0) * uWeather.z * 2.0 : 0.0;
+    float cloudSunward = 0.5 + 0.5 * dot(ray.xz / max(0.0001, length(ray.xz)),
+      uSunDirection.xz / max(0.0001, length(uSunDirection.xz)));
+    cloudBaseGlow = 0.3 + 0.7 * cloudSunward * cloudSunward;
     // The high veil sits behind the lower cloud deck.
     float highDistance = (uCloudLayer.x + uCloudLayer.y * 3.0 - uEye.y) / ray.y;
     vec2 highPoint = (uEye + ray * highDistance).xz - uCloudOffset * 1.37;
@@ -172,7 +179,7 @@ void main() {
           float density = cloudDensity(position, true);
           if (density > 0.002) {
             float stepT = exp(-density * uCloudLayer.w * stepLength);
-            radiance += transmittance * (1.0 - stepT) * cloudLight(position, ray, density, true);
+            radiance += transmittance * (1.0 - stepT) * cloudLight(position, density, true);
             transmittance *= stepT;
             if (transmittance < 0.015) break;
           }
@@ -188,10 +195,13 @@ void main() {
         for (int i = 0; i < LAYER_STEPS; i++) {
           vec3 position = uEye + ray * (entry + (float(i) + sampleOffset) * layerLength);
           float density = cloudDensity(position, true);
-          float stepT = exp(-density * uCloudLayer.w * layerLength);
-          layerRadiance += layerT * (1.0 - stepT) * cloudLight(position, ray, density, false);
-          layerT *= stepT;
-          if (layerT < 0.015) break;
+          // Empty space contributes exactly nothing; skip its lighting.
+          if (density > 0.0) {
+            float stepT = exp(-density * uCloudLayer.w * layerLength);
+            layerRadiance += layerT * (1.0 - stepT) * cloudLight(position, density, false);
+            layerT *= stepT;
+            if (layerT < 0.015) break;
+          }
         }
         transmittance = mix(layerT, transmittance, uVolumeBlend);
         radiance = mix(layerRadiance, radiance, uVolumeBlend);

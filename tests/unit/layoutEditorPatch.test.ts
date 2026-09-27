@@ -1,3 +1,5 @@
+import { INTERACTION_PLACEMENT_OVERRIDES } from "../../src/world/InteractionPlacements";
+import { WORLD_MARKET_LOCATIONS } from "../../src/world/WorldGameplayLocations";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it, afterEach } from "vitest";
@@ -130,7 +132,7 @@ describe("layout editor patcher", () => {
     expect(next.farmLayout).toMatch(/z:\s*3\b/);
     expect(next.interior).not.toBe(sources.interior);
     expect(next.interior).toContain("FARMHOUSE_OUTSIDE_DOOR");
-    const doorX = next.interior.match(/export const FARMHOUSE_OUTSIDE_DOOR[\s\S]*?\bx:\s*([^,\n]+)/);
+    const doorX = next.interior.match(/export const BASE_FARMHOUSE_OUTSIDE_DOOR[\s\S]*?\bx:\s*([^,\n]+)/);
     expect(doorX?.[1]).toBeDefined();
     expect(evalLayoutNumber(doorX![1]!)).not.toBe(FARMHOUSE_OUTSIDE_DOOR.x);
     const planned = planLayoutEdit(ROOT, commit);
@@ -729,7 +731,7 @@ describe("layout editor patcher", () => {
 
 describe("layout editor live sim sync", () => {
   it("relocates a saved structure in this session without a schema bump", () => {
-    const sim = new Simulation();
+    const sim = new Simulation(undefined, { allowDebugCommands: true });
     const before = sim.state.world.layoutRevision;
     expect(sim.debugRelocateStructure("struct.workbench", -70, -58)).toBe(true);
     expect(sim.state.world.structures["struct.workbench"]?.x).toBe(-70);
@@ -753,22 +755,21 @@ describe("layout editor live interact session", () => {
   );
 
   afterEach(() => {
-    applyLayoutEditLiveSession(new Simulation(), createLandmarkTag("produce-stall", 0), {
+    applyLayoutEditLiveSession(new Simulation(undefined, { allowDebugCommands: true }), createLandmarkTag("produce-stall", 0), {
       kind: "landmark",
       id: "produce-stall",
       x: originalVillage.x,
       z: originalVillage.z,
       rotationY: originalVillage.rotationY
     });
-    villageMarket.interactionPosition.x = originalVillage.interactX;
-    villageMarket.interactionPosition.z = originalVillage.interactZ;
+    for (const id of Object.keys(INTERACTION_PLACEMENT_OVERRIDES)) delete INTERACTION_PLACEMENT_OVERRIDES[id];
     for (const stationId of PROCESSING_STATION_IDS) {
       debugRelocateProcessingStationApproach(stationId, originalApproaches[stationId]!);
     }
   });
 
   it("moves the produce stall interact anchor with the visual", () => {
-    const sim = new Simulation();
+    const sim = new Simulation(undefined, { allowDebugCommands: true });
     applyLayoutEditLiveSession(sim, createLandmarkTag("produce-stall", 0), {
       kind: "landmark",
       id: "produce-stall",
@@ -776,15 +777,15 @@ describe("layout editor live interact session", () => {
       z: -40,
       rotationY: 1.2
     });
-    expect(VILLAGE_MARKET.position.x).toBe(40);
-    expect(VILLAGE_MARKET.position.z).toBe(-40);
-    expect(VILLAGE_MARKET.rotationY).toBe(1.2);
+    expect(WORLD_MARKET_LOCATIONS["market.village"].position.x).toBe(40);
+    expect(WORLD_MARKET_LOCATIONS["market.village"].position.z).toBe(-40);
+    expect(INTERACTION_PLACEMENT_OVERRIDES["produce-stall"].rotationY).toBe(1.2);
     expect(villageMarket.interactionPosition.x).toBe(40);
     expect(villageMarket.interactionPosition.z).toBe(-40);
   });
 
   it("moves a workstation front with translation and facing", () => {
-    const sim = new Simulation();
+    const sim = new Simulation(undefined, { allowDebugCommands: true });
     const visualRotationY = Math.PI + 0.4;
     applyLayoutEditLiveSession(sim, createFarmStructureTag("struct.workbench"), {
       kind: "farm-structure",

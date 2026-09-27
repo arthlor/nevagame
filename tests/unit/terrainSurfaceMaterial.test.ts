@@ -101,6 +101,7 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.vertexShader).toContain("attribute float terrainPathBlend;");
     expect(shader.vertexShader).toContain("attribute vec3 terrainShoreWeights;");
     expect(shader.vertexShader).toContain("attribute float terrainFaceting;");
+    expect(shader.vertexShader).toContain("attribute float terrainMountainStrata;");
     expect(shader.vertexShader).toContain("attribute vec4 surfaceWeights0;");
     expect(shader.vertexShader).toContain("vSurfaceCauses = max(surfaceCauses");
     expect(shader.vertexShader).toContain("vTerrainPathBlend");
@@ -176,6 +177,7 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("if (vegetationMask > 0.001)");
     expect(shader.fragmentShader).toContain("if (shoreSemanticWeight > 0.001)");
     expect(shader.fragmentShader).toContain("terrainSoilShare * terrainUnworkedLand");
+    expect(shader.fragmentShader).toContain("terrainStrataBand * terrainStrataFace * vTerrainMountainStrata");
     expect(shader.uniforms.terrainDampSoilColor).toBeDefined();
     expect(shader.uniforms.terrainWarmStoneColor).toBeDefined();
     expect(shader.fragmentShader).toContain("nevaMeadowLiveBlades(vTerrainWorldPosition.xz)");
@@ -201,6 +203,7 @@ describe("TerrainSurfaceMaterial", () => {
     expect(shader.uniforms.terrainBeachExternalColorStrength.value).toBe(1);
     expect(shader.uniforms.terrainBeachExternalRoughnessStrength.value).toBe(1);
     expect(shader.uniforms.terrainShoreWetRoughness.value).toBe(0.72);
+    expect(shader.uniforms.terrainMountainStrataPeriod.value).toBe(14);
     expect(shader.uniforms.terrainDebugMode.value).toBe(0);
     terrain.setDebugMode("shoreline");
     expect(shader.uniforms.terrainDebugMode.value).toBe(2);

@@ -1,6 +1,7 @@
 import type { StormHelmHudDto } from "../../simulation/core/contracts";
 import { IconWarning } from "../components/HudIcons";
 import { GameSheet } from "../coastal/CoastalUI";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface StormHelmWidgetProps {
   hud: StormHelmHudDto;
@@ -14,6 +15,9 @@ interface StormHelmWidgetProps {
  * ordinary helm controls.
  */
 export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
+
   const heelPercent = Math.round(((hud.heel + 1) / 2) * 100);
   const safeLeft = Math.round(((-hud.heelSafeHalfWidth + 1) / 2) * 100);
   const safeWidth = Math.max(4, Math.round(hud.heelSafeHalfWidth * 100));
@@ -24,7 +28,7 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
   const strengthPercent = Math.round(hud.gustStrength * 100);
   const hullLives = Math.max(0, Math.min(hud.maxLives, hud.hullLives));
 
-  const readout = showingResult
+  const readoutEn = showingResult
     ? survived
       ? "Steady helm — she held"
       : hud.failReason === "broach"
@@ -33,6 +37,18 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
     : inBand
       ? "Hold her head to the wind"
       : "Bring her bow into the gust";
+
+  const readoutTr = showingResult
+    ? survived
+      ? "Dümen sağlam — tekne dayandı"
+      : hud.failReason === "broach"
+        ? "Alabora oldu! Gövde darbe aldı"
+        : "Çok zorlandı — gövde darbe aldı"
+    : inBand
+      ? "Pruvasını rüzgara tut"
+      : "Pruvasını sağanağa çevir";
+
+  const readout = isTr ? readoutTr : readoutEn;
 
   const stateClass = failed
     ? " is-hit"
@@ -48,11 +64,13 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
         <header className="storm-helm__header">
           <span className="storm-helm__title">
             <IconWarning size={15} aria-hidden="true" />
-            {hud.wrecked ? "Hull lost" : "Storm helm"}
+            {hud.wrecked
+              ? (isTr ? "Gövde battı" : "Hull lost")
+              : (isTr ? "Fırtına dümencisi" : "Storm helm")}
           </span>
           <span
             className="storm-helm__lives"
-            title={`${hullLives} of ${hud.maxLives} hull lives`}
+            title={isTr ? `${hud.maxLives} üzerinden ${hullLives} gövde canı` : `${hullLives} of ${hud.maxLives} hull lives`}
             data-testid="storm-helm-lives"
           >
             {Array.from({ length: hud.maxLives }, (_, index) => (
@@ -69,11 +87,11 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
         <div
           className="storm-helm__meter"
           role="meter"
-          aria-label="Hull heel"
+          aria-label={isTr ? "Gövde yatması" : "Hull heel"}
           aria-valuemin={-100}
           aria-valuemax={100}
           aria-valuenow={Math.round(hud.heel * 100)}
-          aria-valuetext={inBand ? "heel inside the safe band" : "heel outside the safe band"}
+          aria-valuetext={isTr ? (inBand ? "yatma güvenli aralıkta" : "yatma güvenli aralık dışında") : (inBand ? "heel inside the safe band" : "heel outside the safe band")}
         >
           <div className="storm-helm__track">
             <span
@@ -92,15 +110,15 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
 
         <p className="storm-helm__readout" data-testid="storm-helm-readout">
           {hud.wrecked
-            ? "She cannot make way — signal a tow to Neva Harbor"
+            ? (isTr ? "Yol alamaz — Neva Limanı'na çekici çağır" : "She cannot make way — signal a tow to Neva Harbor")
             : showingResult
               ? readout
-              : `${readout} · A / D steer`}
+              : (isTr ? `${readout} · A / D dümen kır` : `${readout} · A / D steer`)}
         </p>
 
         <footer className="storm-helm__footer">
-          <span className="storm-helm__gust" title="Gust strength">
-            {`Gust ${strengthPercent}%`}
+          <span className="storm-helm__gust" title={isTr ? "Sağanak şiddeti" : "Gust strength"}>
+            {isTr ? `Sağanak %${strengthPercent}` : `Gust ${strengthPercent}%`}
           </span>
           {hud.phase === "gust" && !hud.wrecked && (
             <span className="storm-helm__timer" data-testid="storm-helm-timer">
@@ -109,7 +127,9 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
           )}
           {hud.consecutiveFails > 0 && !hud.wrecked && (
             <span className="storm-helm__fails" data-testid="storm-helm-fails">
-              {`${hud.consecutiveFails} failed ${hud.consecutiveFails === 1 ? "gust" : "gusts"} in a row`}
+              {isTr
+                ? `Üst üste ${hud.consecutiveFails} kaçırılan sağanak`
+                : `${hud.consecutiveFails} failed ${hud.consecutiveFails === 1 ? "gust" : "gusts"} in a row`}
             </span>
           )}
         </footer>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { HUD_ICON_BY_ID, IconSparkle, type HudIconName } from "./HudIcons";
 import { ChromeClose } from "../chrome/Chrome";
 import { GameSheet } from "../coastal/CoastalUI";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export type HintCategory = "boating" | "angling" | "farming" | "weather" | "general";
 
@@ -40,6 +41,18 @@ const CATEGORY_META: Record<HintCategory, { label: string; icon: string }> = {
   general: { label: "DISCOVERY", icon: "sparkle" }
 };
 
+const getCategoryLabel = (category: HintCategory, isTr: boolean): string => {
+  if (!isTr) return CATEGORY_META[category]?.label ?? CATEGORY_META.general.label;
+  switch (category) {
+    case "boating": return "DENİZCİLİK";
+    case "angling": return "BALIKÇILIK";
+    case "farming": return "TARIM";
+    case "weather": return "HAVA DURUMU";
+    case "general": return "KEŞİF";
+    default: return CATEGORY_META.general.label;
+  }
+};
+
 export function inferHintCategory(hintId: string): HintCategory {
   if (hintId.includes("boat") || hintId.includes("maritime") || hintId.includes("navigation")) return "boating";
   if (hintId.includes("fishing") || hintId.includes("cargo") || hintId.includes("angling")) return "angling";
@@ -65,6 +78,8 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
   captureEscape = true,
   className = ""
 }) => {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
   const [visible, setVisible] = useState(true);
   const [held, setHeld] = useState(false);
   const onDismissRef = useRef(onDismiss);
@@ -135,10 +150,10 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
       </div>
       <div className="hint-card-body">
         <div className="hint-card-meta-row">
-          <span className="hint-category-badge">{categoryMeta.label}</span>
+          <span className="hint-category-badge">{getCategoryLabel(resolvedCategory, isTr)}</span>
           <ChromeClose
             className="hint-card-close-btn"
-            label="Dismiss hint"
+            label={isTr ? "İpucunu kapat" : "Dismiss hint"}
             onClick={(e) => {
               e.stopPropagation();
               handleDismiss();

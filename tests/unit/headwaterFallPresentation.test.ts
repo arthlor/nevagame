@@ -11,10 +11,12 @@ import {
   HEADWATER_MIST_FRAGMENT_GLSL,
   HEADWATER_MIST_VERTEX_GLSL,
   HeadwaterFallMist,
+  createCascadeSprayGeometry,
   createHeadwaterMistGeometry
 } from "../../src/render/water/HeadwaterFallMist";
 import { createHeadwaterUniforms } from "../../src/render/water/waveGlsl";
 import { WATER_SURFACE_SHADING_GLSL } from "../../src/render/water/waterShadingGlsl";
+import { FacetedWater } from "../../src/render/water/FacetedWater";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 import { NEVA_HEADWATERS, headwaterElevationAt, isInHeadwaterFallBand } from "../../src/world/NevaHeadwaters";
 import { WorldLayout } from "../../src/world/WorldLayout";
@@ -184,6 +186,29 @@ describe("W07 headwater fall sheet", () => {
       .toBeCloseTo(WorldLayout.riverCenterX(NEVA_HEADWATERS.fall.landingZ), 6);
     expect(uniforms.uHeadwaterLandingXZ.value[1])
       .toBeCloseTo(NEVA_HEADWATERS.fall.landingZ, 6);
+  });
+
+  it("spans the falling sheet at impact and settles before the pool outlet", () => {
+    const water = new FacetedWater({ width: 12, depth: 12 });
+    try {
+      const boil = water.uniforms.uPlungeBoil.value as THREE.Vector4;
+      const rows = FALL_CONFIG.rows.high;
+      const landingRow = landingRowIndex(rows);
+      const landingX = WorldLayout.riverCenterX(FALL.landingZ);
+      const left = headwaterFallSheetPoint(landingRow, 0, rows, FALL_CONFIG.acrossSegments);
+      const right = headwaterFallSheetPoint(landingRow, FALL_CONFIG.acrossSegments, rows, FALL_CONFIG.acrossSegments);
+      expect(boil.x).toBeGreaterThan(landingX - left.x);
+      expect(boil.y).toBeGreaterThan(right.x - landingX);
+      expect(boil.z).toBeGreaterThan(NEVA_HEADWATERS.pool.centerZ - FALL.landingZ);
+      expect(boil.z).toBeLessThan(
+        NEVA_HEADWATERS.pool.centerZ + NEVA_HEADWATERS.pool.halfLengthMeters - FALL.landingZ
+      );
+      expect(boil.w).toBeGreaterThan(0.8);
+      expect(water.headwaterSurface.material.uniforms.uPlungeBoil).toBe(water.uniforms.uPlungeBoil);
+      expect(WATER_SURFACE_SHADING_GLSL).toContain("acrossBoil * downBoil");
+    } finally {
+      water.dispose();
+    }
   });
 
   it("advects and stretches streaks along the sheet arc instead of world Z", () => {
@@ -358,6 +383,27 @@ describe("W07 plunge-pool spray", () => {
     }
     expect(HEADWATER_MIST_FRAGMENT_GLSL).toContain("nevaAerialSegment");
     expect(HEADWATER_MIST_FRAGMENT_GLSL).toContain("linearToOutputTexel");
+  });
+
+  it("throws smaller spray at the foot of every cascade step, over the water", () => {
+    const cascade = FALL_CONFIG.mist.cascade;
+    const steps = NEVA_HEADWATERS.cascade.steps;
+    const geometry = createCascadeSprayGeometry("high");
+    try {
+      const position = geometry.getAttribute("position");
+      expect(position.count).toBe(cascade.perStep.high * steps.length * 6);
+      for (let index = 0; index < position.count; index += 1) {
+        const x = position.getX(index);
+        const z = position.getZ(index);
+        const step = steps.find((candidate) => z >= candidate.footZ && z <= candidate.footZ + 1.2);
+        expect(step, `puff ${index} at z ${z}`).toBeDefined();
+        expect(WorldLayout.isWater(x, z), `puff ${index}`).toBe(true);
+        expect(position.getY(index)).toBeGreaterThanOrEqual(headwaterElevationAt(step!.footZ + 0.3) - 1e-6);
+      }
+    } finally {
+      geometry.dispose();
+    }
+    expect(cascade.sizeMeters).toBeLessThan(FALL_CONFIG.mist.sizeMeters);
   });
 
   it("owns its geometry and material and clears its group on dispose", () => {

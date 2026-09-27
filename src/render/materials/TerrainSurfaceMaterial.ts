@@ -17,7 +17,7 @@ import {
 } from "./SurfaceFieldShader";
 import { bindMeadowColorUniforms, MEADOW_COLOR_FIELD_GLSL } from "../vegetation/MeadowColorField";
 
-export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v30-ground-regions";
+export const TERRAIN_SURFACE_PROGRAM_CACHE_KEY = "neva-terrain-surface-r174-v31-mountain-strata";
 export const TERRAIN_DETAIL_TEXTURE_SIZE = 128;
 export const TERRAIN_DETAIL_FACTOR_MIN = 0.94;
 export const TERRAIN_DETAIL_FACTOR_MAX = 1.06;
@@ -172,11 +172,13 @@ attribute float terrainPathBlend;
 attribute vec3 terrainShoreWeights;
 attribute float terrainFaceting;
 attribute float terrainDryClimate;
+attribute float terrainMountainStrata;
 varying float vTerrainGreenMask;
 varying float vTerrainPathBlend;
 varying vec3 vTerrainShoreWeights;
 varying float vTerrainFaceting;
 varying float vTerrainDryClimate;
+varying float vTerrainMountainStrata;
 varying vec3 vTerrainMeadowCarpet;
 varying vec3 vTerrainMeadowThatch;
 varying vec3 vTerrainWorldPosition;`,
@@ -191,7 +193,8 @@ vTerrainGreenMask = terrainGreenMask;
 vTerrainPathBlend = clamp(terrainPathBlend, 0.0, 1.0);
 vTerrainShoreWeights = clamp(terrainShoreWeights, 0.0, 1.0);
 vTerrainFaceting = clamp(terrainFaceting, 0.0, 1.0);
-vTerrainDryClimate = clamp(terrainDryClimate, 0.0, 1.0);`,
+vTerrainDryClimate = clamp(terrainDryClimate, 0.0, 1.0);
+vTerrainMountainStrata = clamp(terrainMountainStrata, 0.0, 1.0);`,
     "vertex"
   );
   shader.vertexShader = replaceShaderChunk(
@@ -229,6 +232,9 @@ uniform vec3 terrainCoastalWetSand;
 uniform vec3 terrainCoastalFoam;
 uniform vec3 terrainDryRidgeColor;
 uniform float terrainDryClimateColorMix;
+uniform float terrainMountainStrataPeriod;
+uniform float terrainMountainStrataWarp;
+uniform float terrainMountainStrataContrast;
 uniform sampler2D terrainDetailTexture;
 uniform sampler2D terrainLeafyGrassColorTexture;
 uniform sampler2D terrainLeafyGrassRoughnessTexture;
@@ -297,6 +303,7 @@ varying float vTerrainPathBlend;
 varying vec3 vTerrainShoreWeights;
 varying float vTerrainFaceting;
 varying float vTerrainDryClimate;
+varying float vTerrainMountainStrata;
 varying vec3 vTerrainMeadowCarpet;
 varying vec3 vTerrainMeadowThatch;
 varying vec3 vTerrainWorldPosition;
@@ -718,11 +725,23 @@ diffuseColor.rgb = mix(diffuseColor.rgb, terrainLivingSoil,
 float terrainMineralWarmth = mix(terrainLargeSignals.g * 0.62, 0.25, vTerrainDryClimate);
 vec3 terrainMineral = mix(terrainRegionalCliffColor, terrainWarmStoneColor, terrainMineralWarmth);
 terrainMineral *= mix(0.9, 1.08, terrainSmallSignals.g);
+// Mineral beds follow world height across the connected ridge. A broad lateral
+// warp avoids ruler-straight stripes on the exposed waterfall wall.
+float terrainStrataHeight = vTerrainWorldPosition.y
+  + terrainMountainStrataWarp * sin(vTerrainWorldPosition.x * 0.09 + vTerrainWorldPosition.z * 0.05);
+float terrainStrataPhase = fract(terrainStrataHeight / terrainMountainStrataPeriod);
+float terrainStrataBand = smoothstep(0.08, 0.17, terrainStrataPhase)
+  * (1.0 - smoothstep(0.3, 0.42, terrainStrataPhase));
+float terrainStrataFace = 1.0 - smoothstep(0.42, 0.8, abs(terrainFaceNormal.y));
+float terrainStrataMask = terrainStrataBand * terrainStrataFace * vTerrainMountainStrata;
 float terrainMossShelf = smoothstep(0.64, 0.94, abs(terrainFaceNormal.y))
   * terrainShelteredGround * (1.0 - vTerrainDryClimate) * terrainLargeSignals.b;
 terrainMineral = mix(terrainMineral, terrainPaletteOliveColor, terrainMossShelf * 0.28);
 diffuseColor.rgb = mix(diffuseColor.rgb, terrainMineral,
   nevaSurfaceCliffWeight() * terrainUnworkedLand * terrainExternalColorStrength);
+float terrainVisibleStrata = terrainStrataMask * nevaSurfaceCliffWeight() * terrainUnworkedLand;
+diffuseColor.rgb = mix(diffuseColor.rgb, terrainCliffColor, terrainVisibleStrata * 0.3);
+diffuseColor.rgb *= 1.0 - terrainMountainStrataContrast * terrainVisibleStrata;
 float terrainFaceValue = clamp(
   0.985 + terrainFaceNormal.x * 0.026 - terrainFaceNormal.z * 0.018,
   0.94,
@@ -885,6 +904,9 @@ export class TerrainSurfaceMaterial {
       terrainCoastalFoam: { value: new THREE.Color(PALETTE_HEX.foam_warm_01) },
       terrainDryRidgeColor: { value: new THREE.Color(PALETTE_HEX.stone_coastal_light_01) },
       terrainDryClimateColorMix: { value: config.dryClimateColorMix },
+      terrainMountainStrataPeriod: { value: config.mountainStrata.periodMeters },
+      terrainMountainStrataWarp: { value: config.mountainStrata.warpMeters },
+      terrainMountainStrataContrast: { value: config.mountainStrata.contrast },
       terrainDetailTexture: { value: this.detailTexture },
       terrainLeafyGrassColorTexture: { value: leafyGrassColorFallback },
       terrainLeafyGrassRoughnessTexture: { value: leafyGrassRoughnessFallback },

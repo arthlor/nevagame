@@ -1,3 +1,4 @@
+import { VILLAGE_TRADE_GOODS } from "./villageTrade";
 // src/content/markets.ts
 
 import { MarketDefinition } from "./types";
@@ -72,6 +73,7 @@ export const MARKETS: Record<string, MarketDefinition> = {
       { itemId: "seed.carrot", basePrice: 5, targetSupply: 45, consumptionRatePerHour: 4, seasonalFactors: {} },
       { itemId: "seed.flax", basePrice: 10, targetSupply: 30, consumptionRatePerHour: 3, seasonalFactors: {} },
       { itemId: "seed.apple_sapling", basePrice: 45, targetSupply: 12, consumptionRatePerHour: 1, seasonalFactors: {} },
+      { itemId: "produce.sunflower_seed", basePrice: 13, targetSupply: 35, consumptionRatePerHour: 2.5, seasonalFactors: { summer: 0.9, winter: 1.25 } },
       { itemId: "produce.wheat", basePrice: 8, targetSupply: 50, consumptionRatePerHour: 4, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
       { itemId: "produce.barley", basePrice: 10, targetSupply: 40, consumptionRatePerHour: 3, seasonalFactors: { autumn: 0.9, winter: 1.2 } },
       { itemId: "produce.corn", basePrice: 14, targetSupply: 30, consumptionRatePerHour: 2.5, seasonalFactors: { summer: 0.85, winter: 1.3 } },
@@ -332,3 +334,38 @@ Object.assign(MARKETS, {
     ]
   }
 } satisfies Record<string, MarketDefinition>);
+
+// Every village buys trade harvests. Existing local demand tuning is retained;
+// missing import lines use the same commodity owner as Neva's produce market.
+for (const [marketId, specialties] of Object.entries(VILLAGE_TRADE_GOODS)) {
+  const market = MARKETS[marketId];
+  market.acceptsFishTradePacks = true;
+  for (const commodity of MARKETS["market.village"].commodities.filter(row => row.itemId.startsWith("produce."))) {
+    if (!market.commodities.some(row => row.itemId === commodity.itemId)) market.commodities.push({ ...commodity, seasonalFactors: { ...commodity.seasonalFactors } });
+  }
+  market.retail.itemIds = [...new Set([...(market.retail.itemIds ?? []), ...specialties])];
+}
+
+// Finite regional shelves support packing and imports; intermediate recipes
+// remain useful for self-supply. Keep scarce durable inputs in their home trade.
+const packingSupplies: Record<string, Array<[string, number, number]>> = {
+  'market.village': [['item.ground_grain', 60, 5], ['item.meal_harvest_bowl', 16, 1.5], ['item.meal_orchard_tart', 12, 1]],
+  'market.pinewatch': [['item.oiled_canvas', 18, 1], ['item.tanned_leather', 30, 2]],
+  'market.reedhaven': [['item.salt_cured_fish', 32, 2], ['item.chum_rich', 25, 2], ['item.basic_lure', 30, 2]],
+  'market.highridge': [['item.brass_fittings', 36, 2], ['item.copper_sheet', 36, 2], ['item.tool_steel', 30, 1.5]],
+  'market.sunreach_cove': [['item.salt_cured_fish', 42, 3]]
+};
+for (const [marketId, supplies] of Object.entries(packingSupplies)) {
+  const market = MARKETS[marketId];
+  for (const [itemId, stock, recovery] of supplies) {
+    if (!market.commodities.some(row => row.itemId === itemId)) market.commodities.push(regionalCommodity(itemId, stock, recovery));
+    if (!market.retail.itemIds.includes(itemId)) market.retail.itemIds.push(itemId);
+  }
+}
+
+// The world prompt and every market transaction share the prefab-bound point.
+for (const market of Object.values(MARKETS)) {
+  const location = WORLD_MARKET_LOCATIONS[market.id];
+  market.interactionPosition = { get x() { return location.position.x; },
+    get z() { return location.position.z; }, radiusMeters: location.radiusMeters };
+}

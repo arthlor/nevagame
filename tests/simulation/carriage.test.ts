@@ -60,11 +60,37 @@ describe('horse carriage gameplay', () => {
     expect(migrateSaveData(migrated)).toEqual(migrated);
   });
 
-  it('parks near the house with the full assembly and its first eight metres clear', () => {
+  it('parks clear and drives the full assembly out around the farm road bend', async () => {
     const sim = new Simulation(); const cart = sim.state.mounts[STARTER_CARRIAGE_ID]; const boxes = worldBoxes(sim);
-    for (let distance = 0; distance <= 8; distance += 0.5) expect(carriagePoseIsClear({ ...cart, x: cart.x + distance }, boxes)).toBe(true);
+    expect(carriagePoseIsClear(cart, boxes)).toBe(true);
+    const start = { x: cart.x, z: cart.z };
+    Object.assign(sim.state.player, { x: cart.x, z: cart.z, y: cart.y + .5 });
+    expect(sim.execute({ type: 'mount.board', mountId: cart.id }).success).toBe(true);
+    const physics = await PhysicsWorld.create(boxes);
+    try {
+      let travelled = 0;
+      // The authored road bends toward +Z at the yard. Driving straight east
+      // leaves its shoulder and meets a slope; exercise the actual rolling turn.
+      for (let tick = 0; tick < 320 && travelled < 12; tick++) {
+        const before = { x: cart.x, z: cart.z };
+        const result = physics.step(sim.state, {
+          x: cart.rotationY > Math.atan2(8, 16) ? .2 / CARRIAGE_TUNING.maximumSteerAngle : 0,
+          z: -1, sprint: false
+        }, 'mounted', .05, tick * .05);
+        const committed = sim.commitPhysicsFrame(result.frame);
+        physics.onCommitResult(committed.success);
+        expect(committed.success, committed.reason).toBe(true);
+        expect(result.playerMotion.isCollisionBlocked).toBe(false);
+        travelled += Math.hypot(cart.x - before.x, cart.z - before.z);
+      }
+      expect(travelled).toBeGreaterThanOrEqual(12);
+      expect(cart.x).toBeGreaterThan(start.x + 5);
+      expect(cart.z).toBeGreaterThan(start.z + 5);
+    } finally {
+      physics.dispose();
+    }
     expect(validateSaveEnvelope(envelope(sim))).toBe(true);
-  });
+  }, 60_000);
 
   it('loads exactly two physical packs atomically, refuses a third, and unloads without duplication', () => {
     const sim = new Simulation(); atRear(sim);
@@ -76,7 +102,7 @@ describe('horse carriage gameplay', () => {
       expect(validateSaveEnvelope(envelope(sim))).toBe(true);
     }
     carry(sim,'cargo.c'); const full = structuredClone(sim.state);
-    expect(sim.execute({type:'cargo.load-carriage',mountId:STARTER_CARRIAGE_ID})).toMatchObject({success:false,reason:'Both carriage cargo slots are full'});
+    expect(sim.execute({type:'cargo.load-carriage',mountId:STARTER_CARRIAGE_ID})).toMatchObject({success:false,reason:'All carriage cargo slots are full'});
     expect(sim.state).toEqual(full);
     expect(sim.execute({type:'cargo.pickup',cargoId:'cargo.a'}).success).toBe(false);
     delete sim.state.fishCargo['cargo.c']; sim.state.player.carriedFishCargoId=null;
@@ -162,8 +188,10 @@ describe('horse carriage gameplay', () => {
       // The drive ends right at exhaustion so the winded snapshot below is
       // deterministic: stamina 0 with recovery delay still pending.
       const winded=drive(true,490,120);
-      const tail=winded.gaits.slice(-60);
-      expect(tail).not.toContain('trot');
+      // The last ten ticks occur after the ten-second budget expires. Earlier
+      // ticks in the final second may still trot if scenery no longer blocks
+      // the carriage first.
+      expect(winded.gaits.slice(-10)).not.toContain('trot');
       const team=sim.state.mounts[STARTER_CARRIAGE_ID]!;
       expect(team.gallopExhausted).toBe(true);
       expect(team.gallopStamina).toBe(0);

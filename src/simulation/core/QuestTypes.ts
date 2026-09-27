@@ -42,6 +42,7 @@ export const QUEST_OBJECTIVE_TYPES = [
   "board-boat",
   "dock-boat",
   "sell-item",
+  "sell-trade-pack",
   "sell-fish",
   "complete-contract",
   "apply-fertilizer",

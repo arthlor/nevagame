@@ -7,6 +7,7 @@ import { atlasForFish } from "../chrome/uiAtlas";
 import { ChromeButton, ChromeClose, ChromeQuality } from "../chrome/Chrome";
 import { GameSheet } from "../coastal/CoastalUI";
 import { playUiSound } from "../audio/uiAudio";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export { CatchSummaryToast, type CatchSummaryToastProps } from "./CatchSummaryToast";
 
@@ -17,10 +18,16 @@ export interface CatchInspectionModalProps {
   className?: string;
 }
 
-const RECORD_LABELS: Record<"first" | "weight" | "quality", { title: string; subtitle: string }> = {
+const RECORD_LABELS_EN: Record<"first" | "weight" | "quality", { title: string; subtitle: string }> = {
   first: { title: "A new discovery", subtitle: "Added to your almanac" },
   weight: { title: "Your heaviest yet", subtitle: "A new personal weight record" },
   quality: { title: "Your finest yet", subtitle: "A new personal quality record" }
+};
+
+const RECORD_LABELS_TR: Record<"first" | "weight" | "quality", { title: string; subtitle: string }> = {
+  first: { title: "Yeni bir keşif", subtitle: "Almanağına eklendi" },
+  weight: { title: "En ağır avın", subtitle: "Yeni kişisel ağırlık rekoru" },
+  quality: { title: "En kusursuz avın", subtitle: "Yeni kişisel kalite rekoru" }
 };
 
 export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
@@ -29,6 +36,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
   onOpenHoldOrSatchel,
   className = ""
 }) => {
+  const { locale, getLocalizedFish } = useTranslation();
   const modalRef = useRef<HTMLElement>(null);
   useModalAccessibility(modalRef, onDismiss);
   useEffect(() => { playUiSound("perfect"); }, []);
@@ -49,7 +57,8 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [onDismiss, onOpenHoldOrSatchel]);
 
-
+  const recordLabels = locale === "tr" ? RECORD_LABELS_TR : RECORD_LABELS_EN;
+  const speciesDisplayName = (locale === "tr" ? getLocalizedFish(catchData.speciesId).name : null) || catchData.speciesName;
 
   return (
     <div
@@ -73,20 +82,26 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
       >
         <header className="catch-modal-header">
           <div className="catch-celebration-title">
-            <span className="catch-celebration-subtitle">Coastal Sport Angling</span>
+            <span className="catch-celebration-subtitle">
+              {locale === "tr" ? "Kıyı Sportif Balıkçılığı" : "Coastal Sport Angling"}
+            </span>
             <strong id="catch-modal-title" className="catch-celebration-headline">
-              Catch landed
+              {locale === "tr" ? "Balık karaya çekildi" : "Catch landed"}
             </strong>
           </div>
-          <ChromeClose onClick={onDismiss} label="Close trophy inspection" className="catch-modal-close" />
+          <ChromeClose
+            onClick={onDismiss}
+            label={locale === "tr" ? "Kupa incelemesini kapat" : "Close trophy inspection"}
+            className="catch-modal-close"
+          />
         </header>
 
         {catchData.record && (
           <div className={`catch-record-banner record-${catchData.record}`} role="status">
             <span className="record-star-glyph"><IconSparkle size={13} /></span>
             <div className="record-text-group">
-              <strong className="record-title">{RECORD_LABELS[catchData.record].title}</strong>
-              <span className="record-subtitle">{RECORD_LABELS[catchData.record].subtitle}</span>
+              <strong className="record-title">{recordLabels[catchData.record].title}</strong>
+              <span className="record-subtitle">{recordLabels[catchData.record].subtitle}</span>
             </div>
             <span className="record-star-glyph"><IconSparkle size={13} /></span>
           </div>
@@ -95,11 +110,14 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
         <div className="catch-modal-body">
           <div className="catch-portrait-column">
             <div className="catch-portrait-frame">
-              <AtlasImage src={atlasForFish(catchData.speciesId)} alt={catchData.speciesName} size={96} />
+              <AtlasImage src={atlasForFish(catchData.speciesId)} alt={speciesDisplayName} size={96} />
               {!atlasForFish(catchData.speciesId) && <IconFish size={64} aria-hidden="true" />}
             </div>
             <div className="catch-quality-badge-row">
-              <span className="catch-stars" aria-label={`${catchData.qualityStars} out of 4 stars`}>
+              <span
+                className="catch-stars"
+                aria-label={locale === "tr" ? `4 yıldız üzerinden ${catchData.qualityStars} yıldız` : `${catchData.qualityStars} out of 4 stars`}
+              >
                 {Array.from({ length: 4 }, (_, index) => (
                   <IconStar
                     key={index}
@@ -111,34 +129,42 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
               </span>
               <ChromeQuality quality={catchData.quality} />
             </div>
-            <span className="catch-cargo-class">{`${catchData.cargoClass.toUpperCase()} CLASS`}</span>
+            <span className="catch-cargo-class">
+              {locale === "tr"
+                ? `${catchData.cargoClass.toUpperCase()} SINIFI`
+                : `${catchData.cargoClass.toUpperCase()} CLASS`}
+            </span>
           </div>
 
           <div className="catch-details-column">
-            <h3 className="catch-species-name">{catchData.speciesName}</h3>
+            <h3 className="catch-species-name">{speciesDisplayName}</h3>
 
             <dl className="catch-metrics-grid">
               <div className="catch-metric-tile">
-                <dt>Weight</dt>
+                <dt>{locale === "tr" ? "Ağırlık" : "Weight"}</dt>
                 <dd className="metric-weight">{`${catchData.weightKg.toFixed(2)} kg`}</dd>
               </div>
 
               <div className="catch-metric-tile">
-                <dt>Length</dt>
+                <dt>{locale === "tr" ? "Boy" : "Length"}</dt>
                 <dd className="metric-length">{`${catchData.lengthCm.toFixed(1)} cm`}</dd>
               </div>
 
               <div className="catch-metric-tile catch-metric-tile--freshness">
-                <dt>Freshness</dt>
+                <dt>{locale === "tr" ? "Tazelik" : "Freshness"}</dt>
                 <dd className={`metric-freshness freshness-${catchData.freshnessTone}`}>
                   <span className="freshness-value">{`${catchData.freshnessPercent}%`}</span>
-                  <small className="freshness-shelf">{`~${catchData.estimatedShelfLifeMinutes}m remaining`}</small>
+                  <small className="freshness-shelf">
+                    {locale === "tr"
+                      ? `~${catchData.estimatedShelfLifeMinutes} dk kaldı`
+                      : `~${catchData.estimatedShelfLifeMinutes}m remaining`}
+                  </small>
                 </dd>
               </div>
             </dl>
 
             <div className="catch-storage-box">
-              <span className="storage-destination-label">Storage:</span>
+              <span className="storage-destination-label">{locale === "tr" ? "Depo:" : "Storage:"}</span>
               <strong>{catchData.storageLocationLabel}</strong>
             </div>
           </div>
@@ -151,7 +177,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
               onClick={onOpenHoldOrSatchel}
               className="catch-inspect-hold-btn"
             >
-              Open Satchel <kbd className="catch-keycap">[I]</kbd>
+              {locale === "tr" ? "Heybeyi Aç" : "Open Satchel"} <kbd className="catch-keycap">[I]</kbd>
             </ChromeButton>
           )}
           <ChromeButton
@@ -159,7 +185,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
             onClick={onDismiss}
             className="catch-continue-btn"
           >
-            Back to the coast <kbd className="catch-keycap">[Space]</kbd>
+            {locale === "tr" ? "Kıyıya Dön" : "Back to the coast"} <kbd className="catch-keycap">[Space]</kbd>
           </ChromeButton>
         </footer>
       </GameSheet>

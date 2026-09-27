@@ -1,3 +1,4 @@
+import { mainlandBrookAt } from "../world/MainlandBrooks";
 import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "../world/WorldAnchors";
 import { WorldLayout } from "../world/WorldLayout";
 
@@ -12,6 +13,7 @@ export type FootstepBankId =
   | "donkey-trot";
 
 const DOCK_RADIUS_PADDING = 1.4;
+const BROOK_WADE_REACH_METERS = 1;
 const PACKED_ROAD_CORE = 0.86;
 
 const nearPoint = (x: number, z: number, px: number, pz: number, radius: number): boolean => {
@@ -47,7 +49,9 @@ export const footstepSurfaceAt = (x: number, z: number): FootstepSurface => {
   ) {
     return "dock";
   }
-  if (WorldLayout.isWater(x, z)) {
+  // Wading a mainland brook splashes; the drawn water wanders up to about a
+  // metre either side of its course's nominal width.
+  if (WorldLayout.isWater(x, z) || mainlandBrookAt(x, z, BROOK_WADE_REACH_METERS)) {
     return "water";
   }
   const terrainSurf = WorldLayout.terrainSurface(x, z);

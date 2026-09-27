@@ -2,6 +2,7 @@ import type { LaborHudDto } from "../../simulation/core/contracts";
 import { IconEnergy } from "../components/HudIcons";
 import { ChromeButton, ChromeKeycap } from "../chrome/Chrome";
 import { GameSheet } from "../coastal/CoastalUI";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface LaborMinigameWidgetProps {
   hud: LaborHudDto;
@@ -16,11 +17,15 @@ interface LaborMinigameWidgetProps {
  * straight from the HUD DTO, so the display cannot drift from the simulation.
  */
 export function LaborMinigameWidget({ hud, onStrike, onCancel }: LaborMinigameWidgetProps) {
+  const { locale, getLocalizedStationTitle } = useTranslation();
+  const isTr = locale === "tr";
+
   const meterPercent = Math.round(hud.meter * 100);
   const sweetLeft = Math.round(hud.targetMin * 100);
   const sweetWidth = Math.max(2, Math.round((hud.targetMax - hud.targetMin) * 100));
   const inSweet = hud.meter >= hud.targetMin && hud.meter <= hud.targetMax;
   const yieldPreview = Math.max(0, Math.round(hud.yield));
+  const stationTitle = (isTr ? getLocalizedStationTitle(hud.stationName) : null) || hud.stationName;
 
   return (
     <div className="labor-shift-container" data-testid="labor-minigame">
@@ -33,15 +38,15 @@ export function LaborMinigameWidget({ hud, onStrike, onCancel }: LaborMinigameWi
         <header className="labor-shift__header">
           <span className="labor-shift__title">
             <IconEnergy size={15} aria-hidden="true" />
-            {hud.stationName}
+            {stationTitle}
           </span>
           {yieldPreview > 0 && (
             <span
               className="labor-shift__reward"
-              title={`A clean strike earns ${yieldPreview} Work`}
+              title={isTr ? `Temiz bir vuruş ${yieldPreview} Emek kazandırır` : `A clean strike earns ${yieldPreview} Work`}
               data-testid="labor-shift-reward"
             >
-              {`+${yieldPreview} Work`}
+              {`+${yieldPreview} ${isTr ? "Emek" : "Work"}`}
             </span>
           )}
         </header>
@@ -55,8 +60,8 @@ export function LaborMinigameWidget({ hud, onStrike, onCancel }: LaborMinigameWi
           aria-valuenow={meterPercent}
           aria-valuetext={
             inSweet
-              ? `${meterPercent} percent — in the sweet spot`
-              : `${meterPercent} percent`
+              ? (isTr ? `%${meterPercent} — tam hedefte` : `${meterPercent} percent — in the sweet spot`)
+              : (isTr ? `%${meterPercent}` : `${meterPercent} percent`)
           }
         >
           <div className="labor-shift__track">
@@ -74,7 +79,9 @@ export function LaborMinigameWidget({ hud, onStrike, onCancel }: LaborMinigameWi
         </div>
 
         <p className="labor-shift__readout">
-          {inSweet ? "In the sweet spot — strike now" : "Line up the swing with the gold band"}
+          {inSweet
+            ? (isTr ? "Tam hedefte — şimdi vur" : "In the sweet spot — strike now")
+            : (isTr ? "Vuruşunu altın bantla hizala" : "Line up the swing with the gold band")}
         </p>
 
         <div className="labor-shift__actions">
@@ -84,10 +91,10 @@ export function LaborMinigameWidget({ hud, onStrike, onCancel }: LaborMinigameWi
             className="labor-shift__strike"
             onClick={onStrike}
           >
-            Strike <ChromeKeycap keyName="E" />
+            {isTr ? "Vur" : "Strike"} <ChromeKeycap keyName="E" />
           </ChromeButton>
           <ChromeButton variant="secondary" className="labor-shift__stop" onClick={onCancel}>
-            Stop
+            {isTr ? "Durdur" : "Stop"}
           </ChromeButton>
         </div>
       </GameSheet>

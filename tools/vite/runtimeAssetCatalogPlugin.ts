@@ -16,7 +16,8 @@ const REQUIRED_RUNTIME_ASSET_FIELDS = [
   "lod",
   "rootNode",
   "requiredNodes",
-  "readDistanceMeters"
+  "readDistanceMeters",
+  "dimensions"
 ] as const;
 const OPTIONAL_RUNTIME_ASSET_FIELDS = [
   "lodLevels",

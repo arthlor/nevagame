@@ -1,12 +1,13 @@
+import { FARM_PACK_DECAY_PER_MINUTE } from "../../content/farmPacks";
 // src/simulation/fishing/calculateFreshness.ts
 
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { InventoryManager } from "../inventory/InventoryManager";
-import { CarryLocationType, FishCargoState, GameState } from "../core/types";
+import { CarryLocationType, CargoState, GameState } from "../core/types";
 import { WorldLayout } from "../../world/WorldLayout";
 import { storageFacilityForStructure, storageInventoryId } from "../storage/storageFacilities";
 
-function cargoSupplyInventory(state: GameState, cargo: Pick<FishCargoState, "location">) {
+function cargoSupplyInventory(state: GameState, cargo: Pick<CargoState, "location">) {
   if (cargo.location.type === "player") {
     return state.inventories[state.player.inventoryId];
   }
@@ -21,7 +22,7 @@ function cargoSupplyInventory(state: GameState, cargo: Pick<FishCargoState, "loc
   return boat ? state.inventories[boat.supplyInventoryId] : undefined;
 }
 
-function cargoHasBuiltInIce(state: GameState, cargo: Pick<FishCargoState, "location">): boolean {
+function cargoHasBuiltInIce(state: GameState, cargo: Pick<CargoState, "location">): boolean {
   if (cargo.location.type !== "boat-hold" && cargo.location.type !== "boat-hook") return false;
   const boat = state.boats[cargo.location.containerId];
   if (!boat) return false;
@@ -70,7 +71,7 @@ export function getStorageFreshnessModifier(locationType: CarryLocationType, has
 }
 
 /** Inventory whose loose ice is actually cooling this cargo, or undefined if none / built-in. */
-export function resolveCargoIceInventory(state: GameState, cargo: Pick<FishCargoState, "location">) {
+export function resolveCargoIceInventory(state: GameState, cargo: Pick<CargoState, "location">) {
   if (cargo.location.type === "cold-storage") return undefined;
   if (cargoHasBuiltInIce(state, cargo)) return undefined;
   const supply = cargoSupplyInventory(state, cargo);
@@ -87,13 +88,13 @@ export function resolveCargoIceInventory(state: GameState, cargo: Pick<FishCargo
   return undefined;
 }
 
-export function resolveCargoHasIce(state: GameState, cargo: Pick<FishCargoState, "location">): boolean {
+export function resolveCargoHasIce(state: GameState, cargo: Pick<CargoState, "location">): boolean {
   if (cargo.location.type === "cold-storage") return false;
   if (cargoHasBuiltInIce(state, cargo)) return true;
   return resolveCargoIceInventory(state, cargo) !== undefined;
 }
 
-export function resolveCargoTemperatureC(state: GameState, cargo: FishCargoState): number {
+export function resolveCargoTemperatureC(state: GameState, cargo: CargoState): number {
   let holder: { x: number; z: number } = state.player;
   if (cargo.location.type === "boat-hold" || cargo.location.type === "boat-hook") {
     holder = state.boats[cargo.location.containerId] ?? holder;
@@ -137,12 +138,13 @@ export function advanceCargoFreshness(
     const minuteOfHour = ((currentMinute % 60) + 60) % 60;
     const untilHourBoundary = minuteOfHour === 0 ? 60 : 60 - minuteOfHour;
     const sliceMinutes = Math.min(minutes - elapsed, untilHourBoundary);
-    const activeCargos = cargos.filter((cargo) => cargo.freshness > 0 && ContentRegistry.fishSpecies.has(cargo.speciesId));
+    const activeCargos = cargos.filter((cargo) => cargo.freshness > 0 && (cargo.kind === "farm" || ContentRegistry.fishSpecies.has(cargo.speciesId)));
     const billedInventories = new Set<string>();
 
     for (const cargo of activeCargos) {
-      const speciesDef = ContentRegistry.fishSpecies.get(cargo.speciesId);
-      if (!speciesDef) continue;
+      const decayRate = cargo.kind === "farm" ? cargo.tradePack?.decayPerMinute ?? FARM_PACK_DECAY_PER_MINUTE
+        : ContentRegistry.fishSpecies.get(cargo.speciesId)?.baseDecayRatePerMinute;
+      if (decayRate === undefined || decayRate === 0) continue;
       const sliceStart = startMinute + elapsed;
       const sliceEnd = sliceStart + sliceMinutes;
       const decayMinutes = Math.max(0, sliceEnd - Math.max(sliceStart, cargo.caughtAtMinute));
@@ -156,7 +158,7 @@ export function advanceCargoFreshness(
         0,
         cargo.freshness - calculateFreshnessLoss(
           decayMinutes,
-          speciesDef.baseDecayRatePerMinute,
+          decayRate,
           cargo.location.type,
           resolveCargoHasIce(state, cargo),
           resolveCargoTemperatureC(state, cargo)

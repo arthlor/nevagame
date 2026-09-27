@@ -10,7 +10,7 @@ import {
   FarmId,
   BoatId,
   FishCargoId,
-  FishCargoState,
+  CargoState,
   CropQuality,
   FishSchoolId,
   FishSpeciesId,
@@ -63,7 +63,7 @@ import { buildPauseSummaryDto } from "./presentation/PausePresentation";
 import type { ExpeditionBoardDto } from "./expeditions/buildExpeditionOpportunities";
 import { InventoryManager } from "./inventory/InventoryManager";
 import { WorldLayout } from "../world/WorldLayout";
-import { HARBOR_DOCK } from "../world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "../world/WorldAnchors";
 import { STARTER_DONKEY_ID } from "./mounts/Mounts";
 import type {
   CropInspectionDto,
@@ -244,6 +244,8 @@ export class Simulation {
         return this.boardMount(command.mountId);
       case "mount.dismount":
         return this.dismountMount();
+      case "vehicle.purchase":
+        return this.navigationDomain.purchaseTradeVehicle(command.vehicleTypeId);
       case "boat.purchase-skiff":
         return this.purchaseSkiff();
       case "crop.plant":
@@ -608,6 +610,12 @@ export class Simulation {
     this.state.player.money += amount;
   }
 
+  /** Development-only Work capacity refill to maximum pool ceiling. */
+  public refillDebugWork(): void {
+    if (!this.allowDebugCommands) return;
+    this.progressionDomain.refillDebugWork();
+  }
+
   /** Development-only relocate for in-game layout editing. Not a schema migration. */
   public debugRelocateStructure(
     id: string,
@@ -615,6 +623,7 @@ export class Simulation {
     z: number,
     rotationY?: number
   ): boolean {
+    if (!this.allowDebugCommands) return false;
     const structure = this.state.world.structures[id];
     if (!structure) return false;
     this.state.world.structures[id] = {
@@ -625,6 +634,21 @@ export class Simulation {
       rotationY: rotationY ?? structure.rotationY
     };
     return true;
+  }
+
+  /** DEV source editing moves berthed hulls only; free-sailing boats remain simulation-owned. */
+  public debugRelocateMooredBoats(from: { x: number; z: number }, to: { x: number; z: number }, yawDelta: number): void {
+    if (!this.allowDebugCommands) return;
+    for (const boat of Object.values(this.state.boats)) {
+      if (!boat.isDocked || Math.hypot(boat.x - from.x, boat.z - from.z) > 0.5) continue;
+      boat.headingRadians += yawDelta;
+      boat.x += to.x - from.x;
+      boat.z += to.z - from.z;
+      if (this.state.player.activeBoatId === boat.id) {
+        this.state.player.x += to.x - from.x;
+        this.state.player.z += to.z - from.z;
+      }
+    }
   }
 
   /** Development-only weather override that keeps the complete profile coherent. */
@@ -926,6 +950,8 @@ export class Simulation {
     return this.navigationDomain.dockActiveBoat();
   }
 
+  public inspectTradeVehicle(typeId: string) { return this.navigationDomain.inspectTradeVehicle(typeId); }
+
   public purchaseSkiff(): { success: boolean; reason?: string; cost?: number } {
     return this.navigationDomain.purchaseSkiff();
   }
@@ -935,9 +961,8 @@ export class Simulation {
     this.state.player.proficiencies.fishing = Math.max(this.state.player.proficiencies.fishing, 15000);
     this.state.player.money = Math.max(this.state.player.money, 1200);
     this.setDebugPlayerPose({
-      x: 86,
-      y: WorldLayout.traversalSurfaceHeight(86, 69) + 0.5,
-      z: 69,
+      ...HARBOR_SKIFF_MOORING.playerPosition,
+      y: WorldLayout.traversalSurfaceHeight(HARBOR_SKIFF_MOORING.playerPosition.x, HARBOR_SKIFF_MOORING.playerPosition.z) + 0.5,
       rotationY: 0
     });
     return this.purchaseSkiff().success;
@@ -967,7 +992,7 @@ export class Simulation {
     });
   }
 
-  public canAccessFishCargo(cargo: FishCargoState, marketId?: MarketId): boolean {
+  public canAccessFishCargo(cargo: CargoState, marketId?: MarketId): boolean {
     return this.navigationDomain.canAccessFishCargo(cargo, marketId);
   }
 

@@ -5,6 +5,7 @@ import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForSeedItem } from "../chrome/uiAtlas";
 import { ChromeButton } from "../chrome/Chrome";
 import { GameSheet, ItemSlot, KeyHint, Notice } from "../coastal/CoastalUI";
+import { useTranslation } from "../../i18n/useTranslation";
 
 export interface PlantingSeedBarProps {
   seedBelt: SeedBeltDto;
@@ -14,6 +15,13 @@ export interface PlantingSeedBarProps {
   currentSeason?: string;
   className?: string;
 }
+
+const SEASON_TR: Record<string, string> = {
+  spring: "İlkbahar",
+  summer: "Yaz",
+  autumn: "Sonbahar",
+  winter: "Kış"
+};
 
 /** Resolve both browser key values and the physical digit code used by tests/controllers. */
 export function plantingSeedHotkeyIndex(event: Pick<KeyboardEvent, "key" | "code">): number | null {
@@ -31,6 +39,9 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
   currentSeason = "spring",
   className = ""
 }) => {
+  const { locale, getLocalizedCrop } = useTranslation();
+  const isTr = locale === "tr";
+
   const availableSeeds = seedBelt.seeds;
   const selectedCrop = availableSeeds.find((seed) => seed.cropId === selectedCropId) ?? availableSeeds[0];
   const availableSeedsRef = useRef(availableSeeds);
@@ -68,29 +79,35 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
 
   if (availableSeeds.length === 0) {
     return (
-      <div className={`planting-dock interactive ${className}`.trim()} aria-label="No seeds">
+      <div className={`planting-dock interactive ${className}`.trim()} aria-label={isTr ? "Tohum yok" : "No seeds"}>
         <GameSheet family="ink" tone="slate" corners className="planting-dock-shell planting-dock-empty">
           <Notice urgency="caution" className="planting-no-seeds" data-testid="planting-empty">
-            No seeds in the satchel.
+            {isTr ? "Heybede hiç tohum yok." : "No seeds in the satchel."}
           </Notice>
-          <ChromeButton onClick={onCancel}>Cancel planting</ChromeButton>
+          <ChromeButton onClick={onCancel}>
+            {isTr ? "Ekimden vazgeç" : "Cancel planting"}
+          </ChromeButton>
         </GameSheet>
       </div>
     );
   }
 
+  const seasonDisplay = isTr ? (SEASON_TR[currentSeason.toLowerCase()] ?? currentSeason) : currentSeason;
+
   return (
     <div
       className={`planting-dock interactive ${className}`.trim()}
       role="toolbar"
-      aria-label="Choose a seed to plant"
+      aria-label={isTr ? "Ekmek için bir tohum seçin" : "Choose a seed to plant"}
       data-testid="planting-seed-dock"
     >
       <GameSheet family="ink" tone="slate" corners className="planting-dock-shell">
         <div className="planting-dock-header-row">
-          <span className="planting-dock-title"><IconSprout size={13} aria-hidden="true" /> Seed Belt</span>
+          <span className="planting-dock-title">
+            <IconSprout size={13} aria-hidden="true" /> {isTr ? "Tohum Kemeri" : "Seed Belt"}
+          </span>
           <span className="planting-current-season-badge">
-            Season: <strong>{currentSeason}</strong>
+            {isTr ? <>Mevsim: <strong>{seasonDisplay}</strong></> : <>Season: <strong>{currentSeason}</strong></>}
           </span>
         </div>
 
@@ -98,6 +115,7 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
           {availableSeeds.map((seed, index) => {
             const isSelected = selectedCrop?.cropId === seed.cropId;
             const hotkey = index < 9 ? `${index + 1}` : null;
+            const localizedName = (isTr ? getLocalizedCrop(seed.cropId).name : null) || seed.name;
 
             return (
               <div key={seed.cropId} className="planting-seed-item-wrapper">
@@ -108,8 +126,8 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
                   className={`planting-seed-card ${isSelected ? "is-selected" : ""}`}
                   soundCue="cloth"
                   onSelect={() => onSelectCrop(seed.cropId)}
-                  label={`${seed.name}, ${seed.count} seeds${hotkey ? `, hotkey ${hotkey}` : ""}`}
-                  title={`${seed.name} (${seed.count})${hotkey ? ` [${hotkey}]` : ""}`}
+                  label={`${localizedName}, ${seed.count} ${isTr ? "tohum" : "seeds"}${hotkey ? `, hotkey ${hotkey}` : ""}`}
+                  title={`${localizedName} (${seed.count})${hotkey ? ` [${hotkey}]` : ""}`}
                 >
                   {hotkey && (
                     <span className="seed-hotkey-badge" aria-hidden="true">
@@ -123,11 +141,11 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
           })}
 
           <div className="planting-dock-actions">
-            <ChromeButton onClick={onCancel} title="Cancel Planting (ESC)">
-              Cancel
+            <ChromeButton onClick={onCancel} title={isTr ? "Ekimden Vazgeç (ESC)" : "Cancel Planting (ESC)"}>
+              {isTr ? "Vazgeç" : "Cancel"}
             </ChromeButton>
             <span className="planting-hint-chip">
-              <KeyHint keyName="LMB" /> Place
+              <KeyHint keyName="LMB" /> {isTr ? "Yerleştir" : "Place"}
             </span>
           </div>
         </div>
@@ -135,12 +153,14 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
         {selectedCrop && (
           <footer className="planting-dock-meta">
             <div className="planting-meta-left">
-              <strong className="meta-value selected-crop-name">{selectedCrop.name}</strong>
+              <strong className="meta-value selected-crop-name">
+                {(isTr ? getLocalizedCrop(selectedCrop.cropId).name : null) || selectedCrop.name}
+              </strong>
             </div>
 
             <div className="planting-meta-right">
               <span className="meta-soil-hint">
-                <IconSprout size={12} aria-hidden="true" /> Thrives in {selectedCrop.preferredClimates.map((climate) => climate.replace(/^climate\./, "").replace(/[-_]/g, " ")).join(", ") || "any climate"}
+                <IconSprout size={12} aria-hidden="true" /> {isTr ? "Sevdiği iklim:" : "Thrives in"} {selectedCrop.preferredClimates.map((climate) => climate.replace(/^climate\./, "").replace(/[-_]/g, " ")).join(", ") || (isTr ? "herhangi bir iklim" : "any climate")}
               </span>
             </div>
           </footer>
