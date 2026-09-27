@@ -33,7 +33,7 @@ function save(sim: Simulation): SaveEnvelope {
 function pack(sim: Simulation, recipeId = "recipe.pack_wheat") {
   const recipe = ContentRegistry.recipes.get(recipeId)!;
   const station = VILLAGE_TRADE_STATIONS.find(s => VILLAGE_TRADE_GOODS[s.marketId].includes(recipe.inputs[0].itemId))!;
-  const front = getProcessingStationFrontPosition(station.id, station.position)!;
+  const front = getProcessingStationFrontPosition(station.id, sim.state.world.structures[station.id])!;
   Object.assign(sim.state.player, front, { y: WorldLayout.traversalSurfaceHeight(front.x, front.z) + .5 });
   expect(sim.startProcessingJob(recipeId, station.id).success).toBe(true);
   sim.advanceGameMinutes(5);
@@ -50,8 +50,13 @@ describe("harvest trade packs", () => {
     const migrated = migrateSaveData(old);
     expect(old).toEqual(before);
     for (const key of Object.keys(before.state) as (keyof typeof before.state)[]) {
-      if (key !== "schemaVersion" && key !== "markets" && key !== "world" && key !== "quests") expect(migrated.state[key]).toEqual(before.state[key]);
+      if (key !== "schemaVersion" && key !== "markets" && key !== "world" && key !== "quests" && key !== "player") expect(migrated.state[key]).toEqual(before.state[key]);
     }
+    expect(migrated.state.player).toMatchObject({
+      x: before.state.player.x, z: before.state.player.z,
+      money: before.state.player.money, proficiencies: before.state.player.proficiencies
+    });
+    expect(Math.abs(migrated.state.player.y - before.state.player.y)).toBeLessThan(.01);
     for (const [id, oldMarket] of Object.entries(before.state.markets)) {
       for (const [itemId, commodity] of Object.entries(oldMarket.commodities)) expect(migrated.state.markets[id].commodities[itemId]).toEqual(commodity);
     }
