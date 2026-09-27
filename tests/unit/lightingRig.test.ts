@@ -82,6 +82,43 @@ describe("LightingRig", () => {
     expect(renderer.shadowMap.needsUpdate).toBe(true);
   });
 
+  it("scales the time/weather exposure at its single write and rebinds a replaced shadowMap", () => {
+    const originalRender = () => undefined;
+    const restoredRender = () => undefined;
+    const renderer = {
+      shadowMap: {
+        autoUpdate: true,
+        enabled: false,
+        type: THREE.PCFSoftShadowMap,
+        needsUpdate: false,
+        render: originalRender
+      },
+      toneMappingExposure: 1
+    } as unknown as THREE.WebGLRenderer;
+    const rig = new LightingRig(new THREE.Scene(), renderer);
+    const state = createInitialGameState(42);
+    const focus = new THREE.Vector3(4, 0.5, -6);
+    const frame = rig.update(state, 0, focus);
+    expect(renderer.toneMappingExposure).toBeCloseTo(frame.exposure, 6);
+
+    const bounds = CANONICAL_RENDER_CONFIG.postProcessing.brightness;
+    rig.setExposureScale(9);
+    expect(renderer.toneMappingExposure).toBeCloseTo(frame.exposure * bounds.max, 6);
+    const scaled = rig.update(state, 0.016, focus);
+    expect(renderer.toneMappingExposure).toBeCloseTo(scaled.exposure * bounds.max, 6);
+
+    renderer.shadowMap = {
+      autoUpdate: true,
+      enabled: false,
+      type: THREE.PCFSoftShadowMap,
+      needsUpdate: false,
+      render: restoredRender
+    } as typeof renderer.shadowMap;
+    rig.reattachAfterContextRestore();
+    expect(renderer.shadowMap.render).not.toBe(restoredRender);
+    expect(renderer.shadowMap.autoUpdate).toBe(false);
+  });
+
   it("derives stable time-of-day light from simulation inputs", () => {
     const state = createInitialGameState(42);
     const first = deriveLightingFrame(state, 12);

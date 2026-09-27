@@ -30,22 +30,38 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     objectives: { "step.tradecraft.overseas.make": { description: "Sunreach’te bir ihracat sepeti hazırla." }, "step.tradecraft.overseas.deliver": { description: "Sunreach ihracat sepetini Neva’da sat." } }
   },
 
+  "quest.caravan_first_stamp": {
+    actTitle: "Köyler Arası Ticaret", questTitle: "İlk Damga",
+    introDialogue: [
+      "Açık tahıl manav tezgâhına gider. Bağlı ticaret paketi ise köyün paketleme avlusunda hazırlanır ve varış tezgâhına elden taşınır.",
+      "On buğdayı mutfağa değil, Neva’nın paketleme avlusuna götür. Bir paket hazırlayıp önce burada, Neva’da sat. Kısa yol teslimi öğretir; sonra uzun yolun getirdiği fiyat farkına bakarız."
+    ],
+    completionDialogue: [
+      "Tezgâh on avuç açık buğdayı değil, bağlı paketi aldı. Damgası yükün Neva’da hazırlandığını söylüyor.",
+      "Şimdi aynı yükü tahıla ihtiyacı olan köye götür. Yol, geçen zaman ve alıcının ambarı fiyatı değiştirecek."
+    ],
+    objectives: {
+      "step.caravan.first_stamp.pack": { description: "Neva Paketleme Avlusu’nda bir buğday paketi hazırla." },
+      "step.caravan.first_stamp.sell": { description: "Buğday paketini Neva Ticaret Tezgâhı’na taşıyıp sat." }
+    }
+  },
   "quest.caravan_first_load": {
     "actTitle": "Köyler Arası Ticaret",
-    "questTitle": "Paketleme Avlusu",
+    "questTitle": "Pinewatch’a Ekmeklik Tahıl",
     "introDialogue": [
-      "Mutfak yemek içindir. Ticaret paketleri köylerin tezgâhlarında hazırlanır; her köyün kendine has ürünleri var.",
-      "On buğdayla Neva tezgâhına git. Varış yerlerinin fiyatlarına bak, bir paket hazırla ve Pinewatch’a götür. Büyük yük arabaları, meydanın doğusundaki arabacı atölyesinde."
+      "Pinewatch’ta keten, elma ve kereste var. Hiçbiri ekmek olmaz. Rowan fırınlar için Neva tahılı bekliyor.",
+      "On buğdayı avlumuzda paketleyip Pinewatch tezgâhında sat. Teklifi Neva’daki satışınla karşılaştır, sonra kereste avlusunda Rowan’la konuş."
     ],
     "completionDialogue": [
-      "Yol uzadıkça kazancın artar. Yola çıkmadan önce alıcının talebine bak."
+      "Buğday fırının listesine girdi. Neva damgası, ilk ekmek pişmeden önce tahılın nereden geldiğini gösteriyor.",
+      "Tahıl buraya gelirken bizim ketenle elma da yola çıkabilir. Gel, sonraki yolu göstereyim."
     ],
     "objectives": {
       "step.caravan.struct.trade_neva.pack": {
-        "description": "Neva ticaret tezgâhında bir buğday paketi hazırla."
+        "description": "Neva’da bir buğday ticaret paketi hazırla."
       },
       "step.caravan.market.pinewatch.produce.wheat": {
-        "description": "Buğday paketini Pinewatch tezgâhında sat."
+        "description": "Neva buğday paketini Pinewatch Ticaret Tezgâhı’nda sat."
       }
     }
   },
