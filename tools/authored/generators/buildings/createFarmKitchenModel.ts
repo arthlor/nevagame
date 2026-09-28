@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { SurfaceBuilder, addCollisionMarkers, mulberry32, type AuthoredModel, type GeneratorContext, type V3 } from "../../kit";
+import { SurfaceBuilder, addCollisionMarkers, addMarker, mulberry32, type AuthoredModel, type GeneratorContext, type V3 } from "../../kit";
 import { rope, timber } from "../props/parts";
 
 /**
@@ -1126,6 +1126,7 @@ export function createFarmKitchenModel(context: GeneratorContext): AuthoredModel
   // FINALIZE & EXPORT MODEL
   // ===============================================================================================
   root.add(surface.buildMesh(`${ID}_mesh`));
+  addMarker(`${ID}_output_surface`, [tableX, tableH, tableZ + tableD * 0.32], "socket", root);
   addCollisionMarkers(spec, root);
   return { root, clips: [] };
 }

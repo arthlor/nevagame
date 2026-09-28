@@ -18,7 +18,7 @@ async function load(file: string) {
 }
 
 // @ts-expect-error The CLI verifier is an ES module shared with Node pipeline tests.
-import { nativeNpcContract } from "../../tools/blender/native_npc_contract.mjs";
+import { nativeNpcContract } from "../../tools/art/native_npc_contract.mjs";
 
 const native = catalog.assets.filter(a => a.id.startsWith("char_npc_") && !a.id.endsWith("_a"));
 describe("catalog NPC cast and ambient boat crews", () => {

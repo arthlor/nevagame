@@ -317,6 +317,7 @@ export const ASSET_IDS = {
   PROP_SALT_PANS_A: "prop_salt_pans_a",
   PROP_TIMBER_STACK_A: "prop_timber_stack_a",
   PROP_CULVERT_HEADWALL_A: "prop_culvert_headwall_a",
+  PROP_MILESTONE_A: "prop_milestone_a",
   STATION_TIMBER_SAWBUCK_A: "station_timber_sawbuck_a",
   PROP_MERCHANT_CARRIAGE_4_A: "prop_merchant_carriage_4_a",
   PROP_MERCHANT_CARRIAGE_6_A: "prop_merchant_carriage_6_a",
@@ -347,6 +348,7 @@ export const ASSET_IDS = {
   CHAR_NPC_MARA_B: "char_npc_mara_b",
   CHAR_NPC_ROWAN_B: "char_npc_rowan_b",
   CHAR_NPC_SILAS_B: "char_npc_silas_b",
+  PROP_COMPOST_OUTPUT_A: "prop_compost_output_a",
 } as const;
 
 export type AssetId = (typeof ASSET_IDS)[keyof typeof ASSET_IDS];
@@ -635,6 +637,7 @@ export const ASSET_IDS_BY_FAMILY = {
     ASSET_IDS.PROP_SALT_PANS_A,
     ASSET_IDS.PROP_TIMBER_STACK_A,
     ASSET_IDS.PROP_CULVERT_HEADWALL_A,
+    ASSET_IDS.PROP_MILESTONE_A,
     ASSET_IDS.STATION_TIMBER_SAWBUCK_A,
     ASSET_IDS.PROP_MERCHANT_CARRIAGE_4_A,
     ASSET_IDS.PROP_MERCHANT_CARRIAGE_6_A,
@@ -647,6 +650,7 @@ export const ASSET_IDS_BY_FAMILY = {
     ASSET_IDS.PROP_TRADE_PACK_TEXTILES_A,
     ASSET_IDS.PROP_TRADE_PACK_WORKSHOP_A,
     ASSET_IDS.PROP_TRADE_PACK_MARITIME_A,
+    ASSET_IDS.PROP_COMPOST_OUTPUT_A,
   ],
   "rock": [
     ASSET_IDS.ROCK_RIVER_BOULDER_A,

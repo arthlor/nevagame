@@ -4,6 +4,7 @@ import { createLighthouseModel, createWindmillModel } from "./buildings/createCo
 import { createStoneBridgeModel } from "./buildings/createStoneBridgeModel";
 import { createCoastalHutModel, createIceHouseModel, createToolShedModel } from "./buildings/createWorkingHuts";
 import { createCottageModel, createFarmhouseModel } from "./buildings/createVillageHomes";
+import { createInteriorFarmhouseShellModel } from "./buildings/createInteriorFarmhouseShell";
 import { createStoneModel, createRoundBushModel, createReedsModel } from "./environment/stoneAndFoliage";
 import { createFernModel, createReedBedModel, createRiverBoulderModel, createWillowShrubModel } from "./environment/riverside";
 import { createMerchantCarriageModel } from "./props/createMerchantCarriageModel";
@@ -45,7 +46,7 @@ import { createCargoCrateLargeModel, createCargoSackModel, createDockLanternMode
 import { createCoralPillarModel, createCoralStaghornModel, createCoralTableModel } from "./props/reef";
 import { createMineAditModel, createSaltPansModel, createTimberStackModel } from "./props/industry";
 import { createTimberSawbuckModel } from "./props/createTimberSawbuckModel";
-import { createCulvertHeadwallModel } from "./props/roadworks";
+import { createCulvertHeadwallModel, createRoadMilestoneModel } from "./props/roadworks";
 import { createDriftwoodClusterModel, createDriftwoodLogModel, createFallenLogModel } from "./props/shore";
 import { createCraftingJobPropModel } from "./tools/createCraftingJobPropModel";
 import { createCropBundleModel } from "./tools/createCropBundleModel";
@@ -67,6 +68,7 @@ import { createWateringCanModel } from "./tools/createWateringCanModel";
  */
 export const AUTHORED_GENERATORS: Readonly<Record<string, AuthoredGenerator>> = {
   farmhouse: createFarmhouseModel,
+  interior_farmhouse_shell: createInteriorFarmhouseShellModel,
   cottage: createCottageModel,
   coastal_hut: createCoastalHutModel,
   working_dock: createWorkingDockModel,
@@ -159,5 +161,6 @@ export const AUTHORED_GENERATORS: Readonly<Record<string, AuthoredGenerator>> = 
   salt_pans: createSaltPansModel,
   timber_stack: createTimberStackModel,
   timber_sawbuck: createTimberSawbuckModel,
-  culvert_headwall: createCulvertHeadwallModel
+  culvert_headwall: createCulvertHeadwallModel,
+  road_milestone: createRoadMilestoneModel
 };

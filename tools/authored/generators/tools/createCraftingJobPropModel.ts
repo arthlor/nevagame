@@ -22,6 +22,10 @@ export function createCraftingJobPropModel(context: GeneratorContext): AuthoredM
   const style = String(context.parameters.style);
   const root = new THREE.Group();
   root.name = `${ID}_root`;
+  if (style === "worms") {
+    compostOutput(root, context);
+    return { root, clips: [] };
+  }
   addGripMarker("tool_primary_grip", [0.04, 0, 0], [0, 0, -1], [-1, 0, 0], root);
   const surface = new SurfaceBuilder(context.spec.palette);
   if (style === "tailor") tailorShears(surface);
@@ -30,6 +34,36 @@ export function createCraftingJobPropModel(context: GeneratorContext): AuthoredM
   else throw new Error(`${ID}: unknown crafting prop style ${style}`);
   root.add(surface.buildMesh(`${ID}_mesh`));
   return { root, clips: [] };
+}
+
+/** A shallow sorting tray with exposed bait worms, placed on the completed bin. */
+function compostOutput(root: THREE.Group, context: GeneratorContext): void {
+  const tray = new SurfaceBuilder(context.spec.palette);
+  const WOOD = 0, SOIL = 1, WORM = 2;
+  tray.addBox([-0.34, 0.025, 0], [0.34, 0.025, 0], [0.205, 0.025], { ref: [0, 1, 0], token: WOOD, bevel: 0.008 });
+  for (const z of [-0.21, 0.21]) {
+    tray.addBox([-0.35, 0.08, z], [0.35, 0.08, z], [0.02, 0.065], { ref: [0, 1, 0], token: WOOD, bevel: 0.007 });
+  }
+  for (const x of [-0.34, 0.34]) {
+    tray.addBox([x, 0.08, -0.2], [x, 0.08, 0.2], [0.022, 0.065], { ref: [0, 1, 0], token: WOOD, bevel: 0.006 });
+  }
+  tray.addPanel({ cols: 6, rows: 4, thickness: 0.025,
+    point: (u, v) => new THREE.Vector3((u - 0.5) * 0.63, 0.092 + 0.012 * Math.sin(u * 12 + v * 8), (v - 0.5) * 0.37),
+    token: () => SOIL, shade: (u, v) => 0.84 + 0.12 * Math.sin(u * 9 + v * 13) ** 2
+  });
+  root.add(tray.buildMesh(`${context.spec.id}_tray`));
+  const worms = new SurfaceBuilder(context.spec.palette);
+  for (let worm = 0; worm < 4; worm++) {
+    const x = -0.24 + worm * 0.155;
+    worms.addLoft(Array.from({ length: 13 }, (_, i): Station => {
+      const t = i / 12;
+      const radius = 0.023 * (0.4 + 0.6 * Math.sin(Math.PI * t) ** 0.5);
+      return { p: [x + Math.sin(t * Math.PI * 1.7 + worm) * 0.043, 0.125 + Math.sin(t * Math.PI) * 0.012, -0.14 + t * 0.28], w: radius, h: radius };
+    }), { sides: 7, ref: [1, 0, 0], capStart: 0.3, capEnd: 0.3, token: WORM,
+      shade: ({ u }) => Math.floor(u) % 2 ? 0.86 : 1
+    });
+  }
+  root.add(worms.buildMesh(`${context.spec.id}_worms`));
 }
 
 function tailorShears(surface: SurfaceBuilder): void {

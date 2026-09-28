@@ -114,8 +114,90 @@ export async function optimizeAsset(source, destination, spec = {}, options = {}
 }
 
 /**
+ * Exporters such as Tripo's give every animation sampler accessor a buffer view of its own. Each
+ * view then carries its own JSON record and Meshopt stream, which cost more than a short track's
+ * keyframes (a character's JSON outweighed its geometry). Views that only animation accessors read,
+ * without a stride, are concatenated per element size into one view; each accessor keeps its type,
+ * count and bytes and only gains an offset into the shared view. Any other view, and any document
+ * that references buffer views from somewhere this does not rewrite, is left as it is.
+ */
+function mergeAnimationBufferViews(json, binary, componentBytes, components) {
+  const views = json.bufferViews ?? [];
+  const accessors = json.accessors ?? [];
+  const animationAccessors = new Set((json.animations ?? [])
+    .flatMap((animation) => animation.samplers.flatMap((sampler) => [sampler.input, sampler.output])));
+  if (!animationAccessors.size) return binary;
+  // Only accessors and images reference buffer views in the documents this packages.
+  const elsewhere = { ...json };
+  delete elsewhere.accessors;
+  delete elsewhere.images;
+  delete elsewhere.bufferViews;
+  if (JSON.stringify(elsewhere).includes("\"bufferView\"") || accessors.some((accessor) => accessor.sparse)) return binary;
+  const readers = views.map(() => []);
+  for (const [index, accessor] of accessors.entries()) if (accessor.bufferView !== undefined) readers[accessor.bufferView].push(index);
+  const imageViews = new Set((json.images ?? []).map((image) => image.bufferView).filter((view) => view !== undefined));
+  const strideOf = (viewIndex) => {
+    const view = views[viewIndex];
+    const readersOfView = readers[viewIndex];
+    if (!readersOfView.length || imageViews.has(viewIndex) || view.buffer !== 0 || view.byteStride !== undefined
+      || view.extensions || view.target !== undefined || !readersOfView.every((index) => animationAccessors.has(index))) return 0;
+    const sizes = new Set(readersOfView.map((index) => componentBytes[accessors[index].componentType] * components[accessors[index].type]));
+    const [stride] = sizes;
+    return sizes.size === 1 && stride % 4 === 0 && stride <= 256 && view.byteLength % stride === 0 ? stride : 0;
+  };
+  const strides = views.map((_, index) => strideOf(index));
+  const groups = new Map();
+  strides.forEach((stride, index) => { if (stride) groups.set(stride, [...(groups.get(stride) ?? []), index]); });
+  if (![...groups.values()].some((members) => members.length > 1)) return binary;
+
+  const chunks = [];
+  let total = 0;
+  const place = (bytes) => {
+    const offset = total;
+    chunks.push(bytes);
+    const padding = (4 - bytes.length % 4) % 4;
+    if (padding) chunks.push(Buffer.alloc(padding));
+    total += bytes.length + padding;
+    return offset;
+  };
+  const merged = [];
+  const remap = new Map();
+  for (const [index, view] of views.entries()) {
+    const stride = strides[index];
+    const members = stride ? groups.get(stride) : null;
+    if (members && members[0] !== index) continue;
+    const newIndex = merged.length;
+    if (!members) {
+      const offset = view.byteOffset ?? 0;
+      merged.push({ ...view, byteOffset: place(binary.subarray(offset, offset + view.byteLength)) });
+      remap.set(index, { view: newIndex, shift: 0 });
+      continue;
+    }
+    let length = 0;
+    const parts = members.map((member) => {
+      const offset = views[member].byteOffset ?? 0;
+      remap.set(member, { view: newIndex, shift: length });
+      length += views[member].byteLength;
+      return binary.subarray(offset, offset + views[member].byteLength);
+    });
+    merged.push({ buffer: 0, byteLength: length, byteOffset: place(Buffer.concat(parts)) });
+  }
+  for (const accessor of accessors) {
+    if (accessor.bufferView === undefined) continue;
+    const { view, shift } = remap.get(accessor.bufferView);
+    accessor.bufferView = view;
+    if (shift || accessor.byteOffset) accessor.byteOffset = (accessor.byteOffset ?? 0) + shift;
+  }
+  for (const image of json.images ?? []) if (image.bufferView !== undefined) image.bufferView = remap.get(image.bufferView).view;
+  json.bufferViews = merged;
+  json.buffers[0].byteLength = total;
+  return Buffer.concat(chunks);
+}
+
+/**
  * Lossless packaging for skinned or animated authored GLB sources. Unlike optimizeAsset, this does
- * not rewrite nodes, accessors, bind matrices, weights, or animation channels.
+ * not rewrite nodes, bind matrices, weights, animation channels or any decoded accessor value;
+ * animation keyframes share buffer views (see mergeAnimationBufferViews).
  * INDICES avoids the cyclic triangle rotation permitted by the TRIANGLES codec.
  */
 export async function compressImportedAsset(source, destination) {
@@ -140,6 +222,7 @@ export async function compressImportedAsset(source, destination) {
   if (json.extensionsUsed?.includes("EXT_meshopt_compression")) throw new Error("Imported source is already compressed");
   const componentBytes = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 };
   const components = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 };
+  binary = mergeAnimationBufferViews(json, binary, componentBytes, components);
   const indexAccessors = new Set((json.meshes ?? []).flatMap(mesh => mesh.primitives.map(p => p.indices)).filter(i => i !== undefined));
   const chunks = [];
   let total = 0;

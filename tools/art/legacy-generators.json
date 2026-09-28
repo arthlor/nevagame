@@ -608,33 +608,6 @@
       "kind": "nonemptyString"
     }
   },
-  "interior_farmhouse_shell": {
-    "width": {
-      "kind": "number",
-      "min": 3,
-      "max": 14
-    },
-    "depth": {
-      "kind": "number",
-      "min": 3,
-      "max": 12
-    },
-    "wallHeight": {
-      "kind": "number",
-      "min": 2,
-      "max": 7
-    },
-    "floorPlanks": {
-      "kind": "integer",
-      "min": 6,
-      "max": 30
-    },
-    "ceilingBeams": {
-      "kind": "integer",
-      "min": 2,
-      "max": 10
-    }
-  },
   "item_apple": {},
   "item_bread_loaf": {},
   "item_carrot": {},

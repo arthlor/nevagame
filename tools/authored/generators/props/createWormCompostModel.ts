@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { SurfaceBuilder, addCollisionMarkers, mulberry32, type AuthoredModel, type GeneratorContext } from "../../kit";
+import { SurfaceBuilder, addCollisionMarkers, addMarker, mulberry32, type AuthoredModel, type GeneratorContext } from "../../kit";
 import { rope, timber, v3 } from "./parts";
 
 // Catalog palette order: slats and lid boards, dark posts and battens, compost, iron fittings.
@@ -117,6 +117,7 @@ export function createWormCompostModel(context: GeneratorContext): AuthoredModel
   const mesh = surface.buildMesh(`${ID}_mesh`);
   mesh.geometry.rotateY(Math.PI);
   root.add(mesh);
+  addMarker(`${ID}_output_surface`, [0, height, 0], "socket", root);
   addCollisionMarkers(spec, root);
   return { root, clips: [] };
 }

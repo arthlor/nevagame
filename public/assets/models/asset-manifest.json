@@ -1,30 +1,30 @@
 {
-  "version": 2,
-  "generatedAt": "2026-09-27T12:12:58.548Z",
-  "specHash": "791c0dd73e24a4f5d999d5ed4dbc7d47b3801702fa2a9489fd74dc7c378b4ce4",
+  "version": 3,
+  "generatedAt": "2026-09-28T14:00:47.331Z",
+  "specHash": "ec591892861381800f6b18cb208eb0a539dca2b952bec8fb8da0b062bb680b25",
   "paletteHash": "75afa4dc77fb1109ae8872e6d009f6853b2d4a7ea745bff76d64461900d3ba4f",
-  "toolchainHash": "55bc769bb2c481a451f5efcf1754f311c4407dcc3a15a4fb3571427aa0451c2d",
-  "blenderVersion": null,
+  "toolchainHash": "8c82bb292d665bfa896471f8b862b5af025f509ce33efa9454f0b389a6070db9",
   "authoredProducerVersion": "authored-three@0.174.0",
+  "authoredGlbProducerVersion": "authored-glb@2+sharp@0.35.4+libwebp@1.6.0",
   "vertexColorSpace": "linear-srgb",
-  "durationMs": 427,
-  "aggregateBytes": 110116900,
+  "durationMs": 630,
+  "aggregateBytes": 63771660,
   "summary": {
-    "assetCount": 340,
+    "assetCount": 342,
     "referenceReady": 102,
     "referenceDraft": 0,
-    "onTarget": 209,
-    "belowTarget": 131,
-    "triangles": 994954,
-    "packagedTriangles": 1221076,
-    "productionMinimumTriangles": 326112,
-    "qualityTargetTriangles": 1044696,
-    "hardMaximumTriangles": 1938976,
-    "fileSizeBytes": 110116900,
-    "trianglePrimitives": 1962,
-    "nodes": 6992,
-    "cacheHits": 43,
-    "cacheMisses": 297,
+    "onTarget": 210,
+    "belowTarget": 132,
+    "triangles": 996816,
+    "packagedTriangles": 1227778,
+    "productionMinimumTriangles": 326232,
+    "qualityTargetTriangles": 1045706,
+    "hardMaximumTriangles": 1941376,
+    "fileSizeBytes": 63771660,
+    "trianglePrimitives": 1978,
+    "nodes": 6806,
+    "cacheHits": 61,
+    "cacheMisses": 281,
     "artContractPassed": true
   },
   "assets": [
@@ -895,6 +895,7 @@
       "file": "building_farm_kitchen_a.glb",
       "family": "architecture",
       "generator": "farm_kitchen",
+      "producer": "authored",
       "seed": 452,
       "dimensions": [
         4.96999979019165,
@@ -927,13 +928,14 @@
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "building_farm_kitchen_a_root",
+        "building_farm_kitchen_a_output_surface",
         "COL_building_farm_kitchen_a"
       ],
       "collision": "box",
       "lod": "small",
       "readDistanceMeters": 20,
-      "durationMs": 436,
-      "inputHash": "1c93fecb9ccc7bb75e841c553ff487b82e38c56bec8df56754fd326b61625ecc",
+      "durationMs": 243,
+      "inputHash": "96ea596bdd69f4fae9234d77d0e825b43af4d0b5c9605d2cdfb677cecdf3366c",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 1500,
@@ -942,7 +944,7 @@
         "materialsMax": 8
       },
       "warnings": [],
-      "nodes": 3,
+      "nodes": 4,
       "meshes": 1,
       "triangles": 14810,
       "packagedTriangles": 14810,
@@ -958,11 +960,15 @@
         "KHR_materials_emissive_strength",
         "KHR_mesh_quantization"
       ],
-      "bytes": 187084,
-      "fileHash": "0db258cfefdb43a49e2866c8f9259e00755554047119e9f4e46907878dbdf6e2",
-      "semanticHash": "e323fa6b4289e3f05208c75ad7660bde41cb8ec43eb2f05cd0ac52436156a937",
+      "bytes": 187200,
+      "fileHash": "f6fe9385e3d076fb9405561f52a03ca287f56c3d07c3b9624c57827ef13857ad",
+      "semanticHash": "c4d88e20324d701b4a8ddd6c8fb7c29a223008fed5b40da1aee419430b7504d1",
       "qualityStatus": "on_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "building_fish_market_a",
@@ -1558,18 +1564,19 @@
       "id": "char_npc_ada_b",
       "file": "char_npc_ada_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
         1.4164258241653442,
         0.5553688406944275,
-        1.8790823534063463
+        1.879082336331237
       ],
       "bounds": {
         "min": [
           -0.7082128524780273,
           -0.2776855528354645,
-          -2.6970425892614003e-7
+          -2.526291495996702e-7
         ],
         "max": [
           0.7082129716873169,
@@ -1580,7 +1587,7 @@
       "paletteTokensUsed": [
         "cloth_slate_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_ada_b_root",
@@ -1592,9 +1599,9 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 1151,
-      "inputHash": "5985e0a6fdbf1f56889d5a2be98ca2fa7cf9c3bee7a789ed429acfd120d9da16",
-      "cacheHit": false,
+      "durationMs": 0,
+      "inputHash": "71e0645a1879545be38f796afe49b669eff166bc4fa1e31c4d449b1bddcb11c4",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 18000,
@@ -1612,15 +1619,17 @@
       "materials": 1,
       "trianglePrimitives": 1,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 1,
       "normalPrimitives": 1,
       "doubleSidedMaterials": 1,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 4803756,
-      "fileHash": "42540e6014a2acbcba7c759a7770e01ad29f5ea420b935519e0eb8eb9a78aa60",
-      "semanticHash": "d5bd580b510f05db9673a68bbda1f5d43b6dd4210356c3ab82dd0512aca5c443",
+      "bytes": 1725056,
+      "fileHash": "afbf9f80c8fd805f15ed4469fa448299c554c308444f6eb44850902bbe96da28",
+      "semanticHash": "084c7eb1a9d72d5eee8d7cfa1d7ce4431c063529e479c87031e325b54de8d3ff",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -1760,7 +1769,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_npc_ada_b.glb",
+        "sha256": "42540e6014a2acbcba7c759a7770e01ad29f5ea420b935519e0eb8eb9a78aa60",
+        "bytes": 4803756,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "tripo_rgb_fb7e3a33-deda-4838-9956-8fa4aa64c0b4",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 2895713
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 161392
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -3117,23 +3153,24 @@
       "id": "char_npc_barnaby_a",
       "file": "char_npc_barnaby_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 832,
       "dimensions": [
-        0.577050119638443,
-        0.47774429619312286,
-        1.9716035390738398
+        1.7842527627944946,
+        0.4839628338813782,
+        1.9799998998641968
       ],
       "bounds": {
         "min": [
-          -0.28842270374298096,
-          -0.30514323711395264,
-          0.00018272153101861477
+          -0.8921263217926025,
+          -0.30514317750930786,
+          0
         ],
         "max": [
-          0.28862741589546204,
-          0.17260105907917023,
-          1.9717862606048584
+          0.8921264410018921,
+          0.1788196563720703,
+          1.9799998998641968
         ]
       },
       "paletteTokensUsed": [
@@ -3145,7 +3182,7 @@
         "skin_warm_01",
         "wood_dark_01"
       ],
-      "vertexColorLoops": 29388,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_barnaby_a_root",
@@ -3164,8 +3201,8 @@
       "lod": "hero",
       "readDistanceMeters": 30,
       "durationMs": 1,
-      "inputHash": "eb8fbcc4dfcfa6d7fae9b165456230955a22ff5b042cf702728ef4fa0dadf1f9",
-      "cacheHit": false,
+      "inputHash": "39e9170385f693e9e2528d2cffec3d3a8464609945c8d3864594e097fe03d957",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 2500,
         "trianglesTarget": 6000,
@@ -3174,7 +3211,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "e03018f04c3ae5297d489cec2b6179b88ba5c0581a46077326fe176276c0dcfb",
+        "briefHash": "dee1e3d80107bbe4ab152b027e19a28858e64e67814ba2db68ae4d5d9afdf8e2",
         "sources": 1,
         "components": 3,
         "criticalFeatures": 3,
@@ -3202,14 +3239,15 @@
       "materials": 7,
       "trianglePrimitives": 38,
       "vertexColorPrimitives": 38,
+      "texturedPrimitives": 0,
       "normalPrimitives": 38,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression"
       ],
-      "bytes": 1025308,
-      "fileHash": "e1e76f21e7b3723d11e3c4cb5388f2c0b1f6c5dc88b37b5bc704785810bd2071",
+      "bytes": 832668,
+      "fileHash": "748ae9cad98a28603a7f1673abbf3584f5b85f560c9d74e9e6e366d1c06bf942",
       "semanticHash": "b18f5e74b7e98d427d3e71b9d1eeea2e94fda7c2c442304a0145b50d3975eb45",
       "qualityStatus": "on_target",
       "animationClips": [
@@ -3283,7 +3321,60 @@
           "events": []
         }
       ],
-      "packaging": "lossless-compression-only",
+      "surfaceContract": {
+        "primitives": 38,
+        "triangles": 10364,
+        "interpolatedTriangles": 2431,
+        "skinVertices": 17384,
+        "deformation": [
+          {
+            "clip": "carry_idle",
+            "samples": 60,
+            "maximumStretch": 1.7588867455754345,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "idle",
+            "samples": 65,
+            "maximumStretch": 1.7402326148511356,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "talk_gesture",
+            "samples": 104,
+            "maximumStretch": 1.652386681892632,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_left",
+            "samples": 26,
+            "maximumStretch": 1.6756711821603603,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_right",
+            "samples": 26,
+            "maximumStretch": 1.675671165202452,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "walk",
+            "samples": 53,
+            "maximumStretch": 1.900682854253829,
+            "loopSeamMeters": 0
+          }
+        ]
+      },
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/poly-pizza/adapted/char_npc_barnaby_a.glb",
+        "sha256": "e1e76f21e7b3723d11e3c4cb5388f2c0b1f6c5dc88b37b5bc704785810bd2071",
+        "bytes": 1025308,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -3292,29 +3383,30 @@
       "id": "char_npc_barnaby_b",
       "file": "char_npc_barnaby_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
         1.5146487951278687,
         0.4306642860174179,
-        1.9990237599988774
+        1.9990236316792647
       ],
       "bounds": {
         "min": [
-          -0.7573241591453552,
-          -0.21533212065696716,
-          3.5128991271449195e-8
+          -0.75732421875,
+          -0.21533210575580597,
+          4.4239314433980326e-8
         ],
         "max": [
-          0.7573246359825134,
-          0.21533216536045074,
-          1.9990237951278687
+          0.7573245763778687,
+          0.21533218026161194,
+          1.999023675918579
         ]
       },
       "paletteTokensUsed": [
         "cloth_slate_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_barnaby_b_root",
@@ -3326,9 +3418,9 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 1287,
-      "inputHash": "cbac76d1f6dce53a7dd002eb71744d62075d24dae09d44f89794d5660b63715c",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "12dfd837d9a88b0fa22e7dcfa0d6909ed890a2ae130e07a9aa0e41b588b9abf6",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 18000,
@@ -3346,15 +3438,17 @@
       "materials": 1,
       "trianglePrimitives": 1,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 1,
       "normalPrimitives": 1,
       "doubleSidedMaterials": 1,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 5157640,
-      "fileHash": "2eeb6312a99001a808cc73fc80fba6674cbeb11b04df9e26cd8eec36cc5fa653",
-      "semanticHash": "e585514ce5201e198005335af255f1bfd79dcef62acc7e039af04ad8c46787da",
+      "bytes": 2028904,
+      "fileHash": "deab97a1db6950d6cf8532f50cd86c65eeef67dce5821ad034ea32e3816343cc",
+      "semanticHash": "896f8ee4c7d318d6a558935b4525367c981ccefcd2460f677dd689a94316153d",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -3526,7 +3620,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_npc_barnaby_b.glb",
+        "sha256": "2eeb6312a99001a808cc73fc80fba6674cbeb11b04df9e26cd8eec36cc5fa653",
+        "bytes": 5157640,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "tripo_rgb_69745c96-b505-4e83-9739-edea850ca821",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 2891528
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 171616
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -3535,23 +3656,24 @@
       "id": "char_npc_elspeth_a",
       "file": "char_npc_elspeth_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 831,
       "dimensions": [
-        0.5670908391475677,
-        0.4337276518344879,
-        1.8732526702806354
+        1.6750246286392212,
+        0.4321932792663574,
+        1.8799998769536614
       ],
       "bounds": {
         "min": [
-          -0.287353515625,
+          -0.8375123143196106,
           -0.27554967999458313,
-          -4.0046870708465576e-8
+          -9.313225746154785e-10
         ],
         "max": [
-          0.27973732352256775,
-          0.15817797183990479,
-          1.8732526302337646
+          0.8375123143196106,
+          0.1566435992717743,
+          1.8799998760223389
         ]
       },
       "paletteTokensUsed": [
@@ -3563,7 +3685,7 @@
         "skin_light_01",
         "wood_dark_01"
       ],
-      "vertexColorLoops": 31387,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_elspeth_a_root",
@@ -3581,9 +3703,9 @@
       "collision": "none",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 2,
-      "inputHash": "5390e6905794536f39e46114da5e4f1985cffb678822326ed6d027f3cebb820e",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "cf471daaaababcd741466e4fe90c0264a1eabe83975b3ac1e27332ff52570a02",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 2500,
         "trianglesTarget": 6000,
@@ -3592,7 +3714,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "4bef41ee6b710dffd5d1cf3c4b5121511623934b70cc92ab27cad98570b57226",
+        "briefHash": "d7b1686b99d89b2607bbd2e137d1e3388178df8fd6dad4cb6eaa2a7d7730c841",
         "sources": 1,
         "components": 3,
         "criticalFeatures": 3,
@@ -3620,14 +3742,15 @@
       "materials": 7,
       "trianglePrimitives": 34,
       "vertexColorPrimitives": 34,
+      "texturedPrimitives": 0,
       "normalPrimitives": 34,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression"
       ],
-      "bytes": 1064316,
-      "fileHash": "05bcc86544155826d34e489ef28ab191bacb04176bb64dea497c482a17c8ef37",
+      "bytes": 873508,
+      "fileHash": "ae586f7f3b1b757b18e014e8776644c4fa26ee7da7ace5cc7d4b860c385e03e5",
       "semanticHash": "0ca2da5fe697c7c20fa181cf42465a7c59d74a459f9faa1ebda2e45ab86a4b11",
       "qualityStatus": "on_target",
       "animationClips": [
@@ -3701,7 +3824,60 @@
           "events": []
         }
       ],
-      "packaging": "lossless-compression-only",
+      "surfaceContract": {
+        "primitives": 34,
+        "triangles": 11057,
+        "interpolatedTriangles": 2674,
+        "skinVertices": 18136,
+        "deformation": [
+          {
+            "clip": "carry_idle",
+            "samples": 60,
+            "maximumStretch": 1.7336340151399359,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "idle",
+            "samples": 65,
+            "maximumStretch": 1.6894818212707516,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "talk_gesture",
+            "samples": 104,
+            "maximumStretch": 1.689481789421473,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_left",
+            "samples": 26,
+            "maximumStretch": 1.6894817662583133,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_right",
+            "samples": 26,
+            "maximumStretch": 1.6894817665534647,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "walk",
+            "samples": 53,
+            "maximumStretch": 3.145674097472466,
+            "loopSeamMeters": 0
+          }
+        ]
+      },
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/poly-pizza/adapted/char_npc_elspeth_a.glb",
+        "sha256": "05bcc86544155826d34e489ef28ab191bacb04176bb64dea497c482a17c8ef37",
+        "bytes": 1064316,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -3710,29 +3886,30 @@
       "id": "char_npc_elspeth_b",
       "file": "char_npc_elspeth_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
-        1.4710689783096313,
-        0.7379151880741119,
-        1.9490476337312401
+        1.4710690379142761,
+        0.7379151582717896,
+        1.9490478689290711
       ],
       "bounds": {
         "min": [
-          -0.7355343699455261,
+          -0.7355344295501709,
           -0.36895766854286194,
-          -1.874803245982548e-7
+          -1.8425957648560143e-7
         ],
         "max": [
           0.7355346083641052,
-          0.36895751953125,
-          1.9490474462509155
+          0.3689574897289276,
+          1.9490476846694946
         ]
       },
       "paletteTokensUsed": [
         "cloth_slate_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_elspeth_b_root",
@@ -3744,9 +3921,9 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 887,
-      "inputHash": "79f03c132a0ee257e12cf6e79df67031f4045410ea962c65fc3caf1ca5aedf6e",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "94f843421d2c0a6f1e1977dd2981fdd5f04da4e841d5e6375dcfd277c0d3fa6a",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 18000,
@@ -3764,15 +3941,17 @@
       "materials": 1,
       "trianglePrimitives": 1,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 1,
       "normalPrimitives": 1,
       "doubleSidedMaterials": 1,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 4414440,
-      "fileHash": "d4db6a57e80766038147d6104095a9a984f1675532af8c4ce24df7b614a1061f",
-      "semanticHash": "36f47b701ff7e9d3d14fd565a360b28266537202736e4bbaf4522ccd8058c970",
+      "bytes": 1432296,
+      "fileHash": "8d48d50a1b4ce0dd5f89d0e5342335a396661639c9cccaa4cb2119e12842e8e4",
+      "semanticHash": "9cc76212960c75117851a59dc69018f7373dec876e395d6be1b4d5c74dfdf746",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -3880,7 +4059,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_npc_elspeth_b.glb",
+        "sha256": "d4db6a57e80766038147d6104095a9a984f1675532af8c4ce24df7b614a1061f",
+        "bytes": 4414440,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "tripo_rgb_e07fe664-6582-4482-89f3-0b86da89543d",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 2889195
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 150448
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -3889,23 +4095,24 @@
       "id": "char_npc_ines_a",
       "file": "char_npc_ines_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 1632,
       "dimensions": [
-        0.5729756653308868,
-        0.3791975602507591,
-        1.893180888146162
+        1.692844033241272,
+        0.3811754956841469,
+        1.8999999770894647
       ],
       "bounds": {
         "min": [
-          -0.2903365194797516,
-          -0.2784810960292816,
-          -4.0978193283081055e-8
+          -0.846422016620636,
+          -0.27848106622695923,
+          -9.313225746154785e-10
         ],
         "max": [
-          0.28263914585113525,
-          0.10071646422147751,
-          1.8931808471679688
+          0.846422016620636,
+          0.10269442945718765,
+          1.899999976158142
         ]
       },
       "paletteTokensUsed": [
@@ -3917,7 +4124,7 @@
         "skin_light_01",
         "wood_dark_01"
       ],
-      "vertexColorLoops": 30891,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_ines_a_root",
@@ -3936,8 +4143,8 @@
       "lod": "hero",
       "readDistanceMeters": 30,
       "durationMs": 1,
-      "inputHash": "0b384a71abe8bfa71cb0471c8622c18507885fa14a41aeba658445037334b06c",
-      "cacheHit": false,
+      "inputHash": "3cdb913b198d372a9952275b2d01d5be7f2f817ef60ec6eb25dfa50fd7e7c0c5",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 2500,
         "trianglesTarget": 6000,
@@ -3946,7 +4153,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "b1996c613f7a4d9bb3dc8051e9562b4028b50ea392ca15e3387f9f153c4624cf",
+        "briefHash": "44bc53f2a359ac7e97aeaa876fe17a057375830a89bde0c90ede1bd8ca5c8a7f",
         "sources": 2,
         "components": 3,
         "criticalFeatures": 3,
@@ -3974,14 +4181,15 @@
       "materials": 7,
       "trianglePrimitives": 32,
       "vertexColorPrimitives": 32,
+      "texturedPrimitives": 0,
       "normalPrimitives": 32,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression"
       ],
-      "bytes": 1051632,
-      "fileHash": "a913a81caebb75d1e584a203b3fb56729b04035dc70c4c0bed5c814238d9f1ff",
+      "bytes": 860832,
+      "fileHash": "3ca6312ea04d7e128aff5add54cfc1774db0e65c02fcf917b1f23174084666f0",
       "semanticHash": "243be58ab65e884a8a16f16c4b9c5d6b399460ba79feb7e5496932be32599dba",
       "qualityStatus": "on_target",
       "animationClips": [
@@ -4055,7 +4263,60 @@
           "events": []
         }
       ],
-      "packaging": "lossless-compression-only",
+      "surfaceContract": {
+        "primitives": 32,
+        "triangles": 10801,
+        "interpolatedTriangles": 2675,
+        "skinVertices": 17713,
+        "deformation": [
+          {
+            "clip": "carry_idle",
+            "samples": 60,
+            "maximumStretch": 1.7336165583632102,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "idle",
+            "samples": 65,
+            "maximumStretch": 1.68948467599212,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "talk_gesture",
+            "samples": 104,
+            "maximumStretch": 1.6894846723303905,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_left",
+            "samples": 26,
+            "maximumStretch": 1.6894846276281994,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_right",
+            "samples": 26,
+            "maximumStretch": 1.689484609937449,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "walk",
+            "samples": 53,
+            "maximumStretch": 3.1456705888383296,
+            "loopSeamMeters": 0
+          }
+        ]
+      },
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/poly-pizza/adapted/char_npc_ines_a.glb",
+        "sha256": "a913a81caebb75d1e584a203b3fb56729b04035dc70c4c0bed5c814238d9f1ff",
+        "bytes": 1051632,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -4064,29 +4325,30 @@
       "id": "char_npc_ines_b",
       "file": "char_npc_ines_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
         1.4691651463508606,
-        0.5608153343200684,
-        1.9490478960089206
+        0.5608153641223907,
+        1.9490480168007878
       ],
       "bounds": {
         "min": [
           -0.734582245349884,
           -0.2804076671600342,
-          -2.1133942595952249e-7
+          -2.1292200358402624e-7
         ],
         "max": [
           0.7345829010009766,
-          0.2804076671600342,
-          1.9490476846694946
+          0.28040769696235657,
+          1.9490478038787842
         ]
       },
       "paletteTokensUsed": [
         "cloth_slate_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_ines_b_root",
@@ -4098,9 +4360,9 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 1069,
-      "inputHash": "0c9396cbbd01d223cf9ba44393dba5e0f9b5214d5a3db81f2bb927077eef8a8b",
-      "cacheHit": false,
+      "durationMs": 2,
+      "inputHash": "887b237b8d7befe13a28598ce64e626f5f1094d843be034963747327f0df5a4b",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 18000,
@@ -4118,15 +4380,17 @@
       "materials": 1,
       "trianglePrimitives": 1,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 1,
       "normalPrimitives": 1,
       "doubleSidedMaterials": 1,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 4813732,
-      "fileHash": "78314213cfd17bc617f6dda44a47c88709fd39297fb5548bc8290df0c23d1fcf",
-      "semanticHash": "dcd59a2bc7e23a894391268e93745e16bf0f32f93eac475b83de8d2495896a76",
+      "bytes": 1827868,
+      "fileHash": "5888c3f47ec4344d2ea9fc415dce1b31bbf133b55c798231926f71ffc64e7ac9",
+      "semanticHash": "fb11dad0ca971abe3b0c02ef24911ee968eeb3151be47991495c73513b169e87",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -4266,7 +4530,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_npc_ines_b.glb",
+        "sha256": "78314213cfd17bc617f6dda44a47c88709fd39297fb5548bc8290df0c23d1fcf",
+        "bytes": 4813732,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "tripo_rgb_031e9405-4b10-42f2-8974-36e814e732f1",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 2812544
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 171780
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -4275,23 +4566,24 @@
       "id": "char_npc_maeve_a",
       "file": "char_npc_maeve_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 834,
       "dimensions": [
-        0.5847450494766235,
-        0.44756996631622314,
-        1.9330374421551824
+        1.7284828424453735,
+        0.4459865987300873,
+        1.939999938942492
       ],
       "bounds": {
         "min": [
-          -0.29630234837532043,
+          -0.8642414212226868,
           -0.28434380888938904,
-          -4.190951585769653e-8
+          -9.313225746154785e-10
         ],
         "max": [
-          0.2884427011013031,
-          0.1632261574268341,
-          1.9330374002456665
+          0.8642414212226868,
+          0.16164278984069824,
+          1.9399999380111694
         ]
       },
       "paletteTokensUsed": [
@@ -4303,7 +4595,7 @@
         "skin_light_01",
         "wood_dark_01"
       ],
-      "vertexColorLoops": 31387,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_maeve_a_root",
@@ -4322,8 +4614,8 @@
       "lod": "hero",
       "readDistanceMeters": 30,
       "durationMs": 1,
-      "inputHash": "c3483199f15cd7a84287335dafd3cbb20bcff3d56c976b0bd65c4fbd6cbfa562",
-      "cacheHit": false,
+      "inputHash": "2c52fa89809c9a9a25035b87174ce15ed09d01830728e9c63600f05dcdb69978",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 2500,
         "trianglesTarget": 6000,
@@ -4332,7 +4624,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "06e85b1edaadb38f31d2f10039d760c458ca48b7953b2290aed9330a3c3c1596",
+        "briefHash": "5e976f4ec49e7d0f038a7a5b82ef22e362e8437e88003ee38fb5197c582e7e5d",
         "sources": 1,
         "components": 3,
         "criticalFeatures": 3,
@@ -4360,14 +4652,15 @@
       "materials": 7,
       "trianglePrimitives": 34,
       "vertexColorPrimitives": 34,
+      "texturedPrimitives": 0,
       "normalPrimitives": 34,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression"
       ],
-      "bytes": 1064976,
-      "fileHash": "9400cf43bbeed481b7b89b3c6f5e0cbfd63aa1322942df1b9b861e6192295319",
+      "bytes": 874148,
+      "fileHash": "6d4960da33b6d5c343347d22eee03b9cfaf6032a725432052b20e4fec190ce63",
       "semanticHash": "25dec57713d22ce08eb35ec98f6de32807d90044b497ed57283bae9de17386c4",
       "qualityStatus": "on_target",
       "animationClips": [
@@ -4441,7 +4734,60 @@
           "events": []
         }
       ],
-      "packaging": "lossless-compression-only",
+      "surfaceContract": {
+        "primitives": 34,
+        "triangles": 11057,
+        "interpolatedTriangles": 2675,
+        "skinVertices": 18137,
+        "deformation": [
+          {
+            "clip": "carry_idle",
+            "samples": 60,
+            "maximumStretch": 1.7336386491167277,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "idle",
+            "samples": 65,
+            "maximumStretch": 1.689486228996053,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "talk_gesture",
+            "samples": 104,
+            "maximumStretch": 1.68948612636178,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_left",
+            "samples": 26,
+            "maximumStretch": 1.689486103897126,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_right",
+            "samples": 26,
+            "maximumStretch": 1.6894860706740613,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "walk",
+            "samples": 53,
+            "maximumStretch": 3.1456735057814407,
+            "loopSeamMeters": 0
+          }
+        ]
+      },
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/poly-pizza/adapted/char_npc_maeve_a.glb",
+        "sha256": "9400cf43bbeed481b7b89b3c6f5e0cbfd63aa1322942df1b9b861e6192295319",
+        "bytes": 1064976,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -4450,29 +4796,30 @@
       "id": "char_npc_maeve_b",
       "file": "char_npc_maeve_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
-        1.4219334721565247,
-        0.707753449678421,
-        1.8790819465488013
+        1.4219334125518799,
+        0.7077535092830658,
+        1.879082187798474
       ],
       "bounds": {
         "min": [
-          -0.7109665274620056,
-          -0.3538767397403717,
-          -1.0126529303988718e-7
+          -0.7109664678573608,
+          -0.3538767695426941,
+          -1.0409638662167708e-7
         ],
         "max": [
           0.710966944694519,
-          0.3538767099380493,
-          1.8790818452835083
+          0.3538767397403717,
+          1.8790820837020874
         ]
       },
       "paletteTokensUsed": [
         "cloth_slate_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_maeve_b_root",
@@ -4484,9 +4831,9 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 1198,
-      "inputHash": "6a718ca9abf776831ae99a3a57ba54ea2a954daeb103f2d53daa29839b9a6875",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "2b798c14443e5649ce073bff3b97e5bd6822ee25b3b1cf6a3f7b816222f6aded",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 18000,
@@ -4504,15 +4851,17 @@
       "materials": 1,
       "trianglePrimitives": 1,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 1,
       "normalPrimitives": 1,
       "doubleSidedMaterials": 1,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 5283676,
-      "fileHash": "f5a3af2a17d188b5765d29fcb59c0c1df02e413dfaccdc988db9eb9315a6d108",
-      "semanticHash": "11bbdcdcb4cac34689cd65ffe896f5d0a3dd10fcd9c953efeaf8e80f98acac4e",
+      "bytes": 1991388,
+      "fileHash": "1ec1f4e91457d421a83b52c9c9939f268d1ca741df9bbdf5956acaaebdd52ffe",
+      "semanticHash": "c0649b1e1a2fdea969dd9f3b32663678297e0799447d66b60ab3ceb8fea5f8ca",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -4684,7 +5033,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_npc_maeve_b.glb",
+        "sha256": "f5a3af2a17d188b5765d29fcb59c0c1df02e413dfaccdc988db9eb9315a6d108",
+        "bytes": 5283676,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "tripo_rgb_1ad2ec30-11ff-45a7-af04-fba847f6048b",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 3025171
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 164258
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -4693,29 +5069,30 @@
       "id": "char_npc_mara_b",
       "file": "char_npc_mara_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
-        1.4296390414237976,
+        1.4296391010284424,
         0.5575582385063171,
-        1.8990728858612158
+        1.899072624767399
       ],
       "bounds": {
         "min": [
-          -0.7148191928863525,
+          -0.7148192524909973,
           -0.27877846360206604,
-          3.572799585072062e-7
+          3.799551961947145e-7
         ],
         "max": [
           0.7148198485374451,
           0.2787797749042511,
-          1.8990732431411743
+          1.8990730047225952
         ]
       },
       "paletteTokensUsed": [
         "cloth_slate_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_mara_b_root",
@@ -4727,9 +5104,9 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 1182,
-      "inputHash": "26b7c22a4310fbf088d13fb4ca94258334a3516e5ccab6421ce22a7ff8b4f405",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "80dc10401cd7daa5eed5d8f52eaaee12b7b8ee8a3f9894bcd8da31c0d147dec1",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 18000,
@@ -4747,15 +5124,17 @@
       "materials": 1,
       "trianglePrimitives": 1,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 1,
       "normalPrimitives": 1,
       "doubleSidedMaterials": 1,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 4981460,
-      "fileHash": "783be85f6812668063bbfaf3179818c5afda20ebaf119d643ec6baa164aa095b",
-      "semanticHash": "1ab749a0c338efd2bdff7e8ff47ac6034a9f7d6a9d38bcee6062f7c7b1aba4f3",
+      "bytes": 2006208,
+      "fileHash": "f126a4494cdbe0033c0563f0ba8ff89de181c6c760245be78246ee1dce198214",
+      "semanticHash": "c5636d0ffd85e8e4babe0fbc55fe870a19893aae74a11020769c654c6a64be97",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -4927,7 +5306,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_npc_mara_b.glb",
+        "sha256": "783be85f6812668063bbfaf3179818c5afda20ebaf119d643ec6baa164aa095b",
+        "bytes": 4981460,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "tripo_rgb_2837537b-30c3-4cac-bc53-fae366212e8a",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 2700067
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 155988
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -4936,29 +5342,30 @@
       "id": "char_npc_rowan_b",
       "file": "char_npc_rowan_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
-        1.5634759068489075,
+        1.5634761452674866,
         0.42285141348838806,
-        1.999023869602837
+        1.9990238642284908
       ],
       "bounds": {
         "min": [
-          -0.7817378044128418,
-          -0.21142584085464478,
-          -3.128935475160688e-7
+          -0.7817378640174866,
+          -0.21142582595348358,
+          -3.075192012147454e-7
         ],
         "max": [
-          0.7817381024360657,
-          0.2114255726337433,
+          0.78173828125,
+          0.21142558753490448,
           1.9990235567092896
         ]
       },
       "paletteTokensUsed": [
         "cloth_slate_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_rowan_b_root",
@@ -4970,9 +5377,9 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 1004,
-      "inputHash": "0357ddedcaddb70fd9785e5f122129f9041bdb63aaa99fc86d9c89d38e632525",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "ac92fa6f87c9e7b1e1c89561c537c2518adcc7411fdc6c7b69271e31cf0805f1",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 18000,
@@ -4990,15 +5397,17 @@
       "materials": 1,
       "trianglePrimitives": 1,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 1,
       "normalPrimitives": 1,
       "doubleSidedMaterials": 1,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 4304564,
-      "fileHash": "83cdacafff4824f92d912025cc82eb0d1e9918ff65d8f3f8a576c2397f099bda",
-      "semanticHash": "ab18212999e03e7b5565f161194d0a4e88026280bcd17ffaa02b6658d1c2c761",
+      "bytes": 1728428,
+      "fileHash": "12b45c4fd759a1a02cbfe1ccfeb18dcdefee6dd1358d7e855615bab4e861a708",
+      "semanticHash": "87dbff74c06f8ab420fbcdaadbbff275b40bb9df8e79e8124a610ad191d40835",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -5138,7 +5547,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_npc_rowan_b.glb",
+        "sha256": "83cdacafff4824f92d912025cc82eb0d1e9918ff65d8f3f8a576c2397f099bda",
+        "bytes": 4304564,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "tripo_rgb_42896da4-ae3c-4b20-9aca-e0b9577fd546",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 2368300
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 136318
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -5147,23 +5583,24 @@
       "id": "char_npc_silas_a",
       "file": "char_npc_silas_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 833,
       "dimensions": [
-        0.5583970546722412,
-        0.40011148899793625,
-        1.9422925957478583
+        1.7601401805877686,
+        0.40173347294330597,
+        1.9508063984467299
       ],
       "bounds": {
         "min": [
-          -0.2790974974632263,
+          -0.8800700306892395,
           -0.30101943016052246,
-          -0.0004354962147772312
+          -0.00008215432899305597
         ],
         "max": [
-          0.2792995572090149,
-          0.09909205883741379,
-          1.941857099533081
+          0.880070149898529,
+          0.10071404278278351,
+          1.9507242441177368
         ]
       },
       "paletteTokensUsed": [
@@ -5175,7 +5612,7 @@
         "skin_warm_01",
         "wood_dark_01"
       ],
-      "vertexColorLoops": 44072,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_silas_a_root",
@@ -5193,9 +5630,9 @@
       "collision": "none",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 2,
-      "inputHash": "b65102cd2ca85a72dd68036fad5cb89215119a8cb110786c6d92dfe3cd82ed6d",
-      "cacheHit": false,
+      "durationMs": 0,
+      "inputHash": "2d08208fd9cb09983a0ff477ae805361d13b4ffcde5a51ec5d6ce85162251b74",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 2500,
         "trianglesTarget": 8000,
@@ -5204,7 +5641,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "c7a537abf941fd7d2f264e6400efa2b11e0a54fd315b01780fa0193532252667",
+        "briefHash": "ca3876217e06f0a27157bcadc83827629b9e4368ea5149920a757a1430a6b4c2",
         "sources": 1,
         "components": 3,
         "criticalFeatures": 3,
@@ -5232,14 +5669,15 @@
       "materials": 7,
       "trianglePrimitives": 34,
       "vertexColorPrimitives": 34,
+      "texturedPrimitives": 0,
       "normalPrimitives": 34,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression"
       ],
-      "bytes": 1235704,
-      "fileHash": "ba2f08e9b3d646325fb52a2f22b78902956217c942d3dd9a85da0133ff5a161e",
+      "bytes": 1043092,
+      "fileHash": "414fa6d504bafb9f22b560075b0fbcc8ff595eae74b8f16c83add44680ee855b",
       "semanticHash": "de72752678bb484c6756b62b6c792904480844c16e5a7b907a76a2ea7a4e385c",
       "qualityStatus": "on_target",
       "animationClips": [
@@ -5313,7 +5751,60 @@
           "events": []
         }
       ],
-      "packaging": "lossless-compression-only",
+      "surfaceContract": {
+        "primitives": 34,
+        "triangles": 15488,
+        "interpolatedTriangles": 3377,
+        "skinVertices": 27226,
+        "deformation": [
+          {
+            "clip": "carry_idle",
+            "samples": 60,
+            "maximumStretch": 2.915365708459951,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "idle",
+            "samples": 65,
+            "maximumStretch": 3.846541281413511,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "talk_gesture",
+            "samples": 104,
+            "maximumStretch": 3.6164917874294877,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_left",
+            "samples": 26,
+            "maximumStretch": 3.616491817581752,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_right",
+            "samples": 26,
+            "maximumStretch": 3.6164916167555505,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "walk",
+            "samples": 53,
+            "maximumStretch": 3.5878313091346747,
+            "loopSeamMeters": 0
+          }
+        ]
+      },
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/poly-pizza/adapted/char_npc_silas_a.glb",
+        "sha256": "ba2f08e9b3d646325fb52a2f22b78902956217c942d3dd9a85da0133ff5a161e",
+        "bytes": 1235704,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -5322,29 +5813,30 @@
       "id": "char_npc_silas_b",
       "file": "char_npc_silas_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
         1.4444825649261475,
         0.5074702501296997,
-        1.8990726914547764
+        1.8990725716627423
       ],
       "bounds": {
         "min": [
           -0.722241222858429,
           -0.2537350058555603,
-          -1.6356933940642193e-7
+          -1.6298659488711564e-7
         ],
         "max": [
           0.7222413420677185,
           0.2537352442741394,
-          1.899072527885437
+          1.8990724086761475
         ]
       },
       "paletteTokensUsed": [
         "cloth_slate_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_silas_b_root",
@@ -5356,9 +5848,9 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 1119,
-      "inputHash": "23f6a5e051efe07a4d85b40e71abb279b4711c8d018eed43d7f5749052cfc43e",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "b614282c6600b4c730b774f99232dabf06cde2cfdcfa30c032fed3876992fa2a",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 18000,
@@ -5376,15 +5868,17 @@
       "materials": 1,
       "trianglePrimitives": 1,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 1,
       "normalPrimitives": 1,
       "doubleSidedMaterials": 1,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 4345296,
-      "fileHash": "0f4acde23301e0183a6dddc895612ed4a7b381095d7719cf29fb72f0fa7eb216",
-      "semanticHash": "32a13332c302a5fed1bdbe3867d487b708f97aa267961e6a2ff459122c966d81",
+      "bytes": 1908976,
+      "fileHash": "625002f2fb4e1c268e7f3e3600e173f3ad882c84b26527cc7b85c98ee1dd25e4",
+      "semanticHash": "aa57a52a935ba5fd044acd5d55420216edbc1cf5e9c1d6ba8b325a84dbd28562",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -5540,7 +6034,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_npc_silas_b.glb",
+        "sha256": "0f4acde23301e0183a6dddc895612ed4a7b381095d7719cf29fb72f0fa7eb216",
+        "bytes": 4345296,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "tripo_rgb_c14cd5b8-80bc-4c49-85fb-e31845086f3d",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 2169236
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 121962
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -5549,23 +6070,24 @@
       "id": "char_npc_tomas_a",
       "file": "char_npc_tomas_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 1631,
       "dimensions": [
-        0.5663509964942932,
-        0.46866607666015625,
-        1.9317512122215703
+        1.7503480315208435,
+        0.47476647794246674,
+        1.940000057220459
       ],
       "bounds": {
         "min": [
-          -0.28307509422302246,
-          -0.2993448078632355,
-          0.00019125069957226515
+          -0.8751739859580994,
+          -0.2993447780609131,
+          0
         ],
         "max": [
-          0.28327590227127075,
-          0.16932126879692078,
-          1.9319424629211426
+          0.8751740455627441,
+          0.17542169988155365,
+          1.940000057220459
         ]
       },
       "paletteTokensUsed": [
@@ -5577,7 +6099,7 @@
         "skin_warm_01",
         "wood_dark_01"
       ],
-      "vertexColorLoops": 29928,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_tomas_a_root",
@@ -5595,9 +6117,9 @@
       "collision": "none",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 1,
-      "inputHash": "d1a4e56dce5a70b38f8969fa69f99c8d39c8ecac955267858a64dbad298f944d",
-      "cacheHit": false,
+      "durationMs": 0,
+      "inputHash": "2f93ea15ce273b914fd771ccde0e86fa157c9922ca5d544648841431c8dc22f0",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 2500,
         "trianglesTarget": 5500,
@@ -5606,7 +6128,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "750fe9f1f49cadf4b2d20dedacd3b300f6edd2dbbd4ccbe25c55ff2dd99b9c68",
+        "briefHash": "8d456ed1f37e4df61c7f366aecf2118271fd3d0abcee3780f72f27f14a6368a1",
         "sources": 1,
         "components": 3,
         "criticalFeatures": 3,
@@ -5634,14 +6156,15 @@
       "materials": 7,
       "trianglePrimitives": 36,
       "vertexColorPrimitives": 36,
+      "texturedPrimitives": 0,
       "normalPrimitives": 36,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression"
       ],
-      "bytes": 1033616,
-      "fileHash": "d51bb79bf2bc7dc7f2dfc1e880812420fea1b8bcb0db9d697e12928c79b4d189",
+      "bytes": 841012,
+      "fileHash": "63c6e93a36b05bc4baca687c47c76063f3a72ae4c9f8dcfe3dabf6eb2a30046a",
       "semanticHash": "524a6609e904b2a75ff0d6126004750395812f7d8f2ce4923a8e0be2cf23ec32",
       "qualityStatus": "on_target",
       "animationClips": [
@@ -5715,7 +6238,60 @@
           "events": []
         }
       ],
-      "packaging": "lossless-compression-only",
+      "surfaceContract": {
+        "primitives": 36,
+        "triangles": 10528,
+        "interpolatedTriangles": 2349,
+        "skinVertices": 18083,
+        "deformation": [
+          {
+            "clip": "carry_idle",
+            "samples": 60,
+            "maximumStretch": 1.7588711518928226,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "idle",
+            "samples": 65,
+            "maximumStretch": 1.7655944987464582,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "talk_gesture",
+            "samples": 104,
+            "maximumStretch": 1.7028673252541997,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_left",
+            "samples": 26,
+            "maximumStretch": 1.702867267056613,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "turn_right",
+            "samples": 26,
+            "maximumStretch": 1.7028672848173678,
+            "loopSeamMeters": 0
+          },
+          {
+            "clip": "walk",
+            "samples": 53,
+            "maximumStretch": 2.0187589269135007,
+            "loopSeamMeters": 0
+          }
+        ]
+      },
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/poly-pizza/adapted/char_npc_tomas_a.glb",
+        "sha256": "d51bb79bf2bc7dc7f2dfc1e880812420fea1b8bcb0db9d697e12928c79b4d189",
+        "bytes": 1033616,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -5724,29 +6300,30 @@
       "id": "char_npc_tomas_b",
       "file": "char_npc_tomas_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
-        1.4901120066642761,
+        1.4901119470596313,
         0.45417483150959015,
-        1.949048104675768
+        1.9490484573031637
       ],
       "bounds": {
         "min": [
           -0.7450558543205261,
-          -0.2270873785018921,
-          -1.815876942146133e-7
+          -0.22708739340305328,
+          -1.7658722128999216e-7
         ],
         "max": [
-          0.74505615234375,
-          0.22708745300769806,
-          1.9490479230880737
+          0.7450560927391052,
+          0.22708743810653687,
+          1.9490482807159424
         ]
       },
       "paletteTokensUsed": [
         "cloth_slate_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_npc_tomas_b_root",
@@ -5758,9 +6335,9 @@
       "collision": "none",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 1946,
-      "inputHash": "2f456fc757f69cd7594024cc89ce763cb20b2017edc66eaf20299d86d87f3c84",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "1fa1952e6ceb42c2d3e35880f52f7599d93c20beb9eef916e1c19f09cf3f48bf",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
         "trianglesTarget": 18000,
@@ -5778,15 +6355,17 @@
       "materials": 1,
       "trianglePrimitives": 1,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 1,
       "normalPrimitives": 1,
       "doubleSidedMaterials": 1,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 5272540,
-      "fileHash": "882864ccc02c9914aadd023f2bf16d66a8c71fc58719759d68e1d6e0c09dceba",
-      "semanticHash": "c16c963e6481607debe2600275678dd896c572f065d3c2a58f21283bdab15db0",
+      "bytes": 2030436,
+      "fileHash": "fd53a5043a9271bb7ae180c0fb15e013db4caf732ac8fdbcdd623711dc0dcf6f",
+      "semanticHash": "115213f3e84d4808e82628c4cb3a5009848ed9b6f3212c65666a65e44652d334",
       "qualityStatus": "below_target",
       "animationClips": [
         {
@@ -5958,7 +6537,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_npc_tomas_b.glb",
+        "sha256": "882864ccc02c9914aadd023f2bf16d66a8c71fc58719759d68e1d6e0c09dceba",
+        "bytes": 5272540,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "tripo_rgb_08bfd909-f3bc-4178-b3bb-85a30dbf8dfe",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 2976887
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 166348
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -5967,23 +6573,24 @@
       "id": "char_player_a",
       "file": "char_player_a.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 801,
       "dimensions": [
         0.7434782385826111,
-        0.42236439883708954,
-        1.8999998562503606
+        0.42236441373825073,
+        1.899999976158142
       ],
       "bounds": {
         "min": [
           -0.37173911929130554,
           -0.2601255476474762,
-          6.984919309616089e-10
+          0
         ],
         "max": [
           0.37173911929130554,
-          0.16223885118961334,
-          1.8999998569488525
+          0.16223886609077454,
+          1.899999976158142
         ]
       },
       "paletteTokensUsed": [
@@ -5991,7 +6598,7 @@
         "leather_harness_01",
         "skin_warm_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "char_player_a_root",
@@ -6009,8 +6616,8 @@
       "collision": "none",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 47,
-      "inputHash": "9ae938a27fd2cdc4bba2a957c531d99360c55def5a2930c5296ab8394dc509eb",
+      "durationMs": 1,
+      "inputHash": "766cdccebd66b123bc6ee84098040b1169fbf5fbdae4d31d654cebd502e4d854",
       "cacheHit": true,
       "budget": {
         "trianglesMin": 7500,
@@ -6040,15 +6647,17 @@
       "materials": 3,
       "trianglePrimitives": 6,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 6,
       "normalPrimitives": 6,
       "doubleSidedMaterials": 3,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 18346728,
-      "fileHash": "06d941df446deb15af9ae0051d9d49e226e5398a104241ae405ccc65bb006c64",
-      "semanticHash": "f34d08be3c1e596bc53a326ec75cf4208de42269971617127cda7fc49fbaed48",
+      "bytes": 3511388,
+      "fileHash": "34ffde69f9c91196061abc2331bb4e1fd5b2fc115f9359f2a8a1d4b8b40339ca",
+      "semanticHash": "285c70d796b5499aaafb09fd62e20bda52370c7ac7692fb89badb8e7ee2fe82f",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -6958,7 +7567,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/char_player_a.glb",
+        "sha256": "06d941df446deb15af9ae0051d9d49e226e5398a104241ae405ccc65bb006c64",
+        "bytes": 18346728,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "char_player_tomas_eyes",
+            "source": {
+              "mimeType": "image/png",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 13157521
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 107440
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -12271,23 +12907,24 @@
       "id": "fauna_cow_a",
       "file": "fauna_cow_a.glb",
       "family": "prop",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 823,
       "dimensions": [
-        0.6878972351551056,
-        2.400001049041748,
-        1.3645769270493817
+        0.6878972947597504,
+        2.4000000953674316,
+        1.3645774126052856
       ],
       "bounds": {
         "min": [
-          -0.3439486026763916,
+          -0.343948632478714,
           -1.2000000476837158,
-          8.718745725388999e-9
+          0
         ],
         "max": [
-          0.343948632478714,
-          1.2000010013580322,
-          1.3645769357681274
+          0.3439486622810364,
+          1.2000000476837158,
+          1.3645774126052856
         ]
       },
       "paletteTokensUsed": [
@@ -12296,7 +12933,7 @@
         "animal_hide_white_01",
         "stone_golden_01"
       ],
-      "vertexColorLoops": 10878,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "fauna_cow_a_root",
@@ -12310,9 +12947,9 @@
       "collision": "box",
       "lod": "medium",
       "readDistanceMeters": 30,
-      "durationMs": 0,
-      "inputHash": "702f44398167bd5cd92539e6de44bfbd4016f79616f9512bf13ac930362a7ecd",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "f0479b4021597028ee63a7286d7feefd28e561741297164246d4f16831e82b8b",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 400,
         "trianglesTarget": 2500,
@@ -12321,7 +12958,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "d9679582f636f76d4e56f666c61eb1e398f7038bc809b5b68c95c66538582449",
+        "briefHash": "e0aac2b9dbca2d86c3df159bbf9618e41a765deefc22c0e0a0e2259fd54ed10a",
         "sources": 2,
         "components": 3,
         "criticalFeatures": 3,
@@ -12351,14 +12988,15 @@
       "materials": 4,
       "trianglePrimitives": 8,
       "vertexColorPrimitives": 8,
+      "texturedPrimitives": 0,
       "normalPrimitives": 8,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
         "EXT_meshopt_compression"
       ],
-      "bytes": 557228,
-      "fileHash": "92fce8be4797001f547a99c464047c12576b0300a97e24028055fe3fcc10d535",
+      "bytes": 520032,
+      "fileHash": "ec8ffae67dc6bf5d06d8ba9f5c776bee8352a722334bcbaba0ff341665a41d16",
       "semanticHash": "b8479f208c5f2b43931ffa18b46ecadea01edaff9bf9f16d47e88077a9a55f6a",
       "qualityStatus": "below_target",
       "animationClips": [
@@ -12419,7 +13057,16 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/poly-pizza/adapted/fauna_cow_a.glb",
+        "sha256": "92fce8be4797001f547a99c464047c12576b0300a97e24028055fe3fcc10d535",
+        "bytes": 557228,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -12530,29 +13177,30 @@
       "id": "fauna_donkey_a",
       "file": "fauna_donkey_a.glb",
       "family": "prop",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 839,
       "dimensions": [
-        0.7430385947227478,
-        2.5999995470046997,
-        2.394236181268944
+        0.7430385649204254,
+        2.6000001430511475,
+        2.3942360877990723
       ],
       "bounds": {
         "min": [
-          -0.3715193271636963,
-          -1.2999995946884155,
-          -9.346987184244426e-8
+          -0.3715192973613739,
+          -1.3000000715255737,
+          0
         ],
         "max": [
           0.3715192675590515,
-          1.2999999523162842,
+          1.3000000715255737,
           2.3942360877990723
         ]
       },
       "paletteTokensUsed": [
         "animal_hide_white_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "fauna_donkey_a_root",
@@ -12580,9 +13228,9 @@
       "collision": "none",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 1312,
-      "inputHash": "41eb500f2edcb659661e05aee027071a037feb4396af4dd4e457331565d6e7f4",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "c36557fdb4968b3c02beaddfcfacebaf8055db98ef624bd6ed106c8823ebd25f",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 9000,
         "trianglesTarget": 10800,
@@ -12611,15 +13259,17 @@
       "materials": 1,
       "trianglePrimitives": 2,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 2,
       "normalPrimitives": 2,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 2095396,
-      "fileHash": "d88c1bf9d95af14fd785942a39e1f0f08a411bb8d2c8cd3136f2d3948c7afd65",
-      "semanticHash": "271c8e2bb0ed4c53085c5d79606911e985790a1325f1e985d56317b514cf10a6",
+      "bytes": 578772,
+      "fileHash": "31c923a1066abbe3471525c5d838ded6a19b89189fa45eebe5be5798c0becc81",
+      "semanticHash": "179e20ea684a12a0d7f82566d85a7c4e6bfe1c34e95b8be35b0a37fd550e5f7f",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -12785,7 +13435,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/fauna_donkey_a.glb",
+        "sha256": "d88c1bf9d95af14fd785942a39e1f0f08a411bb8d2c8cd3136f2d3948c7afd65",
+        "bytes": 2095396,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "donkey_basecolor",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 1503096
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 53824
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -12997,29 +13674,30 @@
       "id": "fauna_horse_draft_a",
       "file": "fauna_horse_draft_a.glb",
       "family": "prop",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 8916,
       "dimensions": [
-        0.9767953455448151,
-        3.091921329498291,
-        2.764767611573916
+        0.9767953157424927,
+        3.0999999046325684,
+        2.7640929151675664
       ],
       "bounds": {
         "min": [
-          -0.4883976876735687,
-          -1.541921615600586,
-          -0.000292265962343663
+          -0.48839765787124634,
+          -1.5499999523162842,
+          -0.0002922941348515451
         ],
         "max": [
           0.48839765787124634,
-          1.549999713897705,
-          2.7644753456115723
+          1.5499999523162842,
+          2.763800621032715
         ]
       },
       "paletteTokensUsed": [
         "animal_hide_white_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "fauna_horse_draft_a_root",
@@ -13034,9 +13712,9 @@
       "collision": "none",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 1099,
-      "inputHash": "2e058644148eebabac7404e58ff2c881f2df8cb54ce51543045a68d288369d41",
-      "cacheHit": false,
+      "durationMs": 1,
+      "inputHash": "98acdd8ab69713da5f6d67650885d89b998dcf89b4ebff18f92282d8960d8df4",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 9000,
         "trianglesTarget": 10741,
@@ -13065,15 +13743,17 @@
       "materials": 1,
       "trianglePrimitives": 2,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 2,
       "normalPrimitives": 2,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
+        "EXT_texture_webp",
         "EXT_meshopt_compression"
       ],
-      "bytes": 2882728,
-      "fileHash": "bae3cbe2316c6a2630d3b4c163a4cf0e0510bd15b9163b132963b1be7dacbfad",
-      "semanticHash": "495c28456980efc1c2c74ee53ff32963b64ab9dbd4a524e8698c0a6b2ee9b436",
+      "bytes": 771880,
+      "fileHash": "795ccbe5d92dbe5cd5b79d8075d96262a320942a176dbc6b9f7f8184a4b5ccef",
+      "semanticHash": "2207c7739ae41258399482b7aa6e1d901bb1fd75a1d2254894a4e8255c3d6845",
       "qualityStatus": "on_target",
       "animationClips": [
         {
@@ -13133,7 +13813,34 @@
           }
         ]
       },
-      "packaging": "lossless-compression-only",
+      "packaging": "lossless-recompression",
+      "source": {
+        "file": "art/imported/tripo/adapted/fauna_horse_draft_a.glb",
+        "sha256": "bae3cbe2316c6a2630d3b4c163a4cf0e0510bd15b9163b132963b1be7dacbfad",
+        "bytes": 2882728,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "horse_basecolor",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 2203324
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 126990
+            }
+          }
+        ]
+      },
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -17603,22 +18310,23 @@
       "file": "interior_farmhouse_shell.glb",
       "family": "architecture",
       "generator": "interior_farmhouse_shell",
+      "producer": "authored",
       "seed": 301,
       "dimensions": [
-        9.29884386062622,
-        7.143869638442993,
-        3.7200000286102295
+        10.300000190734863,
+        8.06000018119812,
+        3.6600000858306885
       ],
       "bounds": {
         "min": [
-          -4.748843669891357,
-          -3.593869686126709,
+          -5.150000095367432,
+          -3.950000047683716,
           0
         ],
         "max": [
-          4.550000190734863,
-          3.549999952316284,
-          3.7200000286102295
+          5.150000095367432,
+          4.110000133514404,
+          3.6600000858306885
         ]
       },
       "paletteTokensUsed": [
@@ -17628,17 +18336,20 @@
         "wood_dark_01",
         "wood_honey_01"
       ],
-      "vertexColorLoops": 26928,
+      "vertexColorLoops": 43536,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "interior_farmhouse_shell_root",
+        "interior_farmhouse_shell_LOD0",
+        "interior_farmhouse_shell_LOD1",
+        "interior_farmhouse_shell_LOD2",
         "COL_interior_farmhouse_shell"
       ],
       "collision": "compound",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 1,
-      "inputHash": "9025e5a1a5992f3c619ccf2316fe33ce16e9e5cbb3bfb87f5a34e598658c0500",
+      "durationMs": 462,
+      "inputHash": "13da2824be15813f2d1c6ca104a08dbcff6d93b4c6b79cbe7804d3ab046de2eb",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 1000,
@@ -17647,15 +18358,34 @@
         "materialsMax": 5
       },
       "warnings": [],
-      "nodes": 212,
-      "meshes": 5,
-      "triangles": 8976,
-      "packagedTriangles": 8976,
-      "lodLevels": [],
+      "nodes": 17,
+      "meshes": 3,
+      "triangles": 9672,
+      "packagedTriangles": 14512,
+      "lodLevels": [
+        {
+          "node": "interior_farmhouse_shell_LOD0",
+          "distanceMeters": 0,
+          "triangles": 9672,
+          "ratio": 1
+        },
+        {
+          "node": "interior_farmhouse_shell_LOD1",
+          "distanceMeters": 14,
+          "triangles": 3272,
+          "ratio": 0.33829611248966085
+        },
+        {
+          "node": "interior_farmhouse_shell_LOD2",
+          "distanceMeters": 24,
+          "triangles": 1568,
+          "ratio": 0.1621174524400331
+        }
+      ],
       "materials": 5,
-      "trianglePrimitives": 5,
-      "vertexColorPrimitives": 5,
-      "normalPrimitives": 5,
+      "trianglePrimitives": 15,
+      "vertexColorPrimitives": 15,
+      "normalPrimitives": 15,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
@@ -17663,18 +18393,22 @@
         "KHR_materials_emissive_strength",
         "KHR_mesh_quantization"
       ],
-      "bytes": 208300,
-      "fileHash": "1fd94d388748d6b86ffa021fafce7da8e7ee88c9bca9c5d3b24a84663d650ee9",
-      "semanticHash": "3389999e0304bf8f8fc8792e8dd5ce8022ec99ddfefea3c12206d9f32d51d235",
+      "bytes": 181868,
+      "fileHash": "d2c9e5ef760ea6dee149faf37bc4b25ecb7c766b5bd9e38edf4e5f7103920550",
+      "semanticHash": "42c19cad0aa443a06d17edb2e8659dd994a13ae5284a67c0908da15fa3fce7a7",
       "qualityStatus": "on_target",
       "animationClips": [],
       "surfaceContract": {
-        "primitives": 5,
-        "triangles": 8976,
-        "interpolatedTriangles": 0,
+        "primitives": 15,
+        "triangles": 14512,
+        "interpolatedTriangles": 144,
         "skinVertices": 0,
         "deformation": []
-      }
+      },
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "item_apple_a",
@@ -19056,6 +19790,80 @@
       "animationClips": []
     },
     {
+      "id": "prop_compost_output_a",
+      "file": "prop_compost_output_a.glb",
+      "family": "prop",
+      "generator": "crafting_job_prop",
+      "producer": "authored",
+      "seed": 4144,
+      "dimensions": [
+        0.7239999771118164,
+        0.46000000834465027,
+        0.1599999964237213
+      ],
+      "bounds": {
+        "min": [
+          -0.3619999885559082,
+          -0.23000000417232513,
+          0
+        ],
+        "max": [
+          0.3619999885559082,
+          0.23000000417232513,
+          0.1599999964237213
+        ]
+      },
+      "paletteTokensUsed": [
+        "skin_warm_01",
+        "soil_damp_01",
+        "wood_honey_01"
+      ],
+      "vertexColorLoops": 3072,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "prop_compost_output_a_root",
+        "prop_compost_output_a_tray",
+        "prop_compost_output_a_worms"
+      ],
+      "collision": "none",
+      "lod": "small",
+      "readDistanceMeters": 8,
+      "durationMs": 42,
+      "inputHash": "915afdb23c657a4a9e830d5830ce91ab889957f91439e542813429db7d9be0e7",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 750,
+        "trianglesMax": 1800,
+        "materialsMax": 3
+      },
+      "warnings": [],
+      "nodes": 3,
+      "meshes": 2,
+      "triangles": 1024,
+      "packagedTriangles": 1024,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 20624,
+      "fileHash": "708547932769bf1b0ceba2268c8d21510cfc1ab89f82ab2d5f7a8e55a26afdee",
+      "semanticHash": "7c261cb6d01f12630af62d19947c71f97390acc5a82bae4faad5f426b8b343c6",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
+    },
+    {
       "id": "prop_coral_pillar_a",
       "file": "prop_coral_pillar_a.glb",
       "family": "prop",
@@ -20344,6 +21152,7 @@
       "file": "prop_farm_workbench_a.glb",
       "family": "prop",
       "generator": "farm_workbench",
+      "producer": "authored",
       "seed": 374,
       "dimensions": [
         2,
@@ -20372,13 +21181,14 @@
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "prop_farm_workbench_a_root",
+        "prop_farm_workbench_a_output_surface",
         "COL_prop_farm_workbench_a"
       ],
       "collision": "box",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 12,
-      "inputHash": "bdaf438ae33ba873db8d2d0eade064d7ed66e35983a99af4cc21750f6f33cd99",
+      "durationMs": 119,
+      "inputHash": "7d42e3dda63b6b1a5f4a9022118a05210cc33c80057fc0de5e09fe2d2424a669",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 500,
@@ -20388,14 +21198,14 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "a92f62fec8df345a62b26b1707b4016569800760dd78a499b4f4c2070cf498fd",
+        "briefHash": "b1f7c110227017812733f7a3567c6484c59b4bd50238fbe081c65bebae88482d",
         "sources": 2,
         "components": 4,
         "criticalFeatures": 3,
         "reviewViews": 7
       },
       "warnings": [],
-      "nodes": 3,
+      "nodes": 4,
       "meshes": 1,
       "triangles": 2042,
       "packagedTriangles": 2042,
@@ -20410,11 +21220,15 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 27620,
-      "fileHash": "2759f95c055c6d534e5de2fdd992f5fd80b447dcc56e141e624f6a6c5e3cb0d5",
-      "semanticHash": "0181652f20802ad311628fa9d719d36eb92c3aa74e07185f094ba5a4ac3e91b2",
+      "bytes": 27736,
+      "fileHash": "a8eb6d97d81f1dffab4fcd04244bb4ae1958e721f7964ba5c86c7c27efee147d",
+      "semanticHash": "bc886ceabaf8955637928b57bda1803f42f89fa07d8492e0da8c0a73a5c1374e",
       "qualityStatus": "on_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_fence_section_a",
@@ -22085,6 +22899,82 @@
         "skinVertices": 0,
         "deformation": []
       }
+    },
+    {
+      "id": "prop_milestone_a",
+      "file": "prop_milestone_a.glb",
+      "family": "prop",
+      "generator": "road_milestone",
+      "producer": "authored",
+      "seed": 617,
+      "dimensions": [
+        0.5115069001913071,
+        0.41692082583904266,
+        0.9599999934434891
+      ],
+      "bounds": {
+        "min": [
+          -0.24344278872013092,
+          -0.2109982818365097,
+          -0.07999999821186066
+        ],
+        "max": [
+          0.26806411147117615,
+          0.20592254400253296,
+          0.8799999952316284
+        ]
+      },
+      "paletteTokensUsed": [
+        "soil_shadow_01",
+        "stone_coastal_warm_01",
+        "stone_cool_01",
+        "stone_moss_01"
+      ],
+      "vertexColorLoops": 426,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "prop_milestone_a_root",
+        "COL_prop_milestone_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 25,
+      "durationMs": 113,
+      "inputHash": "6599ea25086a8b29209113b6040f52f8a4569664aa18e66b570ac0715639d71d",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 80,
+        "trianglesTarget": 260,
+        "trianglesMax": 600,
+        "materialsMax": 5
+      },
+      "warnings": [
+        "142 triangles are below quality target 260"
+      ],
+      "nodes": 3,
+      "meshes": 1,
+      "triangles": 142,
+      "packagedTriangles": 142,
+      "lodLevels": [],
+      "materials": 3,
+      "trianglePrimitives": 3,
+      "vertexColorPrimitives": 3,
+      "normalPrimitives": 3,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 8072,
+      "fileHash": "ceff3b8d06d277d6d85b3cb62268b75845e8d9d0733ef178e0d5f7ebb7827244",
+      "semanticHash": "02e5bacefdcbd66da2356d44bbabc20813d7cc4288efa2ca8a5be71765482334",
+      "qualityStatus": "below_target",
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_milk_churn_a",
@@ -26851,6 +27741,7 @@
       "file": "prop_worm_compost_a.glb",
       "family": "prop",
       "generator": "worm_compost_bin",
+      "producer": "authored",
       "seed": 353,
       "dimensions": [
         1.2879999876022339,
@@ -26879,13 +27770,14 @@
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "prop_worm_compost_a_root",
+        "prop_worm_compost_a_output_surface",
         "COL_prop_worm_compost_a"
       ],
       "collision": "box",
       "lod": "small",
       "readDistanceMeters": 15,
-      "durationMs": 21,
-      "inputHash": "a16655d81ecddce289561951dfeb6902ff19d2926ef56003c389607fb7d569a5",
+      "durationMs": 141,
+      "inputHash": "869ca0e8ad2f7cd8160061a7cde686b5b3cb6559d80654ba6aef7c2417a9a8dd",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 200,
@@ -26904,7 +27796,7 @@
       "warnings": [
         "1948 triangles are below quality target 1950"
       ],
-      "nodes": 3,
+      "nodes": 4,
       "meshes": 1,
       "triangles": 1948,
       "packagedTriangles": 1948,
@@ -26919,11 +27811,15 @@
         "EXT_meshopt_compression",
         "KHR_mesh_quantization"
       ],
-      "bytes": 37812,
-      "fileHash": "7dee363df1e967a8978b09be51c01319664e747025afdddcacf466ae009ff63b",
-      "semanticHash": "b735f26f1a090241775ea41447a85f88a44d5e946f8641b68e6719b13c1484e9",
+      "bytes": 37920,
+      "fileHash": "e97b02f64b1d8504ebf2498ff85ae706dadf187f3391d6b6192644ef35f8063b",
+      "semanticHash": "3c4a72ca1c1fa051147a76563d2b116503a4c2008d9ee4db4fe23b2ee70b2bc8",
       "qualityStatus": "below_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "rock_boulder_a",

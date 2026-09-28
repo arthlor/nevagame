@@ -55,6 +55,7 @@ import {
   mayJoinStaticNode,
   optimizeAsset,
 } from "./optimize.mjs";
+import { decompressGlb } from "./decompress_glb.mjs";
 import { largestEmbeddedImage, normalizeAuthoredGlb, parseGlb, TEXTURE_SIZES } from "./glb.mjs";
 import { validateSurfaceContract } from "./surface_contract.mjs";
 
@@ -86,7 +87,7 @@ const STAGING_RUN_RETENTION = 3;
 const ART_YARD_URL = "http://localhost:3000/__neva_art_yard";
 const STAGE_PATTERN = /^run-[A-Za-z0-9_-]+$/;
 /** Bumped when authored-GLB normalization or packaging changes what it emits. */
-const AUTHORED_GLB_PRODUCER_VERSION = `authored-glb@1+sharp@${sharp.versions.sharp}+libwebp@${sharp.versions.webp}`;
+const AUTHORED_GLB_PRODUCER_VERSION = `authored-glb@2+sharp@${sharp.versions.sharp}+libwebp@${sharp.versions.webp}`;
 
 const readJson = (filename) => JSON.parse(fs.readFileSync(filename, "utf8"));
 const safeFilename = (value) => path.basename(value) === value && value.endsWith(".glb");
@@ -781,7 +782,11 @@ function pruneStagingRuns(stagingRoot = STAGING_ROOT, keep = STAGING_RUN_RETENTI
   return { kept, removed };
 }
 
-async function semanticHash(bytes) {
+/**
+ * Hash of what a GLB decodes to. `layoutIndependent` also drops the buffer-view list and names each
+ * image by its bytes rather than its view index, so repacking views can be checked value for value.
+ */
+async function semanticHash(bytes, { layoutIndependent = false } = {}) {
   const { json, bin } = parseGlb(bytes);
   const binary = bin ?? Buffer.alloc(0);
   await MeshoptDecoder.ready;
@@ -845,7 +850,14 @@ async function semanticHash(bytes) {
   // not authored geometry. Keep accessor/scene structure, but remove those
   // storage details so raw and Meshopt-compressed artifacts hash semantically.
   delete semantic.buffers;
-  semantic.bufferViews = (semantic.bufferViews ?? []).map((bufferView) => {
+  if (layoutIndependent) {
+    for (const image of semantic.images ?? []) {
+      if (image.bufferView === undefined) continue;
+      const imageView = json.bufferViews[image.bufferView];
+      image.bufferView = sha256(binary.subarray(imageView.byteOffset ?? 0, (imageView.byteOffset ?? 0) + imageView.byteLength));
+    }
+  }
+  semantic.bufferViews = layoutIndependent ? [] : (semantic.bufferViews ?? []).map((bufferView) => {
     const copy = { ...bufferView };
     delete copy.buffer;
     delete copy.byteOffset;
@@ -1283,17 +1295,25 @@ async function produceAuthoredGlb(spec, outputDir, repoRoot = ROOT) {
 }
 
 /**
- * Packages a normalized authored GLB. A source that already carries Meshopt compression keeps its
- * geometry bytes; a skinned or animated source gets lossless Meshopt with decoded parity; a static
- * source gets the full dedupe/prune/weld/quantize/Meshopt optimisation.
+ * Packages a normalized authored GLB. A skinned or animated source gets lossless Meshopt with decoded
+ * parity; one that arrives already compressed without filters or quantization is decoded first, so
+ * its keyframes share buffer views too. Any other compressed source keeps its geometry bytes; a
+ * static source gets the full dedupe/prune/weld/quantize/Meshopt optimisation.
  */
 async function packageAuthoredGlb(raw, optimized, spec) {
   const { json } = parseGlb(fs.readFileSync(raw));
+  const animated = Boolean(json.skins?.length || json.animations?.length);
   if ((json.extensionsUsed ?? []).includes("EXT_meshopt_compression")) {
+    const lossless = !(json.extensionsUsed ?? []).includes("KHR_mesh_quantization")
+      && (json.bufferViews ?? []).every((view) => (view.extensions?.EXT_meshopt_compression?.filter ?? "NONE") === "NONE");
+    if (animated && lossless) {
+      await compressImportedAsset(await decompressGlb(fs.readFileSync(raw)), optimized);
+      return "lossless-recompression";
+    }
     copyAtomically(raw, optimized);
     return "source-compression";
   }
-  if (json.skins?.length || json.animations?.length) {
+  if (animated) {
     await compressImportedAsset(raw, optimized);
     return "lossless-compression";
   }
@@ -1377,7 +1397,9 @@ async function buildStage(context, assets) {
       ? await packageAuthoredGlb(raw, optimized, spec)
       : (await optimizeAsset(raw, optimized, spec), "static-optimization");
     const final = await validateGlb(optimized, spec, "optimized");
-    if (packaging !== "static-optimization" && final.semanticHash !== rawValidation.semanticHash) {
+    // Lossless packaging may regroup buffer views; everything they decode to must survive.
+    if (packaging !== "static-optimization" && await semanticHash(fs.readFileSync(optimized), { layoutIndependent: true })
+      !== await semanticHash(fs.readFileSync(raw), { layoutIndependent: true })) {
       throw new Error(`${spec.id}: ${packaging} changed decoded semantics`);
     }
     const producedAsset = producedAssets.find((entry) => entry.id === spec.id);

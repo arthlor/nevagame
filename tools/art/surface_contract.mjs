@@ -3,38 +3,7 @@ import { AnimationMixer, LoopOnce, Vector3 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "meshoptimizer";
 import { createNodeIO } from "./optimize.mjs";
-import { encodeGlb, parseGlb } from "./glb.mjs";
-
-const TEXTURE_SLOTS = ["normalTexture", "occlusionTexture", "emissiveTexture"];
-const PBR_TEXTURE_SLOTS = ["baseColorTexture", "metallicRoughnessTexture"];
-
-/**
- * The contract reads geometry, skins and clips only. Strip texture references so the loader never
- * needs an image decoder (Node has none, and three's WebP support probe is browser-only).
- */
-function withoutTextures(bytes) {
-  const { json, bin } = parseGlb(bytes);
-  if (!json.textures?.length && !json.images?.length) return bytes;
-  for (const material of json.materials ?? []) {
-    for (const slot of TEXTURE_SLOTS) delete material[slot];
-    for (const slot of PBR_TEXTURE_SLOTS) delete material.pbrMetallicRoughness?.[slot];
-    if (material.extensions) {
-      for (const extension of Object.values(material.extensions)) {
-        if (!extension || typeof extension !== "object") continue;
-        for (const key of Object.keys(extension)) if (key.endsWith("Texture")) delete extension[key];
-      }
-    }
-  }
-  delete json.textures;
-  delete json.images;
-  delete json.samplers;
-  for (const key of ["extensionsUsed", "extensionsRequired"]) {
-    if (!json[key]) continue;
-    json[key] = json[key].filter((name) => name !== "EXT_texture_webp" && name !== "KHR_texture_basisu");
-    if (!json[key].length) delete json[key];
-  }
-  return encodeGlb(json, bin);
-}
+import { withoutTextures } from "./glb.mjs";
 
 /** Verify decoded render attributes, including every primitive and reduced skin. */
 export async function validateSurfaceContract(bytes, spec) {

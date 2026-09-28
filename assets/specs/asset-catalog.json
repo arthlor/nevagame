@@ -6944,7 +6944,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset’s existing architectural role and palette."
           }
         ],
         "components": [
@@ -7330,7 +7330,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset’s existing architectural role and palette."
           }
         ],
         "components": [
@@ -7644,7 +7644,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset’s existing architectural role and palette."
           }
         ],
         "components": [
@@ -8088,7 +8088,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset’s existing architectural role and palette."
           }
         ],
         "components": [
@@ -9893,6 +9893,7 @@
       "rootNode": "prop_worm_compost_a_root",
       "requiredNodes": [
         "prop_worm_compost_a_root",
+        "prop_worm_compost_a_output_surface",
         "COL_prop_worm_compost_a"
       ],
       "readDistanceMeters": 15,
@@ -10428,6 +10429,7 @@
       "rootNode": "prop_farm_workbench_a_root",
       "requiredNodes": [
         "prop_farm_workbench_a_root",
+        "prop_farm_workbench_a_output_surface",
         "COL_prop_farm_workbench_a"
       ],
       "readDistanceMeters": 15,
@@ -16154,17 +16156,17 @@
         "legs": {
           "left": {
             "shinTip": [
-              6.083204035778332e-07,
+              6.083204035778332e-7,
               0.4715808408109999,
-              -5.770259492651751e-07
+              -5.770259492651751e-7
             ],
             "soleOffset": [
-              -1.2226243172458462e-06,
+              -0.0000012226243172458462,
               -0.00011425101348860184,
               0.021365159456085164
             ],
             "soleNormal": [
-              5.7224328694580946e-05,
+              0.000057224328694580946,
               0.005347462067896048,
               -0.9999857005851679
             ],
@@ -16176,17 +16178,17 @@
           },
           "right": {
             "shinTip": [
-              -5.912972754901214e-07,
+              -5.912972754901214e-7,
               0.4715808558537874,
-              6.288526131700834e-07
+              6.288526131700834e-7
             ],
             "soleOffset": [
-              8.404904832670641e-07,
-              -8.232815192382027e-05,
+              8.404904832670641e-7,
+              -0.00008232815192382027,
               0.015395522650759993
             ],
             "soleNormal": [
-              -5.4592398974357175e-05,
+              -0.000054592398974357175,
               0.005347462152409777,
               -0.9999857007318649
             ],
@@ -16647,15 +16649,15 @@
             "shinTip": [
               -1.701499803682602e-10,
               0.005348252503311836,
-              -6.880160751125861e-09
+              -6.880160751125861e-9
             ],
             "soleOffset": [
               -2.095368908765216e-11,
-              -1.6749882072353457e-06,
+              -0.0000016749882072353457,
               0.00031318206688217044
             ],
             "soleNormal": [
-              6.69048034478611e-08,
+              6.69048034478611e-8,
               0.005348212522444996,
               -0.9999856982091346
             ],
@@ -16669,15 +16671,15 @@
             "shinTip": [
               4.119266205264775e-10,
               0.005348252500928075,
-              -6.930496367443287e-09
+              -6.930496367443287e-9
             ],
             "soleOffset": [
               -2.095368908765216e-11,
-              -1.6749882072354541e-06,
+              -0.0000016749882072354541,
               0.0003131820668821906
             ],
             "soleNormal": [
-              6.69048034478611e-08,
+              6.69048034478611e-8,
               0.005348212522444996,
               -0.9999856982091346
             ],
@@ -17136,17 +17138,17 @@
         "legs": {
           "left": {
             "shinTip": [
-              6.301117644880171e-07,
+              6.301117644880171e-7,
               0.5111210356221413,
-              -6.12191120470673e-07
+              -6.12191120470673e-7
             ],
             "soleOffset": [
-              -1.477346830758286e-06,
+              -0.000001477346830758286,
               -0.00014130362671150448,
               0.026424062562997175
             ],
             "soleNormal": [
-              5.590834210445148e-05,
+              0.00005590834210445148,
               0.005347459567500157,
               -0.9999857006729803
             ],
@@ -17158,17 +17160,17 @@
           },
           "right": {
             "shinTip": [
-              -6.579986753518785e-07,
+              -6.579986753518785e-7,
               0.5111209322926769,
-              7.019210048961333e-07
+              7.019210048961333e-7
             ],
             "soleOffset": [
-              1.4773376987020637e-06,
+              0.0000014773376987020637,
               -0.00014130266319072743,
               0.026423882316174326
             ],
             "soleNormal": [
-              -5.590837788311649e-05,
+              -0.00005590837788311649,
               0.005347459580957725,
               -0.9999857006729064
             ],
@@ -17627,17 +17629,17 @@
         "legs": {
           "left": {
             "shinTip": [
-              6.805501273077219e-07,
+              6.805501273077219e-7,
               0.5111208873702886,
-              -6.080093188157165e-07
+              -6.080093188157165e-7
             ],
             "soleOffset": [
-              -1.340401096686094e-06,
+              -0.000001340401096686094,
               -0.00012820519935012592,
               0.023974630286355603
             ],
             "soleNormal": [
-              5.590833952514305e-05,
+              0.00005590833952514305,
               0.00534745956750038,
               -0.9999857006729805
             ],
@@ -17649,17 +17651,17 @@
           },
           "right": {
             "shinTip": [
-              -6.401676178324766e-07,
+              -6.401676178324766e-7,
               0.5111208623842654,
-              6.924243841147092e-07
+              6.924243841147092e-7
             ],
             "soleOffset": [
-              1.3403939083805885e-06,
+              0.0000013403939083805885,
               -0.00012820442417422337,
               0.023974485266564736
             ],
             "soleNormal": [
-              -5.59083778831165e-05,
+              -0.0000559083778831165,
               0.005347459580957391,
               -0.9999857006729063
             ],
@@ -18120,15 +18122,15 @@
             "shinTip": [
               -2.865652953647213e-10,
               0.0053482528962969,
-              -6.820223087352674e-09
+              -6.820223087352674e-9
             ],
             "soleOffset": [
               -2.0953690497114988e-11,
-              -1.6748822304299984e-06,
+              -0.0000016748822304299984,
               0.0003131819700124213
             ],
             "soleNormal": [
-              6.690481693302548e-08,
+              6.690481693302548e-8,
               0.005347875803847546,
               -0.9999857000099462
             ],
@@ -18142,15 +18144,15 @@
             "shinTip": [
               2.955113177815008e-10,
               0.005348252891159713,
-              -6.928700306747283e-09
+              -6.928700306747283e-9
             ],
             "soleOffset": [
               -2.0953690497114988e-11,
-              -1.6748822304302152e-06,
+              -0.0000016748822304302152,
               0.0003131819700124413
             ],
             "soleNormal": [
-              6.690481693302548e-08,
+              6.690481693302548e-8,
               0.005347875803847546,
               -0.9999857000099462
             ],
@@ -19191,9 +19193,9 @@
       "generator": "interior_farmhouse_shell",
       "seed": 301,
       "dimensions": {
-        "width": 9.4,
-        "depth": 7.4,
-        "height": 3.8
+        "width": 10.3,
+        "depth": 8.1,
+        "height": 3.7
       },
       "palette": [
         "stone_warm_01",
@@ -19215,14 +19217,37 @@
       "rootNode": "interior_farmhouse_shell_root",
       "requiredNodes": [
         "interior_farmhouse_shell_root",
+        "interior_farmhouse_shell_LOD0",
+        "interior_farmhouse_shell_LOD1",
+        "interior_farmhouse_shell_LOD2",
         "COL_interior_farmhouse_shell"
       ],
       "readDistanceMeters": 30,
+      "lodLevels": [
+        {
+          "node": "interior_farmhouse_shell_LOD0",
+          "distanceMeters": 0,
+          "triangleRatioMin": 1,
+          "triangleRatioMax": 1
+        },
+        {
+          "node": "interior_farmhouse_shell_LOD1",
+          "distanceMeters": 14,
+          "triangleRatioMin": 0.28,
+          "triangleRatioMax": 0.4
+        },
+        {
+          "node": "interior_farmhouse_shell_LOD2",
+          "distanceMeters": 24,
+          "triangleRatioMin": 0.12,
+          "triangleRatioMax": 0.25
+        }
+      ],
       "parameters": {
-        "width": 8.8,
-        "depth": 6.8,
+        "width": 10,
+        "depth": 7.6,
         "wallHeight": 3.5,
-        "floorPlanks": 20,
+        "floorPlanks": 22,
         "ceilingBeams": 5
       },
       "collisionPrimitives": [
@@ -19234,20 +19259,20 @@
             0
           ],
           "halfExtents": [
-            4.4,
+            5,
             0.08,
-            3.4
+            3.8
           ]
         },
         {
           "id": "wall_back_left",
           "center": [
-            -2.8,
+            -3.1,
             1.75,
-            3.4
+            3.8
           ],
           "halfExtents": [
-            1.6,
+            1.9,
             1.75,
             0.15
           ]
@@ -19255,12 +19280,12 @@
         {
           "id": "wall_back_right",
           "center": [
-            2.8,
+            3.1,
             1.75,
-            3.4
+            3.8
           ],
           "halfExtents": [
-            1.6,
+            1.9,
             1.75,
             0.15
           ]
@@ -19268,38 +19293,38 @@
         {
           "id": "wall_left",
           "center": [
-            -4.4,
+            -5,
             1.75,
             0
           ],
           "halfExtents": [
             0.15,
             1.75,
-            3.4
+            3.8
           ]
         },
         {
           "id": "wall_right",
           "center": [
-            4.4,
+            5,
             1.75,
             0
           ],
           "halfExtents": [
             0.15,
             1.75,
-            3.4
+            3.8
           ]
         },
         {
           "id": "wall_front_left",
           "center": [
-            -2.5,
+            -2.8,
             1.75,
-            -3.4
+            -3.8
           ],
           "halfExtents": [
-            1.9,
+            2.2,
             1.75,
             0.15
           ]
@@ -19307,12 +19332,12 @@
         {
           "id": "wall_front_right",
           "center": [
-            2.5,
+            2.8,
             1.75,
-            -3.4
+            -3.8
           ],
           "halfExtents": [
-            1.9,
+            2.2,
             1.75,
             0.15
           ]
@@ -19796,7 +19821,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset’s existing architectural role and palette."
           }
         ],
         "components": [
@@ -20001,6 +20026,7 @@
       "rootNode": "building_farm_kitchen_a_root",
       "requiredNodes": [
         "building_farm_kitchen_a_root",
+        "building_farm_kitchen_a_output_surface",
         "COL_building_farm_kitchen_a"
       ],
       "readDistanceMeters": 20,
@@ -25488,17 +25514,17 @@
         "legs": {
           "left": {
             "shinTip": [
-              6.30809292245793e-07,
+              6.30809292245793e-7,
               0.5111210328910603,
-              -6.186740584904203e-07
+              -6.186740584904203e-7
             ],
             "soleOffset": [
-              -1.3501493998646639e-06,
+              -0.0000013501493998646639,
               -0.00012913759779992898,
               0.024148990672882394
             ],
             "soleNormal": [
-              5.590834465624749e-05,
+              0.00005590834465624749,
               0.005347459567500379,
               -0.9999857006729802
             ],
@@ -25510,17 +25536,17 @@
           },
           "right": {
             "shinTip": [
-              -6.265575983321892e-07,
+              -6.265575983321892e-7,
               0.5111209012725351,
-              7.152250200426202e-07
+              7.152250200426202e-7
             ],
             "soleOffset": [
-              1.350140346481621e-06,
+              0.000001350140346481621,
               -0.00012913663763748642,
               0.024148811059799748
             ],
             "soleNormal": [
-              -5.5908385593529377e-05,
+              -0.000055908385593529377,
               0.00534745958095728,
               -0.9999857006729059
             ],
@@ -25991,15 +26017,15 @@
             "shinTip": [
               -5.3734648132984495e-11,
               0.005348251956767635,
-              -6.662788507114796e-09
+              -6.662788507114796e-9
             ],
             "soleOffset": [
               -2.095367932983261e-11,
-              -1.6750413827809098e-06,
+              -0.0000016750413827809098,
               0.0003131821370845854
             ],
             "soleNormal": [
-              6.690476921259542e-08,
+              6.690476921259542e-8,
               0.005348381107466383,
               -0.999985697307479
             ],
@@ -26013,15 +26039,15 @@
             "shinTip": [
               2.3730368451518874e-10,
               0.005348251948188674,
-              -6.843942765809295e-09
+              -6.843942765809295e-9
             ],
             "soleOffset": [
               -2.095367932983261e-11,
-              -1.6750413827815603e-06,
+              -0.0000016750413827815603,
               0.00031318213708471355
             ],
             "soleNormal": [
-              6.690476921259542e-08,
+              6.690476921259542e-8,
               0.005348381107466383,
               -0.999985697307479
             ],
@@ -28227,7 +28253,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset’s existing architectural role and palette."
           }
         ],
         "components": [
@@ -28556,7 +28582,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset’s existing architectural role and palette."
           }
         ],
         "components": [
@@ -35683,7 +35709,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset\u2019s existing architectural role and palette."
+            "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset’s existing architectural role and palette."
           },
           {
             "id": "neva_art_bible",
@@ -35960,6 +35986,58 @@
             1.62,
             0.67,
             0.26
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prop_milestone_a",
+      "file": "prop_milestone_a.glb",
+      "family": "prop",
+      "generator": "road_milestone",
+      "seed": 617,
+      "dimensions": {
+        "width": 0.56,
+        "depth": 0.46,
+        "height": 0.96
+      },
+      "palette": [
+        "stone_cool_01",
+        "stone_coastal_warm_01",
+        "soil_shadow_01",
+        "stone_moss_01"
+      ],
+      "budget": {
+        "trianglesMin": 80,
+        "trianglesTarget": 260,
+        "trianglesMax": 600,
+        "materialsMax": 5
+      },
+      "pivot": "ground_center",
+      "collision": "box",
+      "instancing": true,
+      "lod": "small",
+      "rootNode": "prop_milestone_a_root",
+      "requiredNodes": [
+        "prop_milestone_a_root",
+        "COL_prop_milestone_a"
+      ],
+      "readDistanceMeters": 25,
+      "parameters": {
+        "stage": 2
+      },
+      "collisionPrimitives": [
+        {
+          "id": "main",
+          "center": [
+            0,
+            0.42,
+            0
+          ],
+          "halfExtents": [
+            0.16,
+            0.42,
+            0.12
           ]
         }
       ]
@@ -38274,7 +38352,7 @@
       "id": "char_npc_tomas_b",
       "file": "char_npc_tomas_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 1.4901119470596313,
@@ -38387,13 +38465,13 @@
         },
         {
           "name": "wait",
-          "durationSeconds": 6.0,
+          "durationSeconds": 6,
           "loop": false,
           "motionSource": {
             "kind": "native",
             "sourceTimebase": "seconds",
             "sourceClip": "wait.001",
-            "sourceDurationSeconds": 6.0
+            "sourceDurationSeconds": 6
           }
         },
         {
@@ -38421,8 +38499,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_tomas_b.blend",
-        "sourceCollection": "char_npc_tomas_b"
+        "sourceGlb": "art/imported/tripo/adapted/char_npc_tomas_b.glb",
+        "textureMaxSize": 1024
       },
       "sourceProvenance": {
         "provider": "tripo",
@@ -38567,13 +38645,13 @@
         },
         {
           "name": "wait",
-          "durationSeconds": 6.0,
+          "durationSeconds": 6,
           "loop": false,
           "motionSource": {
             "kind": "native",
             "sourceTimebase": "seconds",
             "sourceClip": "wait.001",
-            "sourceDurationSeconds": 6.0
+            "sourceDurationSeconds": 6
           }
         },
         {
@@ -38634,7 +38712,7 @@
       "id": "char_npc_ada_b",
       "file": "char_npc_ada_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 1.4164258241653442,
@@ -38736,13 +38814,13 @@
         },
         {
           "name": "wait",
-          "durationSeconds": 6.0,
+          "durationSeconds": 6,
           "loop": false,
           "motionSource": {
             "kind": "native",
             "sourceTimebase": "seconds",
             "sourceClip": "wait.001",
-            "sourceDurationSeconds": 6.0
+            "sourceDurationSeconds": 6
           }
         },
         {
@@ -38759,8 +38837,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ada_b.blend",
-        "sourceCollection": "char_npc_ada_b"
+        "sourceGlb": "art/imported/tripo/adapted/char_npc_ada_b.glb",
+        "textureMaxSize": 1024
       },
       "sourceProvenance": {
         "provider": "tripo",
@@ -39070,13 +39148,13 @@
         },
         {
           "name": "wait",
-          "durationSeconds": 6.0,
+          "durationSeconds": 6,
           "loop": false,
           "motionSource": {
             "kind": "native",
             "sourceTimebase": "seconds",
             "sourceClip": "wait.001",
-            "sourceDurationSeconds": 6.0
+            "sourceDurationSeconds": 6
           }
         },
         {
@@ -39240,13 +39318,13 @@
         },
         {
           "name": "wait",
-          "durationSeconds": 6.0,
+          "durationSeconds": 6,
           "loop": false,
           "motionSource": {
             "kind": "native",
             "sourceTimebase": "seconds",
             "sourceClip": "wait.001",
-            "sourceDurationSeconds": 6.0
+            "sourceDurationSeconds": 6
           }
         },
         {
@@ -39404,13 +39482,13 @@
         },
         {
           "name": "wait",
-          "durationSeconds": 6.0,
+          "durationSeconds": 6,
           "loop": false,
           "motionSource": {
             "kind": "native",
             "sourceTimebase": "seconds",
             "sourceClip": "wait.001",
-            "sourceDurationSeconds": 6.0
+            "sourceDurationSeconds": 6
           }
         },
         {
@@ -39629,7 +39707,7 @@
       "id": "char_npc_barnaby_b",
       "file": "char_npc_barnaby_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 1.5146487951278687,
@@ -39776,8 +39854,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_barnaby_b.blend",
-        "sourceCollection": "char_npc_barnaby_b"
+        "sourceGlb": "art/imported/tripo/adapted/char_npc_barnaby_b.glb",
+        "textureMaxSize": 1024
       },
       "sourceProvenance": {
         "provider": "tripo",
@@ -39809,7 +39887,7 @@
       "id": "char_npc_elspeth_b",
       "file": "char_npc_elspeth_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 1.4710690379142761,
@@ -39912,8 +39990,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_elspeth_b.blend",
-        "sourceCollection": "char_npc_elspeth_b"
+        "sourceGlb": "art/imported/tripo/adapted/char_npc_elspeth_b.glb",
+        "textureMaxSize": 1024
       },
       "sourceProvenance": {
         "provider": "tripo",
@@ -39945,7 +40023,7 @@
       "id": "char_npc_ines_b",
       "file": "char_npc_ines_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 1.4691651463508606,
@@ -40070,8 +40148,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_ines_b.blend",
-        "sourceCollection": "char_npc_ines_b"
+        "sourceGlb": "art/imported/tripo/adapted/char_npc_ines_b.glb",
+        "textureMaxSize": 1024
       },
       "sourceProvenance": {
         "provider": "tripo",
@@ -40103,7 +40181,7 @@
       "id": "char_npc_maeve_b",
       "file": "char_npc_maeve_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 1.4219334125518799,
@@ -40227,13 +40305,13 @@
         },
         {
           "name": "wait",
-          "durationSeconds": 6.0,
+          "durationSeconds": 6,
           "loop": false,
           "motionSource": {
             "kind": "native",
             "sourceTimebase": "seconds",
             "sourceClip": "wait.001",
-            "sourceDurationSeconds": 6.0
+            "sourceDurationSeconds": 6
           }
         },
         {
@@ -40250,8 +40328,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_maeve_b.blend",
-        "sourceCollection": "char_npc_maeve_b"
+        "sourceGlb": "art/imported/tripo/adapted/char_npc_maeve_b.glb",
+        "textureMaxSize": 1024
       },
       "sourceProvenance": {
         "provider": "tripo",
@@ -40283,7 +40361,7 @@
       "id": "char_npc_mara_b",
       "file": "char_npc_mara_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 1.4296391010284424,
@@ -40396,13 +40474,13 @@
         },
         {
           "name": "wait",
-          "durationSeconds": 6.0,
+          "durationSeconds": 6,
           "loop": false,
           "motionSource": {
             "kind": "native",
             "sourceTimebase": "seconds",
             "sourceClip": "wait.001",
-            "sourceDurationSeconds": 6.0
+            "sourceDurationSeconds": 6
           }
         },
         {
@@ -40430,8 +40508,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_mara_b.blend",
-        "sourceCollection": "char_npc_mara_b"
+        "sourceGlb": "art/imported/tripo/adapted/char_npc_mara_b.glb",
+        "textureMaxSize": 1024
       },
       "sourceProvenance": {
         "provider": "tripo",
@@ -40463,7 +40541,7 @@
       "id": "char_npc_rowan_b",
       "file": "char_npc_rowan_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 1.5634761452674866,
@@ -40565,13 +40643,13 @@
         },
         {
           "name": "wait",
-          "durationSeconds": 6.0,
+          "durationSeconds": 6,
           "loop": false,
           "motionSource": {
             "kind": "native",
             "sourceTimebase": "seconds",
             "sourceClip": "wait.001",
-            "sourceDurationSeconds": 6.0
+            "sourceDurationSeconds": 6
           }
         },
         {
@@ -40588,8 +40666,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_rowan_b.blend",
-        "sourceCollection": "char_npc_rowan_b"
+        "sourceGlb": "art/imported/tripo/adapted/char_npc_rowan_b.glb",
+        "textureMaxSize": 1024
       },
       "sourceProvenance": {
         "provider": "tripo",
@@ -40621,7 +40699,7 @@
       "id": "char_npc_silas_b",
       "file": "char_npc_silas_b.glb",
       "family": "character",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
       "seed": 801,
       "dimensions": {
         "width": 1.4444825649261475,
@@ -40757,8 +40835,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "sourceBlend": "art/imported/tripo/npcs/char_npc_silas_b.blend",
-        "sourceCollection": "char_npc_silas_b"
+        "sourceGlb": "art/imported/tripo/adapted/char_npc_silas_b.glb",
+        "textureMaxSize": 1024
       },
       "sourceProvenance": {
         "provider": "tripo",
@@ -40784,6 +40862,43 @@
           }
         },
         "uniformScale": 1.9
+      }
+    },
+    {
+      "id": "prop_compost_output_a",
+      "file": "prop_compost_output_a.glb",
+      "family": "prop",
+      "generator": "crafting_job_prop",
+      "seed": 4144,
+      "dimensions": {
+        "width": 0.73,
+        "depth": 0.46,
+        "height": 0.17
+      },
+      "palette": [
+        "wood_honey_01",
+        "soil_damp_01",
+        "skin_warm_01"
+      ],
+      "budget": {
+        "trianglesMin": 40,
+        "trianglesTarget": 750,
+        "trianglesMax": 1800,
+        "materialsMax": 3
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": false,
+      "lod": "small",
+      "rootNode": "prop_compost_output_a_root",
+      "requiredNodes": [
+        "prop_compost_output_a_root",
+        "prop_compost_output_a_tray",
+        "prop_compost_output_a_worms"
+      ],
+      "readDistanceMeters": 8,
+      "parameters": {
+        "style": "worms"
       }
     }
   ]

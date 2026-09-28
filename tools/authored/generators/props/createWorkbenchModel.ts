@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { SurfaceBuilder, addCollisionMarkers, mulberry32, type AuthoredModel, type GeneratorContext, type Station } from "../../kit";
+import { SurfaceBuilder, addCollisionMarkers, addMarker, mulberry32, type AuthoredModel, type GeneratorContext, type Station } from "../../kit";
 import { rope, sack, timber, v3 } from "./parts";
 
 // Catalog palette order: honey planks, dark frame, iron, canvas.
@@ -142,6 +142,7 @@ export function createWorkbenchModel(context: GeneratorContext): AuthoredModel {
   const mesh = surface.buildMesh(`${ID}_mesh`);
   mesh.geometry.rotateY(Math.PI);
   root.add(mesh);
+  addMarker(`${ID}_output_surface`, [width * 0.25, top, depth * 0.15], "socket", root);
   addCollisionMarkers(spec, root);
   return { root, clips: [] };
 }

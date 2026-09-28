@@ -1,12 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { AnimationMixer, LoopOnce, Quaternion, Vector3 } from "three";
+import { withoutTextures } from "./glb.mjs";
 
 /** Source-relative gate for retained rigs; never treats native capture defects as newly authored motion. */
 export async function nativeNpcContract(spec, gltf, loader) {
   const clips = spec.animationClips ?? [];
   if (!spec.skinnedAuthoring?.uniformScale || !clips.every(clip => clip.motionSource?.kind === "native")) return null;
-  const bytes = fs.readFileSync(path.resolve(spec.skinnedAuthoring.sourceFile));
+  // The retained source embeds its texture; the rig check never reads pixels.
+  const bytes = withoutTextures(fs.readFileSync(path.resolve(spec.skinnedAuthoring.sourceFile)));
   const source = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
   const scale = spec.skinnedAuthoring.uniformScale;
   const fail = message => { throw new Error(`${spec.id}: native NPC fidelity: ${message}`); };

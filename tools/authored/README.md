@@ -183,12 +183,13 @@ contract are the reference (the retired source remains in git history before the
 | Crafted trade packs | `crafted_trade_pack` (`props/createCraftedTradePackModel.ts`; provisions, textiles, workshop and maritime loads) | authored |
 | Shore and woodland | `driftwood_cluster`, `driftwood_log`, `fallen_log` (`props/shore.ts`) | authored (redesigned) |
 | Furniture | `cozy_bed`, `cozy_armchair`, `wood_bench`, `picnic_table` (`props/furniture.ts`) | authored (redesigned) |
+| Interior farmhouse shell | `interior_farmhouse_shell` (`buildings/createInteriorFarmhouseShell.ts`) | authored (ported, redesigned) |
 | Garden | `potting_bench`, `rustic_watering_can`, `garden_hoe`, `apiary_hive` (`props/garden.ts`) | authored (redesigned) |
 | Harbour | `dock_lantern_post`, `hanging_signboard`, `cargo_sack`, `cargo_crate_large`, `treasure_chest` (`props/harbour.ts`) | authored (redesigned) |
 | Camp and trail | `smoke_plume`, `clay_oven`, `fire_pit`, `trail_kiosk`, `trail_signpost` (`props/camp.ts`) | authored (redesigned) |
 | Reef | `coral_pillar`, `coral_staghorn`, `coral_table` (`props/reef.ts`) | authored (redesigned) |
 | Riverside | `river_boulder` (`rounded`, `tabular`), `reed_bed`, `fern_clump`, `willow_shrub` (`environment/riverside.ts`) | authored |
-| NPC B-cast | `imported_blend` (published character GLBs; the blend files are gone, so nothing rebuilds them) | frozen |
+| Ambient townsfolk | `imported_blend` (`char_npc_ambient_*` published character GLBs; the blend files are gone, so nothing rebuilds them) | frozen |
 | Crop trade packs | `crop_trade_pack` | frozen (to port) |
 | Wearables | `wearable_equipment` (fit groundwork in `generators/wearables/`: the player body sampled by `scripts/extract-player-body.mjs`, weight transfer and a body envelope; not yet registered) | frozen (to port) |
 | Everything else | the other families in `tools/art/legacy-generators.json` | frozen (to port) |

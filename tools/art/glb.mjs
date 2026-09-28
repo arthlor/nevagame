@@ -406,3 +406,34 @@ export async function normalizeAuthoredGlb(sourceBytes, { textureMaxSize, sharp,
     report: { preservedSourceBytes: false, repairedBounds, removedMaterialExtensions, textures: textures.report },
   };
 }
+
+const TEXTURE_SLOTS = ["normalTexture", "occlusionTexture", "emissiveTexture"];
+const PBR_TEXTURE_SLOTS = ["baseColorTexture", "metallicRoughnessTexture"];
+
+/**
+ * For checks that read geometry, skins and clips only: strip texture references so a loader never
+ * needs an image decoder (Node has none, and three's WebP support probe is browser-only).
+ */
+export function withoutTextures(bytes) {
+  const { json, bin } = parseGlb(bytes);
+  if (!json.textures?.length && !json.images?.length) return bytes;
+  for (const material of json.materials ?? []) {
+    for (const slot of TEXTURE_SLOTS) delete material[slot];
+    for (const slot of PBR_TEXTURE_SLOTS) delete material.pbrMetallicRoughness?.[slot];
+    if (material.extensions) {
+      for (const extension of Object.values(material.extensions)) {
+        if (!extension || typeof extension !== "object") continue;
+        for (const key of Object.keys(extension)) if (key.endsWith("Texture")) delete extension[key];
+      }
+    }
+  }
+  delete json.textures;
+  delete json.images;
+  delete json.samplers;
+  for (const key of ["extensionsUsed", "extensionsRequired"]) {
+    if (!json[key]) continue;
+    json[key] = json[key].filter((name) => name !== "EXT_texture_webp" && name !== "KHR_texture_basisu");
+    if (!json[key].length) delete json[key];
+  }
+  return encodeGlb(json, bin);
+}

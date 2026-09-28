@@ -174,6 +174,30 @@ describe("authored GLB producer", () => {
     }
   });
 
+  it("repacks an already compressed animated source so its keyframes share buffer views, value for value", async () => {
+    const stage = fs.mkdtempSync(path.join(os.tmpdir(), "neva-authored-glb-"));
+    try {
+      const cow = spec("fauna_cow_a");
+      await produceAuthoredGlb(cow, stage, ROOT);
+      const raw = path.join(stage, cow.file);
+      const optimized = path.join(stage, `packaged_${cow.file}`);
+      expect(await packageAuthoredGlb(raw, optimized, cow)).toBe("lossless-recompression");
+      await ensureMeshoptReady();
+      const io = createNodeIO();
+      const before = (await io.readBinary(fs.readFileSync(raw))).getRoot();
+      const after = (await io.readBinary(fs.readFileSync(optimized))).getRoot();
+      expect(after.listAccessors().map((accessor) => Array.from(accessor.getArray()!)))
+        .toEqual(before.listAccessors().map((accessor) => Array.from(accessor.getArray()!)));
+      expect(after.listAnimations().map((animation) => [animation.getName(), animation.listChannels().length]))
+        .toEqual(before.listAnimations().map((animation) => [animation.getName(), animation.listChannels().length]));
+      expect(parseGlb(fs.readFileSync(optimized)).json.bufferViews.length)
+        .toBeLessThan(parseGlb(fs.readFileSync(raw)).json.bufferViews.length / 4);
+      await expect(validateGlb(optimized, cow, "test", ROOT)).resolves.toMatchObject({ artContractStatus: "passed" });
+    } finally {
+      fs.rmSync(stage, { recursive: true, force: true });
+    }
+  });
+
   it("holds textured Tripo characters to the texture cap and palette rules for untextured parts", async () => {
     const tomas = spec("char_npc_tomas_b");
     const published = path.join(ROOT, "public/assets/models", tomas.file);

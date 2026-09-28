@@ -259,11 +259,19 @@ it:
    axis, and for a `ground_center` pivot a lowest point no deeper than a tenth
    of the height (a seated foundation) and no higher than a twentieth (a
    removed ground sheet), each with a small absolute floor.
-3. **Package** by what the source is: a source already carrying
-   `EXT_meshopt_compression` keeps its geometry bytes; a skinned or animated
-   source gets lossless Meshopt with decoded parity (no quantize, reorder,
-   join, weld or skin reconstruction); a static source gets the full
-   dedupe/prune/weld/quantize/Meshopt optimisation.
+3. **Package** by what the source is. A skinned or animated source gets
+   lossless Meshopt (no quantize, reorder, join, weld or skin
+   reconstruction), and its animation keyframe accessors share buffer views
+   by element size instead of carrying one view each, because per-view JSON
+   and Meshopt framing outweighed a character's geometry. A source already
+   carrying `EXT_meshopt_compression` keeps its geometry bytes, unless it is
+   animated and losslessly compressed (no `KHR_mesh_quantization`, no Meshopt
+   filter): then `tools/art/decompress_glb.mjs` decodes it and it is repacked
+   the same way. A static source gets the full
+   dedupe/prune/weld/quantize/Meshopt optimisation. Every lossless package
+   must decode to the same accessors, images, nodes, skins and clips as the
+   normalized source, compared by a semantic hash that ignores how buffer
+   views are grouped; a mismatch fails the publish.
 4. **Validate** like every asset, with the authored-GLB material profile: a
    textured primitive needs `TEXCOORD_0` instead of `COLOR_0`; an untextured
    primitive needs `COLOR_0` and a material named for a declared palette
@@ -303,9 +311,14 @@ NPCs, cow, donkey, draft horse, galleon and Tripo cottage were prepared by
 retired Blender adapters. Their exported derivatives are the committed
 sources under `art/imported/<provider>/adapted/`; the adapter `.blend`
 libraries stay beside them as provenance (`sourceFile`), and the untouched
-provider downloads under `sources/`. Changing one of these assets means
-producing a new derivative GLB with the tool of the human's choice, committing
-it at the same path, and running the selected `art:generate`.
+provider downloads under `sources/`. The Tripo B-cast NPCs (`char_npc_*_b`)
+left the frozen `imported_blend` family the same way: their last published
+records are committed unchanged under `art/imported/tripo/adapted/`, and
+`textureMaxSize` resamples their 4096² skin textures, while `skinnedAuthoring`
+still names the raw Tripo capture that their native-performance contract
+checks. Changing one of these assets means producing a new derivative GLB
+with the tool of the human's choice, committing it at the same path, and
+running the selected `art:generate`.
 
 **Photo-reconstructed buildings.** `npm run art:authored` rebuilds these
 buildings' committed exports in headless Chromium (their factories paint

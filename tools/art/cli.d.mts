@@ -196,4 +196,4 @@ export function packageAuthoredGlb(
   raw: string,
   optimized: string,
   spec: CatalogAsset,
-): Promise<"source-compression" | "lossless-compression" | "static-optimization">;
+): Promise<"source-compression" | "lossless-recompression" | "lossless-compression" | "static-optimization">;

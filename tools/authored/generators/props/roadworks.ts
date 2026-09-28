@@ -103,3 +103,69 @@ export function createCulvertHeadwallModel(context: GeneratorContext): AuthoredM
   addCollisionMarkers(spec, root);
   return { root, clips: [] };
 }
+
+/**
+ * Milestone. A dressed stone post beside a cart road at each measured stage out from where the road
+ * starts: a tapered shaft on a half-buried plinth, a rounded faceted head that sheds rain, a sunken
+ * panel on the road face with the stage cut in it as tally strokes, and moss where water sits on the
+ * head's crown. Ground at y = 0, the carved face toward +Z (the road).
+ */
+export function createRoadMilestoneModel(context: GeneratorContext): AuthoredModel {
+  const { spec } = context;
+  const ID = spec.id;
+  const random = mulberry32(context.seed);
+  const root = new THREE.Group();
+  root.name = `${ID}_root`;
+  // Catalog palette order: cool stone, weathered warm stone, cut shadow, moss.
+  const surface = new SurfaceBuilder(spec.palette);
+  const COOL = 0;
+  const WARM = 1;
+  const SHADOW = 2;
+  const MOSS = 3;
+  const shaftTop = 0.68;
+  const half: readonly [number, number] = [0.15, 0.1];
+  const top: readonly [number, number] = [0.13, 0.09];
+  const lean = (random() - 0.5) * 0.04;
+
+  // Plinth: a rough, broad stone mostly under the verge, its top just showing.
+  const plinth: [number, number, number][] = [];
+  for (let k = 0; k < 9; k += 1) {
+    const angle = (k / 9) * Math.PI * 2 + random() * 0.3;
+    const radius = 0.24 + random() * 0.05;
+    plinth.push([Math.cos(angle) * radius, -0.08, Math.sin(angle) * radius * 0.8]);
+    plinth.push([Math.cos(angle) * (radius - 0.04), 0.06 + random() * 0.03, Math.sin(angle) * (radius - 0.04) * 0.8]);
+  }
+  surface.addHull(plinth, { token: (face) => (face.normal.y > 0.7 && random() < 0.4 ? MOSS : WARM), shade: () => 0.84 });
+  // Shaft: tapered and a touch out of true, as a set stone settles.
+  surface.addBox([0, 0.05, 0], [lean, shaftTop, 0], half, {
+    token: COOL, ref: [0, 0, 1], bevel: 0.025, halfEnd: top, shade: () => 0.9 + random() * 0.08
+  });
+  // Head: a low faceted dome, its crown mossed where rain lingers.
+  const head: [number, number, number][] = [];
+  for (let ring = 0; ring < 3; ring += 1) {
+    const y = shaftTop + ring * 0.07;
+    const scale = 1 - ring * ring * 0.18;
+    for (let k = 0; k < 8; k += 1) {
+      const angle = (k / 8) * Math.PI * 2;
+      head.push([lean + Math.cos(angle) * top[0] * 1.05 * scale, y, Math.sin(angle) * top[1] * 1.1 * scale]);
+    }
+  }
+  head.push([lean, shaftTop + 0.2, 0]);
+  surface.addHull(head, { token: (face) => (face.normal.y > 0.8 ? MOSS : COOL), shade: () => 0.95 });
+  // Sunken panel on the road face, and the stage cut into it as tally strokes.
+  const face = half[1] + 0.002;
+  const panel = { bottom: 0.28, top: 0.56, half: 0.09 };
+  surface.addBox([lean * 0.55, panel.bottom, face - 0.012], [lean * 0.82, panel.top, face - 0.012], [panel.half, 0.012], {
+    token: WARM, ref: [0, 0, 1], shade: () => 0.8
+  });
+  const strokes = Math.max(1, Math.min(4, Math.round(Number(spec.parameters?.stage ?? 2))));
+  for (let k = 0; k < strokes; k += 1) {
+    const x = (k - (strokes - 1) / 2) * 0.04 + lean * 0.7;
+    surface.addBox([x, panel.bottom + 0.05, face - 0.004], [x, panel.top - 0.05, face - 0.004], [0.009, 0.006], {
+      token: SHADOW, ref: [0, 0, 1], shade: () => 0.76
+    });
+  }
+  root.add(surface.buildMesh(`${ID}_mesh`));
+  addCollisionMarkers(spec, root);
+  return { root, clips: [] };
+}
