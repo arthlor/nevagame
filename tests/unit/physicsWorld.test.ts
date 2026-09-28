@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type RAPIER from "@dimforge/rapier3d-compat";
 import { describe, expect, it, vi } from "vitest";
 import { projectAssetCollision } from "../../src/physics/CollisionCatalogAdapter";
-import { PhysicsWorld } from "../../src/physics/PhysicsWorld";
+import { PARKED_DONKEY_BODY, PhysicsWorld } from "../../src/physics/PhysicsWorld";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog";
 import { Simulation } from "../../src/simulation/Simulation";
 import { PLAYER_TRAVERSAL_TUNING, slopeGaitScale } from "../../src/simulation/navigation/PlayerTraversal";
@@ -299,6 +299,29 @@ describe("PhysicsWorld", () => {
     expect(sim.state.player.z).toBeLessThan(1.35);
     expect(finalMotion?.isCollisionBlocked).toBe(true);
     expect(finalMotion?.speedMetersPerSecond).toBeLessThan(0.05);
+  });
+
+  it("stops the player at a standing donkey and drops that body while it is ridden", async () => {
+    const physics = await PhysicsWorld.create([]);
+    const sim = new Simulation();
+    placePlayer(sim);
+    const donkey = sim.state.mounts["mount.donkey_starter"]!;
+    Object.assign(donkey, { x: 0, z: 3, y: WorldLayout.traversalSurfaceHeight(0, 3), rotationY: Math.PI / 2 });
+    let everInsideBody = false;
+    for (let index = 0; index < 180; index++) {
+      const frame = physics.step(sim.state, { x: 0, z: 1, sprint: false }, "on-foot", 1 / 60, index / 60);
+      expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+      const { x, z } = sim.state.player;
+      if (Math.abs(x) < PARKED_DONKEY_BODY.halfLength && Math.abs(z - 3) < PARKED_DONKEY_BODY.halfWidth) everInsideBody = true;
+    }
+    expect(everInsideBody, "player walked through the donkey").toBe(false);
+    expect(sim.state.player.z).toBeLessThan(3);
+
+    const handles = (physics as unknown as { parkedCarriageColliderHandles: Set<number> }).parkedCarriageColliderHandles;
+    const parked = handles.size;
+    sim.state.player.activeMountId = donkey.id;
+    physics.step(sim.state, { x: 0, z: 0, sprint: false }, "mounted", 1 / 60, 3);
+    expect(handles.size).toBe(parked - 1);
   });
 
   it("stops the player at an oak trunk and lets them past a sapling", async () => {

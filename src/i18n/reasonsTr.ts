@@ -7,6 +7,12 @@ import { villageTradeTextTr } from "./villageTradeText";
 const EXACT_REASONS_TR: Record<string, string> = {
   // Movement & Mounting
   "Dismount first": "Önce binek veya arabadan in",
+  "Your donkey is here": "Eşeğin yanında",
+  "You have no donkey to call": "Çağıracak bir eşeğin yok",
+  "You are already riding your donkey": "Zaten eşeğine binmişsin",
+  "Your donkey is right here": "Eşeğin zaten yanında",
+  "Your donkey cannot come to you here": "Eşeğin buraya gelemez",
+  "There is no safe spot for your donkey here": "Burada eşeğin için güvenli bir yer yok",
   "Dismount before using a station": "Tezgâhı kullanmadan önce binek veya arabadan in",
   "Disembark before using a station": "Tezgâhı kullanmadan önce tekneden in",
   "Land before mounting": "Binmeden önce karaya bas",

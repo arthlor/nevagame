@@ -23,6 +23,9 @@ neva-debug.ts
 tmp-*.ts
 tmp-*.mjs
 tmp-*.js
+# Local agent briefs and audit notes; the LLM/ documents are the authorities
+/NEVA_Gameplay_Polish_Implementation_Brief.md
+/WORK_ECONOMY_AUDIT.md
 .claude/
 .cursor/
 hudcurrent/

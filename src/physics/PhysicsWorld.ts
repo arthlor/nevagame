@@ -329,6 +329,13 @@ interface PlayerBodyRollback {
   committedAttachmentKey: string | null;
 }
 
+/**
+ * The standing donkey's barrel and legs as one box, narrower than the mesh so
+ * the rider can dismount beside it (1.25 m) and a recalled donkey (2.2 m away)
+ * never overlaps the player.
+ */
+export const PARKED_DONKEY_BODY = Object.freeze({ halfWidth: 0.3, halfHeight: 0.6, halfLength: 0.8 });
+
 export class PhysicsWorld implements PhysicsAdapter {
   private parkedCarriageBodies: RAPIER.RigidBody[] = [];
   private parkedCarriagePose = "";
@@ -1848,7 +1855,11 @@ export class PhysicsWorld implements PhysicsAdapter {
 
     const parkedCarts = [...Object.values(state.mounts).filter(isCarriage), ...workshopCarriagePoses().filter(pose => !state.mounts[pose.id])]
       .filter(cart => state.player.activeMountId !== cart.id);
-    const cartKey = parkedCarts.map(cart => `${cart.id}:${cart.x}:${cart.y}:${cart.z}:${cart.rotationY}`).join("|");
+    // A standing donkey is solid like a parked cart; its rider never meets it.
+    const parkedDonkeys = Object.values(state.mounts)
+      .filter(mount => !isCarriage(mount) && state.player.activeMountId !== mount.id);
+    const cartKey = [...parkedCarts, ...parkedDonkeys]
+      .map(cart => `${cart.id}:${cart.x}:${cart.y}:${cart.z}:${cart.rotationY}`).join("|");
     if (cartKey !== this.parkedCarriagePose) {
       for (const body of this.parkedCarriageBodies) this.world.removeRigidBody(body);
       this.parkedCarriageBodies = [];
@@ -1861,6 +1872,15 @@ export class PhysicsWorld implements PhysicsAdapter {
         const bed = this.world.createCollider(this.rapier.ColliderDesc.cuboid(tuning.bedWidth / 2 + .32, .75, tuning.bedLength / 2 + .08).setTranslation(0, .95, 0), body);
         const horse = this.world.createCollider(this.rapier.ColliderDesc.cuboid(.48, .95, 1.1).setTranslation(0, 1, tuning.horseOffset), body);
         this.parkedCarriageColliderHandles.add(bed.handle); this.parkedCarriageColliderHandles.add(horse.handle);
+        this.parkedCarriageBodies.push(body);
+      }
+      for (const donkey of parkedDonkeys) {
+        const body = this.world.createRigidBody(this.rapier.RigidBodyDesc.fixed().setTranslation(donkey.x, donkey.y, donkey.z)
+          .setRotation({ x: 0, y: Math.sin(donkey.rotationY / 2), z: 0, w: Math.cos(donkey.rotationY / 2) }));
+        const { halfWidth, halfHeight, halfLength } = PARKED_DONKEY_BODY;
+        const collider = this.world.createCollider(
+          this.rapier.ColliderDesc.cuboid(halfWidth, halfHeight, halfLength).setTranslation(0, halfHeight + 0.15, 0), body);
+        this.parkedCarriageColliderHandles.add(collider.handle);
         this.parkedCarriageBodies.push(body);
       }
       this.dynamicBodyCountStale = true;
