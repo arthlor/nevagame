@@ -113,7 +113,7 @@ describe("LightingRig", () => {
       type: THREE.PCFSoftShadowMap,
       needsUpdate: false,
       render: restoredRender
-    } as typeof renderer.shadowMap;
+    } as unknown as typeof renderer.shadowMap;
     rig.reattachAfterContextRestore();
     expect(renderer.shadowMap.render).not.toBe(restoredRender);
     expect(renderer.shadowMap.autoUpdate).toBe(false);

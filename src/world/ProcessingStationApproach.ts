@@ -32,6 +32,7 @@ export interface ProcessingStationApproachDefinition {
 export interface ProcessingStationPoint {
   x: number;
   z: number;
+  y?: number;
   rotationY?: number;
 }
 

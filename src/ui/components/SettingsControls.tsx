@@ -112,7 +112,6 @@ function SliderRow({ id, label, min, max, step, value, valueText, testId, onChan
         aria-valuetext={valueText}
         data-testid={testId}
         onChange={(event) => onChange(Number(event.currentTarget.value))}
-        onPointerUp={() => playUiSound("click")}
       />
       <span className="graphics-slider-row__value" aria-hidden="true">{valueText}</span>
     </div>
@@ -452,7 +451,6 @@ export const AudioControls: React.FC = () => {
                 const level = Number(event.currentTarget.value) / 100;
                 setSettings({ ...audioSettings.set({ [row.level]: level, [row.muted]: false }) });
               }}
-              onPointerUp={() => playUiSound("click")}
             />
             <ChromeButton
               className="audio-mute-button"

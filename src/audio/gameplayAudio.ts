@@ -94,6 +94,13 @@ let lastSportInstance: string | null = null;
 let lastSurfaceCrossings = 0;
 let lastSprintExhausted: boolean | null = null;
 
+/**
+ * Ready cycles that land together (one growth tick, a night's sleep) share a
+ * single restrained chime. Each cycle is one simulation transition, so a
+ * later cycle can chime again once this window has passed.
+ */
+export const READY_CUE_GROUP_MS = 2500;
+
 const playCooled = (cueId: Parameters<typeof gameAudio.playOneShot>[0], cooldownMs: number, position?: AudioPosition, now = performance.now()): void => {
   if (now - (lastPlayed.get(cueId) ?? Number.NEGATIVE_INFINITY) < cooldownMs) {
     return;
@@ -123,7 +130,10 @@ export const bindDomainAudio = (events: EventBus, getPosition: () => AudioPositi
       else if (recipe?.presentationKind === "toolmaking") play("craft-tool");
       else play(recipe?.stationType === "fish-table" ? "fish-scale-scrape" : "wood-saw");
     }),
-    events.on("ProcessingJobReady", () => play("craft-ready")),
+    events.on("CropStageChanged", ({ stage }) => {
+      if (stage === "mature") playCooled("craft-ready", READY_CUE_GROUP_MS);
+    }),
+    events.on("ProcessingJobReady", () => playCooled("craft-ready", READY_CUE_GROUP_MS)),
     events.on("RecipeCompleted", () => play("ui-confirm")),
     events.on("EquipmentEquipped", () => play("equipment-equip")),
     events.on("EquipmentPresetApplied", () => play("equipment-equip")),
@@ -182,6 +192,7 @@ export const bindDomainAudio = (events: EventBus, getPosition: () => AudioPositi
     }),
     events.on("BoatRepaired", () => play("ui-confirm")),
     events.on("MountBoarded", () => gameAudio.playBank("donkey-snort", getPosition())),
+    events.on("MountRecalled", () => gameAudio.playBank("donkey-snort", getPosition())),
     events.on("MountDisembarked", () => play("pickup")),
     events.on("ItemSold", () => play("coins")),
     events.on("ItemPurchased", () => play("coins")),

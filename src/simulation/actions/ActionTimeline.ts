@@ -101,11 +101,12 @@ interface ActiveAction {
 export class SimulationActionTimeline {
   private activeAction: ActiveAction | null = null;
   private nextId = 1;
-  private paused = false;
+  private updating = false;
 
   constructor(
     private readonly executeCommand: (command: GameCommand) => InteractionResult,
-    private readonly timingScale: number = 1
+    private readonly timingScale: number = 1,
+    private readonly canStart: () => boolean = () => true
   ) {
     if (!Number.isFinite(timingScale) || timingScale <= 0) {
       throw new Error("Authored action timing scale must be positive and finite");
@@ -136,7 +137,7 @@ export class SimulationActionTimeline {
     callbacks: FarmingActionCallbacks = {},
     workCost: number | null = null
   ): boolean {
-    if (this.activeAction) return false;
+    if (this.activeAction || this.updating || !this.canStart()) return false;
     this.activeAction = {
       id: this.nextId++,
       action,
@@ -152,49 +153,74 @@ export class SimulationActionTimeline {
       commitStagePending: false,
       callbacks
     };
-    callbacks.phaseChanged?.(this.snapshot(nowMs)!);
+    try {
+      callbacks.phaseChanged?.(this.snapshot(nowMs)!);
+    } catch (error) {
+      this.reset();
+      throw error;
+    }
     return true;
   }
 
   public update(nowMs: number, paused: boolean = false): void {
-    this.paused = paused;
     const active = this.activeAction;
-    if (!active) return;
-    this.advanceClock(active, nowMs, paused);
-    const timing = this.timing(active.action);
+    if (!active || this.updating) return;
+    this.updating = true;
+    try {
+      this.advanceClock(active, nowMs, paused);
+      const timing = this.timing(active.action);
 
-    if (!active.commitAttempted && active.elapsedMs >= timing.commitMs) {
-      // Set this before executing because a successful command may synchronously
-      // change mode and ask presentation code to interrupt the current action.
-      active.commitAttempted = true;
-      const result = this.executeCommand(active.command);
-      if (active.workCost !== null && result.success && typeof result.cost === "number") {
-        active.workCost = result.cost;
+      if (!active.commitAttempted && active.elapsedMs >= timing.commitMs) {
+        // Set this before executing because a successful command may synchronously
+        // change mode and ask presentation code to interrupt the current action.
+        active.commitAttempted = true;
+        const result = this.executeCommand(active.command);
+        if (this.activeAction !== active) return;
+        if (active.workCost !== null && result.success && typeof result.cost === "number") {
+          active.workCost = result.cost;
+        }
+        active.commitResult = { ...result };
+        active.committed = result.success;
+        active.phase = result.success ? "committed" : "invalidated";
+        active.commitStagePending = true;
+        active.callbacks.phaseChanged?.(this.snapshot(nowMs)!);
+        active.commitStagePending = false;
       }
-      active.commitResult = { ...result };
-      active.committed = result.success;
-      active.phase = result.success ? "committed" : "invalidated";
-      active.commitStagePending = true;
-      active.callbacks.phaseChanged?.(this.snapshot(nowMs)!);
-      active.commitStagePending = false;
-    }
 
-    if (active.elapsedMs >= timing.durationMs) {
-      active.phase = "completed";
-      active.callbacks.phaseChanged?.(this.snapshot(nowMs)!);
-      this.activeAction = null;
+      if (this.activeAction === active && active.elapsedMs >= timing.durationMs) {
+        this.finish("completed");
+      }
+    } catch (error) {
+      // Ownership must never depend on an animation/UI observer succeeding.
+      this.reset();
+      throw error;
+    } finally {
+      this.updating = false;
     }
   }
 
-  public cancelBeforeCommit(nowMs: number): boolean {
+  public cancelBeforeCommit(_nowMs: number): boolean {
     if (!this.activeAction || this.activeAction.commitAttempted) return false;
-    this.update(nowMs, this.paused);
-    const active = this.activeAction;
-    if (!active || active.commitAttempted) return false;
-    active.phase = "cancelled";
-    active.callbacks.phaseChanged?.(this.snapshot(nowMs)!);
-    this.activeAction = null;
+    // Cancellation is not a frame update: a delayed frame must not turn an
+    // unattempted action into a paid transaction while trying to cancel it.
+    this.finish("cancelled");
     return true;
+  }
+
+  /** Scene/session teardown drops presentation recovery without replay or undo. */
+  public reset(): void {
+    if (!this.activeAction) return;
+    this.finish(this.activeAction.committed ? "completed" : "cancelled");
+  }
+
+  private finish(phase: "completed" | "cancelled"): void {
+    const active = this.activeAction;
+    if (!active) return;
+    active.phase = phase;
+    active.commitStagePending = false;
+    const snapshot = this.snapshot(0)!;
+    this.activeAction = null;
+    active.callbacks.phaseChanged?.(snapshot);
   }
 
   public snapshot(_nowMs: number): FarmingActionSnapshot | null {

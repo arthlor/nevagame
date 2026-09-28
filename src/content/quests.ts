@@ -4,6 +4,7 @@ import { MAINLAND_VILLAGES } from "../world/NevaMainland";
 import { SUNREACH_OFFSET_X } from "../world/WorldIslands";
 // src/content/quests.ts
 
+import { ELSPETH_HOME_ANCHOR } from "./npcs";
 import { MAIN_QUEST_TRACK_ID, type QuestDefinition } from "../simulation/core/QuestTypes";
 import { HOMESTEAD_QUEST_TRACK_ID, TIDES_QUEST_TRACK_ID, TRADELANES_QUEST_TRACK_ID } from "./questTracks";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, HARBOR_SILAS_ANCHOR, HARBOR_SKIFF_MOORING, VILLAGE_MARKET } from "../world/WorldAnchors";
@@ -61,7 +62,7 @@ export const QUESTS: QuestDefinition[] = [
     introDialogue: [
       "Gate's yours. House too — inheritance, not a repurchase from the village.",
       "Your people worked these beds and knew the water past the headland. Start where they always started: dirt that cakes if you ignore it.",
-      "Wheat's in the tin. Field's behind me. Get them in before the afternoon wind skins the topsoil."
+      "Here's wheat for the first rows. Field's behind me. Get them in before the afternoon wind skins the topsoil."
     ],
     completionDialogue: [
       "Steady hands. Same as his. Under the soil before it crusts."
@@ -70,10 +71,10 @@ export const QUESTS: QuestDefinition[] = [
       {
         id: "step.act1_welcome_talk",
         type: "talk-npc",
-        description: "Talk to Elspeth at the garden gate",
+        description: "Talk to Elspeth in the farmhouse yard",
         targetId: "npc.elspeth",
         targetQuantity: 1,
-        locationAnchor: { x: -63.5, z: -62.0, name: "Starter Garden Gate" }
+        locationAnchor: { x: ELSPETH_HOME_ANCHOR.x, z: ELSPETH_HOME_ANCHOR.z, name: ELSPETH_HOME_ANCHOR.locationName }
 
       }
     ],
@@ -1051,7 +1052,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Take the seed pouch from Elspeth",
         targetId: "npc.elspeth",
         targetQuantity: 1,
-        locationAnchor: { x: -63.5, z: -62, name: "Starter Garden Gate" }
+        locationAnchor: { x: ELSPETH_HOME_ANCHOR.x, z: ELSPETH_HOME_ANCHOR.z, name: ELSPETH_HOME_ANCHOR.locationName }
       }
     ],
     rewards: {
@@ -1090,6 +1091,7 @@ export const QUESTS: QuestDefinition[] = [
         type: "water-crop",
         description: "Water the commons rows",
         targetQuantity: 3,
+        creditsEarlyActions: true,
         locationAnchor: COMMONS_PLOT,
         location: { kind: "farm", id: "farm.player_homestead" }
       }
@@ -1146,7 +1148,8 @@ export const QUESTS: QuestDefinition[] = [
       "Grind some of that commons wheat there. The same stone serves every family in the cove. That is the useful part of an inheritance: a tool kept ready for the next pair of hands."
     ],
     completionDialogue: [
-      "Every tool round this cove is a record of the hands that used it. Yours are on that handle now too."
+      "Every tool round this cove is a record of the hands that used it. Yours are on that handle now too.",
+      "Take this apple sapling for the commons. Elspeth will tell you where it belongs."
     ],
     objectives: [
       {
@@ -1161,6 +1164,7 @@ export const QUESTS: QuestDefinition[] = [
     ],
     rewards: {
       money: 60,
+      items: [{ itemId: "seed.apple_sapling", quantity: 1 }],
       skillXp: [{ skill: "processing", xp: 400 }],
       unlocksKnowledgeIds: ["knowledge.worn_handle"]
     },
@@ -1205,7 +1209,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Bring the first apple to Elspeth",
         targetId: "npc.elspeth",
         targetQuantity: 1,
-        locationAnchor: { x: -63.5, z: -62, name: "Starter Garden Gate" }
+        locationAnchor: { x: ELSPETH_HOME_ANCHOR.x, z: ELSPETH_HOME_ANCHOR.z, name: ELSPETH_HOME_ANCHOR.locationName }
       }
     ],
     turnInCost: { items: [{ itemId: "produce.apple", quantity: 1 }] },
@@ -1846,10 +1850,10 @@ export const QUESTS: QuestDefinition[] = [
       {
         id: "step.act10_elspeth",
         type: "talk-npc",
-        description: "Return to Elspeth at the garden gate",
+        description: "Return to Elspeth in the farmhouse yard",
         targetId: "npc.elspeth",
         targetQuantity: 1,
-        locationAnchor: { x: -63.5, z: -62, name: "Starter Garden Gate" }
+        locationAnchor: { x: ELSPETH_HOME_ANCHOR.x, z: ELSPETH_HOME_ANCHOR.z, name: ELSPETH_HOME_ANCHOR.locationName }
       }
     ],
     rewards: {

@@ -12,7 +12,7 @@ import {
   ChromeAlert,
   ChromeQuality
 } from "./chrome/Chrome";
-import { IconFish, IconSatchel, IconSprout, IconTools } from "./components/HudIcons";
+import { IconFish, IconPack, IconSatchel, IconSprout, IconTools } from "./components/HudIcons";
 import { GameSheet, ItemSlot } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
 import { useTranslation } from "../i18n/useTranslation";
@@ -40,6 +40,20 @@ interface InventoryModalProps {
     quality: SatchelDto["slots"][number]["quality"]
   ) => InteractionResult;
 }
+
+/**
+ * The item's own sprite, or a neutral bundle when the atlas has no cell for it
+ * yet. Never another item's icon: identity must not be borrowed.
+ */
+const SatchelItemIcon: React.FC<{ itemId: string; size: number; className?: string }> = ({ itemId, size, className }) => {
+  const sprite = atlasForItem(itemId) ?? atlasForFish(itemId);
+  if (sprite) return <AtlasImage src={sprite} alt="" size={size} className={className} />;
+  return (
+    <span className={`${className ?? ""} slot-item-icon--fallback`.trim()} data-testid="item-icon-fallback" aria-hidden="true">
+      <IconPack size={Math.round(size * 0.7)} />
+    </span>
+  );
+};
 
 type InventoryCategory = "all" | "farming" | "fishing" | "supplies";
 
@@ -166,7 +180,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   const handleSortSatchel = (): void => {
     const result = onSortSatchel?.();
     if (!result) return;
-    playUiSound(result.success ? "confirm" : "click");
+    playUiSound(result.success ? "confirm" : "error");
     // The satchel is re-read from the simulation on the next render, so the
     // notice is the only thing this component has to hold onto.
     setSortNotice(result.success ? (locale === "tr" ? "Heybe düzenlendi" : "Satchel tidied") : result.reason ?? (locale === "tr" ? "Düzenlenecek bir şey yok" : "Nothing to tidy"));
@@ -196,7 +210,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     if (!slotToDiscard?.itemId || slotToDiscard.quantity <= 0) return;
     const result = onDiscardItem?.(slotToDiscard.itemId, slotToDiscard.quantity, slotToDiscard.quality);
     if (!result) return;
-    playUiSound(result.success ? "confirm" : "click");
+    playUiSound(result.success ? "confirm" : "error");
     setDiscardNotice(
       result.success
         ? (locale === "tr" ? `${slotToDiscard.quantity} adet ${slotToDiscard.name} atıldı` : `Discarded ${slotToDiscard.quantity} ${slotToDiscard.name}`)
@@ -487,12 +501,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     aria-disabled={isSelectable ? undefined : "true"}
                     tabIndex={isSelectable && isSelected ? 0 : -1}
                   >
-                    <AtlasImage
-                      src={atlasForItem(slot.itemId) ?? atlasForFish(slot.itemId)}
-                      alt=""
-                      size={40}
-                      className="slot-item-icon"
-                    />
+                    <SatchelItemIcon itemId={slot.itemId} size={40} className="slot-item-icon" />
                   </ItemSlot>
                 );
               })}
@@ -504,11 +513,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               <>
                 <div className="details-header">
                   <div className="details-icon-well">
-                    <AtlasImage
-                      src={atlasForItem(selectedSlot.itemId) ?? atlasForFish(selectedSlot.itemId)}
-                      alt=""
-                      size={54}
-                    />
+                    <SatchelItemIcon itemId={selectedSlot.itemId} size={54} />
                   </div>
                   <div>
                     <h3 className="details-name">{selectedSlot.name}</h3>

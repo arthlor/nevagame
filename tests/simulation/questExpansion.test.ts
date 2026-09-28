@@ -69,6 +69,9 @@ describe("post-story quest expansion", () => {
     sim.state.player.money = 200;
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 1 }
+    ]);
     expect(sim.plantCrop("farm.starter_garden", "crop.wheat", STARTER_FARM_LAYOUT.origin.x, STARTER_FARM_LAYOUT.origin.z).success).toBe(true);
     const crop = sim.state.crops[Object.keys(sim.state.crops)[0]];
     crop.moisture = 20;

@@ -237,7 +237,7 @@ Workstations provide rhythmic, mechanical acoustic feedback that brings homestea
 - **`sfx.craft.chum_mix`**: Moist, dense sloshing and stirring sound as ground grain and bait worms are blended into bucket chum.
 - **`sfx.craft.lure_tie`**: Delicate twine pulling taut, feather trimming, and brass hook jingling.
 
-Current equipment-system runtime coverage is intentionally smaller than the target inventory above. `RecipeStarted` selects the wired spatial `craft-tailor` or `craft-tool` cue from the recipe's captured presentation kind; the simulation event fires only after the commit succeeds. `ProcessingJobReady` triggers the non-spatial UI cue `craft-ready`, because completion may occur while the player is far from the station and must not be localized at the player's current world position. `EquipmentEquipped` and `EquipmentPresetApplied` trigger the non-spatial `equipment-equip` cloth cue. These four manifest cues reuse admitted, normalized sources; they are registered and wired, but still require human listening/mix acceptance. The more specific saw, hammer, lure and station loops listed above remain specified targets until their own assets and callers exist.
+Current equipment-system runtime coverage is intentionally smaller than the target inventory above. `RecipeStarted` selects the wired spatial `craft-tailor` or `craft-tool` cue from the recipe's captured presentation kind; the simulation event fires only after the commit succeeds. `ProcessingJobReady` and a crop's `CropStageChanged` transition to `mature` trigger the non-spatial cue `craft-ready`, because completion may occur while the player is far from the station or field and must not be localized at the player's current world position. `craft-ready` is a short, quiet slice of the `treasure-chime` source so it stays distinct from the `ui-confirm` click; ready transitions inside `READY_CUE_GROUP_MS` (`src/audio/gameplayAudio.ts`) share one chime, so a night's sleep or one growth tick cannot burst. `EquipmentEquipped` and `EquipmentPresetApplied` trigger the non-spatial `equipment-equip` cloth cue. These four manifest cues reuse admitted, normalized sources; they are registered and wired, but still require human listening/mix acceptance. The more specific saw, hammer, lure and station loops listed above remain specified targets until their own assets and callers exist.
 
 ### Harbor Fish Cleaning Table
 - **`sfx.craft.fish_table_drop`**: Heavy wet fish landing on the wooden cutting board with a distinct watery thud.
@@ -597,8 +597,10 @@ human listening and decode-memory measurements remain separate gates.
 `gameplayAudio` wires apple harvest, fish-table processing, wind-driven mill
 ambience and cargo becoming ice-protected to existing cues. Icing is derived
 from the current storage protection rule, not a new action or domain event.
-Modal opening uses cloth; delegated pointer/focus entry uses the manifest's
-quiet `ui-hover` variant of the existing cloth source. No recording is added.
+Modal opening uses cloth. An accepted control activation plays `ui-click`
+once; hover, focus, slider drags, and dialogue typing do not. A refused
+action plays `ui-error` rather than another click. `sfx.ui.button_hover`
+remains a specified target and is not wired. No recording is added.
 
 ### 5.2 Audio Manifest Schema (`audio-manifest.json`)
 `assets/audio/audio-manifest.json` is the source of truth. Read

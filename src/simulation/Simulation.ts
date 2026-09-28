@@ -3,6 +3,7 @@ import { npcAnchorAt, NPC_TALK_RADIUS } from "./presentation/NpcPresentation";
 // src/simulation/Simulation.ts
 
 import { ContentRegistry } from "../content/ContentRegistry";
+import type { ConversationResult } from "./core/QuestTypes";
 import { EventBus } from "./core/EventBus";
 import { GameClock, minutesUntilNextMorning, seasonAtMinute } from "./core/GameClock";
 import { SeededRng } from "./core/Rng";
@@ -65,6 +66,10 @@ import { InventoryManager } from "./inventory/InventoryManager";
 import { WorldLayout } from "../world/WorldLayout";
 import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "../world/WorldAnchors";
 import { STARTER_DONKEY_ID } from "./mounts/Mounts";
+import { resolveMountRecall, type MountPathQuery, type MountRecallRefusal } from "./mounts/MountRecall";
+import { CARRIAGE_TUNING, STARTER_CARRIAGE_ID, carriagePoint } from "./mounts/Carriage";
+import { FARM_PACK_QUANTITY, FARM_PACK_WEIGHT_KG } from "../content/farmPacks";
+import { farmPackQuality } from "./cargo/farmPacks";
 import type {
   CropInspectionDto,
   CropPlacementResult,
@@ -97,6 +102,14 @@ export interface SimulationRuntimeOptions {
   allowDebugCommands?: boolean;
 }
 
+const MOUNT_RECALL_REFUSAL_COPY: Readonly<Record<MountRecallRefusal, string>> = {
+  "no-mount": "You have no donkey to call",
+  riding: "You are already riding your donkey",
+  nearby: "Your donkey is right here",
+  unreachable: "Your donkey cannot come to you here",
+  "no-safe-spot": "There is no safe spot for your donkey here"
+};
+
 export class Simulation {
   private readonly blockedDiscoveryNotices = new Set<string>();
   public state: GameState;
@@ -105,6 +118,8 @@ export class Simulation {
   public events: EventBus;
   /** Transient, canonical command clock. It is deliberately not serialized. */
   public readonly actionTimeline: SimulationActionTimeline;
+  private interactionCommitInProgress = false;
+  private mountPathQuery: MountPathQuery | undefined;
   private readonly domainContext: DomainContext;
   private readonly progressionDomain: ProgressionDomain;
   private readonly farmingDomain: FarmingDomain;
@@ -173,8 +188,9 @@ export class Simulation {
     // instead of waiting for the next quest completion or level-up.
     this.questDomain.evaluateTrackUnlocks();
     this.actionTimeline = new SimulationActionTimeline(
-      (command) => this.execute(command),
-      options.actionTimingScale ?? 1
+      (command) => this.commitCommand(command),
+      options.actionTimingScale ?? 1,
+      () => !this.interactionCommitInProgress
     );
     this.persistRng();
   }
@@ -193,10 +209,52 @@ export class Simulation {
     return this.state;
   }
 
+  public execute(command: Extract<GameCommand, { type: "quest.talk-npc" }>): ConversationResult;
+  public execute(command: GameCommand): InteractionResult;
   public execute(command: GameCommand): InteractionResult {
     if (!command || typeof command !== "object" || typeof command.type !== "string") {
       return { success: false, reason: "Unknown action type" };
     }
+    if (this.ownsProductionInteraction(command) && this.actionTimeline.isActive) {
+      return this.busyInteractionResult(command, "Finish or cancel the current action first");
+    }
+    return this.commitCommand(command);
+  }
+
+  private ownsProductionInteraction(command: GameCommand): boolean {
+    return command.type.startsWith("crop.") || command.type.startsWith("farm.")
+      || command.type === "processing.start" || command.type === "processing.collect"
+      || command.type === "quest.talk-npc" || command.type === "quest.claim-reward";
+  }
+
+  private commitCommand(command: GameCommand): InteractionResult {
+    if (!this.ownsProductionInteraction(command)) return this.dispatchCommand(command);
+    if (this.interactionCommitInProgress) {
+      return this.busyInteractionResult(command, "Finish the current action first");
+    }
+    // One actor owns the frozen command's crop/placement/station/quest target.
+    // The synchronous domain transaction revalidates that target, and owns it
+    // until all committed-state events have been delivered. No grow/job timer
+    // holds this lock; later actions go through their current target guards.
+    this.interactionCommitInProgress = true;
+    try {
+      return this.dispatchCommand(command);
+    } finally {
+      this.interactionCommitInProgress = false;
+    }
+  }
+
+  private busyInteractionResult(command: GameCommand, reason: string): InteractionResult {
+    const result = { success: false, reason, reasonCode: "interaction-busy" };
+    if (command.type !== "quest.talk-npc") return result;
+    const conversation: ConversationResult & InteractionResult = {
+      ...result, segments: [], dialogue: [], isCompletion: false,
+      questCompleted: false, rewardsGiven: false
+    };
+    return conversation;
+  }
+
+  private dispatchCommand(command: GameCommand): InteractionResult {
     switch (command.type) {
       case "physics.commit":
         return this.commitPhysicsFrame(command.frame);
@@ -244,6 +302,8 @@ export class Simulation {
         return this.boardMount(command.mountId);
       case "mount.dismount":
         return this.dismountMount();
+      case "mount.call":
+        return this.callDonkey();
       case "vehicle.purchase":
         return this.navigationDomain.purchaseTradeVehicle(command.vehicleTypeId);
       case "boat.purchase-skiff":
@@ -251,15 +311,15 @@ export class Simulation {
       case "crop.plant":
         return this.farmingDomain.plant(command.request);
       case "crop.plant-near":
-        return this.plantCropNearPlayer(command.farmId, command.cropId);
+        return this.farmingDomain.plantNearPlayer(command.farmId, command.cropId);
       case "crop.water":
-        return this.waterCrop(command.placedCropId);
+        return this.farmingDomain.water(command.placedCropId);
       case "crop.harvest":
-        return this.harvestCrop(command.placedCropId);
+        return this.farmingDomain.harvest(command.placedCropId);
       case "crop.unroot":
-        return this.unrootCrop(command.placedCropId);
+        return this.farmingDomain.unroot(command.placedCropId);
       case "farm.apply-fertilizer":
-        return this.applyFertilizer(command.farmId);
+        return this.farmingDomain.applyFertilizer(command.farmId);
       case "farm.irrigate":
         return this.farmingDomain.irrigate(command.farmId);
       case "farm.buy-irrigation":
@@ -275,9 +335,9 @@ export class Simulation {
       case "labor.cancel":
         return this.laborDomain.cancel();
       case "processing.start":
-        return this.startProcessingJob(command.recipeId, command.stationId);
+        return this.processingDomain.start(command.recipeId, command.stationId);
       case "processing.collect":
-        return this.collectProcessingJob(command.jobId);
+        return this.processingDomain.collect(command.jobId);
       case "equipment.equip":
         return this.equipmentDomain.equip(command.equipmentId);
       case "equipment.equip-rod":
@@ -934,6 +994,21 @@ export class Simulation {
     return this.navigationDomain.boardMount(mountId);
   }
 
+  /** Physics supplies static obstruction tests; without one only the ground rules apply. */
+  public setMountPathQuery(query: MountPathQuery | undefined): void {
+    this.mountPathQuery = query;
+  }
+
+  /** Places the owned donkey beside the player in one commit, or refuses without moving it. */
+  private callDonkey(): InteractionResult {
+    const mount = this.state.mounts[STARTER_DONKEY_ID];
+    const recall = resolveMountRecall(mount, this.state.player, this.mountPathQuery);
+    if (!recall.ok) return { success: false, reason: MOUNT_RECALL_REFUSAL_COPY[recall.refusal], reasonCode: recall.refusal };
+    Object.assign(mount!, recall.pose);
+    this.events.emit("MountRecalled", { mountId: STARTER_DONKEY_ID, minute: this.state.clock.currentMinute });
+    return { success: true, reason: "Your donkey is here" };
+  }
+
   public canDismountMount(): boolean {
     return this.navigationDomain.canDismountMount();
   }
@@ -966,6 +1041,43 @@ export class Simulation {
       rotationY: 0
     });
     return this.purchaseSkiff().success;
+  }
+
+  /**
+   * Development-only, unsaved fixture for performance routes: the starter
+   * carriage carrying two harvest packs, with the player on the driver's seat.
+   * Packs are created in hand and stowed through the ordinary load and board
+   * commands, so presentation sees the same cargo links as a played trade run.
+   */
+  public prepareDebugLoadedCarriage(): boolean {
+    const carriage = this.state.mounts[STARTER_CARRIAGE_ID];
+    if (!carriage) return false;
+    const rear = carriagePoint(carriage, 0, CARRIAGE_TUNING.rearOffset);
+    for (let pack = 0; pack < 2; pack += 1) {
+      this.setDebugPlayerPose({
+        x: rear.x,
+        y: WorldLayout.traversalSurfaceHeight(rear.x, rear.z) + 0.5,
+        z: rear.z,
+        rotationY: carriage.rotationY
+      });
+      const lots = [{ itemId: "produce.wheat", quantity: FARM_PACK_QUANTITY, quality: "common" as const }];
+      const cargoId = this.nextEntityId("cargo");
+      this.state.fishCargo[cargoId] = {
+        id: cargoId, kind: "farm", itemId: "produce.wheat", lots, quality: farmPackQuality(lots),
+        weightKg: FARM_PACK_WEIGHT_KG, cargoClass: "medium",
+        caughtAtMinute: this.state.clock.currentMinute, freshness: 100,
+        location: { type: "player", containerId: "player" }
+      };
+      this.state.player.carriedFishCargoId = cargoId;
+      if (!this.execute({ type: "cargo.load-carriage", mountId: STARTER_CARRIAGE_ID }).success) return false;
+    }
+    this.setDebugPlayerPose({
+      x: carriage.x,
+      y: WorldLayout.traversalSurfaceHeight(carriage.x, carriage.z) + 0.5,
+      z: carriage.z,
+      rotationY: carriage.rotationY
+    });
+    return this.execute({ type: "mount.board", mountId: STARTER_CARRIAGE_ID }).success;
   }
 
   /** Development-only fixture for exercising the authored board/dock flow. */
@@ -1020,27 +1132,27 @@ export class Simulation {
   }
 
   public plantCropNearPlayer(farmId: FarmId, cropId: string): { success: boolean; placedCropId?: PlacedCropId; reason?: string; reasonCode?: string } {
-    return this.farmingDomain.plantNearPlayer(farmId, cropId);
+    return this.execute({ type: "crop.plant-near", farmId, cropId });
   }
 
   public plantCrop(farmId: FarmId, cropId: string, x: number, z: number): { success: boolean; placedCropId?: PlacedCropId; reason?: string; reasonCode?: string } {
-    return this.farmingDomain.plant({ farmId, cropId, x, z });
+    return this.execute({ type: "crop.plant", request: { farmId, cropId, x, z } });
   }
 
   public waterCrop(placedCropId: PlacedCropId): InteractionResult {
-    return this.farmingDomain.water(placedCropId);
+    return this.execute({ type: "crop.water", placedCropId });
   }
 
   public harvestCrop(placedCropId: PlacedCropId): InteractionResult & { quality?: CropQuality } {
-    return this.farmingDomain.harvest(placedCropId);
+    return this.execute({ type: "crop.harvest", placedCropId }) as InteractionResult & { quality?: CropQuality };
   }
 
   public unrootCrop(placedCropId: PlacedCropId): InteractionResult {
-    return this.farmingDomain.unroot(placedCropId);
+    return this.execute({ type: "crop.unroot", placedCropId });
   }
 
   public applyFertilizer(farmId: FarmId): InteractionResult {
-    return this.farmingDomain.applyFertilizer(farmId);
+    return this.execute({ type: "farm.apply-fertilizer", farmId });
   }
 
   public getNearbyFarmId(): FarmId | null {
@@ -1067,6 +1179,10 @@ export class Simulation {
     return this.processingDomain.inspect(stationId);
   }
 
+  public inspectWorkshopStatus(stationId: string) {
+    return this.processingDomain.workshopStatus(stationId);
+  }
+
   public inspectProcessingStation(stationId: string) {
     return this.processingDomain.inspectStation(stationId);
   }
@@ -1079,15 +1195,23 @@ export class Simulation {
     return this.farmingDomain.interactionReachMeters(action);
   }
 
+  public canReachFarmSoil(farmId: string): boolean {
+    return this.farmingDomain.canReachFarmSoil(farmId);
+  }
+
+  public cropSurfaceDistance(placedCropId: string): number | null {
+    return this.farmingDomain.cropSurfaceDistance(placedCropId);
+  }
+
   // ==========================================
   // PROCESSING ACTIONS
   // ==========================================
   public startProcessingJob(recipeId: RecipeId, stationId: string): { success: boolean; reason?: string; reasonCode?: string } {
-    return this.processingDomain.start(recipeId, stationId);
+    return this.execute({ type: "processing.start", recipeId, stationId });
   }
 
   public collectProcessingJob(jobId: ProcessingJobId): { success: boolean; reason?: string } {
-    return this.processingDomain.collect(jobId);
+    return this.execute({ type: "processing.collect", jobId });
   }
 
   // ==========================================

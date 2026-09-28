@@ -10,10 +10,21 @@ import {
 import {
   PLAYER_HOMESTEAD_LAYOUT,
   STARTER_FARM_LAYOUT,
+  farmLocalToWorld,
   farmWellWorldAnchor
 } from "../../src/world/FarmLayout";
+import { WorldLayout } from "../../src/world/WorldLayout";
 import { VILLAGE_MARKET, VILLAGE_PLAZA, WORLD_SPAWN } from "../../src/world/WorldAnchors";
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
+import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
+
+function standOnStarterPlot(sim: Simulation): { x: number; z: number } {
+  const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x: 0, z: 0 });
+  sim.state.player.x = world.x;
+  sim.state.player.z = world.z;
+  sim.state.player.y = WorldLayout.traversalSurfaceHeight(world.x, world.z) + 0.5;
+  return world;
+}
 
 function standAt(sim: Simulation, x: number, z: number): void {
   sim.state.player.x = x;
@@ -59,11 +70,15 @@ describe("irrigation well binding", () => {
     const sim = new Simulation();
     sim.state.player.money = 200;
     const well = farmWellWorldAnchor("farm.starter_garden")!;
+    const plot = standOnStarterPlot(sim);
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 1 }
+    ]);
     const planted = sim.plantCrop(
       "farm.starter_garden",
       "crop.wheat",
-      STARTER_FARM_LAYOUT.origin.x,
-      STARTER_FARM_LAYOUT.origin.z
+      plot.x,
+      plot.z
     );
     expect(planted.success).toBe(true);
     const cropId = Object.keys(sim.state.crops)[0];
@@ -96,11 +111,15 @@ describe("irrigation well binding", () => {
     const sim = new Simulation();
     const farmId = "farm.starter_garden";
     const well = farmWellWorldAnchor(farmId)!;
+    const plot = standOnStarterPlot(sim);
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 4 }
+    ]);
     expect(sim.plantCrop(
       farmId,
       "crop.wheat",
-      STARTER_FARM_LAYOUT.origin.x,
-      STARTER_FARM_LAYOUT.origin.z
+      plot.x,
+      plot.z
     ).success).toBe(true);
     const farm = sim.state.farms[farmId];
     const original = sim.state.crops[farm.placedCropIds[0]];

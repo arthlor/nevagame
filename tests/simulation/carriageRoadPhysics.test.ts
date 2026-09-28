@@ -17,7 +17,7 @@ function gradeNeutralHeading(x: number, z: number): number {
 
 function roadSample(kind: WorldRouteKind): { x: number; z: number } {
   const routeId = {
-    arterial: "mainland-pinewatch-reedhaven",
+    arterial: "mainland-pinewatch-highridge",
     lane: "village-homestead",
     trail: "cliffside-coastal-walk"
   }[kind];
@@ -45,7 +45,7 @@ describe("carriage road physics", () => {
     expect(scales[1]).toBeCloseTo(CARRIAGE_TUNING.groundResponse.roadSpeedScale.lane, 4);
     expect(scales[2]).toBeCloseTo(CARRIAGE_TUNING.groundResponse.roadSpeedScale.trail, 4);
 
-    const forest = WorldLayout.compiledRouteNetwork().find(route => route.route.id === "mainland-pinewatch-reedhaven")!;
+    const forest = WorldLayout.compiledRouteNetwork().find(route => route.route.id === "mainland-pinewatch-highridge")!;
     const sample = forest.samples[Math.floor(forest.samples.length / 2)];
     const atOffset = (distance: number) => ({
       x: sample.point.x + sample.normal.x * distance,
@@ -64,7 +64,7 @@ describe("carriage road physics", () => {
   });
 
   it("drives faster on a packed road than parallel open ground and reports the actual contact", async () => {
-    const forest = WorldLayout.compiledRouteNetwork().find(route => route.route.id === "mainland-pinewatch-reedhaven")!;
+    const forest = WorldLayout.compiledRouteNetwork().find(route => route.route.id === "mainland-pinewatch-highridge")!;
     const sample = forest.samples[Math.floor(forest.samples.length / 2)];
     const heading = Math.atan2(sample.tangent.x, sample.tangent.z);
     const openOffset = forest.halfWidth + forest.shoulderWidthMeters + forest.terrainFeatherMeters + 3;

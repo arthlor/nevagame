@@ -106,7 +106,8 @@ export type GameAction =
   | "fish-brace"
   | "fish-left"
   | "fish-right"
-  | "fishing.toggle-lure";
+  | "fishing.toggle-lure"
+  | "call-donkey";
 
 export interface ClockState {
   currentMinute: GameMinute;

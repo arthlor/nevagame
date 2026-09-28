@@ -308,6 +308,11 @@ export class RendererPipeline {
     this.gpuTimer?.resetSamples();
   }
 
+  /** GPU samples collected since the last reset, without the scene traversal in `diagnostics()`. */
+  public gpuTimingSnapshot(): GpuFrameTimingSnapshot | null {
+    return this.gpuTimer?.snapshot() ?? null;
+  }
+
   /** Recent GPU cost of a whole frame, or null where timer queries cannot say. */
   public gpuFrameEstimateMs(): number | null {
     return this.gpuTimer?.recentFrameMilliseconds() ?? null;

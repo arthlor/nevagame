@@ -66,8 +66,9 @@ test("production build stays within the representative render budget", async ({ 
 
   const diagnostics = page.getByTestId("diagnostics");
   await expect(diagnostics).toHaveAttribute("data-boot-ready", "true", { timeout: 450_000 });
+  // The overlay keeps this node hidden and retains only its text contract.
   const stats = page.getByTestId("render-stats");
-  await expect(stats).toBeVisible();
+  await expect(stats).toBeAttached();
   await expect.poll(async () => stats.textContent()).toMatch(/Draws: [1-9]\d* \| Triangles: [1-9][\d,]*/);
 
   // Sample repeatedly and keep the worst frame.

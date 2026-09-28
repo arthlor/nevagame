@@ -19,34 +19,34 @@ type LoaderInternals = {
   };
 };
 
-describe("skinned model clones", () => {
-  /** A glTF skin split across two palette materials loads as two meshes on one skeleton. */
-  function twoMaterialSkin(): { root: THREE.Group; skeleton: THREE.Skeleton } {
-    const root = new THREE.Group();
-    const hip = new THREE.Bone();
-    hip.name = "hip";
-    const tail = new THREE.Bone();
-    tail.name = "tail";
-    tail.position.set(0, 0, -0.3);
-    hip.add(tail);
-    root.add(hip);
-    root.updateMatrixWorld(true);
-    const skeleton = new THREE.Skeleton([hip, tail]);
-    for (const name of ["coat", "saddle"]) {
-      const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-      const count = geometry.getAttribute("position").count;
-      geometry.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(new Array(count * 4).fill(0), 4));
-      geometry.setAttribute("skinWeight", new THREE.Float32BufferAttribute(
-        Array.from({ length: count * 4 }, (_, index) => (index % 4 === 0 ? 1 : 0)), 4
-      ));
-      const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshStandardMaterial({ name }));
-      mesh.name = name;
-      root.add(mesh);
-      mesh.bind(skeleton);
-    }
-    return { root, skeleton };
+/** A glTF skin split across two palette materials loads as two meshes on one skeleton. */
+function twoMaterialSkin(): { root: THREE.Group; skeleton: THREE.Skeleton } {
+  const root = new THREE.Group();
+  const hip = new THREE.Bone();
+  hip.name = "hip";
+  const tail = new THREE.Bone();
+  tail.name = "tail";
+  tail.position.set(0, 0, -0.3);
+  hip.add(tail);
+  root.add(hip);
+  root.updateMatrixWorld(true);
+  const skeleton = new THREE.Skeleton([hip, tail]);
+  for (const name of ["coat", "saddle"]) {
+    const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    const count = geometry.getAttribute("position").count;
+    geometry.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(new Array(count * 4).fill(0), 4));
+    geometry.setAttribute("skinWeight", new THREE.Float32BufferAttribute(
+      Array.from({ length: count * 4 }, (_, index) => (index % 4 === 0 ? 1 : 0)), 4
+    ));
+    const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshStandardMaterial({ name }));
+    mesh.name = name;
+    root.add(mesh);
+    mesh.bind(skeleton);
   }
+  return { root, skeleton };
+}
 
+describe("skinned model clones", () => {
   it("keeps one skeleton per source skeleton instead of one per material mesh", () => {
     const { root, skeleton } = twoMaterialSkin();
     const clone = cloneSkinnedModel(root);
@@ -193,6 +193,48 @@ describe("catalog NPC asset loading", () => {
     } finally {
       AssetLoader.invalidateCache(assetId);
       internals.templateConsumers.delete(assetId);
+      parse.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("shares the template's clips and collision names with every clone without serialising them", async () => {
+    const { root } = twoMaterialSkin();
+    const collision = new THREE.Group();
+    collision.name = "COL_body";
+    root.add(collision);
+    const walk = new THREE.AnimationClip("walk", 1, [
+      new THREE.QuaternionKeyframeTrack("hip.quaternion", [0, 1], [0, 0, 0, 1, 0, 0.6, 0, 0.8])
+    ]);
+    const internals = AssetLoader as unknown as LoaderInternals;
+    const parse = vi.spyOn(internals.loader, "parse").mockImplementation((_bytes, _path, onLoad) => {
+      onLoad({ scene: root, animations: [walk] });
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      body: null,
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer
+    } as Response)));
+    vi.stubGlobal("window", { location: { href: "http://localhost/" } });
+    // Object3D.copy deep-copies userData through JSON, which serialises every clip track.
+    const serialise = vi.spyOn(THREE.AnimationClip, "toJSON");
+
+    try {
+      const clones = [await AssetLoader.loadModel(assetId), await AssetLoader.loadModel(assetId)];
+      const template = internals.modelCache.get(assetId)!;
+
+      expect(serialise).not.toHaveBeenCalled();
+      for (const clone of clones) {
+        expect(clone.userData).not.toBe(template.userData);
+        expect(clone.userData.animationClips).toBe(template.userData.animationClips);
+        expect(clone.userData).toMatchObject({ assetId, hasSkinnedMeshes: true });
+        expect(AssetLoader.collisionNodeNames(clone)).toEqual(["COL_body"]);
+      }
+      expect(template.userData).toMatchObject({ assetId, animationClips: [walk], collisionNodes: ["COL_body"] });
+    } finally {
+      AssetLoader.invalidateCache(assetId);
+      internals.templateConsumers.delete(assetId);
+      serialise.mockRestore();
       parse.mockRestore();
       vi.unstubAllGlobals();
     }

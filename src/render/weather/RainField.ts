@@ -17,6 +17,7 @@ import {
   rainVisualIntensity,
   respawnRainDrop,
   sampleRainHitSurface,
+  sampleRainSurfaceUnderDrop,
   splashProgress,
   stepRainDrop,
   type RainDropState,
@@ -163,6 +164,8 @@ export class RainField {
 
     const sampleSurface = (x: number, z: number) =>
       sampleRainHitSurface(x, z, input.timeSeconds, input.waterConditions);
+    const sampleUnderDrop = (x: number, z: number, drop: RainDropState) =>
+      sampleRainSurfaceUnderDrop(x, z, drop, input.timeSeconds, input.waterConditions, config);
 
     let visibleDrops = 0;
     for (let index = 0; index < this.drops.length; index += 1) {
@@ -173,7 +176,7 @@ export class RainField {
         respawnRainDrop(drop, index, input.focus, input.wind, config);
       }
 
-      const result = stepRainDrop(drop, dt, input.focus, input.wind, config, sampleSurface);
+      const result = stepRainDrop(drop, dt, input.focus, input.wind, config, sampleUnderDrop);
       if (result !== "falling") {
         if (result === "hit-terrain" || result === "hit-water") {
           this.spawnSplash(drop, sampleSurface(drop.x, drop.z), input.timeSeconds, config);

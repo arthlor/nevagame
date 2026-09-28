@@ -52,6 +52,9 @@ function commitPlayerPose(simulation: Simulation, x: number, z: number): void {
 function plantStarterWheat(sim: Simulation): string {
   const pos = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x: 0, z: 0 });
   commitPlayerPose(sim, pos.x, pos.z);
+  InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+    { itemId: "seed.wheat", quantity: 1 }
+  ]);
   const planted = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
   expect(planted.success).toBe(true);
   return (planted as { placedCropId: string }).placedCropId;

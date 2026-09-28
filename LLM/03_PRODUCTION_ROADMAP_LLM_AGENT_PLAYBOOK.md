@@ -97,7 +97,13 @@ publication and `art:sync` are mutations. `ASSET_PRODUCTION.md` owns their full 
 (`playwright.art.config.ts`, excluded from `test:e2e` with the budget and visual
 suites); its unmerged editor scene is diagnostic evidence. `npm run test:budget` uses
 the isolated production build configured by `playwright.budget.config.ts`.
-`npm run world:acceptance` owns frozen multi-scene/world evidence as described
+`npm run perf:baseline` is the opt-in sustained-play lane on that same production
+setup: `tests/e2e/performance-baseline.spec.ts` owns its scenarios, real-input
+routes and report fields. It separates cold startup, a first-use pass and a warm pass
+of each route, repeats scenarios interleaved, and writes a ranked summary beside
+the per-run records. Freeze the build under test (a scratch worktree of the commit plus
+only the change measured), interleave A/B runs, and treat a difference inside the
+recorded run range as noise. `npm run world:acceptance` owns frozen multi-scene/world evidence as described
 in Art Pipeline §13.3. Do not compare DEV and production as equivalent or infer
 performance from FPS alone. Record actual quality, viewport/DPR, hardware,
 frame-time distribution, draws/triangles and memory for the affected scenario.

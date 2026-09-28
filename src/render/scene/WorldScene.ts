@@ -81,7 +81,7 @@ import type { StaticCollisionProxy } from "../../physics/StaticCollision";
 import { projectAssetCollision } from "../../physics/CollisionCatalogAdapter";
 import type { BasicFishingPhase, FishingEncounterState, GameState, ProcessingPresentationKind } from "../../simulation/core/types";
 import type { BoatMotionSample, PlayerMotionSample } from "../../simulation/core/PhysicsAdapter";
-import type { CropPlacementResult } from "../../simulation/core/contracts";
+import type { CropPlacementResult, WorkshopStatusDto } from "../../simulation/core/contracts";
 import {
   WATER_SURFACE,
   WORLD_ARCHITECTURE_PADS,
@@ -93,12 +93,17 @@ import {
   STARTER_FARM_LAYOUT,
   SUNREACH_FARM_LAYOUT,
   farmLocalToWorld,
+  farmPlantableWorldAreas,
   starterStructureAnchor
 } from "../../world/FarmLayout";
+import { CropPlacementCursor } from "./CropPlacementCursor";
 import { STARTER_DONKEY_ID } from "../../simulation/mounts/Mounts";
 import { effectiveSeaRoughness } from "../../simulation/weather/seaState";
 import { HARBOR_FISH_TABLE, HARBOR_SKIFF_MOORING, VILLAGE_BULLETIN } from "../../world/WorldAnchors";
-import { getProcessingStationRuntimeRotationY } from "../../world/ProcessingStationApproach";
+import {
+  getProcessingStationFrontPosition,
+  getProcessingStationRuntimeRotationY
+} from "../../world/ProcessingStationApproach";
 import { WORLD_STATION_DEFINITIONS } from "../../world/WorldGameplayLocations";
 import {
   ARCHITECTURE_PLACEMENT_TO_PAD,
@@ -181,6 +186,7 @@ import {
   type RenderPipelineRuntimeState,
   type RendererPipelineDiagnostics
 } from "../pipeline/RendererPipeline";
+import type { GpuFrameTimingSnapshot } from "../pipeline/GpuFrameTimer";
 import {
   DEFAULT_GRAPHICS_EFFECTS,
   resolveGraphicsEffects,
@@ -264,7 +270,9 @@ export interface WorldRenderDiagnostics {
 
 import { BoatWakePool } from "../water/BoatWakePool";
 import { createBrookSurface } from "../water/BrookSurface";
+import type { WorldGeometryJob } from "../../world/worldGeometryTransfer";
 import { CropInstanceRenderer, cropStageAsset } from "./CropInstanceRenderer";
+import { WorldGeometryWorkers } from "./WorldGeometryWorkers";
 import {
   createContactShadowMesh,
   setContactShadowOpacity,
@@ -354,6 +362,26 @@ interface AmbientTownsfolkPresentation {
   pendingAnimationSeconds: number;
 }
 
+interface DesiredWorkshopOutput {
+  jobId: string;
+  outputKind: NonNullable<WorkshopStatusDto["outputKind"]>;
+  state: "ready" | "blocked";
+  x: number;
+  y: number;
+  z: number;
+  rotationY: number;
+}
+
+interface WorkshopOutputPresentation extends DesiredWorkshopOutput {
+  group: THREE.Group;
+  model: THREE.Group;
+  marker: THREE.Mesh;
+}
+
+/** Steady sail speed. Wind does not change it; a stall cannot spin through the missed time. */
+export const WINDMILL_ROTOR_RADIANS_PER_SECOND = 0.18;
+const WINDMILL_ROTOR_STALL_STEP_SECONDS = 0.1;
+
 const CHARACTER_DETAIL_DISTANCE_METERS = 14;
 /** Detail returns inside this closer radius so the boundary cannot flicker. */
 const CHARACTER_DETAIL_RESTORE_DISTANCE_METERS = 13;
@@ -375,6 +403,12 @@ const STATION_ACTIVITY_HEIGHT_METERS: Readonly<Record<string, number>> = {
   "fish-table": 1.2,
   "compost-bin": 1.0
 };
+const WORKSHOP_OUTPUT_ASSETS = {
+  worms: ASSET_IDS.PROP_COMPOST_OUTPUT_A,
+  grain: ASSET_IDS.PROP_CARGO_SACK_A,
+  bundle: ASSET_IDS.PROP_CRAFTING_READY_A,
+  pack: ASSET_IDS.PROP_CARGO_SACK_A
+} as const;
 
 /**
  * Catalog families whose scattered instances are allowed to block the player.
@@ -785,6 +819,22 @@ export class WorldScene {
   private footfallVfx!: FootfallVfxPool;
   private readonly stationActivityEmitSeconds = new Map<string, number>();
   private readonly announcedCompleteJobs = new Set<string>();
+  private readonly workshopOutputs = new Map<string, WorkshopOutputPresentation>();
+  private readonly workshopOutputSurfaces = new Map<string, THREE.Object3D>();
+  private readonly workshopOutputRequests = new Map<string, string>();
+  private readonly desiredWorkshopOutputs = new Map<string, DesiredWorkshopOutput>();
+  private readonly workshopReadyMarkerGeometry = new THREE.DodecahedronGeometry(0.075, 0);
+  private readonly workshopBlockedMarkerGeometry = new THREE.ConeGeometry(0.075, 0.15, 4);
+  private readonly workshopReadyMarkerMaterial = new THREE.MeshStandardMaterial({
+    color: PALETTE_HEX.accent_teal_01,
+    roughness: 0.72,
+    metalness: 0.06
+  });
+  private readonly workshopBlockedMarkerMaterial = new THREE.MeshStandardMaterial({
+    color: PALETTE_HEX.accent_ochre_01,
+    roughness: 0.78,
+    metalness: 0.02
+  });
   private fireflyField!: FireflyField;
   private rainField!: RainField;
   private readonly terrainSurfaceMaterial = new TerrainSurfaceMaterial();
@@ -848,8 +898,9 @@ export class WorldScene {
   private readonly practicalLightWorld = new THREE.Vector3();
   private readonly practicalLightWorldPositions: THREE.Vector3[] = [];
   private playerContactShadow: ContactShadowMesh | null = null;
-  /** Authored `*_rotor` pivots (one per LOD level) turned by the ambient wind. */
+  /** Authored `*_rotor` pivots (one per LOD level) turned together at a steady rate. */
   private readonly windmillRotors: THREE.Object3D[] = [];
+  private windmillRotorAngle = 0;
   private farmhouseSmoke: THREE.Group | null = null;
   private readonly farmhouseSmokeUniforms = {
     nevaSmokeTime: { value: 0 },
@@ -919,7 +970,7 @@ export class WorldScene {
   private hasRenderedFrame = false;
   private lastResizeWidth = 0;
   private lastResizeHeight = 0;
-  private readonly placementPreview = new THREE.Group();
+  private readonly placementCursor = new CropPlacementCursor();
   private readonly interactionFeedback = new THREE.Mesh(
     new THREE.RingGeometry(0.42, 0.52, 24, 1, 0, Math.PI * 1.8),
     new THREE.MeshBasicMaterial({
@@ -959,8 +1010,12 @@ export class WorldScene {
   );
   private questWaypointVisible = false;
   private questWaypointElapsedSeconds = 0;
+  private readonly farmQuestHighlight = new THREE.Group();
+  private farmQuestHighlightId: string | null = null;
   private readyPromise: Promise<void> | null = null;
   private geometryPromise: Promise<void> | null = null;
+  /** Terrain and road builds started on entry in workers; null builds them in `prepareGeometry`. */
+  private worldGeometryWorkers: WorldGeometryWorkers | null = null;
 
   private readyWorldSeed: number | null = null;
   private staticCollisionProxyList: StaticCollisionProxy[] = [];
@@ -1032,6 +1087,9 @@ export class WorldScene {
   private ambientTownsfolkElapsedSeconds = 0;
   private playerDetailReduced = false;
   private readonly tempCharacterWorldPosition = new THREE.Vector3();
+  private readonly tempWorkshopSurfacePosition = new THREE.Vector3();
+  private readonly tempWorkshopSurfaceQuaternion = new THREE.Quaternion();
+  private readonly tempWorkshopSurfaceRotation = new THREE.Euler();
   private isFarmGisMode: boolean = false;
 
   public setFarmGisMode(active: boolean): void {
@@ -1098,6 +1156,9 @@ export class WorldScene {
     // Additive and unlit, so it never writes depth over the world behind it.
     this.questWaypointShaft.frustumCulled = false;
     this.scene.add(this.questWaypointShaft);
+    this.farmQuestHighlight.name = "farm_quest_highlight";
+    this.farmQuestHighlight.visible = false;
+    this.scene.add(this.farmQuestHighlight);
     this.buildPlayerContactShadow();
 
   }
@@ -1184,7 +1245,7 @@ export class WorldScene {
     onProgress?.();
     await yieldToTask(this.startupSignal);
     this.checkAlive();
-    this.buildPlacementPreview();
+    this.scene.add(this.placementCursor.group);
     this.buildStarterFarmDetails();
     await yieldToTask(this.startupSignal);
     this.checkAlive();
@@ -1258,6 +1319,9 @@ export class WorldScene {
       ASSET_IDS.CHAR_PLAYER_A,
       ...FARMHOUSE_INTERIOR_PROPS.map((placement) => placement.assetId),
       ASSET_IDS.BUILDING_CART_WORKSHOP_A,
+      ASSET_IDS.PROP_COMPOST_OUTPUT_A,
+      ASSET_IDS.PROP_CARGO_SACK_A,
+      ASSET_IDS.PROP_CRAFTING_READY_A,
       ...VILLAGE_TRADE_STATIONS.map(station => station.assetId as AssetId),
       ASSET_IDS.PROP_MERCHANT_CARRIAGE_4_A, ASSET_IDS.PROP_MERCHANT_CARRIAGE_6_A,
       ASSET_IDS.BOAT_TRADING_SHIP_A, ASSET_IDS.FAUNA_HORSE_DRAFT_A,
@@ -1349,10 +1413,40 @@ export class WorldScene {
     this.scene.add(this.playerContactShadow);
   }
 
+  /**
+   * Starts building every terrain patch and the road overlay in workers, so
+   * the work overlaps the asset transfers, layout and water bake that precede
+   * `prepareGeometry`. Called on entry; without worker support (DEV, Node)
+   * `prepareGeometry` builds them on the main thread as before.
+   */
+  public beginWorldGeometry(signal?: AbortSignal): void {
+    if (this.worldGeometryWorkers || !WorldGeometryWorkers.supported()) return;
+    const patches = [...WorldLayout.terrainPatches()].sort((left, right) => right.resolution - left.resolution);
+    // Longest first: the road overlay, then the patches by vertex count.
+    const jobs: WorldGeometryJob[] = [{ kind: "path" }, ...patches.map((patch) => ({ kind: "terrain" as const, patchId: patch.id }))];
+    this.worldGeometryWorkers = new WorldGeometryWorkers(jobs, WorldGeometryWorkers.defaultConcurrency(), signal);
+  }
+
+  /** A worker-built world geometry, or the same build on this thread if that is unavailable. */
+  private async worldGeometry(job: WorldGeometryJob, onProgress?: () => void): Promise<THREE.BufferGeometry> {
+    if (this.worldGeometryWorkers) {
+      try {
+        return await this.worldGeometryWorkers.result(job, onProgress);
+      } catch (error) {
+        this.startupSignal?.throwIfAborted();
+        this.checkAlive();
+        console.warn("[WorldScene] Building world geometry on the main thread:", error);
+      }
+    }
+    return job.kind === "terrain"
+      ? WorldLayout.buildTerrainGeometryAsync(job.patchId, this.startupSignal, onProgress)
+      : WorldLayout.buildPathGeometryAsync(this.startupSignal, onProgress);
+  }
+
   /** Builds the selectively smoothed terrain and its shared physical-road surface. */
   private async buildWorldTerrain(onProgress?: () => void): Promise<void> {
     for (const patch of WorldLayout.terrainPatches()) {
-      const layoutGeometry = await WorldLayout.buildTerrainGeometryAsync(patch.id, this.startupSignal, onProgress);
+      const layoutGeometry = await this.worldGeometry({ kind: "terrain", patchId: patch.id }, onProgress);
       this.checkAlive();
       onProgress?.();
       // Copied before production batching disposes the source geometry.
@@ -1406,7 +1500,9 @@ export class WorldScene {
     // 17-strip transverse resolution. A narrow alpha-tested polygon edge owns
     // the visible merge; the coarse terrain grid remains a green underlay.
     await yieldToTask(this.startupSignal);
-    const pathGeometry = await WorldLayout.buildPathGeometryAsync(this.startupSignal, onProgress);
+    const pathGeometry = await this.worldGeometry({ kind: "path" }, onProgress);
+    this.worldGeometryWorkers?.dispose();
+    this.worldGeometryWorkers = null;
     this.checkAlive();
     onProgress?.();
     // The carpet follows the road's broad coverage edge at meadow-mask
@@ -1436,172 +1532,8 @@ export class WorldScene {
     this.environmentGroup.add(pathMesh);
   }
 
-  private buildPlacementPreview(): void {
-    // A single-placement footprint, not an area of effect. The old filled disc
-    // with a perimeter ring read as "everything inside this circle gets
-    // planted", which is exactly wrong: one click plants one crop. Four corner
-    // brackets sized to the crop's own footprint say "one crop, this big, here".
-    const bracketArm = 0.34;
-    const bracketInset = 0.5;
-    const bracketY = 0.006;
-    const bracketPoints: THREE.Vector3[] = [];
-    for (const signX of [-1, 1]) {
-      for (const signZ of [-1, 1]) {
-        const cornerX = signX * bracketInset;
-        const cornerZ = signZ * bracketInset;
-        // One L per corner: an arm along X and an arm along Z, both drawn
-        // inward so the bracket never overhangs the footprint it describes.
-        bracketPoints.push(
-          new THREE.Vector3(cornerX, bracketY, cornerZ),
-          new THREE.Vector3(cornerX - signX * bracketArm, bracketY, cornerZ),
-          new THREE.Vector3(cornerX, bracketY, cornerZ),
-          new THREE.Vector3(cornerX, bracketY, cornerZ - signZ * bracketArm)
-        );
-      }
-    }
-    const brackets = new THREE.LineSegments(
-      new THREE.BufferGeometry().setFromPoints(bracketPoints),
-      new THREE.LineBasicMaterial({
-        color: PALETTE_HEX.accent_teal_01,
-        transparent: true,
-        opacity: 0.85,
-        depthWrite: false
-      })
-    );
-    brackets.name = "crop_placement_brackets";
-
-    // Valid state: centre seed marker.
-    const seedMarker = new THREE.Group();
-    seedMarker.name = "crop_placement_seed_marker";
-
-    const seedPip = new THREE.Mesh(
-      new THREE.CircleGeometry(0.035, 16).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({
-        color: PALETTE_HEX.foam_warm_01,
-        transparent: true,
-        opacity: 0.85,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -4
-      })
-    );
-    seedPip.name = "crop_placement_seed_pip";
-
-    const seedCenterRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.065, 0.085, 24).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({
-        color: PALETTE_HEX.accent_teal_01,
-        transparent: true,
-        opacity: 0.6,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -4
-      })
-    );
-    seedCenterRing.name = "crop_placement_seed_ring";
-
-    // A sprout above the pip, so the marker reads as "a plant goes here"
-    // rather than as a targeting reticle.
-    const seedSprout = new THREE.LineSegments(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0.008, 0.03),
-        new THREE.Vector3(0, 0.008, -0.05),
-        new THREE.Vector3(0, 0.008, -0.02),
-        new THREE.Vector3(-0.045, 0.008, -0.055),
-        new THREE.Vector3(0, 0.008, -0.02),
-        new THREE.Vector3(0.045, 0.008, -0.055)
-      ]),
-      new THREE.LineBasicMaterial({
-        color: PALETTE_HEX.foam_warm_01,
-        transparent: true,
-        opacity: 0.8,
-        depthWrite: false
-      })
-    );
-    seedSprout.name = "crop_placement_seed_sprout";
-
-    seedMarker.add(seedPip, seedCenterRing, seedSprout);
-
-    // Invalid state: a centred cross.
-    const invalidMarker = new THREE.Group();
-    invalidMarker.name = "crop_placement_invalid_marker";
-
-    const invalidRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.065, 0.085, 24).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({
-        color: PALETTE_HEX.roof_terracotta_01,
-        transparent: true,
-        opacity: 0.55,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -4
-      })
-    );
-    invalidRing.name = "crop_placement_invalid_ring";
-
-    const invalidCross = new THREE.LineSegments(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-0.13, 0.008, -0.13),
-        new THREE.Vector3(0.13, 0.008, 0.13),
-        new THREE.Vector3(0.13, 0.008, -0.13),
-        new THREE.Vector3(-0.13, 0.008, 0.13)
-      ]),
-      new THREE.LineBasicMaterial({
-        color: PALETTE_HEX.roof_terracotta_01,
-        transparent: true,
-        opacity: 0.7,
-        depthWrite: false
-      })
-    );
-    invalidCross.name = "crop_placement_invalid_cross";
-
-    invalidMarker.add(invalidRing, invalidCross);
-
-    this.placementPreview.add(brackets, seedMarker, invalidMarker);
-    this.placementPreview.visible = false;
-    this.placementPreview.renderOrder = 4;
-    this.scene.add(this.placementPreview);
-  }
-
   public setCropPlacementPreview(result: CropPlacementResult | null): void {
-    if (!result) {
-      this.placementPreview.visible = false;
-      return;
-    }
-    this.placementPreview.visible = true;
-    this.placementPreview.position.set(
-      result.worldX,
-      WorldLayout.terrainHeight(result.worldX, result.worldZ) + 0.045,
-      result.worldZ
-    );
-    // Honour the placement's own rotation so the brackets describe the
-    // footprint the crop will actually occupy.
-    this.placementPreview.rotation.y = result.rotationRadians ?? 0;
-    this.placementPreview.scale.set(
-      Math.max(0.05, result.footprint.width),
-      1,
-      Math.max(0.05, result.footprint.depth)
-    );
-
-    const primaryColor = result.valid ? PALETTE_HEX.accent_teal_01 : PALETTE_HEX.roof_terracotta_01;
-
-    const brackets = this.placementPreview.getObjectByName("crop_placement_brackets") as THREE.LineSegments | undefined;
-    const seedMarker = this.placementPreview.getObjectByName("crop_placement_seed_marker");
-    const invalidMarker = this.placementPreview.getObjectByName("crop_placement_invalid_marker");
-    const seedCenterRing = this.placementPreview.getObjectByName("crop_placement_seed_ring") as THREE.Mesh | undefined;
-
-    if (brackets) {
-      const material = brackets.material as THREE.LineBasicMaterial;
-      material.color.set(primaryColor);
-      material.opacity = result.valid ? 0.85 : 0.6;
-    }
-    if (seedCenterRing) (seedCenterRing.material as THREE.MeshBasicMaterial).color.set(primaryColor);
-
-    if (seedMarker) seedMarker.visible = result.valid;
-    if (invalidMarker) invalidMarker.visible = !result.valid;
+    this.placementCursor.update(result);
   }
 
   private registerInteractionMaterials(id: string, root: THREE.Object3D): void {
@@ -1661,6 +1593,67 @@ export class WorldScene {
     this.questWaypointShaft.position.set(position.x, position.y, position.z);
   }
 
+  /** Outlines the named farm's plantable soil. Paths and buildings stay unmarked. */
+  public setFarmQuestHighlight(farmId: string | null): void {
+    if (farmId === this.farmQuestHighlightId) return;
+    this.clearFarmQuestHighlight();
+    if (!farmId) return;
+    const areas = farmPlantableWorldAreas(farmId);
+    if (areas.length === 0) return;
+    const color = PALETTE_HEX.accent_ochre_01;
+    for (const area of areas) {
+      const width = area.maxX - area.minX;
+      const depth = area.maxZ - area.minZ;
+      const points: THREE.Vector3[] = [];
+      const shadowPoints: THREE.Vector3[] = [];
+      const edge = (x0: number, z0: number, x1: number, z1: number) => {
+        const length = Math.hypot(x1 - x0, z1 - z0);
+        const steps = Math.max(2, Math.ceil(length / 1.4));
+        for (let step = 0; step <= steps; step += 1) {
+          const t = step / steps;
+          const x = x0 + (x1 - x0) * t;
+          const z = z0 + (z1 - z0) * t;
+          const ground = WorldLayout.terrainHeight(x, z);
+          shadowPoints.push(new THREE.Vector3(x, ground + 0.05, z));
+          points.push(new THREE.Vector3(x, ground + 0.09, z));
+        }
+      };
+      edge(area.minX, area.minZ, area.maxX, area.minZ);
+      edge(area.maxX, area.minZ, area.maxX, area.maxZ);
+      edge(area.maxX, area.maxZ, area.minX, area.maxZ);
+      edge(area.minX, area.maxZ, area.minX, area.minZ);
+      const underlay = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(shadowPoints),
+        new THREE.LineBasicMaterial({ color: PALETTE_HEX.soil_shadow_01, transparent: true, opacity: 0.85, depthWrite: false })
+      );
+      underlay.renderOrder = 2;
+      const perimeter = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(points),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false })
+      );
+      perimeter.renderOrder = 3;
+      perimeter.name = `farm_quest_perimeter_${width.toFixed(1)}_${depth.toFixed(1)}`;
+      this.farmQuestHighlight.add(underlay, perimeter);
+    }
+    this.farmQuestHighlight.visible = true;
+    this.farmQuestHighlightId = farmId;
+  }
+
+  private clearFarmQuestHighlight(): void {
+    for (const child of [...this.farmQuestHighlight.children]) {
+      child.traverse((object) => {
+        if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
+          object.geometry.dispose();
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) material.dispose();
+        }
+      });
+      child.removeFromParent();
+    }
+    this.farmQuestHighlight.visible = false;
+    this.farmQuestHighlightId = null;
+  }
+
   /**
    * Cross-fades the waypoint between its two ranges and breathes it.
    *
@@ -1674,19 +1667,12 @@ export class WorldScene {
 
     const distance = camera.position.distanceTo(this.questWaypointShaft.position);
     const { shaftStrength, ringStrength } = questBeaconRangeMix(distance);
-    const pulse = this.prefersReducedMotion
-      ? 1
-      : 0.86 + 0.14 * Math.sin(this.questWaypointElapsedSeconds * 2.1);
-
     const shaftMaterial = this.questWaypointShaft.material as THREE.MeshBasicMaterial;
-    shaftMaterial.opacity = QUEST_BEACON_SHAFT_OPACITY * shaftStrength * pulse;
+    shaftMaterial.opacity = QUEST_BEACON_SHAFT_OPACITY * shaftStrength;
     this.questWaypointShaft.visible = shaftMaterial.opacity > 0.01;
 
     const ringMaterial = this.questWaypointRing.material as THREE.MeshBasicMaterial;
-    ringMaterial.opacity = 0.72 * ringStrength;
-    if (!this.prefersReducedMotion) {
-      this.questWaypointRing.rotation.z = this.questWaypointElapsedSeconds * 0.5;
-    }
+    ringMaterial.opacity = 0.62 * ringStrength;
   }
 
 
@@ -1988,6 +1974,12 @@ export class WorldScene {
       ? { ...tag, kind: "interaction-placement", sourceFile: LAYOUT_EDITOR_SOURCE_FILES.interactions,
           space: "world", rotationWriteMode: "direct", warning: null }
       : tag;
+    if (binding?.stationId) {
+      const assetId = object.userData.assetId as string;
+      const outputSurface = object.getObjectByName(`${assetId}_output_surface`)
+        ?? object.getObjectByName(`${assetId}_work_surface`);
+      if (outputSurface) this.workshopOutputSurfaces.set(binding.stationId, outputSurface);
+    }
     this.layoutEditRoots.push(object);
   }
 
@@ -2030,6 +2022,8 @@ export class WorldScene {
   }
 
   private unbindLayoutInstanceFeatures(root: THREE.Object3D): void {
+    const stationId = INTERACTION_PLACEMENTS[readLayoutEditTag(root)?.id ?? ""]?.stationId;
+    if (stationId) this.workshopOutputSurfaces.delete(stationId);
     this.rigidAnimationBatches.get(root)?.dispose();
     this.rigidAnimationBatches.delete(root);
     for (let index = this.practicalLights.length - 1; index >= 0; index -= 1) {
@@ -3180,11 +3174,18 @@ export class WorldScene {
   public updateEnvironment(
     state: Readonly<GameState>,
     timeSeconds: number,
-    focus: THREE.Vector3
+    focus: THREE.Vector3,
+    getWorkshopStatus?: (stationId: string) => WorkshopStatusDto
   ): void {
+    // Debug-only sub-phase rings, null-gated like `render()`'s recorder; they
+    // partition the caller's `sync` phase. No visual or gameplay change.
+    const record = this.phaseRecorder;
+    let mark = record ? performance.now() : 0;
     const appearance = this.weatherFrame.sample(state, timeSeconds);
     const frame = this.lightingRig.update(state, timeSeconds, focus, this.prefersReducedMotion, appearance);
+    if (record) { record("env:lighting", performance.now() - mark); mark = performance.now(); }
     this.atmosphereSky?.update(frame, appearance.weather, state.worldSeed, timeSeconds, this.prefersReducedMotion);
+    if (record) { record("env:sky", performance.now() - mark); mark = performance.now(); }
     if (this.practicalLightFocus.distanceToSquared(focus) >= 0.25) {
       this.practicalLightFocus.copy(focus);
       this.applyPracticalLightBudget();
@@ -3217,6 +3218,7 @@ export class WorldScene {
           * this.graphicsEffects.aoStrength)
       );
     }
+    if (record) { record("env:practical", performance.now() - mark); mark = performance.now(); }
     this.water.updateLighting(frame);
     this.boatWakes.updateLighting(frame);
     this.terrainSurfaceMaterial.updateWeather(appearance.weather.precipitation, timeSeconds);
@@ -3224,8 +3226,11 @@ export class WorldScene {
     setRainSurfaceWetness(sharedGroundWetness, !WorldLayout.isInterior(focus.x, focus.z));
     this.roadSurfaceMaterial.setWetness(sharedGroundWetness);
     this.cultivatedSurfaceMaterial.setWetness(sharedGroundWetness);
+    if (record) { record("env:surfaces", performance.now() - mark); mark = performance.now(); }
     this.updateAmbientMotion(state, timeSeconds);
-    this.updateStationActivity(state, timeSeconds, focus);
+    if (record) { record("env:ambient", performance.now() - mark); mark = performance.now(); }
+    this.updateStationActivity(state, timeSeconds, focus, getWorkshopStatus);
+    if (record) { record("env:stations", performance.now() - mark); mark = performance.now(); }
     this.fireflyField.update({
       focus,
       timeSeconds,
@@ -3233,6 +3238,7 @@ export class WorldScene {
       reducedMotion: this.prefersReducedMotion,
       presenceRepelMeters: this.playerPresence.moving ? 0.9 : 0.35
     });
+    if (record) { record("env:fireflies", performance.now() - mark); mark = performance.now(); }
     this.rainField.update({
       focus,
       timeSeconds,
@@ -3242,6 +3248,7 @@ export class WorldScene {
       reducedMotion: this.prefersReducedMotion,
       daylight: frame.daylight
     });
+    if (record) record("env:rain", performance.now() - mark);
   }
 
   /**
@@ -3634,24 +3641,25 @@ export class WorldScene {
 
   /**
    * Makes a running processing job legible in the world: work puffs rise from
-   * a station while its job is active, and a single ready burst marks the
-   * moment it completes. Purely a reading of `processingJobs`; the station
+   * a station while its job is active, and a grounded output persists after
+   * completion. Purely a reading of `processingJobs`; the station
    * meshes, jobs and their timers stay simulation-owned.
    */
   private updateStationActivity(
     state: Readonly<GameState>,
     timeSeconds: number,
-    focus: THREE.Vector3
+    focus: THREE.Vector3,
+    getWorkshopStatus?: (stationId: string) => WorkshopStatusDto
   ): void {
     const jobs = Object.values(state.processingJobs);
     if (jobs.length === 0 && this.announcedCompleteJobs.size > 0) {
       this.announcedCompleteJobs.clear();
-      return;
     }
     if (this.announcedCompleteJobs.size > 64) {
       const live = new Set(jobs.map((job) => job.id));
       for (const id of this.announcedCompleteJobs) if (!live.has(id)) this.announcedCompleteJobs.delete(id);
     }
+    const desired = new Map<string, DesiredWorkshopOutput>();
     for (const job of jobs) {
       const definition = WORLD_STATION_DEFINITIONS[job.stationId];
       const structure = state.world.structures[job.stationId];
@@ -3661,8 +3669,43 @@ export class WorldScene {
       const dz = station.position.z - focus.z;
       if (dx * dx + dz * dz > STATION_ACTIVITY_RADIUS_METERS ** 2) continue;
       const baseY = WorldLayout.traversalSurfaceHeight(station.position.x, station.position.z);
-      const y = baseY + STATION_ACTIVITY_HEIGHT_METERS[station.type];
-      const target = { x: station.position.x, y, z: station.position.z };
+      const tradeStation = VILLAGE_TRADE_STATIONS.find((candidate) => candidate.id === station.id);
+      // Retain socket identities even when static batching detaches their source roots.
+      const workSurface = this.workshopOutputSurfaces.get(station.id);
+      let activityRotationY = structure.rotationY ?? tradeStation?.rotationY ?? 0;
+      let activityPoint: { x: number; y: number; z: number };
+      if (workSurface) {
+        workSurface.updateWorldMatrix(true, false);
+        workSurface.getWorldPosition(this.tempWorkshopSurfacePosition);
+        workSurface.getWorldQuaternion(this.tempWorkshopSurfaceQuaternion);
+        this.tempWorkshopSurfaceRotation.setFromQuaternion(this.tempWorkshopSurfaceQuaternion, "YXZ");
+        activityRotationY = this.tempWorkshopSurfaceRotation.y;
+        activityPoint = {
+          x: this.tempWorkshopSurfacePosition.x,
+          y: this.tempWorkshopSurfacePosition.y,
+          z: this.tempWorkshopSurfacePosition.z
+        };
+      } else if (tradeStation) {
+        // The authored front approach is the canonical fallback if a station
+        // socket has not finished loading; never derive a cue from an absent height.
+        const front = getProcessingStationFrontPosition(station.id, structure);
+        const x = front?.x ?? station.position.x;
+        const z = front?.z ?? station.position.z;
+        activityPoint = { x, y: WorldLayout.traversalSurfaceHeight(x, z), z };
+      } else {
+        activityPoint = {
+          x: station.position.x,
+          y: baseY + (STATION_ACTIVITY_HEIGHT_METERS[station.type] ?? 0),
+          z: station.position.z
+        };
+      }
+      const front = getProcessingStationFrontPosition(station.id, structure);
+      const outputPoint = workSurface ? activityPoint : {
+        x: front?.x ?? station.position.x,
+        y: WorldLayout.traversalSurfaceHeight(front?.x ?? station.position.x, front?.z ?? station.position.z),
+        z: front?.z ?? station.position.z
+      };
+      const target = activityPoint;
       if (job.status === "active") {
         const previous = this.stationActivityEmitSeconds.get(station.id);
         const cadence = 1.1;
@@ -3674,7 +3717,123 @@ export class WorldScene {
         this.announcedCompleteJobs.add(job.id);
         this.farmVfx.spawn("pickup", target, timeSeconds, { reducedMotion: this.prefersReducedMotion });
       }
+      if (dx * dx + dz * dz <= STATION_ACTIVITY_RADIUS_METERS ** 2) {
+        const status = getWorkshopStatus?.(station.id);
+        if (status?.jobId === job.id && (status.state === "ready" || status.state === "blocked") && status.outputKind) {
+          desired.set(station.id, {
+            jobId: job.id,
+            outputKind: status.outputKind,
+            state: status.state,
+            x: outputPoint.x,
+            y: outputPoint.y,
+            z: outputPoint.z,
+            rotationY: activityRotationY
+          });
+        }
+      }
     }
+    this.syncWorkshopOutputs(desired);
+  }
+
+  /** Persistent output props are a view of the saved job and its current collection destination. */
+  private syncWorkshopOutputs(desired: Map<string, DesiredWorkshopOutput>): void {
+    this.desiredWorkshopOutputs.clear();
+    for (const [stationId, output] of desired) this.desiredWorkshopOutputs.set(stationId, output);
+
+    for (const [stationId, presentation] of this.workshopOutputs) {
+      const next = desired.get(stationId);
+      if (!next || next.jobId !== presentation.jobId || next.outputKind !== presentation.outputKind) {
+        this.removeWorkshopOutput(stationId, presentation);
+        continue;
+      }
+      this.placeWorkshopOutput(presentation, next);
+    }
+
+    for (const [stationId, output] of desired) {
+      const existing = this.workshopOutputs.get(stationId);
+      if (existing?.jobId === output.jobId && existing.outputKind === output.outputKind) continue;
+      if (this.workshopOutputRequests.get(stationId) === output.jobId) continue;
+      this.requestWorkshopOutput(stationId, output);
+    }
+  }
+
+  private requestWorkshopOutput(stationId: string, output: DesiredWorkshopOutput): void {
+    this.workshopOutputRequests.set(stationId, output.jobId);
+    const assetId = WORKSHOP_OUTPUT_ASSETS[output.outputKind];
+    void this.loadModel(assetId).then((model) => {
+      if (this.workshopOutputRequests.get(stationId) === output.jobId) this.workshopOutputRequests.delete(stationId);
+      const next = this.desiredWorkshopOutputs.get(stationId);
+      if (this.disposed || next?.jobId !== output.jobId || next.outputKind !== output.outputKind) {
+        AssetLoader.releaseModel(model);
+        return;
+      }
+      const previous = this.workshopOutputs.get(stationId);
+      if (previous) this.removeWorkshopOutput(stationId, previous);
+      const group = new THREE.Group();
+      group.name = `workshop_output_${stationId}`;
+      model.name = `workshop_output_${stationId}_${output.outputKind}`;
+      // Handheld parcels and ground props have different authored pivots.
+      // Ground their actual geometry and centre it on the station's support.
+      const bounds = new THREE.Box3().setFromObject(model);
+      const centre = bounds.getCenter(new THREE.Vector3());
+      model.position.set(-centre.x, -bounds.min.y, -centre.z);
+      group.add(model);
+      const marker = new THREE.Mesh(
+        output.state === "blocked" ? this.workshopBlockedMarkerGeometry : this.workshopReadyMarkerGeometry,
+        output.state === "blocked" ? this.workshopBlockedMarkerMaterial : this.workshopReadyMarkerMaterial
+      );
+      marker.name = `workshop_output_state_${output.state}`;
+      marker.position.set(0.31, bounds.max.y - bounds.min.y + 0.12, 0.12);
+      marker.castShadow = false;
+      marker.receiveShadow = false;
+      group.add(marker);
+      const presentation: WorkshopOutputPresentation = { ...output, group, model, marker };
+      this.scene.add(group);
+      this.workshopOutputs.set(stationId, presentation);
+      this.placeWorkshopOutput(presentation, next);
+    }).catch((error: unknown) => {
+      if (this.workshopOutputRequests.get(stationId) === output.jobId) this.workshopOutputRequests.delete(stationId);
+      if (!this.disposed && !(error instanceof DOMException && error.name === "AbortError")) {
+        console.error(`[WorldScene] Could not show completed output at ${stationId}`, error);
+      }
+    });
+  }
+
+  private placeWorkshopOutput(presentation: WorkshopOutputPresentation, output: DesiredWorkshopOutput): void {
+    presentation.jobId = output.jobId;
+    presentation.state = output.state;
+    presentation.x = output.x;
+    presentation.y = output.y;
+    presentation.z = output.z;
+    presentation.rotationY = output.rotationY;
+    presentation.group.position.set(output.x, output.y, output.z);
+    presentation.group.rotation.y = output.rotationY;
+    presentation.marker.geometry = output.state === "blocked"
+      ? this.workshopBlockedMarkerGeometry
+      : this.workshopReadyMarkerGeometry;
+    presentation.marker.material = output.state === "blocked"
+      ? this.workshopBlockedMarkerMaterial
+      : this.workshopReadyMarkerMaterial;
+  }
+
+  private removeWorkshopOutput(stationId: string, presentation: WorkshopOutputPresentation): void {
+    presentation.group.removeFromParent();
+    presentation.model.removeFromParent();
+    AssetLoader.releaseModel(presentation.model);
+    this.workshopOutputs.delete(stationId);
+  }
+
+  /**
+   * Turns every LOD rotor by the same clamped step. Absolute time would jump
+   * the sails after a hidden tab; wind is not an input.
+   */
+  private advanceWindmillRotors(deltaSeconds: number, motionScale: number): void {
+    if (this.windmillRotors.length === 0) return;
+    const step = Math.min(WINDMILL_ROTOR_STALL_STEP_SECONDS, Math.max(0, deltaSeconds));
+    const angle = (Number.isFinite(this.windmillRotorAngle) ? this.windmillRotorAngle : 0)
+      - WINDMILL_ROTOR_RADIANS_PER_SECOND * motionScale * step;
+    this.windmillRotorAngle = angle;
+    for (const rotor of this.windmillRotors) rotor.rotation.z = angle;
   }
 
   private updateAmbientMotion(state: Readonly<GameState>, timeSeconds: number): void {
@@ -3693,11 +3852,7 @@ export class WorldScene {
       this.interactionFeedback.material.opacity = 0.62 + breathe * 0.1;
       for (const material of this.interactionMaterials.get(this.activeInteractionMaterialId ?? "") ?? []) material.emissiveIntensity = 0.07 + breathe * 0.025;
     }
-    if (this.windmillRotors.length > 0) {
-      const rotorSpeed = (0.18 + this.weatherMotion.effectiveWindSpeed * 0.035) * motionScale;
-      const rotorAngle = -timeSeconds * rotorSpeed;
-      for (const rotor of this.windmillRotors) rotor.rotation.z = rotorAngle;
-    }
+    this.advanceWindmillRotors(delta, motionScale);
     if (this.farmhouseSmoke) {
       this.farmhouseSmokeUniforms.nevaSmokeTime.value = timeSeconds * motionScale;
       this.farmhouseSmokeUniforms.nevaSmokeWind.value.set(
@@ -6388,7 +6543,9 @@ export class WorldScene {
     );
 
     if (!this.syncInFlight) {
+      const signatureStart = this.phaseRecorder ? performance.now() : 0;
       const signature = this.computeReconciliationSignature(sim);
+      this.phaseRecorder?.("sync:reconcile-signature", performance.now() - signatureStart);
       if (signature !== this.lastReconciliationSignature) {
         this.reconciliationRuns += 1;
         this.syncInFlight = this.loadMissingMeshes(sim, timeSeconds)
@@ -6590,6 +6747,34 @@ export class WorldScene {
     this.rendererPipeline.resetGpuTiming();
   }
 
+  /** Debug/acceptance: GPU samples since the last reset. */
+  public gpuTimingSnapshot(): GpuFrameTimingSnapshot | null {
+    return this.rendererPipeline.gpuTimingSnapshot();
+  }
+
+  /**
+   * Debug/acceptance: renderer-owned resource counts and estimated render
+   * target bytes. three.js counts live geometries/textures, not their bytes,
+   * so this is an ownership signal for growth, not a GPU memory measurement.
+   */
+  public resourceDiagnostics(): {
+    geometries: number;
+    textures: number;
+    programs: number;
+    renderTargetBytes: number;
+    assetCache: ReturnType<typeof AssetLoader.cacheStats>;
+  } {
+    const info = this.renderer.info;
+    return {
+      geometries: info.memory.geometries,
+      textures: info.memory.textures,
+      programs: info.programs?.length ?? 0,
+      renderTargetBytes: this.rendererPipeline.diagnostics().renderTargets
+        .reduce((total, target) => total + target.estimatedBytes, 0),
+      assetCache: AssetLoader.cacheStats()
+    };
+  }
+
   private updateQualityTransition(deltaSeconds: number): void {
     if (Math.abs(this.targetQualityLevel - this.qualityLevel) <= 0.0001) return;
     this.qualityLevel = advanceQualityLevel(
@@ -6644,7 +6829,17 @@ export class WorldScene {
   public dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.worldGeometryWorkers?.dispose();
+    this.worldGeometryWorkers = null;
     this.detachPlayerFromDonkey();
+    for (const [stationId, output] of this.workshopOutputs) this.removeWorkshopOutput(stationId, output);
+    this.workshopOutputRequests.clear();
+    this.desiredWorkshopOutputs.clear();
+    this.workshopOutputSurfaces.clear();
+    this.workshopReadyMarkerGeometry.dispose();
+    this.workshopBlockedMarkerGeometry.dispose();
+    this.workshopReadyMarkerMaterial.dispose();
+    this.workshopBlockedMarkerMaterial.dispose();
     if (this.farmhouseSmoke) {
       this.farmhouseSmoke.traverse((child) => {
         if (child instanceof THREE.Mesh && child.material instanceof THREE.Material) {
@@ -6785,14 +6980,7 @@ export class WorldScene {
     disposeNamedGeneratedMesh(this.environmentGroup, "farm_harbor_path_accents");
     disposeNamedGeneratedMesh(this.environmentGroup, "static_contact_grounding");
 
-    this.placementPreview.traverse((object) => {
-      if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
-        object.geometry.dispose();
-        const materials = Array.isArray(object.material) ? object.material : [object.material];
-        for (const material of materials) material.dispose();
-      }
-    });
-    this.placementPreview.removeFromParent();
+    this.placementCursor.dispose();
     this.interactionFeedback.geometry.dispose();
     (this.interactionFeedback.material as THREE.Material).dispose();
     this.interactionFeedback.removeFromParent();
@@ -6802,6 +6990,8 @@ export class WorldScene {
     this.questWaypointShaft.geometry.dispose();
     (this.questWaypointShaft.material as THREE.Material).dispose();
     this.questWaypointShaft.removeFromParent();
+    this.clearFarmQuestHighlight();
+    this.farmQuestHighlight.removeFromParent();
     if (this.playerContactShadow) {
       this.playerContactShadow.removeFromParent();
       this.playerContactShadow.geometry.dispose();

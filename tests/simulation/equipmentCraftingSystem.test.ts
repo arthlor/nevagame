@@ -5,6 +5,7 @@ import { Simulation } from "../../src/simulation/Simulation";
 import type { EquipmentId, GameState, ProcessingJobState } from "../../src/simulation/core/types";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
+import { WorldLayout } from "../../src/world/WorldLayout";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import legacyRecipeCompatibility from "../fixtures/recipes_v36_compatibility.json";
 import {
@@ -33,6 +34,7 @@ function moveToStation(sim: Simulation, stationId = "struct.workbench"): void {
   if (!front) throw new Error(`Missing station front for ${stationId}`);
   sim.state.player.x = front.x;
   sim.state.player.z = front.z;
+  sim.state.player.y = WorldLayout.traversalSurfaceHeight(front.x, front.z) + 0.5;
 }
 
 function own(sim: Simulation, ...ids: EquipmentId[]): void {
@@ -45,6 +47,10 @@ function matureStarterWheat(sim: Simulation): string {
   const world = farmLocalToWorld("farm.starter_garden", { x: 0, z: 0 });
   sim.state.player.x = world.x;
   sim.state.player.z = world.z;
+  sim.state.player.y = WorldLayout.traversalSurfaceHeight(world.x, world.z) + 0.5;
+  InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+    { itemId: "seed.wheat", quantity: 1 }
+  ]);
   const planted = sim.plantCrop("farm.starter_garden", "crop.wheat", world.x, world.z);
   expect(planted.success).toBe(true);
   const crop = sim.state.crops[planted.placedCropId!];
@@ -128,6 +134,9 @@ describe("character equipment", () => {
     sim.state.player.x = plantPosition.x;
     sim.state.player.z = plantPosition.z;
     const workBeforePlanting = sim.state.player.workCapacity.current;
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 1 }
+    ]);
     expect(sim.plantCrop(farmId, "crop.wheat", plantPosition.x, plantPosition.z).success).toBe(true);
     expect(workBeforePlanting - sim.state.player.workCapacity.current).toBe(10);
 
@@ -219,19 +228,19 @@ describe("character equipment", () => {
 
   it("uses action-specific reach and never lets information inspection veto watering", () => {
     const sim = new Simulation();
-    expect(sim.cropInteractionReachMeters("water")).toBe(2.5);
-    expect(sim.cropInteractionReachMeters("harvest")).toBe(2.5);
-    expect(sim.cropInteractionReachMeters("unroot")).toBe(2.5);
-    expect(sim.cropInteractionReachMeters("inspect")).toBe(2.5);
+    expect(sim.cropInteractionReachMeters("water")).toBe(1.75);
+    expect(sim.cropInteractionReachMeters("harvest")).toBe(1.75);
+    expect(sim.cropInteractionReachMeters("unroot")).toBe(1.75);
+    expect(sim.cropInteractionReachMeters("inspect")).toBe(1.75);
 
     own(sim, "equipment.furrow_boots", "equipment.long_spout_watering_can");
     sim.execute({ type: "equipment.equip", equipmentId: "equipment.furrow_boots" });
     sim.execute({ type: "equipment.equip", equipmentId: "equipment.long_spout_watering_can" });
 
-    expect(sim.cropInteractionReachMeters("water")).toBe(3.25);
-    expect(sim.cropInteractionReachMeters("harvest")).toBe(2.75);
-    expect(sim.cropInteractionReachMeters("unroot")).toBe(2.75);
-    expect(sim.cropInteractionReachMeters("inspect")).toBe(2.75);
+    expect(sim.cropInteractionReachMeters("water")).toBe(2.5);
+    expect(sim.cropInteractionReachMeters("harvest")).toBe(2);
+    expect(sim.cropInteractionReachMeters("unroot")).toBe(2);
+    expect(sim.cropInteractionReachMeters("inspect")).toBe(2);
   });
 
   it("applies clothing presets atomically without changing either tool or the rod", () => {

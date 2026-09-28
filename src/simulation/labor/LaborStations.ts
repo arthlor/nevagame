@@ -1,4 +1,5 @@
 import { bindInteractionPoint } from "../../world/InteractionPlacements";
+import { CLOSE_INTERACTION_REACH_METERS } from "../../world/InteractionReach";
 
 export const LABOR_PROP_POSES = {
   "authored.arrival.village.firewood": { x: 66.4, z: -39.8, rotationY: 1.5708 },
@@ -33,7 +34,7 @@ export const LABOR_STATIONS: Readonly<Record<string, Readonly<LaborStationDefini
     name: "Split Kindling",
     prompt: "Split kindling",
     position: bindInteractionPoint("authored.arrival.village.firewood", { x: 64.9, z: -40.1 }, LABOR_PROP_POSES["authored.arrival.village.firewood"]),
-    reachMeters: 2.6,
+    reachMeters: CLOSE_INTERACTION_REACH_METERS,
     yield: 20,
     targetMin: 0.72,
     targetMax: 0.88,
@@ -44,7 +45,7 @@ export const LABOR_STATIONS: Readonly<Record<string, Readonly<LaborStationDefini
     name: "Turn the Drying Racks",
     prompt: "Turn the racks",
     position: bindInteractionPoint("authored.arrival.village.rack", { x: 61, z: -40.8 }, LABOR_PROP_POSES["authored.arrival.village.rack"]),
-    reachMeters: 2.6,
+    reachMeters: CLOSE_INTERACTION_REACH_METERS,
     yield: 20,
     targetMin: 0.72,
     targetMax: 0.88,
@@ -55,7 +56,7 @@ export const LABOR_STATIONS: Readonly<Record<string, Readonly<LaborStationDefini
     name: "Mend the Nets",
     prompt: "Mend the nets",
     position: bindInteractionPoint("authored.prop.net-rack.harbor", { x: 67.5, z: 64.5 }, LABOR_PROP_POSES["authored.prop.net-rack.harbor"]),
-    reachMeters: 2.6,
+    reachMeters: CLOSE_INTERACTION_REACH_METERS,
     yield: 20,
     targetMin: 0.72,
     targetMax: 0.88,

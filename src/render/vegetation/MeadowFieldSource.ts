@@ -119,6 +119,9 @@ export function createMeadowPatchData(
   const causes = requiredAttribute(geometry, SURFACE_FIELD_ATTRIBUTE_NAMES.causes);
   const pathBlend = requiredAttribute(geometry, "terrainPathBlend");
   const dryClimate = requiredAttribute(geometry, "terrainDryClimate");
+  // Optional so review surfaces without roads still build a carpet.
+  const roadVerge = geometry.getAttribute("terrainRoadVerge");
+  const vergeTallShare = CANONICAL_RENDER_CONFIG.meadow.field.roadVergeTallShare;
 
   const heights = new Float32Array(position.count);
   const cover = new Uint8Array(position.count * 4);
@@ -143,7 +146,9 @@ export function createMeadowPatchData(
     const vegetation = inputs.grass + inputs.meadow;
     const offset = index * 4;
     cover[offset] = Math.round(meadowCoverDensity(inputs) * 255);
-    cover[offset + 1] = Math.round(clamp01(vegetation > 0.02 ? inputs.meadow / vegetation : 0) * 255);
+    // The uncut verge beside a road grows as long as a meadow.
+    const meadowShare = vegetation > 0.02 ? inputs.meadow / vegetation : 0;
+    cover[offset + 1] = Math.round(clamp01(Math.max(meadowShare, (roadVerge?.getX(index) ?? 0) * vergeTallShare)) * 255);
     cover[offset + 2] = Math.round(clamp01(dryClimate.getX(index)) * 255);
     cover[offset + 3] = Math.round(clamp01(weights0.getW(index) + inputs.shorelineWetness * 0.45) * 255);
   }

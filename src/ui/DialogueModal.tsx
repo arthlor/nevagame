@@ -43,11 +43,6 @@ export interface DialogueModalProps {
   npcId: string;
   onClose: () => void;
   onTalkNpc: (npcId: string) => DialogueTalkResult;
-  /**
-   * Sound cue for the typewriter tick (played every 6th revealed character).
-   * Defaults to "click"; pass a softer cue to quiet the chatter.
-   */
-  typewriterTickCue?: string;
 }
 
 /** Stable identity so an unresolved render never re-triggers page effects. */
@@ -168,8 +163,7 @@ export const DialogueRewardsPanel: React.FC<{ rewards?: QuestRewardDefinition; p
 export const DialogueModal: React.FC<DialogueModalProps> = ({
   npcId,
   onClose,
-  onTalkNpc,
-  typewriterTickCue = "click"
+  onTalkNpc
 }) => {
   const { locale, getLocalizedNpc, getLocalizedQuest, getLocalizedQuestTrack } = useTranslation();
   const npc = ContentRegistry.npcs.get(npcId);
@@ -253,8 +247,6 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   // reveal; the effect below depends on the page identity alone.
   const pageTextRef = useRef(currentPageText);
   pageTextRef.current = currentPageText;
-  const tickCueRef = useRef(typewriterTickCue);
-  tickCueRef.current = typewriterTickCue;
   /** Set by the page-dot rewind to show an already-read page in full. */
   const instantRevealKeyRef = useRef<string | null>(null);
 
@@ -281,17 +273,9 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     }
     setReveal(startPage(pageKey));
     let shown = 0;
-    let tickCounter = 0;
     const id = window.setInterval(() => {
       shown += 1;
       setReveal((prev) => revealTo(prev, pageKey, shown));
-      tickCounter += 1;
-      if (tickCounter % 6 === 0 && shown < pageText.length) {
-        const char = pageText[shown - 1];
-        if (char && char.trim().length > 0) {
-          playUiSound(tickCueRef.current);
-        }
-      }
       if (shown >= pageText.length) {
         window.clearInterval(id);
         if (typewriterTimerRef.current === id) {

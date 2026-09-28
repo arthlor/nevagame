@@ -9,6 +9,7 @@ import { npcAnchorAt, npcHasPendingConversation } from "../../src/simulation/pre
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { CART_WORKSHOP } from "../../src/world/VillageTradeLayout";
+import { HARBOR_TRADE_MOORING } from "../../src/world/WorldAnchors";
 
 function stand(sim: Simulation, point: { x: number; z: number }): void {
   Object.assign(sim.state.player, point, { y: WorldLayout.traversalSurfaceHeight(point.x, point.z) + .5 });
@@ -135,7 +136,7 @@ describe("village trade quest and lore route", () => {
     stand(sim, carriagePoint(carriage, 0, CARRIAGE_TUNING.rearOffset));
     expect(sim.execute({ type: "cargo.load-carriage", mountId: carriage.id })).toMatchObject({ success: true });
     expect(route.activeStepIndex).toBe(4);
-    expect(carriage.fishCargoSlotIds.filter(Boolean)).toHaveLength(2);
+    expect((carriage.fishCargoSlotIds ?? []).filter(Boolean)).toHaveLength(2);
     expect(validateSaveEnvelope(save(sim))).toBe(true);
     const reloaded = new Simulation(structuredClone(sim.state));
     const reloadedCarriage = reloaded.state.mounts["mount.carriage_6"];
@@ -152,6 +153,39 @@ describe("village trade quest and lore route", () => {
     const handoff = talk(reloaded, "npc.mara");
     expect(handoff.segments.some((segment) => segment.kind === "completion" && segment.questId === "quest.caravan_shared_load")).toBe(true);
     expect(reloaded.state.journal.unlockedKnowledge).toContain("knowledge.shared_load");
+  });
+
+  it("settles the ten-pack channel manifest with Tomas before starting the Sunreach return", () => {
+    const sim = new Simulation();
+    const route = questTrackProgress(sim.state.quests, "track.caravans");
+    route.activeQuestId = "quest.caravan_sunreach_freight";
+    route.activeStepIndex = 0;
+    route.stepProgress = {};
+    sim.state.player.money = 200000;
+    sim.state.player.proficiencies.trading = 30000;
+    stand(sim, HARBOR_TRADE_MOORING.purchasePosition);
+    expect(sim.execute({ type: "vehicle.purchase", vehicleTypeId: "boat.trading_ship" }).success).toBe(true);
+    expect(route.activeStepIndex).toBe(1);
+
+    const delivery = (marketId: string, number: number) => sim.events.emit("TradePackSold", {
+      marketId, cargoId: `cargo.channel.${number}`, itemId: "produce.wheat",
+      sourceMarketId: "market.village", revenue: 220, minute: 0
+    });
+    delivery("market.pinewatch", 0);
+    expect(route.stepProgress).toEqual({});
+    for (let number = 1; number <= 9; number++) delivery("market.sunreach_cove", number);
+    expect(route.stepProgress["step.caravan.market.sunreach_cove.produce.wheat"]).toBe(9);
+    const reloaded = new Simulation(structuredClone(sim.state));
+    const reloadedRoute = questTrackProgress(reloaded.state.quests, "track.caravans");
+    reloaded.events.emit("TradePackSold", { marketId: "market.sunreach_cove", cargoId: "cargo.channel.10",
+      itemId: "produce.wheat", sourceMarketId: "market.village", revenue: 220, minute: 0 });
+    expect(reloaded.questDomain.getActiveQuestDto("track.caravans")?.objectiveDescription).toBe("Talk to Tomas to continue");
+    expect(talk(reloaded, "npc.maeve").questCompleted).toBe(false);
+    const handoff = talk(reloaded, "npc.tomas");
+    expect(handoff.segments.some((segment) => segment.kind === "completion" && segment.questId === "quest.caravan_sunreach_freight")).toBe(true);
+    expect(handoff.segments.some((segment) => segment.kind === "intro" && segment.questId === "quest.caravan_island_return")).toBe(true);
+    expect(reloadedRoute.activeQuestId).toBe("quest.caravan_island_return");
+    expect(reloaded.state.journal.unlockedKnowledge).toContain("knowledge.channel_manifest");
   });
 
   it("backfills newly authored field notes from completed quests without replaying coin", () => {

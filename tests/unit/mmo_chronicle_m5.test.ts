@@ -151,16 +151,16 @@ describe("Milestone M5 — Coastal Chronicle (F8.3)", () => {
   });
 
   describe("presentation", () => {
-    it("starts collapsed so the corner stays quiet", () => {
+    it("starts expanded with the day's entries visible", () => {
       const html = render([entry()]);
       expect(html).toContain('data-testid="coastal-chronicle"');
-      expect(html).toContain('data-expanded="false"');
-      expect(html).toContain("is-collapsed");
-      // Collapsed means no feed rows in the DOM at all.
-      expect(html).not.toContain('data-testid="chronicle-feed"');
+      expect(html).toContain('data-expanded="true"');
+      expect(html).toContain("is-expanded");
+      expect(html).toContain('data-testid="chronicle-feed"');
+      expect(html).toContain("Sold 3 Wheat for 42 G");
     });
 
-    it("shows the entry count while collapsed", () => {
+    it("shows the entry count in the header", () => {
       const html = render([entry({ id: 1 }), entry({ id: 2 }), entry({ id: 3 })]);
       expect(html).toContain('data-testid="chronicle-count"');
       expect(html).toContain(">3<");
@@ -168,7 +168,7 @@ describe("Milestone M5 — Coastal Chronicle (F8.3)", () => {
 
     it("exposes the toggle as a real disclosure control", () => {
       const html = render([entry()]);
-      expect(html).toContain('aria-expanded="false"');
+      expect(html).toContain('aria-expanded="true"');
       expect(html).toContain('aria-controls="chronicle-feed"');
     });
 

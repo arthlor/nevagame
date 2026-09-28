@@ -20,7 +20,8 @@ export type DebugStartScenario =
   | "harbor-skiff"
   | "boat-driving"
   | "storm-skiff"
-  | "sport-fishing";
+  | "sport-fishing"
+  | "loaded-wagon";
 
 export const DEBUG_START_SCENARIOS = new Set<DebugStartScenario>([
   "farm",
@@ -36,7 +37,8 @@ export const DEBUG_START_SCENARIOS = new Set<DebugStartScenario>([
   "harbor-skiff",
   "boat-driving",
   "storm-skiff",
-  "sport-fishing"
+  "sport-fishing",
+  "loaded-wagon"
 ]);
 
 export function applyDebugStartScenario(sim: Simulation, scenario: DebugStartScenario): void {
@@ -131,6 +133,11 @@ export function applyDebugStartScenario(sim: Simulation, scenario: DebugStartSce
         throw new Error("Could not place the skiff in open water for the storm debug start");
       }
       sim.state.boats["boat.player_skiff"].speed = 6;
+      break;
+    case "loaded-wagon":
+      if (!sim.prepareDebugLoadedCarriage()) {
+        throw new Error("Could not prepare the deterministic loaded-wagon debug start");
+      }
       break;
     case "sport-fishing":
       if (!sim.startDebugSportFishing(

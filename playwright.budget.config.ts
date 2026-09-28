@@ -23,7 +23,9 @@ const buildDirectory = path.join(runDirectory, "dist");
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: "render-budget.spec.ts",
+  // `performance-baseline.spec.ts` is opt-in (`npm run perf:baseline`) and
+  // skips itself unless NEVA_PERF_BASELINE=1, so `test:budget` is unchanged.
+  testMatch: ["render-budget.spec.ts", "performance-baseline.spec.ts"],
   outputDir: path.join(runDirectory, "test-results"),
   timeout: 480_000,
   expect: { timeout: 450_000 },

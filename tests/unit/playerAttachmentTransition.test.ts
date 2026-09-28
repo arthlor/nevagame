@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   attachPreservingWorld,
   attachmentClip,
@@ -25,6 +25,20 @@ describe("player attachment presentation", () => {
     expect(destination.y).toBeLessThan(0.5);
     action.time = clip.duration * 0.7; mixer.update(0);
     expect(attachmentPelvisOffset(root, "rowboat_idle", pelvis.name).distanceTo(destination)).toBeLessThan(1e-9);
+  });
+
+  it("samples a first pose without serialising the player's clips", async () => {
+    const root = await loadHumanoidAsset("char_player_a");
+    const userData = root.userData;
+    // Object3D.copy deep-copies userData through JSON, which serialises every clip track.
+    const serialise = vi.spyOn(THREE.AnimationClip, "toJSON");
+    try {
+      attachmentPelvisOffset(root, "board", resolveHumanoidRig(root).bones.pelvis!.name);
+      expect(serialise).not.toHaveBeenCalled();
+      expect(root.userData).toBe(userData);
+    } finally {
+      serialise.mockRestore();
+    }
   });
   it("resolves craft and mirrored mount variants without changing caller actions", () => {
     expect(attachmentClip("board")).toBe("board");

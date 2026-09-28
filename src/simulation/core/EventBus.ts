@@ -79,6 +79,7 @@ export interface DomainEvents {
   BoatDocked: { boatId: BoatId; marketId: MarketId | null; minute: GameMinute };
   MountBoarded: { mountId: string; minute: GameMinute };
   MountDisembarked: { mountId: string; minute: GameMinute };
+  MountRecalled: { mountId: string; minute: GameMinute };
   TradePackSold: { marketId: string; cargoId: string; itemId: string; sourceMarketId?: string; revenue: number; minute: GameMinute };
   CarriagePurchased: { mountId: string; mountTypeId: string; cost: number; minute: GameMinute };
   BoatPurchased: { boatId: BoatId; boatTypeId: string; cost: number; minute: GameMinute };
@@ -109,7 +110,7 @@ export interface DomainEvents {
   /**
    * An action matched a later step of a running errand but not the one it is
    * on, so it counted for nothing. A signal for feedback only: steps stay
-   * sequential and nothing is banked outside the tutorial ledger.
+   * sequential and nothing is banked outside opted-in early-action steps.
    */
   QuestStepAhead: { questId: string; currentStepDescription: string; minute: GameMinute };
   QuestCompleted: { questId: string; actId: string; rewardMoney?: number; minute: GameMinute };

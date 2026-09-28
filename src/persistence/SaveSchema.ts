@@ -39,7 +39,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 70;
+export const CURRENT_SCHEMA_VERSION = 73;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -923,6 +923,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       for (const credit of credits) {
         if (!isRecord(credit)) return false;
         if (!isOneOf(credit.type, QUEST_OBJECTIVE_TYPES)) return false;
+        if (schemaVersion >= 73 && (typeof credit.trackId !== "string" || credit.trackId.length === 0)) return false;
         if (credit.targetId !== undefined && typeof credit.targetId !== "string") return false;
         if (!isSafeInteger(credit.quantity, 1) || credit.quantity > MAX_EARLY_ACTION_CREDIT_QUANTITY) return false;
         if (credit.location !== undefined && (

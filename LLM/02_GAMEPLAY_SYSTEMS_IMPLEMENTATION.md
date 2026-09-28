@@ -179,7 +179,7 @@ repeated ask. A talk to someone a running errand wants *later* emits
 
 Nearby world barks consume the same recognition selector in `NpcPresentation`; they reuse authored lines without changing quests. An NPC with something pending for the player — an errand they receive at completion, or a talk step aimed at them — barks their authored `beckonLines` instead; a herald alone is not a reason, because it can stand for hours and a call repeated that long is nagging. The person just spoken to holds their barks for 30 seconds after a conversation. One projected bubble yields to panels and uses transient per-NPC cooldowns, with no saved dialogue history.
 
-The talk command requires the authoritative proximity check against `npcAnchorAt(npcId, clock, quests)` in `src/simulation/presentation/NpcPresentation.ts`. Content in `npcs.ts` schedules day-phase stations; omitted phases retain the home anchor. The renderer, nearby targeting and quest talk/turn-in destinations use the same station, so a quest giver cannot be visible at one place while the tracker points at another. **One quest-aware exception:** while the NPC speaks for an active quest whose final objective is complete and was earned away from them (any type except `talk-npc`, which completes inside the conversation itself), the function returns the NPC's role anchor instead of the schedule stop. That holds Barnaby at the farmhouse workbench for the Act 2 hand-in he names while leaving him a Village Market figure the rest of the day. This derives from the existing clock and quest cursor, adds no saved NPC state, and never advances a track. Elspeth retains her daytime garden welcome; the other stops populate the village and both islands at their authored phases. `NpcTalked`,
+The talk command requires the authoritative proximity check against `npcAnchorAt(npcId, clock, quests)` in `src/simulation/presentation/NpcPresentation.ts`. Content in `npcs.ts` schedules day-phase stations; omitted phases retain the home anchor. The renderer, nearby targeting and quest talk/turn-in destinations use the same station, so a quest giver cannot be visible at one place while the tracker points at another. **One quest-aware exception:** while the NPC speaks for an active quest whose final objective is complete and was earned away from them (any type except `talk-npc`, which completes inside the conversation itself), the function returns the NPC's role anchor instead of the schedule stop. That holds Barnaby at the farmhouse workbench for the Act 2 hand-in he names while leaving him a Village Market figure the rest of the day. This derives from the existing clock and quest cursor, adds no saved NPC state, and never advances a track. Elspeth's daytime station is the open farmhouse yard, clear of the fence and the doorway; at dusk she still keeps the village inn porch. A player saved in the old fence pocket is moved onto that yard by `migrateElspethYard71`. The other stops populate the village and both islands at their authored phases. `NpcTalked`,
 `QuestStarted`, `QuestProgressed`, `QuestCompleted`, and `ActCompleted` are
 signals for UI/audio/diagnostics; they are not a second narrative database.
 The DOM dialogue overlay may show speaker name, role, district, line pages,
@@ -200,21 +200,25 @@ are recorded only in `01` §6.1.
 ## Early-action credit ledger
 
 `quests.earlyActionCredits` banks an action that matched no active objective so
-a player who works ahead of the tutorial is credited when the step finally
-activates. This exists because working ahead could genuinely strand a save:
-watering during the sow step threw the event away, and `FarmingDomain.water`
-refuses an already-wet crop, so the watering objective became unsatisfiable
-until moisture decayed. The compost step was worse — starting stock is exactly
-two runs of `recipe.compost_worms` and `item.compost_starter` is purchase-only.
+a player who works ahead is credited when the step finally activates. Each
+credit belongs to one quest track, so banked work is redeemed only by the track
+that was waiting for it. This exists because working ahead could genuinely strand a
+save: watering during the sow step threw the event away, and
+`FarmingDomain.water` refuses an already-wet crop, so the watering objective
+became unsatisfiable until moisture decayed. The Commons watering step also
+opts into the ledger so a row watered during sowing counts when that step opens.
+The compost step was worse — starting stock is exactly two runs of
+`recipe.compost_worms` and `item.compost_starter` is purchase-only.
 
 Rules, owned by `QuestDomain`:
 
 - **Opt-in.** Only an objective declaring `creditsEarlyActions: true` banks or
   redeems. `ContentRegistry` rejects the flag unless the type is one of
-  `plant-crop`, `water-crop`, `harvest-crop`, `craft-recipe`, a `location` is
-  declared, and the quest is on the main track. Those four types are the only
-  ones dispatched outside `worldEvent()`; anything else fans one happening
-  across several candidate locations and would bank duplicates.
+  `plant-crop`, `water-crop`, `harvest-crop`, `craft-recipe` and a `location` is
+  declared. Those four types are the only ones dispatched outside
+  `worldEvent()`; anything else fans one happening across several candidate
+  locations and would bank duplicates. A credit carries the owning track ID and
+  can only be redeemed by that track.
 - **One predicate.** Banking and redemption both run `objectiveAcceptsAction`,
   the same gate the live path uses. A shape the live path would reject is never
   banked, and a banked shape is one the live path would have accepted.
@@ -224,17 +228,22 @@ Rules, owned by `QuestDomain`:
   redemption runs strictly afterwards, or the credit lands in a discarded map.
 - **Bounded.** Capped at the objective's `targetQuantity`, at
   `MAX_EARLY_ACTION_CREDIT_QUANTITY` (64) and `MAX_EARLY_ACTION_CREDIT_RECORDS`
-  (16). `reconcileQuestCursors` prunes credits no remaining objective watches,
-  so the ledger empties after the tutorial.
+  (16). `reconcileQuestCursors` prunes credits no remaining objective on that
+  track watches, so the ledger empties after the action is used or its step is
+  no longer available.
 - **Said, not banked, elsewhere.** Outside those opted-in steps nothing is
   banked. An action that matches a *later* step of a running errand emits
   `QuestStepAhead` (once per errand per world event) so presentation can say
   what comes first instead of the work vanishing without a word.
 
-A new game no longer starts with `item.bait_worms`: Act 2's compost run is the
-player's first bait, and pre-granting a stack made that lesson skippable. The
-starting satchel is 10 wheat, 6 tomato and 6 potato seeds, 2 compost starter
-and 8 plant matter — exactly two runs of `recipe.compost_worms`.
+A new game starts with no seeds and no `item.bait_worms`. Act 2's compost run
+is the player's first bait. Planting seeds come from the quest speaker who
+asks for them: Elspeth's welcome gives 6 wheat for the 3-wheat sowing; the
+family pouch gives 8 wheat and 4 potato before the commons rows; Tomas's
+crossing reward gives 6 sunflower seeds, which cover the 3 terrace plantings
+and the later 2; Barnaby gives 1 apple sapling before the commons orchard.
+The starting satchel is 2 compost starter and 8 plant matter — exactly two
+runs of `recipe.compost_worms`.
 
 ## Background townsfolk
 
@@ -520,7 +529,7 @@ These are starting values, not sacred final numbers.
 
 # 3. Water, Soil, Compost & Orchards
 
-Moisture starts on `0–100`. Watering restores substantial moisture; rain restores moisture; late irrigation reduces repeated manual Work. Each field-pump use charges a fixed start-up Work cost plus Work for every thirsty living crop it waters, using `irrigationWorkForCropCount` in `FarmingDomain` for both the well quote and the command. The same base Work grants Farming XP. Hand watering is the efficient choice for a few isolated crops, especially with a watering tool; the pump saves Work across a larger field. A fully wet field remains a free no-op for quest compatibility. Do not require constant re-clicking or let watering dominate play.
+Moisture starts on `0–100`. Watering restores substantial moisture; rain restores moisture; late irrigation reduces repeated manual Work. Each field-pump use charges a fixed start-up Work cost plus Work for every thirsty living crop it waters, using `irrigationWorkForCropCount` in `FarmingDomain` for both the well quote and the command. The same base Work grants Farming XP. Hand watering is the efficient choice for a few isolated crops, especially with a watering tool; the pump saves Work across a larger field. A fully wet field remains a free no-op for quest compatibility. Hand watering an already-wet crop is rejected before spending Work, awarding XP or emitting `CropWatered`; each accepted event follows the moisture transition, so quests count the transition once. Do not require constant re-clicking or let watering dominate play.
 
 ```ts
 interface SoilState {
@@ -604,9 +613,9 @@ Trade packs are made only at the five `trading-station` packing yards. `src/cont
 Starting and collecting are separate simulation commands:
 
 1. **Start quote:** validate a real station and its front approach, station type and regional membership, recipe/rank gates, ingredients, fee, free hands, Work affordability, and—only for an equipment result—unique ownership plus available or reserved wardrobe capacity. An empty station is valid. At most one active or complete job may reference a station; every job must reference an existing station.
-2. **Commit:** `SimulationActionTimeline` owns the action clock and commit timestamp. It replays the canonical command exactly once at the marker; animation and audio are observers. Before the marker, cancellation or reload costs nothing. After a successful marker, presentation interruption cannot undo the economic transaction.
+2. **Commit:** `SimulationActionTimeline` owns the pending actor action and its commit timestamp. It replays the canonical command exactly once at the marker; animation and audio are observers. Direct command callers cannot bypass a pending action. The domain revalidates the current target, reach and resources at commit, then publishes progression only after the state change. Before the marker, cancellation or reload costs nothing. After a successful marker, presentation interruption cannot undo the economic transaction.
 3. **Wait:** only an already-committed job may advance from `active` to `complete`, including through bounded offline progression. Offline time never starts or collects a job. A completed result may wait indefinitely and continues to occupy its station.
-4. **Collect:** revalidate the station approach and current destination capacity. Grant the captured result and captured Processing XP atomically, emit completion once, then remove the job. A full satchel or wardrobe leaves the completed job intact.
+4. **Collect:** revalidate the station approach and current destination capacity. Grant the captured result and captured Processing XP atomically, remove the job, then emit completion once from the committed state. A full satchel or wardrobe leaves the completed job intact.
 
 A job snapshots its result, user-facing labels, tier, Work debit, gold fee, XP, presentation kind and effective duration when it starts. Later content edits cannot change an in-flight economic result. Save validation permits zero jobs, rejects more than one non-collected job per station, and validates the snapshot itself rather than re-deriving it from mutable recipe content: tier-owned Work/XP, status against the saved clock, exact start/end/duration arithmetic, bounded labels and duration, and unique item stacks within the empty-satchel and per-item limits. Collection defensively rechecks the frozen economic payload before granting output or XP. Schema migration and reload behavior belong to `01` §6.1.
 
@@ -1012,7 +1021,7 @@ interface PlayerTraversalState {
 
 Movement input requests sprint; fixed-step traversal rules own stamina drain, recovery delay, exhaustion, and grounded state. Rapier resolves the physical pose through `PhysicsAdapter`, then the simulation commits the validated frame. The renderer may display movement/action feedback but may not mutate traversal or invent a second stamina resource. Any traversal-state schema change requires a deterministic save migration and fixture coverage.
 
-`PLAYER_TRAVERSAL_TUNING` in `src/simulation/navigation/PlayerTraversal.ts` owns on-foot speed, acceleration, deceleration, and sprint stamina response. Catalog locomotion reference speeds and the animation controller must stay calibrated to those resolved travel speeds; presentation may vary phase/playback from actual travel, but it must not preserve an obsolete faster gait by making the feet slide or over-cranking cadence.
+`PLAYER_TRAVERSAL_TUNING` in `src/simulation/navigation/PlayerTraversal.ts` owns on-foot speed, acceleration, deceleration, and sprint stamina response. The displayed pool stays `maximumSprintStamina`. Continuous sprint drain is the only on-foot stamina expenditure; there is no discrete jump or action cost. Donkey gallop (`src/simulation/mounts/Mounts.ts`) and carriage trot (`src/simulation/mounts/Carriage.ts`) are separate persisted budgets. Their drains use the same half-rate cut as on-foot sprint, and their displayed pools stay 100. Recovery rate, recovery delay, resume threshold and movement speeds stay on their own constants. Catalog locomotion reference speeds and the animation controller must stay calibrated to those resolved travel speeds; presentation may vary phase/playback from actual travel, but it must not preserve an obsolete faster gait by making the feet slide or over-cranking cadence.
 
 Shipped on-foot speeds are 2.0 m/s walking and 5.2 m/s sprinting. Locomotion
 playback is `resolvedSpeed / clip.referenceSpeed` and is deliberately
@@ -1059,6 +1068,20 @@ Contract:
   Carrying a trade pack does not block boarding the donkey: the pack rides on
   the rider's back at the mount's unpenalized speed. Boarding the carriage
   while carrying stays blocked; load its bed at the rear on foot.
+- **Calling the donkey** is the `mount.call` command. It places the one owned
+  starter donkey directly beside the player in a single commit (a deliberate
+  teleport, by the owner's decision) and never spawns another. The spot comes
+  from a fixed ring of candidates around the player, flanks first. It must be
+  mountable ground within a small height step of the player's feet and a valid
+  mount pose. When physics is attached, `PhysicsWorld.isGroundPathClear` must
+  also find no wall between player and spot and room for the donkey's body. The
+  donkey faces the player's heading, ready to board. The call is refused, and
+  nothing moves, when there is no donkey, when the player is riding it, when it
+  is already beside them, when the player stands where it cannot come (a boat,
+  water, a pier, an interior), or when no candidate spot is safe. The donkey
+  carries no cargo, so a call moves no goods. `MOUNT_RECALL_TUNING` in
+  `src/simulation/mounts/MountRecall.ts` owns the radii, offsets and tolerances;
+  `tests/simulation/donkeyRecall.test.ts` covers the contract.
 - **Mounted traversal is free of Work costs and awards no XP.** Walk
   remains available while gallop uses the mount-owned resource described below.
 - **Mounting suspends manual production.** Planting, crop tending, harvest,
@@ -1083,7 +1106,7 @@ Contract:
   mount's own persisted gallop stamina, recovery delay and exhaustion at the
   fixed traversal step. `PhysicsAdapter` returns that result and
   `NavigationDomain` commits it to the active mount. The budget outlasts the
-  rider's own sprint (roughly seven seconds of gallop against four and a half),
+  rider's own sprint (roughly fourteen seconds of gallop against about nine),
   and the HUD shows it as Gallop in the unit-frame stamina slot while mounted.
   Carried trade packs never slow the mount: the animal carries the load, so
   laden and unladen gaits resolve identically. Exhaustion prevents
@@ -1110,7 +1133,7 @@ Contract:
   pose. The rider socket and authored left/right stirrup sockets own pelvis and
   foot support; terrain contact solving does not modify mounted poses.
 
-The horse carriage uses `Carriage.ts` for capacity, interaction offsets, collision footprint, driving tuning and its trot stamina budget. W/S moves it forward or backward at the walk speed, A/D steers only while rolling, release brakes, and Shift trots while the budget lasts: roughly ten seconds of trot, then a forced walk until recovery. Walking and reversing stay free. Its grounded speed and acceleration respond to the canonical route kind, packed core, shoulder, natural ground and travel grade; dry, slope-safe off-road travel remains possible but slower. `CARRIAGE_TUNING.groundResponse` owns those scales, and `WorldLayout` supplies the same route and terrain fields used by road presentation and collision. `PhysicsWorld` advances the budget through the shared `advanceMountGait` stepper and commits it to the carriage mount, and the HUD shows it as Trot in the unit-frame stamina slot. `PhysicsWorld` checks the bed, shafts and horse across each fixed-step movement and turn against static collision and dry slope-safe support. Parked bed and horse colliders block pedestrians. The catalog horse gait follows resolved movement, the wheels follow signed travel, and the player sits at the authored driver socket. The initial parking pose and exit clearance are tested against the actual world collision projection. The horse walk/trot bake and catalog reference speeds match `CARRIAGE_TUNING`; reverse travel plays the walk backwards and never spends trot stamina. Steering approaches its target gradually in the transient physics controller. The rear axle follows its rolling tangent and the front axle/horse articulate around the kingpin; the same steered footprint owns collision clearance. Steering is restored on rejected physics commits and is not saved. The cart and horse sample their own terrain support; driver palms, soles and pelvis use authored rein grips, footboard contacts and the seat. The deforming reins connect those palms to head-bone bit sockets.
+The horse carriage uses `Carriage.ts` for capacity, interaction offsets, collision footprint, driving tuning and its trot stamina budget. W/S moves it forward or backward at the walk speed, A/D steers only while rolling, release brakes, and Shift trots while the budget lasts: roughly twenty seconds of trot, then a forced walk until recovery. Walking and reversing stay free. Its grounded speed and acceleration respond to the canonical route kind, packed core, shoulder, natural ground and travel grade; dry, slope-safe off-road travel remains possible but slower. `CARRIAGE_TUNING.groundResponse` owns those scales, and `WorldLayout` supplies the same route and terrain fields used by road presentation and collision. `PhysicsWorld` advances the budget through the shared `advanceMountGait` stepper and commits it to the carriage mount, and the HUD shows it as Trot in the unit-frame stamina slot. `PhysicsWorld` checks the bed, shafts and horse across each fixed-step movement and turn against static collision and dry slope-safe support. Parked bed and horse colliders block pedestrians. The catalog horse gait follows resolved movement, the wheels follow signed travel, and the player sits at the authored driver socket. The initial parking pose and exit clearance are tested against the actual world collision projection. The horse walk/trot bake and catalog reference speeds match `CARRIAGE_TUNING`; reverse travel plays the walk backwards and never spends trot stamina. Steering approaches its target gradually in the transient physics controller. The rear axle follows its rolling tangent and the front axle/horse articulate around the kingpin; the same steered footprint owns collision clearance. Steering is restored on rejected physics commits and is not saved. The cart and horse sample their own terrain support; driver palms, soles and pelvis use authored rein grips, footboard contacts and the seat. The deforming reins connect those palms to head-bone bit sockets.
 
 Deferred for mounts: purchase/ownership progression, general mount inventory,
 feeding, further species, and working while mounted. The gallop budget
@@ -1258,7 +1281,7 @@ NPC names and quest membership remain code-owned.
 # 14. Work Capacity & Proficiencies
 
 **Owners.** `WorkCapacityState` (`src/simulation/core/types.ts`) is the shape.
-`ProgressionDomain` owns the pool, the ceiling, the daily earn cap, the rest
+`ProgressionDomain` owns the pool, the ceiling (`WORK_CAPACITY_MAXIMUM`), the daily earn cap, the rest
 fraction and baseline floor, the meal limit and the proficiency discount curve.
 Each action's base cost is exported once by its own domain:
 `FARMING_ACTION_COST`, `BASIC_FISHING_WORK_COST`,
@@ -1269,7 +1292,9 @@ not restate them, because a second copy is what breaks them.
 **Work is earned, not waited for.** Waking time does not refill the pool. The
 real supply comes from four bounded sources: a night's rest at the farmhouse (a
   fraction of the ceiling plus a baseline floor that supports a useful next
-  day's work after depletion, exempt from the daily cap), a
+  day's work after depletion, exempt from the daily cap; the presentation fades
+  out, commits that night once, wakes beside the bed, then fades in, and a
+  repeated callback cannot apply the night again), a
 crafted and eaten provision (a per-item `consumable` amount, limited by
 `WORK_MEAL_DAILY_LIMIT`), a labor-shift minigame at an authored chore station
 (`LABOR_STATIONS`; clean strikes grant Work and each station counts once per
@@ -1294,6 +1319,7 @@ affordable and the action was then refused.
 
 **Invariants** — the part code cannot state for itself:
 
+- `migrateWorkCeiling72` raises a saved maximum to `WORK_CAPACITY_MAXIMUM` and clamps current only when it is already above that ceiling. A lower current is not refilled, and daily earn, meal, labor and idle tallies are not reset.
 - Work gates manual physical production only: planting, watering, harvesting,
   unrooting, fertilizing, irrigation, processing start, basic-fishing cast,
   sport-fishing hook. Traversal, boats, cargo handling, trading, quests and
@@ -1461,7 +1487,7 @@ Vessel slot type comes from the boat definition. The HUD's ice indicator queries
 
 Forecast: anchored, non-modal Now / +2h / +5h conditions with qualitative rain, wind, and sea readings.
 
-Journal: Story uses `ActiveQuestDto` for the current objective, readiness and the ask as it was put (`brief`: the herald's lines while the speaker is still out of reach, otherwise the speaker's intro), Records reveal only journal-owned discoveries, Skills render the complete rank-benefit preview from `ProgressionDomain.inspectSkills`, and Guide controls come from `src/ui/keybindings.ts`. The Almanac describes a fish's current strong, scarce or absent seasonal run and, when absent, its next available season using the same seasonal-presence rule as fishing. Recipe rows show the quoted Processing XP alongside Work and duration; collection feedback shows the saved job's actual XP. React does not reconstruct quest readiness, rank thresholds, unlock formulas or crafting rewards.
+Journal: Story uses `ActiveQuestDto` for the current objective, readiness and the ask as it was put (`brief`: the herald's lines while the speaker is still out of reach, otherwise the speaker's intro). The objective line, its `objectiveFacts` counts, destination and progress note, and any `completedSteps`, are built from the live step so the journal, compact tracker and world pointer describe the same state. A farm step publishes `targetFarmId` and the world outlines that farm's plantable soil; a person, station or counter stays a point marker. Records reveal only journal-owned discoveries, Skills render the complete rank-benefit preview from `ProgressionDomain.inspectSkills`, and Guide controls come from `src/ui/keybindings.ts`. The Almanac describes a fish's current strong, scarce or absent seasonal run and, when absent, its next available season using the same seasonal-presence rule as fishing. Recipe rows show the quoted Processing XP alongside Work and duration; collection feedback shows the saved job's actual XP. React does not reconstruct quest readiness, rank thresholds, unlock formulas or crafting rewards.
 
 Quest tracker: an acquisition step (`purchase-upgrade`) publishes `ActiveQuestDto.requirements` — for the skiff its Fishing XP and gold, for a rod the prior rod, its rank threshold and price — measured against the player, so a gate reads as a path while the player can still act on it rather than only as a refusal at the counter. The tracker renders them; it does not derive them. Rod refusals at the water say which rod would do and which stalls stock it (`rodAdviceFor` in `FishingDomain`).
 

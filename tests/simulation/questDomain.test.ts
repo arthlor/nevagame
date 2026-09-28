@@ -49,6 +49,9 @@ describe("QuestDomain & Storyline Progression", () => {
   it("handles dialogue and advances quest when speaking to Elspeth", () => {
     const sim = new Simulation();
     const startXp = sim.state.player.proficiencies.farming;
+    const elspeth = npcAnchorAt("npc.elspeth", sim.state.clock, sim.state.quests);
+    sim.state.player.x = elspeth.x;
+    sim.state.player.z = elspeth.z;
 
     // Hearing her out is the whole errand: one conversation delivers the
     // welcome, closes it with its reward, and passes on the planting ask.
@@ -81,8 +84,9 @@ describe("QuestDomain & Storyline Progression", () => {
     const sim = new Simulation();
 
     // Advance past welcome quest
-    sim.state.player.x = -63.5;
-    sim.state.player.z = -62;
+    const elspeth = npcAnchorAt("npc.elspeth", sim.state.clock, sim.state.quests);
+    sim.state.player.x = elspeth.x;
+    sim.state.player.z = elspeth.z;
     sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
     sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
 
@@ -101,11 +105,12 @@ describe("QuestDomain & Storyline Progression", () => {
     expect(plantingQuest.isStepComplete).toBe(true);
     expect(plantingQuest.isQuestReadyToTurnIn).toBe(true);
     expect(plantingQuest.objectiveDescription).toBe("Talk to Elspeth to continue");
-    expect(plantingQuest.targetLocation?.name).toBe("Starter Garden Gate");
+    expect(plantingQuest.targetLocation?.name).toBe("Farmhouse Yard");
 
     // Turn in planting quest to Elspeth
-    sim.state.player.x = -63.5;
-    sim.state.player.z = -62;
+    const elspethAgain = npcAnchorAt("npc.elspeth", sim.state.clock, sim.state.quests);
+    sim.state.player.x = elspethAgain.x;
+    sim.state.player.z = elspethAgain.z;
     const turnInResult = sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
     expect(turnInResult.success).toBe(true);
 
@@ -134,6 +139,9 @@ describe("QuestDomain & Storyline Progression", () => {
     const sim = new Simulation();
 
     // Complete Act 1 Quest 1: Welcome (intro then turn-in)
+    const welcome = npcAnchorAt("npc.elspeth", sim.state.clock, sim.state.quests);
+    sim.state.player.x = welcome.x;
+    sim.state.player.z = welcome.z;
     sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
     sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
 
@@ -144,8 +152,9 @@ describe("QuestDomain & Storyline Progression", () => {
       sim.state.player.z = pos.z;
       sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
     }
-    sim.state.player.x = -63.5;
-    sim.state.player.z = -62;
+    const elspeth = npcAnchorAt("npc.elspeth", sim.state.clock, sim.state.quests);
+    sim.state.player.x = elspeth.x;
+    sim.state.player.z = elspeth.z;
     sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
 
     // Complete Act 1 Quest 3: Water Crops
@@ -157,8 +166,9 @@ describe("QuestDomain & Storyline Progression", () => {
       sim.state.player.z = world.z;
       sim.waterCrop(cropId);
     }
-    sim.state.player.x = -63.5;
-    sim.state.player.z = -62;
+    const elspethReturn = npcAnchorAt("npc.elspeth", sim.state.clock, sim.state.quests);
+    sim.state.player.x = elspethReturn.x;
+    sim.state.player.z = elspethReturn.z;
     sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
 
     // Now on Act 2 Quest 1: Harvest and Compost
@@ -334,6 +344,9 @@ describe("QuestDomain & Storyline Progression", () => {
     mainQuestTrack(sim.state.quests).activeStepIndex = 0;
     mainQuestTrack(sim.state.quests).stepProgress = {};
 
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 3 }
+    ]);
     const cropIds: string[] = [];
     for (let i = 0; i < 3; i++) {
       const pos = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x: -1.5 + i * 1.5, z: 0 });

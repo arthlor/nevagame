@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { WorldScene } from "../../src/render/scene/WorldScene";
+import { WINDMILL_ROTOR_RADIANS_PER_SECOND, WorldScene } from "../../src/render/scene/WorldScene";
 import { EditableStaticSources } from "../../src/render/scene/EditableStaticSources";
 import { WorldLayout } from "../../src/world/WorldLayout";
 
@@ -60,6 +60,23 @@ describe("windmill rotor animation pivots", () => {
     expect(hub0.parent).toBe(rotor0);
     expect(hub1.parent).toBe(rotor1);
     expect(root.getObjectByName("windmill_runtime_rotor")).toBeUndefined();
+  });
+
+  it("turns every rotor at a steady rate and clamps a stall to one short step", () => {
+    const world = rotorHarness() as RotorHarness & {
+      advanceWindmillRotors: (deltaSeconds: number, motionScale: number) => void;
+    };
+    const { root, rotor0, rotor1 } = buildWindmill();
+    world.configureWindmillRotor(root);
+    world.advanceWindmillRotors(1 / 60, 1);
+
+    expect(rotor0.rotation.z).toBeCloseTo(-WINDMILL_ROTOR_RADIANS_PER_SECOND / 60, 8);
+    expect(rotor1.rotation.z).toBe(rotor0.rotation.z);
+
+    const settled = rotor0.rotation.z;
+    world.advanceWindmillRotors(30, 1);
+    expect(rotor0.rotation.z).toBeCloseTo(settled - WINDMILL_ROTOR_RADIANS_PER_SECOND * 0.1, 8);
+    expect(rotor1.rotation.z).toBe(rotor0.rotation.z);
   });
 
   it("marks rotor pivots and their meshes dynamic for batching and shadows", () => {

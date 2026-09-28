@@ -57,11 +57,11 @@ export function migrateOnboardingCredits35(previous: GameState): GameState {
     const already = main.stepProgress?.[V35_WATER_STEP.id] ?? 0;
     const owed = Math.min(V35_WATER_STEP.targetQuantity, wet) - already;
     if (owed > 0) {
-      const credit: QuestEarlyActionCredit = {
+      const credit = {
         type: "water-crop",
         location: { kind: "farm", id: V35_FARM },
         quantity: owed
-      };
+      } as unknown as QuestEarlyActionCredit;
       state.quests.earlyActionCredits = [...state.quests.earlyActionCredits, credit];
     }
   }

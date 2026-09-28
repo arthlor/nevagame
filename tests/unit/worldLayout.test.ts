@@ -834,9 +834,11 @@ describe("WorldLayout", () => {
     }
     // The seeded shoreline understory adds ten coastal scrub anchors for this
     // seed; one bush yields to the river's bank-top willows (NevaRiverDressing).
-    expect(causalCount("island.neva", "bush")).toBe(142);
-    // One field rock yields to a bank-top willow.
-    expect(causalCount("island.neva", "rock")).toBe(137);
+    // Layout 38's narrower roads and forked starter routes re-seat three more.
+    expect(causalCount("island.neva", "bush")).toBe(139);
+    // One field rock yields to a bank-top willow; layout 38's re-planned roads,
+    // milestones and signposts re-seat two more.
+    expect(causalCount("island.neva", "rock")).toBe(135);
     // The reed slope/mountain gate only ever lowers reed density, and the
     // lip-crest box excludes the plunging edge; each retired exactly the
     // reeds it targets (cliff/high/crest floaters). The layout-25 river rework
@@ -844,8 +846,10 @@ describe("WorldLayout", () => {
     // raising the count from 51; every remaining reed keeps its wet,
     // depositional, low-access properties, checked below.
     expect(causalCount("island.neva", "reed")).toBe(84);
-    expect(causalCount("island.sunreach", "tree")).toBe(48);
-    expect(causalCount("island.sunreach", "bush")).toBe(70);
+    // Layout 38 narrows Sunreach's roads, which re-frames the route-side
+    // composition: two trees and a bush fewer.
+    expect(causalCount("island.sunreach", "tree")).toBe(46);
+    expect(causalCount("island.sunreach", "bush")).toBe(69);
     expect(causalCount("island.sunreach", "rock")).toBe(48);
     const roles = new Set(causal.map((placement) => placement.compositionTag?.role));
     expect(roles).toEqual(new Set(["core", "edge", "isolate", "landmark", "riparian", "route-frame"]));
@@ -913,9 +917,10 @@ describe("WorldLayout", () => {
     );
     const sunreachCoverByCategory = (category: string) =>
       sunreachCover.filter((placement) => placement.category === category).length;
-    expect(sunreachCoverByCategory("grass")).toBe(360);
-    expect(sunreachCoverByCategory("flowers")).toBe(72);
-    expect(sunreachCoverByCategory("pebbles")).toBe(96);
+    // Layout 38's narrower Sunreach roads re-seat a few route-side cover clumps.
+    expect(sunreachCoverByCategory("grass")).toBe(358);
+    expect(sunreachCoverByCategory("flowers")).toBe(71);
+    expect(sunreachCoverByCategory("pebbles")).toBe(95);
 
     for (const placement of layout.groundCoverPlacements) {
       if (placement.compositionTag?.islandId !== "island.sunreach" && !placement.id.startsWith("seeded-fill.mainland.")) {
@@ -1017,8 +1022,11 @@ describe("WorldLayout", () => {
         .toBeLessThan(13);
     }
 
+    // The river mouth's rocky point is derived dressing, embedded by explicit
+    // height; `nevaRiverDressing.test.ts` owns its seating and clearances.
     const coastalRocks = authored.filter((placement) =>
       placement.assetId.startsWith("rock_coastal_") && !placement.id.startsWith("authored.mainland.")
+        && !placement.id.startsWith("authored.river.")
     );
     expect(coastalRocks.map((placement) => placement.id)).toEqual([
       "authored.rock.headland-a",

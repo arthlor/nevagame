@@ -23,6 +23,9 @@ describe("Simulation Vertical Slice Loop", () => {
     sim = new Simulation();
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 4 }
+    ]);
   });
 
   it("completes full loop: plant -> grow -> harvest -> mill -> chum -> fish -> sell", () => {

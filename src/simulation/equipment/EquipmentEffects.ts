@@ -1,4 +1,5 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
+import { CLOSE_INTERACTION_REACH_METERS } from "../../world/InteractionReach";
 import type { EquipmentEffectDefinition } from "../../content/types";
 import type {
   EquipmentId,
@@ -9,7 +10,8 @@ import type {
 
 export type CropInteractionAction = "water" | "harvest" | "unroot" | "inspect";
 
-export const BASE_CROP_INTERACTION_REACH_METERS = 2.5;
+/** Metres from the player to the crop's near edge, before equipment bonuses. */
+export const BASE_CROP_INTERACTION_REACH_METERS = CLOSE_INTERACTION_REACH_METERS;
 
 function equippedEffects(player: Readonly<PlayerState>): EquipmentEffectDefinition[] {
   const effects: EquipmentEffectDefinition[] = [];

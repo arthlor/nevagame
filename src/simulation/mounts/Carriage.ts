@@ -19,9 +19,9 @@ export const CARRIAGE_TUNING = Object.freeze({
   frontAxleOffset: 1.014,
   maximumSteerAngle: 0.42,
   steeringResponse: 6,
-  /** Trot (Shift) budget: roughly ten seconds of trot; walk stays free. */
+  /** Trot (Shift) budget. Displayed pool stays 100; drain is half the previous 10/s, so a trot lasts about twenty seconds. Walk stays free. */
   staminaMaximum: 100,
-  trotDrainPerSecond: 10,
+  trotDrainPerSecond: 5,
   trotRecoveryPerSecond: 20,
   trotRecoveryDelaySeconds: 1,
   trotResumeThreshold: 25,

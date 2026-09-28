@@ -3790,13 +3790,13 @@
       "id": "market.pinewatch",
       "x": -395,
       "z": 55,
-      "height": 6.025915
+      "height": 6.039037
     },
     {
       "id": "market.reedhaven",
       "x": -565,
       "z": 340,
-      "height": 2.448454
+      "height": 2.453082
     },
     {
       "id": "market.highridge",
@@ -6213,7 +6213,7 @@
     "mainland-highridge-adit-road",
     "mainland-lake-ice-house-road"
   ],
-  "routeHash": "ee4cc67708822e7aa4cc5742aece2816159fc2df5a15834aaa633f2cc485a973",
+  "routeHash": "b32b40ca029479d688790b1efbda44a30d0284bc56407d91560f94310ca1ed7d",
   "sunreachHash": "1417dc49416edf8ed24c05b48f0a214e29ce00a5b66b684a870b756a8dc4120c",
   "sunreachSampleCount": 3078
 }

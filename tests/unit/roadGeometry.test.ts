@@ -531,7 +531,7 @@ describe("Organic road geometry", () => {
     // The compact-square market adds a second village-market apron joining the
     // crossing to the stall counter on the court's south lip. Forks where one
     // road leaves another are small field or gateway aprons.
-    const authored = WORLD_ROUTE_JUNCTIONS.filter((junction) => !junction.id.startsWith("mainland-junction:"));
+    const authored = WORLD_ROUTE_JUNCTIONS.filter((junction) => !junction.id.startsWith("mainland-"));
     expect(Object.fromEntries(authored.map((junction) => [junction.id, junction.surface]))).toEqual({
       "starter-farm-field": "field",
       "starter-farm-yard": "farm-yard",
@@ -549,6 +549,11 @@ describe("Organic road geometry", () => {
     });
     expect(WORLD_ROUTE_JUNCTIONS.filter((junction) => junction.id.startsWith("mainland-junction:"))
       .every((junction) => junction.surface === "landmark-gateway")).toBe(true);
+    // Passing places are single-road aprons on cart roads.
+    const passing = WORLD_ROUTE_JUNCTIONS.filter((junction) => junction.id.startsWith("mainland-passing:"));
+    expect(passing.length).toBeGreaterThan(0);
+    expect(passing.every((junction) => junction.surface === "field" && junction.routeIds.length === 1
+      && WORLD_ROUTE_NETWORK.find((route) => route.id === junction.routeIds[0])?.kind === "arterial")).toBe(true);
     for (const junction of WORLD_ROUTE_JUNCTIONS) {
       expect(junction.blendLengthMeters).toBeGreaterThan(0);
       expect(WorldLayout.pathInfluence(junction.center.x, junction.center.z)).toBeGreaterThan(0.9);

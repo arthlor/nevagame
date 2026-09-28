@@ -79,10 +79,10 @@ export interface QuestObjectiveDefinition {
   locationAnchor?: { x: number; z: number; name: string };
   location?: QuestLocationRequirement;
   /**
-   * Opt-in, tutorial only. An action matching this objective's exact gates
-   * performed *before* the step activates is banked once and applied when it
-   * does, so a player who works ahead is never asked to repeat themselves.
-   * `ContentRegistry` rejects this on objectives that cannot bank safely.
+   * An action matching this objective's exact gates performed before the step
+   * activates is banked for this quest track and applied when it does, so a
+   * player who works ahead is never asked to repeat themselves. Content
+   * validation restricts this to safely attributable action types and locations.
    */
   creditsEarlyActions?: boolean;
   /**
@@ -210,7 +210,7 @@ export interface QuestState {
   completedQuestIds: QuestId[];
   unlockedFeatureIds: string[];
   hintsShown: Record<string, boolean>;
-  /** Banked pre-step actions, one record per distinct action shape. */
+  /** Banked pre-step actions, one record per distinct action shape and quest track. */
   earlyActionCredits: QuestEarlyActionCredit[];
 }
 
@@ -221,6 +221,8 @@ export interface QuestState {
  * credit that was earned against the old target.
  */
 export interface QuestEarlyActionCredit {
+  /** The one quest progression track that may redeem this action. */
+  trackId: QuestTrackId;
   type: QuestObjectiveType;
   /** Absent when the action carried no target (e.g. watering any crop). */
   targetId?: string;
@@ -258,6 +260,7 @@ export function questEarlyActionCredits(quests: QuestState): QuestEarlyActionCre
 /** Whether two credits describe the same action, ignoring quantity. */
 export function sameEarlyActionShape(a: QuestEarlyActionCredit, b: QuestEarlyActionCredit): boolean {
   return (
+    a.trackId === b.trackId &&
     a.type === b.type &&
     (a.targetId ?? null) === (b.targetId ?? null) &&
     (a.location?.kind ?? null) === (b.location?.kind ?? null) &&
@@ -288,6 +291,32 @@ export function activeQuestTrackIds(quests: QuestState): QuestTrackId[] {
   return Object.keys(tracks).filter((trackId) => tracks[trackId]?.activeQuestId);
 }
 
+export type QuestObjectiveAction =
+  | "plant"
+  | "water"
+  | "harvest"
+  | "sell-item"
+  | "sell-fish"
+  | "sell-trade-pack"
+  | "craft"
+  | "talk"
+  | "turn-in"
+  | "catch"
+  | "purchase"
+  | "other";
+
+/** Cumulative work is counted as it happens. A visit is a person or a purchase. */
+export type QuestProgressKind = "cumulative" | "visit";
+
+export interface QuestObjectiveFacts {
+  action: QuestObjectiveAction;
+  progressKind: QuestProgressKind;
+  subject?: string;
+  destination?: string;
+  current: number;
+  required: number;
+}
+
 export interface ActiveQuestDto {
   questId: QuestId;
   trackId: QuestTrackId;
@@ -300,11 +329,19 @@ export interface ActiveQuestDto {
   currentStepIndex: number;
   totalSteps: number;
   objectiveDescription: string;
+  /** The live step, shared by the journal, the tracker and the world pointer. */
+  objectiveFacts?: QuestObjectiveFacts;
+  /** Earlier steps of this errand, already finished. */
+  completedSteps?: QuestObjectiveFacts[];
+  /** Distinguishes a satchel count from a completed action or sale. */
+  progressNote?: string;
   /** The live objective's shape, so presentation never re-derives it from content. */
   objectiveType: QuestObjectiveType;
   objectiveTargetId?: string;
   currentProgress: number;
   targetQuantity: number;
+  /** Farm whose plantable soil should be outlined. Point targets leave this unset. */
+  targetFarmId?: string;
   isStepComplete: boolean;
   isQuestReadyToTurnIn: boolean;
   turnInBlockerReason?: string;

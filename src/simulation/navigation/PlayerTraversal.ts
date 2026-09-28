@@ -13,7 +13,10 @@ export const PLAYER_TRAVERSAL_TUNING = Object.freeze({
   jumpBufferSeconds: 0.12,
   coyoteTimeSeconds: 0.1,
   maximumSprintStamina: 100,
-  sprintDrainPerSecond: 22,
+  // Half the previous 22/s drain. The displayed pool stays 100; sprinting from
+  // full to empty lasts about twice as long. Recovery is unchanged. Donkey
+  // gallop and carriage trot use their own budgets in Mounts.ts and Carriage.ts.
+  sprintDrainPerSecond: 11,
   sprintRecoveryPerSecond: 30,
   sprintRecoveryDelaySeconds: 0.65,
   sprintResumeThreshold: 18

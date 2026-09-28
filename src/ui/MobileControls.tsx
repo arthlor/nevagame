@@ -12,6 +12,10 @@ export interface MobileControlsProps {
   orientationBlocked: boolean;
   bootReady: boolean;
   mode: GameMode;
+  /** The ridden mount's gait from the HUD DTO ("Gallop" or "Trot"); null on foot. */
+  mountGaitLabel?: string | null;
+  /** On foot with a donkey: offers the same call the H key dispatches. */
+  canCallDonkey?: boolean;
   canFishHere?: boolean;
   activeModal: ActiveModal;
   basicFishingPhase: "charging-cast" | "waiting-bite" | "bite-reaction" | "minigame" | "caught" | "escaped" | "casting" | "waiting" | "bite" | null;
@@ -216,6 +220,8 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   orientationBlocked,
   bootReady,
   mode,
+  mountGaitLabel = null,
+  canCallDonkey = false,
   canFishHere = false,
   activeModal,
   basicFishingPhase,
@@ -363,13 +369,18 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
           )}
           {!isBoat && (
             <MobileHoldButton
-              label={isTr ? "Depar" : "Sprint"}
+              label={isMounted && mountGaitLabel
+                ? (isTr ? (mountGaitLabel === "Trot" ? "Tırıs" : "Dörtnala") : mountGaitLabel)
+                : (isTr ? "Depar" : "Sprint")}
               onPress={() => onSetSprint(true)}
               onRelease={() => onSetSprint(false)}
             />
           )}
           {!isBoat && !isMounted && (
             <MobileTapButton label={isTr ? "Zıpla" : "Jump"} onTap={onQueueJump} />
+          )}
+          {canCallDonkey && !isBoat && !isMounted && !isPlacement && (
+            <MobileTapButton label={isTr ? "Eşek" : "Donkey"} onTap={() => onVirtualAction("call-donkey")} />
           )}
         </div>
       </div>

@@ -36,6 +36,7 @@ function movePlayerToStarterFarm(sim: Simulation, x: number = 0, z: number = 0):
   const world = starterFarmWorld(x, z);
   sim.state.player.x = world.x;
   sim.state.player.z = world.z;
+  sim.state.player.y = WorldLayout.traversalSurfaceHeight(world.x, world.z) + 0.5;
   return world;
 }
 
@@ -47,6 +48,10 @@ function fillInventory(sim: Simulation): void {
 
 function matureCrop(sim: Simulation, cropId: string = "crop.wheat", x = 0, z = 0): string {
   const world = movePlayerToStarterFarm(sim, x, z);
+  const seedItemId = ContentRegistry.crops.get(cropId)!.seedItemId;
+  InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+    { itemId: seedItemId, quantity: 1 }
+  ]);
   expect(sim.plantCrop("farm.starter_garden", cropId, world.x, world.z).success).toBe(true);
   const placed = Object.values(sim.state.crops).find((crop) => crop.cropId === cropId && crop.x === x && crop.z === z)!;
   const definition = ContentRegistry.crops.get(cropId)!;
@@ -167,6 +172,9 @@ describe("NEVA farming correctness foundation", () => {
   it("limits the Village Commons to three concurrent crop records", () => {
     const sim = new Simulation();
     sim.state.player.workCapacity.current = 300;
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 3 }
+    ]);
     const localPositions = [
       { x: 3, z: -3 },
       { x: 8.5, z: -3 },
@@ -176,12 +184,14 @@ describe("NEVA farming correctness foundation", () => {
       const world = farmLocalToWorld("farm.player_homestead", local);
       sim.state.player.x = world.x;
       sim.state.player.z = world.z;
+      sim.state.player.y = WorldLayout.traversalSurfaceHeight(world.x, world.z) + 0.5;
       expect(sim.plantCrop("farm.player_homestead", "crop.wheat", world.x, world.z).success).toBe(true);
     }
 
     const fourth = farmLocalToWorld("farm.player_homestead", { x: 14, z: 0.5 });
     sim.state.player.x = fourth.x;
     sim.state.player.z = fourth.z;
+    sim.state.player.y = WorldLayout.traversalSurfaceHeight(fourth.x, fourth.z) + 0.5;
     expect(sim.validateCropPlacement("farm.player_homestead", "crop.wheat", fourth.x, fourth.z)).toMatchObject({
       valid: false,
       reasonCode: "farm-capacity"
@@ -198,7 +208,11 @@ describe("NEVA farming correctness foundation", () => {
     const world = farmLocalToWorld("farm.player_homestead", { x: 8.5, z: -3 });
     sim.state.player.x = world.x;
     sim.state.player.z = world.z;
+    sim.state.player.y = WorldLayout.traversalSurfaceHeight(world.x, world.z) + 0.5;
 
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.apple_sapling", quantity: 1 }
+    ]);
     expect(sim.validateCropPlacement("farm.player_homestead", "crop.apple_tree", world.x, world.z)).toMatchObject({
       valid: true,
       localX: 8.5,
@@ -390,10 +404,18 @@ describe("NEVA farming correctness foundation", () => {
 
   it("uses continuous placement with deterministic yaw and stable failure codes", () => {
     const sim = new Simulation();
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 1 },
+      { itemId: "seed.tomato", quantity: 1 }
+    ]);
     const world = movePlayerToStarterFarm(sim, 0.37, -0.42);
     const request = { farmId: "farm.starter_garden", cropId: "crop.wheat", ...world };
     const first = sim.validateCropPlacement(request.farmId, request.cropId, request.x, request.z);
     const secondSim = new Simulation();
+    InventoryManager.addItemsAtomically(secondSim.state.inventories[secondSim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 1 },
+      { itemId: "seed.tomato", quantity: 1 }
+    ]);
     movePlayerToStarterFarm(secondSim, 0.37, -0.42);
     const second = secondSim.validateCropPlacement(request.farmId, request.cropId, request.x, request.z);
     expect(first).toMatchObject({ valid: true, worldX: world.x, worldZ: world.z });
@@ -418,6 +440,9 @@ describe("NEVA farming correctness foundation", () => {
       .toBe("invalid-surface");
 
     const center = movePlayerToStarterFarm(sim);
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 1 }
+    ]);
     expect(sim.plantCrop("farm.starter_garden", "crop.wheat", center.x, center.z).success).toBe(true);
     expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", center.x, center.z).reasonCode)
       .toBe("overlaps-crop");
@@ -464,6 +489,9 @@ describe("NEVA farming correctness foundation", () => {
   it("rejects already-wet watering without state or XP changes", () => {
     const sim = new Simulation();
     const center = movePlayerToStarterFarm(sim);
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 1 }
+    ]);
     expect(sim.plantCrop("farm.starter_garden", "crop.wheat", center.x, center.z).success).toBe(true);
     const crop = Object.values(sim.state.crops)[0];
     crop.moisture = 85;
@@ -553,16 +581,16 @@ describe("NEVA farming correctness foundation", () => {
   it("starts with the trio and buys only starter seeds atomically at the produce stall", () => {
     const sim = new Simulation();
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
-    expect(InventoryManager.getItemCount(inventory, "seed.wheat")).toBe(10);
-    expect(InventoryManager.getItemCount(inventory, "seed.tomato")).toBe(6);
-    expect(InventoryManager.getItemCount(inventory, "seed.potato")).toBe(6);
+    expect(InventoryManager.getItemCount(inventory, "seed.wheat")).toBe(0);
+    expect(InventoryManager.getItemCount(inventory, "seed.tomato")).toBe(0);
+    expect(InventoryManager.getItemCount(inventory, "seed.potato")).toBe(0);
     sim.state.player.x = VILLAGE_MARKET.position.x;
     sim.state.player.z = VILLAGE_MARKET.position.z;
     const money = sim.state.player.money;
     const tomato = sim.buySeedAtMarket("market.village", "seed.tomato", 1);
     expect(tomato.success).toBe(true);
     expect(tomato.cost).toBeGreaterThanOrEqual(8);
-    expect(InventoryManager.getItemCount(inventory, "seed.tomato")).toBe(7);
+    expect(InventoryManager.getItemCount(inventory, "seed.tomato")).toBe(1);
     expect(sim.state.player.money).toBe(money - (tomato.cost ?? 0));
     expect(sim.buySeedAtMarket("market.village", "seed.barley", 1)).toMatchObject({
       success: false,

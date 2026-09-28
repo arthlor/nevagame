@@ -5,6 +5,7 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 import { farmLocalToWorld, STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
 import { npcAnchorAt } from "../../src/simulation/presentation/NpcPresentation";
 import { mainQuestTrack, questEarlyActionCredits } from "../../src/simulation/core/QuestTypes";
+import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import type { ResolvedPhysicsFrame } from "../../src/simulation/core/PhysicsAdapter";
 
 function commitPlayerPose(simulation: Simulation, x: number, z: number, rotationY = 0): void {
@@ -75,7 +76,7 @@ describe("quest early-action credits", () => {
     for (const cropId of cropIds) waterCrop(simulation, cropId);
 
     expect(questEarlyActionCredits(simulation.state.quests)).toEqual([
-      { type: "water-crop", targetId: undefined, location: { kind: "farm", id: "farm.starter_garden" }, quantity: 3 }
+      { trackId: "track.main", type: "water-crop", targetId: undefined, location: { kind: "farm", id: "farm.starter_garden" }, quantity: 3 }
     ]);
 
     // Turning in the sow quest activates the water step, which is already paid
@@ -118,6 +119,9 @@ describe("quest early-action credits", () => {
     // A crop the sow objective does not name, in the farm it does name.
     const position = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x: -3, z: 0 });
     commitPlayerPose(simulation, position.x, position.z);
+    expect(InventoryManager.addItemsAtomically(simulation.state.inventories[simulation.state.player.inventoryId], [{
+      itemId: ContentRegistry.crops.get("crop.tomato")!.seedItemId, quantity: 1
+    }])).toBe(true);
     expect(simulation.execute({
       type: "crop.plant",
       request: { farmId: "farm.starter_garden", cropId: "crop.tomato", x: position.x, z: position.z }
@@ -127,7 +131,7 @@ describe("quest early-action credits", () => {
     // Every other way of missing an opted-in objective's gates, at the seam
     // the ledger actually reads. None of these may produce spendable credit.
     const domain = simulation.questDomain;
-    domain.onObjectiveEvent("water-crop", undefined, 1, { kind: "farm", id: "farm.player_homestead" });
+    domain.onObjectiveEvent("water-crop", undefined, 1, { kind: "farm", id: "farm.sunreach_terraces" });
     domain.onObjectiveEvent("water-crop", undefined, 1);
     domain.onObjectiveEvent("craft-recipe", "recipe.compost_worms", 1, { kind: "station", id: "struct.starter_workbench" });
     domain.onObjectiveEvent("craft-recipe", "recipe.wheat_to_grain", 1, { kind: "station", id: "struct.starter_compost" });
@@ -138,6 +142,7 @@ describe("quest early-action credits", () => {
     domain.onObjectiveEvent("craft-recipe", "recipe.compost_worms", 1, { kind: "station", id: "struct.starter_compost" });
     expect(questEarlyActionCredits(simulation.state.quests)).toEqual([
       {
+        trackId: "track.main",
         type: "craft-recipe",
         targetId: "recipe.compost_worms",
         location: { kind: "station", id: "struct.starter_compost" },
@@ -164,7 +169,7 @@ describe("quest early-action credits", () => {
     // Still on the sow step, so the credit survives rather than being spent.
     expect(activeQuestId(reloaded)).toBe("quest.act1_sow_wheat");
     expect(questEarlyActionCredits(reloaded.state.quests)).toEqual([
-      { type: "water-crop", targetId: undefined, location: { kind: "farm", id: "farm.starter_garden" }, quantity: 3 }
+      { trackId: "track.main", type: "water-crop", targetId: undefined, location: { kind: "farm", id: "farm.starter_garden" }, quantity: 3 }
     ]);
 
     // The reloaded credit pays the water step the moment it opens, so the
@@ -185,6 +190,23 @@ describe("quest early-action credits", () => {
     expect(questEarlyActionCredits(simulation.state.quests)).toEqual([]);
   });
 
+  it("does not redeem another track's saved credit when its action gates match", () => {
+    const simulation = new Simulation();
+    simulation.state.quests.tracks["track.main"] = {
+      activeQuestId: "quest.act1_water_crops", activeStepIndex: 0, stepProgress: {}
+    };
+    // A later content retarget may leave a stale credit with the same location
+    // as another track. Its original owner must still control redemption.
+    simulation.state.quests.earlyActionCredits.push({
+      trackId: "track.homestead", type: "water-crop",
+      location: { kind: "farm", id: "farm.starter_garden" }, quantity: 3
+    });
+    const reloaded = new Simulation(structuredClone(simulation.getState()));
+    expect(mainQuestTrack(reloaded.state.quests).stepProgress).toEqual({});
+    expect(activeQuestId(reloaded)).toBe("quest.act1_water_crops");
+    expect(questEarlyActionCredits(reloaded.state.quests)).toEqual([]);
+  });
+
   it("starts a new game without bait worms", () => {
     const simulation = new Simulation();
     const inventory = simulation.state.inventories[simulation.state.player.inventoryId];
@@ -198,7 +220,6 @@ describe("quest early-action credits", () => {
         if (!objective.creditsEarlyActions) continue;
         expect(["plant-crop", "water-crop", "harvest-crop", "craft-recipe"]).toContain(objective.type);
         expect(objective.location, `${objective.id} must declare a location`).toBeDefined();
-        expect(quest.trackId).toBe("track.main");
       }
     }
   });

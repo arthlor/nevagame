@@ -36,6 +36,12 @@ import type { GameState } from "../core/types";
 import { distance2d } from "./DomainContext";
 
 import { npcAnchorAt, npcRecognitionLines, NPC_TALK_RADIUS } from "../presentation/NpcPresentation";
+import {
+  formatQuestObjective,
+  questObjectiveFacts,
+  questProgressNote,
+  turnInObjectiveFacts
+} from "../presentation/QuestObjectiveCopy";
 
 type ObjectiveEventLocation = QuestLocationRequirement;
 
@@ -178,10 +184,12 @@ function pendingEarlyActionObjective(
   state: GameState,
   type: QuestObjectiveType,
   targetId?: string,
-  location?: ObjectiveEventLocation
-): QuestObjectiveDefinition | undefined {
+  location?: ObjectiveEventLocation,
+  onlyTrackId?: QuestTrackId
+): { trackId: QuestTrackId; objective: QuestObjectiveDefinition } | undefined {
   const completed = new Set(state.quests.completedQuestIds);
   for (const quest of ContentRegistry.quests.values()) {
+    if (onlyTrackId !== undefined && quest.trackId !== onlyTrackId) continue;
     if (completed.has(quest.id)) continue;
     const progress = Object.values(state.quests.tracks).find((track) => track.activeQuestId === quest.id);
     for (let index = 0; index < quest.objectives.length; index += 1) {
@@ -189,7 +197,9 @@ function pendingEarlyActionObjective(
       if (!objective.creditsEarlyActions) continue;
       // Already passed on the running quest — banking it would be a replay.
       if (progress && index < progress.activeStepIndex) continue;
-      if (objectiveAcceptsAction(objective, type, targetId, location)) return objective;
+      if (objectiveAcceptsAction(objective, type, targetId, location)) {
+        return { trackId: quest.trackId, objective };
+      }
     }
   }
   return undefined;
@@ -198,9 +208,10 @@ function pendingEarlyActionObjective(
 /** Credits matching an objective's gates, most-specific ordering irrelevant. */
 function matchingCredits(
   credits: readonly QuestEarlyActionCredit[],
+  trackId: QuestTrackId,
   objective: QuestObjectiveDefinition
 ): QuestEarlyActionCredit[] {
-  return credits.filter((credit) =>
+  return credits.filter((credit) => credit.trackId === trackId &&
     objectiveAcceptsAction(objective, credit.type, credit.targetId, credit.location)
   );
 }
@@ -239,7 +250,7 @@ export function applyQuestEarlyActionCredits(
     if (need <= 0) break;
 
     let spent = 0;
-    for (const credit of matchingCredits(credits, objective)) {
+    for (const credit of matchingCredits(credits, trackId, objective)) {
       if (spent >= need) break;
       const take = Math.min(need - spent, credit.quantity);
       credit.quantity -= take;
@@ -270,12 +281,12 @@ export function applyQuestEarlyActionCredits(
 
 /**
  * Drops credits no remaining objective is watching, so the ledger empties
- * after the tutorial rather than riding along in every later save.
+ * after the matching action is used or its step is no longer available.
  */
 export function pruneQuestEarlyActionCredits(state: GameState): boolean {
   const credits = questEarlyActionCredits(state.quests);
   const kept = credits.filter((credit) =>
-    pendingEarlyActionObjective(state, credit.type, credit.targetId, credit.location) !== undefined
+    pendingEarlyActionObjective(state, credit.type, credit.targetId, credit.location, credit.trackId) !== undefined
   );
   if (kept.length === credits.length) return false;
   state.quests.earlyActionCredits = kept;
@@ -492,6 +503,24 @@ export class QuestDomain {
       ? { speakerName: heraldName, lines: [...quest.herald.lines] }
       : { speakerName, lines: [...quest.introDialogue] };
 
+    const stepFacts = awaitingTurnIn
+      ? turnInObjectiveFacts(completionSpeakerName)
+      : questObjectiveFacts(
+        objective,
+        currentProgress,
+        targetAnchor?.locationName ?? targetLocation?.name
+      );
+    const objectiveDescription = awaitingTurnIn && !turnIn?.success
+      ? turnIn?.reason ?? "Prepare what this errand still needs"
+      : formatQuestObjective(stepFacts, "en");
+    const doneThrough = awaitingTurnIn ? quest.objectives.length : stepIndex;
+    const completedSteps = quest.objectives.slice(0, doneThrough).map((done) =>
+      questObjectiveFacts(done, done.targetQuantity, done.locationAnchor?.name)
+    );
+    const targetFarmId = !awaitingTurnIn && objective.location?.kind === "farm"
+      ? objective.location.id
+      : undefined;
+
     return {
       questId: quest.id,
       trackId,
@@ -503,13 +532,11 @@ export class QuestDomain {
       speakerName,
       currentStepIndex: stepIndex + 1,
       totalSteps: quest.objectives.length,
-      objectiveDescription: awaitingTurnIn
-        ? turnIn?.success
-          ? `Talk to ${completionSpeakerName} to continue`
-          : turnIn?.reason ?? "Prepare what this errand still needs"
-        : objective.type === "talk-npc" && targetAnchor && targetNpcId
-          ? `Speak with ${ContentRegistry.npcs.get(targetNpcId)!.name} at the ${targetAnchor.locationName}`
-          : objective.description,
+      objectiveDescription,
+      objectiveFacts: awaitingTurnIn && !turnIn?.success ? undefined : stepFacts,
+      completedSteps: completedSteps.length > 0 ? completedSteps : undefined,
+      progressNote: awaitingTurnIn ? undefined : questProgressNote(stepFacts, "en"),
+      targetFarmId,
       objectiveType: objective.type,
       objectiveTargetId: objective.targetId,
       currentProgress,
@@ -664,10 +691,10 @@ export class QuestDomain {
 
   /**
    * Banks an action no active objective accepted, so a player who works ahead
-   * of the tutorial is credited when the step finally activates rather than
+   * of a quest is credited when the step finally activates rather than
    * being asked to repeat an action the world may no longer allow.
    */
-  /** @returns whether a watching tutorial step took (or already holds) the action. */
+  /** @returns whether a watching quest step took (or already holds) the action. */
   private bankEarlyActionCredit(
     type: QuestObjectiveType,
     targetId?: string,
@@ -678,20 +705,21 @@ export class QuestDomain {
     const watched = pendingEarlyActionObjective(this.context.state, type, targetId, location);
     if (!watched) return false;
 
-    const bankKey = `credit:${type}:${targetId ?? ""}:${location?.kind ?? ""}:${location?.id ?? ""}`;
+    const { trackId, objective } = watched;
+    const bankKey = `credit:${trackId}:${type}:${targetId ?? ""}:${location?.kind ?? ""}:${location?.id ?? ""}`;
     if (this.creditedThisWorldEvent?.has(bankKey)) return true;
     this.creditedThisWorldEvent?.add(bankKey);
 
     const credits = questEarlyActionCredits(this.context.state.quests);
-    const shape: QuestEarlyActionCredit = { type, targetId, location, quantity: 0 };
-    const cap = Math.min(MAX_EARLY_ACTION_CREDIT_QUANTITY, watched.targetQuantity);
+    const shape: QuestEarlyActionCredit = { trackId, type, targetId, location, quantity: 0 };
+    const cap = Math.min(MAX_EARLY_ACTION_CREDIT_QUANTITY, objective.targetQuantity);
     const existing = credits.find((credit) => sameEarlyActionShape(credit, shape));
     if (existing) {
       existing.quantity = Math.min(cap, existing.quantity + amount);
       return true;
     }
     if (credits.length >= MAX_EARLY_ACTION_CREDIT_RECORDS) return false;
-    credits.push({ type, targetId, location, quantity: Math.min(cap, amount) });
+    credits.push({ trackId, type, targetId, location, quantity: Math.min(cap, amount) });
     return true;
   }
 

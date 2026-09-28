@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { deriveSemanticInput, HeldInputState, InputRouter } from "../../src/input/InputRouter";
+import { deriveSemanticInput, HeldInputState, InputRouter, isGameSurfaceTarget } from "../../src/input/InputRouter";
 
 describe("semantic input mapping", () => {
   it.each([
@@ -82,6 +82,37 @@ describe("semantic input mapping", () => {
     expect(deriveSemanticInput(new Set(), "on-foot").farmGisHeld).toBe(false);
   });
 
+  it("suppresses the native menu on the game surface and leaves the rest of the page alone", () => {
+    const surface = { closest: (selector: string) => selector.includes("#ui-root") ? surface : null };
+    const outside = { closest: () => null };
+    expect(isGameSurfaceTarget(surface as unknown as EventTarget)).toBe(true);
+    expect(isGameSurfaceTarget(outside as unknown as EventTarget)).toBe(false);
+    expect(isGameSurfaceTarget(null)).toBe(false);
+
+    const previousWindow = (globalThis as { window?: unknown }).window;
+    const previousDocument = (globalThis as { document?: unknown }).document;
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    (globalThis as { window?: unknown }).window = { addEventListener, removeEventListener };
+    (globalThis as { document?: unknown }).document = { addEventListener, removeEventListener };
+    try {
+      const router = new InputRouter();
+      const onContextMenu = (router as unknown as { onContextMenu: (event: Event) => void }).onContextMenu;
+      const preventSurface = vi.fn();
+      const preventOutside = vi.fn();
+      onContextMenu({ target: surface, preventDefault: preventSurface } as unknown as Event);
+      onContextMenu({ target: outside, preventDefault: preventOutside } as unknown as Event);
+      expect(preventSurface).toHaveBeenCalledTimes(1);
+      expect(preventOutside).not.toHaveBeenCalled();
+      router.dispose();
+    } finally {
+      if (previousWindow === undefined) delete (globalThis as { window?: unknown }).window;
+      else (globalThis as { window?: unknown }).window = previousWindow;
+      if (previousDocument === undefined) delete (globalThis as { document?: unknown }).document;
+      else (globalThis as { document?: unknown }).document = previousDocument;
+    }
+  });
+
   it("interrupts an active pointer gesture when capture is cancelled", () => {
     const previousWindow = (globalThis as { window?: unknown }).window;
     const previousDocument = (globalThis as { document?: unknown }).document;
@@ -135,6 +166,44 @@ describe("semantic input mapping", () => {
       else (globalThis as { window?: unknown }).window = previousWindow;
       if (previousDocument === undefined) delete (globalThis as { document?: unknown }).document;
       else (globalThis as { document?: unknown }).document = previousDocument;
+    }
+  });
+
+  it("does not keep walking on a key pressed or released under a Command chord", () => {
+    const globals = globalThis as { window?: unknown; document?: unknown; HTMLElement?: unknown };
+    const previous = { window: globals.window, document: globals.document, HTMLElement: globals.HTMLElement };
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    globals.window = { addEventListener, removeEventListener };
+    globals.document = { addEventListener, removeEventListener };
+    globals.HTMLElement = class {};
+    try {
+      const router = new InputRouter();
+      const internals = router as unknown as {
+        heldInput: HeldInputState;
+        onKeyDown: (event: KeyboardEvent) => void;
+        onKeyUp: (event: KeyboardEvent) => void;
+      };
+      const key = (code: string, metaKey = false) =>
+        ({ code, metaKey, repeat: false, defaultPrevented: false, target: null, preventDefault: vi.fn() }) as unknown as KeyboardEvent;
+
+      internals.onKeyDown(key("KeyD", true));
+      expect(internals.heldInput.values.has("KeyD")).toBe(false);
+
+      internals.onKeyDown(key("KeyW"));
+      internals.heldInput.press("Mouse2");
+      internals.onKeyDown(key("MetaLeft", true));
+      // macOS drops this W keyup; releasing Command must still stop the walk.
+      internals.onKeyUp(key("MetaLeft"));
+      expect(internals.heldInput.values.has("KeyW")).toBe(false);
+      expect(internals.heldInput.values.has("Mouse2")).toBe(true);
+      expect(router.getInputState().moveVector).toEqual({ x: 0, z: 0 });
+      router.dispose();
+    } finally {
+      for (const name of ["window", "document", "HTMLElement"] as const) {
+        if (previous[name] === undefined) delete globals[name];
+        else globals[name] = previous[name];
+      }
     }
   });
 

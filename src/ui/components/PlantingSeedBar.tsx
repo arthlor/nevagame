@@ -10,6 +10,7 @@ import { useTranslation } from "../../i18n/useTranslation";
 export interface PlantingSeedBarProps {
   seedBelt: SeedBeltDto;
   selectedCropId: string | null;
+  selectedCropName?: string | null;
   onSelectCrop: (cropId: string) => void;
   onCancel: () => void;
   currentSeason?: string;
@@ -34,6 +35,7 @@ export function plantingSeedHotkeyIndex(event: Pick<KeyboardEvent, "key" | "code
 export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
   seedBelt,
   selectedCropId,
+  selectedCropName = null,
   onSelectCrop,
   onCancel,
   currentSeason = "spring",
@@ -43,7 +45,8 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
   const isTr = locale === "tr";
 
   const availableSeeds = seedBelt.seeds;
-  const selectedCrop = availableSeeds.find((seed) => seed.cropId === selectedCropId) ?? availableSeeds[0];
+  const selectedCrop = availableSeeds.find((seed) => seed.cropId === selectedCropId) ?? null;
+  const exhaustedName = !selectedCrop && selectedCropId ? selectedCropName : null;
   const availableSeedsRef = useRef(availableSeeds);
   const onSelectCropRef = useRef(onSelectCrop);
   const onCancelRef = useRef(onCancel);
@@ -113,7 +116,7 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
 
         <div className="planting-seeds-row">
           {availableSeeds.map((seed, index) => {
-            const isSelected = selectedCrop?.cropId === seed.cropId;
+            const isSelected = selectedCropId === seed.cropId;
             const hotkey = index < 9 ? `${index + 1}` : null;
             const localizedName = (isTr ? getLocalizedCrop(seed.cropId).name : null) || seed.name;
 
@@ -150,6 +153,13 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
           </div>
         </div>
 
+        {exhaustedName && (
+          <p className="planting-out-of-seeds" role="status" data-testid="planting-out-of-seeds">
+            {isTr
+              ? `${exhaustedName} tohumu bitti. Başka bir ürün seç.`
+              : `Out of ${exhaustedName} seeds. Choose another crop.`}
+          </p>
+        )}
         {selectedCrop && (
           <footer className="planting-dock-meta">
             <div className="planting-meta-left">

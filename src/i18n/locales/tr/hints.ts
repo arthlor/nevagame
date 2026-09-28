@@ -78,5 +78,9 @@ export const TR_HINTS: Record<string, LocalizedHintText> = {
   "hint.tide_cycle": {
     title: "Gelgit & Ay",
     message: "Deniz seviyesinin ay döngüsüyle yükselip alçalmasına dikkat et."
+  },
+  "hint.call_donkey": {
+    title: "Eşeğini Çağır",
+    message: "Yayayken H tuşuna basarak eşeğini yanına getir."
   }
 };

@@ -41,15 +41,21 @@ describe("startup world preparation", () => {
     vi.mocked(WorldScene.prepareStartupAssetIds).mockReset()
       .mockImplementation(async () => { await layout.promise; return assetIds as never; });
     const scene = {
+      setStationPlacements: vi.fn(),
+      beginWorldGeometry: vi.fn(),
       prepareGeometry: vi.fn(async () => undefined),
       ready: vi.fn(async () => undefined),
       staticCollisionProxies: vi.fn(() => [])
     } as unknown as WorldScene;
     const attempt = new StartupCoordinator();
-    const work = prepareStartupWorld({ attempt, state: { worldSeed: 42 } as GameState, scene, onState: vi.fn() });
+    const work = prepareStartupWorld({ attempt, state: { worldSeed: 42, world: { structures: {} } } as unknown as GameState, scene, onState: vi.fn() });
 
     await vi.waitFor(() => expect(WorldScene.prepareStartupAssetIds).toHaveBeenCalledOnce());
     expect(PhysicsWorld.loadRuntime).toHaveBeenCalled();
+    // Terrain and road geometry start in workers on entry, before the layout and model transfers.
+    expect(scene.beginWorldGeometry).toHaveBeenCalledWith(attempt.signal);
+    expect(vi.mocked(scene.beginWorldGeometry).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(prefetchEnvironmentLayoutBake).mock.invocationCallOrder[0]);
     expect(AssetLoader.preload).toHaveBeenCalledOnce();
     expect(vi.mocked(AssetLoader.preload).mock.calls[0][0]).toEqual(earlyAssetIds);
     expect(vi.mocked(AssetLoader.preload).mock.calls[0][3]).toBe(attempt.signal);
@@ -73,13 +79,15 @@ describe("startup world preparation", () => {
     vi.mocked(WorldScene.prepareStartupAssetIds).mockReset().mockImplementation(async () => assetIds as never);
     vi.mocked(AssetLoader.preload).mockReset().mockImplementation(() => scenery.promise);
     const scene = {
+      setStationPlacements: vi.fn(),
+      beginWorldGeometry: vi.fn(),
       prepareGeometry: vi.fn(() => geometry.promise),
       ready: vi.fn(async () => undefined),
       staticCollisionProxies: vi.fn(() => [])
     } as unknown as WorldScene;
     const onState = vi.fn();
     const attempt = new StartupCoordinator();
-    const work = prepareStartupWorld({ attempt, state: { worldSeed: 42 } as GameState, scene, onState });
+    const work = prepareStartupWorld({ attempt, state: { worldSeed: 42, world: { structures: {} } } as unknown as GameState, scene, onState });
 
     await vi.waitFor(() => expect(AssetLoader.preload).toHaveBeenCalledTimes(2));
     expect(scene.prepareGeometry).not.toHaveBeenCalled();

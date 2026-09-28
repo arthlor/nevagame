@@ -1723,11 +1723,11 @@
       "pitchMax": 1.02
     },
     "craft-ready": {
-      "sourceId": "ui-confirm",
+      "sourceId": "treasure-chime",
       "bus": "ui",
       "offset": 0,
-      "duration": 0.6,
-      "gain": 0.34,
+      "duration": 1.4,
+      "gain": 0.2,
       "spatial": false,
       "poolSize": 2
     },

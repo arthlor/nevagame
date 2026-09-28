@@ -1,6 +1,7 @@
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { onboardingGrowthMultiplier } from "../core/OnboardingPace";
 import {
+  distanceToPlantableSoil,
   farmLocalToWorld,
   farmWellWorldAnchor,
   farmWorldOrigin,
@@ -47,6 +48,7 @@ import {
   cropQualityChanceMultiplier,
   type CropInteractionAction
 } from "../equipment/EquipmentEffects";
+import { assessInteractionReach } from "../../world/InteractionReach";
 
 export const CROP_INTERACTION_RADIUS = BASE_CROP_INTERACTION_REACH_METERS;
 export const WET_MOISTURE_THRESHOLD = 85;
@@ -135,6 +137,22 @@ function soilFertilityBand(fertility: number): SoilFertilityBand {
   if (fertility < 30) return "low";
   if (fertility < 80) return "fair";
   return "good";
+}
+
+/** Closest point on the crop's own footprint. Distance is to that edge, not the center. */
+export function nearestPointOnFootprint(point: FarmPoint, footprint: OrientedCropFootprint): FarmPoint {
+  const cos = Math.cos(footprint.rotationRadians);
+  const sin = Math.sin(footprint.rotationRadians);
+  const dx = point.x - footprint.center.x;
+  const dz = point.z - footprint.center.z;
+  const localX = dx * cos + dz * sin;
+  const localZ = -dx * sin + dz * cos;
+  const clampedX = Math.max(-footprint.width / 2, Math.min(footprint.width / 2, localX));
+  const clampedZ = Math.max(-footprint.depth / 2, Math.min(footprint.depth / 2, localZ));
+  return {
+    x: footprint.center.x + clampedX * cos - clampedZ * sin,
+    z: footprint.center.z + clampedX * sin + clampedZ * cos
+  };
 }
 
 function footprintCorners(footprint: OrientedCropFootprint): FarmPoint[] {
@@ -312,8 +330,13 @@ export class FarmingDomain {
     if (state.player.activeMountId) return result(false, "mounted", "Dismount before planting");
     const handsBlocker = freeHandsBlocker(state.player);
     if (handsBlocker) return result(false, "hands-occupied", handsBlocker);
-    if (distance2d(state.player, world) > CROP_INTERACTION_RADIUS + 3.5) {
-      return result(false, "too-far", "Move closer to plant here");
+    const plantReach = assessInteractionReach(state.player, world, BASE_CROP_INTERACTION_REACH_METERS);
+    if (!plantReach.ok) {
+      return result(
+        false,
+        "too-far",
+        plantReach.failure === "wrong-level" ? "That ground is out of reach" : "Move closer to plant here"
+      );
     }
     if (state.player.proficiencies.farming < cropDef.minimumFarmingXp) {
       return result(false, "locked", `Requires ${cropDef.minimumFarmingXp} Farming XP`);
@@ -472,8 +495,8 @@ export class FarmingDomain {
       moistureSampleCount: 1
     };
     farm.placedCropIds.push(placedCropId);
-    this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.plant);
     this.context.persistRng();
+    this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.plant);
     events.emit("CropPlanted", { placedCropId, cropId: cropDef.id, farmId: farm.id, minute: state.clock.currentMinute });
     return { success: true, placedCropId };
   }
@@ -567,21 +590,10 @@ export class FarmingDomain {
       1,
       Math.round(FARMING_ACTION_COST.harvest * CROP_QUALITY_XP_MULTIPLIER[quality])
     );
-    this.progression.addProficiencyXp("farming", xpGained);
     state.journal.cropRecords[crop.cropId] ??= { harvestedCount: 0 };
     const record = state.journal.cropRecords[crop.cropId];
     record.harvestedCount += quantity;
     if (qualityRank(quality) >= qualityRank(record.bestQuality)) record.bestQuality = quality;
-    events.emit("CropHarvested", {
-      placedCropId,
-      cropId: crop.cropId,
-      farmId: crop.farmId,
-      quantity,
-      quality,
-      xpGained,
-      minute: state.clock.currentMinute
-    });
-
     if (cropDef.regrows) {
       const regrowMinutes = cropDef.regrowMinutes ?? cropDef.baseGrowthMinutes;
       // Spec: sapling -> mature -> fruit ready. Skip seeded/sprout; sit on the
@@ -600,20 +612,22 @@ export class FarmingDomain {
       crop.lastUpdatedMinute = state.clock.currentMinute;
       crop.averageMoistureAccum = crop.moisture;
       crop.moistureSampleCount = 1;
-      this.context.persistRng();
-      return {
-        success: true,
-        yield: quantity,
-        quality,
-        xpGained,
-        reason: broadSickleByproductOmitted
-          ? "Broad Sickle byproduct omitted — the satchel is full"
-          : undefined
-      };
+    } else {
+      this.removePlacedCrop(placedCropId);
     }
-
-    this.removePlacedCrop(placedCropId);
+    // A rank-up or harvest listener may save or try another action immediately.
+    // It must observe both the reward and the consumed/regrowing crop together.
     this.context.persistRng();
+    this.progression.addProficiencyXp("farming", xpGained);
+    events.emit("CropHarvested", {
+      placedCropId,
+      cropId: crop.cropId,
+      farmId: crop.farmId,
+      quantity,
+      quality,
+      xpGained,
+      minute: state.clock.currentMinute
+    });
     return {
       success: true,
       yield: quantity,
@@ -770,9 +784,11 @@ export class FarmingDomain {
     if (!work.success) return work;
     for (const crop of cropsToWater) {
       crop.moisture = 100;
-      events.emit("CropWatered", { placedCropId: crop.id, farmId: crop.farmId, newMoisture: 100, minute: state.clock.currentMinute });
     }
     this.progression.addProficiencyXp("farming", baseWork);
+    for (const crop of cropsToWater) {
+      events.emit("CropWatered", { placedCropId: crop.id, farmId: crop.farmId, newMoisture: 100, minute: state.clock.currentMinute });
+    }
     events.emit("FarmIrrigated", {
       farmId,
       cropCount: cropsToWater.length,
@@ -981,18 +997,48 @@ export class FarmingDomain {
     return Boolean(crop && this.isNearCrop(crop, action));
   }
 
-  private isNearCrop(crop: GameState["crops"][string], action: CropInteractionAction): boolean {
-    const worldPosition = farmLocalToWorld(crop.farmId, crop);
-    return distance2d(this.context.state.player, worldPosition) <= this.interactionReachMeters(action);
+  public canReachFarmSoil(farmId: FarmId): boolean {
+    return this.isNearFarm(farmId);
   }
 
+  public cropSurfaceDistance(placedCropId: PlacedCropId): number | null {
+    const crop = this.context.state.crops[placedCropId];
+    if (!crop) return null;
+    return this.cropSurfaceSample(crop).distanceMeters;
+  }
+
+  private cropSurfaceSample(crop: GameState["crops"][string]): { point: FarmPoint; distanceMeters: number } {
+    const world = farmLocalToWorld(crop.farmId, crop);
+    const cropDef = ContentRegistry.crops.get(crop.cropId);
+    const point = nearestPointOnFootprint(this.context.state.player, {
+      center: world,
+      width: cropDef?.footprint.width ?? 1,
+      depth: cropDef?.footprint.depth ?? 1,
+      rotationRadians: crop.rotationRadians
+    });
+    return {
+      point,
+      distanceMeters: Math.hypot(this.context.state.player.x - point.x, this.context.state.player.z - point.z)
+    };
+  }
+
+  private isNearCrop(crop: GameState["crops"][string], action: CropInteractionAction): boolean {
+    const sample = this.cropSurfaceSample(crop);
+    const reach = assessInteractionReach(
+      this.context.state.player,
+      sample.point,
+      this.interactionReachMeters(action)
+    );
+    return reach.ok;
+  }
+
+  /** Standing on prepared soil, or within close reach of its edge. Not the whole farm. */
   private isNearFarm(farmId: FarmId): boolean {
     const farm = this.context.state.farms[farmId];
     if (!farm) return false;
-    const layout = getFarmLayout(farmId);
-    const local = worldToFarmLocal(farmId, this.context.state.player);
-    const bounds = layout?.farmBounds ?? fallbackFarmRect(farm.widthMeters, farm.depthMeters);
-    return isPointInsideRect(local, bounds, CROP_INTERACTION_RADIUS);
+    const soil = distanceToPlantableSoil(farmId, this.context.state.player);
+    if (!soil) return false;
+    return assessInteractionReach(this.context.state.player, soil.point, BASE_CROP_INTERACTION_REACH_METERS).ok;
   }
 
   private isNearIrrigationWell(farmId: FarmId): boolean {

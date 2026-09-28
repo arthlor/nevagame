@@ -6,6 +6,9 @@ import { migrateHarborDistrict67 } from "./migrateHarborDistrict67";
 import { migrateCartWorkshop68 } from "./migrateCartWorkshop68";
 import { migrateMainHarbor69 } from "./migrateMainHarbor69";
 import { migrateRoadNetwork70 } from "./migrateRoadNetwork70";
+import { migrateElspethYard71 } from "./migrateElspethYard71";
+import { migrateWorkCeiling72 } from "./migrateWorkCeiling72";
+import { migrateQuestCreditTracks73 } from "./migrateQuestCreditTracks73";
 import { migrateFarmPacks64 } from "./migrateFarmPacks64";
 import { migrateCoastalRoad54 } from "./migrateCoastalRoad54";
 import { migrateHeadwaterSpring55 } from "./migrateHeadwaterSpring55";
@@ -57,7 +60,6 @@ import {
   STARTER_DONKEY_ID
 } from "../simulation/mounts/Mounts";
 import { ownedRodsThrough } from "../content/rods";
-import { WORK_CAPACITY_MAXIMUM } from "../simulation/domains/ProgressionDomain";
 import { PROCESSING_JOB_SNAPSHOT_LIMITS } from "../simulation/domains/ProcessingDomain";
 import { voidActiveContracts } from "../simulation/domains/ContractDomain";
 import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/WorldGameplayLocations";
@@ -872,14 +874,17 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   },
   21: (state: unknown) => {
     // Legacy saves carried a smaller Work pool forward verbatim, which made a
-    // single sport-fishing hook drain the whole meter. Rescale any non-canonical
-    // pool to the 1,000 ceiling, preserving how full it was.
+    // single sport-fishing hook drain the whole meter. This step's ceiling is
+    // frozen at 500. Later ceilings, including the live 750 pool, must not
+    // rewrite the proportion this step already applied.
     const previous = state as Record<string, unknown>;
     const player = { ...((previous.player ?? {}) as Record<string, unknown>) };
     const work = { ...((player.workCapacity ?? {}) as Record<string, unknown>) };
     const oldMax = finite(work.maximum, 0);
     const oldCurrent = finite(work.current, oldMax);
-    const maximum = WORK_CAPACITY_MAXIMUM;
+    // Frozen at the 500-point pool this step actually wrote. The live ceiling
+    // is applied by a later migration and must not rescale history again.
+    const maximum = 500;
     let current: number;
     if (oldMax === maximum) {
       current = Math.max(0, Math.min(maximum, oldCurrent));
@@ -1496,7 +1501,10 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   67: (state: unknown) => migrateHarborDistrict67(advanceLayoutRevision(state, 34) as GameState),
   68: (state: unknown) => migrateCartWorkshop68(advanceLayoutRevision(state, 35) as GameState),
   69: (state: unknown) => migrateMainHarbor69(advanceLayoutRevision(state, 36) as GameState),
-  70: (state: unknown) => migrateRoadNetwork70(advanceLayoutRevision(state, 37) as GameState)
+  70: (state: unknown) => migrateRoadNetwork70(advanceLayoutRevision(state, 37) as GameState),
+  71: (state: unknown) => migrateElspethYard71(state as GameState),
+  72: (state: unknown) => migrateWorkCeiling72(state as GameState),
+  73: (state: unknown) => migrateQuestCreditTracks73(state as GameState)
 };
 
 

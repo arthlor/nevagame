@@ -81,5 +81,9 @@ export const EN_HINTS: Record<string, LocalizedHintText> = {
   "hint.tide_cycle": {
     title: "Tides & Moon",
     message: "Notice how the moon phase shifts the water level and currents along the banks."
+  },
+  "hint.call_donkey": {
+    title: "Call Your Donkey",
+    message: "Press H on foot to bring your donkey to your side."
   }
 };

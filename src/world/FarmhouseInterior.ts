@@ -20,10 +20,10 @@ export const FARMHOUSE_INTERIOR_ORIGIN = Object.freeze({
 });
 
 export const FARMHOUSE_INTERIOR_BOUNDS = Object.freeze({
-  minX: 235.4,
-  maxX: 244.6,
-  minZ: -243.6,
-  maxZ: -236.4,
+  minX: 234.8,
+  maxX: 245.2,
+  minZ: -244.0,
+  maxZ: -236.0,
   floorY: 0.17,
   ceilingY: 3.7
 });
@@ -58,16 +58,27 @@ const farmhouseDoorPoint = bindInteractionPoint("farmhouse", BASE_FARMHOUSE_OUTS
 /**
  * Interior door anchor inside the farmhouse room.
  */
+/**
+ * Standing spot beside the bed, inside the room and clear of the doorway.
+ * Sleep wakes the player here rather than leaving them on the door apron.
+ */
+export const FARMHOUSE_WAKE_POSE = Object.freeze({
+  x: 238.4,
+  y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.5,
+  z: -239.2,
+  rotationY: Math.PI
+});
+
 export const FARMHOUSE_INTERIOR_DOOR = Object.freeze({
   x: FARMHOUSE_INTERIOR_ORIGIN.x,
   y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
-  z: FARMHOUSE_INTERIOR_ORIGIN.z - 3.1,
+  z: FARMHOUSE_INTERIOR_ORIGIN.z - 3.5,
   radiusMeters: 2.2,
   enterSpawn: {
     x: FARMHOUSE_INTERIOR_ORIGIN.x,
     // Player feet use the shared terrain + 0.5 m convention, including indoors.
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.5,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.5,
     rotationY: 0
   }
 });
@@ -77,18 +88,18 @@ export const FARMHOUSE_INTERIOR_DOOR = Object.freeze({
  */
 export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object.freeze([
   // Kitchen provisions and the family's sea keepsakes are displays, not loot pickups.
-  { id: "interior_carrot", assetId: ASSET_IDS.ITEM_CARROT_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.65, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2, rotationY: 0.3 },
-  { id: "interior_corn", assetId: ASSET_IDS.ITEM_CORN_COB_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.9, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.05, rotationY: -0.4 },
-  
-  { id: "interior_compass", assetId: ASSET_IDS.ITEM_COMPASS_A, x: 236.5, y: 0.72, z: -241.5, rotationY: 0.6},
-  { id: "interior_sea_chest", assetId: ASSET_IDS.PROP_TREASURE_CHEST_A, x: 241.9, y: 0.17, z: -237.4, rotationY: 3.1416},
+  { id: "interior_carrot", assetId: ASSET_IDS.ITEM_CARROT_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.2, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2, rotationY: 0.3 },
+  { id: "interior_corn", assetId: ASSET_IDS.ITEM_CORN_COB_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.45, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.05, rotationY: -0.4 },
+
+  { id: "interior_compass", assetId: ASSET_IDS.ITEM_COMPASS_A, x: 236.0, y: 0.72, z: -241.9, rotationY: 0.6},
+  { id: "interior_sea_chest", assetId: ASSET_IDS.PROP_TREASURE_CHEST_A, x: 243.3, y: 0.17, z: -236.9, rotationY: 3.1416},
   // 1. Rustic Bed in the northwest corner nook
   {
     id: "interior_bed",
     assetId: ASSET_IDS.PROP_BED_COZY_A,
-    x: 237.1,
+    x: 236.7,
     y: 0.17,
-    z: -238.2,
+    z: -237.8,
     rotationY: 3.1416,
     scale: 1.0
   },
@@ -98,7 +109,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
     assetId: ASSET_IDS.PROP_FIREPLACE_HEARTH_A,
     x: FARMHOUSE_INTERIOR_ORIGIN.x,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z + 2.85,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z + 3.0,
     rotationY: Math.PI,
     scale: 1.0
   },
@@ -106,7 +117,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_cupboard",
     assetId: ASSET_IDS.PROP_CUPBOARD_SHELVES_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.8,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.35,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
     z: FARMHOUSE_INTERIOR_ORIGIN.z + 1.2,
     rotationY: -Math.PI / 2,
@@ -116,7 +127,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_dining_table",
     assetId: ASSET_IDS.PROP_TABLE_DINING_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.0,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.4,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
     z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.0,
     rotationY: 0,
@@ -126,7 +137,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_chair_north",
     assetId: ASSET_IDS.PROP_CHAIR_RUSTIC_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.0,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.4,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
     z: FARMHOUSE_INTERIOR_ORIGIN.z - 0.35,
     rotationY: Math.PI,
@@ -135,7 +146,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_chair_south",
     assetId: ASSET_IDS.PROP_CHAIR_RUSTIC_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.0,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.4,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
     z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.65,
     rotationY: 0,
@@ -145,9 +156,9 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_armchair",
     assetId: ASSET_IDS.PROP_ARMCHAIR_COZY_A,
-    x: 236.8,
+    x: 236.3,
     y: 0.17,
-    z: -242.4,
+    z: -242.8,
     rotationY: 0.65,
     scale: 1.0
   },
@@ -165,7 +176,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_bookcase",
     assetId: ASSET_IDS.PROP_BOOKCASE_WOOD_A,
-    x: 236.1,
+    x: 235.6,
     y: 0.17,
     z: -240.2,
     rotationY: 1.5708,
@@ -175,7 +186,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_sideboard",
     assetId: ASSET_IDS.PROP_SIDEBOARD_WOOD_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.8,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.35,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
     z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2,
     rotationY: -Math.PI / 2,
@@ -185,9 +196,9 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_side_table",
     assetId: ASSET_IDS.PROP_SIDE_TABLE_WOOD_A,
-    x: 236.4,
+    x: 235.9,
     y: 0.17,
-    z: -241.6,
+    z: -242.0,
     rotationY: 0.2,
     scale: 1.0
   },
@@ -195,9 +206,9 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_floor_plant",
     assetId: ASSET_IDS.PROP_FLOOR_PLANT_A,
-    x: 238.4,
+    x: 242.5,
     y: 0.17,
-    z: -237.3,
+    z: -236.8,
     rotationY: 0,
     scale: 1.0
   },
@@ -205,7 +216,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_bread_loaf",
     assetId: ASSET_IDS.ITEM_BREAD_LOAF_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.0,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.4,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.78,
     z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.0,
     rotationY: 0.4,
@@ -215,7 +226,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_pie",
     assetId: ASSET_IDS.ITEM_PIE_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 1.6,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.0,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.78,
     z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.0,
     rotationY: -0.2,
@@ -225,7 +236,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_apple",
     assetId: ASSET_IDS.ITEM_APPLE_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.8,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.35,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.86,
     z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2,
     rotationY: 0,

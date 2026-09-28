@@ -20,7 +20,7 @@ function segmentsCross(a: { x: number; z: number }, b: { x: number; z: number },
 }
 
 describe("Neva coastline", () => {
-  it("answers exactly as the brute-force loop walk, near, far, on vertices and across cell edges", () => {
+  it("answers exactly as the brute-force loop walk, near, far, on vertices, across cell edges and when asked again", () => {
     const points: { x: number; z: number }[] = [];
     for (let x = -1150; x <= 450; x += 9.37) for (let z = -1050; z <= 1050; z += 8.91) points.push({ x, z });
     for (const vertex of NEVA_COAST_LOOP) points.push({ ...vertex }, { x: vertex.x + 0.25, z: vertex.z - 0.25 });
@@ -29,7 +29,9 @@ describe("Neva coastline", () => {
     // The open water east toward Sunreach, where the water field bakes most texels.
     for (let x = 450; x <= 1700; x += 23.3) for (let z = -950; z <= 900; z += 19.7) points.push({ x, z });
     for (const { x, z } of points) {
-      expect(signedDistanceToNevaCoast(x, z), `${x},${z}`).toBe(bruteSignedDistance(x, z, NEVA_COAST_LOOP));
+      const expected = bruteSignedDistance(x, z, NEVA_COAST_LOOP);
+      expect(signedDistanceToNevaCoast(x, z), `${x},${z}`).toBe(expected);
+      expect(signedDistanceToNevaCoast(x, z), `again ${x},${z}`).toBe(expected);
       expect(nevaCoastIndex().contains(x, z), `${x},${z}`).toBe(isInsideLoop(x, z, NEVA_COAST_LOOP));
     }
   });

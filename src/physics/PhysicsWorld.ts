@@ -1701,6 +1701,41 @@ export class PhysicsWorld implements PhysicsAdapter {
     ) <= padding;
   }
 
+  /**
+   * Whether a walking animal can move between two ground points without
+   * sweeping its body into static geometry. Terrain, boats and the player are
+   * ignored: ground support is the simulation's rule, not this query's.
+   */
+  public isGroundPathClear(
+    from: { x: number; y: number; z: number },
+    to: { x: number; y: number; z: number },
+    bodyRadius: number = 0.42,
+    bodyHeight: number = 0.8
+  ): boolean {
+    const displacement = { x: to.x - from.x, y: to.y - from.y, z: to.z - from.z };
+    if (Math.hypot(displacement.x, displacement.y, displacement.z) < 1e-4) return true;
+    let ball = this.cameraSweepBallCache.get(bodyRadius);
+    if (!ball) {
+      ball = new this.rapier.Ball(bodyRadius);
+      this.cameraSweepBallCache.set(bodyRadius, ball);
+    }
+    const hit = this.world.castShape(
+      { x: from.x, y: from.y + bodyHeight, z: from.z },
+      { x: 0, y: 0, z: 0, w: 1 },
+      displacement,
+      ball,
+      0.02,
+      1,
+      true,
+      undefined,
+      undefined,
+      this.playerCollider,
+      undefined,
+      (collider) => !this.terrainColliderHandles.has(collider.handle) && !this.isBoatCollider(collider)
+    );
+    return hit === null;
+  }
+
   public hasLineOfSight(
     from: { x: number; y: number; z: number },
     to: { x: number; y: number; z: number },

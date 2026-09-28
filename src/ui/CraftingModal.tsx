@@ -204,11 +204,15 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
         )}
 
         <footer className="modal-footer crafting-modal__footer">
-          <span role="status">{feedback ?? (station.job ? (isTr ? "İş hazır olduğunda tezgâha geri dön." : "Return to the station when the job is ready.") : (isTr ? "Üretim başladığında malzemeler, Emek ve varsa ücret harcanır." : "Starting consumes materials, Work and any listed fee."))}</span>
+          <span role="status">{
+            !station.withinReach
+              ? (station.reachBlocker ?? (isTr ? "Tezgâhın önüne geri dön." : "Move back to the front of the station."))
+              : feedback ?? (station.job ? (isTr ? "İş hazır olduğunda tezgâha geri dön." : "Return to the station when the job is ready.") : (isTr ? "Üretim başladığında malzemeler, Emek ve varsa ücret harcanır." : "Starting consumes materials, Work and any listed fee."))
+          }</span>
           {!station.job && selected && (
             <ChromeButton
               type="button"
-              disabled={selected.state === "locked" || selected.blockers.length > 0}
+              disabled={selected.state === "locked" || selected.blockers.length > 0 || !station.withinReach}
               onClick={begin}
             >{isTr ? `${getLocalizedRecipe(selected.recipeId).name ?? selected.name} Başlat` : `Start ${getLocalizedRecipe(selected.recipeId).name ?? selected.name}`}</ChromeButton>
           )}

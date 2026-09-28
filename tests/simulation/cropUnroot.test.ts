@@ -24,6 +24,9 @@ describe("crop unroot", () => {
     sim = new Simulation();
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 4 }
+    ]);
   });
 
   it("removes a growing annual for Work with no XP, yield or seed refund", () => {

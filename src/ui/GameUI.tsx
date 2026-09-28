@@ -78,6 +78,7 @@ import type { FishingInputState, VirtualMoveVector } from "../input/InputRouter"
 import type { LayoutEditHudSelection } from "../layout-editor/layoutEdit";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
+import { localWorldAcceptanceRequested } from "../app/localWorldAcceptance";
 
 const READY_STARTUP_STATE: StartupState = {
   status: "ready",
@@ -149,6 +150,7 @@ export interface GameUIProps {
   onInspectSatchel: () => SatchelDto;
   onInspectSeedBelt: () => SeedBeltDto;
   selectedPlantCropId?: string | null;
+  selectedPlantCropName?: string | null;
   onCancelPlacement: () => void;
   isFarmGisHeld?: boolean;
   contextualCropChoices?: readonly ContextualCropChoice[];
@@ -265,6 +267,7 @@ export interface GameUIProps {
   onGraphicsQualityChange: (quality: GraphicsQualityPreference) => void;
   bootReady?: boolean;
   screenFade?: boolean;
+  screenFadeLabel?: string | null;
   mobileTouchDevice?: boolean;
   mobileLandscape?: boolean;
   mobileOrientationBlocked?: boolean;
@@ -318,6 +321,7 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
   onSelectPlantCrop,
   onInspectSeedBelt,
   selectedPlantCropId = null,
+  selectedPlantCropName = null,
   onCancelPlacement,
   isFarmGisHeld = false,
   contextualCropChoices = [],
@@ -369,6 +373,7 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
   onGraphicsQualityChange,
   bootReady = false,
   screenFade = false,
+  screenFadeLabel = null,
   mobileTouchDevice = false,
   mobileLandscape = true,
   mobileOrientationBlocked = false,
@@ -382,8 +387,10 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
   onClearVirtualInput = () => {},
   layoutEditor = null
   } = props;
-  const showDiagnostics =
-    import.meta.env.DEV && typeof window !== "undefined"
+  // Production builds show the overlay only under the localhost acceptance
+  // hatch, which the production render-budget lane reads for boot readiness.
+  const showDiagnostics = typeof window !== "undefined"
+    && (import.meta.env.DEV || localWorldAcceptanceRequested(new URLSearchParams(window.location.search)))
     && new URLSearchParams(window.location.search).has("debug");
   const [journalInitialFolio, setJournalInitialFolio] = useState<JournalFolio>("story");
   // The world board asks for the notices folio by token, so a repeated read
@@ -496,7 +503,9 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
       data-mobile-landscape={mobileLandscape ? "true" : "false"}
       style={{ width: "100%", height: "100%", position: "relative" }}
     >
-      <div className={`screen-transition-overlay ${screenFade ? "active" : ""}`} />
+      <div className={`screen-transition-overlay ${screenFade ? "active" : ""}`}>
+        {screenFade && screenFadeLabel ? <p className="screen-transition-caption">{screenFadeLabel}</p> : null}
+      </div>
 
       <MobileOrientationGate
         touchDevice={mobileTouchDevice}
@@ -539,6 +548,8 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
         orientationBlocked={mobileOrientationBlocked}
         bootReady={bootReady}
         mode={mode}
+        mountGaitLabel={worldHud.mount?.label ?? null}
+        canCallDonkey={worldHud.canCallDonkey}
         activeModal={activeModal}
         basicFishingPhase={worldHud.basicFishingPhase}
         onSetMoveVector={onSetVirtualMoveVector}
@@ -572,6 +583,7 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
         <PlantingSeedBar
           seedBelt={onInspectSeedBelt()}
           selectedCropId={selectedPlantCropId}
+          selectedCropName={selectedPlantCropName}
           onSelectCrop={onSelectPlantCrop}
           onCancel={onCancelPlacement}
           currentSeason={worldHud.clock.seasonLabel}

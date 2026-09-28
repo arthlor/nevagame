@@ -312,7 +312,25 @@ function sculptedLandforms(x: number, z: number, authored: NevaLandformSample): 
   return { minimumElevation, mountain, exposure };
 }
 
-export function sampleNevaLandforms(x: number, z: number): NevaLandformSample {
+let lastLandformX = Number.NaN;
+let lastLandformZ = Number.NaN;
+let lastLandform: Readonly<NevaLandformSample> | null = null;
+
+/**
+ * One terrain vertex asks for its landform several times in a row (the
+ * surface, height and colour passes each do), so the last answer is kept.
+ * It is frozen because every caller shares it.
+ */
+export function sampleNevaLandforms(x: number, z: number): Readonly<NevaLandformSample> {
+  if (lastLandform && x === lastLandformX && z === lastLandformZ) return lastLandform;
+  const sample = Object.freeze(computeNevaLandforms(x, z));
+  lastLandformX = x;
+  lastLandformZ = z;
+  lastLandform = sample;
+  return sample;
+}
+
+function computeNevaLandforms(x: number, z: number): NevaLandformSample {
   const authored = authoredLandforms(x, z);
   const retention = cirqueRetention(x, z);
   if (retention >= 1) return authored;

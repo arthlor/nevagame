@@ -50,7 +50,8 @@
     "ui:pack": "node tools/ui/extrudeAndPack.mjs",
     "ui:pack:check": "node tools/ui/extrudeAndPack.mjs --check",
     "content:validate": "vite-node tools/content/validate.ts",
-    "test:budget": "playwright test --config=playwright.budget.config.ts"
+    "test:budget": "playwright test --config=playwright.budget.config.ts",
+    "perf:baseline": "NEVA_PERF_BASELINE=1 playwright test --config=playwright.budget.config.ts performance-baseline"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

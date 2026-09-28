@@ -114,6 +114,8 @@ const KNOT_SPACING_METERS = 6;
 /** A tributary ends where it first comes this close to its trunk, joining it this many knots downstream. */
 const TRIBUTARY_JOIN_METERS = 6;
 const TRIBUTARY_JOIN_DOWNSTREAM_KNOTS = 1;
+/** A tributary's last stretch meets its trunk at least this steeply, never running alongside it. */
+const TRIBUTARY_MIN_JOIN_DEGREES = 30;
 /**
  * A brook is led square across a road, as a culvert is laid: straight along
  * the road's normal past each headwall face by this run, bending back into its
@@ -573,6 +575,19 @@ export function traceMainlandBrooks(): TracedBrook[] {
         }
         meet = closest;
       }
+      // An approach that would run alongside the trunk into the joint joins it
+      // further up instead, so the two never cut side-by-side channels.
+      if (!blocked && meet > 0) {
+        const from = smooth[meet - 1];
+        const earliest = nearest(from);
+        const alongTrunk = (index: number): boolean => {
+          const a = trunk[Math.max(0, index - 1)], b = trunk[Math.min(trunk.length - 1, index + 1)];
+          const tx = b.x - a.x, tz = b.z - a.z, ax = trunk[index].x - from.x, az = trunk[index].z - from.z;
+          const cosine = (tx * ax + tz * az) / Math.max(1e-6, Math.hypot(tx, tz) * Math.hypot(ax, az));
+          return cosine > Math.cos((TRIBUTARY_MIN_JOIN_DEGREES * Math.PI) / 180);
+        };
+        while (jointIndex > earliest && alongTrunk(jointIndex)) jointIndex -= 1;
+      }
       const joint = trunk[jointIndex];
       smooth = resample([...smooth.slice(0, meet), { x: joint.x, z: joint.z }], KNOT_SPACING_METERS);
       mouthBed = joint.bed;
@@ -687,7 +702,7 @@ export function mainlandBrookFingerprint(): string {
   };
   for (const rule of Object.values(OUTLET_RULES)) { mix(rule.hectares); mix(rule.head); }
   for (const value of [GRID_METERS, COVE_MOUTH_SHELTER, MINIMUM_REACH_METERS,
-    PAD_CLEARANCE_METERS, VILLAGE_SQUARE_METERS, TRIBUTARY_JOIN_METERS, TRIBUTARY_JOIN_DOWNSTREAM_KNOTS, ROAD_EMBANKMENT_METERS, ...ROAD_EMBANKMENT_VERGE_METERS, MEANDER_METERS, MEANDER_SCALE_METERS, MEANDER_SALT, WORK_SITE_CLEARANCE_METERS, FLAT_GRADE, SMOOTH_HALF_WINDOW, SMOOTH_PASSES,
+    PAD_CLEARANCE_METERS, VILLAGE_SQUARE_METERS, TRIBUTARY_JOIN_METERS, TRIBUTARY_JOIN_DOWNSTREAM_KNOTS, TRIBUTARY_MIN_JOIN_DEGREES, ROAD_EMBANKMENT_METERS, ...ROAD_EMBANKMENT_VERGE_METERS, MEANDER_METERS, MEANDER_SCALE_METERS, MEANDER_SALT, WORK_SITE_CLEARANCE_METERS, FLAT_GRADE, SMOOTH_HALF_WINDOW, SMOOTH_PASSES,
     KNOT_SPACING_METERS, INCISION_BASE_METERS, INCISION_GAIN_METERS, INCISION_MAX_METERS,
     CULVERT_COVER_METERS, CULVERT_APRON_METERS, CULVERT_INLET_GRADE, MAINLAND_BROOK_CULVERT_FACE_METERS,
     SQUARE_RUN_METERS, SQUARE_BLEND_METERS, MOUTH_BED_METERS]) mix(value);

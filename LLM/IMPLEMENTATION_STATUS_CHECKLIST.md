@@ -19,7 +19,7 @@ that the evidence covers the changed inputs and the gate being claimed.
 | Published asset state and technical certification | `generated/reports/asset_budget_report.json` and generated/public manifests; `ASSET_PRODUCTION.md` §2/§6 | Published state is distinct from run-local rejected candidates. Read the current report; no copied asset count or debt list here. |
 | Product loop (P12) | `03` §18 and `02` §19; retained product record below | A human quest-ending playthrough was recorded. Automated continuous save/reload and release browser coverage remain independent evidence. |
 | HUD, world, physics and audio changes (P1/P14) | Their owning documents and source; retained focused records below | Each source/unit/browser/listening result applies only to its stated scenario. Current integrated visual/mix approval is a separate claim. |
-| Performance/browser/release (P15/P16) | `03` §21/§22; §4 validation matrix; isolated production reports | DEV diagnostics, distribution size, software rendering, hardware timing and full-loop browser acceptance prove different things. A release claim needs the required matching-input records. |
+| Performance/browser/release (P15/P16) | `03` §21/§22; §4 validation matrix; isolated production reports; `npm run perf:baseline` summaries (latest: the four 2026-09-28 records below — baseline, frame cost, startup, and startup workers with downloads) | DEV diagnostics, distribution size, software rendering, hardware timing and full-loop browser acceptance prove different things. The sustained-play baseline is one Chromium/M4 lane at High; it is not a browser matrix, tier or release result. A release claim needs the required matching-input records. |
 | Guidance refactor | Current evidence below | Documentation/content consistency only; gameplay code, budgets, schema and published assets were not changed by this task. |
 
 ## How to record evidence
@@ -42,6 +42,176 @@ state separate from implementation progress. Never infer a full pass from a
 focused retry or a historical green row.
 
 ## Current evidence
+
+### 2026-09-28 — Startup geometry in workers; lighter character GLBs and B-cast textures; shadow-refresh attempt reverted (startup, download and GPU-memory cost; no save/schema/topology change)
+
+- **Changed contract:**
+  - Production builds generate the terrain patches and the road overlay in module workers (`src/world/worldGeometry.worker.ts`, pool in `src/render/scene/WorldGeometryWorkers.ts`). `prepareStartupWorld` starts them before the layout stage. They run the same `WorldLayout` generators and transfer the typed arrays back (`src/world/worldGeometryTransfer.ts`), and `WorldScene.prepareGeometry` adopts the results.
+  - A failed job, or a browser without `Worker`, builds on the main thread. Cancelling startup terminates the pool. DEV keeps the main thread, because the layout editor changes layout state live. `01` startup preparation owns this.
+  - `art:generate` packages animated authored GLBs with keyframe accessors sharing buffer views by element size (`mergeAnimationBufferViews`, `tools/art/optimize.mjs`). An animated source that is already losslessly compressed is decoded first (`tools/art/decompress_glb.mjs`). The publish check compares a semantic hash that ignores buffer-view grouping. `ASSET_PRODUCTION.md` §3.2 owns this.
+  - The nine B-cast NPCs (`char_npc_*_b`) leave the frozen `imported_blend` family. Their last published GLBs are committed unchanged under `art/imported/tripo/adapted/` as `authored_glb` sources with `textureMaxSize: 1024`.
+  - Republished: those nine, `char_player_a`, `fauna_cow_a`, `fauna_donkey_a`, `fauna_horse_draft_a` and six `char_npc_*_a`.
+- **Automated pass — worker startup A/B** (`output/perf-worker/ab-startup`; E = live-tree snapshot, F = E plus the workers; EFFEEF, both scenarios per run, 12/12 runs, load 3.2–4.8, `NEVA_PERF_STARTUP_ONLY=1`):
+  - Time to control: 25.6 → **16.6 s** (farm), 25.2 → **16.5 s** (village). Ranges were 25.2–25.6 vs 15.9–17.5 and 25.1–25.8 vs 15.6–17.3.
+  - Geometry stage (water geometry ready → geometry ready): 12.2 → 2.6 s (farm), 12.1 → 2.5 s (village).
+  - Trade-off, non-overlapping: while the workers share the CPU, the layout stage (`layout` → `assets`) rose 4.5 → 5.0 s (farm) and 4.5 → 4.9 s (village), and water fields rose 4.3 → 4.6 s and 4.2 → 4.7 s.
+  - No run logged a runtime error. Long tasks before control fell from 16–18 to 13–15.
+  - `tests/unit/worldGeometryWorkers.test.ts` rebuilds a terrain patch attribute for attribute across the transfer, and covers refused geometry, fallback on failure and cancellation.
+- **Automated pass — downloads** (W1 = F; W2 = W1 plus the 19 republished GLBs; `output/perf-downloads/startup-W2`, one repetition, because byte counts do not vary between runs):
+  - Bytes before control: 88.60 → **59.99 MB** (farm), 88.25 → **59.64 MB** (village). Models: 81.07 → 52.46 MB and 80.71 → 52.10 MB. Request counts were unchanged (261 and 246).
+  - W2's time to control (16.6 and 17.5 s) falls inside W1's range.
+- **Source checked — the 19 files against HEAD's copies** (script in the session scratchpad; layout-independent semantic hash, images compared by bytes):
+  - Size: 57.15 → 27.39 MB in total. The B-cast NPCs went from 4.30–5.28 MB to 1.43–2.03 MB each, and the player from 5.29 to 3.51 MB.
+  - The ten assets that were already `authored_glb` decode identically, textures included, so only their packaging changed.
+  - The nine B-cast NPCs decode identically apart from their texture, which went from 4096² JPEG (2.4–3.0 MB) to 1024² WebP (0.14–0.17 MB). As mipmapped RGBA8 that is about 89 MB → 5.6 MB of GPU memory each. This is an estimate, not a measurement.
+  - `art:generate` validation and `art:determinism` passed for all 19 (`output/perf-downloads/gen-union-publish.log`, `determinism-union.log`). `tests/unit/authoredGlb.test.ts` repacks the cow value for value, and `importedCompression.test.ts` covers the view merge.
+- **Browser observed (agent only):**
+  - In an Art Yard close-up of `char_npc_tomas_b`, 1024 slightly softens the fine painted edges compared with 4096.
+  - At the gameplay camera, the 4096 and 1024 captures of `char_npc_elspeth_b` cannot be told apart (`output/perf-downloads/visual/`).
+  - **Awaiting human game review.**
+- **Shadow-refresh spikes — attempted, reverted:**
+  - Attribution: a village GPU-timer probe ran two rounds (`output/perf-shadows/attrib-village-S0.json`; frames ran at 30 Hz under the timers).
+    - Whole-frame GPU p95 was 29.6–34.8 ms with every caster, 21.9–23.3 ms without static non-wind casters, and 26.8–28.1 ms without wind-deformed casters.
+    - Frames over 33 ms numbered 20–42 per window with every caster and 25–42 without static casters, so the misses do not follow the static refresh.
+    - Per-pass GPU timers on ANGLE Metal sum above the whole-frame figure, so only whole-frame times are used.
+  - Tried: a double-buffered static atlas that spread each static refresh across frames (`output/perf-shadows/progressive-atlas.patch`, sha256 `8f6b46d0…`).
+  - A/B (`output/perf-shadows/ab`, ABBAAB, 18/18 after one rerun of a closed-browser failure; `ab-comparison.md`):
+    - Frame p95 was unchanged in all three scenarios.
+    - Village warm GPU p50 got worse, 13.7 → 21.5 ms, as did `render:pipeline`, 7.1 → 7.8 ms. Draws and triangles rose in every scenario.
+  - The patch was reverted in full; `ShadowAtlasCompositor` is unchanged.
+- **Other checks (live tree, including the concurrent session's edits):**
+  - `tsc` reports 0 errors, and `npm run build` passes, emitting a 301 kB `worldGeometry.worker-*.js` chunk.
+  - ESLint reports 0 errors on tracked files. Its two errors are in the gitignored `tmp-probe-*.ts` scratch files.
+  - Focused Vitest: 135/135 pass across the 20 files covering this record and the earlier 2026-09-28 performance records, the four doc-claim suites included.
+- **Remaining:**
+  - The layout stage (about 5 s) and water fields (about 4.6 s) are now the largest startup stages.
+  - Loading NPC models after control was not attempted; it would change the startup population contract in `01`.
+  - The preview server sends GLBs uncompressed; Brotli or gzip is a hosting decision.
+  - The shadow options that remain, a slower static cadence for rigid casters or shadow LODs, change shadow appearance and need visual review.
+
+### 2026-09-28 — Startup: repeated world queries keep their last answer; model clones skip the clip round trip (startup + first-use cost; no save/schema/topology change)
+
+- **Changed contract:**
+  - `WorldLayout.riverSectionAt`, `marineSampleAt` and `coastlineZ`, `LoopSegmentIndex.signedDistance` and `sampleNevaLandforms` keep their last answer. One terrain vertex or surface sample asks each of them about the same point several times in a row, and their inputs are module constants, so a repeat is exactly what a fresh query returns.
+  - The shared river section, marine sample and landform sample are frozen, and those queries now return `Readonly<…>`.
+  - `AssetLoader.cloneModel` keeps the template's clips, collision names, asset id and LOD records out of the JSON round trip that `Object3D.copy` applies to `userData`, then assigns them by reference exactly as before; other root `userData` is still deep-copied.
+  - `attachmentPelvisOffset` clones the player for pose sampling without its `userData`, for the same reason.
+- **Attribution (startup CPU profile, build C with source maps, farm, navigation to control, 37.5 s sampled; `output/perf-next/startup-profile`):**
+  - `terrainSurfaceSample` accounted for 42% inclusive, and `sampleNevaLandforms` for 20%. In Node, 52% of landform calls in the main terrain patch and 23% in the road overlay repeat the previous point.
+  - `cloneSkinnedModel` took 1.94 s. Almost all of it was `JSON.stringify`/`parse` of each template's animation clips: `Object3D.copy` self time 1.27 s, `AnimationClip.toJSON` → `convertArray` 0.66 s. `cloneModel` then replaced that copy with the shared reference.
+- **Exactness:**
+  - Surface samples over the road overlay and the terrain are identical with the memos (`output/perf-next/startup/surface-before.json` vs `surface-after2.json`).
+  - `terrain.neva`, `terrain.neva_north` and the road overlay hash identically attribute by attribute with and without the landform memo (`geometry-E*.json`, `geometry-F*.json`).
+  - On the frozen tree with the memos, the unit and simulation suites give 118 failed / 3,075 passed. With the memo patch reversed, the same 118 tests fail: bare `7aace10` lacks the working copy's fixes.
+  - `tests/unit/worldQueryRepeats.test.ts` asks every memoised query again in another order, each key twice. A key that compares one axis, or compares approximately, fails it for every memo (checked by mutation). `nevaCoastline` now asks every coast point twice.
+  - The `assetLoader` and `playerAttachmentTransition` tests assert that no clip is serialised; both fail on the previous clone.
+- **Clone timing (Node, real GLBs):**
+  - Per clone: `char_npc_tomas_b` 89.5 → 0.3 ms, `char_npc_ambient_female_01` 78.8 → 0.1 ms, `char_npc_barnaby_a` 19.2 → 0.4 ms.
+  - The player's first pose sample per board, dock, mount or dismount clip: 123.6 → 0.2 ms.
+  - Each NPC spawn and each first use of a player attachment clip was previously a frame stall of that size.
+- **Automated pass — cold-startup interleaves (`output/perf-next/startup/ab-comparison.md`; frozen tree plus the patches in `output/perf-next/`, fresh Chromium per run, `NEVA_PERF_STARTUP_ONLY=1`):**
+  - Builds C, D and E, order CDE EDC CDE, 18/18 runs, load average 4.3–12:
+    - memos: world geometry 19.4 → 14.5 s (farm) and 18.7 → 15.2 s (village);
+    - clone: population 3.9 → 2.0 s and 4.2 → 2.6 s;
+    - both: time to control 36.6 → 30.1 s and 34.9 → 30.0 s.
+    - All ranges were non-overlapping.
+  - Landform memo, EFFEEF, 12/12 runs, load 4.2–6.9: world geometry 13.8 → 12.6 s (farm) and 13.8 → 12.4 s (village); time to control 27.2 → 26.1 s in the village (farm within noise).
+  - Flagged: the layout stage (the `layout` → `assets` marks) measured 0.11–0.25 s longer on F, with barely separated ranges. Node timing of every base heightfield built in that stage is unchanged by the memo (1.94–2.03 s either way), and `Object.freeze` costs about 25 ns per sample. The difference is unexplained.
+  - Script before control grew by 376 B; no run logged a runtime error.
+- **Automated pass — sustained play, C vs F (`output/perf-next/ab-startup-runtime`, ABBAAB, 18/18 runs, `ab-comparison.md`):**
+  - Time to control: 38.7 → 25.8 s (farm storm), 37.5 → 26.1 s (village), 36.5 → 26.9 s (loaded wagon).
+  - Farm storm, warm pass: frame p95 33.4 → 16.8 ms, CPU frame mean 17.9 → 15.1 ms, `env:rain` 4.5 → 3.1 ms, GPU p50 12.8 → 11.3 ms.
+  - Loaded wagon, first-use pass: stalls 7.2 → 0 per minute; `physics` 4.4 → 3.0 ms.
+  - No frame metric regressed. Village first-use draws rose 562 → 568 while warm draws fell 572 → 562; which actors are in view at a given moment varies.
+- **Other checks:**
+  - On the live tree, `tsc` and ESLint on the changed files are clean.
+  - The full unit and simulation suite on the live tree gives 160 failed / 3,067 passed. 48 of those failing tests do not fail on the frozen tree; many hit the concurrent save-schema edit ("Update headSchemaDevelopmentSave for the current save schema").
+  - Snapshots of the live tree with and without every change in this record (memos, freezes and clone fix all removed) fail the same 77 tests across those 25 files.
+- **Downloads (measured, not changed):**
+  - The village run fetched 88.1 MB in 241 requests before control. GLB models were 80.7 MB of it, and ten character GLBs alone were about 48 MB.
+  - GLB JSON chunks make up 21.8 MB of the 95 MB published set. `char_player_a` is 3.2 MB of JSON in a 5.3 MB file, with one accessor and one buffer view per animation channel.
+  - The preview server sends GLBs uncompressed. Brotli would bring the player GLB to 1.55 MB, gzip to 1.77 MB.
+- **Remaining:**
+  - World geometry, about 12.5 s, is still the largest startup stage.
+  - Moving road-overlay and terrain attribute generation off the main thread (a worker, or a build-time bake) would change the `01` startup preparation path. It is proposed, not done.
+  - No visual approval is claimed. Geometry and query outputs are identical by hash; the clone change alters no rendered object.
+
+### 2026-09-28 — Storm rain reuses dry-ground samples; environment sub-phases and CPU-profile tooling (presentation cost + measurement; no save/schema/topology change)
+
+- **Changed contract:**
+  - `sampleRainSurfaceUnderDrop` (`src/render/weather/rainPhysics.ts`) lets a falling drop reuse its last terrain sample while it stays more than `groundRecheckHeight` above that sample and within `groundRecheckDrift` of where it was taken (`VisualRenderConfig.weather.rain` owns both numbers).
+  - Only dry-land samples are reused. A drop over water, a roof or the wet ground under a pier or bridge deck re-samples every frame, and landing and splash heights still come from exact samples.
+  - `WorldLayout.isWaterWithSignedDistance` lets the caller evaluate the shore distance once; `isWater` delegates to it with an unchanged expression.
+  - Debug-only `env:*` sub-phases split `updateEnvironment` under the caller's `sync` phase.
+  - The baseline summary ranks each parent's unattributed remainder as `<parent>:other`.
+  - `NEVA_PERF_CPU_PROFILE=1` writes warm-pass V8 profiles, and `tools/perf/cpu-profile-summary.mjs` symbolicates them against a `--sourcemap` build.
+- **Input identity:**
+  - Frozen scratch worktree of `7aace10` plus the measurement and landmark patches (build B), plus `output/perf-next/env-subphases.patch`, is B1 (`GameApp-BCS-mdOb.js`).
+  - B1 plus `output/perf-next/rain-ground-reuse.patch` (sha256 `376adc6d…`) is C (`GameApp-DMaYfGn7.js`).
+  - Same machine and settings as the record below; load average 2.6–4.4.
+- **Attribution:**
+  - On B1, the farm storm's largest leaf was `env:rain` at 7.53 ms/frame, 1.91 ms at sea (`output/perf-next/attribution-env`).
+  - A Node profile of the per-drop surface query put 17.6 µs/sample into `terrainHeight` 9.4, `isWater` 3.7 and roof shelter 2.5 µs, sampled for up to 360 drops every frame (`rain-sample-B.cpuprofile`).
+- **Exactness:** a Node simulation stepped `RainField.update` for 3,600 frames on each of four storm paths (farm, village roofs, harbor/pier, mountain foothills), with frame-time jitter and gusting wind. Every drop and splash instance matrix hashed identically with and without the change on every frame (`output/perf-next/rain-equivalence-{old,new}.json`). Rain update time fell 7.28 → 3.33 (farm), 7.13 → 3.19 (village), 4.59 → 3.67 (harbor) and 7.29 → 2.58 ms/frame (foothills). An earlier variant that also reused wet terrain under the pier diverged from frame 41 on the harbor path and was rejected. `tests/unit/rainGroundReuse.test.ts` pins the reuse rules and frame-by-frame equivalence for 40 drops.
+- **Automated pass — A/B (`output/perf-next/ab-rain`, ABBAAB, 18/18 runs; `ab-comparison.md`):**
+  - Farm storm, warm medians with non-overlapping ranges: `env:rain` 7.7 → **4.0 ms**, environment `sync` 9.0 → 5.2 ms, CPU frame mean 18.7 → **15.1 ms**, frame p95 33.4 → **16.8 ms**.
+  - Storm sailing is unchanged: over open water every drop re-samples. The village control is unchanged within noise.
+  - Flagged: farm-storm `render:pipeline` 5.8 → 6.4 ms. The same rise accompanied faster frames in the landmark A/B; it is plausibly driver backpressure but not proven.
+- **Other checks:** on the live tree, `tsc` shows only the concurrent `Simulation.harvestCrop` error and ESLint is clean on the changed files. 56/56 pass across `rainGroundReuse`, `rainPhysics`, `rainShelter`, `worldLayoutLandmarks`, `waterReading`, `mainHarborDock`, `footstepSurface`, `weatherPresentation` and `lightingRig`.
+- **Remaining (from the same profiles):**
+  - Village and wagon frames hold p50 16.7 ms but p95 33.4 ms, and whole-frame GPU p50 is 14.5–18 ms there, so those scenes are now GPU-limited.
+  - `render:pipeline` CPU (4–8.5 ms) splits into three.js program re-validation (0.6–0.7 ms/frame), with the shadow pass's shared default depth material and palette materials shared across batched, skinned and plain meshes flipping program flags; world-matrix updates (about 1.1 ms/frame); scene projection (about 0.8 ms); and batched-mesh culling (about 0.6 ms).
+  - No visual approval is claimed; instance output was identical in simulation, not reviewed in a browser capture.
+
+### 2026-09-28 — Sustained-play performance baseline; landmark poses built on request (measurement lane + query cost; no save/schema/topology change)
+
+- **Changed contract:** `npm run perf:baseline` (opt-in lane on `playwright.budget.config.ts`; `03` §4) drives seven production scenarios with real keyboard/mouse input: populated farm walk, the same walk in storm, village → market → save while walking → harbor on a new game with real persistence, a loaded wagon (new persistence-disabled `debugStart=loaded-wagon`: two harvest packs stowed and boarded through the ordinary load/board commands), a boat journey out of the harbor, open-water storm sailing and a sport-fishing fight. Each run starts a fresh browser and records cold startup (stage marks, long tasks, bytes before control), a first-use pass and a warm pass (every frame p50/p95/p99, stalls, the debug phase split, draws/triangles, GPU timer passes, Chromium task/layout counters, long-animation-frame attribution, renderer resource counts), plus a post-GC heap between passes; `performance-baseline-summary.{json,md}` ranks recurring CPU phases, GPU passes and one-off costs across interleaved repetitions. Debug-only harness additions (`?debug` with localhost `worldAcceptance`): `pose()`, `beginPerformanceWindow()`/`endPerformanceWindow()` (`src/app/PerformanceWindow.ts`), `teleport(..., { keepMount })`, frame-timing p99 and a `sync:reconcile-signature` sub-phase. Repairs to the production budget lane: since `9e3c2f7` the debug overlay and its snapshot were DEV-only, so production `test:budget` could not see `data-boot-ready`; the documented localhost acceptance hatch is restored through `src/app/localWorldAcceptance.ts`. `render-budget.spec.ts` now expects the intentionally hidden `render-stats` node to be attached rather than visible. Optimisation: `WorldLayout.landmark()` builds only the requested landmark, and the pier deck/stairs footprint tests read the dock's bound pose without evaluating its deck datum. Returned values and live Place-mode overrides are unchanged; `tests/unit/worldLayoutLandmarks.test.ts` pins both, and that pose-only queries evaluate no terrain height.
+- **Input identity:** a scratch worktree of `7aace10` plus `output/perf-baseline-A/measurement.patch` (sha256 `494a712a…`) is build A (`GameApp-xSBUuA_r.js`); B is A plus `output/perf-change-B/landmark-on-request.patch` (`5cd87f46…`, `GameApp-BLt41fZ7.js`). Both exclude the concurrent session's uncommitted world, UI and save edits. Environment: headless Chrome 153, ANGLE Metal on Apple M4 with 16 GB, macOS 27, manual High, 1920×1080 at DPR 1, seed 42, GTAO and FXAA active. The desktop was shared (load average 3.6–14 across runs).
+- **Automated pass — baseline (`output/perf-baseline-A/run`, 21/21, three interleaved repetitions):**
+  - Largest warm-pass costs: loaded-wagon `physics` at **86.1 ms/frame** (range 86.0–86.7); `sync:actors` at 9.6–39.6 ms in every scenario; the storm environment `sync` at 27.6–31.0 ms; `render:pipeline` at 3.7–9.3 ms.
+  - Frame p50 was 33–150 ms. The wagon ran at 149.9 ms (about 7 FPS) and the storm scenarios at 66.7–83.3 ms.
+  - The originally suspected CPU paths measured small: `wu:cover-select` ≤ 0.46, `wu:cover-submit` ≤ 0.20, meadow ≤ 0.03 and `sync:reconcile-signature` ≤ 0.02 ms mean.
+  - GPU: whole-frame p50 was 9.7–18.2 ms. Per-pass timer sums exceed the whole frame on this driver, so pass ranking is indicative only (`scene` largest, 16.8–22.0 ms).
+  - Cold startup: control at 37.5–39.8 s, of which world geometry takes 25.6–26.7 s, layout 5.2–5.7 s, prefab population about 4.0 s and presentation/shader warm-up 0.9–2.0 s. 88–102 MB were transferred before control, 81 MB of it GLBs; the longest startup long task was about 1.4 s.
+  - Events and memory: market open took 258–456 ms and save while walking 129–269 ms (new-game state). The post-GC heap was 320–330 MiB, growing 0.4–3.3 MiB from the first-use to the warm pass; renderer geometry and texture counts stayed flat in warm passes.
+- **Profile and exactness:** a Node profile of the carriage step on A measured 15.1 ms/step, 67.7% inclusive in `landmark()`, whose dock datum costs two `terrainHeight` calls per call, reached from pier, ground and mount-pose checks (`output/perf-baseline-A/carriage-step-A.cpuprofile`). B measured 3.0 ms/step with the same accepted steps and final pose. Outputs were byte-identical between A and B over 21,200 layout samples around the dock, village, farm, bridge and lighthouse (pier deck/stairs, water, walkability, traversal height/source/normal, rain shelter), 639 carriage poses and a live dock override (`output/perf-change-B/equivalence-{A,B}.json`).
+- **Automated pass — A/B (`output/perf-change-B/ab`, ABBAAB, 42/42 runs, no runtime errors; `ab-comparison.md`):** warm-pass medians A → B, with non-overlapping run ranges:
+  - Loaded wagon: frame p50 133.3 → **16.7 ms**, p99 166.7 → 33.4 ms, stalls 450 → 2.4/min, `physics` 79.6 → 3.5 ms.
+  - Farm storm: p50 66.6 → 16.7 ms, stalls 698 → 0/min, environment `sync` 24.4 → 8.9 ms.
+  - Storm sailing: p50 66.6 → 16.7 ms, `sync` 28.6 → 2.8 ms.
+  - Village: p50 33.3 → 16.7 ms, CPU frame mean 27.9 → 14.0 ms.
+  - Farm walk and fishing: p95 33.4 → 16.7 ms.
+  - `sync:actors` fell from 8–36 ms to 0.4–0.8 ms everywhere.
+  - Flagged against B: wagon and village `render:pipeline` +1.3–1.9 ms, and wagon draws 529 → 541, while the wagon now covers 36% more road per window and so sees different scenery; boat whole-frame GPU p50 12.6 → 14.1 ms. Draws and triangles are otherwise unchanged, and time to control is unchanged within noise.
+- **Automated pass — production budget on B (`output/perf-change-B/render-budget*`):** all nine gameplay routes pass. After the `render-stats` repair, the frozen-camera gate passes at 481 draws and 1,842,913 triangles against High `preferredMax` 650 and `targetMax` 3,000,000, with raw frame p50/p95/p99 of 16.7/16.8/50.1 ms.
+- **Other checks:** on the live tree, `tsc` reports only the concurrent session's `Simulation.harvestCrop` typing error. ESLint is clean on the changed files. The new `performanceWindow` (5), `worldLayoutLandmarks` (4) and `debugLoadedCarriage` (1) suites plus eight affected suites pass 100/100. On the frozen tree, 23 affected files give 241 passes and 7 failures that are identical with and without the change: `worldLayout` ×2, `physicsWorld`, `assetPlacementAudit` ×2, `villageTrade` and `carriageRoadPhysics`.
+- **Not claimed / next:** this is one shared-desktop machine in Chromium only. Firefox, Safari, Low/Medium/Auto, memory over repeated travel, context restore, a developed-farm save, and cached or Continue startup were not run. Returned layout values are byte-identical, so appearance cannot change; no visual approval is claimed. Next measured targets on B: GPU-bound frames (whole-frame 9–19 ms, `scene` pass largest), the storm environment `sync` at 8.9 ms, `render:pipeline` CPU at 4–8.5 ms, and the 26 s world-geometry startup stage.
+
+### 2026-09-27 — Silverwater river system: step-pool cascade, channel dressing, feature foam, river mist and mouth (folded into layout 33 / schema 63)
+
+- **Changed contract (`01` §6.1 v63 row, §11 river/headwater paragraphs, §12 riparian-placement rule; `04` §7.2.5, §8, §9; Art Pipeline §6; `tools/authored/README.md`; save-sensitive terrain folded into the unshipped layout 33):**
+  - **Headwaters and river profile.** `NEVA_HEADWATERS.cascade` drains the plunge pool down three sill/scour steps (new elevation knots below the pool). `RiverSectionProfile` gains `riffle`, continuous meander-driven cut banks and point bars, and a floodplain that follows the valley bend except at strong local bends.
+  - **Channel features and dressing.** `NevaRiverFeatures` derives stones by role, snags, reed beds (apex and margin stands), lily patches, willow and fern bank plants, and cascade chutes. `NevaRiverDressing` places them as authored, seed-independent `authored.river.*` placements, seated on the bed and surface, and adds the mouth: a rocky west point and a sand, driftwood and dune-grass east shoulder. Seeded trees, bushes and rocks yield to that dressing; seeded reeds now form a band up the lower bank.
+  - **Terrain materials.** Terrain surface weights add gravel point bars, cut-bank earth, cascade bank rock, mouth sand and mouth rock.
+  - **Water, mist and light.** `RiverFeatureFoam` bakes step aprons, chute tongues, rock collars and wakes, and riffle froth into one R8 field read by the water shader. `HeadwaterFallMist` adds cascade step spray. `RiverMist` draws low mist driven by the new `LightingFrame.riverMist` (dawn envelope, evening share, fog visibility, calm air).
+  - **New authored assets.** `rock_river_boulder_a/b/c` and `rock_river_ledge_a` (convex hulls with a wet-stone token), `foliage_reed_bed_a`, `foliage_sedge_tussock_a`, `foliage_fern_a` and `foliage_willow_shrub_a` (`environment/riverside.ts`). The authored kit gains `addHull`.
+- **Mechanical asset pass:** `npm run art:generate` published the eight riverside assets, including the wet-stone republish of the four stones. `npm run art:test-builders` passed after the kit change.
+- **Automated pass (current tree):** 15 river-owned files passed together, **104/104**: `nevaRiverDressing`, `riverFeatureFoam`, `riverMist`, `lightingRig`, `headwaterFallPresentation`, `headwaterHabitatGroup`, `headwaterBaseDressing`, `headwaterWater`, `coastalValley`, `nevaRiverDesign`, `terrainSurfaceMaterial`, `waterShaderLinkage`, `docArchitectureClaims`, `docTypeShapes`, and `tests/simulation/coastalValleyMigration`. The migration test now checks the layout-33 step's preservation directly, because migrations 65–69 legitimately change markets and moorings, and it builds its head-schema repair case by migrating to head and then rolling the layout back. The river-mouth coastal rocks are excluded from `worldLayout`'s hand-placed coastal-anchor list and covered by `nevaRiverDressing`. Full-tree `tsc --noEmit` and scoped ESLint on every changed file are clean. `starterIslandPreservation` 18/18 and `mainlandBrooks` pass on the layout-38 baseline; `lowerRiver` matched the layout-37 baseline before that.
+- **Automated fail, not from this change:** in `worldLayout`, the starter wagon count (4 against 2, from the freight/packing-yard work) and the harbor anchor (15.8 m, harbour district); in `roadEnvironment`, 2 cases (layout-38 roads); in `assetPlacementAudit`, harbor moorings plus manifest parity for six village-architecture assets. None of these involves a river asset or placement.
+- **Browser observed (no-HMR review server on this tree, in-app pane hidden, seed 42):**
+  - **Cascade.** In afternoon light it reads as three white-water steps with boulder sills and mossy ledge blocks.
+  - **Meadow reach.** Riffle stones carry collars and wakes; one snag lies off a cut bank; a brown cut-bank strip and willow scrub on the bank tops are visible.
+  - **Mouth.** A sandy east shoulder with stranded driftwood and dune grass faces a dark rocky point below the lighthouse hill.
+  - **Mist by weather.** A clear dawn at 06:35 lays a mist band along the channel, which thins near the player. A windy dawn shows no band, only the global haze. Fog weather keeps the layer.
+  - **Not run:** frame-time measurement and the full test suite. **Awaiting human game review.**
+
+### 2026-09-27 — Cart-scale roads, generated mainland road network and roadside furniture (layout 38 / schema 70)
+
+- **Changed contract (`01` §6.1 v70 and §10 roads/brooks/preservation, `02` §13.1, `04` §7.2.3, Art Pipeline §6.1; save-sensitive):** `RoadClasses` owns every road's width, crown, shoulder, feather and graded bench (cart road 2.8 m, farm lane 2.4 m, footpath 1.2 m; previously 3.2–4.6 m packed and 8–10 m visible). Wheel tracks are drawn by `RoadSurfaceMaterial` from each strip's exact across/along `roadFrame` at the carriage's wheel spacing (1.88 m, read from the published carriage GLB in `roadClasses.test.ts`), with a lane grass strip, footpath line and rain puddles; `RoadTerrainConformity` carries the frame, class and smooth ribbon normal. The starter district's shared stretches became forks (harbor road, lighthouse lane, cliffside and headland walks), and a lesser road is not drawn over a greater one. The mainland network is generated by `tools/world/mainlandRoadNetwork.ts` (`npm run world:plan-roads`) from `MAINLAND_ROAD_DESTINATIONS`; the old router and `MainlandRoutes.generated.ts` were removed and the brooks re-traced (`npm run world:trace-brooks`, which now fingerprints every generated road knot). Passing places, fork signposts, milestones (`prop_milestone_a`), bank edge stones and tall verge grass (`terrainRoadVerge`) replace the fixed-cadence waystations and stones. `migrateRoadNetwork70` recovers poses over Neva and Sunreach.
+- **Automated pass (focused, shared tree with concurrent sessions, 2026-09-27):** `roadClasses` 4/4, `mainlandRoadNetwork` 6/6, `mainlandBrooks` 6/6, `roadGeometry` 11/11, `roadSurfaceMaterial` 2/2, `roadNetworkMigration` 5/5 (retained `save_v69_layout37_road_network_predecessor.json`), `starterIslandPreservation` 18/18 (new `neva-layout38-working-preservation.json`), `mainlandEnvironment` 7/7, `mainlandWorkSites` 7/7, `nevaMainland` 8/8, `coastalRoadTerrain` 3/3, `carriageRoadPhysics` 2/2, `meadowFieldSource` 8/8, `nevaRiverDressing` 6/6, `docArchitectureClaims` 5/5 and `docTypeShapes` 3/3. `worldLayout` passes except the harbor dock anchor and the starter `prop_wagon_cart_a` count (freight/packing-yard work), both from other sessions; its causal placement counts were re-pinned for layout 38. `npm run world:plan-roads -- --check`, `art:codegen:check`, `content:validate`, scoped ESLint and direct TypeScript (apart from other sessions' test files) pass.
+- **Asset mechanical pass:** `npm run art:generate -- --asset prop_milestone_a` generated, validated and published it (142 triangles); `art:codegen:check` is current. **Awaiting human game review:** http://localhost:3000/__neva_art_yard?asset=prop_milestone_a
+- **Browser observed:** before/after gameplay-camera captures of the starter farm road, village market fork, Pinewatch square, Pinewatch landing lane, a passing place and the Highridge adit fork (`output/world-scratch/shots/`). Verge grass and the placed milestones were not observed in game: the browser pane was hidden, which stops the start sequence's animation frames. No frame-time claim is made.
+- **Outside this record:** the harbor session's own failures (`worldLayout` harbor dock anchor, boat berths in the layout30/29/32 migration tests, carriage cargo-slot wording) and the pre-existing carriage parking and timeout failures are not caused by these changes. `tests/fixtures/neva_layout37_starter_routes.json` restores the pre-38 starter routes for historical preservation checks; the layout37 working snapshot was frozen mid-change by another session and is kept only as a record.
 
 ### 2026-09-27 — Authored workshop and village architecture replacements
 

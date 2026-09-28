@@ -13,8 +13,16 @@ export function attachmentPelvisOffset(root: THREE.Object3D, clipName: string, p
     const clip = (root.userData.animationClips as THREE.AnimationClip[]).find(value => value.name === clipName);
     if (!clip) throw new Error(`Missing attachment pose ${clipName}`);
     // Only sample transforms on an isolated hierarchy; no live mixer, bones,
-    // cached geometry, or gameplay position is modified.
-    const copy = root.clone(true);
+    // cached geometry, or gameplay position is modified. The root's userData
+    // stays behind: `Object3D.copy` would serialise every clip through JSON.
+    const userData = root.userData;
+    root.userData = {};
+    let copy: THREE.Object3D;
+    try {
+      copy = root.clone(true);
+    } finally {
+      root.userData = userData;
+    }
     const mixer = new THREE.AnimationMixer(copy);
     mixer.clipAction(clip).play(); mixer.update(0);
     copy.updateMatrixWorld(true);

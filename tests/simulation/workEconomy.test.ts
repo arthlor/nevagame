@@ -3,12 +3,47 @@ import { Simulation } from "../../src/simulation/Simulation";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { WORK_CAPACITY_MAXIMUM, WORK_DAILY_EARN_CAP, WORK_MEAL_DAILY_LIMIT } from "../../src/simulation/domains/ProgressionDomain";
+import { migrateWorkCeiling72 } from "../../src/persistence/migrateWorkCeiling72";
 import { LABOR_STATIONS } from "../../src/simulation/labor/LaborStations";
 import { AUTHORED_DETAIL_PLACEMENTS } from "../../src/world/WorldEnvironmentLayout";
 import { getFarmLayout, isPlantableFarmSurface, starterFarmsteadAnchor, starterStructureAnchor, worldToFarmLocal } from "../../src/world/FarmLayout";
 import { FARMHOUSE_INTERIOR_ORIGIN } from "../../src/world/FarmhouseInterior";
+import { WorldLayout } from "../../src/world/WorldLayout";
+
+function stand(sim: Simulation, x: number, z: number): void {
+  sim.state.player.x = x;
+  sim.state.player.z = z;
+  sim.state.player.y = WorldLayout.traversalSurfaceHeight(x, z) + 0.5;
+}
 
 describe("Work economy — earned labor", () => {
+  it("raises the saved ceiling to 750 without refilling or resetting progress", () => {
+    const sim = new Simulation();
+    sim.state.schemaVersion = 71;
+    sim.state.player.workCapacity.current = 180;
+    sim.state.player.workCapacity.maximum = 500;
+    sim.state.player.workCapacity.earnedToday = 40;
+    sim.state.player.workCapacity.mealsToday = 1;
+    sim.state.player.workCapacity.laborUsedToday = ["labor.firewood"];
+    sim.state.player.workCapacity.passiveRegenSeconds = 12;
+    migrateWorkCeiling72(sim.state);
+    expect(sim.state.player.workCapacity.maximum).toBe(750);
+    expect(sim.state.player.workCapacity.current).toBe(180);
+    expect(sim.state.player.workCapacity.earnedToday).toBe(40);
+    expect(sim.state.player.workCapacity.mealsToday).toBe(1);
+    expect(sim.state.player.workCapacity.laborUsedToday).toEqual(["labor.firewood"]);
+    expect(sim.state.player.workCapacity.passiveRegenSeconds).toBe(12);
+
+    sim.state.player.workCapacity.current = 900;
+    sim.state.player.workCapacity.maximum = 900;
+    migrateWorkCeiling72(sim.state);
+    expect(sim.state.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
+    expect(sim.state.player.workCapacity.current).toBe(WORK_CAPACITY_MAXIMUM);
+    expect(sim.progression.earnWork(50)).toBe(0);
+    sim.progression.creditWork(25);
+    expect(sim.state.player.workCapacity.current).toBe(WORK_CAPACITY_MAXIMUM);
+  });
+
   it("starts a new game with a full daily budget", () => {
     const sim = new Simulation();
     expect(sim.state.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
@@ -23,8 +58,8 @@ describe("Work economy — earned labor", () => {
     sim.state.player.z = FARMHOUSE_INTERIOR_ORIGIN.z;
     const result = sim.execute({ type: "player.rest-until-dawn" });
     expect(result.success).toBe(true);
-    // max(0 + 10% of 500, 40% of 500) = 200.
-    expect(sim.state.player.workCapacity.current).toBe(200);
+    // max(0 + 10% of the ceiling, 40% of the ceiling).
+    expect(sim.state.player.workCapacity.current).toBe(Math.round(WORK_CAPACITY_MAXIMUM * 0.4));
   });
 
   it("caps earned Work at the daily cap", () => {
@@ -80,8 +115,7 @@ describe("Work economy — earned labor", () => {
     const station = LABOR_STATIONS["labor.firewood"];
     const sim = new Simulation();
     sim.state.player.workCapacity.current = 0;
-    sim.state.player.x = station.position.x;
-    sim.state.player.z = station.position.z;
+    stand(sim, station.position.x, station.position.z);
 
     expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(true);
     // 0.696 s at the station's meter speed puts the needle in the sweet spot.
@@ -98,8 +132,7 @@ describe("Work economy — earned labor", () => {
     const station = LABOR_STATIONS["labor.firewood"];
     const sim = new Simulation();
     sim.state.player.workCapacity.current = 0;
-    sim.state.player.x = station.position.x;
-    sim.state.player.z = station.position.z;
+    stand(sim, station.position.x, station.position.z);
 
     expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(true);
     sim.tick(0.696);
@@ -126,8 +159,7 @@ describe("Work economy — earned labor", () => {
     const station = LABOR_STATIONS["labor.firewood"];
     const sim = new Simulation();
     sim.state.player.workCapacity.current = 0;
-    sim.state.player.x = station.position.x;
-    sim.state.player.z = station.position.z;
+    stand(sim, station.position.x, station.position.z);
     const carryFish = () => {
       sim.state.player.carriedFishCargoId = "cargo.held";
       sim.state.fishCargo["cargo.held"] = {
@@ -177,8 +209,7 @@ describe("Work economy — earned labor", () => {
     const station = LABOR_STATIONS["labor.firewood"];
     const sim = new Simulation();
     sim.state.player.workCapacity.current = 0;
-    sim.state.player.x = station.position.x;
-    sim.state.player.z = station.position.z;
+    stand(sim, station.position.x, station.position.z);
     expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(true);
     sim.tick(0.696);
     // Shrink pool room below the full grant after the shift started.
@@ -201,8 +232,7 @@ describe("Work economy — earned labor", () => {
     const station = LABOR_STATIONS["labor.firewood"];
     const sim = new Simulation();
     sim.state.player.workCapacity.current = 0;
-    sim.state.player.x = station.position.x;
-    sim.state.player.z = station.position.z;
+    stand(sim, station.position.x, station.position.z);
     expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(true);
     sim.tick(0.696);
     // Walk away mid-swing, then strike.
@@ -210,8 +240,7 @@ describe("Work economy — earned labor", () => {
     sim.state.player.z = station.position.z;
     expect(sim.execute({ type: "labor.strike" }).success).toBe(false);
     // The station is still available, and a clean strike from reach still pays.
-    sim.state.player.x = station.position.x;
-    sim.state.player.z = station.position.z;
+    stand(sim, station.position.x, station.position.z);
     expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(true);
     sim.tick(0.696);
     const strike = sim.execute({ type: "labor.strike" });
@@ -223,8 +252,7 @@ describe("Work economy — earned labor", () => {
     const station = LABOR_STATIONS["labor.firewood"];
     const sim = new Simulation();
     sim.state.player.workCapacity.current = sim.state.player.workCapacity.maximum - 5;
-    sim.state.player.x = station.position.x;
-    sim.state.player.z = station.position.z;
+    stand(sim, station.position.x, station.position.z);
     expect(sim.execute({ type: "labor.start", stationId: station.id }).success).toBe(false);
 
     const inventory = sim.state.inventories[sim.state.player.inventoryId];

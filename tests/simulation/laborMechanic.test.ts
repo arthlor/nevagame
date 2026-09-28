@@ -7,22 +7,32 @@ import {
   getProficiencyWorkDiscount,
   restoreWorkOnRest,
   rollWorkEarnings,
+  WORK_CAPACITY_MAXIMUM,
   WORK_PASSIVE_REGEN_AMOUNT,
   WORK_PASSIVE_REGEN_INTERVAL_SECONDS
 } from "../../src/simulation/domains/ProgressionDomain";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
 import { farmLocalToWorld, STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
+import { WorldLayout } from "../../src/world/WorldLayout";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import type { WorkCapacityState } from "../../src/simulation/core/types";
 import { FARMING_ACTION_COST } from "../../src/simulation/domains/FarmingDomain";
+import { LABOR_STATIONS } from "../../src/simulation/labor/LaborStations";
 import { processingWorkForRecipe } from "../../src/simulation/domains/ProcessingDomain";
 import type { LaborHudDto, LaborStationDto } from "../../src/simulation/core/contracts";
+
+function giveWheat(sim: Simulation, quantity = 4): void {
+  InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+    { itemId: "seed.wheat", quantity }
+  ]);
+}
 
 function movePlayerToStarterFarm(sim: Simulation, x: number = 0, z: number = 0): { x: number; z: number } {
   const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x, z });
   sim.state.player.x = world.x;
   sim.state.player.z = world.z;
+  sim.state.player.y = WorldLayout.traversalSurfaceHeight(world.x, world.z) + 0.5;
   return world;
 }
 
@@ -160,14 +170,14 @@ describe("Work Capacity mechanic", () => {
 
     it("grants at most one rest across an offline wake", () => {
       const sim = new Simulation();
-      expect(sim.state.player.workCapacity.maximum).toBe(500);
+      expect(sim.state.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
       sim.state.player.workCapacity.current = 50;
       sim.state.metadata.lastSavedUtcMs = 0;
       // 1.5 game days away at 0.4 game-min per real second.
       const oneAndAHalfGameDaysMs = (1440 / 0.4) * 1000 * 1.5;
       applyOfflineProgression(sim.state, oneAndAHalfGameDaysMs);
-      // One rest: max(50 + 10% of 500, 40% of 500) = 200, not a per-hour refill.
-      expect(sim.state.player.workCapacity.current).toBe(200);
+      // One rest: max(50 + 10% of the ceiling, 40% of the ceiling), not a per-hour refill.
+      expect(sim.state.player.workCapacity.current).toBe(Math.round(WORK_CAPACITY_MAXIMUM * 0.4));
     });
   });
 
@@ -212,6 +222,7 @@ describe("Work Capacity mechanic", () => {
 
     it("blocks planting at zero Work without mutating seed, RNG, XP, or crops", () => {
       const sim = new Simulation();
+      giveWheat(sim, 1);
       const pos = movePlayerToStarterFarm(sim, 0, 0);
       sim.state.player.workCapacity.current = 0;
       const inventory = sim.state.inventories[sim.state.player.inventoryId];
@@ -233,6 +244,7 @@ describe("Work Capacity mechanic", () => {
 
     it("blocks watering below the full cost and accepts the exact cost", () => {
       const sim = new Simulation();
+      giveWheat(sim, 1);
       const pos = movePlayerToStarterFarm(sim, 0, 0);
       sim.state.player.workCapacity.current = 100;
       const plantResult = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
@@ -254,6 +266,7 @@ describe("Work Capacity mechanic", () => {
       const front = getProcessingStationFrontPosition("struct.starter_mill", station)!;
       sim.state.player.x = front.x;
       sim.state.player.z = front.z;
+      sim.state.player.y = WorldLayout.traversalSurfaceHeight(front.x, front.z) + 0.5;
       const inventory = sim.state.inventories[sim.state.player.inventoryId];
       InventoryManager.addItemsAtomically(inventory, [{ itemId: "produce.wheat", quantity: 2 }]);
       const wheatBefore = InventoryManager.getItemCount(inventory, "produce.wheat");
@@ -272,6 +285,7 @@ describe("Work Capacity mechanic", () => {
 
     it("rejects a fractional near miss and consumes the exact plant cost atomically", () => {
       const sim = new Simulation();
+      giveWheat(sim, 2);
       const pos = movePlayerToStarterFarm(sim, 0, 0);
       sim.state.player.workCapacity.current = 11.8;
       const blocked = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
@@ -300,6 +314,7 @@ describe("Work Capacity mechanic", () => {
 
     it("charges planting exactly what the shared constant quotes", () => {
       const sim = new Simulation();
+      giveWheat(sim, 2);
       const pos = movePlayerToStarterFarm(sim);
       const quoted = sim.quoteWorkCost(FARMING_ACTION_COST.plant, "farming").cost;
 
@@ -320,8 +335,10 @@ describe("Work Capacity mechanic", () => {
     function startFirewoodShift(): Simulation {
       const sim = new Simulation();
       sim.state.player.workCapacity.current = 100;
-      sim.state.player.x = 64.9;
-      sim.state.player.z = -40.1;
+      const station = LABOR_STATIONS["labor.firewood"];
+      sim.state.player.x = station.position.x;
+      sim.state.player.z = station.position.z;
+      sim.state.player.y = WorldLayout.traversalSurfaceHeight(station.position.x, station.position.z) + 0.5;
       expect(sim.execute({ type: "labor.start", stationId: "labor.firewood" }).success).toBe(true);
       return sim;
     }

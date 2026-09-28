@@ -60,7 +60,7 @@ function preserveResources(before: GameState, after: GameState): void {
   // v43 intentionally rescales the Work pool to the daily ceiling.
   expect(after.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
   expect(after.player.workCapacity.current).toBe(
-    Math.round((before.player.workCapacity.current / before.player.workCapacity.maximum) * WORK_CAPACITY_MAXIMUM)
+    Math.min(WORK_CAPACITY_MAXIMUM, Math.round((before.player.workCapacity.current / before.player.workCapacity.maximum) * 500))
   );
   expect(after.player.proficiencies).toEqual(before.player.proficiencies);
   expect(after.player.money).toBe(before.player.money);

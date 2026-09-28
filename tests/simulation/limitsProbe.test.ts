@@ -100,15 +100,18 @@ describe("LIMITS probe", () => {
   });
 
   describe("work capacity", () => {
-    it("caps at 500 and at 20 Work allows water (5) but not harvest (30)", () => {
-      expect(WORK_CAPACITY_MAXIMUM).toBe(500);
+    it("caps at 750 and at 20 Work allows water (5) but not harvest (30)", () => {
+      expect(WORK_CAPACITY_MAXIMUM).toBe(750);
       expect(FARMING_ACTION_COST.water).toBe(5);
       expect(FARMING_ACTION_COST.harvest).toBe(30);
 
       const sim = new Simulation();
-      expect(sim.state.player.workCapacity.maximum).toBe(500);
+      expect(sim.state.player.workCapacity.maximum).toBe(750);
       const pos = moveToStarterFarm(sim);
       sim.state.player.workCapacity.current = 100;
+      InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+        { itemId: "seed.wheat", quantity: 1 }
+      ]);
       const planted = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
       expect(planted.success).toBe(true);
       const crop = sim.state.crops[planted.placedCropId!];
@@ -253,6 +256,9 @@ describe("LIMITS probe", () => {
       farm.soil.fertility = FERTILITY_MIN;
       const pos = moveToStarterFarm(sim, 1.5, 0);
       sim.state.player.workCapacity.current = 100;
+      InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+        { itemId: "seed.wheat", quantity: 1 }
+      ]);
       const planted = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
       expect(planted.success).toBe(true);
       const placed = sim.state.crops[planted.placedCropId!];

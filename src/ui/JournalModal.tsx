@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
+import { formatQuestObjective, questProgressNote } from "../simulation/presentation/QuestObjectiveCopy";
 import type { JournalPagesDto, SkillProgressDto, AlmanacDto, PeoplePageDto } from "../simulation/core/contracts";
 import type { SkillId } from "../simulation/core/types";
 import { useModalAccessibility } from "./useModalAccessibility";
@@ -196,11 +197,21 @@ const StoryPage: React.FC<{
             <div className="journal-objective-row">
               <IconPin size={16} className="journal-objective-pin" aria-hidden="true" />
               <p className="journal-objective-desc">
-                {isTr
-                  ? (locActiveQuest?.objectives?.[activeQuest.currentStepIndex]?.description ?? activeQuest.objectiveDescription)
+                {activeQuest.objectiveFacts
+                  ? formatQuestObjective(activeQuest.objectiveFacts, isTr ? "tr" : "en")
                   : activeQuest.objectiveDescription}
               </p>
             </div>
+            {activeQuest.completedSteps && activeQuest.completedSteps.length > 0 && (
+              <ul className="journal-completed-steps" aria-label={isTr ? "Tamamlanan adımlar" : "Completed steps"}>
+                {activeQuest.completedSteps.map((step, index) => (
+                  <li key={`${step.action}-${index}`}>{formatQuestObjective(step, isTr ? "tr" : "en")}</li>
+                ))}
+              </ul>
+            )}
+            {activeQuest.objectiveFacts && questProgressNote(activeQuest.objectiveFacts, isTr ? "tr" : "en") && (
+              <p className="journal-progress-note">{questProgressNote(activeQuest.objectiveFacts, isTr ? "tr" : "en")}</p>
+            )}
             {activeQuest.targetQuantity > 1 && (
               <div className="journal-story-meter-wrap">
                 <Meter
@@ -281,8 +292,8 @@ const StoryPage: React.FC<{
                   </div>
                   <h4 className="journal-thread-quest">{isTr ? (locThread.questTitle || thread.questTitle) : thread.questTitle}</h4>
                   <p className="journal-thread-objective">
-                    {isTr
-                      ? (locThread.objectives?.[thread.currentStepIndex]?.description ?? thread.objectiveDescription)
+                    {thread.objectiveFacts
+                      ? formatQuestObjective(thread.objectiveFacts, isTr ? "tr" : "en")
                       : thread.objectiveDescription}
                   </p>
                   {thread.turnInBlockerReason && (

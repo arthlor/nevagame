@@ -183,12 +183,12 @@ describe('horse carriage gameplay', () => {
       const spent=sim.state.mounts[STARTER_CARRIAGE_ID]!.gallopStamina;
       expect(spent).toBeLessThan(100);
       expect(spent).toBeGreaterThan(0);
-      // Roughly ten seconds of trot winds the team: holding Shift then only
+      // Roughly twenty seconds of trot winds the team: holding Shift then only
       // walks (or idles against an obstacle) — trot is never granted again.
-      // The drive ends right at exhaustion so the winded snapshot below is
-      // deterministic: stamina 0 with recovery delay still pending.
-      const winded=drive(true,490,120);
-      // The last ten ticks occur after the ten-second budget expires. Earlier
+      // The first 120 ticks spend two seconds. 1090 more ticks finish the
+      // remaining eighteen seconds and ten ticks past empty.
+      const winded=drive(true,1090,120);
+      // The last ten ticks occur after the twenty-second budget expires. Earlier
       // ticks in the final second may still trot if scenery no longer blocks
       // the carriage first.
       expect(winded.gaits.slice(-10)).not.toContain('trot');

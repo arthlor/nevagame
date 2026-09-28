@@ -1,7 +1,7 @@
 import React from "react";
 import { AtlasImage } from "./AtlasImage";
-import { atlasForQuality, qualitySpriteKey, UI_QUALITY } from "./uiAtlas";
-import { playUiSound } from "../audio/uiAudio";
+import { qualitySpriteKey, UI_QUALITY } from "./uiAtlas";
+import { playAcceptedUiDing } from "../audio/uiAudio";
 import { FiligreeCornerTL, FiligreeCornerBR } from "../HudDecorations";
 
 type PanelTag = "div" | "aside" | "section" | "header" | "article" | "nav" | "footer";
@@ -106,7 +106,7 @@ export const ChromeButton = React.forwardRef<HTMLButtonElement, ChromeButtonProp
   ({ variant = "secondary", soundCue = "click", size = "md", className = "", type = "button", onClick, children, ...rest }, ref) => {
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
       if (!rest.disabled) {
-        playUiSound(soundCue);
+        playAcceptedUiDing(e.currentTarget, soundCue);
       }
       onClick?.(e);
     };
@@ -132,7 +132,7 @@ export const ChromeClose = React.forwardRef<
 >(({ label = "Close", soundCue = "click", className = "", onClick, ...rest }, ref) => {
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!rest.disabled) {
-      playUiSound(soundCue);
+      playAcceptedUiDing(e.currentTarget, soundCue);
     }
     onClick?.(e);
   };
@@ -233,6 +233,55 @@ export const ChromeMeter: React.FC<ChromeMeterProps & React.HTMLAttributes<HTMLD
   );
 };
 
+/** Metal and pip count per tier; the pips carry the tier without relying on colour. */
+const QUALITY_MEDALLION = {
+  normal: { pips: 1, light: "#d9a36a", mid: "#9a6334", dark: "#5a3518" },
+  silver: { pips: 2, light: "#f1f3f4", mid: "#a9b0b6", dark: "#5d646b" },
+  gold: { pips: 3, light: "#ffe29a", mid: "#d49a2a", dark: "#7a4f0c" },
+  iridium: { pips: 4, light: "#e9d5ff", mid: "#a47ad6", dark: "#4f2f78" }
+} as const;
+
+const PIP_LAYOUT: Readonly<Record<number, ReadonlyArray<readonly [number, number]>>> = {
+  1: [[12, 12]],
+  2: [[8.6, 12], [15.4, 12]],
+  3: [[12, 8.4], [8.4, 14.6], [15.6, 14.6]],
+  4: [[12, 7.6], [7.6, 12], [16.4, 12], [12, 16.4]]
+};
+
+/**
+ * Item-neutral quality medallion. Quality is a badge over the item's own icon,
+ * so it never carries a motif (such as a fish) that could read as identity.
+ */
+export const QualityMedallion: React.FC<{ quality?: string | null; size?: number }> = ({ quality, size = 20 }) => {
+  const key = qualitySpriteKey(quality);
+  const tier = QUALITY_MEDALLION[key];
+  const id = React.useId().replace(/:/g, "");
+  return (
+    <svg className={`atlas-image chrome-quality-medallion chrome-quality-medallion--${key}`} width={size} height={size}
+      viewBox="0 0 24 24" aria-hidden="true" data-quality-pips={tier.pips}>
+      <defs>
+        <radialGradient id={`${id}-face`} cx="38%" cy="30%" r="75%">
+          <stop offset="0%" stopColor={tier.light} />
+          <stop offset="60%" stopColor={tier.mid} />
+          <stop offset="100%" stopColor={tier.dark} />
+        </radialGradient>
+        <linearGradient id={`${id}-rim`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={tier.light} />
+          <stop offset="100%" stopColor={tier.dark} />
+        </linearGradient>
+      </defs>
+      <circle cx="12" cy="12.6" r="11" fill="rgba(20,12,4,0.45)" />
+      <circle cx="12" cy="12" r="11" fill={`url(#${id}-rim)`} />
+      <circle cx="12" cy="12" r="8.6" fill={`url(#${id}-face)`} stroke={tier.dark} strokeWidth="0.8" />
+      <path d="M5.2 9.4a7.4 7.4 0 0 1 13.6 0" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="0.9" strokeLinecap="round" />
+      {PIP_LAYOUT[tier.pips].map(([cx, cy], index) => (
+        <path key={index} d={`M${cx} ${cy - 2.3}L${cx + 2.3} ${cy}L${cx} ${cy + 2.3}L${cx - 2.3} ${cy}Z`}
+          fill={tier.light} stroke={tier.dark} strokeWidth="0.7" strokeLinejoin="round" />
+      ))}
+    </svg>
+  );
+};
+
 export const ChromeQuality: React.FC<{ quality?: string | null; className?: string; showLabel?: boolean }> = ({
   quality = "normal",
   className = "",
@@ -241,8 +290,9 @@ export const ChromeQuality: React.FC<{ quality?: string | null; className?: stri
   const key = qualitySpriteKey(quality);
   const label = quality || key;
   return (
-    <span className={`chrome-quality chrome-quality--${key} ${className}`.trim()} title={`${label} quality`}>
-      <AtlasImage src={atlasForQuality(quality)} alt="" size={20} />
+    <span className={`chrome-quality chrome-quality--${key} ${className}`.trim()} title={`${label} quality`}
+      data-testid="quality-badge" data-quality={key}>
+      <QualityMedallion quality={quality} />
       {showLabel && <span>{label}</span>}
     </span>
   );
@@ -293,7 +343,7 @@ export const ChromeSlot: React.FC<ChromeSlotProps> = ({
   } ${rarity ? `chrome-slot--${rarity}` : ""} ${className}`.trim();
 
   const handleClick = (e: React.MouseEvent<HTMLElement>) => {
-    playUiSound(soundCue);
+    playAcceptedUiDing(e.currentTarget, soundCue);
     onClick?.(e);
     onSelect?.();
   };

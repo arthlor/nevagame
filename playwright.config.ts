@@ -7,12 +7,12 @@ const useExternalServer = process.env.NEVA_E2E_EXTERNAL_SERVER === "1";
 export default defineConfig({
   testDir: "./tests/e2e",
   // These suites own separate servers and configs: the production render budget
-  // (`playwright.budget.config.ts`), deterministic visual gold
+  // and sustained-play baseline (`playwright.budget.config.ts`), deterministic visual gold
   // (`playwright.visual.config.ts`) and the DEV art benchmark
   // (`playwright.art.config.ts`). None can pass under this dev-server run.
   // `tmp*.spec.ts` are manual debug probes with no assertions; running them
   // burns minutes and can never fail.
-  testIgnore: ["render-budget.spec.ts", "visual-regression.spec.ts", "art-pipeline.spec.ts", "tmp*.spec.ts"],
+  testIgnore: ["render-budget.spec.ts", "performance-baseline.spec.ts", "visual-regression.spec.ts", "art-pipeline.spec.ts", "tmp*.spec.ts"],
   timeout: 30000,
   expect: {
     timeout: 5000

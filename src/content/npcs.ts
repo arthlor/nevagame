@@ -41,6 +41,21 @@ export interface NpcDefinition {
   }>;
 }
 
+/**
+ * Home station on the open yard west of the farmhouse porch.
+ * The old gate post (-63.5, -62) sat on the south fence. This point stays
+ * outside the house, the door apron, the well and the fence beat.
+ */
+export const ELSPETH_HOME_ANCHOR = {
+  x: -57.8,
+  z: -58.2,
+  rotationY: Math.PI,
+  locationName: "Farmhouse Yard"
+} as const;
+
+/** Frozen pocket where older saves left a player wedged in that fence. */
+export const ELSPETH_TRAPPED_ANCHOR = { x: -63.5, z: -62 } as const;
+
 export const NPCS: NpcDefinition[] = [
   {
     id: "npc.elspeth",
@@ -49,12 +64,7 @@ export const NPCS: NpcDefinition[] = [
     district: "Starter Farm & Village Edge",
     portraitIcon: "sprout",
     assetId: ASSET_IDS.CHAR_NPC_ELSPETH_B,
-    anchor: {
-      x: -63.5,
-      z: -62.0,
-      rotationY: Math.PI * 0.15,
-      locationName: "Starter Garden Gate"
-    },
+    anchor: { ...ELSPETH_HOME_ANCHOR },
     schedule: [
       { phase: "dusk", position: { x: 55.5, z: -42.5, rotationY: 1.2, locationName: "Village Inn Porch" } }
     ],
@@ -64,8 +74,8 @@ export const NPCS: NpcDefinition[] = [
       "Furrows are warm this morning. Good day to stop saying you'll do it later."
     ],
     beckonLines: [
-      "Gate. A minute. Don't make me shout across the rows.",
-      "There. Stand by the post — wind's quieter here."
+      "Yard. A minute. Don't make me shout across the rows.",
+      "There. The open ground by the house — wind's quieter here."
     ],
     recognitionDialogue: [
       {

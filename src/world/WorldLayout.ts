@@ -1589,6 +1589,12 @@ export interface RouteProjection {
 }
 
 let cachedRouteQuery: { x: number; z: number; result: RouteProjection } | null = null;
+// One terrain or surface sample asks several owners about the same point in a
+// row (the river section alone about five times). These pure queries keep
+// their last answer; results are frozen because every consumer shares them.
+let cachedRiverSection: { z: number; result: Readonly<RiverSectionProfile> } | null = null;
+let cachedMarineSample: { x: number; z: number; result: Readonly<MarineSample> } | null = null;
+let cachedCoastlineZ: { x: number; result: number } | null = null;
 
 export function pointSegmentProjection(
   x: number,
@@ -1828,6 +1834,13 @@ export class WorldLayout {
   }
 
   public static coastlineZ(x: number): number {
+    if (cachedCoastlineZ && cachedCoastlineZ.x === x) return cachedCoastlineZ.result;
+    const result = this.computeCoastlineZ(x);
+    cachedCoastlineZ = { x, result };
+    return result;
+  }
+
+  private static computeCoastlineZ(x: number): number {
     const authoredSpline = splineValue(COAST_SPLINE, x, "x");
     const broadCoves =
       bandWeight(x, 72, 7, 18) * -1.2
@@ -1881,7 +1894,16 @@ export class WorldLayout {
     return canonicalRiverCenterX(z);
   }
 
-  public static riverSectionAt(z: number): RiverSectionProfile {
+  public static riverSectionAt(z: number): Readonly<RiverSectionProfile> {
+    if (cachedRiverSection && cachedRiverSection.z === z) return cachedRiverSection.result;
+    const result = this.computeRiverSectionAt(z);
+    Object.freeze(result.tangent);
+    Object.freeze(result);
+    cachedRiverSection = { z, result };
+    return result;
+  }
+
+  private static computeRiverSectionAt(z: number): RiverSectionProfile {
     const derivativeStep = 1;
     const centerX = this.riverCenterX(z);
     const previousCenterX = this.riverCenterX(z - derivativeStep);
@@ -2145,7 +2167,18 @@ export class WorldLayout {
     return Math.max(0.000001, THREE.MathUtils.lerp(hardUnion, roundedMagnitude, estuary * 0.42));
   }
 
-  public static marineSampleAt(x: number, z: number): MarineSample {
+  public static marineSampleAt(x: number, z: number): Readonly<MarineSample> {
+    if (cachedMarineSample && cachedMarineSample.x === x && cachedMarineSample.z === z) return cachedMarineSample.result;
+    const result = this.computeMarineSampleAt(x, z);
+    Object.freeze(result.waveDirection);
+    Object.freeze(result.flowDirection);
+    Object.freeze(result.ecologyWeights);
+    Object.freeze(result);
+    cachedMarineSample = { x, z, result };
+    return result;
+  }
+
+  private static computeMarineSampleAt(x: number, z: number): MarineSample {
     const nevaDistance = this.nevaWaterSignedDistance(x, z);
     const sunreachDistance = signedDistanceToSunreachCoast(x, z);
     const isletDistance = Math.min(...OCEAN_ISLETS.map((islet) => isletShoreDistance(islet, x, z)));
@@ -2439,7 +2472,7 @@ export class WorldLayout {
   /** Authoring bounds for the timber stairs climbing from the harbor apron onto the pier deck. */
   public static isPierStairs(x: number, z: number): boolean {
     if (harborWorkingPierAt(x, z)?.stairs) return true;
-    const dock = this.landmark("dock");
+    const dock = this.dockPose();
     const angle = dock.rotationY - Math.PI / 2;
     const dx = x - dock.x, dz = z - dock.z;
     const localX = dx * Math.cos(angle) - dz * Math.sin(angle);
@@ -2456,7 +2489,7 @@ export class WorldLayout {
   /** Support follows the published planks and shore stairs; berth water stays sailable. */
   public static isPierDeck(x: number, z: number): boolean {
     if (harborWorkingPierAt(x, z)) return true;
-    const dock = this.landmark("dock");
+    const dock = this.dockPose();
     const angle = dock.rotationY - Math.PI / 2;
     const dx = x - dock.x, dz = z - dock.z;
     const onVisualPier =
@@ -2472,7 +2505,15 @@ export class WorldLayout {
   }
 
   public static isWater(x: number, z: number): boolean {
-    return this.waterSignedDistance(x, z) > 0
+    return this.isWaterWithSignedDistance(x, z, this.waterSignedDistance(x, z));
+  }
+
+  /**
+   * `isWater` for a caller that already holds `waterSignedDistance(x, z)` and
+   * also needs its wet/dry sign, so the shore distance is evaluated once.
+   */
+  public static isWaterWithSignedDistance(x: number, z: number, signedDistance: number): boolean {
+    return signedDistance > 0
       && !this.isInterior(x, z)
       && !this.isBridgeDeck(x, z)
       && !this.isBridgeApproach(x, z)
@@ -3347,7 +3388,7 @@ export class WorldLayout {
       * smoothstep(0.35, 4.8, Math.max(0, -coastDistance));
     height = THREE.MathUtils.lerp(height, 1.05, harborApronWeight);
     height = this.applyPlateau(height, x, z, 13.6, -92, 74, 7.4, 5.8, 8.5);
-    height = this.applyPlateau(height, x, z, 0.0, FARMHOUSE_INTERIOR_ORIGIN.x, FARMHOUSE_INTERIOR_ORIGIN.z, 4.5, 3.8, 2.0);
+    height = this.applyPlateau(height, x, z, 0.0, FARMHOUSE_INTERIOR_ORIGIN.x, FARMHOUSE_INTERIOR_ORIGIN.z, 5.2, 4.2, 2.0);
 
     // The bridge foundation belongs on the riverbed. The approaches rise smoothly
     // to meet the authored deck entrySurfaceY and connect flush to the banks.
@@ -3760,6 +3801,18 @@ export class WorldLayout {
       route.distance
     );
     return Math.max(0, outer, routeJunctionInfluence(x, z) * 0.45);
+  }
+
+  /**
+   * 1 in the uncut verge a little beyond a road's shoulder, where neither
+   * wheels nor feet reach and grass grows long; 0 on the road and in the open.
+   */
+  public static roadVergeInfluence(x: number, z: number): number {
+    const route = this.nearestRouteDistance(x, z);
+    const edge = route.halfWidth + route.shoulderWidthMeters;
+    return smoothstep(edge + 0.2, edge + 0.8, route.distance)
+      * (1 - smoothstep(edge + 1.8, edge + 3.4, route.distance))
+      * (1 - routeJunctionInfluence(x, z));
   }
 
   /** Full roadside envelope used to keep large cover out of the graded corridor. */
@@ -4182,40 +4235,66 @@ export class WorldLayout {
   }
 
   public static landmark(id: LandmarkId): LandmarkLayout {
-    const mill = STARTER_MILL_WORLD;
-    const farmhouse = starterFarmsteadAnchor("farmhouse")!;
-    const well = starterFarmsteadAnchor("well")!;
-    const layouts: Record<LandmarkId, Omit<LandmarkLayout, "id">> = {
-      farmhouse: { x: farmhouse.x, z: farmhouse.z, yOffset: 0, rotationY: farmhouse.rotationY, scale: farmhouse.scale },
-      well: { x: well.x, z: well.z, yOffset: 0, rotationY: well.rotationY, scale: well.scale },
-      bridge: { x: BRIDGE_CENTER.x, z: BRIDGE_CENTER.z, yOffset: BRIDGE_ROOT_Y_OFFSET, rotationY: 0, scale: 1 },
-      "fish-market": {
-        x: HARBOR_MARKET.position.x,
-        z: HARBOR_MARKET.position.z,
-        yOffset: 0,
-        rotationY: HARBOR_MARKET.rotationY,
-        scale: HARBOR_MARKET.scale
-      },
-      lighthouse: { x: -92, z: 74, yOffset: 0, rotationY: 0.08, scale: 0.58 },
-      windmill: {
-        x: mill.x,
-        z: mill.z,
-        yOffset: 0,
-        rotationY: getProcessingStationRuntimeRotationY("struct.starter_mill"),
-        scale: 0.62
-      },
-      "produce-stall": {
-        x: VILLAGE_MARKET.position.x,
-        z: VILLAGE_MARKET.position.z,
-        yOffset: 0,
-        rotationY: VILLAGE_MARKET.rotationY,
-        scale: 1
-      },
-      dock: { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z,
-        yOffset: this.terrainHeight(HARBOR_MAIN_PIER.supportDatum.x, HARBOR_MAIN_PIER.supportDatum.z) - this.terrainHeight(HARBOR_MAIN_PIER.x, HARBOR_MAIN_PIER.z),
-        rotationY: Math.PI / 2, scale: 1 }
-    };
-    return bindInteractionPose(id, { id, ...layouts[id] });
+    return bindInteractionPose(id, { id, ...this.landmarkBase(id) });
+  }
+
+  /**
+   * One landmark's authored pose, built on request. `landmark()` sits under
+   * per-sample ground, water, pier and rain-shelter queries; assembling every
+   * landmark per call evaluated the dock's terrain datum (two full terrain
+   * heights) even for callers that asked for another landmark.
+   */
+  private static landmarkBase(id: LandmarkId): Omit<LandmarkLayout, "id"> {
+    switch (id) {
+      case "farmhouse": {
+        const farmhouse = starterFarmsteadAnchor("farmhouse")!;
+        return { x: farmhouse.x, z: farmhouse.z, yOffset: 0, rotationY: farmhouse.rotationY, scale: farmhouse.scale };
+      }
+      case "well": {
+        const well = starterFarmsteadAnchor("well")!;
+        return { x: well.x, z: well.z, yOffset: 0, rotationY: well.rotationY, scale: well.scale };
+      }
+      case "bridge":
+        return { x: BRIDGE_CENTER.x, z: BRIDGE_CENTER.z, yOffset: BRIDGE_ROOT_Y_OFFSET, rotationY: 0, scale: 1 };
+      case "fish-market":
+        return {
+          x: HARBOR_MARKET.position.x,
+          z: HARBOR_MARKET.position.z,
+          yOffset: 0,
+          rotationY: HARBOR_MARKET.rotationY,
+          scale: HARBOR_MARKET.scale
+        };
+      case "lighthouse":
+        return { x: -92, z: 74, yOffset: 0, rotationY: 0.08, scale: 0.58 };
+      case "windmill":
+        return {
+          x: STARTER_MILL_WORLD.x,
+          z: STARTER_MILL_WORLD.z,
+          yOffset: 0,
+          rotationY: getProcessingStationRuntimeRotationY("struct.starter_mill"),
+          scale: 0.62
+        };
+      case "produce-stall":
+        return {
+          x: VILLAGE_MARKET.position.x,
+          z: VILLAGE_MARKET.position.z,
+          yOffset: 0,
+          rotationY: VILLAGE_MARKET.rotationY,
+          scale: 1
+        };
+      case "dock":
+        return { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z,
+          yOffset: this.terrainHeight(HARBOR_MAIN_PIER.supportDatum.x, HARBOR_MAIN_PIER.supportDatum.z) - this.terrainHeight(HARBOR_MAIN_PIER.x, HARBOR_MAIN_PIER.z),
+          rotationY: Math.PI / 2, scale: 1 };
+    }
+  }
+
+  /**
+   * The dock's placement without its deck datum: the same bound x/z/rotation
+   * as `landmark("dock")`, for footprint tests that never read `yOffset`.
+   */
+  private static dockPose(): { x: number; z: number; rotationY: number } {
+    return bindInteractionPose("dock", { x: HARBOR_MAIN_PIER.x, z: HARBOR_MAIN_PIER.z, rotationY: Math.PI / 2 });
   }
 
   private static buildTerrainHeightfield(
@@ -4465,6 +4544,16 @@ export class WorldLayout {
     return runCooperatively(this.terrainGeometrySteps(patchId), signal, onProgress);
   }
 
+  /** The terrain patch build as resumable steps, for a caller that schedules it itself (a worker). */
+  public static terrainGeometryWork(patchId: WorldTerrainPatchDefinition["id"]): Generator<void, THREE.BufferGeometry, void> {
+    return this.terrainGeometrySteps(patchId);
+  }
+
+  /** The road overlay build as resumable steps; see `terrainGeometryWork`. */
+  public static pathGeometryWork(): Generator<void, THREE.BufferGeometry, void> {
+    return this.pathGeometryTemplateSteps();
+  }
+
   private static *terrainGeometrySteps(
     patchId: WorldTerrainPatchDefinition["id"]
   ): Generator<void, THREE.BufferGeometry, void> {
@@ -4502,6 +4591,7 @@ export class WorldLayout {
     const indexedColors = new Float32Array(indexedPositions.count * 3);
     const indexedTerrainGreenMask = new Uint8Array(indexedPositions.count);
     const indexedTerrainPathBlend = new Uint8Array(indexedPositions.count);
+    const indexedTerrainRoadVerge = new Uint8Array(indexedPositions.count);
     const indexedTerrainShoreWeights = new Uint8Array(indexedPositions.count * 3);
     const indexedFaceting = new Float32Array(indexedPositions.count);
     const indexedDryClimate = new Uint8Array(indexedPositions.count);
@@ -4626,6 +4716,7 @@ export class WorldLayout {
       // Byte-normalized: 1/255 is finer than any visible blend step and the
       // terrain mesh carries close to a million vertices.
       indexedTerrainPathBlend[index] = Math.round(clamp01(this.pathInfluence(x, z)) * 255);
+      indexedTerrainRoadVerge[index] = Math.round(this.roadVergeInfluence(x, z) * 255);
       indexedTerrainShoreWeights.set(
         [
           Math.round(clamp01(weights.beach) * 255),
@@ -4664,6 +4755,7 @@ export class WorldLayout {
       "terrainPathBlend",
       new THREE.Uint8BufferAttribute(indexedTerrainPathBlend, 1, true)
     );
+    indexed.setAttribute("terrainRoadVerge", new THREE.Uint8BufferAttribute(indexedTerrainRoadVerge, 1, true));
     indexed.setAttribute(
       "terrainShoreWeights",
       new THREE.Uint8BufferAttribute(indexedTerrainShoreWeights, 3, true)

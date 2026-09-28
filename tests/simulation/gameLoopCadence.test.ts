@@ -105,6 +105,9 @@ describe("game loop cadence", () => {
   it("rests until 08:00 from the farmhouse at night without auto-harvest", () => {
     const sim = new Simulation();
     commitPlayerPose(sim, STARTER_FARM_LAYOUT.origin.x, STARTER_FARM_LAYOUT.origin.z);
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 1 }
+    ]);
     expect(sim.plantCrop("farm.starter_garden", "crop.wheat", STARTER_FARM_LAYOUT.origin.x, STARTER_FARM_LAYOUT.origin.z).success).toBe(true);
     const cropId = Object.keys(sim.state.crops)[0];
 
@@ -223,6 +226,9 @@ describe("game loop cadence", () => {
     const sim = new Simulation();
     sim.state.player.money = 200;
     commitPlayerPose(sim, STARTER_FARM_LAYOUT.origin.x, STARTER_FARM_LAYOUT.origin.z);
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 4 }
+    ]);
     expect(sim.plantCrop(
       "farm.starter_garden",
       "crop.wheat",

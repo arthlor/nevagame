@@ -154,7 +154,7 @@ const MAP_LABEL_OFFSETS: Record<string, { x: number; y: number; textAnchor: "sta
 };
 
 const MAP_QUEST_LABEL_OFFSETS: Record<string, { x: number; y: number; textAnchor: "start" | "middle" | "end" }> = {
-  "Starter Garden Gate": { x: -115, y: 34, textAnchor: "start" }
+  "Farmhouse Yard": { x: -115, y: 34, textAnchor: "start" }
 };
 
 function mapLabelPosition(nodeId: string, x: number, y: number, offsetScale = 1): { x: number; y: number; textAnchor: "start" | "middle" | "end" } {

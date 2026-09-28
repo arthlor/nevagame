@@ -255,7 +255,7 @@ export const HUD: React.FC<HUDProps> = ({
             </aside>
           )}
 
-          {chronicleEntries && chronicleEntries.length > 0 && onSelectChronicleFilter && (
+          {chronicleEntries && onSelectChronicleFilter && (
             <CoastalChronicle
               entries={chronicleEntries}
               activeFilter={chronicleFilter}

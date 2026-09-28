@@ -62,13 +62,10 @@ export function createInitialGameState(worldSeed: number = NEW_GAME_WORLD_SEED):
   const starterDonkey = createStarterDonkeyState();
 
   const playerInventory = InventoryManager.createInventory("inv.player", PLAYER_SATCHEL_SLOT_COUNT);
-  // Give starter supplies
+  // No starter seeds. Elspeth, Barnaby and the later quest speakers hand over
+  // the seeds their planting steps require. No bait worms either: Act 2's
+  // compost lesson is the player's first bait.
   InventoryManager.addItemsAtomically(playerInventory, [
-    { itemId: "seed.wheat", quantity: 10 },
-    { itemId: "seed.tomato", quantity: 6 },
-    { itemId: "seed.potato", quantity: 6 },
-    // No bait worms: Act 2's compost lesson is the player's first bait, and
-    // handing them a stack up front makes that lesson skippable.
     { itemId: "item.compost_starter", quantity: 2 },
     { itemId: "item.plant_matter", quantity: 8 }
   ]);

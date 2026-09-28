@@ -931,6 +931,10 @@ export interface VisualRenderConfig {
       splashSizeWater: number;
       streakOpacity: number;
       splashOpacity: number;
+      /** A drop re-queries terrain once it is this close above its last sample… */
+      groundRecheckHeight: number;
+      /** …or once it has drifted this far from where that sample was taken. */
+      groundRecheckDrift: number;
     };
   };
   fog: {
@@ -1086,6 +1090,8 @@ export interface VisualRenderConfig {
       /** Static lean as a share of blade height. */
       leanRange: readonly [number, number];
       dryHeightScale: number;
+      /** Tall-meadow share in the uncut verge just beyond a road's shoulder (`terrainRoadVerge`). */
+      roadVergeTallShare: number;
       /** Low-growth density/height scales and shared terrain/blade value range. */
       patchResponse: readonly [number, number, number, number];
       /** Base value at the root; bases stay subdued without dark strokes. */
@@ -1905,7 +1911,9 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       splashSizeTerrain: 0.18,
       splashSizeWater: 0.24,
       streakOpacity: 0.26,
-      splashOpacity: 0.36
+      splashOpacity: 0.36,
+      groundRecheckHeight: 2,
+      groundRecheckDrift: 0.6
     }
   },
   fog: {
@@ -2001,6 +2009,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       farWidthScale: 2,
       leanRange: [0.16, 0.5],
       dryHeightScale: 0.62,
+      roadVergeTallShare: 0.7,
       patchResponse: [0.72, 0.58, 0.84, 1.16],
       rootShade: 0.66,
       normalUp: 0.62,

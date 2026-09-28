@@ -135,6 +135,34 @@ describe("mainland village economy", () => {
     expect(sim.execute({ type: "quest.talk-npc", npcId: "npc.rowan" })).toMatchObject({ success: true, questCompleted: true });
     expect(progress.activeQuestId).toBe("quest.tradelanes_reedhaven");
   });
+
+  it("advances a Pinewatch wheat sale once, by the eligible quantity only", () => {
+    const sim = new Simulation();
+    const progress = questTrackProgress(sim.state.quests, TRADELANES_QUEST_TRACK_ID);
+    Object.assign(progress, { activeQuestId: "quest.tradelanes_pinewatch", activeStepIndex: 1, stepProgress: {} });
+    const inventory = sim.state.inventories[sim.state.player.inventoryId];
+    InventoryManager.addItemsAtomically(inventory, [
+      { itemId: "produce.wheat", quantity: 20 },
+      { itemId: "produce.potato", quantity: 2 }
+    ]);
+    atMarket(sim, "market.village");
+    expect(sim.sellItemAtMarket("market.village", "produce.wheat", 4).success).toBe(true);
+    expect(progress.stepProgress).toEqual({});
+    atMarket(sim, "market.pinewatch");
+    expect(sim.sellItemAtMarket("market.pinewatch", "produce.potato", 1).success).toBe(true);
+    expect(progress.stepProgress).toEqual({});
+    expect(sim.sellItemAtMarket("market.pinewatch", "produce.wheat", 3).success).toBe(true);
+    expect(progress.stepProgress["step.tradelanes_pinewatch_wheat"]).toBe(3);
+    expect(sim.sellItemAtMarket("market.pinewatch", "produce.wheat", 100).success).toBe(false);
+    expect(progress.stepProgress["step.tradelanes_pinewatch_wheat"]).toBe(3);
+    expect(sim.sellItemAtMarket("market.pinewatch", "produce.wheat", 8).success).toBe(true);
+    expect(progress.stepProgress["step.tradelanes_pinewatch_wheat"]).toBe(8);
+    expect(sim.sellItemAtMarket("market.pinewatch", "produce.wheat", 1).success).toBe(true);
+    expect(progress.stepProgress["step.tradelanes_pinewatch_wheat"]).toBe(8);
+    const dto = sim.questDomain.getActiveQuestDto(TRADELANES_QUEST_TRACK_ID);
+    expect(dto?.objectiveDescription).toBe("Talk to Rowan to continue");
+    expect(dto?.targetFarmId).toBeUndefined();
+  });
   it("keeps the two-pack carriage delivery, return supplies and commission coherent across reload", () => {
     let sim = new Simulation();
     const cart = sim.state.mounts[STARTER_CARRIAGE_ID];

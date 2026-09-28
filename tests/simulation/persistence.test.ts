@@ -12,6 +12,8 @@ import {
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import type { GameState } from "../../src/simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
+import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
+import { WORK_CAPACITY_MAXIMUM, WORK_REST_BASELINE_FRACTION } from "../../src/simulation/domains/ProgressionDomain";
 import { STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
@@ -774,6 +776,9 @@ describe("Persistence & Offline Progression", () => {
     const sim = new Simulation();
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 1 }
+    ]);
     sim.plantCrop(
       "farm.starter_garden",
       "crop.wheat",
@@ -809,7 +814,9 @@ describe("Persistence & Offline Progression", () => {
     applyOfflineProgression(sim.state, now);
 
     // Work is earned, not regenerated: one wake grants the 40% baseline floor.
-    expect(sim.state.player.workCapacity.current).toBe(200);
+    expect(sim.state.player.workCapacity.current).toBe(
+      Math.round(WORK_CAPACITY_MAXIMUM * WORK_REST_BASELINE_FRACTION)
+    );
   });
 
   it("advances offline markets hour by hour without supply overshooting its target", () => {
@@ -1019,8 +1026,8 @@ describe("Persistence & Offline Progression", () => {
 
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.player.money).toBe(512);
-    expect(migrated.state.player.workCapacity.maximum).toBe(500);
-    expect(migrated.state.player.workCapacity.current).toBe(250); // 20/40 of 500
+    expect(migrated.state.player.workCapacity.maximum).toBe(750);
+    expect(migrated.state.player.workCapacity.current).toBe(250); // 20/40 of the frozen v21 ceiling, not refilled
     expect(migrated.state.player.workCapacity.regeneratedAtMinute).toBe(123);
     expect(validateSaveEnvelope(migrated)).toBe(true);
   });
@@ -1736,7 +1743,15 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.player).toEqual({
       ...preserved.player,
       y: WorldLayout.traversalSurfaceHeight(preserved.player.x, preserved.player.z) + 0.5,
-      traversal: { ...preserved.player.traversal, isGrounded: true }
+      traversal: { ...preserved.player.traversal, isGrounded: true },
+      // v43 freezes the pool at 500, then v72 raises the ceiling without refilling.
+      workCapacity: {
+        ...preserved.player.workCapacity,
+        current: Math.round(
+          (preserved.player.workCapacity.current / preserved.player.workCapacity.maximum) * 500
+        ),
+        maximum: WORK_CAPACITY_MAXIMUM
+      }
     });
     expect(migrated.state.boats).toMatchObject(preserved.boats);
     expect(migrated.state.mounts).toEqual(Object.fromEntries(Object.entries(preserved.mounts).map(([id, mount]) => [

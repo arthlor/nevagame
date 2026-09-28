@@ -12,8 +12,8 @@ import { equipmentWorkMultiplier } from "../equipment/EquipmentEffects";
  * regenerates nothing: the pool is earned by resting, eating provisions and
  * working skill minigames, bounded by a daily earn cap.
  */
-/** Canonical Work pool ceiling — one day's labor. Legacy saves are rescaled on load. */
-export const WORK_CAPACITY_MAXIMUM = 500;
+/** Canonical Work pool ceiling. Saves below this ceiling are raised without refilling current. */
+export const WORK_CAPACITY_MAXIMUM = 750;
 /** Maximum Work a player can earn from meals, labor and skill in one day. */
 export const WORK_DAILY_EARN_CAP = 300;
 /** A night's rest restores this share of the ceiling, plus a baseline floor. */

@@ -410,8 +410,38 @@ function mainlandRouteLandmarks(): EnvironmentAssetPlacement[] {
       : biome === "biome.reed_marsh" ? "prop_lobster_trap_a" : "prop_fallen_log_a";
     placements.push(authored(`passing.${key}.rest`, rest, x, z, facing + Math.PI * 0.5));
   }
+  // Milestones mark each measured stage of a cart road from where it starts,
+  // on the verge with their carved face to the road, clear of forks, culverts,
+  // passing places and water.
+  const culverts = mainlandBrookRoadCrossings();
+  for (const route of routes) {
+    if (!route.route.id.startsWith("mainland-") || route.route.kind !== "arterial") continue;
+    for (let stage = MILESTONE_SPACING_METERS; stage < route.totalLength - 30; stage += MILESTONE_SPACING_METERS) {
+      // The stone stands at the stage, or as near it as the verge allows.
+      search: for (const shift of [0, 15, -15, 30, -30, 45, -45]) {
+        const sample = route.samples.find(candidate => candidate.distanceAlongRoute >= stage + shift);
+        if (!sample) continue;
+        const clear = (point: { x: number; z: number }) => Math.hypot(point.x - sample.point.x, point.z - sample.point.z) > 25;
+        if (!WorldLayout.routeJunctions().every(junction => clear(junction.center)) || !culverts.every(crossing => clear(crossing.point))) continue;
+        for (const side of [-1, 1]) {
+          const setback = route.halfWidth + route.shoulderWidthMeters + 0.9;
+          const x = sample.point.x + sample.normal.x * setback * side;
+          const z = sample.point.z + sample.normal.z * setback * side;
+          const nearest = WorldLayout.nearestRouteDistance(x, z);
+          if (!inMainlandDressingArea(x, z) || WorldLayout.isWater(x, z) || !workingSpaceIsClear(x, z, 1.5)
+            || nearest.distance < nearest.halfWidth + nearest.shoulderWidthMeters + 0.5 || WorldLayout.terrainNormalY(x, z) < 0.9) continue;
+          placements.push(authored(`milestone.${route.route.id}.${Math.round(stage)}`, "prop_milestone_a", x, z,
+            Math.atan2(-sample.normal.x * side, -sample.normal.z * side)));
+          break search;
+        }
+      }
+    }
+  }
   return placements;
 }
+
+/** A cart road's milestones stand this far apart, measured from where it starts. */
+const MILESTONE_SPACING_METERS = 250;
 
 interface ScatterSpec {
   key: string;

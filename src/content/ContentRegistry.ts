@@ -32,7 +32,7 @@ import { CONTRACT_TAG_PREFIX, CONTRACT_TEMPLATES, CONTRACT_TYPES } from "./contr
 import { NPCS } from "./npcs";
 import { QUESTS } from "./quests";
 import { QUEST_TRACKS } from "./questTracks";
-import { MAIN_QUEST_TRACK_ID, QUEST_OBJECTIVE_TYPES, type QuestTrackDefinition } from "../simulation/core/QuestTypes";
+import { QUEST_OBJECTIVE_TYPES, type QuestTrackDefinition } from "../simulation/core/QuestTypes";
 import { KNOWLEDGE_ENTRIES, type KnowledgeEntryDefinition } from "./knowledge";
 import { WORLD_FARM_DEFINITIONS, WORLD_STATION_DEFINITIONS } from "../world/WorldGameplayLocations";
 import { FISHING_ECOLOGY_DEFINITIONS } from "../world/WorldIslands";
@@ -396,9 +396,6 @@ export class ContentRegistry {
           }
           if (!objective.location) {
             throw new Error(`Quest '${quest.id}' objective '${objective.id}' must declare a location to credit early actions`);
-          }
-          if (quest.trackId !== MAIN_QUEST_TRACK_ID) {
-            throw new Error(`Quest '${quest.id}' objective '${objective.id}' may only credit early actions on the main track`);
           }
         }
 

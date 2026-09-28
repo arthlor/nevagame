@@ -63,7 +63,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
     prevPhaseRef.current = phase;
     if (phase === "bite-reaction") playUiSound("confirm");
     if (phase === "caught") playUiSound("chime");
-    if (phase === "escaped") playUiSound("click");
+    if (phase === "escaped") playUiSound("error");
   }, [phase]);
 
   useEffect(() => {

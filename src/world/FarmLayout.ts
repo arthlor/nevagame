@@ -432,6 +432,66 @@ export function findFarmIdAtWorld(x: number, z: number, padding: number = 0.5): 
   return null;
 }
 
+/** The farm whose plantable soil contains this point. Yards, paths and the wider bounds do not count. */
+export function findPlantableFarmAtWorld(x: number, z: number): string | null {
+  for (const layout of Object.values(FARM_LAYOUTS)) {
+    const local = worldToFarmLocal(layout.farmId, { x, z });
+    if (isPlantableFarmSurface(layout.farmId, local)) return layout.farmId;
+  }
+  return null;
+}
+
+/** World-space plantable soil. Paths, buildings and the wider farm bounds are excluded. */
+export function farmPlantableWorldAreas(farmId: string): FarmRect[] {
+  const layout = getFarmLayout(farmId);
+  if (!layout) return [];
+  const origin = layout.origin;
+  return layout.plantableAreas.map((area) => ({
+    minX: origin.x + area.minX,
+    maxX: origin.x + area.maxX,
+    minZ: origin.z + area.minZ,
+    maxZ: origin.z + area.maxZ
+  }));
+}
+
+export function farmPlantableCentroid(farmId: string): FarmPoint | null {
+  const areas = farmPlantableWorldAreas(farmId);
+  if (areas.length === 0) return null;
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  for (const area of areas) {
+    minX = Math.min(minX, area.minX);
+    maxX = Math.max(maxX, area.maxX);
+    minZ = Math.min(minZ, area.minZ);
+    maxZ = Math.max(maxZ, area.maxZ);
+  }
+  return { x: (minX + maxX) / 2, z: (minZ + maxZ) / 2 };
+}
+
+/** Distance from a world point to the nearest plantable soil, and that soil point. */
+export function distanceToPlantableSoil(
+  farmId: string,
+  world: FarmPoint
+): { distance: number; point: FarmPoint } | null {
+  const layout = getFarmLayout(farmId);
+  if (!layout || layout.plantableAreas.length === 0) return null;
+  const local = worldToFarmLocal(farmId, world);
+  let best = Number.POSITIVE_INFINITY;
+  let bestLocal = local;
+  for (const area of layout.plantableAreas) {
+    const x = Math.max(area.minX, Math.min(area.maxX, local.x));
+    const z = Math.max(area.minZ, Math.min(area.maxZ, local.z));
+    const distance = Math.hypot(local.x - x, local.z - z);
+    if (distance < best) {
+      best = distance;
+      bestLocal = { x, z };
+    }
+  }
+  return { distance: best, point: farmLocalToWorld(farmId, bestLocal) };
+}
+
 export function isPlantableFarmSurface(farmId: string, localPoint: FarmPoint): boolean {
   const layout = getFarmLayout(farmId);
   return Boolean(layout?.plantableAreas.some((area) => isPointInsideRect(localPoint, area, 0.0001)));

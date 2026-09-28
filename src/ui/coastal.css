@@ -905,6 +905,20 @@
   pointer-events: auto;
 }
 
+#ui-container .screen-transition-caption {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin: 0;
+  color: #f4ecd9;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
 #ui-container h1,
 #ui-container h2,
 #ui-container h3,
@@ -1762,8 +1776,9 @@
 #ui-container .tidebook-work-value, #ui-container .tidebook-winded { position: absolute; right: 0; color: var(--tidebook-muted); font: 10px var(--font-sans); font-variant-numeric: tabular-nums; }
 #ui-container .tidebook-status-effects { position: absolute; left: 45px; bottom: calc(100% + 10px); display: flex; flex-wrap: wrap; gap: 8px; font: 10px var(--font-sans); color: var(--tidebook-muted); }
 #ui-container .tidebook-status-effect { display: inline-flex; align-items: center; gap: 3px; }
-#ui-container .tidebook-hud .coastal-chronicle { position: relative !important; inset: auto !important; margin-bottom: -6px; margin-left: 0; max-width: 100%; background: rgba(28,25,21,.9) !important; }
+#ui-container .tidebook-hud .coastal-chronicle { position: relative !important; inset: auto !important; margin-bottom: -6px; margin-left: 0; max-width: 100%; background: transparent !important; pointer-events: none !important; }
 #ui-container .tidebook-hud .coastal-chronicle.is-collapsed { background: transparent !important; }
+#ui-container .tidebook-hud .coastal-chronicle :is(button, [role="tab"], .chronicle-feed) { pointer-events: auto !important; }
 #ui-container .tidebook-hud .chronicle-toggle { color: var(--tidebook-muted); font-size: 9px; }
 #ui-container .tidebook-hud .hud-play-cluster { bottom: max(24px, env(safe-area-inset-bottom)) !important; max-width: none; gap: 8px; }
 #ui-container .tidebook-tool-belt { position: relative; display: block; width: calc(5 * var(--tidebook-tool-width) + 16px); padding: 0; background: none; border: 0; }
@@ -14236,3 +14251,13 @@
     }
   }
 }
+
+/* An item with no atlas cell yet shows a neutral bundle, never another item's icon. */
+#ui-container .slot-item-icon--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mm-text-gold, #e8c77a);
+  opacity: 0.85;
+}
+

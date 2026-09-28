@@ -1,4 +1,5 @@
-import { distance2d, type DomainContext } from "./DomainContext";
+import type { DomainContext } from "./DomainContext";
+import { assessInteractionReach } from "../../world/InteractionReach";
 import type { ProgressionDomain } from "./ProgressionDomain";
 import { LABOR_STATIONS, laborStationAt } from "../labor/LaborStations";
 import type { InteractionResult, LaborHudDto, LaborStationDto } from "../core/contracts";
@@ -93,8 +94,12 @@ export class LaborDomain {
     if (player.activeBoatId || player.activeMountId) {
       return { success: false, reason: "Dismount before working here" };
     }
-    if (distance2d(player, station.position) > station.reachMeters) {
-      return { success: false, reason: "Step closer to work here" };
+    const approach = assessInteractionReach(player, station.position, station.reachMeters);
+    if (!approach.ok) {
+      return {
+        success: false,
+        reason: approach.failure === "wrong-level" ? "That work is on another level" : "Step closer to work here"
+      };
     }
     if (this.progression.hasWorkedLaborStation(stationId)) {
       return { success: false, reason: "You have already done that work today" };
@@ -123,8 +128,14 @@ export class LaborDomain {
     }
     // A shift does not freeze the player in place; a strike from out of reach
     // abandons the swing rather than crediting it.
-    if (distance2d(this.context.state.player, station.position) > station.reachMeters) {
-      return { success: false, reason: "You stepped away from the work" };
+    const approach = assessInteractionReach(this.context.state.player, station.position, station.reachMeters);
+    if (!approach.ok) {
+      return {
+        success: false,
+        reason: approach.failure === "wrong-level"
+          ? "That work is on another level"
+          : "You stepped away from the work"
+      };
     }
     const center = (station.targetMin + station.targetMax) / 2;
     const halfBand = (station.targetMax - station.targetMin) / 2;

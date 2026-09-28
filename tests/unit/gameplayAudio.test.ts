@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { gameAudio } from "../../src/audio/AudioManager";
-import { bindDomainAudio, syncWorldAudio } from "../../src/audio/gameplayAudio";
+import { bindDomainAudio, READY_CUE_GROUP_MS, syncWorldAudio } from "../../src/audio/gameplayAudio";
 import { EventBus } from "../../src/simulation/core/EventBus";
 
 const position = { x: 0, y: 0.5, z: 0 };
@@ -53,5 +53,27 @@ describe("gameplay audio adapters", () => {
     unsubscribe();
 
     expect(playBank).toHaveBeenCalledExactlyOnceWith("donkey-snort", position);
+  });
+
+  it("chimes once for ready cycles that land together and again for a later cycle", () => {
+    const playOneShot = vi.spyOn(gameAudio, "playOneShot").mockImplementation(() => {});
+    let now = 10_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const events = new EventBus();
+    const unsubscribe = bindDomainAudio(events, () => position);
+    const mature = (placedCropId: string) =>
+      events.emit("CropStageChanged", { placedCropId, cropId: "crop.wheat", stage: "mature", minute: 1 });
+
+    events.emit("CropStageChanged", { placedCropId: "a", cropId: "crop.wheat", stage: "growing", minute: 1 });
+    expect(playOneShot).not.toHaveBeenCalled();
+    mature("a");
+    mature("b");
+    events.emit("ProcessingJobReady", { jobId: "job", recipeId: "recipe.compost", stationId: "struct.compost", minute: 1 });
+    expect(playOneShot).toHaveBeenCalledExactlyOnceWith("craft-ready", undefined);
+
+    now += READY_CUE_GROUP_MS + 1;
+    mature("c");
+    expect(playOneShot).toHaveBeenCalledTimes(2);
+    unsubscribe();
   });
 });

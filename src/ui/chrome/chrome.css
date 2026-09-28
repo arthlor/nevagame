@@ -1748,3 +1748,9 @@ kbd,
     grid-template-columns: 1fr;
   }
 }
+
+/* Quality is a medallion over the item's own icon; pips carry the tier. */
+.chrome-quality-medallion {
+  flex: none;
+  filter: drop-shadow(0 1px 0 rgba(20, 12, 4, 0.55));
+}

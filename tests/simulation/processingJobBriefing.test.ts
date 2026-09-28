@@ -3,6 +3,7 @@ import { Simulation } from "../../src/simulation/Simulation";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { formatClockTime, formatGameDuration } from "../../src/simulation/core/GameClock";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
+import { WorldLayout } from "../../src/world/WorldLayout";
 
 function movePlayerToProcessingFront(simulation: Simulation, stationId: string): void {
   const station = simulation.state.world.structures[stationId];
@@ -10,6 +11,7 @@ function movePlayerToProcessingFront(simulation: Simulation, stationId: string):
   if (!front) throw new Error(`Missing processing front for ${stationId}`);
   simulation.state.player.x = front.x;
   simulation.state.player.z = front.z;
+  simulation.state.player.y = WorldLayout.traversalSurfaceHeight(front.x, front.z) + 0.5;
 }
 
 describe("formatGameDuration / formatClockTime", () => {

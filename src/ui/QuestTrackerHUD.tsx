@@ -7,6 +7,7 @@ import { GuildcraftArt } from "./hud/GuildcraftArt";
 import { playUiSound } from "./audio/uiAudio";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
 
+import { formatQuestObjective, questProgressNote } from "../simulation/presentation/QuestObjectiveCopy";
 import { localizeCatalogText } from "../i18n/catalogNames";
 import { placeLabel } from "../i18n/placesTr";
 import { useTranslation } from "../i18n/useTranslation";
@@ -71,11 +72,13 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
   const activeQuestTitle = (isTr && locActiveQuest?.questTitle && locActiveQuest.questTitle !== activeQuest?.questId)
     ? locActiveQuest.questTitle
     : activeQuest?.questTitle ?? "";
-  const activeObjectivesList = locActiveQuest?.objectives ? Object.values(locActiveQuest.objectives) : [];
-  const currentStepObj = activeQuest ? activeObjectivesList[activeQuest.currentStepIndex] : undefined;
-  const activeObjectiveText = (isTr && currentStepObj)
-    ? (typeof currentStepObj === "string" ? currentStepObj : currentStepObj?.description ?? activeQuest?.objectiveDescription ?? "")
+  const objectiveLocale = isTr ? "tr" : "en";
+  const activeObjectiveText = activeQuest?.objectiveFacts
+    ? formatQuestObjective(activeQuest.objectiveFacts, objectiveLocale)
     : activeQuest?.objectiveDescription ?? "";
+  const progressNote = activeQuest?.objectiveFacts
+    ? questProgressNote(activeQuest.objectiveFacts, objectiveLocale)
+    : undefined;
 
   return (
     <div
@@ -161,6 +164,14 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
 
           {!questCollapsed && (
             <div className="quest-tracker-content" id="quest-tracker-details" role={showThreadPicker ? "tabpanel" : undefined} aria-label={showThreadPicker ? (isTr ? "Aktif görev kolu" : "Active quest thread") : undefined}>
+              {activeQuest.completedSteps && activeQuest.completedSteps.length > 0 && (
+                <ul className="quest-completed-steps" aria-label={isTr ? "Tamamlanan adımlar" : "Completed steps"}>
+                  {activeQuest.completedSteps.map((step, index) => (
+                    <li key={`${step.action}-${index}`}>{formatQuestObjective(step, objectiveLocale)}</li>
+                  ))}
+                </ul>
+              )}
+              {progressNote && <p className="quest-progress-note">{progressNote}</p>}
               {activeQuest.targetQuantity > 1 && !activeQuest.isQuestReadyToTurnIn && (
                 <div className="quest-progress-wrap">
                   <Meter

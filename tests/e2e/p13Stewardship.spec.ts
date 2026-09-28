@@ -14,6 +14,9 @@ async function seedOldEpilogueSave(page: Page): Promise<void> {
   const simulation = new Simulation();
   simulation.state.player.x = STARTER_FARM_LAYOUT.origin.x;
   simulation.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+  InventoryManager.addItemsAtomically(simulation.state.inventories[simulation.state.player.inventoryId], [
+    { itemId: "seed.wheat", quantity: 1 }
+  ]);
   expect(simulation.plantCrop(
     "farm.starter_garden",
     "crop.wheat",

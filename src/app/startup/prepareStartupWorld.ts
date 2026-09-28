@@ -25,6 +25,9 @@ export async function prepareStartupWorld({ attempt, state, scene, onState }: St
   // Rapier's WASM compiles while the world prepares; physics creation below awaits the same load.
   PhysicsWorld.loadRuntime().catch(() => undefined);
   scene.setStationPlacements(state.world.structures);
+  // Terrain and road geometry depend on neither the layout nor the models, so
+  // workers build them while those arrive; the world stage adopts the results.
+  scene.beginWorldGeometry(attempt.signal);
   onState({ phase: "layout", message: "Preparing the coast", subMessage: "Preparing paths and places" });
   // The layout stage waits on the baked layout, so its download starts before the model transfers.
   prefetchEnvironmentLayoutBake(state.worldSeed, attempt.signal);

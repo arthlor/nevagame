@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
 import type { GameCommand } from "../../src/simulation/core/contracts";
 import { farmLocalToWorld } from "../../src/world/FarmLayout";
+import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 
 function carryingFishWithCrop(): { sim: Simulation; cropId: string } {
   const sim = new Simulation();
   const position = farmLocalToWorld("farm.starter_garden", { x: 0, z: 0 });
   Object.assign(sim.state.player, position);
+  InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+    { itemId: "seed.wheat", quantity: 1 }
+  ]);
   const planted = sim.plantCrop("farm.starter_garden", "crop.wheat", position.x, position.z);
   expect(planted.success).toBe(true);
   const cropId = planted.placedCropId!;

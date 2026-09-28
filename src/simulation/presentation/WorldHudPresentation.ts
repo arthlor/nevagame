@@ -8,7 +8,7 @@ import { resolveCargoHasIce } from "../fishing/calculateFreshness";
 import { freshnessTone } from "../fishing/freshnessBands";
 import { PLAYER_TRAVERSAL_TUNING, carriedLoadPenaltyPercent } from "../navigation/PlayerTraversal";
 import { isCarriage } from "../mounts/Carriage";
-import { MOUNT_TUNING } from "../mounts/Mounts";
+import { MOUNT_TUNING, STARTER_DONKEY_ID } from "../mounts/Mounts";
 import type {
   CompassMarkerDto,
   ContextualHotbarSlotDto,
@@ -595,6 +595,8 @@ export function buildWorldHudDto(
           label: isCarriage(activeMount) ? "Trot" : "Gallop"
         }
       : null,
+    canCallDonkey: Boolean(state.mounts[STARTER_DONKEY_ID]) && !player.activeMountId && !player.activeBoatId &&
+      !state.basicFishing && !state.sportFishing,
     equippedRodId: player.equippedRodId,
     carriedFish: carriedFishState ? buildCargoPresentation(carriedFishState) : null,
     boat: boatDto,

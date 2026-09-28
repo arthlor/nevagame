@@ -19,14 +19,20 @@ export type UiSoundCue =
 
 /**
  * Presentation-only UI sound dispatcher.
- * Safely plays audio cues for UI interactions.
+ * Hover is silent. A click ding plays once per turn so a nested control
+ * cannot stack the same tap. Completion cues stay on their own path.
  */
+let clickDingQueued = false;
+
 export function playUiSound(cue: UiSoundCue | string): void {
+  if (cue === "hover") return;
+  if (cue === "click") {
+    if (clickDingQueued) return;
+    clickDingQueued = true;
+    queueMicrotask(() => { clickDingQueued = false; });
+  }
   try {
     switch (cue) {
-      case "hover":
-        gameAudio.playOneShot("ui-hover");
-        break;
       case "click":
         gameAudio.playOneShot("ui-click");
         break;
@@ -86,20 +92,11 @@ export function playNoticeSound(tone: NoticeTone): void {
   if (cue) playUiSound(cue);
 }
 
-/** Delegated hover/focus cue survives React updates without per-control handlers. */
-export function bindUiHoverAudio(root: HTMLElement): () => void {
-  let lastAt = -Infinity;
-  const hover = (event: Event) => {
-    const target = event.target instanceof Element ? event.target.closest("button, a[href], [role=button]") : null;
-    if (!target || target.matches(":disabled, [aria-disabled=true]")) return;
-    const related = (event as PointerEvent).relatedTarget;
-    if (related instanceof Node && target.contains(related)) return;
-    const now = performance.now();
-    if (now - lastAt < 120) return;
-    lastAt = now;
-    playUiSound("hover");
-  };
-  root.addEventListener("pointerover", hover);
-  root.addEventListener("focusin", hover);
-  return () => { root.removeEventListener("pointerover", hover); root.removeEventListener("focusin", hover); };
+/** Plays an activation cue only when the control itself accepted the gesture. */
+export function playAcceptedUiDing(target: EventTarget | null, cue: UiSoundCue | string = "click"): void {
+  const closest = target && typeof (target as { closest?: unknown }).closest === "function"
+    ? (target as Element).closest.bind(target as Element)
+    : null;
+  if (closest?.(":disabled, [aria-disabled='true']")) return;
+  playUiSound(cue);
 }

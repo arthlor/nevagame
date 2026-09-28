@@ -24,9 +24,11 @@ import type {
   InteractionResult,
   ProcessingJobInspectionDto,
   ProcessingRecipeRowDto,
-  ProcessingStationDto
+  ProcessingStationDto,
+  WorkshopStatusDto
 } from "../core/contracts";
 import { formatClockTime, formatGameDuration } from "../core/GameClock";
+import { interactionVerticalGap, INTERACTION_VERTICAL_BAND_METERS } from "../../world/InteractionReach";
 import { InventoryManager } from "../inventory/InventoryManager";
 import { PLAYER_SATCHEL_SLOT_COUNT } from "../inventory/InventoryLimits";
 import { effectiveRecipeDurationMinutes } from "../core/OnboardingPace";
@@ -179,7 +181,7 @@ export class ProcessingDomain {
     if (lockReason) return { success: false, reason: lockReason };
     const station = state.world.structures[stationId];
     if (!station) return { success: false, reason: "Station not found" };
-    const approach = assessProcessingStationApproach(stationId, state.player, station);
+    const approach = this.stationApproach(stationId, station);
     if (!approach.valid) return { success: false, reason: this.approachFailureReason(approach.reason) };
     if (station.type !== recipe.stationType) {
       return { success: false, reason: `This recipe requires a ${recipe.stationType}` };
@@ -261,14 +263,14 @@ export class ProcessingDomain {
     }
     const station = state.world.structures[job.stationId];
     if (!station) return { success: false, reason: "Station not found" };
-    const approach = assessProcessingStationApproach(job.stationId, state.player, station);
+    const approach = this.stationApproach(job.stationId, station);
     if (!approach.valid) return { success: false, reason: this.approachFailureReason(approach.reason) };
+
+    const destination = this.collectionDestination(job);
+    if (!destination.success) return destination;
 
     if (job.result.kind === "items") {
       const inventory = state.inventories[state.player.inventoryId];
-      if (!InventoryManager.canAddItems(inventory, job.result.stacks)) {
-        return { success: false, reason: "The satchel is full", reasonCode: "inventory-full" };
-      }
       if (!InventoryManager.addItemsAtomically(inventory, job.result.stacks)) {
         return { success: false, reason: "The satchel changed before collection" };
       }
@@ -294,6 +296,7 @@ export class ProcessingDomain {
     // persists during `EquipmentCrafted` must not observe an owned equipment id
     // alongside its still-pending job, which `SaveSchema` rejects.
     delete state.processingJobs[jobId];
+    this.progression.addProficiencyXp("processing", job.xpReward);
     if (job.result.kind === "equipment") {
       events.emit("EquipmentCrafted", {
         equipmentId: job.result.equipmentId,
@@ -301,7 +304,6 @@ export class ProcessingDomain {
         minute: state.clock.currentMinute
       });
     }
-    this.progression.addProficiencyXp("processing", job.xpReward);
     // RecipeCompleted remains the collection event so existing quest targets
     // advance only when the player actually receives the result.
     events.emit("RecipeCompleted", {
@@ -311,6 +313,29 @@ export class ProcessingDomain {
       minute: state.clock.currentMinute
     });
     return { success: true, xpGained: job.xpReward };
+  }
+
+  private collectionDestination(job: ProcessingJobState): InteractionResult {
+    const { state } = this.context;
+    const handsBlocker = freeHandsBlocker(state.player);
+    if (handsBlocker) return { success: false, reason: handsBlocker };
+    if (job.result.kind === "equipment") return this.equipment.canReceiveCrafted(job.result.equipmentId);
+    if (job.result.kind === "items" && !InventoryManager.canAddItems(state.inventories[state.player.inventoryId], job.result.stacks)) {
+      return { success: false, reason: "The satchel is full", reasonCode: "inventory-full" };
+    }
+    return { success: true };
+  }
+
+  public workshopStatus(stationId: string): WorkshopStatusDto {
+    const job = Object.values(this.context.state.processingJobs).find(candidate => candidate.stationId === stationId);
+    if (!job) return { stationId, state: "idle" };
+    const outputKind = job.result.kind === "farm-pack" ? "pack"
+      : job.result.kind === "items" && job.result.stacks.some(stack => stack.itemId === "item.bait_worms") ? "worms"
+      : this.context.state.world.structures[stationId]?.type === "hand-mill" ? "grain" : "bundle";
+    if (job.status === "active") return { stationId, state: "processing", jobId: job.id, outputKind };
+    const destination = isValidProcessingJobEconomicSnapshot(job)
+      ? this.collectionDestination(job) : { success: false, reason: "The saved job data is invalid" };
+    return { stationId, state: destination.success ? "ready" : "blocked", jobId: job.id, outputKind, blocker: destination.reason };
   }
 
   public inspect(stationId: string): ProcessingJobInspectionDto | null {
@@ -412,12 +437,25 @@ export class ProcessingDomain {
       })
       .sort((a, b) => this.recipeStateOrder(a.row.state) - this.recipeStateOrder(b.row.state) || a.contentOrder - b.contentOrder)
       .map(({ row }) => row);
+    const approach = this.stationApproach(stationId, station);
     return {
       stationId,
       stationType: station.type,
       job: this.inspect(stationId),
-      recipes: rows
+      recipes: rows,
+      withinReach: approach.valid,
+      reachBlocker: approach.valid ? undefined : this.approachFailureReason(approach.reason)
     };
+  }
+
+  private stationApproach(stationId: string, station: { x: number; z: number; rotationY?: number }) {
+    const player = this.context.state.player;
+    const approach = assessProcessingStationApproach(stationId, player, station);
+    if (!approach.valid || !approach.frontPosition) return approach;
+    if (interactionVerticalGap(player.y, approach.frontPosition.x, approach.frontPosition.z) > INTERACTION_VERTICAL_BAND_METERS) {
+      return { ...approach, valid: false, reason: "too-far" as const };
+    }
+    return approach;
   }
 
   public tick(): void {

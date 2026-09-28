@@ -81,7 +81,7 @@ export class EquipmentDomain {
     return { success: true };
   }
 
-  public grantCrafted(equipmentId: EquipmentId): InteractionResult {
+  public canReceiveCrafted(equipmentId: EquipmentId): InteractionResult {
     const definition = ContentRegistry.equipment.get(equipmentId);
     if (!definition) return { success: false, reason: "Unknown equipment" };
     const equipment = this.context.state.player.equipment;
@@ -91,7 +91,13 @@ export class EquipmentDomain {
     if (equipment.ownedIds.length >= equipment.wardrobeCapacity) {
       return { success: false, reason: "The wardrobe is full" };
     }
-    equipment.ownedIds.push(equipmentId);
+    return { success: true };
+  }
+
+  public grantCrafted(equipmentId: EquipmentId): InteractionResult {
+    const validation = this.canReceiveCrafted(equipmentId);
+    if (!validation.success) return validation;
+    this.context.state.player.equipment.ownedIds.push(equipmentId);
     return { success: true };
   }
 

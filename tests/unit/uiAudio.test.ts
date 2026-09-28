@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { playUiSound } from "../../src/ui/audio/uiAudio";
+import { playAcceptedUiDing, playUiSound } from "../../src/ui/audio/uiAudio";
 import { gameAudio } from "../../src/audio/AudioManager";
 
 describe("uiAudio dispatcher", () => {
@@ -45,5 +45,28 @@ describe("uiAudio dispatcher", () => {
 
     playOneShotSpy.mockRestore();
     playBankSpy.mockRestore();
+  });
+
+  it("plays one click per activation and stays silent for hover and a rejected control", async () => {
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    const playOneShotSpy = vi.spyOn(gameAudio, "playOneShot").mockImplementation(() => {});
+
+    playUiSound("hover");
+    playUiSound("click");
+    playUiSound("click");
+    expect(playOneShotSpy).toHaveBeenCalledTimes(1);
+    expect(playOneShotSpy).toHaveBeenCalledWith("ui-click");
+
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    playUiSound("click");
+    expect(playOneShotSpy).toHaveBeenCalledTimes(2);
+
+    playOneShotSpy.mockClear();
+    playAcceptedUiDing({ closest: () => ({}) } as unknown as EventTarget);
+    expect(playOneShotSpy).not.toHaveBeenCalled();
+    playAcceptedUiDing({ closest: () => null } as unknown as EventTarget, "confirm");
+    expect(playOneShotSpy).toHaveBeenCalledWith("ui-confirm");
+
+    playOneShotSpy.mockRestore();
   });
 });

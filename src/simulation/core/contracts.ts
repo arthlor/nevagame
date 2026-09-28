@@ -518,6 +518,8 @@ export interface WorldHudDto {
     exhausted: boolean;
     label: "Gallop" | "Trot";
   } | null;
+  /** On foot with a donkey to whistle for; the call itself decides reachability. */
+  canCallDonkey: boolean;
   equippedRodId: RodId;
   carriedFish: WorldHudCargoDto | null;
   boat: WorldHudBoatDto | null;
@@ -1131,6 +1133,15 @@ export interface ProcessingJobInspectionDto {
   xpReward: number;
 }
 
+/** Derived from a saved job and the current collection destination; never saved. */
+export interface WorkshopStatusDto {
+  stationId: string;
+  state: "idle" | "processing" | "ready" | "blocked";
+  jobId?: ProcessingJobId;
+  outputKind?: "worms" | "grain" | "bundle" | "pack";
+  blocker?: string;
+}
+
 export interface ProcessingRecipeRowDto {
   costMoney?: number;
   replacementCost?: number | null;
@@ -1158,6 +1169,9 @@ export interface ProcessingStationDto {
   stationType: string;
   job: ProcessingJobInspectionDto | null;
   recipes: ProcessingRecipeRowDto[];
+  /** False once the player has left the working face. Browsing stays open. */
+  withinReach: boolean;
+  reachBlocker?: string;
 }
 
 export interface CharacterEquipmentItemDto {
@@ -1212,6 +1226,7 @@ export type GameCommand =
   | { type: "debug.repair-boat"; boatId: BoatId }
   | { type: "mount.board"; mountId: MountId }
   | { type: "mount.dismount" }
+  | { type: "mount.call" }
   | { type: "boat.purchase-skiff" }
   | { type: "vehicle.purchase"; vehicleTypeId: string }
   | { type: "crop.plant"; request: CropPlacementRequest }

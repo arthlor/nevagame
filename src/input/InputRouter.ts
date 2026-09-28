@@ -31,6 +31,19 @@ export interface VirtualMoveVector {
 export type ActionCallback = (action: GameAction) => void;
 export type InterruptionCallback = () => void;
 
+/** Game canvas, boot shell, HUD, and modals. The rest of the page keeps the browser menu. */
+const GAME_SURFACE_SELECTOR = "#canvas-container, #game-canvas, #ui-root, #ui-container, #neva-boot-shell, [data-testid='collision-debug']";
+
+export function isGameSurfaceTarget(target: EventTarget | null): boolean {
+  const candidate = target as { closest?: (selector: string) => unknown; parentElement?: { closest?: (selector: string) => unknown } | null } | null;
+  const element = candidate && typeof candidate.closest === "function"
+    ? candidate
+    : candidate?.parentElement && typeof candidate.parentElement.closest === "function"
+      ? candidate.parentElement
+      : null;
+  return Boolean(element?.closest?.(GAME_SURFACE_SELECTOR));
+}
+
 export class HeldInputState {
   private readonly held = new Set<string>();
 
@@ -49,11 +62,18 @@ export class HeldInputState {
   public clear(): void {
     this.held.clear();
   }
+
+  /** Drops every key binding while leaving held mouse buttons alone. */
+  public releaseKeyboard(): void {
+    for (const binding of this.held) {
+      if (binding !== "Mouse0" && binding !== "Mouse2") this.held.delete(binding);
+    }
+  }
 }
 
 const GAME_KEY_CODES = new Set([
   "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyC", "KeyI", "KeyJ", "KeyK", "KeyL", "KeyM", "KeyR", "Space",
-  "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "AltLeft", "AltRight", "KeyP",
+  "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "AltLeft", "AltRight", "KeyP", "KeyH",
   "Digit1", "Digit2", "Digit3", "Digit4", "Digit5"
 ]);
 const MOVEMENT_MODES = new Set<GameMode>(["on-foot", "farm-placement", "boat-driving", "mounted"]);
@@ -122,6 +142,8 @@ export class InputRouter {
   private interruptionListeners: InterruptionCallback[] = [];
   private currentMode: GameMode = "on-foot";
   private worldInputSuspended = false;
+  /** Workshop browsing keeps walking keys while world verbs stay suspended. */
+  private locomotionWhileSuspended = false;
   private layoutEditorActive = false;
   private readonly pointerNdc = { x: 0, y: 0 };
   private readonly virtualMoveVector = { x: 0, z: 0 };
@@ -173,6 +195,10 @@ export class InputRouter {
     if (options.interrupt !== false) {
       for (const listener of this.interruptionListeners) listener();
     }
+  }
+
+  public setLocomotionWhileSuspended(enabled: boolean): void {
+    this.locomotionWhileSuspended = enabled;
   }
 
   public setWorldInputSuspended(suspended: boolean): void {
@@ -262,7 +288,14 @@ export class InputRouter {
   }
 
   public getInputState(): InputState {
-    if (this.worldInputSuspended) return deriveSemanticInput(EMPTY_KEYS, this.currentMode, this.pointerNdc);
+    if (this.worldInputSuspended && !this.locomotionWhileSuspended) {
+      return deriveSemanticInput(EMPTY_KEYS, this.currentMode, this.pointerNdc);
+    }
+    if (this.worldInputSuspended) {
+      const walking = deriveSemanticInput(this.heldInput.values, this.currentMode, this.pointerNdc);
+      const suspended = deriveSemanticInput(EMPTY_KEYS, this.currentMode, this.pointerNdc);
+      return { ...suspended, moveVector: walking.moveVector, sprint: walking.sprint };
+    }
 
     const physical = deriveSemanticInput(this.heldInput.values, this.currentMode, this.pointerNdc);
     const movementEnabled = MOVEMENT_MODES.has(this.currentMode);
@@ -373,7 +406,14 @@ export class InputRouter {
     }
     if (event.repeat) return;
 
-    if (!this.worldInputSuspended || event.code === "Escape") this.heldInput.press(event.code);
+    const walkingKey = event.code === "KeyW" || event.code === "KeyA" || event.code === "KeyS"
+      || event.code === "KeyD" || event.code === "ShiftLeft" || event.code === "ShiftRight";
+    // macOS never sends keyup for a key released while Command is down, so a
+    // Command chord must not become a held key that walks on by itself.
+    const commandChord = event.metaKey && event.code !== "MetaLeft" && event.code !== "MetaRight";
+    if (!commandChord && (!this.worldInputSuspended || event.code === "Escape" || (this.locomotionWhileSuspended && walkingKey))) {
+      this.heldInput.press(event.code);
+    }
     switch (event.code) {
       case "KeyE":
         if (
@@ -393,6 +433,9 @@ export class InputRouter {
       case "KeyL": this.dispatch("open-ledger"); break;
       case "KeyM": this.dispatch("open-map"); break;
       case "KeyP": this.dispatch("open-planning"); break;
+      case "KeyH":
+        if (!this.worldInputSuspended && this.currentMode === "on-foot") this.dispatch("call-donkey");
+        break;
       case "KeyR":
         if (!this.worldInputSuspended && (this.currentMode === "on-foot" || this.currentMode === "boat-driving")) {
           this.dispatch("fishing.toggle-lure");
@@ -436,6 +479,8 @@ export class InputRouter {
 
   private onKeyUp = (event: KeyboardEvent): void => {
     this.heldInput.release(event.code);
+    // Keys let go while Command was held sent no keyup; require fresh presses.
+    if (event.code === "MetaLeft" || event.code === "MetaRight") this.heldInput.releaseKeyboard();
     if (!this.worldInputSuspended && this.currentMode === "basic-fishing" && event.code === "KeyE") {
       this.dispatch("interact-release");
     }
@@ -702,10 +747,7 @@ export class InputRouter {
   }
 
   private onContextMenu = (event: Event): void => {
-    if (
-      this.isCanvasTarget(event.target) ||
-      (event.target instanceof HTMLElement && event.target.closest(".basic-fishing-container"))
-    ) event.preventDefault();
+    if (isGameSurfaceTarget(event.target)) event.preventDefault();
   };
 
   private onBlur = (): void => this.interrupt();

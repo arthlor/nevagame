@@ -40,7 +40,7 @@ describe("schema 35 onboarding credit migration", () => {
 
     // The migration banks the owed watering; loading redeems it.
     expect(questEarlyActionCredits(state.quests)).toEqual([
-      { type: "water-crop", location: { kind: "farm", id: "farm.starter_garden" }, quantity: 3 }
+      { trackId: "track.main", type: "water-crop", location: { kind: "farm", id: "farm.starter_garden" }, quantity: 3 }
     ]);
 
     const simulation = new Simulation(state);
@@ -61,7 +61,7 @@ describe("schema 35 onboarding credit migration", () => {
     quests.tracks["track.main"].stepProgress = { "step.act1_water_3_crops": 2 };
     const state = migrate(envelope);
     expect(questEarlyActionCredits(state.quests)).toEqual([
-      { type: "water-crop", location: { kind: "farm", id: "farm.starter_garden" }, quantity: 1 }
+      { trackId: "track.main", type: "water-crop", location: { kind: "farm", id: "farm.starter_garden" }, quantity: 1 }
     ]);
     expect(mainQuestTrack(new Simulation(state).state.quests).stepProgress).toEqual({
       "step.act1_water_3_crops": 3

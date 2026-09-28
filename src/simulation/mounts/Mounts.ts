@@ -16,9 +16,10 @@ export const MOUNT_TUNING = Object.freeze({
   trotSpeedMetersPerSecond: 5.8,
   gallopSpeedMetersPerSecond: 7.5,
   maximumGallopStamina: 100,
-  // Roughly seven seconds of gallop, against the player's four and a half, so
-  // the mount reads as a genuine advantage rather than a reskinned sprint.
-  gallopDrainPerSecond: 14,
+  // Half the previous 14/s drain, matching the on-foot sprint cut. The
+  // displayed pool stays 100, so a gallop lasts about fourteen seconds and
+  // still outlasts the rider's sprint. Recovery is unchanged.
+  gallopDrainPerSecond: 7,
   gallopRecoveryPerSecond: 18,
   gallopRecoveryDelaySeconds: 1,
   gallopResumeThreshold: 25,

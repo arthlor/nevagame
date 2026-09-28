@@ -76,7 +76,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
   ): void => {
     const result = onTransfer?.(itemId, quantity, boatId, direction);
     if (!result) return;
-    playUiSound(result.success ? "confirm" : "click");
+    playUiSound(result.success ? "confirm" : "error");
     setTransferNotice(
       result.success
         ? isTr
@@ -89,7 +89,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
   const runStowCatch = (boatId: string, placement: "hold" | "hook"): void => {
     const result = onStowCatch?.(boatId, placement);
     if (!result) return;
-    playUiSound(result.success ? "confirm" : "click");
+    playUiSound(result.success ? "confirm" : "error");
     setTransferNotice(
       result.success
         ? placement === "hook"
@@ -108,7 +108,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
   ): void => {
     const result = onMoveStorageGoods?.(kind, itemId, quantity, direction);
     if (!result) return;
-    playUiSound(result.success ? "confirm" : "click");
+    playUiSound(result.success ? "confirm" : "error");
     setTransferNotice(
       result.success
         ? isTr
@@ -121,7 +121,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
   const runStorageFish = (kind: string, cargoId: string, direction: "store" | "take"): void => {
     const result = onMoveStorageFish?.(kind, cargoId, direction);
     if (!result) return;
-    playUiSound(result.success ? "confirm" : "click");
+    playUiSound(result.success ? "confirm" : "error");
     setTransferNotice(
       result.success
         ? direction === "store"
@@ -134,7 +134,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
   const runDropCatch = (): void => {
     const result = onDropCatch?.();
     if (!result) return;
-    playUiSound(result.success ? "confirm" : "click");
+    playUiSound(result.success ? "confirm" : "error");
     setTransferNotice(
       result.success
         ? isTr

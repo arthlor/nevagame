@@ -3,6 +3,7 @@ import fixture from "../fixtures/save_v41_layout19.json";
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
 import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
+import { WORK_CAPACITY_DAILY_BUDGET_V43 } from "../../src/persistence/migrateWorkCapacity43";
 
 const legacy = () => structuredClone(fixture) as unknown as SaveEnvelope;
 
@@ -17,7 +18,7 @@ describe("Work capacity daily-budget migration (v43)", () => {
     expect(after.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(after.state.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
     expect(after.state.player.workCapacity.current).toBe(
-      Math.round((beforeWork.current / beforeWork.maximum) * WORK_CAPACITY_MAXIMUM)
+      Math.round((beforeWork.current / beforeWork.maximum) * WORK_CAPACITY_DAILY_BUDGET_V43)
     );
     expect(after.state.player.workCapacity.earnedToday).toBe(0);
     expect(after.state.player.workCapacity.mealsToday).toBe(0);

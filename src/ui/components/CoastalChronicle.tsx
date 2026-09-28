@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   CHRONICLE_FILTERS,
   CHRONICLE_FILTER_LABEL,
@@ -13,11 +13,8 @@ interface CoastalChronicleProps {
   entries: readonly ChronicleEntry[];
   activeFilter: ChronicleFilter;
   onSelectFilter: (filter: ChronicleFilter) => void;
-  /** Milliseconds of quiet before the feed folds itself away. */
-  autoCollapseMs?: number;
 }
 
-export const CHRONICLE_AUTO_COLLAPSE_MS = 12000;
 /** Rows shown while expanded; the rest stay in the log for the folio. */
 export const CHRONICLE_VISIBLE_ROWS = 6;
 
@@ -47,25 +44,11 @@ const getChronicleFilterLabel = (filter: ChronicleFilter, isTr: boolean): string
 export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
   entries,
   activeFilter,
-  onSelectFilter,
-  autoCollapseMs = CHRONICLE_AUTO_COLLAPSE_MS
+  onSelectFilter
 }) => {
   const { locale } = useTranslation();
   const isTr = locale === "tr";
-  const [expanded, setExpanded] = useState(false);
-  const [held, setHeld] = useState(false);
-  const timerRef = useRef<number | null>(null);
-
-  // Auto-collapse keeps the corner quiet during play, but never folds the feed
-  // away while the player is actually reading it.
-  useEffect(() => {
-    if (!expanded || held) return;
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => setExpanded(false), autoCollapseMs);
-    return () => {
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    };
-  }, [expanded, held, autoCollapseMs, entries.length]);
+  const [expanded, setExpanded] = useState(true);
 
   const visible = entries.filter((entry) => activeFilter === "all" || entry.category === activeFilter)
     .slice(0, CHRONICLE_VISIBLE_ROWS);
@@ -75,12 +58,7 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
       className={`coastal-chronicle${expanded ? " is-expanded" : " is-collapsed"}`}
       data-testid="coastal-chronicle"
       data-expanded={expanded ? "true" : "false"}
-      data-held={held ? "true" : "false"}
       aria-label={isTr ? "Kıyı vakanüvisi" : "Coastal chronicle"}
-      onPointerEnter={() => setHeld(true)}
-      onPointerLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)}
-      onBlur={() => setHeld(false)}
     >
       <button
         type="button"

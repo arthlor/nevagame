@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
-import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
+import { STARTER_FARM_LAYOUT, farmLocalToWorld } from "../../src/world/FarmLayout";
+import { WorldLayout } from "../../src/world/WorldLayout";
 import { DEFAULT_MINUTES_PER_REAL_SECOND } from "../../src/simulation/core/GameClock";
 import {
   ONBOARDING_PACE,
@@ -10,6 +11,7 @@ import {
   onboardingGrowthMultiplier
 } from "../../src/simulation/core/OnboardingPace";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
+import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 
 const REAL_SECONDS_PER_GAME_MINUTE = 1 / DEFAULT_MINUTES_PER_REAL_SECOND;
 
@@ -23,11 +25,18 @@ function minutesToMature(simulation: Simulation, placedCropId: string, limit = 4
 }
 
 function plantStarterWheat(simulation: Simulation): string {
+  const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x: 0, z: 0 });
+  simulation.state.player.x = world.x;
+  simulation.state.player.z = world.z;
+  simulation.state.player.y = WorldLayout.traversalSurfaceHeight(world.x, world.z) + 0.5;
+  InventoryManager.addItemsAtomically(simulation.state.inventories[simulation.state.player.inventoryId], [
+    { itemId: "seed.wheat", quantity: 1 }
+  ]);
   const res = simulation.plantCrop(
     "farm.starter_garden",
     "crop.wheat",
-    STARTER_FARM_LAYOUT.origin.x,
-    STARTER_FARM_LAYOUT.origin.z
+    world.x,
+    world.z
   );
   expect(res).toMatchObject({ success: true });
   return Object.keys(simulation.state.crops)[0];
@@ -122,6 +131,7 @@ describe("onboarding pace", () => {
     // Evidence that the tutorial compost already ran — whether recorded on the
     // step or banked as an early action — ends the acceleration.
     quests.earlyActionCredits.push({
+      trackId: "track.main",
       type: "craft-recipe",
       targetId: "recipe.compost_worms",
       location: { kind: "station", id: "struct.starter_compost" },

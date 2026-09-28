@@ -231,15 +231,22 @@ export class AssetLoader {
   }
 
   private static cloneModel(source: THREE.Group): THREE.Group {
-    const cloned = source.userData.hasSkinnedMeshes
-      ? cloneSkinnedModel(source) as THREE.Group
-      : source.clone(true);
-    cloned.userData.animationClips = source.userData.animationClips;
-    cloned.userData.collisionNodes = source.userData.collisionNodes;
-    cloned.userData.assetId = source.userData.assetId;
-    cloned.userData.runtimeLodLevels = source.userData.runtimeLodLevels;
-    cloned.userData.runtimeLodFallback = source.userData.runtimeLodFallback;
-    return cloned;
+    // `Object3D.copy` deep-copies userData through a JSON round trip. These
+    // template records are shared by reference instead, so they stay out of
+    // that copy: serialising every animation track on each clone cost more
+    // than cloning the skinned model itself.
+    const template = source.userData;
+    const { animationClips, collisionNodes, assetId, runtimeLodLevels, runtimeLodFallback, ...copied } = template;
+    source.userData = copied;
+    try {
+      const cloned = template.hasSkinnedMeshes
+        ? cloneSkinnedModel(source) as THREE.Group
+        : source.clone(true);
+      Object.assign(cloned.userData, { animationClips, collisionNodes, assetId, runtimeLodLevels, runtimeLodFallback });
+      return cloned;
+    } finally {
+      source.userData = template;
+    }
   }
 
   public static async loadCached(assetId: AssetId, onTransfer?: () => void, signal?: AbortSignal): Promise<THREE.Group> {

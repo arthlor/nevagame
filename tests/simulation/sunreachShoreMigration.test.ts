@@ -36,7 +36,7 @@ function preserveResources(after: SaveEnvelope, before: SaveEnvelope) {
   const beforeWork = before.state.player.workCapacity;
   expect(after.state.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
   expect(after.state.player.workCapacity.current).toBe(
-    Math.round((beforeWork.current / beforeWork.maximum) * WORK_CAPACITY_MAXIMUM)
+    Math.min(WORK_CAPACITY_MAXIMUM, Math.round((beforeWork.current / beforeWork.maximum) * 500))
   );
   expect({ ...after.state.world, layoutRevision: before.state.world.layoutRevision, structures: before.state.world.structures }).toEqual(before.state.world);
 }

@@ -47,6 +47,9 @@ export class LoopSegmentIndex {
   private readonly maxCellX: number;
   private readonly minCellZ: number;
   private readonly maxCellZ: number;
+  private lastSignedX = Number.NaN;
+  private lastSignedZ = Number.NaN;
+  private lastSigned = 0;
 
   constructor(readonly loop: readonly Readonly<Point2D>[], readonly cellMeters = 32) {
     let minCellX = Infinity, maxCellX = -Infinity, minCellZ = Infinity, maxCellZ = -Infinity;
@@ -153,9 +156,18 @@ export class LoopSegmentIndex {
     return inside;
   }
 
-  /** Positive outside (in water), negative inside. */
+  /**
+   * Positive outside (in water), negative inside. One surface sample asks
+   * several consumers about the same point in a row, so the last answer is
+   * kept; the loop is frozen, so a repeat is identical.
+   */
   signedDistance(x: number, z: number): number {
+    if (x === this.lastSignedX && z === this.lastSignedZ) return this.lastSigned;
     const distance = this.distance(x, z);
-    return this.contains(x, z) ? -distance : distance;
+    const signed = this.contains(x, z) ? -distance : distance;
+    this.lastSignedX = x;
+    this.lastSignedZ = z;
+    this.lastSigned = signed;
+    return signed;
   }
 }

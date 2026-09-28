@@ -33,6 +33,9 @@ function matureCrop(sim: Simulation, cropId: string): string {
   const world = farmLocalToWorld(STARTER_FARM_LAYOUT.farmId, { x: 0, z: 0 });
   sim.state.player.x = world.x;
   sim.state.player.z = world.z;
+  InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+    { itemId: ContentRegistry.crops.get(cropId)!.seedItemId, quantity: 1 }
+  ]);
   expect(sim.plantCrop("farm.starter_garden", cropId, world.x, world.z).success).toBe(true);
   const placed = Object.values(sim.state.crops).find((crop) => crop.cropId === cropId)!;
   const definition = ContentRegistry.crops.get(cropId)!;

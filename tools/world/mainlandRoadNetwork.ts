@@ -93,6 +93,7 @@ const JUNCTION_LEAN_METERS = 3.5;
 const JUNCTION_CLEAR_METERS = 6;
 /** Two roads leaving a place closer in heading than this share the first stretch and fork later. */
 const MIN_ARM_DEGREES = 40;
+const CLASS_RANK: Readonly<Record<Kind, number>> = { arterial: 0, lane: 1, trail: 2 };
 /** A stretch of survey on new ground shorter than this is not a road of its own. */
 const MIN_ROAD_METERS = 12;
 /** A fork on a road leaving a place stands at least this far out from the place's knot. */
@@ -184,6 +185,8 @@ class SurveyLattice {
   readonly roadAt: Int32Array;
   /** 1 where a cell lies beside a road, off its surface. */
   readonly besideRoad: Uint8Array;
+  /** Class of each painted road, by index. */
+  readonly roadKinds: Kind[] = [];
 
   constructor() {
     this.minX = MAINLAND_BOUNDS.minX;
@@ -247,8 +250,15 @@ class SurveyLattice {
     return !released && this.starter[i] < STARTER_DISTRICT_BLEND;
   }
 
+  /** The road on a cell that a road of `kind` may ride: its own class or greater. */
+  rideable(i: number, kind: Kind): number {
+    const road = this.roadAt[i] - 1;
+    return road >= 0 && CLASS_RANK[this.roadKinds[road]] <= CLASS_RANK[kind] ? road : -1;
+  }
+
   /** Marks a planned road's surface and the band beside it. */
   paint(points: readonly Point[], roadIndex: number, kind: Kind): void {
+    this.roadKinds[roadIndex] = kind;
     const surface = ROAD_CLASS_PROFILES[kind].widthMeters * 0.5 + GRID_METERS * 0.55;
     const reach = ROAD_BESIDE_METERS[1];
     for (let k = 1; k < points.length; k++) {
@@ -493,7 +503,7 @@ function survey(lattice: SurveyLattice, from: Point, to: Point | null, kind: Kin
     if (closed[state]) continue;
     closed[state] = 1;
     const current = Math.floor(state / (HEADINGS + 1)), heading = state % (HEADINGS + 1);
-    if (current === goal || (goal < 0 && current !== start && lattice.roadAt[current] > 0)) { goalState = state; break; }
+    if (current === goal || (goal < 0 && current !== start && lattice.rideable(current, kind) >= 0)) { goalState = state; break; }
     const cx = current % lattice.width, cz = Math.floor(current / lattice.width);
     for (let move = 0; move < HEADINGS; move++) {
       const [mx, mz] = MOVES[move];
@@ -519,7 +529,7 @@ function survey(lattice: SurveyLattice, from: Point, to: Point | null, kind: Kin
       }
       const length = Math.hypot(mx, mz) * GRID_METERS;
       let factor = slopeFactor(lattice, current, next, mx, mz, length, kind);
-      const onRoad = lattice.roadAt[current] > 0 && lattice.roadAt[next] > 0;
+      const onRoad = lattice.rideable(current, kind) >= 0 && lattice.rideable(next, kind) >= 0;
       if (onRoad) factor *= ROAD_FOLLOW_FACTOR;
       else if (lattice.besideRoad[next] && !nextReleased) factor += ROAD_BESIDE_COST;
       const candidate = cost[state] + length * factor + turn;
@@ -680,7 +690,7 @@ export function planMainlandRoadNetwork(): PlannedRoad[] {
     const target = link.spur ? null : place(link.b);
     const ends = target ? [origin, knotPoint(target.knot)] : [origin];
     const path = survey(lattice, origin, target ? knotPoint(target.knot) : null, link.kind, ends)
-      .map(i => ({ x: lattice.x(i), z: lattice.z(i), road: lattice.roadAt[i] - 1 }));
+      .map(i => ({ x: lattice.x(i), z: lattice.z(i), road: lattice.rideable(i, link.kind) }));
     path[0] = { ...origin, road: path[0].road };
     if (target) path[path.length - 1] = { ...knotPoint(target.knot), road: path[path.length - 1].road };
 
@@ -717,7 +727,10 @@ export function planMainlandRoadNetwork(): PlannedRoad[] {
           const nodePoint = knotPoint(node.knot);
           const ordered = side === 0 ? body : [...body].reverse();
           const ahead = ordered.find(p => Math.hypot(p.x - nodePoint.x, p.z - nodePoint.z) >= 6);
+          // Only a road of the same class or greater carries another out of a
+          // place: a cart road never starts on a landing lane.
           const alongside = ahead && roads.find(road => road.knots.some(knot => sameKnot(knot, node.knot))
+            && CLASS_RANK[road.kind] <= CLASS_RANK[link.kind]
             && armsAt(road, nodePoint).some(arm => {
               const length = Math.hypot(ahead.x - nodePoint.x, ahead.z - nodePoint.z);
               return ((ahead.x - nodePoint.x) * arm.x + (ahead.z - nodePoint.z) * arm.z) / length

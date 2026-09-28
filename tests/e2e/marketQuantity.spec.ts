@@ -45,7 +45,7 @@ test("market quantity drafts remain editable and only whole amounts can trade", 
   await expect.poll(purse).toBeGreaterThan(beforeSale);
   await expect(page.getByTestId("toast").filter({ hasText: "Sold" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByTestId("chronicle-toggle").click();
+  await expect(page.getByTestId("chronicle-toggle")).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByTestId("chronicle-feed")).toContainText("Sold");
   await page.getByTestId("chronicle-filter-field").click();
   await expect(page.getByTestId("coastal-chronicle")).toBeVisible();

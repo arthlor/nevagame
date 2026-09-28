@@ -21,6 +21,14 @@ export interface RainDropState {
   vz: number;
   length: number;
   generation: number;
+  /**
+   * Last terrain sample under this drop, reused while the drop is still well
+   * above it (see `sampleRainSurfaceUnderDrop`). Presentation state only.
+   */
+  groundX: number;
+  groundZ: number;
+  groundHeight: number;
+  groundValid: boolean;
 }
 
 export interface RainSplashState {
@@ -51,7 +59,8 @@ export interface RainSurfaceSample {
   kind: RainHitKind;
 }
 
-export type RainSurfaceSampler = (x: number, z: number) => RainSurfaceSample;
+/** A null sample means the drop is known to be clear of every surface this frame. */
+export type RainSurfaceSampler = (x: number, z: number, drop: RainDropState) => RainSurfaceSample | null;
 
 export type RainPhysicsConfig = typeof CANONICAL_RENDER_CONFIG.weather.rain;
 
@@ -98,7 +107,11 @@ export function createRainDrop(): RainDropState {
     vy: 0,
     vz: 0,
     length: rainPhysicsConfig().dropLengthMin,
-    generation: 0
+    generation: 0,
+    groundX: 0,
+    groundZ: 0,
+    groundHeight: 0,
+    groundValid: false
   };
 }
 
@@ -127,10 +140,63 @@ export function sampleRainHitSurface(
   if (shelter) {
     return { height: shelter.height, kind: "interior" };
   }
+  return sampleRainGroundSurface(x, z, timeSeconds, conditions);
+}
+
+function sampleRainGroundSurface(
+  x: number,
+  z: number,
+  timeSeconds: number,
+  conditions: WaterConditions
+): RainSurfaceSample {
   if (WorldLayout.isWater(x, z)) {
     return { height: waterHeight(x, z, timeSeconds, conditions), kind: "water" };
   }
   return { height: WorldLayout.terrainHeight(x, z), kind: "terrain" };
+}
+
+/**
+ * `sampleRainHitSurface` for a falling drop, without re-querying the ground on
+ * every frame of its fall. Only the frame a drop lands needs the exact surface;
+ * the water and terrain queries dominated the storm frame. Roofs are tested
+ * every frame and water is re-sampled every frame (waves move). A terrain
+ * sample is reused only when it was taken on dry land, while the drop is more
+ * than `groundRecheckHeight` above it and has drifted less than
+ * `groundRecheckDrift` from where it was taken. Returns null while the drop is
+ * known to be clear.
+ */
+export function sampleRainSurfaceUnderDrop(
+  x: number,
+  z: number,
+  drop: RainDropState,
+  timeSeconds: number,
+  conditions: WaterConditions,
+  config: RainPhysicsConfig
+): RainSurfaceSample | null {
+  const shelter = WorldLayout.rainShelterHit(x, z);
+  if (shelter) {
+    drop.groundValid = false;
+    return { height: shelter.height, kind: "interior" };
+  }
+  if (drop.groundValid
+    && drop.y - drop.groundHeight > config.groundRecheckHeight
+    && Math.hypot(x - drop.groundX, z - drop.groundZ) < config.groundRecheckDrift) {
+    return null;
+  }
+  const signedDistance = WorldLayout.waterSignedDistance(x, z);
+  if (WorldLayout.isWaterWithSignedDistance(x, z, signedDistance)) {
+    drop.groundValid = false;
+    return { height: waterHeight(x, z, timeSeconds, conditions), kind: "water" };
+  }
+  const height = WorldLayout.terrainHeight(x, z);
+  // Wet terrain under a deck (the seabed below the pier, a riverbed below a
+  // bridge) says nothing about the open water a drifting drop reaches next,
+  // so only dry land (`waterSignedDistance` owns wet/dry truth) is reused.
+  drop.groundValid = signedDistance <= 0;
+  drop.groundX = x;
+  drop.groundZ = z;
+  drop.groundHeight = height;
+  return { height, kind: "terrain" };
 }
 
 export function rainWindVelocity(wind: RainWindInput, config: RainPhysicsConfig): { vx: number; vz: number } {
@@ -158,6 +224,7 @@ export function respawnRainDrop(
   drop.vy = -config.terminalSpeed;
   drop.vz = windVelocity.vz;
   drop.length = rainStreakLength(drop, config);
+  drop.groundValid = false;
   drop.active = true;
 }
 
@@ -191,8 +258,8 @@ export function stepRainDrop(
 
   if (drop.y < focus.y - config.spawnHeight - 8) return "lost";
 
-  const surface = sampleSurface(drop.x, drop.z);
-  if (drop.y > surface.height) return "falling";
+  const surface = sampleSurface(drop.x, drop.z, drop);
+  if (!surface || drop.y > surface.height) return "falling";
   // Wrap/teleport can plant a drop well below a new hill; recycle without a splash.
   if (surface.height - drop.y > 1.5) return "lost";
   if (surface.kind === "interior") return "hit-interior";
