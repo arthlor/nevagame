@@ -182,7 +182,8 @@ async function sliceSheet(manifest, sheetSpec, { debug }) {
     throw new Error(`Sheet source not found for "${sheetSpec.id}": ${sheetSpec.source}`);
   }
 
-  const output = { ...manifest.output, ...(sheetSpec.output ?? {}) };
+  const familySize = manifest.families[sheetSpec.family]?.size;
+  const output = { ...manifest.output, ...(familySize ? { size: familySize } : {}), ...(sheetSpec.output ?? {}) };
   const analysis = await analyzeSheet(source, { key: sheetSpec.key ?? manifest.key, ...(sheetSpec.detect ?? {}) });
 
   if (debug) {

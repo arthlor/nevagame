@@ -37,6 +37,7 @@ import {
 } from "./WorldAnchors";
 import {
   buildOrganicRoadGeometry,
+  JUNCTION_GORE_REACH_METERS,
   sampleRoadCrossSection,
   type RoadCrossSectionSample
 } from "./RoadGeometry";
@@ -2900,12 +2901,17 @@ export class WorldLayout {
   }
 
   public static isSailable(x: number, z: number): boolean {
-    return (
-      x >= SAILABLE_BOUNDS.minX && x <= SAILABLE_BOUNDS.maxX &&
-      z >= SAILABLE_BOUNDS.minZ && z <= SAILABLE_BOUNDS.maxZ &&
-      !(isInHeadwaterBounds(x, z) && z < NEVA_HEADWATERS.endZ) &&
-      this.isWater(x, z) && !this.isBridgeDeck(x, z) && !this.isPierDeck(x, z)
-    );
+    if (
+      x < SAILABLE_BOUNDS.minX || x > SAILABLE_BOUNDS.maxX ||
+      z < SAILABLE_BOUNDS.minZ || z > SAILABLE_BOUNDS.maxZ ||
+      (isInHeadwaterBounds(x, z) && z < NEVA_HEADWATERS.endZ) ||
+      this.isPierDeck(x, z)
+    ) return false;
+    if (this.isWater(x, z)) return true;
+    // The deck is walkable in plan, so `isWater` stays false on it. The river
+    // under that footprint is still the boat lane; the abutments on the banks
+    // are not, because their river distance is dry.
+    return this.isBridgeDeck(x, z) && this.riverWaterSignedDistance(x, z) > 0;
   }
 
   private static nearestValid(
@@ -4420,8 +4426,9 @@ export class WorldLayout {
     // y = loose shoulder, z = junction traffic, which wears the tracks out.
     const roadContext = new Uint8Array(positions.count * 3);
     // Evaluate the joined footprint after conformity has inserted terrain-grid
-    // vertices. Junction arms otherwise carry alpha=1 out to their square ends.
-    // Only this render clone changes; collision positions and indices stay exact.
+    // vertices. The apron interior keeps the coverage authored on the strip;
+    // nearest-route distance would cut holes between the branches. Only this
+    // render clone changes; collision positions and indices stay exact.
     for (let index = 0; index < positions.count; index++) {
       if (index % 32 === 0) yield;
       const x = positions.getX(index);
@@ -4450,10 +4457,12 @@ export class WorldLayout {
           distance
         ));
         const radius = Math.max(0.72, junction.radiusMeters * 0.74);
-        coverage = Math.max(coverage, 1 - smoothstep(
-          radius * 0.68, radius,
-          distance
-        ));
+        const apron = junction.radiusMeters + junction.blendLengthMeters * 1.08;
+        const authored = colors.getW(index);
+        // The paved wedge between branches is authored opaque. Nearest-route
+        // distance would open a grass hole through the middle of the fork.
+        if (distance <= radius || (distance <= JUNCTION_GORE_REACH_METERS && authored >= 0.85)) coverage = 1;
+        else if (distance <= Math.max(apron, JUNCTION_GORE_REACH_METERS)) coverage = Math.max(coverage, authored);
       }
       colors.setW(index, coverage);
       roadContext[index * 3 + 1] = Math.round(section.shoulderAmount * 255);

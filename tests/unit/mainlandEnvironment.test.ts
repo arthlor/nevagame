@@ -7,7 +7,7 @@ import type { AssetId } from "../../src/render/assets/AssetCatalog";
 import { runSync } from "../../src/utils/CooperativeTask";
 import { mainlandSettlementClearanceAt } from "../../src/world/MainlandSettlementLayout";
 import { MAINLAND_VILLAGES } from "../../src/world/NevaMainland";
-import { mainlandSettlementPlacements, mainlandStructuralPlacementSteps, mainlandGroundCoverSteps } from "../../src/world/MainlandEnvironmentLayout";
+import { mainlandSettlementPlacements, mainlandStructuralPlacementSteps, mainlandGroundCoverSteps, overlookCampScatterReservation } from "../../src/world/MainlandEnvironmentLayout";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { createWorldStaticPlacements, isPlacementFootprintStable } from "../../src/world/WorldEnvironmentLayout";
 
@@ -50,6 +50,7 @@ describe("mainland environment", () => {
 
   it.each([0, 17, 42, 63])("keeps seed %s biome dressing deterministic, bounded, dry and clear of freight roads and villages", (seed) => {
     const placements = runSync(mainlandStructuralPlacementSteps(seed));
+    const camp = overlookCampScatterReservation();
     if (seed === 42) expect(placements).toEqual(runSync(mainlandStructuralPlacementSteps(seed)));
     expect(placements.length).toBeGreaterThan(7_000);
     expect(placements.length).toBeLessThan(11_000);
@@ -60,6 +61,7 @@ describe("mainland environment", () => {
       const route = WorldLayout.nearestRouteDistance(placement.x, placement.z);
       expect(route.distance, placement.id).toBeGreaterThan(route.halfWidth + route.shoulderWidthMeters + 0.7);
       expect(mainlandSettlementClearanceAt(placement.x, placement.z), placement.id).toBeGreaterThan(0.7);
+      expect(Math.hypot(placement.x - camp.x, placement.z - camp.z), placement.id).toBeGreaterThanOrEqual(camp.radius);
     }
     const forest = placements.filter((p) => p.biomeId === "biome.pine_forest" && p.assetId.startsWith("tree_pine"));
     const marsh = placements.filter((p) => p.biomeId === "biome.reed_marsh");

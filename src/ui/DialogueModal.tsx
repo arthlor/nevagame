@@ -36,13 +36,15 @@ import { atlasForItem, atlasForPortrait } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { GameSheet, KeyHint } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
+import { foundNoteView } from "../content/foundNotes";
 
 export type { DialogueTalkResult } from "./dialogueConversation";
 
 export interface DialogueModalProps {
-  npcId: string;
+  npcId?: string;
+  foundNoteId?: string | null;
   onClose: () => void;
-  onTalkNpc: (npcId: string) => DialogueTalkResult;
+  onTalkNpc?: (npcId: string) => DialogueTalkResult;
 }
 
 /** Stable identity so an unresolved render never re-triggers page effects. */
@@ -162,12 +164,18 @@ export const DialogueRewardsPanel: React.FC<{ rewards?: QuestRewardDefinition; p
 
 export const DialogueModal: React.FC<DialogueModalProps> = ({
   npcId,
+  foundNoteId,
   onClose,
   onTalkNpc
 }) => {
   const { locale, getLocalizedNpc, getLocalizedQuest, getLocalizedQuestTrack } = useTranslation();
-  const npc = ContentRegistry.npcs.get(npcId);
-  const locNpc = getLocalizedNpc(npcId);
+  const foundNote = useMemo(
+    () => (foundNoteId ? foundNoteView(foundNoteId, locale) : null),
+    [foundNoteId, locale]
+  );
+  const sessionKey = foundNote ? `${foundNote.id}:${locale}` : (npcId ?? "");
+  const npc = foundNote || !npcId ? undefined : ContentRegistry.npcs.get(npcId);
+  const locNpc = foundNote || !npcId ? null : getLocalizedNpc(npcId);
   const [dialogueIndex, setDialogueIndex] = useState(0);
   // Resolved once per NPC. Pre-seeding this with `npc.idleDialogue` used to
   // start the typewriter on text the modal was about to replace, which
@@ -182,11 +190,20 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   useModalAccessibility(dialogRef, onClose, { initialFocus: "dialog" });
 
   useEffect(() => {
-    if (initializedNpcRef.current === npcId) return;
-    initializedNpcRef.current = npcId;
+    if (!sessionKey || initializedNpcRef.current === sessionKey) return;
+    initializedNpcRef.current = sessionKey;
     setDialogueIndex(0);
     setReveal(EMPTY_DIALOGUE_REVEAL);
     chimedSegmentsRef.current = new Set();
+    if (foundNote) {
+      const pages = buildDialoguePages({
+        success: true,
+        segments: [{ kind: "recognition", lines: [...foundNote.lines] }]
+      }, [...foundNote.lines]);
+      setResolved((prev) => ({ npcId: sessionKey, generation: (prev?.generation ?? 0) + 1, pages, failed: false }));
+      return;
+    }
+    if (!npcId || !onTalkNpc || !locNpc) return;
     const rawResult = onTalkNpc(npcId);
     let result = rawResult;
     if (locale === "tr" && rawResult.segments) {
@@ -223,10 +240,10 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     }
     const fallbackLines = locale === "tr" ? locNpc.idleDialogue : (npc?.idleDialogue ?? []);
     const pages = buildDialoguePages(result, fallbackLines);
-    setResolved((prev) => ({ npcId, generation: (prev?.generation ?? 0) + 1, pages, failed: !result.success }));
-  }, [getLocalizedNpc, getLocalizedQuest, getLocalizedQuestTrack, locNpc, locale, npc, npcId, onTalkNpc]);
+    setResolved((prev) => ({ npcId: sessionKey, generation: (prev?.generation ?? 0) + 1, pages, failed: !result.success }));
+  }, [foundNote, getLocalizedNpc, getLocalizedQuest, getLocalizedQuestTrack, locNpc, locale, npc, npcId, onTalkNpc, sessionKey]);
 
-  const isResolved = resolved?.npcId === npcId;
+  const isResolved = resolved?.npcId === sessionKey;
   const pages = isResolved ? resolved.pages : EMPTY_PAGES;
   const talkFailed = isResolved ? resolved.failed : false;
   const totalPages = pages.length || 1;
@@ -238,7 +255,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   const heading = segment ? segmentHeading(segment, locale) : null;
   const showRewards = pageShowsRewards(currentPage);
   const note = currentPage?.closesSegment ? segment?.note : undefined;
-  const pageKey = dialoguePageKey(npcId, resolved?.generation ?? 0, dialogueIndex);
+  const pageKey = dialoguePageKey(sessionKey, resolved?.generation ?? 0, dialogueIndex);
   const revealedChars = revealedCharsFor(reveal, pageKey);
   const isTyping = revealedChars < currentPageText.length;
   const visibleText = currentPageText.slice(0, revealedChars);
@@ -310,7 +327,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
       return;
     }
     if (isLastPage) {
-      if (playCue) playUiSound("confirm");
+      if (playCue) playUiSound("dialogue-close");
       onClose();
       return;
     }
@@ -319,7 +336,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   }, [currentPageText.length, isLastPage, isTyping, onClose, pageKey]);
 
   const handleSkipTalk = useCallback(() => {
-    playUiSound("confirm");
+    playUiSound("dialogue-close");
     onClose();
   }, [onClose]);
 
@@ -354,10 +371,10 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     };
   }, []);
 
-  if (!npc) return null;
+  if (!foundNote && !npc) return null;
 
   return (
-    <div className="modal-overlay dialogue-backdrop interactive" onClick={onClose}>
+    <div className="modal-overlay dialogue-backdrop interactive" onClick={() => { playUiSound("dialogue-close"); onClose(); }}>
       <GameSheet
         ref={dialogRef}
         as="div"
@@ -371,21 +388,31 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
         tabIndex={-1}
       >
         <header className="dialogue-header">
-          <div className="dialogue-avatar" aria-hidden="true">
-            {atlasForPortrait(npc.id) ? (
-              <AtlasImage src={atlasForPortrait(npc.id)} alt="" size={72} />
-            ) : (
-              <span className="dialogue-avatar-icon"><HudIcon name={npc.portraitIcon} size={26} /></span>
-            )}
-          </div>
-          <div className="dialogue-speaker-info">
-            <div className="dialogue-name-row">
-              <h2 id="dialogue-title" className="dialogue-speaker-name">{locNpc.name}</h2>
-              <span className="dialogue-role-badge">{locNpc.title}</span>
+          {foundNote ? (
+            <div className="dialogue-speaker-info">
+              <h2 id="dialogue-title" className="dialogue-speaker-name">{foundNote.title}</h2>
             </div>
-            <span className="dialogue-district">{locNpc.district}</span>
-          </div>
-          <ChromeClose onClick={onClose} label={locale === "tr" ? "Sohbeti kapat" : "Close conversation"} />
+          ) : npc && locNpc ? (
+            <>
+              <div className="dialogue-avatar" aria-hidden="true">
+                {atlasForPortrait(npc.id) ? (
+                  <AtlasImage src={atlasForPortrait(npc.id)} alt="" size={72} />
+                ) : (
+                  <span className="dialogue-avatar-icon"><HudIcon name={npc.portraitIcon} size={26} /></span>
+                )}
+              </div>
+              <div className="dialogue-speaker-info">
+                <div className="dialogue-name-row">
+                  <h2 id="dialogue-title" className="dialogue-speaker-name">{locNpc.name}</h2>
+                  <span className="dialogue-role-badge">{locNpc.title}</span>
+                </div>
+                <span className="dialogue-district">{locNpc.district}</span>
+              </div>
+            </>
+          ) : null}
+          <ChromeClose onClick={() => { playUiSound("dialogue-close"); onClose(); }} label={foundNote
+            ? (locale === "tr" ? "Notu kapat" : "Close note")
+            : (locale === "tr" ? "Sohbeti kapat" : "Close conversation")} />
         </header>
 
         <div className="dialogue-body" onClick={() => handleNext(true)}>
@@ -429,7 +456,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
                       // A page the player has already read is shown in full
                       // rather than retyped.
                       instantRevealKeyRef.current = dialoguePageKey(
-                        npcId,
+                        sessionKey,
                         resolved?.generation ?? 0,
                         i
                       );

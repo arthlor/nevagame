@@ -8,6 +8,7 @@ import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from 
 import { migrateSaveData } from "../../src/persistence/SaveMigrations";
 import { HARBOR_MARKET, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import predecessor from "../fixtures/save_v56_contract_settlement_predecessor.json";
+import { expectInventoriesPreserved } from "../helpers/migrationPreservation";
 
 describe("partial contract settlement", () => {
   it("pays at least the delivered spot value when that exceeds the posted completion reward", () => {
@@ -190,7 +191,7 @@ describe("partial contract settlement", () => {
     expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(validateSaveEnvelope(migrated)).toBe(true);
     expect(migrated.state.player.money).toBe(original.state.player.money);
-    expect(migrated.state.inventories).toEqual(original.state.inventories);
+    expectInventoriesPreserved(migrated.state, original.state);
     expect(migrated.state.contracts.map((contract) => ({
       quantityFulfilled: contract.quantityFulfilled,
       deliveredValueMoney: contract.deliveredValueMoney,

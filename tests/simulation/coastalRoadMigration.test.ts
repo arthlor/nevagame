@@ -6,7 +6,7 @@ import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepo
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { playerPoseFromMount, isMountableTraversalPoint } from "../../src/simulation/mounts/Mounts";
-import { expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v53_layout25_road_predecessor.json";
@@ -47,9 +47,10 @@ describe("coastal road layout26 recovery", () => {
       expect(WorldLayout.isWalkable(p.x, p.z)).toBe(true);
       expect(p.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(p.x, p.z) + 0.5, 6);
     }
-    for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "boats"] as const) {
+    for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather"] as const) {
       expect(after.state[key], key).toEqual(expected[key]);
     }
+    expectBoatsPreserved(after.state, expected);
     expectMarketsPreserved(after.state, expected);
     expect(saved).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);

@@ -4,7 +4,7 @@ import { LABOR_PROP_POSES } from "../simulation/labor/LaborStations";
 import { VILLAGE_TRADE_STATIONS, CART_WORKSHOP, inVillageTradeReserve } from "./VillageTradeLayout";
 import { mainHarborDockDressing, harborDistrictPlacements, retainHarborDistrictDressing, inHarborWorkingReserve } from "./HarborDistrictLayout";
 import { oceanIsletPlacements } from "./OceanIsletPlacements";
-import { mainlandGroundCoverSteps, mainlandSettlementPlacements, mainlandStructuralPlacementSteps,
+import { mainlandGroundCoverSteps, mainlandOverlookCampPlacements, mainlandSettlementPlacements, mainlandStructuralPlacementSteps,
   STARTER_DRESSING_BOUNDS } from "./MainlandEnvironmentLayout";
 import { SUNREACH_OFFSET_X } from "./WorldIslands";
 import { createSunreachDressingPlacements, sunreachCisternPlacement } from "./SunreachDressing";
@@ -96,6 +96,52 @@ export const PLACEMENT_OVERRIDES: Readonly<Record<string, PlacementOverride>> = 
   "authored.river.plant.willow-left-6": { x: -36.3, z: -87.4, rotationY: 5.0553 },
   "authored.river.plant.willow-left-8": { x: -36.1, z: -80, rotationY: 0.7175 },
   "authored.river.plant.willow-left-10": { x: -31.3, z: -70, rotationY: 5.4205 },
+  "authored.sunreach.living.farm-water-barrel": { x: 1278.5, z: 17.1, rotationY: 0.3 },
+  "authored.sunreach.living.farm-wheelbarrow": { x: 1234.3, z: 13.2, rotationY: -0.6 },
+  "authored.sunreach.living.farm-baskets": { x: 1233.6, z: 12.4, rotationY: 0.25 },
+  "authored.sunreach.living.farm-potting-bench": { x: 1232.3, z: 11.7, rotationY: -3.1416 },
+  "authored.sunreach.living.farm-work-basket": { x: 1233, z: 13.1, rotationY: 0.4 },
+  "authored.harbor-district.sunreach.cargo-store": { x: 1198.8, z: 58.6, rotationY: -1.5708 },
+  "authored.harbor-district.sunreach.cargo-crates-b": { x: 1196.2, z: 62.4, rotationY: 0.25 },
+  "authored.harbor-district.sunreach.cargo-crates-a": { x: 1196, z: 63.9, rotationY: -0.1 },
+  "authored.harbor-district.sunreach.cargo-cart": { x: 1197, z: 55.1, rotationY: -1.4 },
+  "authored.sunreach.living.fish-barrel": { x: 1198.4, z: 54.9, rotationY: 0.2 },
+  "authored.sunreach.living.fish-crate": { x: 1197.3, z: 53.4, rotationY: -0.1 },
+  "authored.sunreach.living.fish-rack": { x: 1168.3, z: 59.2, rotationY: -0.2618 },
+  "authored.sunreach.living.gathering-bench": { x: 1176.5, z: 59.9, rotationY: 6.0214 },
+  "authored.sunreach.living.market-baskets": { x: 1178.1, z: 60.1, rotationY: -0.15 },
+  "authored.sunreach.living.market-sacks": { x: 1178.7, z: 60.5, rotationY: 0.2 },
+  "authored.sunreach.living.landing-barrel": { x: 1164.9, z: 64.5, rotationY: 0.1 },
+  "authored.sunreach.living.landing-crate": { x: 1165.9, z: 64.8, rotationY: -0.18 },
+  "authored.sunreach.living.landing-sign": { x: 1161.9, z: 63.4, rotationY: -1.5 },
+  "authored.sunreach.living.gathering-lamp": { x: 1165.7, z: 59.5, rotationY: 0 },
+  "authored.sunreach.living.landing-lamp": { x: 1193.7, z: 41.9, rotationY: 0.2 },
+  "authored.harbor-district.sunreach.north-lamp": { x: 1196.8, z: 52.1, rotationY: -1.6 },
+  "authored.sunreach.living.net-lamp": { x: 1186.1, z: 89.9, rotationY: 3.1416 },
+  "authored.harbor-district.sunreach.netmakers-shelter": { x: 1185.6, z: 94.8, rotationY: 3.927 },
+  "authored.sunreach.living.net-rack": { x: 1168.6, z: 56, rotationY: 1.4 },
+  "authored.harbor-district.sunreach.south-traps": { x: 1174.5, z: 97.9, rotationY: 0.4 },
+  "authored.mainland.pinewatch.bench": { x: -381.5, z: 52.2, rotationY: -2.8798 },
+  "authored.mainland.worksite.lake-ice-house": { x: -623.5, z: -137.3, rotationY: 3.4034 },
+  "authored.mainland.worksite.lake-ice-house.sawdust-crate": { x: -626.6, z: -137.2, rotationY: 2.4823 },
+  "seeded-fill.mainland.outcrops.-29.-41": { x: -422, z: -611, rotationY: 5.465 },
+  "authored.mainland.worksite.reedhaven-salt-pans": { x: -514.1, z: 320.1, rotationY: -1.4274 },
+  "authored.mainland.worksite.reedhaven-salt-pans.salt-barrow": { x: -511.6, z: 324.7, rotationY: -0.2274 },
+  "authored.mainland.reedhaven.landing-stock": { x: -511.4, z: 326, rotationY: 0.4 },
+  "authored.mainland.reedhaven.landing-sign": { x: -494, z: 330.9, rotationY: 0 },
+  "authored.mainland.worksite.reedhaven-salt-pans.brine-barrel": { x: -510.2, z: 325, rotationY: -1.4274 },
+  "authored.mainland.overlook.bench": { x: -433.1, z: -608.4, rotationY: 3.6652 },
+  "seeded-fill.mainland.canopy.-49.-105": { x: -330.8, z: -709.3, rotationY: 5.4401 },
+  "authored.mainland.overlook.fire": { x: -434.6, z: -608.1, rotationY: 0.9938 },
+  "authored.mainland.overlook.pie": { x: -434.6, z: -607.2, rotationY: 0.2438 },
+  "authored.mainland.overlook.bread": { x: -435, z: -607.2, rotationY: 1.1438 },
+  "authored.mainland.overlook.apple": { x: -434.9, z: -606.8, rotationY: 1.8438 },
+  "authored.mainland.overlook.note": { x: -434.9, z: -605.8, rotationY: 1.2938 },
+  "authored.mainland.passing.mainland-passing-mainland-village-highridge-2.rest": { x: -257.2, z: -353.2, rotationY: -0.5236 },
+  "authored.harbor-district.neva.awning-basket": { x: 58.8, z: 40.9, rotationY: 0.4 },
+  "authored.harbor-district.neva.fishmongers-awning": { x: 58, z: 44, rotationY: 1.5708 },
+  "authored.harbor-district.neva.square-banner": { x: 77.2, z: 52.2, rotationY: 0.3 },
+  "authored.prop.crate.harbor": { x: 66.5, z: 61.9, rotationY: 0.15 },
 };
 
 /** Seeded/layout-derived instances removed by the DEV layout editor. */
@@ -463,7 +509,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.arrival.overlook.sign", { assetId: "prop_signpost_trail_a", x: -122, z: -88, rotationY: -1.2, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.beach.driftwood", { assetId: "prop_driftwood_log_a", x: -177, z: -65, rotationY: 0.8, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.beach.fire", { assetId: "prop_fire_pit_a", x: -172, z: -65, rotationY: 0, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
-  authoredPlacement("authored.arrival.beach.sign", { assetId: "prop_signpost_trail_a", x: -172, z: -70, rotationY: -0.7, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
+  authoredPlacement("authored.arrival.beach.sign", { assetId: "prop_signpost_trail_a", x: -172.48, z: -70.87, rotationY: -0.7, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.bluff.cairn", { assetId: "rock_field_a", x: -55, z: -220, rotationY: 1.1, scale: [0.9, 0.9, 0.9], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.bluff.bench", { assetId: "prop_bench_wood_a", x: -49, z: -220, rotationY: 3.1, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
   authoredPlacement("authored.arrival.bluff.sign", { assetId: "prop_signpost_trail_a", x: -49, z: -216, rotationY: 0.4, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
@@ -531,7 +577,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   authoredPlacement("authored.harbor.anchor-store", { assetId: "prop_anchor_admiralty_a", x: 106, z: 55, rotationY: -0.2, scale: [1, 1, 1] }),
   authoredPlacement("authored.harbor.drying-rack", { assetId: "prop_fish_drying_rack_a", x: 85, z: 59, rotationY: 0.25, scale: [1, 1, 1], grounding: [1.1, 0.41], clearanceRadiusMeters: 2 }),
   authoredPlacement("authored.harbor.mooring-post", { assetId: "prop_mooring_post_a", x: 85, z: 68, rotationY: 0.3, scale: [1, 1, 1] }),
-  authoredPlacement("authored.harbor.yard-lantern", { assetId: "prop_dock_lantern_a", x: 86, z: 56.5, rotationY: 0.25, scale: [1, 1, 1], practicalLight: true }),
+  authoredPlacement("authored.harbor.yard-lantern", { assetId: "prop_dock_lantern_a", x: 85.36, z: 57.15, rotationY: 0.25, scale: [1, 1, 1], practicalLight: true }),
 
   // A maintained stopping place on the lighthouse walk; no new fire/camping mechanic.
   authoredPlacement("authored.coast.walk-kiosk", { assetId: "prop_trail_kiosk_a", x: -19.8, z: 61.9, rotationY: 7.0686, scale: [1, 1, 1], clearanceRadiusMeters: 1.5 }),
@@ -2613,7 +2659,7 @@ function* staticPlacementSteps(worldSeed: number): Generator<void, readonly Envi
     ...createSunreachDressingPlacements(),
     ...generateSunreachCausalCompositionPlacements(worldSeed)
   ];
-  const mainlandPlacements = [...mainlandSettlementPlacements(), ...yield* mainlandStructuralPlacementSteps(worldSeed)];
+  const mainlandPlacements = [...mainlandSettlementPlacements(), ...mainlandOverlookCampPlacements(), ...yield* mainlandStructuralPlacementSteps(worldSeed)];
   const riverDressing = riverDressingClearOf(existing);
   const causalBesideRiver = causalPlacements.filter((placement) => !crowdsRiverDressing(placement, riverDressing));
   const trade = villageTradePlacements();

@@ -8,6 +8,8 @@ export type UiSoundCue =
   | "confirm"
   | "open"
   | "cloth"
+  | "notch"
+  | "dialogue-close"
   | "coins"
   | "page-turn"
   | "chime"
@@ -42,6 +44,12 @@ export function playUiSound(cue: UiSoundCue | string): void {
       case "open":
       case "cloth":
         gameAudio.playOneShot("ui-cloth");
+        break;
+      case "notch":
+        gameAudio.playOneShot("hotbar-notch");
+        break;
+      case "dialogue-close":
+        gameAudio.playOneShot("dialogue-close");
         break;
       case "coins":
         gameAudio.playOneShot("coins");

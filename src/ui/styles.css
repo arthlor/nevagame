@@ -1676,7 +1676,7 @@ body, html {
 /* Inventory Modal */
 .inventory-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
 }
 
@@ -6270,7 +6270,7 @@ input:focus-visible,
 /* Inventory and journal are lists/sheets, not card grids. */
 .inventory-grid {
   gap: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .inventory-slot {
@@ -7427,7 +7427,7 @@ input:focus-visible,
   }
 
   .inventory-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .inventory-details-card {

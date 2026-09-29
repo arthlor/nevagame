@@ -113,7 +113,8 @@ describe("Sunreach living harbor and terraces", () => {
   it("registers background residents without inventing interactive NPCs", () => {
     expect(SUNREACH_TOWNSFOLK_ROUTES).toHaveLength(6);
     for (const route of SUNREACH_TOWNSFOLK_ROUTES) {
-      expect(AMBIENT_TOWNSFOLK_ROUTES).toContain(route);
+      // The ambient list copies each route to assign its rotating cast asset, so compare by identity of content.
+      expect(AMBIENT_TOWNSFOLK_ROUTES).toContainEqual(expect.objectContaining({ id: route.id }));
       expect(NPCS.some(npc => String(npc.id) === route.id)).toBe(false);
       for (const phase of phases) {
         expect(sampleAmbientTownsfolkPose(route, { timeOfDay: phase }, 123, 0))
@@ -138,7 +139,7 @@ describe("Sunreach living harbor and terraces", () => {
 
   it("keeps the scenic boats at sea and clear of the player's mooring", () => {
     for (const route of SUNREACH_AMBIENT_BOAT_ROUTES) {
-      expect(AMBIENT_BOAT_ROUTES).toContain(route);
+      expect(AMBIENT_BOAT_ROUTES).toContainEqual(expect.objectContaining(route));
       for (let step = 0; step < 720; step += 1) {
         const pose = sampleAmbientBoatPose(route, 2 * Math.PI * step / (720 * route.speed));
         expect(WorldLayout.isSailable(pose.x, pose.z)).toBe(true);

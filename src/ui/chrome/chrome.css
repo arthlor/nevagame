@@ -727,9 +727,24 @@ kbd,
 
 .chrome-slot-badge {
   position: absolute;
-  top: -3px;
-  right: -3px;
+  top: 4px;
+  right: 4px;
   z-index: 2;
+}
+
+.crop-grade-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: capitalize;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.inventory-slot .crop-grade-mark .atlas-image {
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 0 1px #120c06) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.95));
 }
 
 .chrome-quality {

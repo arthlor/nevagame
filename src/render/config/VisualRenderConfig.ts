@@ -495,6 +495,12 @@ export interface VisualRenderConfig {
     polygonFacetLightingStrength: number;
     edgeFadeStart: number;
     edgeFadeFull: number;
+    /**
+     * Metres inland of the shore where a road starts thinning into the beach,
+     * and where its crown may finally dissolve. Shoulders go first.
+     */
+    shoreBlendInlandMeters: number;
+    shoreBlendCrownMeters: number;
     roughness: number;
     roughnessVariation: number;
   };
@@ -831,8 +837,16 @@ export interface VisualRenderConfig {
       /** Opacity eases in from the source and out into the water a brook joins. */
       sourceFadeMeters: number;
       mouthFadeMeters: number;
+      /**
+       * A sea mouth fades over this run on land, then keeps sheeting this far
+       * into the water. Lake and river mouths keep `mouthFadeMeters`.
+       */
+      seaMouthFadeMeters: number;
+      seaMouthReachMeters: number;
       /** Share the water widens by as it runs out across a shore into open water. */
       mouthSpread: number;
+      /** A sea mouth sheets wider than a lake or river join. */
+      seaMouthSpread: number;
       /**
        * The water wanders across its floor: share of the floor's spare width
        * it may use, and the wavelength of the wander. Width varies by the
@@ -1636,6 +1650,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     polygonFacetLightingStrength: 0.016,
     edgeFadeStart: 0.16,
     edgeFadeFull: 0.72,
+    shoreBlendInlandMeters: 14,
+    shoreBlendCrownMeters: 4,
     roughness: 0.94,
     roughnessVariation: 0.02
   },
@@ -1813,7 +1829,10 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       bedTint: 0.32,
       sourceFadeMeters: 4,
       mouthFadeMeters: 5,
+      seaMouthFadeMeters: 16,
+      seaMouthReachMeters: 16,
       mouthSpread: 0.8,
+      seaMouthSpread: 2.2,
       meanderShare: 0.7,
       meanderWavelengthMeters: 11,
       widthVariation: 0.22,

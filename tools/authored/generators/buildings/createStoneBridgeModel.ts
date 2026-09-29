@@ -2,8 +2,22 @@ import * as THREE from "three";
 import { addCollisionMarkers, assembleLodLevels, type AuthoredModel, type GeneratorContext, type V3 } from "../../kit";
 import { Architecture } from "./architectureParts";
 
-/** A pair of true barrel vaults under a cobbled road. The existing collider tops, rather than
- * an independent decorative parabola, own the road surface at every LOD. */
+/**
+ * Vaults under the cobbled road. The channel vault is centered on the river
+ * thalweg in this asset's local frame (bridge root at `BRIDGE_CENTER`) and is
+ * tall enough for a rowboat or skiff hull. The west vault stays over the
+ * scoured bank. Collider tops, not a decorative parabola, own the road surface.
+ */
+export const STONE_BRIDGE_CHANNEL_ARCH = Object.freeze({ center: 1.46, rx: 3.15, ry: 2.68 });
+export const STONE_BRIDGE_WEST_ARCH = Object.freeze({ center: -4.55, rx: 1.7, ry: 2.35 });
+export const STONE_BRIDGE_SPRING = 0.32;
+export const STONE_BRIDGE_PIERS = Object.freeze([
+  { id: "pier_west", x: -6.68, width: 0.86 },
+  { id: "pier_channel", x: -2.27, width: 0.9 },
+  { id: "pier_east", x: 6.68, width: 0.86 }
+]);
+
+/** A pair of true barrel vaults under a cobbled road. */
 export function createStoneBridgeModel({ spec, parameters: p, seed }: GeneratorContext): AuthoredModel {
   const root = new THREE.Group(); root.name = spec.rootNode;
   const length = Number(p.length), width = Number(p.width), archCount = Number(p.archCount);
@@ -13,18 +27,20 @@ export function createStoneBridgeModel({ spec, parameters: p, seed }: GeneratorC
     const box = decks.find(d => x >= d.center[0] - d.halfExtents[0] - 0.001 && x <= d.center[0] + d.halfExtents[0] + 0.001) ?? decks[x < 0 ? 0 : decks.length - 1];
     return box.center[1] + box.halfExtents[1];
   };
-  const span = length / archCount, rx = span * 0.366, ry = 1.98, spring = 0.32;
-  const centers = Array.from({ length: archCount }, (_, i) => -length / 2 + (i + 0.5) * span);
+  if (archCount !== 2) throw new Error(`${spec.id}: the bridge is authored as two vaults`);
+  const spring = STONE_BRIDGE_SPRING;
+  const arches = [STONE_BRIDGE_WEST_ARCH, STONE_BRIDGE_CHANNEL_ARCH];
   const [GOLD, STONE, WOOD, DARK, GLOW] = spec.palette.map((_, i) => i);
   assembleLodLevels(spec, root, level => {
     const a = new Architecture(spec.palette, level, seed);
-    // Broad piers and splayed cutwaters make the structure sit in the stream bed.
-    for (let i = 0; i <= archCount; i++) {
-      const x = THREE.MathUtils.clamp(-length / 2 + i * span, -length / 2 + 0.42, length / 2 - 0.42), pierW = i === 0 || i === archCount ? 0.86 : 1.35;
+    // Abutments bookend the span. The channel pier stands in the gap between
+    // the west vault and the taller arch over the thalweg.
+    for (const [index, pier] of STONE_BRIDGE_PIERS.entries()) {
+      const x = pier.x, pierW = pier.width;
       const pierHeight = surfaceY(x) - 0.12;
       a.box([x, pierHeight / 2, 0], [pierW, pierHeight, width - 0.10], STONE, 0.91);
-      if (i === 0 || i === archCount) a.masonry([x + (i === 0 ? -1 : 1) * pierW / 2, 0, 0], width - 0.12, pierHeight,
-        0.15, 6, 7, STONE, i === 0 ? -Math.PI / 2 : Math.PI / 2);
+      if (index !== 1) a.masonry([x + (index === 0 ? -1 : 1) * pierW / 2, 0, 0], width - 0.12, pierHeight,
+        0.15, 6, 7, STONE, index === 0 ? -Math.PI / 2 : Math.PI / 2);
       for (const side of [-1, 1]) {
         a.masonry([x, 0, side * (width / 2 - 0.04)], pierW, 1.28, 0.32, Number(p.masonryCourses) + 1, 3, STONE, side < 0 ? Math.PI : 0);
         a.surface.addHull([[x - pierW * 0.48, 0.02, side * width * 0.43], [x + pierW * 0.48, 0.02, side * width * 0.43],
@@ -32,27 +48,34 @@ export function createStoneBridgeModel({ spec, parameters: p, seed }: GeneratorC
           [x + pierW * 0.40, 0.79, side * width * 0.46], [x, 0.96, side * (width / 2 + 0.13)]], { token: GOLD, shade: 0.95 });
       }
     }
-    for (const cx of centers) {
+    for (const arch of arches) {
+      const { center: cx, rx, ry } = arch;
       const voussoirs = a.count(19, 13, 9), courses = a.count(7, 3, 2);
       for (let k = 0; k < voussoirs; k++) for (let row = 0; row < courses; row++) {
         const t0 = k * Math.PI / voussoirs + 0.002, t1 = (k + 1) * Math.PI / voussoirs - 0.002;
         const z0 = -width / 2 + row * width / courses + 0.007, z1 = -width / 2 + (row + 1) * width / courses - 0.007;
-        const at = (t: number, outer: boolean, z: number): V3 => [cx + Math.cos(t) * (rx + (outer ? 0.31 : 0)), spring + Math.sin(t) * (ry + (outer ? 0.37 : 0)), z];
+        const at = (t: number, outer: boolean, z: number): V3 => [cx + Math.cos(t) * (rx + (outer ? 0.22 : 0)), spring + Math.sin(t) * (ry + (outer ? 0.18 : 0)), z];
         a.surface.addHull([at(t0, false, z0), at(t1, false, z0), at(t0, true, z0), at(t1, true, z0),
           at(t0, false, z1), at(t1, false, z1), at(t0, true, z1), at(t1, true, z1)],
         { token: row === 0 || row === courses - 1 ? GOLD : STONE, shade: a.shade() });
       }
       // Larger, projecting keys lock the crown, not a flat painted arch outline.
+      const keyTop = Math.min(spring + ry + 0.22, surfaceY(cx) - 0.06);
       for (const side of [-1, 1]) a.surface.addHull([
         [cx - 0.15, spring + ry - 0.04, side * (width / 2 - 0.05)], [cx + 0.15, spring + ry - 0.04, side * (width / 2 - 0.05)],
-        [cx - 0.22, spring + ry + 0.39, side * (width / 2 - 0.05)], [cx + 0.22, spring + ry + 0.39, side * (width / 2 - 0.05)],
+        [cx - 0.22, keyTop, side * (width / 2 - 0.05)], [cx + 0.22, keyTop, side * (width / 2 - 0.05)],
         [cx - 0.15, spring + ry - 0.04, side * (width / 2 + 0.09)], [cx + 0.15, spring + ry - 0.04, side * (width / 2 + 0.09)],
-        [cx - 0.22, spring + ry + 0.39, side * (width / 2 + 0.09)], [cx + 0.22, spring + ry + 0.39, side * (width / 2 + 0.09)]
+        [cx - 0.22, keyTop, side * (width / 2 + 0.09)], [cx + 0.22, keyTop, side * (width / 2 + 0.09)]
       ], { token: GOLD });
     }
     const outerArch = (x: number): number => {
       let y = 0.05;
-      for (const cx of centers) if (Math.abs(x - cx) < rx + 0.31) y = Math.max(y, spring + (ry + 0.37) * Math.sqrt(1 - ((x - cx) / (rx + 0.31)) ** 2));
+      for (const arch of arches) {
+        const outerRx = arch.rx + 0.22;
+        if (Math.abs(x - arch.center) < outerRx) {
+          y = Math.max(y, spring + (arch.ry + 0.18) * Math.sqrt(1 - ((x - arch.center) / outerRx) ** 2));
+        }
+      }
       return y;
     };
     const bays = a.count(26, 18, 12);

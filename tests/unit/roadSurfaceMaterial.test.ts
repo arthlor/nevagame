@@ -63,6 +63,10 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("roadEdgeBand = 1.0 - smoothstep(roadEdgeFadeFull, 1.0, vRoadOpacity)");
     expect(shader.fragmentShader).toContain("roadCoverage + (roadDither - 0.5) * 0.12");
     expect(shader.fragmentShader).toContain("diffuseColor.a = roadCoverage;");
+    expect(shader.fragmentShader).not.toContain("diffuseColor.a *= 1.0 - smoothstep(0.25, 0.65, coastalRoadWeight)");
+    expect(shader.fragmentShader).toContain("float shoreCrownDissolve");
+    expect(shader.uniforms.roadShoreBlendInland.value).toBe(CANONICAL_RENDER_CONFIG.roadSurface.shoreBlendInlandMeters);
+    expect(shader.uniforms.roadShoreBlendCrown.value).toBeLessThan(shader.uniforms.roadShoreBlendInland.value);
     expect(shader.fragmentShader).toContain("float sharedRoadCellSignal = roadEdgeSignal;");
     expect(shader.fragmentShader).toContain("inverseTransformDirection(baseNormal, viewMatrix)");
     expect(shader.uniforms.roadEdgeCellScale.value).toBe(CANONICAL_RENDER_CONFIG.roadSurface.polygonEdgeCellScaleMeters);

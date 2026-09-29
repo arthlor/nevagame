@@ -34,6 +34,106 @@ function authored(id: string, assetId: string, x: number, z: number, rotationY: 
     biomeId: mainlandBiomeAt(x, z), assetId, x, z, rotationY, scale: [1, 1, 1] };
 }
 
+/** The summit crown in the overlook screenshot, and the harbor it looks toward. */
+const OVERLOOK_LOOKOUT = { x: -435.8, z: -606 } as const;
+const OVERLOOK_HARBOR_VIEW = { x: 64, z: 60 } as const;
+const OVERLOOK_SCATTER_RADIUS = 3.5;
+export const OVERLOOK_NOTE_PLACEMENT_ID = "authored.mainland.overlook.note";
+
+const OVERLOOK_CAMP_LOCAL = [
+  { id: "overlook.bench", assetId: "prop_bench_wood_a", localX: 0, localZ: -1.2, yaw: 0 },
+  { id: "overlook.fire", assetId: "prop_fire_pit_a", localX: 1.85, localZ: -0.35, yaw: 0.35 },
+  { id: "overlook.bread", assetId: "item_bread_loaf_a", localX: 0.72, localZ: 0.08, yaw: 0.5 },
+  { id: "overlook.pie", assetId: "item_pie_a", localX: 1.02, localZ: 0.4, yaw: -0.4 },
+  { id: "overlook.apple", assetId: "item_apple_a", localX: 0.46, localZ: 0.36, yaw: 1.2 },
+  { id: "overlook.note", assetId: "prop_ground_note_a", localX: -0.55, localZ: 0.35, yaw: 0.65 }
+] as const;
+
+function overlookFacing(x: number, z: number): number {
+  return Math.atan2(OVERLOOK_HARBOR_VIEW.x - x, OVERLOOK_HARBOR_VIEW.z - z);
+}
+
+function overlookWorld(originX: number, originZ: number, facing: number, localX: number, localZ: number): { x: number; z: number } {
+  const cos = Math.cos(facing);
+  const sin = Math.sin(facing);
+  return {
+    x: originX + localX * cos + localZ * sin,
+    z: originZ - localX * sin + localZ * cos
+  };
+}
+
+/** Prefer the flattest dry patch within a couple of metres of the screenshot spot. */
+function overlookCampOrigin(): { x: number; z: number; facing: number } {
+  let best: { x: number; z: number; facing: number; score: number } | null = null;
+  for (let radius = 0; radius <= 2.001; radius += 0.5) {
+    const steps = radius === 0 ? 1 : 12;
+    for (let step = 0; step < steps; step += 1) {
+      const angle = (step / steps) * Math.PI * 2;
+      const x = OVERLOOK_LOOKOUT.x + Math.sin(angle) * radius;
+      const z = OVERLOOK_LOOKOUT.z + Math.cos(angle) * radius;
+      const facing = overlookFacing(x, z);
+      const heights: number[] = [];
+      let minNormal = 1;
+      let blocked = false;
+      for (const piece of OVERLOOK_CAMP_LOCAL) {
+        const world = overlookWorld(x, z, facing, piece.localX, piece.localZ);
+        if (WorldLayout.isWater(world.x, world.z) || !WorldLayout.isWalkable(world.x, world.z)) {
+          blocked = true;
+          break;
+        }
+        minNormal = Math.min(minNormal, WorldLayout.terrainNormalY(world.x, world.z));
+        heights.push(WorldLayout.terrainHeight(world.x, world.z));
+      }
+      if (blocked || heights.length === 0) continue;
+      const delta = Math.max(...heights) - Math.min(...heights);
+      const distance = Math.hypot(x - OVERLOOK_LOOKOUT.x, z - OVERLOOK_LOOKOUT.z);
+      const score = minNormal - delta * 0.12 - distance * 0.02;
+      if (!best || score > best.score) best = { x, z, facing, score };
+    }
+  }
+  const facing = overlookFacing(OVERLOOK_LOOKOUT.x, OVERLOOK_LOOKOUT.z);
+  return best ?? { x: OVERLOOK_LOOKOUT.x, z: OVERLOOK_LOOKOUT.z, facing };
+}
+
+interface OverlookCamp {
+  placements: EnvironmentAssetPlacement[];
+  anchor: { x: number; z: number };
+  reservation: { x: number; z: number; radius: number };
+}
+
+let overlookCampCache: OverlookCamp | null = null;
+
+function overlookCamp(): OverlookCamp {
+  if (overlookCampCache) return overlookCampCache;
+  const origin = overlookCampOrigin();
+  const placements = OVERLOOK_CAMP_LOCAL.map((piece) => {
+    const world = overlookWorld(origin.x, origin.z, origin.facing, piece.localX, piece.localZ);
+    return authored(piece.id, piece.assetId, world.x, world.z, origin.facing + piece.yaw);
+  });
+  const note = placements.find((placement) => placement.id === OVERLOOK_NOTE_PLACEMENT_ID);
+  if (!note) throw new Error("Overlook camp is missing its note");
+  overlookCampCache = {
+    placements,
+    anchor: { x: note.x, z: note.z },
+    reservation: { x: origin.x, z: origin.z, radius: OVERLOOK_SCATTER_RADIUS }
+  };
+  return overlookCampCache;
+}
+
+/** Chair, fire, food and the readable note on the high ocean overlook. */
+export function mainlandOverlookCampPlacements(): EnvironmentAssetPlacement[] {
+  return overlookCamp().placements;
+}
+
+export function overlookNoteAnchor(): { x: number; z: number } {
+  return overlookCamp().anchor;
+}
+
+/** Keeps highland scatter off the camp. The side boulders stay when they sit outside this disc. */
+export function overlookCampScatterReservation(): { x: number; z: number; radius: number } {
+  return overlookCamp().reservation;
+}
+
 /** Keep furniture beside the travel shoulder when an authored road bends through its old address. */
 function roadsideVillageDetail(id: string, assetId: string, x: number, z: number, rotationY = 0): EnvironmentAssetPlacement {
   const footprintRadius = assetId === "prop_bench_wood_a" ? 1.6 : 0.9;
@@ -509,6 +609,11 @@ export function* mainlandStructuralPlacementSteps(worldSeed: number): Generator<
     bucket.push({ x: landmark.x, z: landmark.z, radius: 1.8 });
     occupied.set(key, bucket);
   }
+  const campClearance = overlookCampScatterReservation();
+  const campKey = `${Math.floor(campClearance.x / bucketMeters)}:${Math.floor(campClearance.z / bucketMeters)}`;
+  const campBucket = occupied.get(campKey) ?? [];
+  campBucket.push(campClearance);
+  occupied.set(campKey, campBucket);
   for (const spec of STRUCTURAL_SCATTER) {
     const minCellX = Math.floor(MAINLAND_BOUNDS.minX / spec.cellMeters);
     const maxCellX = Math.ceil(MAINLAND_BOUNDS.maxX / spec.cellMeters);

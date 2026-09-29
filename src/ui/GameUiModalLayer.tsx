@@ -47,6 +47,7 @@ export const GameUiModalLayer: React.FC<GameUiModalLayerProps> = ({
     activeModal,
     onSetActiveModal,
     activeDialogueNpcId,
+    activeFoundNoteId,
     onTalkNpc,
     onInspectSatchel,
     onSelectPlantCrop,
@@ -137,7 +138,14 @@ export const GameUiModalLayer: React.FC<GameUiModalLayerProps> = ({
         />
       )}
 
-      {activeModal === "dialogue" && activeDialogueNpcId && onTalkNpc && (
+      {activeModal === "dialogue" && activeFoundNoteId && (
+        <DialogueModal
+          foundNoteId={activeFoundNoteId}
+          onClose={() => onSetActiveModal(null)}
+        />
+      )}
+
+      {activeModal === "dialogue" && !activeFoundNoteId && activeDialogueNpcId && onTalkNpc && (
         <DialogueModal
           npcId={activeDialogueNpcId}
           onClose={() => onSetActiveModal(null)}

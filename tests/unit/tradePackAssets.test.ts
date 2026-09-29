@@ -35,7 +35,8 @@ describe("trade pack asset integration", () => {
   it("loads every published pack with both LODs and finite upright carry geometry", async () => {
     await MeshoptDecoder.ready;
     const packs = ASSET_CATALOG.filter(asset => asset.id.startsWith("prop_trade_pack_"));
-    expect(packs).toHaveLength(20);
+    // Eleven fish packs, nine crop packs and the four crafted loads (provisions, textiles, workshop, maritime).
+    expect(packs).toHaveLength(24);
     for (const spec of packs) {
       const bytes = await fs.readFile(path.resolve("public/assets/models", spec.file));
       const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)

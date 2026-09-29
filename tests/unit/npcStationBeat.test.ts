@@ -8,10 +8,9 @@ import {
   assertNpcStationBeatRadius,
   sampleNpcStationBeat
 } from "../../src/render/scene/npcStationBeat";
+import { NPC_STATION_WANDER_METERS, NPC_TALK_ANCHOR_RADIUS, NPC_TALK_RADIUS } from "../../src/simulation/presentation/NpcPresentation";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { WorldLayout } from "../../src/world/WorldLayout";
-
-const TALK_RADIUS_METERS = 3.5;
 
 describe("npcStationBeat", () => {
   it("pauses dialogue in place and resumes without replaying elapsed wall time", () => {
@@ -45,8 +44,9 @@ describe("npcStationBeat", () => {
     expect(result.dx).toBe(0);
     expect(state.elapsedSeconds).toBe(0);
   });
-  it("keeps every authored waypoint inside the station radius and far inside talk range", () => {
-    expect(NPC_STATION_BEAT_RADIUS_METERS).toBeLessThan(TALK_RADIUS_METERS);
+  it("keeps every authored waypoint inside the station disk the talk command allows", () => {
+    expect(NPC_STATION_BEAT_RADIUS_METERS).toBe(NPC_STATION_WANDER_METERS);
+    expect(NPC_TALK_ANCHOR_RADIUS).toBeGreaterThan(NPC_STATION_BEAT_RADIUS_METERS + NPC_TALK_RADIUS);
     for (const [npcId, spec] of Object.entries(NPC_STATION_BEATS)) {
       expect(spec.waypoints.length, npcId).toBeGreaterThanOrEqual(2);
       expect(spec.waypoints.length, npcId).toBeLessThanOrEqual(5);

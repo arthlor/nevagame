@@ -25,7 +25,8 @@ export const FARMHOUSE_INTERIOR_BOUNDS = Object.freeze({
   minZ: -244.0,
   maxZ: -236.0,
   floorY: 0.17,
-  ceilingY: 3.7
+  // Underside of the authored cross-beams: wallHeight 3.5 - 0.07 - 0.09.
+  ceilingY: 3.34
 });
 
 /**
@@ -88,8 +89,8 @@ export const FARMHOUSE_INTERIOR_DOOR = Object.freeze({
  */
 export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object.freeze([
   // Kitchen provisions and the family's sea keepsakes are displays, not loot pickups.
-  { id: "interior_carrot", assetId: ASSET_IDS.ITEM_CARROT_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.2, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2, rotationY: 0.3 },
-  { id: "interior_corn", assetId: ASSET_IDS.ITEM_CORN_COB_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.45, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.85, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.05, rotationY: -0.4 },
+  { id: "interior_carrot", assetId: ASSET_IDS.ITEM_CARROT_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.2, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.8 + 0.186, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2, rotationY: 0.3 },
+  { id: "interior_corn", assetId: ASSET_IDS.ITEM_CORN_COB_A, x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.45, y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.815 + 0.107, z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.05, rotationY: -0.4 },
 
   { id: "interior_compass", assetId: ASSET_IDS.ITEM_COMPASS_A, x: 236.0, y: 0.72, z: -241.9, rotationY: 0.6},
   { id: "interior_sea_chest", assetId: ASSET_IDS.PROP_TREASURE_CHEST_A, x: 243.3, y: 0.17, z: -236.9, rotationY: 3.1416},
@@ -139,7 +140,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
     assetId: ASSET_IDS.PROP_CHAIR_RUSTIC_A,
     x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.4,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z - 0.35,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 0.1,
     rotationY: Math.PI,
     scale: 1.0
   },
@@ -148,7 +149,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
     assetId: ASSET_IDS.PROP_CHAIR_RUSTIC_A,
     x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.4,
     y: FARMHOUSE_INTERIOR_BOUNDS.floorY,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.65,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.9,
     rotationY: 0,
     scale: 1.0
   },
@@ -216,9 +217,10 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_bread_loaf",
     assetId: ASSET_IDS.ITEM_BREAD_LOAF_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.4,
-    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.78,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.0,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 3.0,
+    // The published table top is 0.887 m; the loaf pivot sits 0.067 m above its base.
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.887 + 0.067,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.34,
     rotationY: 0.4,
     scale: 1.0
   },
@@ -226,9 +228,9 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
   {
     id: "interior_pie",
     assetId: ASSET_IDS.ITEM_PIE_A,
-    x: FARMHOUSE_INTERIOR_ORIGIN.x + 2.0,
-    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.78,
-    z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.0,
+    x: FARMHOUSE_INTERIOR_ORIGIN.x + 1.8,
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.875 + 0.04,
+    z: FARMHOUSE_INTERIOR_ORIGIN.z - 1.27,
     rotationY: -0.2,
     scale: 1.0
   },
@@ -237,7 +239,7 @@ export const FARMHOUSE_INTERIOR_PROPS: readonly InteriorPropPlacement[] = Object
     id: "interior_apple",
     assetId: ASSET_IDS.ITEM_APPLE_A,
     x: FARMHOUSE_INTERIOR_ORIGIN.x + 4.35,
-    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.86,
+    y: FARMHOUSE_INTERIOR_BOUNDS.floorY + 0.815 + 0.056,
     z: FARMHOUSE_INTERIOR_ORIGIN.z - 2.2,
     rotationY: 0,
     scale: 1.0

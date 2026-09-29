@@ -5,6 +5,10 @@ import { migrateVillageTrade65 } from "./migrateVillageTrade65";
 import { migrateHarborDistrict67 } from "./migrateHarborDistrict67";
 import { migrateCartWorkshop68 } from "./migrateCartWorkshop68";
 import { migrateMainHarbor69 } from "./migrateMainHarbor69";
+import { migrateRoadApron74 } from "./migrateRoadApron74";
+import { migrateRoadGore75 } from "./migrateRoadGore75";
+import { migrateCollisionPolish76 } from "./migrateCollisionPolish76";
+import { migrateSatchelSlots77 } from "./migrateSatchelSlots77";
 import { migrateRoadNetwork70 } from "./migrateRoadNetwork70";
 import { migrateElspethYard71 } from "./migrateElspethYard71";
 import { migrateWorkCeiling72 } from "./migrateWorkCeiling72";
@@ -1504,7 +1508,11 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   70: (state: unknown) => migrateRoadNetwork70(advanceLayoutRevision(state, 37) as GameState),
   71: (state: unknown) => migrateElspethYard71(state as GameState),
   72: (state: unknown) => migrateWorkCeiling72(state as GameState),
-  73: (state: unknown) => migrateQuestCreditTracks73(state as GameState)
+  73: (state: unknown) => migrateQuestCreditTracks73(state as GameState),
+  74: (state: unknown) => migrateRoadApron74(advanceLayoutRevision(state, 38) as GameState),
+  75: (state: unknown) => migrateRoadGore75(advanceLayoutRevision(state, 39) as GameState),
+  76: (state: unknown) => migrateCollisionPolish76(advanceLayoutRevision(state, 40) as GameState),
+  77: (state: unknown) => migrateSatchelSlots77(state as GameState)
 };
 
 
@@ -1546,6 +1554,9 @@ function advanceLayoutRevision(state: unknown, target: number): unknown {
   if (due(36)) state = migrateCartWorkshop68(state as GameState);
   if (due(37)) state = migrateMainHarbor69(state as GameState);
   if (due(38)) state = migrateRoadNetwork70(state as GameState);
+  if (due(39)) state = migrateRoadApron74(state as GameState);
+  if (due(40)) state = migrateRoadGore75(state as GameState);
+  if (due(41)) state = migrateCollisionPolish76(state as GameState);
   return state;
 }
 

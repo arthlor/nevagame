@@ -14,13 +14,14 @@ import { playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { createWorldStaticPlacements } from "../../src/world/WorldEnvironmentLayout";
 import { WorldLayout } from "../../src/world/WorldLayout";
-import { expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectInventoriesPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import predecessor from "../fixtures/save_v59_layout29_village_life_predecessor.json";
+import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 
 const legacy = () => structuredClone(predecessor) as unknown as SaveEnvelope;
 const PRESERVED = ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests",
-  "journal", "clock", "weather", "boats"] as const;
+  "journal", "clock", "weather"] as const;
 
 /** Catalog collision of the placements layout 30 adds, projected as the recovery does. */
 function villageLifeCollision() {
@@ -66,7 +67,9 @@ describe("village life layout30 recovery", () => {
     for (const [id, mount] of Object.entries(after.state.mounts)) {
       expect({ x: mount.x, z: mount.z }, id).toEqual({ x: untouched.state.mounts[id].x, z: untouched.state.mounts[id].z });
     }
-    for (const key of PRESERVED) expect(after.state[key], key).toEqual(untouched.state[key]);
+    for (const key of PRESERVED) if (key !== "inventories") expect(after.state[key], key).toEqual(untouched.state[key]);
+    expectInventoriesPreserved(after.state, untouched.state);
+    expectBoatsPreserved(after.state, untouched.state);
     expectMarketsPreserved(after.state, untouched.state);
     expect(saved).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);
@@ -96,7 +99,9 @@ describe("village life layout30 recovery", () => {
     expect(WorldLayout.isWalkable(actor.x, actor.z)).toBe(true);
     if (mounted) expect(after.state.player).toMatchObject(playerPoseFromMount(after.state.mounts[donkey.id]));
     else expect(after.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(actor.x, actor.z) + 0.5, 6);
-    for (const key of PRESERVED) expect(after.state[key], key).toEqual(untouched.state[key]);
+    for (const key of PRESERVED) if (key !== "inventories") expect(after.state[key], key).toEqual(untouched.state[key]);
+    expectInventoriesPreserved(after.state, untouched.state);
+    expectBoatsPreserved(after.state, untouched.state);
     expect(saved).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);
   });
@@ -128,8 +133,13 @@ describe("village life layout30 recovery", () => {
     Object.assign(state.player, { x: cote.x, z: cote.z, y: WorldLayout.traversalSurfaceHeight(cote.x, cote.z) + 0.5 });
     expect(validateSaveEnvelope(saved)).toBe(true);
     const after = migrateSaveData(saved);
-    // The pack keeps its pose; its 3 m reach spans the cote's footprint.
-    expect(after.state.fishCargo["cargo.dovecote_pack"]).toEqual(state.fishCargo["cargo.dovecote_pack"]);
+    // Shared recovery nudges ground cargo out of a footprint that now covers it; the pack keeps
+    // everything else and stays inside the 3 m pickup reach of the player standing at the cote.
+    const { location: before, ...packTruth } = state.fishCargo["cargo.dovecote_pack"];
+    const { location: recovered, ...recoveredTruth } = after.state.fishCargo["cargo.dovecote_pack"];
+    expect(recoveredTruth).toEqual(packTruth);
+    expect(recovered).toMatchObject({ type: "ground", containerId: "ground" });
+    expect(Math.hypot(recovered.x! - before.x!, recovered.z! - before.z!)).toBeLessThan(2);
     const sim = new Simulation(structuredClone(after.state));
     sim.state.player.traversal = { ...sim.state.player.traversal, isGrounded: true };
     expect(sim.execute({ type: "cargo.pickup", cargoId: "cargo.dovecote_pack" })).toMatchObject({ success: true });
@@ -139,10 +149,7 @@ describe("village life layout30 recovery", () => {
   it("repairs a head-schema/layout29 development save and round-trips through persistence", async () => {
     const restore = installMemoryIndexedDB();
     try {
-      // v60 is layout-only, so a head-schema development save differs only in its stamp.
-      const retained = legacy();
-      const saved: SaveEnvelope = { ...retained, schemaVersion: CURRENT_SCHEMA_VERSION,
-        state: { ...retained.state, schemaVersion: CURRENT_SCHEMA_VERSION } };
+      const saved = headSchemaDevelopmentSave(legacy());
       Object.assign(saved.state.player, { x: dovecote().x, z: dovecote().z });
       const after = migrateSaveData(saved), repository = new IndexedDbSaveRepository();
       expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);

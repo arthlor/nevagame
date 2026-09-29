@@ -58,7 +58,7 @@ describe("Neva art catalog", () => {
       new Set(Object.values(ASSET_IDS))
     );
     const runtimeFields = [
-      "additionalAnimationClips", "animationClips", "collision", "collisionPrimitives", "contentHash", "family", "file", "humanoidRig", "id", "instancing", "lod", "lodLevels", "readDistanceMeters", "requiredNodes", "rigNode", "rootNode", "socketNodes"
+      "additionalAnimationClips", "animationClips", "collision", "collisionPrimitives", "contentHash", "dimensions", "family", "file", "humanoidRig", "id", "instancing", "lod", "lodLevels", "readDistanceMeters", "requiredNodes", "rigNode", "rootNode", "socketNodes"
     ];
     for (const asset of ASSET_CATALOG) {
       expect(Object.keys(asset).sort()).toEqual(runtimeFields);

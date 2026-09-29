@@ -21,11 +21,13 @@ import { PALETTE_HEX } from "../materials/PaletteTokens";
  * to a few stones up the bank. Clear shallows show the stones, the deeper
  * middle holds the colour, and current streaks and glints travel downstream,
  * faster on steep reaches. At a culvert the water runs straight into the pipe
- * and stops inside the headwall; at open water it spreads thin and fades out
- * at the waterline. Presentation only; the brooks own no water
+ * and stops inside the headwall; at a lake or river it fades over a short
+ * join. A sea mouth sheets wider, turns toward the sea colour, and fades
+ * across the beach into the water instead of ending on the waterline.
+ * Presentation only; the brooks own no water
  * state. Numbers live in `VisualRenderConfig.waterSurface.brooks`.
  */
-const BROOK_PROGRAM_CACHE_KEY = "neva-brook-surface-v9";
+const BROOK_PROGRAM_CACHE_KEY = "neva-brook-surface-v10-sea-mouth";
 /** Lift above the rendered floor, so the water never flickers into it. */
 const FLOOR_CLEARANCE_METERS = 0.07;
 /**
@@ -48,6 +50,7 @@ interface RibbonRow {
   cx: number; cz: number; fx: number; fz: number;
   water: number; along: number; grade: number;
   waterFade: number; bankFade: number; pool: number; drop: number;
+  seaMouth: number; seaCourse: number;
 }
 
 function smoothstep(a: number, b: number, value: number): number {
@@ -115,7 +118,8 @@ function underRoad(x: number, z: number, tuck: number): boolean {
 function lerpRow(a: RibbonRow, b: RibbonRow, t: number): RibbonRow {
   const mix = (key: keyof RibbonRow) => a[key] + (b[key] - a[key]) * t;
   return { cx: mix("cx"), cz: mix("cz"), fx: mix("fx"), fz: mix("fz"), water: mix("water"), along: mix("along"),
-    grade: mix("grade"), waterFade: mix("waterFade"), bankFade: mix("bankFade"), pool: mix("pool"), drop: mix("drop") };
+    grade: mix("grade"), waterFade: mix("waterFade"), bankFade: mix("bankFade"), pool: mix("pool"), drop: mix("drop"),
+    seaMouth: mix("seaMouth"), seaCourse: mix("seaCourse") };
 }
 
 function brookGeometry(): THREE.BufferGeometry {
@@ -135,11 +139,15 @@ function brookGeometry(): THREE.BufferGeometry {
       const reach = Math.sign(station) * (Math.min(1, Math.abs(station)) * row.water + bank * config.bankMeters);
       const x = row.cx - row.fz * reach, z = row.cz + row.fx * reach;
       const ground = WorldLayout.terrainBaseSurfaceHeight(x, z);
-      const waterline = smoothstep(WATERLINE_FADE_METERS[0], WATERLINE_FADE_METERS[1], ground);
+      // Sea mouths ease out over the beach. The tight band is what made a
+      // sea outlet pop off between two terrain samples.
+      const waterline = row.seaCourse > 0.5
+        ? smoothstep(-1.2, 0.85, ground)
+        : smoothstep(WATERLINE_FADE_METERS[0], WATERLINE_FADE_METERS[1], ground);
       positions.push(x, ground + FLOOR_CLEARANCE_METERS, z);
       uvs.push(row.along, station);
       flows.push(row.fx, row.fz, row.grade, row.waterFade * waterline);
-      features.push(row.pool, row.drop, row.bankFade * waterline);
+      features.push(row.pool, row.drop, row.bankFade * waterline, row.seaMouth);
     }
     return first;
   };
@@ -150,6 +158,24 @@ function brookGeometry(): THREE.BufferGeometry {
   for (const course of coursesTrunkFirst()) {
     const courseIndex = courses.indexOf(course);
     const points = densify(course.knots, config.spacingMeters);
+    const sea = course.outlet === "sea";
+    if (sea && points.length >= 2) {
+      const prev = points[points.length - 2];
+      const last = points[points.length - 1];
+      const dx = last.x - prev.x;
+      const dz = last.z - prev.z;
+      const length = Math.max(1e-6, Math.hypot(dx, dz));
+      const steps = Math.max(1, Math.ceil(config.seaMouthReachMeters / config.spacingMeters));
+      for (let step = 1; step <= steps; step++) {
+        const distance = config.seaMouthReachMeters * step / steps;
+        points.push({
+          x: last.x + (dx / length) * distance,
+          z: last.z + (dz / length) * distance,
+          bed: last.bed,
+          hectares: last.hectares
+        });
+      }
+    }
     const slope = grades(points, config.gradeReachMeters);
     let courseLength = 0;
     for (let i = 1; i < points.length; i++) courseLength += Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
@@ -181,10 +207,15 @@ function brookGeometry(): THREE.BufferGeometry {
       const pool = smoothstep(0.1, 0.3, upstream - slope[i]);
       const drop = smoothstep(0.08, 0.28, downstream - slope[i]);
       const source = smoothstep(0, config.sourceFadeMeters, along);
+      // A sea mouth is half gone at the shoreline and gone a reach further
+      // out, so the join is a sheet rather than a cut at the waterline.
+      const openFade = sea
+        ? smoothstep(-config.seaMouthReachMeters, config.seaMouthFadeMeters, toMouth - config.seaMouthReachMeters)
+        : smoothstep(0, config.mouthFadeMeters, toMouth);
       const waterFade = Math.min(source, trunk
-        ? smoothstep(trunkWater * 0.3, trunkWater + 1, toMouth) : smoothstep(0, config.mouthFadeMeters, toMouth));
+        ? smoothstep(trunkWater * 0.3, trunkWater + 1, toMouth) : openFade);
       const bankFade = Math.min(source, trunk
-        ? smoothstep(trunkWater + 0.3, trunkWater + config.bankMeters + 0.6, toMouth) : smoothstep(0, config.mouthFadeMeters, toMouth));
+        ? smoothstep(trunkWater + 0.3, trunkWater + config.bankMeters + 0.6, toMouth) : openFade);
       // The water is narrower than its floor and wanders across it, but runs
       // straight at its ends, into a culvert's pipe and past a joining brook.
       const nearest = (list: readonly { x: number; z: number }[]): number =>
@@ -192,7 +223,8 @@ function brookGeometry(): THREE.BufferGeometry {
       const calm = Math.min(smoothstep(config.culvertCalmMeters[0], config.culvertCalmMeters[1], nearest(culverts)),
         smoothstep(2, 8, nearest(joins)));
       // Where it runs out across a shore into open water, it spreads thin.
-      const spread = trunk ? 0 : config.mouthSpread * (1 - smoothstep(0, config.mouthFadeMeters + 3, toMouth));
+      const spreadReach = sea ? config.seaMouthFadeMeters + config.seaMouthReachMeters : config.mouthFadeMeters + 3;
+      const spread = trunk ? 0 : (sea ? config.seaMouthSpread : config.mouthSpread) * (1 - smoothstep(0, spreadReach, toMouth));
       const water = mainlandBrookHalfWidth(points[i].hectares)
         * (1 + config.widthVariation * calm * wander(along, seed + 11, config.meanderWavelengthMeters * 0.7))
         * (1 + config.poolWidening * pool * calm) * (1 + spread);
@@ -200,7 +232,7 @@ function brookGeometry(): THREE.BufferGeometry {
       const shift = room * config.meanderShare * wander(along, seed, config.meanderWavelengthMeters)
         * smoothstep(0, 6, along) * smoothstep(0, 6, toMouth) * calm;
       rows.push({ cx: points[i].x - fz * shift, cz: points[i].z + fx * shift, fx, fz, water, along, grade: slope[i],
-        waterFade, bankFade, pool, drop });
+        waterFade, bankFade, pool, drop, seaMouth: sea ? 1 - openFade : 0, seaCourse: sea ? 1 : 0 });
     }
     // A road deck carries its own surface over the culvert; the water runs
     // into the pipe and stops just inside the headwall, never over the road.
@@ -230,7 +262,7 @@ function brookGeometry(): THREE.BufferGeometry {
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setAttribute("brookFlow", new THREE.Float32BufferAttribute(flows, 4));
-  geometry.setAttribute("brookFeature", new THREE.Float32BufferAttribute(features, 3));
+  geometry.setAttribute("brookFeature", new THREE.Float32BufferAttribute(features, 4));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
@@ -239,10 +271,10 @@ function brookGeometry(): THREE.BufferGeometry {
 
 const VERTEX_DECLARATIONS = /* glsl */ `
 attribute vec4 brookFlow;
-attribute vec3 brookFeature;
+attribute vec4 brookFeature;
 varying vec2 vBrookUv;
 varying vec4 vBrookFlow;
-varying vec3 vBrookFeature;
+varying vec4 vBrookFeature;
 varying vec2 vBrookWorld;
 `;
 
@@ -275,7 +307,7 @@ uniform vec3 uBrookStoneLight;
 uniform vec3 uBrookStoneWarm;
 varying vec2 vBrookUv;
 varying vec4 vBrookFlow;
-varying vec3 vBrookFeature;
+varying vec4 vBrookFeature;
 varying vec2 vBrookWorld;
 float brookHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float brookNoise(vec2 p) {
@@ -413,6 +445,8 @@ float brookGlint = pow(brookNoise(brookCoord * 2.8 + vec2(-brookShift * 2.2, uTi
 vec3 brookSurface = mix(brookColor + brookGlint, uBrookFoam, brookFoam);
 float brookAlpha = mix(uBrookShallowOpacity, uBrookDeepOpacity, brookDepth) + brookFoam * 0.3;
 diffuseColor.rgb = mix(brookGravel, brookSurface, brookWater);
+// A sea mouth takes the sea's colour as it thins, so the sheet joins the water.
+diffuseColor.rgb = mix(diffuseColor.rgb, uBrookDeep, vBrookFeature.w * brookWater);
 diffuseColor.a = clamp(mix(brookGravelAlpha * vBrookFeature.z, brookAlpha * vBrookFlow.w, brookWater), 0.0, 1.0);`)
       .replace("#include <roughnessmap_fragment>", /* glsl */ `#include <roughnessmap_fragment>
 // Stones at the water shine wet; grit and the dry stones up the bank are matte.

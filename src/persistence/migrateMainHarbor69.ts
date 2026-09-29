@@ -1,8 +1,7 @@
 import { collisionPrimitivesForAsset } from "../physics/CollisionCatalogAdapter";
-import { boatAssetId } from "../render/assets/AssetCatalog";
 import type { GameState } from "../simulation/core/types";
 import { HARBOR_MAIN_PIER, harborMooringForBoatType } from "../world/WorldAnchors";
-import { harborBoatIsClear } from "./migrateHarborDistrict67";
+import { harborBoatAssetId, harborBoatIsClear } from "./migrateHarborDistrict67";
 import { recoverMainlandLayout } from "./recoverMainlandLayout";
 
 export const MAIN_HARBOR_LAYOUT_REVISION = 37;
@@ -10,7 +9,7 @@ export const MAIN_HARBOR_LAYOUT_REVISION = 37;
 /** Project each hull box, not its circumscribed circle: alongside berths are intentionally close. */
 export function mainHarborBoatIsClear(boat: GameState["boats"][string]): boolean {
   const pier = HARBOR_MAIN_PIER;
-  return harborBoatIsClear(boat) && collisionPrimitivesForAsset(boatAssetId(boat.boatTypeId)).every(part => {
+  return harborBoatIsClear(boat) && collisionPrimitivesForAsset(harborBoatAssetId(boat)).every(part => {
     const heading = boat.headingRadians, c = Math.cos(heading), s = Math.sin(heading);
     const x = boat.x + part.center[0] * c + part.center[2] * s;
     const z = boat.z - part.center[0] * s + part.center[2] * c;

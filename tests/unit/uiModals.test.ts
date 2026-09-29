@@ -48,6 +48,7 @@ describe("UI Modals Server/Unit Render", () => {
     expect(html).toContain("Wheat");
     expect(html).toContain("Fish Fertilizer");
     expect(html).toContain("Compost Starter");
+    expect(html.indexOf('data-testid="market-buy-confirm"')).toBeGreaterThan(html.indexOf('<footer class="market-modal-footer"'));
   });
 
   it("renders MarketModal for harbor market without throwing", () => {
@@ -72,6 +73,19 @@ describe("UI Modals Server/Unit Render", () => {
       })
     );
     expect(html).toContain("Satchel");
+  });
+
+  it("keeps the selected seed's available Plant action in the inspector, above Close", () => {
+    const sim = new Simulation();
+    sim.state.inventories[sim.state.player.inventoryId].slots[0] = { itemId: "seed.wheat", quantity: 1 };
+    const render = (valid: boolean) => renderToString(React.createElement(InventoryModal, {
+      satchel: sim.inspectSatchel(), onClose: () => {}, onSelectPlantCrop: () => {}, onInspectPlanting: () => ({ valid })
+    }));
+    const available = render(true);
+    const plant = available.indexOf('data-testid="inventory-plant-action"');
+    expect(plant).toBeGreaterThan(available.indexOf('class="details-name"'));
+    expect(plant).toBeLessThan(available.indexOf('<footer class="modal-footer"'));
+    expect(render(false)).not.toContain('data-testid="inventory-plant-action"');
   });
 
   it("renders the six-slot character screen with local try-on and outfit controls", () => {
@@ -107,7 +121,7 @@ describe("UI Modals Server/Unit Render", () => {
     expect(html).toContain("Workbench");
     expect(html).toContain("Weave Linen Roll");
     expect(html).toContain("Sew Field Hat");
-    expect(html).toContain("Materials");
+    expect(html).toContain("Ingredients");
     expect(html).toContain("Work");
     expect(html).toContain("Duration");
     expect(html).toContain('class="atlas-image"');

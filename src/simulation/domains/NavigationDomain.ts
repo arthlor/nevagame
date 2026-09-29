@@ -37,9 +37,10 @@ import {
 } from "../../world/WorldMoorings";
 import { SUNREACH_ANCHORS } from "../../world/WorldIslands";
 import { isBoatWrecked, repairBoatHull } from "../boats/BoatHull";
-import { npcAnchorAt, NPC_TALK_RADIUS } from "../presentation/NpcPresentation";
+import { npcAnchorAt, NPC_TALK_ANCHOR_RADIUS } from "../presentation/NpcPresentation";
 import type { EmergencyTowQuoteDto, RepairQuoteDto } from "../core/contracts";
 import { DEFAULT_MINUTES_PER_REAL_SECOND } from "../core/GameClock";
+import { resolveMountedRecovery, type MountPoseClearQuery } from "../mounts/MountedRecovery";
 
 /** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
 export const MOTOR_FUEL_PER_GAME_MINUTE = 0.4;
@@ -276,10 +277,20 @@ export class NavigationDomain {
     return { success: true };
   }
 
-  public resetToSafeSpawn(): { success: boolean; reason?: string } {
+  public resetToSafeSpawn(mountClear?: MountPoseClearQuery): { success: boolean; reason?: string } {
     const { state } = this.context;
     if (state.player.activeMountId) {
-      return { success: false, reason: "Dismount first before using Safe Return" };
+      const mount = state.mounts[state.player.activeMountId];
+      if (!mount || !mountClear) return { success: false, reason: "Dismount first before using Safe Return" };
+      let recovery;
+      try { recovery = resolveMountedRecovery(mount, mountClear); }
+      catch { return { success: false, reason: "Could not check nearby ground. Try again." }; }
+      if (!recovery.success) return recovery;
+      Object.assign(mount, recovery.pose);
+      Object.assign(state.player, playerPoseFromMount(mount));
+      state.player.traversal.isGrounded = true;
+      this.refreshPlayerRegion();
+      return { success: true, reason: "Your mount is safely on nearby clear ground" };
     }
     if (state.player.carriedFishCargoId) {
       return {
@@ -683,7 +694,7 @@ export class NavigationDomain {
     const mooring = dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z);
     if (!mooring || mooring.marketId !== "market.harbor") return false;
     const silas = npcAnchorAt("npc.silas", state.clock, state.quests);
-    return distance2d(state.player, silas) <= NPC_TALK_RADIUS;
+    return distance2d(state.player, silas) <= NPC_TALK_ANCHOR_RADIUS;
   }
 
   public refuel(boatId?: BoatId): { success: boolean; reason?: string } {

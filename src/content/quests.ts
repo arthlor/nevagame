@@ -1,5 +1,6 @@
 import { TRADE_CRAFT_QUESTS } from "./questsTradeCraft";
 import { VILLAGE_TRADE_QUESTS } from "./questsVillageTrade";
+import { mainlandMarketTradePoint } from "../world/MainlandSettlementLayout";
 import { MAINLAND_VILLAGES } from "../world/NevaMainland";
 import { SUNREACH_OFFSET_X } from "../world/WorldIslands";
 // src/content/quests.ts
@@ -23,6 +24,14 @@ const HARBOR_MARKET = WorldLayout.landmark("fish-market");
 const COMMONS_PLOT = { x: 82, z: -78, name: "Village Commons" };
 const LAKE_SCHOOL_ANCHOR = { x: 18, z: WorldLayout.coastlineZ(18) + 12, name: "Lake Sport-Fishing School" } as const;
 const SUNREACH_COVE = { ...SUNREACH_ANCHORS.coveMarket, name: "Sunreach Cove" } as const;
+/** Guidance for a mainland counter follows the same stall-front point as the trade ring. */
+function mainlandCounterAnchor(
+  villageId: "pinewatch" | "reedhaven" | "highridge",
+  name: string
+): { x: number; z: number; name: string } {
+  const point = mainlandMarketTradePoint(villageId);
+  return { get x() { return point.x; }, get z() { return point.z; }, name };
+}
 const SUNREACH_TERRACES = { ...SUNREACH_ANCHORS.terraceFarm, name: "Sunreach Terraces" } as const;
 /**
  * A fishing ground's anchor, read from the school spawn point that actually
@@ -1406,7 +1415,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Meet Rowan at Pinewatch", locationAnchor: { ...MAINLAND_VILLAGES.pinewatch.npc, name: "Pinewatch Trade Yard" } },
       { id: "step.tradelanes_pinewatch_wheat", type: "sell-item", targetId: "produce.wheat", targetQuantity: 8,
         description: "Sell 8 Wheat at Pinewatch", location: { kind: "market", id: "market.pinewatch" },
-        locationAnchor: { ...MAINLAND_VILLAGES.pinewatch.market, name: "Pinewatch Timber & Trade" } }
+        locationAnchor: mainlandCounterAnchor("pinewatch", "Pinewatch Timber & Trade") }
     ],
     rewards: { money: 140, skillXp: [{ skill: "trading", xp: 500 }] },
     nextQuestId: "quest.tradelanes_reedhaven"
@@ -1426,7 +1435,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Meet Mara in Reedhaven", locationAnchor: { ...MAINLAND_VILLAGES.reedhaven.npc, name: "Reedhaven Exchange" } },
       { id: "step.tradelanes_reedhaven_pack", type: "sell-fish", targetQuantity: 1,
         description: "Carry a fresh fish pack to Reedhaven and sell it", location: { kind: "market", id: "market.reedhaven" },
-        locationAnchor: { ...MAINLAND_VILLAGES.reedhaven.market, name: "Reedhaven Marsh Exchange" } }
+        locationAnchor: mainlandCounterAnchor("reedhaven", "Reedhaven Marsh Exchange") }
     ],
     rewards: { money: 180, skillXp: [{ skill: "trading", xp: 650 }] },
     nextQuestId: "quest.tradelanes_highridge"
@@ -1446,7 +1455,7 @@ export const QUESTS: QuestDefinition[] = [
         description: "Meet Ada at Highridge", locationAnchor: { ...MAINLAND_VILLAGES.highridge.npc, name: "Highridge Provisions" } },
       { id: "step.tradelanes_highridge_packs", type: "sell-fish", targetQuantity: 2,
         description: "Sell 2 hand-carried fish packs at Highridge", location: { kind: "market", id: "market.highridge" },
-        locationAnchor: { ...MAINLAND_VILLAGES.highridge.market, name: "Highridge Provisions" } }
+        locationAnchor: mainlandCounterAnchor("highridge", "Highridge Provisions") }
     ],
     rewards: { money: 240, skillXp: [{ skill: "trading", xp: 900 }] }
   },

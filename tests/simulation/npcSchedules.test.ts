@@ -3,8 +3,10 @@ import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { Simulation } from "../../src/simulation/Simulation";
 import { GameClock } from "../../src/simulation/core/GameClock";
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
-import { npcAnchorAt, NPC_TALK_RADIUS } from "../../src/simulation/presentation/NpcPresentation";
-import { assertNpcStationBeatRadius, npcStationBeatAt } from "../../src/render/scene/npcStationBeat";
+import { npcAnchorAt, NPC_STATION_WANDER_METERS, NPC_TALK_RADIUS } from "../../src/simulation/presentation/NpcPresentation";
+import { assertNpcStationBeatRadius, NPC_STATION_BEATS, npcStationBeatAt } from "../../src/render/scene/npcStationBeat";
+import { ELSPETH_HOME_ANCHOR } from "../../src/content/npcs";
+import { STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
 import { WorldLayout } from "../../src/world/WorldLayout";
 
 const hours = [0, 4, 8, 18, 22, 24];
@@ -32,10 +34,18 @@ describe("NPC schedules", () => {
           expect(WorldLayout.isWalkable(x, z), label).toBe(true);
           expect(WorldLayout.isWater(x, z), label).toBe(false);
           expect(WorldLayout.traversalSurfaceSample(x, z).normal.y, label).toBeGreaterThanOrEqual(Math.cos(38 * Math.PI / 180));
-          expect(Math.hypot(point.dx, point.dz), label).toBeLessThan(NPC_TALK_RADIUS);
+          expect(Math.hypot(point.dx, point.dz), label).toBeLessThanOrEqual(NPC_STATION_WANDER_METERS + 1e-6);
         }
       }
     }
+  });
+
+  it("keeps Elspeth's close talk off the starter crop rows", () => {
+    const area = STARTER_FARM_LAYOUT.plantableAreas[0];
+    const bedEast = STARTER_FARM_LAYOUT.origin.x + area.maxX;
+    const closestDx = Math.min(...NPC_STATION_BEATS["npc.elspeth"].waypoints.map((point) => point.dx));
+    const talkReaches = ELSPETH_HOME_ANCHOR.x + closestDx - NPC_TALK_RADIUS;
+    expect(bedEast - talkReaches).toBeLessThan(0.4);
   });
 
   it("talking and nearby detection agree with the renderer station at every phase", () => {

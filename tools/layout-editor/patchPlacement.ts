@@ -421,8 +421,11 @@ function patchNamedConstXz(
 }
 
 function findLandmarkLiteralBrace(source: string, id: string): number {
+  // `WorldLayout.landmarkBase` returns each pose from a `case "<id>":` branch. A keyed-table
+  // spelling (`<id>: {`) is still accepted for older layout sources.
+  const branch = new RegExp(`\\bcase\\s+"${id}"\\s*:`).exec(source);
   const needle = `${id}: {`;
-  const index = source.indexOf(needle);
+  const index = branch ? branch.index : source.indexOf(needle);
   if (index < 0) throw new LayoutEditPatchError(`Missing landmark ${id}`);
   return source.indexOf("{", index);
 }
@@ -484,6 +487,10 @@ function patchNpcLiteral(source: string, npcId: string, commit: LayoutEditCommit
   if (anchorIndex < 0) throw new LayoutEditPatchError(`NPC ${npcId} is missing an anchor`);
   const brace = npcBlock.text.indexOf("{", anchorIndex);
   const anchor = extractBalanced(npcBlock.text, brace);
+  // An anchor that spreads a named constant (`{ ...ELSPETH_HOME_ANCHOR }`) keeps its coordinates
+  // in that constant, which the NPC's content and its save migration share. Edit the constant.
+  const spread = /^\{\s*\.\.\.([A-Za-z_$][\w$]*)\s*\}$/.exec(anchor.text.trim());
+  if (spread) return patchNamedNpcAnchor(source, spread[1]!, npcId, commit);
   let nextAnchor = anchor.text;
   if (!(npcId in HARBOR_NPC_ANCHOR_IDS)) {
     nextAnchor = replaceFieldValue(nextAnchor, "x", formatWorldCoord(commit.x));
@@ -492,6 +499,22 @@ function patchNpcLiteral(source: string, npcId: string, commit: LayoutEditCommit
   nextAnchor = replaceFieldValue(nextAnchor, "rotationY", formatRadians(commit.rotationY));
   const nextNpc = replaceSlice(npcBlock.text, brace, anchor.end, nextAnchor);
   return replaceSlice(source, start, npcBlock.end, nextNpc);
+}
+
+function patchNamedNpcAnchor(source: string, constantName: string, npcId: string, commit: LayoutEditCommit): string {
+  const declaration = new RegExp(`\\bconst\\s+${constantName}\\s*(?::[^=]+)?=\\s*\\{`).exec(source);
+  if (!declaration || declaration.index === undefined) {
+    throw new LayoutEditPatchError(`NPC ${npcId} anchor constant ${constantName} is not declared in the NPC source`);
+  }
+  const brace = declaration.index + declaration[0].length - 1;
+  const literal = extractBalanced(source, brace);
+  let next = literal.text;
+  if (!(npcId in HARBOR_NPC_ANCHOR_IDS)) {
+    next = replaceFieldValue(next, "x", formatWorldCoord(commit.x));
+    next = replaceFieldValue(next, "z", formatWorldCoord(commit.z));
+  }
+  next = replaceFieldValue(next, "rotationY", formatRadians(commit.rotationY));
+  return replaceSlice(source, brace, literal.end, next);
 }
 
 function layoutRotationForWrite(commit: LayoutEditCommit): number {

@@ -10,6 +10,6 @@ export const TidebookArt: React.FC<{
   className?: string;
   style?: React.CSSProperties;
 }> = ({ art, className = "", style }) => (
-  <AtlasImage src={UI_TIDEBOOK[art]} fit={art === "meter-frame" ? "fill" : "contain"}
+  <AtlasImage src={UI_TIDEBOOK[art]} fit="contain"
     className={`tidebook-art ${className}`.trim()} style={style} aria-hidden="true" />
 );

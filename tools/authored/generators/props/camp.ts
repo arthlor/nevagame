@@ -308,3 +308,51 @@ export function createTrailSignpostModel(context: GeneratorContext): AuthoredMod
   root.add(surface.buildMesh(`${ID}_mesh`));
   return { root, clips: [] };
 }
+
+/**
+ * A sheet of paper left on the ground: a thin cream page with one corner dog-eared
+ * and a few ink lines. +Y up, ground-centred, the long edge along X.
+ */
+export function createGroundNoteModel(context: GeneratorContext): AuthoredModel {
+  const ID = context.spec.id;
+  const root = new THREE.Group();
+  root.name = `${ID}_root`;
+  const surface = new SurfaceBuilder(context.spec.palette);
+  const PAPER = 0;
+  const INK = 1;
+  const width = 0.42;
+  const depth = 0.28;
+  const sheet = (u: number, v: number): THREE.Vector3 => {
+    const foldU = Math.max(0, (u - 0.78) / 0.22);
+    const foldV = Math.max(0, (v - 0.72) / 0.28);
+    const fold = foldU * foldU * foldV;
+    const x = (u - 0.5) * width - fold * 0.035;
+    const z = (v - 0.5) * depth - fold * 0.028;
+    const y = 0.008 + fold * 0.046 + Math.sin(u * Math.PI) * 0.0022 * (1 - fold);
+    return new THREE.Vector3(x, y, z);
+  };
+  surface.addPanel({
+    cols: 6,
+    rows: 4,
+    thickness: 0.004,
+    point: sheet,
+    token: () => PAPER,
+    shade: (u, v) => 0.9 + 0.08 * Math.sin(u * 5.1 + v * 3.4)
+  });
+  const strokes: Array<readonly [number, number, number]> = [
+    [0.12, 0.68, 0.28],
+    [0.14, 0.62, 0.42],
+    [0.16, 0.7, 0.56],
+    [0.12, 0.48, 0.7]
+  ];
+  for (const [u0, u1, v] of strokes) {
+    const a = sheet(u0, v);
+    const b = sheet(u1, v);
+    timber(surface, [a.x, a.y + 0.004, a.z], [b.x, b.y + 0.004, b.z], [0.0016, 0.0032], INK, { ref: [0, 1, 0], bevel: 0.0004 });
+  }
+  const creaseA = sheet(0.78, 0.72);
+  const creaseB = sheet(0.78, 0.98);
+  timber(surface, [creaseA.x, creaseA.y + 0.003, creaseA.z], [creaseB.x, creaseB.y + 0.003, creaseB.z], [0.0012, 0.0024], INK, { ref: [0, 1, 0], bevel: 0.0003 });
+  root.add(surface.buildMesh(`${ID}_mesh`));
+  return { root, clips: [] };
+}

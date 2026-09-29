@@ -34,8 +34,18 @@ describe("authored generator registry", () => {
   });
 
   it("has catalog assets for every authored generator", () => {
+    // `cottage` lost its catalog assets when house_cottage_a/b became authored GLBs (2026-09-27).
+    // The family generator is kept for now; delete it here and in the registry, `contracts.json` and
+    // the tooling README together, or give it an asset again.
+    const retiredFromCatalog = new Set(["cottage"]);
     const used = new Set(authoredAssets.map((asset) => asset.generator));
-    for (const name of Object.keys(AUTHORED_GENERATORS)) expect(used.has(name), name).toBe(true);
+    for (const name of Object.keys(AUTHORED_GENERATORS)) {
+      if (retiredFromCatalog.has(name)) {
+        expect(used.has(name), `${name} regained a catalog asset; drop it from retiredFromCatalog`).toBe(false);
+      } else {
+        expect(used.has(name), name).toBe(true);
+      }
+    }
   });
 });
 

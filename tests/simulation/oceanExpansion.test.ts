@@ -13,6 +13,7 @@ import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "../../src/world/OceanIsl
 import { FISHING_ECOLOGY_DEFINITIONS, SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
+import { expectInventoriesPreserved } from "../helpers/migrationPreservation";
 
 function skiff(sim: Simulation) {
   const def = ContentRegistry.boats.get("boat.skiff")!;
@@ -110,10 +111,14 @@ describe("ocean layout save preservation", () => {
     const after = migrateSaveData(before);
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
-    expect(after.state.inventories).toEqual(before.state.inventories);
+    expectInventoriesPreserved(after.state, before.state);
     expect(after.state.crops).toEqual(before.state.crops);
-    // v43 intentionally rescales the Work pool to the daily ceiling.
-    expect({ ...after.state.player, workCapacity: before.state.player.workCapacity }).toEqual(before.state.player);
+    // v43 intentionally rescales the Work pool (and v72 raises its ceiling); layout recovery may
+    // re-ground the pose by a fraction of a millimetre.
+    const { workCapacity: _work, y: groundedY, ...player } = after.state.player;
+    const { workCapacity: _oldWork, y: savedY, ...savedPlayer } = before.state.player;
+    expect(player).toEqual(savedPlayer);
+    expect(Math.abs(groundedY - savedY)).toBeLessThan(0.01);
     expect(after.state.world.structures["struct.sunreach_hand_mill"].x).toBe(1244);
     expect(migrateSaveData(after)).toEqual(after);
     expect(migrateSaveData(copy)).toEqual(after);

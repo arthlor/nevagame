@@ -14,7 +14,7 @@ import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
 import { WorldLayout } from "../../src/world/WorldLayout";
-import { expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectMarketsPreserved, expectStructuresPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v49_layout21_mainland_predecessor.json";
@@ -38,7 +38,7 @@ function expectResourcesPreserved(before: GameState, after: GameState): void {
     expect(after[key], key).toEqual(expected[key]);
   }
   for (const key of ["money", "workCapacity", "proficiencies", "equipment", "ownedRodIds", "carriedFishCargoId", "activeBoatId", "activeMountId"] as const) {
-    expect(after.player[key], key).toEqual(before.player[key]);
+    expect(after.player[key], key).toEqual(expected.player[key]);
   }
   expect(after.world.fishingPressureByHabitat).toEqual(before.world.fishingPressureByHabitat);
   expect(after.world.lastSchoolSpawnMinute).toBe(before.world.lastSchoolSpawnMinute);
@@ -99,8 +99,8 @@ describe("mainland save migration", () => {
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(migrated.state.player).toMatchObject({ x: saved.state.player.x, z: saved.state.player.z });
-    expect(migrated.state.world.structures).toEqual(expectedStructuresAfterSunreachLayout28(saved.state.world.structures));
-    expect(migrated.state.boats).toEqual(saved.state.boats);
+    expectStructuresPreserved(migrated.state.world.structures, expectedStructuresAfterSunreachLayout28(saved.state.world.structures));
+    expectBoatsPreserved(migrated.state, saved.state);
     expectResourcesPreserved(saved.state, migrated.state);
     for (const [id, market] of Object.entries(migrated.state.markets)) {
       if (saved.state.markets[id]) continue;

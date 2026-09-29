@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { STONE_BRIDGE_CHANNEL_ARCH } from "../../tools/authored/generators/buildings/createStoneBridgeModel";
 import catalog from "../../assets/specs/asset-catalog.json" with { type: "json" };
 import { WORLD_SAILING_ROUTES } from "../../src/world/WorldMoorings";
 import { WaterSurface, waterSpatialProfile } from "../../src/render/water/WaterSurface";
@@ -34,17 +35,11 @@ import {
 } from "../../src/world/FarmLayout";
 import { FARMHOUSE_OUTSIDE_DOOR } from "../../src/world/FarmhouseInterior";
 import { isInHeadwaterBounds } from "../../src/world/NevaHeadwaters";
-import {
-  HARBOR_DOCK,
-  HARBOR_PIER_DECK,
-  HARBOR_SKIFF_MOORING,
-  VILLAGE_CROSSING,
-  VILLAGE_MARKET,
-  WORLD_LAYOUT_REVISION
-} from "../../src/world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_MAIN_PIER, HARBOR_PIER_DECK, HARBOR_SKIFF_MOORING, VILLAGE_CROSSING, VILLAGE_MARKET, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { ASSET_BY_ID, ASSET_IDS, type AssetId } from "../../src/render/assets/AssetCatalog";
 import { collisionPrimitivesForAsset } from "../../src/physics/CollisionCatalogAdapter";
 import { SURFACE_FIELD_ATTRIBUTE_NAMES } from "../../src/render/materials/SurfaceFieldAttributes";
+import { validateEnvironmentPlacementAsset } from "../../src/world/EnvironmentAssetValidation";
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
 import {
   createWorldEnvironmentLayout,
@@ -444,6 +439,25 @@ describe("WorldLayout", () => {
     expect(WorldLayout.terrainHeight(bridge.x, bridge.z)).toBeLessThan(
       BRIDGE_WORLD_PROFILE.entrySurfaceY - 2.5
     );
+  });
+
+  it("keeps the river boat lane sailable under the bridge deck", () => {
+    const bridge = WorldLayout.landmark("bridge");
+    const section = WorldLayout.riverSectionAt(bridge.z);
+    const channelX = section.centerX + section.thalwegOffset;
+    expect(channelX - bridge.x).toBeCloseTo(STONE_BRIDGE_CHANNEL_ARCH.center, 2);
+    expect(WorldLayout.isBridgeDeck(channelX, bridge.z)).toBe(true);
+    expect(WorldLayout.isWater(channelX, bridge.z)).toBe(false);
+    expect(WorldLayout.isWalkable(channelX, bridge.z)).toBe(true);
+    for (let z = bridge.z - 14; z <= bridge.z + 14; z += 0.5) {
+      const sample = WorldLayout.riverSectionAt(z);
+      const x = sample.centerX + sample.thalwegOffset;
+      expect(WorldLayout.isSailable(x, z), `thalweg ${z}`).toBe(true);
+    }
+    const abutmentX = bridge.x - BRIDGE_WORLD_PROFILE.spanLength * 0.5 + 0.4;
+    expect(WorldLayout.isBridgeDeck(abutmentX, bridge.z)).toBe(true);
+    expect(WorldLayout.riverWaterSignedDistance(abutmentX, bridge.z)).toBeLessThan(0);
+    expect(WorldLayout.isSailable(abutmentX, bridge.z)).toBe(false);
   });
 
   it("carries the farm road alone through the walkable bridge corridor and forks the lighthouse lane at its west approach", () => {
@@ -1042,10 +1056,13 @@ describe("WorldLayout", () => {
     expect(authored.filter((placement) => placement.id === "authored.spawn.bush-right")).toHaveLength(1);
     expect(authored.filter((placement) => placement.id === "authored.spawn.rock-foreground")).toHaveLength(1);
     expect(authored.filter((placement) => placement.assetId === "fauna_chicken_a")).toHaveLength(5);
-    // Starter-district dressing. The mainland and the layout-28 Sunreach
-    // working-settlement pass author their own copies of these props.
+    // Starter-district dressing. The mainland, the layout-28 Sunreach working-settlement pass and
+    // the harbor district and the main harbor dock author their own copies of these props.
     const starterAuthored = authored.filter((placement) =>
-      !placement.id.startsWith("authored.mainland.") && !placement.id.startsWith("authored.sunreach.living.")
+      !placement.id.startsWith("authored.mainland.")
+      && !placement.id.startsWith("authored.sunreach.living.")
+      && !placement.id.startsWith("authored.harbor-district.")
+      && !placement.id.startsWith("authored.main-harbor-dock.")
     );
     expect(starterAuthored.filter((placement) => placement.assetId === "prop_wagon_cart_a")).toHaveLength(2);
     expect(authored.filter((placement) => placement.assetId === "fauna_cow_a")).toHaveLength(1);
@@ -1111,18 +1128,10 @@ describe("WorldLayout", () => {
     }
   });
 
-  it("uses only catalog assets and lets seeded-fill collide only for trees and rocks", () => {
+  it("uses only catalog assets and validates seeded-fill collision with the world startup rule", () => {
     const layout = createWorldEnvironmentLayout(42891);
-    // Trunks and boulders are things you walk around; a building or dock placed
-    // by seeded fill would be an unvalidated obstacle in a road or doorway.
-    const collidingFamilies = new Set(["vegetation", "rock"]);
     for (const placement of [...layout.staticPlacements, ...layout.groundCoverPlacements]) {
-      const spec = ASSET_BY_ID.get(placement.assetId as AssetId);
-      expect(spec, placement.id).toBeDefined();
-      if (placement.origin !== "seeded-fill") continue;
-      if (spec?.collision !== "none") {
-        expect(collidingFamilies.has(spec!.family), `${placement.id} (${placement.assetId})`).toBe(true);
-      }
+      expect(() => validateEnvironmentPlacementAsset(placement), placement.id).not.toThrow();
     }
     for (const placement of layout.groundCoverPlacements) {
       expect(ASSET_BY_ID.get(placement.assetId as AssetId)?.collision, placement.id).toBe("none");
@@ -1524,16 +1533,19 @@ describe("WorldLayout", () => {
     const dock = WorldLayout.landmark("dock");
     expect(WorldLayout.isPierDeck(anchor.x, anchor.z)).toBe(true);
     expect(WorldLayout.isWalkable(dock.x, dock.z)).toBe(true);
-    expect(Math.hypot(anchor.x - dock.x, anchor.z - dock.z)).toBeLessThan(7.2);
+    // The extended main pier is 48 m long, and the anchor sits at its root end.
+    expect(Math.hypot(anchor.x - dock.x, anchor.z - dock.z)).toBeLessThan(HARBOR_MAIN_PIER.length / 2);
     expect(dock.rotationY).toBeCloseTo(Math.PI / 2, 3);
     expect(WorldLayout.isSailable(HARBOR_DOCK.boatPosition.x, HARBOR_DOCK.boatPosition.z)).toBe(true);
     expect(WorldLayout.pierDeckSurfaceY()).toBeGreaterThan(1.45);
     expect(Math.hypot(
       HARBOR_DOCK.boatPosition.x - dock.x,
       HARBOR_DOCK.boatPosition.z - dock.z
-    )).toBeLessThan(8);
+    )).toBeLessThan(HARBOR_MAIN_PIER.length / 2 + HARBOR_MAIN_PIER.width);
     expect(HARBOR_DOCK.boatPosition.x).toBeGreaterThan(dock.x + HARBOR_PIER_DECK.halfWidthX + 1.4);
-    expect(HARBOR_DOCK.boatPosition.x).toBeLessThan(HARBOR_SKIFF_MOORING.boatPosition.x - 4);
+    // The rowboat and the skiff berth on opposite sides of the main pier, well apart.
+    expect(HARBOR_SKIFF_MOORING.boatPosition.x).toBeLessThan(dock.x - HARBOR_PIER_DECK.halfWidthX);
+    expect(Math.abs(HARBOR_DOCK.boatPosition.x - HARBOR_SKIFF_MOORING.boatPosition.x)).toBeGreaterThan(4);
   });
 
   it("provides stable low-frequency water samples for render and physics", () => {

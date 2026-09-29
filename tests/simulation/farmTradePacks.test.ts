@@ -4,6 +4,7 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import { describe, expect, it } from "vitest";
+import { expectInventoriesPreserved } from "../helpers/migrationPreservation";
 import { Simulation } from "../../src/simulation/Simulation";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
@@ -51,7 +52,8 @@ describe("harvest trade packs", () => {
     const migrated = migrateSaveData(old);
     expect(old).toEqual(before);
     for (const key of Object.keys(before.state) as (keyof typeof before.state)[]) {
-      if (key !== "schemaVersion" && key !== "markets" && key !== "world" && key !== "quests" && key !== "player" && key !== "boats") expect(migrated.state[key]).toEqual(before.state[key]);
+      if (key !== "schemaVersion" && key !== "markets" && key !== "world" && key !== "quests" && key !== "player" && key !== "boats" && key !== "inventories") expect(migrated.state[key]).toEqual(before.state[key]);
+    expectInventoriesPreserved(migrated.state, before.state);
     }
     expect(migrated.state.player).toMatchObject({
       x: before.state.player.x, z: before.state.player.z,

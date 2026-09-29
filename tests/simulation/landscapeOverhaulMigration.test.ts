@@ -6,14 +6,16 @@ import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
 import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
-import { expectContractsPreserved, expectFarmsPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectContractsPreserved, expectFarmsPreserved, expectInventoriesPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 
 const legacy = () => structuredClone(fixture) as unknown as SaveEnvelope;
 function expectResourcesUnchanged(after: SaveEnvelope, before: SaveEnvelope) {
-  for (const key of ["inventories", "crops", "processingJobs", "boats", "fishCargo", "quests", "journal", "clock", "weather", "metadata"] as const) {
+  expectBoatsPreserved(after.state, before.state);
+  for (const key of ["crops", "processingJobs", "fishCargo", "quests", "journal", "clock", "weather", "metadata"] as const) {
     expect(after.state[key], key).toEqual(before.state[key]);
   }
+  expectInventoriesPreserved(after.state, before.state);
   expectContractsPreserved(after.state, before.state);
   expectFarmsPreserved(after.state, before.state);
   expectMarketsPreserved(after.state, before.state);

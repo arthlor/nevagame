@@ -1,5 +1,5 @@
 import { collisionPrimitivesForAsset } from "../physics/CollisionCatalogAdapter";
-import { boatAssetId } from "../render/assets/AssetCatalog";
+import { boatAssetId, type AssetId } from "../render/assets/AssetCatalog";
 import type { GameState } from "../simulation/core/types";
 import { HARBOR_WORKING_PIERS, WORKING_PIER } from "../world/HarborDistrictLayout";
 import { recoverMainlandLayout } from "./recoverMainlandLayout";
@@ -12,9 +12,14 @@ export function inHarborRecoveryArea(point: { x: number; z: number }): boolean {
     || (point.x >= 1128 && point.x <= 1210 && point.z >= 14 && point.z <= 110);
 }
 
+/** Boats saved before boat types existed carry none; they are the starter rowboat, as in every earlier step. */
+export function harborBoatAssetId(boat: GameState["boats"][string]): AssetId {
+  return boatAssetId(boat.boatTypeId ?? "boat.rowboat");
+}
+
 /** A conservative hull envelope also catches a bow under the new deck. */
 export function harborBoatIsClear(boat: GameState["boats"][string]): boolean {
-  const radius = collisionPrimitivesForAsset(boatAssetId(boat.boatTypeId)).reduce((maximum, part) => Math.max(maximum,
+  const radius = collisionPrimitivesForAsset(harborBoatAssetId(boat)).reduce((maximum, part) => Math.max(maximum,
     Math.hypot(part.center[0], part.center[2]) + Math.hypot(part.halfExtents[0], part.halfExtents[2])), 0);
   return HARBOR_WORKING_PIERS.every(pier => {
     const dx = boat.x - pier.x, dz = boat.z - pier.z;

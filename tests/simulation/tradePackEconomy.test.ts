@@ -35,7 +35,7 @@ function prepared(id = 'trade.neva_grain') {
   inventory.slots = Array.from({ length: inventory.slotCount }, () => ({}));
   expect(InventoryManager.addItemsAtomically(inventory, pack.inputs)).toBe(true);
   const station = VILLAGE_TRADE_STATIONS.find(station => station.marketId === pack.originMarketId)!;
-  stand(sim, getProcessingStationFrontPosition(station.id, station.position)!);
+  stand(sim, getProcessingStationFrontPosition(station.id, sim.state.world.structures[station.id])!);
   return { sim, pack, inventory, station };
 }
 const save = (sim: Simulation): SaveEnvelope => ({ schemaVersion: CURRENT_SCHEMA_VERSION, savedAtUtcMs: 1, state: structuredClone(sim.state) });
@@ -257,7 +257,7 @@ describe('regional mixed-material trade economy', () => {
       expect(sim.buyItemAtMarket(source.marketId, input.itemId, input.required)).toMatchObject({success:true,cost:source.cost});
       expect(sim.state.markets[source.marketId].commodities[input.itemId].localSupply).toBe(before.markets[source.marketId].commodities[input.itemId].localSupply-input.required);
     }
-    stand(sim, getProcessingStationFrontPosition(station.id, station.position)!);
+    stand(sim, getProcessingStationFrontPosition(station.id, sim.state.world.structures[station.id])!);
     expect(sim.startProcessingJob(pack.recipeId,station.id).success).toBe(true);
     expect(initialMoney-sim.state.player.money).toBe(row.replacementCost);
   });

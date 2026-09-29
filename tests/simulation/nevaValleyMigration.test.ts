@@ -5,7 +5,7 @@ import { migrateNevaValley52 } from "../../src/persistence/migrateNevaValley52";
 import { validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
 import { WorldLayout } from "../../src/world/WorldLayout";
-import { expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v51_layout23_valley_predecessor.json";
@@ -33,12 +33,13 @@ describe("Neva valley layout24 recovery", () => {
     expect(WorldLayout.isWalkable(p.x, p.z)).toBe(true);
     expect(WorldLayout.isWater(p.x, p.z)).toBe(false);
     expect(p.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(p.x, p.z) + 0.5, 6);
-    for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "boats"] as const) {
+    for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather"] as const) {
       expect(after.state[key], key).toEqual(expected[key]);
     }
+    expectBoatsPreserved(after.state, expected);
     expectMarketsPreserved(after.state, expected);
     expect(after.state.player.money).toBe(saved.state.player.money);
-    expect(after.state.player.workCapacity).toEqual(saved.state.player.workCapacity);
+    expect(after.state.player.workCapacity).toEqual(expected.player.workCapacity);
     expect(saved).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);
   });

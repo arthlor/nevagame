@@ -14,6 +14,7 @@ function movePlayerToProcessingFront(simulation: Simulation, stationId: string):
   if (!front) throw new Error(`Missing processing front for ${stationId}`);
   simulation.state.player.x = front.x;
   simulation.state.player.z = front.z;
+  simulation.state.player.y = WorldLayout.traversalSurfaceHeight(front.x, front.z) + 0.5;
 }
 
 describe("Simulation Vertical Slice Loop", () => {

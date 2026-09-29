@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 import {
   atlasForAction,
   atlasForBehavior,
+  atlasForItem,
   atlasForMapNode,
+  atlasForPortrait,
+  atlasForCropQuality,
   atlasForQuality,
   atlasForRod,
   atlasForWeather,
@@ -41,6 +44,9 @@ describe("UI atlas resolvers (Legacy / Compatibility)", () => {
     expect(qualitySpriteKey("good")).toBe("silver");
     expect(qualitySpriteKey("pristine")).toBe("iridium");
     expect(atlasForQuality("gold")).toContain("quality-gold.png");
+    expect(atlasForCropQuality("exceptional")).toContain("quality-crop-gold.png");
+    expect(atlasForCropQuality("prize")).toContain("quality-crop-iridium.png");
+    expect(atlasForCropQuality("common")).not.toContain("quality-normal.png");
   });
 
   it("normalises weather tags and time of day", () => {
@@ -56,6 +62,18 @@ describe("UI atlas resolvers (Legacy / Compatibility)", () => {
     expect(atlasForBehavior("run-left")).toContain("behavior-run.png");
     expect(atlasForBehavior("rest")).toContain("behavior-tiring.png");
     expect(atlasForMapNode("node_lighthouse")).toContain("mapnode-lighthouse.png");
+    expect(atlasForAction("fertilize")).toContain("action-fertilize.png");
+    expect(atlasForWeather("drought")).toContain("weather-drought.png");
+    expect(atlasForItem("item.meal_harvest_bowl")).toContain("item-meal_harvest_bowl.png");
+    expect(atlasForItem("item.salt_cured_fish")).toContain("item-salt_cured_fish.png");
+    expect(atlasForItem("item.chum_rich")).toContain("item-chum_rich.png");
+    expect(atlasForItem("item.chum_deep")).toContain("item-chum_deep.png");
+    expect(atlasForPortrait("npc.rowan")).toContain("portrait-rowan.png");
+    expect(atlasForPortrait("npc.mara")).toContain("portrait-mara.png");
+    expect(atlasForPortrait("npc.ada")).toContain("portrait-ada.png");
+    expect(atlasForMapNode("chart.pinewatch")).toContain("mapnode-pinewatch.png");
+    expect(atlasForMapNode("chart.mainland_lake")).toContain("mapnode-mainland_lake.png");
+    expect(atlasForMapNode("chart.island.lantern")).toContain("mapnode-lantern.png");
   });
 
   it("maps every canonical fishing rod to its own atlas sprite", () => {

@@ -8,6 +8,8 @@ import { InventoryManager } from "../../src/simulation/inventory/InventoryManage
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import predecessor from "../fixtures/save_v57_processing_work_predecessor.json";
+import { WorldLayout } from "../../src/world/WorldLayout";
+import { INTERACTION_STANCE_OFFSET_METERS } from "../../src/world/InteractionReach";
 
 const JOB_ID = "job.v57_wheat_milling";
 
@@ -80,6 +82,7 @@ describe("v57 processing Work tier migration", () => {
     expect(front).not.toBeNull();
     simulation.state.player.x = front!.x;
     simulation.state.player.z = front!.z;
+    simulation.state.player.y = WorldLayout.traversalSurfaceHeight(front!.x, front!.z) + INTERACTION_STANCE_OFFSET_METERS;
     simulation.advanceGameMinutes(job.effectiveDurationMinutes);
     expect(simulation.state.processingJobs[JOB_ID].status).toBe("complete");
 

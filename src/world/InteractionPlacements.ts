@@ -4,6 +4,18 @@ export interface InteractionPlacementPose { x: number; z: number; rotationY: num
 export const INTERACTION_PLACEMENT_OVERRIDES: Record<string, InteractionPlacementPose> = {
   "struct.trade_neva": { x: 57.9, z: -61.6, rotationY: 6.545 },
   "village_bulletin_board": { x: 44.9, z: -59.8, rotationY: 0 },
+  "authored.sunreach.workbench": { x: 1278.7, z: 12.6, rotationY: 4.7124 },
+  "authored.sunreach.hand-mill": { x: 1278.6, z: 15, rotationY: 4.7124 },
+  "authored.sunreach.terrace-cistern": { x: 1252.1, z: 8.3, rotationY: 0 },
+  "authored.sunreach.fish-table": { x: 1180.3, z: 60.5, rotationY: -0.2618 },
+  "struct.trade_sunreach": { x: 1187.5, z: 60.3, rotationY: 6.0214 },
+  "authored.sunreach.cove-market": { x: 1172.4, z: 56.1, rotationY: -6.2832 },
+  "authored.mainland.highridge.market": { x: -344.9, z: -366.8, rotationY: 0.8961 },
+  "struct.trade_highridge": { x: -334.9, z: -368.2, rotationY: 6.2832 },
+  "authored.mainland.reedhaven.market": { x: -561.6, z: 335.2, rotationY: -0.5236 },
+  "struct.trade_reedhaven": { x: -574.5, z: 329.2, rotationY: 7.854 },
+  "authored.mainland.pinewatch.market": { x: -398.9, z: 57.9, rotationY: 2.0944 },
+  "struct.trade_pinewatch": { x: -391, z: 43.3, rotationY: 4.7124 },
 };
 
 /** A gameplay-bearing prefab cannot be copied/deleted as ordinary scenery. */

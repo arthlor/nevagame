@@ -12,10 +12,10 @@ import { isValidMountPose, playerPoseFromMount, STARTER_DONKEY_ID } from "../../
 import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import { SUNREACH_ANCHORS, SUNREACH_OFFSET_X } from "../../src/world/WorldIslands";
 import { defaultMooringForBoatType } from "../../src/world/WorldMoorings";
-import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
+import { WORLD_LAYOUT_REVISION, harborMooringForBoatType } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
-import { expectContractsPreserved, expectFarmsPreserved } from "../helpers/migrationPreservation";
+import { expectContractsPreserved, expectFarmsPreserved, expectInventoriesPreserved } from "../helpers/migrationPreservation";
 import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 import fixture from "../fixtures/save_v31_layout11.json";
 
@@ -28,9 +28,10 @@ function legacy(): SaveEnvelope {
 }
 
 function preserveResources(before: GameState, after: GameState): void {
-  for (const key of ["crops", "inventories", "fishCargo", "journal", "metadata", "clock"] as const) {
+  for (const key of ["crops", "fishCargo", "journal", "metadata", "clock"] as const) {
     expect(after[key], key).toEqual(before[key]);
   }
+  expectInventoriesPreserved(after, before);
   expectContractsPreserved(after, before);
   expectFarmsPreserved(after, before);
   for (const [marketId, oldMarket] of Object.entries(before.markets)) {
@@ -116,9 +117,15 @@ describe("layout 12 natural island coasts save migration", () => {
       expect(after.state.world.structures[id].y).toBe(WorldLayout.terrainHeight(expectedX, structure.z));
     }
     // Pre-v42 Sunreach boats translate once; Neva boats keep exact poses.
+    // v69 then berths every harbor-docked hull at its type's mooring, facing heading 0.
     for (const [id, boat] of Object.entries(before.state.boats)) {
       const expectedX = boat.x >= 300 ? boat.x + SUNREACH_OFFSET_X : boat.x;
-      expect(after.state.boats[id]).toMatchObject({ ...boat, x: expectedX });
+      const migrated = after.state.boats[id];
+      if (migrated.isDocked && migrated.dockedMarketId === "market.harbor") {
+        expect(migrated).toMatchObject({ ...boat, ...harborMooringForBoatType(migrated.boatTypeId).boatPosition, headingRadians: 0 });
+      } else {
+        expect(migrated).toMatchObject({ ...boat, x: expectedX });
+      }
     }
     preserveResources(before.state, after.state);
     expect(validateSaveEnvelope(after)).toBe(true);

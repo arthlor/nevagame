@@ -12,10 +12,10 @@ import { createStarterDonkeyState, isValidMountPose, playerPoseFromMount, STARTE
 import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import { defaultMooringForBoatType, mooringById } from "../../src/world/WorldMoorings";
 import { SUNREACH_ANCHORS, SUNREACH_OFFSET_X } from "../../src/world/WorldIslands";
-import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
+import { WORLD_LAYOUT_REVISION, harborMooringForBoatType } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
-import { expectContractsPreserved, expectFarmsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectContractsPreserved, expectFarmsPreserved, expectInventoriesPreserved } from "../helpers/migrationPreservation";
 import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 import fixture from "../fixtures/save_v30_layout10.json";
 
@@ -27,9 +27,10 @@ function legacy(): SaveEnvelope {
 }
 
 function preserveResources(before: GameState, after: GameState): void {
-  for (const key of ["crops", "inventories", "fishCargo", "journal", "metadata", "clock"] as const) {
+  for (const key of ["crops", "fishCargo", "journal", "metadata", "clock"] as const) {
     expect(after[key], key).toEqual(before[key]);
   }
+  expectInventoriesPreserved(after, before);
   expectContractsPreserved(after, before);
   expectFarmsPreserved(after, before);
   for (const [marketId, oldMarket] of Object.entries(before.markets)) {
@@ -157,7 +158,7 @@ describe("layout 11 coastal terrain save migration", () => {
     expect(migrated.state.player).toMatchObject({ x: before.state.player.x, z: before.state.player.z });
     expect(migrated.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(before.state.player.x, before.state.player.z) + 0.5, 8);
     preserveResources(untouched.state, migrated.state);
-    expect(migrated.state.boats).toEqual(before.state.boats);
+    expectBoatsPreserved(migrated.state, before.state);
     expect(validateSaveEnvelope(migrated)).toBe(true);
     expect(migrateSaveData(legacy())).toEqual(migrated);
     expect(migrateSaveData(structuredClone(migrated))).toEqual(migrated);
@@ -237,7 +238,12 @@ describe("layout 11 coastal terrain save migration", () => {
     const point = location === "sunreach" ? SUNREACH_ANCHORS.dockPlayer : FARMHOUSE_INTERIOR_DOOR.enterSpawn;
     Object.assign(before.state.player, { x: point.x, y: WorldLayout.traversalSurfaceHeight(point.x, point.z) + 0.5, z: point.z });
     const migrated = migrateSaveData(before).state;
-    expect(migrated.player).toMatchObject({ ...before.state.player, workCapacity: migrated.player.workCapacity });
+    // The pose stays put. Later layout steps may re-ground it by a fraction of a millimetre and
+    // re-derive the region from where the player actually stands.
+    const { x, y, z, rotationY, money } = before.state.player;
+    expect(migrated.player).toMatchObject({ x, z, rotationY, money });
+    expect(Math.abs(migrated.player.y - y)).toBeLessThan(0.01);
+    expect(migrated.player.currentRegionId).toBe(WorldLayout.regionAt(x, z));
   });
 
   it.each(["boat.rowboat", "boat.skiff"])("recovers only an invalid upper-river %s without losing physical cargo", (boatTypeId) => {
@@ -253,8 +259,12 @@ describe("layout 11 coastal terrain save migration", () => {
     expect(upperRiver.isSailable).toBe(true);
     expect(WorldLayout.isSailable(upperRiver.x, upperRiver.z)).toBe(false);
     const migrated = migrateSaveData(before);
-    const mooring = defaultMooringForBoatType(boatTypeId);
-    expect(migrated.state.boats[id]).toEqual({ ...before.state.boats[id], ...mooring.boatPosition, speed: 0, isDocked: true, dockedMarketId: mooring.marketId });
+    // Layout 11 docks the stranded hull; layout 37 (v69) then berths every harbor-docked boat at its type's mooring.
+    expect(defaultMooringForBoatType(boatTypeId).marketId).toBe("market.harbor");
+    const mooring = harborMooringForBoatType(boatTypeId);
+    expect(migrated.state.boats[id]).toEqual({
+      ...before.state.boats[id], ...mooring.boatPosition, headingRadians: 0, speed: 0, isDocked: true, dockedMarketId: mooring.marketId
+    });
     expect(migrated.state.player.activeBoatId).toBeNull();
     preserveResources(before.state, migrated.state);
     expect(validateSaveEnvelope(migrated)).toBe(true);

@@ -16,6 +16,8 @@ import { createWorldStaticPlacements, prepareWorldEnvironmentLayout } from "../.
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import predecessor from "../fixtures/save_v66_layout34_workshop_predecessor.json";
+import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
+import { expectInventoriesPreserved } from "../helpers/migrationPreservation";
 
 const legacy = () => structuredClone(predecessor) as unknown as SaveEnvelope;
 const preserved = ["farms", "crops", "inventories", "processingJobs", "contracts", "quests", "journal",
@@ -56,7 +58,8 @@ describe("authored cart workshop save recovery", () => {
     expect({ ...cargo, location: before.state.fishCargo[cargo.id].location }).toEqual(before.state.fishCargo[cargo.id]);
     const workshopOnly = migrateCartWorkshop68(before.state);
     for (const key of preserved) expect(workshopOnly[key], key).toEqual(before.state[key]);
-    for (const key of preserved.filter(key => key !== "markets" && key !== "boats")) expect(result.state[key], key).toEqual(before.state[key]);
+    for (const key of preserved.filter(key => key !== "markets" && key !== "boats" && key !== "inventories")) expect(result.state[key], key).toEqual(before.state[key]);
+    expectInventoriesPreserved(result.state, before.state);
     // The later main-pier migration changes berth poses, preserving the boat payload.
     for (const [id, boat] of Object.entries(before.state.boats))
       expect({ ...result.state.boats[id], x: boat.x, y: boat.y, z: boat.z, headingRadians: boat.headingRadians }).toEqual(boat);
@@ -100,8 +103,7 @@ describe("authored cart workshop save recovery", () => {
     const after = migrateCartWorkshop68(input);
     expect(after).toEqual({ ...input, schemaVersion: 68,
       world: { ...input.world, layoutRevision: 36 } });
-    const development = { ...structuredClone(prior), schemaVersion: CURRENT_SCHEMA_VERSION };
-    development.state.schemaVersion = CURRENT_SCHEMA_VERSION;
+    const development = headSchemaDevelopmentSave(structuredClone(prior));
     expect(migrateSaveData(development)).toEqual(migrateSaveData(prior));
   });
 

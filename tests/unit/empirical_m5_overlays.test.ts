@@ -14,6 +14,7 @@ import { playUiSound } from "../../src/ui/audio/uiAudio";
 import { gameAudio } from "../../src/audio/AudioManager";
 import type { BasicFishingState, FishingEncounterState } from "../../src/simulation/core/types";
 import type { CropInspectionDto, SportFishingHudDto } from "../../src/simulation/core/contracts";
+import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
 
 function basicFishing(phase: BasicFishingState["phase"], extra: Partial<BasicFishingState> = {}): BasicFishingState {
   return {
@@ -266,6 +267,10 @@ describe("Milestone M5 tactile overlays", () => {
 
   it("renders the seed dock with wheat and a quantity badge", () => {
     const sim = new Simulation();
+    // A fresh save carries no seeds and the dock hides itself when the belt is empty.
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+      { itemId: "seed.wheat", quantity: 6 }
+    ]);
     const html = renderToString(
       React.createElement(PlantingSeedBar, {
         seedBelt: sim.inspectSeedBelt(),

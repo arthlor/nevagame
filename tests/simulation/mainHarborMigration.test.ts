@@ -11,6 +11,7 @@ import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { SeededRng } from "../../src/simulation/core/Rng";
 import { FishingEncounter } from "../../src/simulation/fishing/FishingEncounter";
 import { fishingEndpoint } from "../../src/simulation/fishing/FishingTuning";
+import { expectInventoriesPreserved, expectMarketsPreserved, expectPlayerPreserved } from "../helpers/migrationPreservation";
 
 const legacy = () => structuredClone(predecessor) as unknown as SaveEnvelope;
 
@@ -23,8 +24,11 @@ describe("main harbor layout37 save recovery", () => {
     expect(after.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(after.state.boats["boat.player_rowboat"]).toMatchObject(HARBOR_DOCK.boatPosition);
-    for (const key of ["player", "mounts", "farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "markets", "metadata"] as const)
+    for (const key of ["mounts", "farms", "crops", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "metadata"] as const)
       expect(after.state[key], key).toEqual(before.state[key]);
+    expectInventoriesPreserved(after.state, before.state);
+    expectPlayerPreserved(after.state, before.state);
+    expectMarketsPreserved(after.state, before.state);
     for (const key of ["id", "boatTypeId", "supplyInventoryId", "fishCargoSlotIds", "upgrades", "fuel", "durability"] as const)
       expect(after.state.boats["boat.player_rowboat"][key], key).toEqual(before.state.boats["boat.player_rowboat"][key]);
     expect(before).toEqual(untouched);

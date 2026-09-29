@@ -208,16 +208,16 @@
 
 .inventory-satchel-modal .inventory-grid {
   display: grid;
-  grid-template-columns: repeat(4, 64px);
-  gap: 8px;
+  grid-template-columns: repeat(5, 52px);
+  gap: 6px;
 }
 
 .inventory-satchel-modal .chrome-slot.inventory-slot,
 .inventory-satchel-modal .inventory-slot {
-  width: 64px;
-  height: 64px;
-  min-width: 64px;
-  min-height: 64px;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
   color: var(--mm-text-ivory) !important;
   background: var(--mm-well-slate) !important;
   border: 1px solid rgba(245, 240, 230, 0.12) !important;
@@ -1778,7 +1778,26 @@
   gap: 4px;
 }
 
-.inventory-discard-action,
+.neva-button.inventory-discard-action {
+  width: auto;
+  align-self: flex-start;
+  min-height: 0;
+  padding: 2px 0;
+  color: var(--mm-text-muted, #9aa5b1);
+  background: none;
+  border: 0;
+  box-shadow: none;
+  font: 13px/1.4 var(--font-sans);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.neva-button.inventory-discard-action:hover {
+  color: var(--mm-text-ivory, #f4ecd9);
+  background: none;
+  border-color: transparent;
+}
+
 .inventory-discard-confirm {
   width: 100%;
 }
@@ -1951,7 +1970,8 @@
 .item-inspect-freshness-track.tone-danger .item-inspect-freshness-fill { background: #f87171; }
 
 .item-inspect-freshness-note,
-.item-inspect-regrow {
+.item-inspect-regrow,
+.item-inspect-soil {
   display: block;
   margin: 3px 0 0;
   color: var(--mm-text-muted, #9aa5b1);

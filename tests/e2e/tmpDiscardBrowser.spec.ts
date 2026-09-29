@@ -20,7 +20,7 @@ test.beforeEach(async ({ page }) => {
 
 test("armed confirm discards the selected stack across UI frames", async ({ page }) => {
   const modal = page.locator(".inventory-satchel-modal");
-  await expect(modal.getByTestId("inventory-capacity")).toContainText("5 / 16");
+  await expect(modal.getByTestId("inventory-capacity")).toContainText("5 / 20");
 
   await modal.getByTestId("inventory-discard-action").click();
   await expect(modal.getByTestId("inventory-discard-confirm")).toBeVisible();
@@ -30,7 +30,7 @@ test("armed confirm discards the selected stack across UI frames", async ({ page
   await modal.getByTestId("inventory-discard-confirm").click();
 
   await expect(modal.getByTestId("inventory-discard-notice")).toContainText("Discarded 10 Wheat Seed");
-  await expect(modal.getByTestId("inventory-capacity")).toContainText("4 / 16");
+  await expect(modal.getByTestId("inventory-capacity")).toContainText("4 / 20");
 });
 
 test("two-phase drag routes through the discard zone", async ({ page }) => {
@@ -56,5 +56,5 @@ test("two-phase drag routes through the discard zone", async ({ page }) => {
   });
 
   await expect(modal.getByTestId("inventory-discard-notice")).toContainText("Discarded 6 Tomato Seed");
-  await expect(modal.getByTestId("inventory-capacity")).toContainText("4 / 16");
+  await expect(modal.getByTestId("inventory-capacity")).toContainText("4 / 20");
 });

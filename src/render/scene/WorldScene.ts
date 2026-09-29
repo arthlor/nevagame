@@ -14,6 +14,13 @@ import {
 } from "./ambientTownsfolk";
 import { architectureWindowMaterial, disposeArchitectureWindows, updateArchitectureWindows } from "../materials/WindowMaterial";
 import { npcAnchorAt } from "../../simulation/presentation/NpcPresentation";
+import {
+  createInteractionContactGeometry,
+  createNpcAttentionMark,
+  disposeNpcAttentionMark,
+  findNpcHeadBone,
+  NPC_ATTENTION_HEAD_CLEARANCE_METERS
+} from "./NpcAttentionMark";
 import { yieldToTask } from "../../utils/CooperativeTask";
 // src/render/scene/WorldScene.ts
 
@@ -76,6 +83,7 @@ import {
   boatAssetId,
   type AssetId
 } from "../assets/AssetCatalog";
+import { audibleHoofTimes, DONKEY_HOOF_TIMES, hoofContactsCrossed } from "../../audio/mountHoofsteps";
 import { STATIC_FARM_PROP_ASSETS, STATIC_LANDMARK_ASSETS } from "../assets/RuntimeAssetOwners";
 import type { StaticCollisionProxy } from "../../physics/StaticCollision";
 import { projectAssetCollision } from "../../physics/CollisionCatalogAdapter";
@@ -134,6 +142,7 @@ import {
   type WorldEnvironmentLayout
 } from "../../world/WorldEnvironmentLayout";
 import { loadEnvironmentLayoutBake } from "../../world/loadEnvironmentLayoutBake";
+import { validateEnvironmentPlacementAsset } from "../../world/EnvironmentAssetValidation";
 import {
   HumanoidAnimator,
   type BoatAnimationInput,
@@ -410,19 +419,6 @@ const WORKSHOP_OUTPUT_ASSETS = {
   pack: ASSET_IDS.PROP_CARGO_SACK_A
 } as const;
 
-/**
- * Catalog families whose scattered instances are allowed to block the player.
- * A mature trunk or a field boulder is something you walk around; a building,
- * dock or crate placed by seeded fill would be an unvalidated obstacle in a
- * road or doorway.
- *
- * This replaced a blanket ban on colliding seeded-fill assets, which was a
- * safe default while nothing scattered could collide and became wrong the
- * moment trees gained trunks. It is keyed on what the asset *is* rather than
- * on a composition tag, because code-authored landscape dressing (a shade tree
- * beside a bench) is seeded-fill too and carries no tag.
- */
-const SEEDED_FILL_COLLIDING_FAMILIES: ReadonlySet<string> = new Set(["vegetation", "rock"]);
 // Published farmhouse A local-space chimney socket. The plume is attached
 // after static collision and shadow setup so it follows layout edits without
 // entering collision or inflating the farmhouse's broad shadow silhouette.
@@ -606,6 +602,9 @@ interface DonkeyPresentation {
   originalPlayerParent: THREE.Object3D | null;
   transitionUntilSeconds: number;
   lastAnimationUpdateSeconds: number;
+  /** Clip time of the previous hoof sample, so plants follow the playing gait. */
+  lastHoofTime: number | null;
+  hoofClip: DonkeyAnimationClip | null;
 }
 
 type PlayerAttachmentAction = "board" | "dock" | "mount" | "dismount";
@@ -912,6 +911,7 @@ export class WorldScene {
   private tradingShipPreview: THREE.Group | null = null;
   private readonly carriagePacks = new Map<string, { root: THREE.Object3D; slot: number; mountId: string }>();
   private donkeyPresentation: DonkeyPresentation | null = null;
+  private readonly mountHoofsteps: { cue: "donkey-hoof" | "horse-hoof" | "carriage-creak"; x: number; y: number; z: number }[] = [];
   private readonly backgroundBoats: AmbientBoatPresentation[] = [];
   private readonly ambientTownsfolk: AmbientTownsfolkPresentation[] = [];
   private readonly ambientFlyers: AmbientFlyerPresentation[] = [];
@@ -972,15 +972,19 @@ export class WorldScene {
   private lastResizeHeight = 0;
   private readonly placementCursor = new CropPlacementCursor();
   private readonly interactionFeedback = new THREE.Mesh(
-    new THREE.RingGeometry(0.42, 0.52, 24, 1, 0, Math.PI * 1.8),
+    createInteractionContactGeometry(),
     new THREE.MeshBasicMaterial({
-      color: PALETTE_HEX.accent_teal_01,
+      color: PALETTE_HEX.accent_ochre_01,
       transparent: true,
-      opacity: 0.68,
+      opacity: 0.7,
       depthWrite: false,
       side: THREE.DoubleSide
     })
   );
+  private readonly npcAttention = createNpcAttentionMark();
+  private readonly npcAttentionPoint = new THREE.Vector3();
+  private readonly npcHeadBones = new Map<string, THREE.Object3D | null>();
+  private attentionNpcId: string | null = null;
   private readonly questWaypointRing = new THREE.Mesh(
     new THREE.RingGeometry(0.75, 0.95, 28),
     new THREE.MeshBasicMaterial({
@@ -1141,10 +1145,10 @@ export class WorldScene {
     this.environmentGroup.add(this.meadowField.group);
     this.environmentGroup.add(this.staticPrefabGroup);
     this.interactionFeedback.name = "resolved_interaction_feedback";
-    this.interactionFeedback.rotation.x = -Math.PI / 2;
     this.interactionFeedback.renderOrder = 3;
     this.interactionFeedback.visible = false;
     this.scene.add(this.interactionFeedback);
+    this.scene.add(this.npcAttention);
     this.questWaypointRing.name = "quest_waypoint_beacon";
     this.questWaypointRing.rotation.x = -Math.PI / 2;
     this.questWaypointRing.renderOrder = 3;
@@ -1558,6 +1562,13 @@ export class WorldScene {
     this.interactionMaterials.set(id, [...variants.values()]);
   }
 
+  /** Feet of the presented body, including the station beat. Null before the model exists. */
+  public npcPresentedFeet(npcId: string): { x: number; y: number; z: number } | null {
+    const npc = this.npcPresentations.get(npcId);
+    if (!npc) return null;
+    return { x: npc.model.position.x, y: npc.model.position.y, z: npc.model.position.z };
+  }
+
   public setInteractionTargetFeedback(position: { x: number; y: number; z: number } | null, entityId?: string): void {
     const materialId = position ? entityId ?? null : null;
     if (materialId !== this.activeInteractionMaterialId) {
@@ -1566,14 +1577,53 @@ export class WorldScene {
     }
     this.cropInstances.setHighlight(position ? entityId ?? null : null, this.prefersReducedMotion);
     this.renderer.domElement.style.cursor = position ? "pointer" : "";
+    const person = Boolean(entityId && position && this.npcPresentations.has(entityId));
+    this.attentionNpcId = person ? entityId ?? null : null;
+    if (!person) this.npcAttention.visible = false;
     // The mounted donkey remains the active Dismount target so the prompt can
-    // stay visible, but its ground ring is redundant beneath the rider.
-    if (!position || Boolean(this.donkeyPresentation?.attachedMountId)) {
+    // stay visible, but a ground contact is redundant beneath the rider.
+    // A person carries the mark above the head instead of a ring on the soil.
+    if (!position || person || Boolean(this.donkeyPresentation?.attachedMountId)) {
       this.interactionFeedback.visible = false;
       return;
     }
     this.interactionFeedback.visible = true;
-    this.interactionFeedback.position.set(position.x, position.y + 0.055, position.z);
+    this.interactionFeedback.position.set(position.x, position.y + 0.04, position.z);
+  }
+
+  private placeNpcAttention(timeSeconds: number): void {
+    const npc = this.attentionNpcId ? this.npcPresentations.get(this.attentionNpcId) : undefined;
+    if (!npc?.model.visible) {
+      this.npcAttention.visible = false;
+      return;
+    }
+    const point = this.npcAttentionPoint;
+    const head = this.npcHeadBone(npc);
+    if (head) {
+      head.updateWorldMatrix(true, false);
+      head.getWorldPosition(point);
+      const aboveFeet = point.y - npc.model.position.y;
+      if (aboveFeet < 0.8 || aboveFeet > 2.15) {
+        point.set(npc.model.position.x, npc.model.position.y + 1.9, npc.model.position.z);
+      } else {
+        point.y += NPC_ATTENTION_HEAD_CLEARANCE_METERS;
+      }
+    } else {
+      point.set(npc.model.position.x, npc.model.position.y + 1.9, npc.model.position.z);
+    }
+    if (!this.prefersReducedMotion) point.y += Math.sin(timeSeconds * 1.8) * 0.016;
+    this.npcAttention.visible = true;
+    this.npcAttention.position.copy(point);
+    this.npcAttention.rotation.set(0, 0, 0);
+    this.npcAttention.rotation.y = Math.atan2(this.playerPresence.x - point.x, this.playerPresence.z - point.z);
+  }
+
+  private npcHeadBone(npc: { id: string; model: THREE.Object3D }): THREE.Object3D | null {
+    const cached = this.npcHeadBones.get(npc.id);
+    if (cached !== undefined) return cached;
+    const head = findNpcHeadBone(npc.model);
+    this.npcHeadBones.set(npc.id, head);
+    return head;
   }
 
   public punchCropHarvest(id: string, timeSeconds: number): void {
@@ -2580,22 +2630,7 @@ export class WorldScene {
 
     let placementIndex = 0;
     for (const placement of environmentPlacements) {
-      const assetId = placement.assetId as AssetId;
-      const spec = ASSET_BY_ID.get(assetId);
-      if (!spec) {
-        throw new Error(
-          `[WorldScene] Unknown environment asset ${placement.assetId} for placement ${placement.id}`
-        );
-      }
-      if (
-        placement.origin === "seeded-fill"
-        && spec.collision !== "none"
-        && !SEEDED_FILL_COLLIDING_FAMILIES.has(spec.family)
-      ) {
-        throw new Error(
-          `[WorldScene] Seeded-fill placement ${placement.id} cannot use colliding asset ${placement.assetId}`
-        );
-      }
+      const assetId = validateEnvironmentPlacementAsset(placement).id;
       const object = await this.loadModel(assetId);
       object.position.set(placement.x, placement.y ?? WorldLayout.terrainHeight(placement.x, placement.z), placement.z);
       object.rotation.y = placement.rotationY;
@@ -3585,6 +3620,10 @@ export class WorldScene {
     }
   }
 
+  public drainMountHoofsteps(): { cue: "donkey-hoof" | "horse-hoof" | "carriage-creak"; x: number; y: number; z: number }[] {
+    return this.mountHoofsteps.splice(0, this.mountHoofsteps.length);
+  }
+
   public drainPlayerAnimationEvents(): CharacterAnimationEvent[] {
     return this.playerAnimationEvents.splice(0, this.playerAnimationEvents.length);
   }
@@ -3846,10 +3885,8 @@ export class WorldScene {
       ? CANONICAL_RENDER_CONFIG.motion.reducedMotionScale
       : CANONICAL_RENDER_CONFIG.motion.ambientScale;
     if (this.interactionFeedback.visible) {
-      const breathe = this.prefersReducedMotion ? 0 : Math.sin(timeSeconds * 3);
-      this.interactionFeedback.scale.setScalar(1 + breathe * 0.045);
-      this.interactionFeedback.rotation.z = this.prefersReducedMotion ? 0 : timeSeconds * 0.45;
-      this.interactionFeedback.material.opacity = 0.62 + breathe * 0.1;
+      const breathe = this.prefersReducedMotion ? 0 : Math.sin(timeSeconds * 2.2);
+      this.interactionFeedback.material.opacity = 0.5 + breathe * 0.14;
       for (const material of this.interactionMaterials.get(this.activeInteractionMaterialId ?? "") ?? []) material.emissiveIntensity = 0.07 + breathe * 0.025;
     }
     this.advanceWindmillRotors(delta, motionScale);
@@ -4034,7 +4071,9 @@ export class WorldScene {
       attachedMountId: null,
       originalPlayerParent: null,
       transitionUntilSeconds: 0,
-      lastAnimationUpdateSeconds: 0
+      lastAnimationUpdateSeconds: 0,
+      lastHoofTime: null,
+      hoofClip: null
     };
     if (this.lightingRig.contactShadowsEnabled() && !root.getObjectByName("donkey_contact_shadow")) {
       const shadowMesh = createContactShadowMesh(
@@ -4058,6 +4097,40 @@ export class WorldScene {
   private applyContactDiscPolicy(disc: ContactShadowMesh, opacity: number): void {
     disc.visible = this.graphicsEffects.ambientOcclusion === "contact";
     setContactShadowOpacity(disc, Math.min(1, opacity * this.graphicsEffects.aoStrength));
+  }
+
+  private collectDonkeyHoofsteps(donkey: DonkeyPresentation): void {
+    const clip = donkey.activeClip;
+    const times = clip === "walk" || clip === "trot" || clip === "gallop"
+      ? audibleHoofTimes(DONKEY_HOOF_TIMES[clip], clip)
+      : null;
+    const action = clip ? donkey.actions.get(clip) : undefined;
+    const duration = action?.getClip().duration ?? 0;
+    const now = action?.time;
+    if (!times || now == null || !(duration > 0) || donkey.hoofClip !== clip || donkey.lastHoofTime == null) {
+      donkey.hoofClip = clip;
+      donkey.lastHoofTime = now ?? null;
+      return;
+    }
+    const count = hoofContactsCrossed(times, duration, donkey.lastHoofTime, now);
+    donkey.lastHoofTime = now;
+    const position = donkey.root.position;
+    for (let index = 0; index < count && index < 4; index += 1) {
+      this.mountHoofsteps.push({ cue: "donkey-hoof", x: position.x, y: position.y, z: position.z });
+    }
+  }
+
+  private collectCarriageHoofsteps(mountId: string): void {
+    const carriage = this.carriages.get(mountId);
+    if (!carriage) return;
+    const steps = carriage.consumeHoofsteps();
+    const position = carriage.root.position;
+    for (let index = 0; index < steps.hooves && index < 4; index += 1) {
+      this.mountHoofsteps.push({ cue: "horse-hoof", x: position.x, y: position.y, z: position.z });
+    }
+    if (steps.creaks > 0) {
+      this.mountHoofsteps.push({ cue: "carriage-creak", x: position.x, y: position.y, z: position.z });
+    }
   }
 
   private setDonkeyAnimation(
@@ -4348,6 +4421,7 @@ export class WorldScene {
           : delta;
         donkey.lastAnimationUpdateSeconds = timeSeconds;
         donkey.mixer.update(donkeyDelta);
+        this.collectDonkeyHoofsteps(donkey);
       }
     }
     donkey.root.updateMatrixWorld(true);
@@ -4862,6 +4936,7 @@ export class WorldScene {
     this.carriagePresentation = activeCarriage ? this.carriages.get(activeCarriage.id) ?? null : null;
     for (const mount of [...Object.values(state.mounts).filter(isCarriage), ...workshopCarriagePoses().filter(pose => !state.mounts[pose.id])]) {
       this.carriages.get(mount.id)?.update(mount, playerPose, mount.id === state.player.activeMountId, delta, this.latestLocomotionTimeScale);
+      if (mount.id === state.player.activeMountId) this.collectCarriageHoofsteps(mount.id);
     }
     if (this.tradingShipPreview) {
       this.tradingShipPreview.visible = !this.boatMeshes.has("boat.player_trading_ship");
@@ -5345,6 +5420,7 @@ export class WorldScene {
           npcAnimationDelta > 0 ? npcAnimationDelta : npcFrameDelta);
       }
     }
+    this.placeNpcAttention(timeSeconds);
 
     if (syncRecord) { syncRecord("sync:actors", performance.now() - syncMark); syncMark = performance.now(); }
     this.updateAmbientTownsfolk(state, timeSeconds, delta);
@@ -6984,6 +7060,7 @@ export class WorldScene {
     this.interactionFeedback.geometry.dispose();
     (this.interactionFeedback.material as THREE.Material).dispose();
     this.interactionFeedback.removeFromParent();
+    disposeNpcAttentionMark(this.npcAttention);
     this.questWaypointRing.geometry.dispose();
     (this.questWaypointRing.material as THREE.Material).dispose();
     this.questWaypointRing.removeFromParent();

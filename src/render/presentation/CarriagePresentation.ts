@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { ASSET_IDS, ASSET_BY_ID, type AssetId } from '../assets/AssetCatalog';
+import { audibleHoofTimes, hoofContactsCrossed, HORSE_HOOF_TIMES } from '../../audio/mountHoofsteps';
+import { ASSET_BY_ID, ASSET_IDS, type AssetId } from '../assets/AssetCatalog';
 import { carriageTuning } from '../../simulation/mounts/Carriage';
 import type { MountState } from '../../simulation/core/types';
 import type { PresentedPlayerFrame } from './PlayerPresentationBuffer';
@@ -32,6 +33,12 @@ export class CarriagePresentation {
   private readonly reins: { mesh: THREE.Mesh; rest: Float32Array; sign: number; grip: THREE.Object3D; bit: THREE.Object3D; minZ: number; span: number; origin: THREE.Vector3 }[];
   private initialized = false;
   private steering = 0;
+  private lastHorseTime: number | null = null;
+  private lastHorseClip = "";
+  private wheelArmed = false;
+  private lastWheelTurns = 0;
+  private pendingHooves = 0;
+  private pendingCreaks = 0;
 
   private readonly tuning: ReturnType<typeof carriageTuning>;
   constructor(readonly cart: THREE.Group, readonly horse: THREE.Group, mountTypeId: MountState['mountTypeId'] = 'mount.horse_carriage') {
@@ -164,6 +171,49 @@ export class CarriagePresentation {
     this.shafts.updateWorldMatrix(false, true);
     this.updateReins();
     this.initialized = true;
+    this.collectHorseHoofsteps(active, speed);
+  }
+
+  consumeHoofsteps(): { hooves: number; creaks: number } {
+    const steps = { hooves: this.pendingHooves, creaks: this.pendingCreaks };
+    this.pendingHooves = 0;
+    this.pendingCreaks = 0;
+    return steps;
+  }
+
+  private collectHorseHoofsteps(active: boolean, speed: number): void {
+    const gait = this.clip === "walk" || this.clip === "trot" ? this.clip : null;
+    const action = gait ? this.actions[1]?.get(gait) : undefined;
+    const duration = action?.getClip().duration ?? 0;
+    const now = action?.time;
+    if (!active || !gait || now == null || !(duration > 0) || this.lastHorseClip !== gait) {
+      this.lastHorseClip = gait ?? "";
+      this.lastHorseTime = now ?? null;
+    } else {
+      if (this.lastHorseTime != null) {
+        this.pendingHooves += hoofContactsCrossed(
+          audibleHoofTimes(HORSE_HOOF_TIMES[gait], gait),
+          duration,
+          this.lastHorseTime,
+          now
+        );
+      }
+      this.lastHorseTime = now;
+    }
+    const wheel = this.wheels.find((entry) => !entry.front) ?? this.wheels[0];
+    if (!active || !wheel || Math.abs(speed) < 0.3) {
+      this.wheelArmed = false;
+      return;
+    }
+    const turns = wheel.angle / (Math.PI * 2);
+    if (!this.wheelArmed) {
+      this.wheelArmed = true;
+      this.lastWheelTurns = turns;
+      return;
+    }
+    const halfTurns = Math.floor(turns / 2);
+    if (Math.floor(this.lastWheelTurns / 2) !== halfTurns) this.pendingCreaks += 1;
+    this.lastWheelTurns = turns;
   }
 
   private fitSupport(model: THREE.Object3D, halfWidth: number, rearZ: number, frontZ: number,

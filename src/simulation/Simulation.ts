@@ -1,5 +1,5 @@
 import { buildNewDiscoveries } from "./presentation/DiscoveryPresentation";
-import { npcAnchorAt, NPC_TALK_RADIUS } from "./presentation/NpcPresentation";
+import { npcAnchorAt, NPC_TALK_ANCHOR_RADIUS } from "./presentation/NpcPresentation";
 // src/simulation/Simulation.ts
 
 import { ContentRegistry } from "../content/ContentRegistry";
@@ -67,6 +67,7 @@ import { WorldLayout } from "../world/WorldLayout";
 import { HARBOR_DOCK, HARBOR_SKIFF_MOORING } from "../world/WorldAnchors";
 import { STARTER_DONKEY_ID } from "./mounts/Mounts";
 import { resolveMountRecall, type MountPathQuery, type MountRecallRefusal } from "./mounts/MountRecall";
+import type { MountPoseClearQuery } from "./mounts/MountedRecovery";
 import { CARRIAGE_TUNING, STARTER_CARRIAGE_ID, carriagePoint } from "./mounts/Carriage";
 import { FARM_PACK_QUANTITY, FARM_PACK_WEIGHT_KG } from "../content/farmPacks";
 import { farmPackQuality } from "./cargo/farmPacks";
@@ -120,6 +121,7 @@ export class Simulation {
   public readonly actionTimeline: SimulationActionTimeline;
   private interactionCommitInProgress = false;
   private mountPathQuery: MountPathQuery | undefined;
+  private mountPoseClearQuery: MountPoseClearQuery | undefined;
   private readonly domainContext: DomainContext;
   private readonly progressionDomain: ProgressionDomain;
   private readonly farmingDomain: FarmingDomain;
@@ -526,7 +528,7 @@ export class Simulation {
       const dx = player.x - anchor.x;
       const dz = player.z - anchor.z;
       const dist = Math.hypot(dx, dz);
-      if (dist <= NPC_TALK_RADIUS) {
+      if (dist <= NPC_TALK_ANCHOR_RADIUS) {
         return npcId;
       }
     }
@@ -973,7 +975,7 @@ export class Simulation {
   }
 
   public resetPlayerToSafeSpawn(): InteractionResult {
-    const result = this.navigationDomain.resetToSafeSpawn();
+    const result = this.navigationDomain.resetToSafeSpawn(this.mountPoseClearQuery);
     if (result.success) this.fishingDomain.cancelAll();
     return result;
   }
@@ -997,6 +999,10 @@ export class Simulation {
   /** Physics supplies static obstruction tests; without one only the ground rules apply. */
   public setMountPathQuery(query: MountPathQuery | undefined): void {
     this.mountPathQuery = query;
+  }
+
+  public setMountPoseClearQuery(query: MountPoseClearQuery | undefined): void {
+    this.mountPoseClearQuery = query;
   }
 
   /** Places the owned donkey beside the player in one commit, or refuses without moving it. */

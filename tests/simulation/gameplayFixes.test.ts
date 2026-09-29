@@ -34,7 +34,15 @@ import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
 import { armLureForTest } from "./sportFishingTestUtils";
+import { INTERACTION_STANCE_OFFSET_METERS } from "../../src/world/InteractionReach";
 
+
+/** Trading stations arrived with schema 65, so an older save cannot carry them. */
+function withoutTradingStations(state: { world: { structures: Record<string, { type: string }> } }): void {
+  for (const [id, structure] of Object.entries(state.world.structures)) {
+    if (structure.type === "trading-station") delete state.world.structures[id];
+  }
+}
 
 function movePlayerToProcessingFront(simulation: Simulation, stationId: string): void {
   const station = simulation.state.world.structures[stationId];
@@ -42,6 +50,8 @@ function movePlayerToProcessingFront(simulation: Simulation, stationId: string):
   if (!front) throw new Error(`Missing processing front for ${stationId}`);
   simulation.state.player.x = front.x;
   simulation.state.player.z = front.z;
+  // Station reach also checks the player's height against the ground in front of the station.
+  simulation.state.player.y = WorldLayout.traversalSurfaceHeight(front.x, front.z) + INTERACTION_STANCE_OFFSET_METERS;
 }
 
 function movePlayerToProcessingCenter(simulation: Simulation, stationId: string): void {
@@ -49,6 +59,7 @@ function movePlayerToProcessingCenter(simulation: Simulation, stationId: string)
   if (!station) throw new Error(`Missing processing station ${stationId}`);
   simulation.state.player.x = station.x;
   simulation.state.player.z = station.z;
+  simulation.state.player.y = WorldLayout.traversalSurfaceHeight(station.x, station.z) + INTERACTION_STANCE_OFFSET_METERS;
 }
 
 describe("Gameplay simulation fixes", () => {
@@ -723,6 +734,7 @@ describe("Gameplay simulation fixes", () => {
   it("migrates a v2 boat save to explicit dock and sport-fishing state", () => {
     const legacy = JSON.parse(JSON.stringify(createInitialGameState()));
     legacy.schemaVersion = 2;
+    withoutTradingStations(legacy);
     legacy.player.workCapacity.lastRegenMinute = legacy.player.workCapacity.regeneratedAtMinute;
     delete legacy.player.workCapacity.regeneratedAtMinute;
     delete legacy.sportFishing;
@@ -944,7 +956,8 @@ describe("Gameplay simulation fixes", () => {
     const stations = Object.values(state.world.structures);
     expect(stations.length).toBeGreaterThanOrEqual(4);
     for (const structure of stations) {
-      expect(structure.y).toBeGreaterThan(0.5);
+      // Stations rest on the ground under them, never lifted from y = 0; the Sunreach yard is at 0.305 m.
+      expect(structure.y).toBeGreaterThan(0.25);
       expect(structure.y).toBeCloseTo(WorldLayout.terrainHeight(structure.x, structure.z), 6);
     }
   });
@@ -1129,6 +1142,7 @@ describe("Gameplay simulation fixes", () => {
     const legacy = structuredClone(createInitialGameState());
     legacy.schemaVersion = 9;
     legacy.world.layoutRevision = 3;
+    withoutTradingStations(legacy);
     delete legacy.world.structures[HARBOR_FISH_TABLE.structureId];
     legacy.world.structures["struct.workbench"].y = 0;
     // A real v9 save predates quest tracks: it carries one cursor and the

@@ -11,6 +11,7 @@ import {
   UI_ACTION,
   UI_BEHAVIOR,
   UI_CHROME,
+  UI_CROP_QUALITY,
   UI_EQUIPMENT,
   UI_FISH,
   UI_GIS,
@@ -37,6 +38,7 @@ export {
   UI_ACTION,
   UI_BEHAVIOR,
   UI_CHROME,
+  UI_CROP_QUALITY,
   UI_EQUIPMENT,
   UI_FISH,
   UI_GIS,
@@ -75,27 +77,13 @@ function lookup(map: Record<string, string>, key: string | null | undefined): Sp
   return map[key];
 }
 
-/**
- * Hand-owned sprite reuse for items the art sheet has no cell for yet. The
- * generated maps stay the authority; this only fills gaps until the owning
- * brief ships proper cells. Never add a second copy of a generated key here.
- */
-const ITEM_SPRITE_ALIASES: Record<string, string> = {
-  "item.chum_rich": "item.chum_bucket",
-  "item.chum_deep": "item.chum_bucket",
-  "seed.olive_sapling": "seed.olive_pit"
-};
-
 /** Any carryable item: seeds, produce, supplies, and fish held as goods. */
 export function atlasForItem(itemId: string | null | undefined): SpriteUrl | undefined {
   if (!itemId) return undefined;
-  const aliased = ITEM_SPRITE_ALIASES[itemId];
   return (
     lookup(UI_SEEDS, itemId) ??
-    (aliased ? lookup(UI_SEEDS, aliased) : undefined) ??
     lookup(UI_PRODUCE, itemId) ??
     lookup(UI_SUPPLIES, itemId) ??
-    (aliased ? lookup(UI_SUPPLIES, aliased) : undefined) ??
     lookup(UI_FISH, itemId)
   );
 }
@@ -123,8 +111,7 @@ export function atlasForCrop(cropId: string | null | undefined): SpriteUrl | und
 }
 
 export function atlasForSeedItem(itemId: string | null | undefined): SpriteUrl | undefined {
-  if (!itemId) return undefined;
-  return lookup(UI_SEEDS, itemId) ?? lookup(UI_SEEDS, ITEM_SPRITE_ALIASES[itemId]);
+  return lookup(UI_SEEDS, itemId);
 }
 
 export function qualitySpriteKey(quality: string | null | undefined): QualitySpriteKey {
@@ -135,6 +122,11 @@ export function qualitySpriteKey(quality: string | null | undefined): QualitySpr
 
 export function atlasForQuality(quality: string | null | undefined): SpriteUrl {
   return UI_QUALITY[qualitySpriteKey(quality)];
+}
+
+/** Harvest grade coin. The catch medallions stay on `atlasForQuality`. */
+export function atlasForCropQuality(quality: string | null | undefined): SpriteUrl {
+  return UI_CROP_QUALITY[qualitySpriteKey(quality)];
 }
 
 /**
@@ -183,6 +175,19 @@ export function atlasForMapNode(nodeId: string | null | undefined): SpriteUrl | 
     "chart.sunreach_terraces": "sunreach",
     "chart.sunreach_ridge": "sunreach",
     "chart.sunreach_reef": "sunreach",
+    "chart.pinewatch": "pinewatch",
+    "chart.reedhaven": "reedhaven",
+    "chart.highridge": "highridge",
+    "chart.mainland_lake": "mainland_lake",
+    "chart.mainland_river": "mainland_river",
+    "chart.reedhaven_coast": "reedhaven_coast",
+    "chart.knowledge.discovery.spring": "spring",
+    "chart.knowledge.discovery.overlook": "overlook",
+    "chart.knowledge.discovery.beach": "beach",
+    "chart.knowledge.discovery.bluff": "bluff",
+    "chart.island.gull_rest": "gull_rest",
+    "chart.island.driftwood": "driftwood",
+    "chart.island.lantern": "lantern",
     node_home_farm: "homestead",
     node_uplands: "garden",
     node_village: "village",

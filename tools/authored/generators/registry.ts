@@ -25,7 +25,7 @@ import { createPigeonModel } from "./fauna/createPigeonModel";
 import { createRabbitModel } from "./fauna/createRabbitModel";
 import { createSheepModel } from "./fauna/createSheepModel";
 import { createFishModel } from "./fish/createFishModel";
-import { createClayOvenModel, createFirePitModel, createSmokePlumeModel, createTrailKioskModel, createTrailSignpostModel } from "./props/camp";
+import { createClayOvenModel, createFirePitModel, createGroundNoteModel, createSmokePlumeModel, createTrailKioskModel, createTrailSignpostModel } from "./props/camp";
 import { createFishTradePackModel } from "./props/createFishTradePackModel";
 import { createHayBaleModel } from "./props/createHayBaleModel";
 import { createLampPostModel } from "./props/createLampPostModel";
@@ -149,6 +149,7 @@ export const AUTHORED_GENERATORS: Readonly<Record<string, AuthoredGenerator>> = 
   smoke_plume: createSmokePlumeModel,
   clay_oven: createClayOvenModel,
   fire_pit: createFirePitModel,
+  ground_note: createGroundNoteModel,
   trail_kiosk: createTrailKioskModel,
   trail_signpost: createTrailSignpostModel,
   coral_pillar: createCoralPillarModel,

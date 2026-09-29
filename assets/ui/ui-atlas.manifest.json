@@ -12,7 +12,7 @@
     "tidebook": {
       "export": "UI_TIDEBOOK",
       "tier": "core",
-      "doc": "Wayfarer HUD paintings: pewter, leather, paper and equipment."
+      "doc": "Tool-belt and utility paintings for the hoe, seeds, water, rod, harvest, satchel, journal, and chart."
     },
     "fish": {
       "export": "UI_FISH",
@@ -32,6 +32,7 @@
     },
     "growth": {
       "export": "UI_GROWTH",
+      "size": 128,
       "doc": "Crop lifecycle stage badges."
     },
     "supply": {
@@ -41,10 +42,17 @@
     },
     "quality": {
       "export": "UI_QUALITY",
-      "doc": "Catch and produce quality medallions."
+      "size": 128,
+      "doc": "Catch quality medallions. Produce grades use cropQuality."
+    },
+    "cropQuality": {
+      "export": "UI_CROP_QUALITY",
+      "size": 128,
+      "doc": "Harvest-grade medallions. Same rope-ring metal ladder as catch quality, with a wheat sheaf in the centre."
     },
     "gis": {
       "export": "UI_GIS",
+      "size": 128,
       "doc": "Farm field-sign chips shown while the GIS overlay is held."
     },
     "portrait": {
@@ -54,16 +62,19 @@
     "weather": {
       "export": "UI_WEATHER",
       "tier": "core",
+      "size": 128,
       "doc": "Sky and sea condition icons for the almanac and forecast."
     },
     "time": {
       "export": "UI_TIME",
       "tier": "core",
+      "size": 128,
       "doc": "Time-of-day icons for the almanac dial."
     },
     "tool": {
       "export": "UI_TOOLS",
       "tier": "core",
+      "size": 128,
       "doc": "Tool belt icons."
     },
     "rod": {
@@ -77,34 +88,41 @@
     "menu": {
       "export": "UI_MENU",
       "tier": "core",
+      "size": 128,
       "doc": "Navigation icons for modal headers and the pause menu."
     },
     "status": {
       "export": "UI_STATUS",
       "tier": "core",
+      "size": 128,
       "doc": "Purse, labour and alert icons."
     },
     "world": {
       "export": "UI_WORLD",
       "tier": "core",
+      "size": 128,
       "doc": "Generic world-subject icons used as fallbacks."
     },
     "action": {
       "export": "UI_ACTION",
       "tier": "core",
+      "size": 128,
       "doc": "Icons for the timed action progress bar."
     },
     "behavior": {
       "export": "UI_BEHAVIOR",
+      "size": 128,
       "doc": "Hooked-fish behaviour cues in the sport fishing HUD."
     },
     "mapnode": {
       "export": "UI_MAP_NODES",
       "tier": "core",
+      "size": 128,
       "doc": "World map landmark markers."
     },
     "chrome": {
       "export": "UI_CHROME",
+      "size": 128,
       "doc": "Panel ornament and trend indicators."
     },
     "guildcraft": {
@@ -201,191 +219,6 @@
         {
           "id": "sun",
           "file": "guildcraft-sun.png"
-        }
-      ]
-    },
-    {
-      "id": "tidebook-panels",
-      "family": "tidebook",
-      "source": "assets/ui/sheets/tidebook-chrome-panels.png",
-      "detect": {
-        "keyLow": 24,
-        "keyHigh": 90,
-        "cellSize": 4,
-        "dilate": 2,
-        "minAreaRatio": 0.00035,
-        "gate": false
-      },
-      "output": {
-        "size": 512,
-        "coverage": 0.94,
-        "trim": true,
-        "edgeDespill": {
-          "alphaFloor": 8,
-          "alphaBelow": 250,
-          "excessAboveRedAndBlue": 24
-        }
-      },
-      "expectedIslands": 4,
-      "sprites": [
-        {
-          "id": "quest-panel",
-          "file": "tidebook-quest-panel.png",
-          "index": 0
-        },
-        {
-          "id": "tool-plaque",
-          "file": "tidebook-tool-plaque.png",
-          "index": 1
-        },
-        {
-          "id": "tool-plaque-selected",
-          "file": "tidebook-tool-plaque-selected.png",
-          "index": 2
-        },
-        {
-          "id": "clock-face",
-          "file": "tidebook-clock-face.png",
-          "index": 3
-        }
-      ]
-    },
-    {
-      "id": "tidebook-tags",
-      "family": "tidebook",
-      "source": "assets/ui/sheets/tidebook-chrome-tags.png",
-      "detect": {
-        "keyLow": 24,
-        "keyHigh": 90,
-        "cellSize": 4,
-        "dilate": 2,
-        "minAreaRatio": 0.00035,
-        "gate": false
-      },
-      "output": {
-        "size": 512,
-        "coverage": 0.94,
-        "trim": true,
-        "edgeDespill": {
-          "alphaFloor": 8,
-          "alphaBelow": 250,
-          "excessAboveRedAndBlue": 24
-        }
-      },
-      "expectedIslands": 4,
-      "sprites": [
-        {
-          "id": "calendar-tag",
-          "file": "tidebook-calendar-tag.png",
-          "index": 0
-        },
-        {
-          "id": "purse-tag",
-          "file": "tidebook-purse-tag.png",
-          "index": 1
-        },
-        {
-          "id": "label-paper",
-          "file": "tidebook-label-paper.png",
-          "index": 3
-        }
-      ]
-    },
-    {
-      "id": "tidebook-navigation",
-      "family": "tidebook",
-      "source": "assets/ui/sheets/tidebook-chrome-navigation.png",
-      "detect": {
-        "keyLow": 24,
-        "keyHigh": 90,
-        "cellSize": 4,
-        "dilate": 2,
-        "minAreaRatio": 0.00035,
-        "gate": false
-      },
-      "output": {
-        "size": 1024,
-        "coverage": 0.94,
-        "trim": true,
-        "edgeDespill": {
-          "alphaFloor": 8,
-          "alphaBelow": 250,
-          "excessAboveRedAndBlue": 24
-        }
-      },
-      "expectedIslands": 3,
-      "sprites": [
-        {
-          "id": "navigation-rail",
-          "file": "tidebook-navigation-rail.png",
-          "index": 0
-        }
-      ]
-    },
-    {
-      "id": "tidebook-ornaments",
-      "family": "tidebook",
-      "source": "assets/ui/sheets/tidebook-chrome-navigation.png",
-      "detect": {
-        "keyLow": 24,
-        "keyHigh": 90,
-        "cellSize": 4,
-        "dilate": 2,
-        "minAreaRatio": 0.00035,
-        "gate": false
-      },
-      "output": {
-        "size": 512,
-        "coverage": 0.94,
-        "trim": true,
-        "edgeDespill": {
-          "alphaFloor": 8,
-          "alphaBelow": 250,
-          "excessAboveRedAndBlue": 24
-        }
-      },
-      "expectedIslands": 3,
-      "sprites": [
-        {
-          "id": "sea-dial",
-          "file": "tidebook-sea-dial.png",
-          "index": 1
-        },
-        {
-          "id": "pointer",
-          "file": "tidebook-pointer.png",
-          "index": 2
-        }
-      ]
-    },
-    {
-      "id": "tidebook-meter",
-      "family": "tidebook",
-      "source": "assets/ui/sheets/tidebook-chrome-meter.png",
-      "detect": {
-        "keyLow": 24,
-        "keyHigh": 90,
-        "cellSize": 4,
-        "dilate": 2,
-        "minAreaRatio": 0.00035,
-        "gate": false
-      },
-      "output": {
-        "size": 512,
-        "coverage": 0.94,
-        "trim": true,
-        "edgeDespill": {
-          "alphaFloor": 8,
-          "alphaBelow": 250,
-          "excessAboveRedAndBlue": 24
-        }
-      },
-      "expectedIslands": 1,
-      "sprites": [
-        {
-          "id": "meter-frame",
-          "file": "tidebook-meter-frame.png",
-          "index": 0
         }
       ]
     },
@@ -774,6 +607,35 @@
         {
           "id": "iridium",
           "file": "quality-iridium.png"
+        }
+      ]
+    },
+    {
+      "id": "quality-crop",
+      "family": "cropQuality",
+      "source": "assets/ui/sheets/quality-crop.png",
+      "detect": {
+        "grid": {
+          "cols": 2,
+          "rows": 2
+        }
+      },
+      "sprites": [
+        {
+          "id": "normal",
+          "file": "quality-crop-normal.png"
+        },
+        {
+          "id": "silver",
+          "file": "quality-crop-silver.png"
+        },
+        {
+          "id": "gold",
+          "file": "quality-crop-gold.png"
+        },
+        {
+          "id": "iridium",
+          "file": "quality-crop-iridium.png"
         }
       ]
     },
@@ -1380,6 +1242,440 @@
         {
           "id": "sunreach",
           "file": "mapnode-sunreach.png"
+        }
+      ]
+    },
+    {
+      "id": "item-salt_cured_fish",
+      "family": "supply",
+      "source": "assets/ui/sheets/item-salt_cured_fish.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "item.salt_cured_fish",
+          "file": "item-salt_cured_fish.png"
+        }
+      ]
+    },
+    {
+      "id": "item-meal_harvest_bowl",
+      "family": "supply",
+      "source": "assets/ui/sheets/item-meal_harvest_bowl.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "item.meal_harvest_bowl",
+          "file": "item-meal_harvest_bowl.png"
+        }
+      ]
+    },
+    {
+      "id": "item-meal_fish_stew",
+      "family": "supply",
+      "source": "assets/ui/sheets/item-meal_fish_stew.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "item.meal_fish_stew",
+          "file": "item-meal_fish_stew.png"
+        }
+      ]
+    },
+    {
+      "id": "item-meal_orchard_tart",
+      "family": "supply",
+      "source": "assets/ui/sheets/item-meal_orchard_tart.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "item.meal_orchard_tart",
+          "file": "item-meal_orchard_tart.png"
+        }
+      ]
+    },
+    {
+      "id": "item-chum_rich",
+      "family": "supply",
+      "source": "assets/ui/sheets/item-chum_rich.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "item.chum_rich",
+          "file": "item-chum_rich.png"
+        }
+      ]
+    },
+    {
+      "id": "item-chum_deep",
+      "family": "supply",
+      "source": "assets/ui/sheets/item-chum_deep.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "item.chum_deep",
+          "file": "item-chum_deep.png"
+        }
+      ]
+    },
+    {
+      "id": "seed-olive_sapling",
+      "family": "seed",
+      "source": "assets/ui/sheets/seed-olive_sapling.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "seed.olive_sapling",
+          "file": "seed-olive_sapling.png"
+        }
+      ]
+    },
+    {
+      "id": "weather-drought",
+      "family": "weather",
+      "source": "assets/ui/sheets/weather-drought.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "drought",
+          "file": "weather-drought.png"
+        }
+      ]
+    },
+    {
+      "id": "action-fertilize",
+      "family": "action",
+      "source": "assets/ui/sheets/action-fertilize.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "fertilize",
+          "file": "action-fertilize.png"
+        }
+      ]
+    },
+    {
+      "id": "portrait-rowan",
+      "family": "portrait",
+      "source": "assets/ui/sheets/portrait-rowan.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "npc.rowan",
+          "file": "portrait-rowan.png"
+        }
+      ],
+      "output": {
+        "coverage": 0.94
+      }
+    },
+    {
+      "id": "portrait-mara",
+      "family": "portrait",
+      "source": "assets/ui/sheets/portrait-mara.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "npc.mara",
+          "file": "portrait-mara.png"
+        }
+      ],
+      "output": {
+        "coverage": 0.94
+      }
+    },
+    {
+      "id": "portrait-ada",
+      "family": "portrait",
+      "source": "assets/ui/sheets/portrait-ada.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "npc.ada",
+          "file": "portrait-ada.png"
+        }
+      ],
+      "output": {
+        "coverage": 0.94
+      }
+    },
+    {
+      "id": "mapnode-pinewatch",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-pinewatch.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "pinewatch",
+          "file": "mapnode-pinewatch.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-reedhaven",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-reedhaven.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "reedhaven",
+          "file": "mapnode-reedhaven.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-highridge",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-highridge.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "highridge",
+          "file": "mapnode-highridge.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-mainland_lake",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-mainland_lake.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "mainland_lake",
+          "file": "mapnode-mainland_lake.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-mainland_river",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-mainland_river.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "mainland_river",
+          "file": "mapnode-mainland_river.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-reedhaven_coast",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-reedhaven_coast.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "reedhaven_coast",
+          "file": "mapnode-reedhaven_coast.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-spring",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-spring.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "spring",
+          "file": "mapnode-spring.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-overlook",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-overlook.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "overlook",
+          "file": "mapnode-overlook.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-beach",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-beach.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "beach",
+          "file": "mapnode-beach.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-bluff",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-bluff.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "bluff",
+          "file": "mapnode-bluff.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-gull_rest",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-gull_rest.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "gull_rest",
+          "file": "mapnode-gull_rest.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-driftwood",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-driftwood.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "driftwood",
+          "file": "mapnode-driftwood.png"
+        }
+      ]
+    },
+    {
+      "id": "mapnode-lantern",
+      "family": "mapnode",
+      "source": "assets/ui/sheets/mapnode-lantern.png",
+      "detect": {
+        "grid": {
+          "cols": 1,
+          "rows": 1
+        }
+      },
+      "sprites": [
+        {
+          "id": "lantern",
+          "file": "mapnode-lantern.png"
         }
       ]
     }

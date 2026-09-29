@@ -7,10 +7,12 @@ import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import predecessor from "../fixtures/save_v61_layout31_road_predecessor.json";
+import { expectBoatsPreserved, expectInventoriesPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 
 const legacy = () => structuredClone(predecessor) as unknown as SaveEnvelope;
 const PRESERVED = ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts",
-  "quests", "journal", "clock", "weather", "boats", "markets"] as const;
+  "quests", "journal", "clock", "weather"] as const;
 const FOREST_FORK = { x: -425, z: -180 };
 
 async function openSaveDb(): Promise<IDBDatabase> {
@@ -48,7 +50,10 @@ describe("mainland road junction layout32 recovery", () => {
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect({ x: after.state.player.x, z: after.state.player.z }).toEqual(FOREST_FORK);
     expect(after.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(FOREST_FORK.x, FOREST_FORK.z) + 0.5, 6);
-    for (const key of PRESERVED) expect(after.state[key], key).toEqual(before.state[key]);
+    for (const key of PRESERVED) if (key !== "inventories") expect(after.state[key], key).toEqual(before.state[key]);
+    expectInventoriesPreserved(after.state, before.state);
+    expectBoatsPreserved(after.state, before.state);
+    expectMarketsPreserved(after.state, before.state);
     expect(after.state.player.money).toBe(before.state.player.money);
     expect(after.state.player.proficiencies).toEqual(before.state.player.proficiencies);
     expect(saved).toEqual(before);
@@ -56,9 +61,7 @@ describe("mainland road junction layout32 recovery", () => {
   });
 
   it("repairs a head-schema save that still records layout31", () => {
-    const saved = legacy();
-    saved.schemaVersion = CURRENT_SCHEMA_VERSION;
-    saved.state.schemaVersion = CURRENT_SCHEMA_VERSION;
+    const saved = headSchemaDevelopmentSave(legacy());
     expect(validateSaveEnvelope(saved)).toBe(false);
     const after = migrateSaveData(saved);
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);

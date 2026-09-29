@@ -6,6 +6,7 @@ import { MAX_OFFLINE_HOURS, applyOfflineProgression } from "../../src/persistenc
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
 import { Simulation } from "../../src/simulation/Simulation";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
+import { PLAYER_SATCHEL_SLOT_COUNT } from "../../src/simulation/inventory/InventoryLimits";
 import { CargoDomain } from "../../src/simulation/domains/CargoDomain";
 import { cargoClassFits } from "../../src/simulation/domains/domainRules";
 import {
@@ -80,11 +81,11 @@ function mobileWorldLayout(width: number, height: number): Rect[] {
 
 describe("LIMITS probe", () => {
   describe("inventory", () => {
-    it("uses 16 player slots and a 100 wheat-seed stack cap, splitting overflow across slots atomically", () => {
+    it("uses the player satchel size and a 100 wheat-seed stack cap, splitting overflow across slots atomically", () => {
       const sim = new Simulation();
       const inv = sim.state.inventories[sim.state.player.inventoryId];
-      expect(inv.slotCount).toBe(16);
-      expect(inv.slots).toHaveLength(16);
+      expect(inv.slotCount).toBe(PLAYER_SATCHEL_SLOT_COUNT);
+      expect(inv.slots).toHaveLength(PLAYER_SATCHEL_SLOT_COUNT);
       expect(ContentRegistry.items.get("seed.wheat")!.stackLimit).toBe(100);
 
       const two = InventoryManager.createInventory("probe.two", 2);

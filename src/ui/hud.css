@@ -1619,7 +1619,7 @@
 .inventory-grid {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(4, minmax(0, 64px));
+  grid-template-columns: repeat(5, minmax(0, 52px));
 }
 
 .inventory-body {
@@ -4632,8 +4632,8 @@
    Bottom-left activity log. Open by default; the header folds it on demand.
    ========================================================================== */
 #ui-container .coastal-chronicle {
-  --chronicle-bg: color-mix(in srgb, var(--mm-slate-900, #0c1017) 48%, transparent);
-  --chronicle-filter-bg: color-mix(in srgb, var(--mm-slate-900, #0c1017) 30%, transparent);
+  --chronicle-bg: rgba(32, 27, 20, 0.86);
+  --chronicle-filter-bg: rgba(32, 27, 20, 0.86);
   --chronicle-muted: var(--coast-cream-muted, #cec3aa);
   display: flex;
   flex-direction: column;
@@ -4681,7 +4681,7 @@
   padding: 0 5px;
   color: var(--mm-text-ivory, #f4ecd9);
   font-variant-numeric: tabular-nums;
-  background: rgba(212, 175, 55, 0.2);
+  background: transparent;
   border-radius: 8px;
 }
 
@@ -4698,15 +4698,15 @@
   font-size: 9px;
   font-weight: 700;
   background: var(--chronicle-filter-bg);
-  border: 1px solid transparent;
+  border: 1px solid rgba(212, 175, 55, 0.28);
   border-radius: 3px;
   cursor: pointer;
 }
 
 #ui-container .chronicle-filter-btn.is-active {
   color: #fff2be;
-  background: rgba(212, 175, 55, 0.2);
-  border-color: rgba(212, 175, 55, 0.55);
+  background: var(--chronicle-bg);
+  border-color: rgba(212, 175, 55, 0.7);
 }
 
 #ui-container .chronicle-feed {

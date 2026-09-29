@@ -18,7 +18,7 @@ import {
   SURFACE_FIELD_VERTEX_DECLARATIONS
 } from "./SurfaceFieldShader";
 
-export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v33-cart-tracks";
+export const ROAD_SURFACE_PROGRAM_CACHE_KEY = "neva-road-surface-r174-v34-shore-dissolve";
 
 type RoadSurfaceConfig = VisualRenderConfig["roadSurface"];
 
@@ -146,6 +146,8 @@ uniform float roadPolygonJaggedStrength;
 uniform float roadPolygonFacetLightingStrength;
 uniform float roadEdgeFadeStart;
 uniform float roadEdgeFadeFull;
+uniform float roadShoreBlendInland;
+uniform float roadShoreBlendCrown;
 uniform float roadRoughness;
 uniform float roadRoughnessVariation;
 uniform float roadWetness;
@@ -361,9 +363,22 @@ diffuseColor.rgb = mix(diffuseColor.rgb, roadTrackColor, roadTrack * roadTrackCo
 float roadPuddle = roadTrackTrough * sharedRoadWetness * roadCoverage
   * smoothstep(0.5, 0.72, nevaRoadNoise(vec2(roadStation / 2.3, roadTrackSide * 7.9)));
 diffuseColor.rgb = mix(diffuseColor.rgb, roadDampColor * 0.7, roadPuddle * roadPuddleStrength);
-float coastalRoadWeight = coastalRoadField.a * (1.0 - smoothstep(13.0, 24.0, -coastalRoadField.b));
-diffuseColor.rgb = mix(diffuseColor.rgb, roadCoastalSand * mix(0.97, 1.0, roadSourceLuma), coastalRoadWeight);
-diffuseColor.a *= 1.0 - smoothstep(0.25, 0.65, coastalRoadWeight);`,
+// Signed shore distance is positive in the water. Thin the shoulders into the
+// beach first and keep the crown opaque until the last few metres, then let
+// that crown feather out. Do not drop the whole ribbon's alpha at once:
+// alpha testing turns that into a hard ghost rectangle.
+float shoreInland = max(0.0, -coastalRoadField.b);
+float shoreInWater = smoothstep(0.0, 0.75, coastalRoadField.b);
+float shoreShoulderDissolve = 1.0 - smoothstep(roadShoreBlendCrown, roadShoreBlendInland, shoreInland);
+float shoreCrownDissolve = 1.0 - smoothstep(0.0, roadShoreBlendCrown, shoreInland);
+float shoreLateral = smoothstep(0.0, roadHalfWidth + roadShoulderWidth, abs(vRoadFrame.x));
+float shoreDissolve = mix(shoreCrownDissolve, shoreShoulderDissolve, shoreLateral);
+shoreDissolve = max(shoreDissolve, shoreInWater);
+shoreDissolve *= max(coastalRoadField.a, shoreInWater);
+diffuseColor.rgb = mix(diffuseColor.rgb, roadCoastalSand * mix(0.97, 1.0, roadSourceLuma), shoreDissolve);
+float shoreKeep = 1.0 - smoothstep(0.35, 0.85, shoreDissolve);
+diffuseColor.a *= shoreKeep;
+float coastalRoadWeight = shoreDissolve;`,
     "fragment"
   );
   shader.fragmentShader = replaceShaderChunk(
@@ -500,6 +515,8 @@ export class RoadSurfaceMaterial {
       roadPolygonFacetLightingStrength: { value: config.polygonFacetLightingStrength },
       roadEdgeFadeStart: { value: config.edgeFadeStart },
       roadEdgeFadeFull: { value: config.edgeFadeFull },
+      roadShoreBlendInland: { value: config.shoreBlendInlandMeters },
+      roadShoreBlendCrown: { value: config.shoreBlendCrownMeters },
       roadRoughness: { value: config.roughness },
       roadRoughnessVariation: { value: config.roughnessVariation },
       roadWetness: { value: 0 },

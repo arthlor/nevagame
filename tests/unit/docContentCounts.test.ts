@@ -15,8 +15,8 @@ import { PROFICIENCY_RANKS } from "../../src/content/progression";
  * anyone applied it — it corrected recipes to 11, which was already wrong.
  *
  * Banning counts outright was the first instinct and it was too blunt: a phase
- * chain naming "P9 Markets", ArcheAge's "~64 crops", and a roadmap proposing
- * "~25 quests" are all legitimate. So this asserts agreement instead. Write the
+ * chain naming "P9 Markets" and a roadmap proposing
+ * "~25 quests" are both legitimate. So this asserts agreement instead. Write the
  * number if it helps a reader; the registry decides whether it is true.
  */
 
@@ -24,8 +24,7 @@ const ROOT = path.resolve(__dirname, "../..");
 
 /**
  * Documents that describe the game as it is now. `PLAN.md` and `03` are
- * forward-looking, and `ARCHEAGE_FARMING_SYSTEM.md` documents a different game
- * — none of them claim current Neva totals.
+ * forward-looking and do not claim current Neva totals.
  */
 const CURRENT_STATE_DOCS = [
   "AGENTS.md",

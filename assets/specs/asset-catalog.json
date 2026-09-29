@@ -1892,7 +1892,7 @@
       "id": "tree_olive_a",
       "file": "tree_olive_a.glb",
       "family": "vegetation",
-      "generator": "olive_tree",
+      "generator": "authored_glb",
       "seed": 191,
       "dimensions": {
         "width": 4.6,
@@ -1912,7 +1912,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "medium",
       "rootNode": "tree_olive_a_root",
@@ -1923,13 +1923,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "height": 4.9,
-        "spread": 2.15,
-        "canopyClusters": 15,
-        "lean": 0.1,
-        "branchCount": 7,
-        "rootCount": 7,
-        "fruitCount": 18
+        "sourceGlb": "art/authored/retained-legacy/tree_olive_a.glb",
+        "textureMaxSize": 256
       },
       "lodLevels": [
         {
@@ -2047,18 +2042,20 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "spread",
+            "parameter": "sourceGlb",
+            "componentIds": [
+              "forked_trunk",
+              "flattened_crown",
+              "root_flares"
+            ],
+            "purpose": "Retains the published coastal olive structure, crown and roots without a geometry redesign."
+          },
+          {
+            "parameter": "textureMaxSize",
             "componentIds": [
               "flattened_crown"
             ],
-            "purpose": "Controls the wind-shaped crown width."
-          },
-          {
-            "parameter": "rootCount",
-            "componentIds": [
-              "root_flares"
-            ],
-            "purpose": "Controls the asymmetric grounding wedges around the leaning trunk."
+            "purpose": "Limits packaging texture resolution; the retained source owns the crown geometry and palette."
           }
         ],
         "failureModes": [
@@ -2076,16 +2073,27 @@
           "gameplay_read_distance"
         ]
       },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "collisionPrimitives": [
+        {
+          "id": "trunk",
+          "center": [
+            0.16,
+            1,
+            0.05
+          ],
+          "halfExtents": [
+            0.33,
+            1,
+            0.38
+          ]
+        }
+      ]
     },
     {
       "id": "tree_olive_b",
       "file": "tree_olive_b.glb",
       "family": "vegetation",
-      "generator": "olive_tree",
+      "generator": "authored_glb",
       "seed": 223,
       "dimensions": {
         "width": 5,
@@ -2105,7 +2113,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "medium",
       "rootNode": "tree_olive_b_root",
@@ -2116,13 +2124,8 @@
       ],
       "readDistanceMeters": 30,
       "parameters": {
-        "height": 4.5,
-        "spread": 2.35,
-        "canopyClusters": 14,
-        "lean": -0.13,
-        "branchCount": 7,
-        "rootCount": 8,
-        "fruitCount": 16
+        "sourceGlb": "art/authored/retained-legacy/tree_olive_b.glb",
+        "textureMaxSize": 256
       },
       "lodLevels": [
         {
@@ -2240,18 +2243,20 @@
         ],
         "parameterBindings": [
           {
-            "parameter": "spread",
+            "parameter": "sourceGlb",
+            "componentIds": [
+              "forked_trunk",
+              "flattened_crown",
+              "root_flares"
+            ],
+            "purpose": "Retains the published coastal olive structure, crown and roots without a geometry redesign."
+          },
+          {
+            "parameter": "textureMaxSize",
             "componentIds": [
               "flattened_crown"
             ],
-            "purpose": "Controls the broad low crown."
-          },
-          {
-            "parameter": "rootCount",
-            "componentIds": [
-              "root_flares"
-            ],
-            "purpose": "Controls the uneven grounding wedges beneath the older trunk."
+            "purpose": "Limits packaging texture resolution; the retained source owns the crown geometry and palette."
           }
         ],
         "failureModes": [
@@ -2269,10 +2274,21 @@
           "gameplay_read_distance"
         ]
       },
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "collisionPrimitives": [
+        {
+          "id": "trunk",
+          "center": [
+            -0.13,
+            1,
+            0.05
+          ],
+          "halfExtents": [
+            0.38,
+            1,
+            0.38
+          ]
+        }
+      ]
     },
     {
       "id": "foliage_bush_a",
@@ -7840,12 +7856,12 @@
           "id": "deck_01",
           "center": [
             -6.4545,
-            2.428,
+            2.588,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7853,12 +7869,12 @@
           "id": "deck_02",
           "center": [
             -5.1636,
-            2.6303,
+            2.7903,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7866,12 +7882,12 @@
           "id": "deck_03",
           "center": [
             -3.8727,
-            2.7877,
+            2.9477,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7879,12 +7895,12 @@
           "id": "deck_04",
           "center": [
             -2.5818,
-            2.9001,
+            3.0601,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7892,12 +7908,12 @@
           "id": "deck_05",
           "center": [
             -1.2909,
-            2.9675,
+            3.1275,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7905,12 +7921,12 @@
           "id": "main",
           "center": [
             0,
-            2.99,
+            3.15,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7918,12 +7934,12 @@
           "id": "deck_07",
           "center": [
             1.2909,
-            2.9675,
+            3.1275,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7931,12 +7947,12 @@
           "id": "deck_08",
           "center": [
             2.5818,
-            2.9001,
+            3.0601,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7944,12 +7960,12 @@
           "id": "deck_09",
           "center": [
             3.8727,
-            2.7877,
+            2.9477,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7957,12 +7973,12 @@
           "id": "deck_10",
           "center": [
             5.1636,
-            2.6303,
+            2.7903,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
@@ -7970,63 +7986,76 @@
           "id": "deck_11",
           "center": [
             6.4545,
-            2.428,
+            2.588,
             0
           ],
           "halfExtents": [
             0.6455,
-            0.28,
+            0.12,
             1.9
           ]
         },
         {
-          "id": "rail_left_west",
+          "id": "pier_west",
           "center": [
-            -3.55,
+            -6.68,
+            1.25,
+            0
+          ],
+          "halfExtents": [
+            0.43,
+            1.25,
+            1.7
+          ]
+        },
+        {
+          "id": "pier_channel",
+          "center": [
+            -2.27,
+            1.25,
+            0
+          ],
+          "halfExtents": [
+            0.45,
+            1.25,
+            1.7
+          ]
+        },
+        {
+          "id": "pier_east",
+          "center": [
+            6.68,
+            1.25,
+            0
+          ],
+          "halfExtents": [
+            0.43,
+            1.25,
+            1.7
+          ]
+        },
+        {
+          "id": "rail_left",
+          "center": [
+            0,
             3.48,
             -1.92
           ],
           "halfExtents": [
-            3.55,
+            7.1,
             0.7,
             0.1
           ]
         },
         {
-          "id": "rail_left_east",
+          "id": "rail_right",
           "center": [
-            3.55,
-            3.48,
-            -1.92
-          ],
-          "halfExtents": [
-            3.55,
-            0.7,
-            0.1
-          ]
-        },
-        {
-          "id": "rail_right_west",
-          "center": [
-            -3.55,
+            0,
             3.48,
             1.92
           ],
           "halfExtents": [
-            3.55,
-            0.7,
-            0.1
-          ]
-        },
-        {
-          "id": "rail_right_east",
-          "center": [
-            3.55,
-            3.48,
-            1.92
-          ],
-          "halfExtents": [
-            3.55,
+            7.1,
             0.7,
             0.1
           ]
@@ -9437,7 +9466,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "compound",
       "instancing": true,
       "lod": "medium",
       "rootNode": "prop_fishing_net_rack_a_root",
@@ -9452,7 +9481,48 @@
         "netColumns": 7,
         "netRows": 5,
         "buoys": 4
-      }
+      },
+      "collisionPrimitives": [
+        {
+          "id": "trestle_left",
+          "center": [
+            -1.225,
+            1,
+            0
+          ],
+          "halfExtents": [
+            0.075,
+            1,
+            0.41
+          ]
+        },
+        {
+          "id": "trestle_right",
+          "center": [
+            1.225,
+            1,
+            0
+          ],
+          "halfExtents": [
+            0.075,
+            1,
+            0.41
+          ]
+        },
+        {
+          "id": "pole",
+          "center": [
+            0,
+            1.932,
+            0
+          ],
+          "halfExtents": [
+            1.375,
+            0.05,
+            0.05
+          ]
+        }
+      ]
     },
     {
       "id": "prop_crate_wood_a",
@@ -9850,7 +9920,7 @@
         "materialsMax": 3
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "small",
       "rootNode": "prop_lamp_post_a_root",
@@ -9861,7 +9931,22 @@
       "parameters": {
         "height": 3.4,
         "armLength": 0.55
-      }
+      },
+      "collisionPrimitives": [
+        {
+          "id": "post",
+          "center": [
+            0,
+            1.7,
+            0
+          ],
+          "halfExtents": [
+            0.1,
+            1.7,
+            0.1
+          ]
+        }
+      ]
     },
     {
       "id": "prop_worm_compost_a",
@@ -19319,12 +19404,12 @@
         {
           "id": "wall_front_left",
           "center": [
-            -2.8,
+            -2.825,
             1.75,
             -3.8
           ],
           "halfExtents": [
-            2.2,
+            2.175,
             1.75,
             0.15
           ]
@@ -19332,12 +19417,25 @@
         {
           "id": "wall_front_right",
           "center": [
-            2.8,
+            2.825,
             1.75,
             -3.8
           ],
           "halfExtents": [
-            2.2,
+            2.175,
+            1.75,
+            0.15
+          ]
+        },
+        {
+          "id": "wall_back_center",
+          "center": [
+            0,
+            1.75,
+            3.8
+          ],
+          "halfExtents": [
+            1.2,
             1.75,
             0.15
           ]
@@ -20082,7 +20180,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_beehive_a_root",
@@ -20090,7 +20188,22 @@
         "prop_beehive_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "hive",
+          "center": [
+            0,
+            0.5,
+            0.01
+          ],
+          "halfExtents": [
+            0.24,
+            0.45,
+            0.29
+          ]
+        }
+      ]
     },
     {
       "id": "prop_potting_bench_a",
@@ -20117,7 +20230,7 @@
         "materialsMax": 5
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_potting_bench_a_root",
@@ -20125,7 +20238,22 @@
         "prop_potting_bench_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "bench",
+          "center": [
+            0,
+            0.4,
+            0
+          ],
+          "halfExtents": [
+            0.7,
+            0.4,
+            0.26
+          ]
+        }
+      ]
     },
     {
       "id": "crop_turnip_mature",
@@ -20316,7 +20444,7 @@
       "id": "prop_wheelbarrow_a",
       "file": "prop_wheelbarrow_a.glb",
       "family": "prop",
-      "generator": "wheelbarrow",
+      "generator": "authored_glb",
       "seed": 118,
       "dimensions": {
         "width": 0.54,
@@ -20336,7 +20464,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_wheelbarrow_a_root",
@@ -20344,11 +20472,25 @@
         "prop_wheelbarrow_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {
+        "sourceGlb": "art/authored/retained-legacy/prop_wheelbarrow_a.glb",
+        "textureMaxSize": 256
+      },
+      "collisionPrimitives": [
+        {
+          "id": "barrow",
+          "center": [
+            0,
+            0.34,
+            0.04
+          ],
+          "halfExtents": [
+            0.265,
+            0.34,
+            0.63
+          ]
+        }
+      ]
     },
     {
       "id": "prop_water_trough_a",
@@ -20374,7 +20516,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_water_trough_a_root",
@@ -20382,7 +20524,22 @@
         "prop_water_trough_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "trough",
+          "center": [
+            0,
+            0.265,
+            0
+          ],
+          "halfExtents": [
+            0.75,
+            0.265,
+            0.32
+          ]
+        }
+      ]
     },
     {
       "id": "prop_firewood_stack_a",
@@ -20947,7 +21104,7 @@
       "id": "prop_mooring_post_a",
       "file": "prop_mooring_post_a.glb",
       "family": "prop",
-      "generator": "mooring_post",
+      "generator": "authored_glb",
       "seed": 119,
       "dimensions": {
         "width": 0.66,
@@ -20967,7 +21124,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_mooring_post_a_root",
@@ -20975,11 +21132,25 @@
         "prop_mooring_post_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {
+        "sourceGlb": "art/authored/retained-legacy/prop_mooring_post_a.glb",
+        "textureMaxSize": 256
+      },
+      "collisionPrimitives": [
+        {
+          "id": "post",
+          "center": [
+            0,
+            0.51,
+            0
+          ],
+          "halfExtents": [
+            0.18,
+            0.51,
+            0.19
+          ]
+        }
+      ]
     },
     {
       "id": "prop_gangplank_a",
@@ -21043,7 +21214,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "compound",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_dock_lantern_a_root",
@@ -21051,7 +21222,35 @@
         "prop_dock_lantern_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "post",
+          "center": [
+            0,
+            1.175,
+            0
+          ],
+          "halfExtents": [
+            0.12,
+            1.175,
+            0.12
+          ]
+        },
+        {
+          "id": "lantern",
+          "center": [
+            0,
+            2.05,
+            0.7
+          ],
+          "halfExtents": [
+            0.1,
+            0.2,
+            0.1
+          ]
+        }
+      ]
     },
     {
       "id": "prop_signboard_hanging_a",
@@ -21395,7 +21594,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_cargo_crate_large_a_root",
@@ -21403,7 +21602,22 @@
         "prop_cargo_crate_large_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "crate",
+          "center": [
+            0,
+            0.395,
+            0
+          ],
+          "halfExtents": [
+            0.41,
+            0.395,
+            0.41
+          ]
+        }
+      ]
     },
     {
       "id": "tree_oak_broadleaf_a",
@@ -21606,7 +21820,7 @@
       "id": "tree_dead_a",
       "file": "tree_dead_a.glb",
       "family": "vegetation",
-      "generator": "dead_tree",
+      "generator": "authored_glb",
       "seed": 111,
       "dimensions": {
         "width": 3.19,
@@ -21625,7 +21839,7 @@
         "materialsMax": 3
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "tree_dead_a_root",
@@ -21633,11 +21847,25 @@
         "tree_dead_a_root"
       ],
       "readDistanceMeters": 30,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {
+        "sourceGlb": "art/authored/retained-legacy/tree_dead_a.glb",
+        "textureMaxSize": 256
+      },
+      "collisionPrimitives": [
+        {
+          "id": "trunk",
+          "center": [
+            0.03,
+            1,
+            0.05
+          ],
+          "halfExtents": [
+            0.28,
+            1,
+            0.34
+          ]
+        }
+      ]
     },
     {
       "id": "foliage_cattail_a",
@@ -21881,7 +22109,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_fallen_log_a_root",
@@ -21889,7 +22117,22 @@
         "prop_fallen_log_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "log",
+          "center": [
+            0,
+            0.27,
+            0
+          ],
+          "halfExtents": [
+            1.45,
+            0.29,
+            0.3
+          ]
+        }
+      ]
     },
     {
       "id": "fauna_rabbit_a",
@@ -22686,6 +22929,38 @@
       "parameters": {}
     },
     {
+      "id": "prop_ground_note_a",
+      "file": "prop_ground_note_a.glb",
+      "family": "prop",
+      "generator": "ground_note",
+      "seed": 131,
+      "dimensions": {
+        "width": 0.42,
+        "depth": 0.28,
+        "height": 0.06
+      },
+      "palette": [
+        "canvas_cream_01",
+        "wood_dark_01"
+      ],
+      "budget": {
+        "trianglesMin": 60,
+        "trianglesTarget": 200,
+        "trianglesMax": 500,
+        "materialsMax": 2
+      },
+      "pivot": "ground_center",
+      "collision": "none",
+      "instancing": true,
+      "lod": "none",
+      "rootNode": "prop_ground_note_a_root",
+      "requiredNodes": [
+        "prop_ground_note_a_root"
+      ],
+      "readDistanceMeters": 8,
+      "parameters": {}
+    },
+    {
       "id": "prop_trail_kiosk_a",
       "file": "prop_trail_kiosk_a.glb",
       "family": "prop",
@@ -22709,7 +22984,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "compound",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_trail_kiosk_a_root",
@@ -22717,7 +22992,48 @@
         "prop_trail_kiosk_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "board",
+          "center": [
+            0,
+            1.1,
+            0.0
+          ],
+          "halfExtents": [
+            0.67,
+            0.45,
+            0.04
+          ]
+        },
+        {
+          "id": "post_left",
+          "center": [
+            -0.62,
+            0.85,
+            0
+          ],
+          "halfExtents": [
+            0.06,
+            0.85,
+            0.06
+          ]
+        },
+        {
+          "id": "post_right",
+          "center": [
+            0.62,
+            0.85,
+            0
+          ],
+          "halfExtents": [
+            0.06,
+            0.85,
+            0.06
+          ]
+        }
+      ]
     },
     {
       "id": "prop_signpost_trail_a",
@@ -22743,7 +23059,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_signpost_trail_a_root",
@@ -22751,7 +23067,22 @@
         "prop_signpost_trail_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "post",
+          "center": [
+            0,
+            0.95,
+            0
+          ],
+          "halfExtents": [
+            0.06,
+            0.95,
+            0.06
+          ]
+        }
+      ]
     },
     {
       "id": "prop_picnic_table_a",
@@ -22776,7 +23107,7 @@
         "materialsMax": 3
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "compound",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_picnic_table_a_root",
@@ -22784,7 +23115,48 @@
         "prop_picnic_table_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "table",
+          "center": [
+            0,
+            0.66,
+            0
+          ],
+          "halfExtents": [
+            0.95,
+            0.08,
+            0.38
+          ]
+        },
+        {
+          "id": "bench_front",
+          "center": [
+            0,
+            0.22,
+            0.645
+          ],
+          "halfExtents": [
+            0.9,
+            0.22,
+            0.14
+          ]
+        },
+        {
+          "id": "bench_back",
+          "center": [
+            0,
+            0.22,
+            -0.645
+          ],
+          "halfExtents": [
+            0.9,
+            0.22,
+            0.14
+          ]
+        }
+      ]
     },
     {
       "id": "prop_bench_wood_a",
@@ -22809,7 +23181,7 @@
         "materialsMax": 3
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_bench_wood_a_root",
@@ -22817,7 +23189,22 @@
         "prop_bench_wood_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {}
+      "parameters": {},
+      "collisionPrimitives": [
+        {
+          "id": "bench",
+          "center": [
+            0,
+            0.45,
+            -0.03
+          ],
+          "halfExtents": [
+            0.85,
+            0.45,
+            0.23
+          ]
+        }
+      ]
     },
     {
       "id": "building_outhouse_a",
@@ -23367,7 +23754,7 @@
       "id": "prop_bookcase_wood_a",
       "file": "prop_bookcase_wood_a.glb",
       "family": "prop",
-      "generator": "wood_bookcase",
+      "generator": "authored_glb",
       "seed": 120,
       "dimensions": {
         "width": 1,
@@ -23387,7 +23774,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_bookcase_wood_a_root",
@@ -23395,17 +23782,31 @@
         "prop_bookcase_wood_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {
+        "sourceGlb": "art/authored/retained-legacy/prop_bookcase_wood_a.glb",
+        "textureMaxSize": 256
+      },
+      "collisionPrimitives": [
+        {
+          "id": "bookcase",
+          "center": [
+            0,
+            0.885,
+            0
+          ],
+          "halfExtents": [
+            0.5,
+            0.885,
+            0.2
+          ]
+        }
+      ]
     },
     {
       "id": "prop_sideboard_wood_a",
       "file": "prop_sideboard_wood_a.glb",
       "family": "prop",
-      "generator": "wood_sideboard",
+      "generator": "authored_glb",
       "seed": 121,
       "dimensions": {
         "width": 1.4,
@@ -23425,7 +23826,7 @@
         "materialsMax": 4
       },
       "pivot": "ground_center",
-      "collision": "none",
+      "collision": "box",
       "instancing": true,
       "lod": "none",
       "rootNode": "prop_sideboard_wood_a_root",
@@ -23433,11 +23834,25 @@
         "prop_sideboard_wood_a_root"
       ],
       "readDistanceMeters": 15,
-      "parameters": {},
-      "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
-      }
+      "parameters": {
+        "sourceGlb": "art/authored/retained-legacy/prop_sideboard_wood_a.glb",
+        "textureMaxSize": 256
+      },
+      "collisionPrimitives": [
+        {
+          "id": "sideboard",
+          "center": [
+            0,
+            0.4,
+            0
+          ],
+          "halfExtents": [
+            0.69,
+            0.4,
+            0.235
+          ]
+        }
+      ]
     },
     {
       "id": "prop_floor_plant_a",

@@ -10,6 +10,7 @@ import { playUiSound } from "../../src/ui/audio/uiAudio";
 import { gameAudio } from "../../src/audio/AudioManager";
 import type { ActiveQuestDto } from "../../src/simulation/core/QuestTypes";
 import { dayOfSeason } from "../../src/simulation/core/GameClock";
+import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 
 describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
   describe("1. Live clock presentation from simulation time", () => {
@@ -250,7 +251,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain("hud-context-statuses");
       expect(html).toContain("hud-labor-note");
       expect(html).toContain("Low Work");
-      expect(html).toContain("12/500");
+      expect(html.replace(/<!-- -->/g, "")).toContain(`12/${WORK_CAPACITY_MAXIMUM}`);
     });
 
     it("renders boat driving panel with speed, sea state, hull durability, and cargo hold grid", () => {

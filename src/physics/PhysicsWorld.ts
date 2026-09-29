@@ -5,7 +5,7 @@ import { MathUtils } from "three";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { boatAssetId } from "../render/assets/AssetCatalog";
 import { WaterSurface } from "../render/water/WaterSurface";
-import type { GameMode, GameState } from "../simulation/core/types";
+import type { GameMode, GameState, MountState } from "../simulation/core/types";
 import type {
   BoatMotionSample,
   PhysicsAdapter,
@@ -22,7 +22,8 @@ import {
   slopeGaitScale
 } from "../simulation/navigation/PlayerTraversal";
 import { effectiveSeaRoughness } from "../simulation/weather/seaState";
-import type { StaticCollisionProxy } from "./StaticCollision";
+import { staticPoseIsClear, type StaticCollisionProxy } from "./StaticCollision";
+import { mountedFootprint } from "../simulation/mounts/MountedRecovery";
 import type { CollisionDebugSnapshot } from "./CollisionDebug";
 import { collisionPrimitivesForAsset } from "./CollisionCatalogAdapter";
 import {
@@ -1741,6 +1742,51 @@ export class PhysicsWorld implements PhysicsAdapter {
       (collider) => !this.terrainColliderHandles.has(collider.handle) && !this.isBoatCollider(collider)
     );
     return hit === null;
+  }
+
+  /** Recovery checks the whole assembly, including parked animals and rider headroom. */
+  public isMountPoseClear(mount: Readonly<MountState>, state: Readonly<GameState>, from?: Readonly<MountState>): boolean {
+    const footprint = mountedFootprint(mount);
+    if (!footprint.every(p => staticPoseIsClear(
+      this.carriageCollision, p, WorldLayout.traversalSurfaceHeight(p.x, p.z), p.radius
+    ))) return false;
+    const parked = [...Object.values(state.mounts), ...workshopCarriagePoses().filter(other => !state.mounts[other.id])]
+      .filter(other => other.id !== mount.id);
+    const parkedFootprints = parked.flatMap(other => mountedFootprint(other));
+    if (!footprint.every(p => parkedFootprints.every(q =>
+      Math.hypot(p.x - q.x, p.z - q.z) > p.radius + q.radius))) return false;
+    const riderShape = new this.rapier.Capsule(MOUNT_CAPSULE_HALF_HEIGHT_METERS, MOUNT_CAPSULE_RADIUS_METERS);
+    const riderCenter = (pose: Readonly<MountState>) => ({ x: pose.x,
+      y: pose.y + MOUNT_CAPSULE_HALF_HEIGHT_METERS + MOUNT_CAPSULE_RADIUS_METERS, z: pose.z });
+    const rotation = { x: 0, y: 0, z: 0, w: 1 };
+    const riderClear = (pose: Readonly<MountState>, except?: ReadonlySet<number>) =>
+      this.world.intersectionWithShape(riderCenter(pose), rotation, riderShape,
+        undefined, undefined, this.playerCollider, undefined,
+        collider => this.staticPropColliderHandles.has(collider.handle) && !except?.has(collider.handle)) === null;
+    if (from) {
+      // Allow escape from the original overlap, but never cross a second wall or parked assembly.
+      const fromFootprint = mountedFootprint(from);
+      const obstacles = this.carriageCollision.filter(box => fromFootprint.every(p => staticPoseIsClear(
+        [box], p, WorldLayout.traversalSurfaceHeight(p.x, p.z), p.radius
+      )));
+      const otherFootprints = parkedFootprints.filter(q => fromFootprint
+        .every(p => Math.hypot(p.x - q.x, p.z - q.z) > p.radius + q.radius));
+      const startingHeadOverlaps = new Set<number>();
+      this.world.intersectionsWithShape(riderCenter(from), rotation, riderShape,
+        collider => { startingHeadOverlaps.add(collider.handle); return true; },
+        undefined, undefined, this.playerCollider, undefined,
+        collider => this.staticPropColliderHandles.has(collider.handle));
+      const steps = Math.ceil(Math.hypot(mount.x - from.x, mount.z - from.z) / 0.2);
+      for (let step = 1; step < steps; step++) {
+        const t = step / steps;
+        const pose = { ...mount, x: from.x + (mount.x - from.x) * t, z: from.z + (mount.z - from.z) * t };
+        pose.y = WorldLayout.traversalSurfaceHeight(pose.x, pose.z);
+        if (!riderClear(pose, startingHeadOverlaps) || !mountedFootprint(pose).every(p => staticPoseIsClear(obstacles, p,
+          WorldLayout.traversalSurfaceHeight(p.x, p.z), p.radius) && otherFootprints.every(q =>
+          Math.hypot(p.x - q.x, p.z - q.z) > p.radius + q.radius))) return false;
+      }
+    }
+    return riderClear(mount);
   }
 
   public hasLineOfSight(

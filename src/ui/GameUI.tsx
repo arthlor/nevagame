@@ -131,6 +131,7 @@ export interface GameUIProps {
   activeQuests?: readonly ActiveQuestDto[];
   onFocusTrack?: (trackId: string) => void;
   activeDialogueNpcId?: string | null;
+  activeFoundNoteId?: string | null;
   onTalkNpc?: (npcId: string) => DialogueTalkResult;
   activeHint?: { hintId: string; title: string; message: string; icon?: string } | null;
   onDismissHint?: (hintId: string) => void;

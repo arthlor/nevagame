@@ -84,9 +84,13 @@ describe("coast texture mask bake", () => {
     const byte = (value: number) => Math.round(value * 255);
     let matched = 0;
     let exposed = 0;
-    for (let index = 0; index < positions.count; index += 4096) {
+    // The merged terrain mesh also holds the islet and Sunreach patches; the normals sampled above
+    // belong to the Neva grid, so only Neva's vertices are compared. A fixed stride reaches the
+    // shoreline band only by luck of the mesh layout, so sample densely.
+    for (let index = 0; index < positions.count; index += 64) {
       const x = positions.getX(index);
       const z = positions.getZ(index);
+      if (Math.abs(x - patch.center.x) > patch.sizeMeters / 2 || Math.abs(z - patch.center.z) > patch.sizeMeters / 2) continue;
       const column = Math.round((x + patch.sizeMeters / 2) / gridStep);
       const row = Math.round((z + patch.sizeMeters / 2) / gridStep);
       const normalY = Math.abs(sampledNormals.getY(row * (patch.resolution + 1) + column));

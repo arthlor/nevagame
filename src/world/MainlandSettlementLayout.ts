@@ -1,3 +1,4 @@
+import { bindInteractionPoint } from "./InteractionPlacements";
 import { MAINLAND_VILLAGES } from "./NevaMainland";
 import { mainlandWorkSiteClearanceAt } from "./MainlandWorkSites";
 import type { WorldArchitecturePad } from "./WorldLayout";
@@ -29,6 +30,27 @@ export const MAINLAND_SETTLEMENT_BUILDINGS = Object.values(MAINLAND_VILLAGES).fl
 
 export const MAINLAND_ARCHITECTURE_PADS: readonly WorldArchitecturePad[] =
   MAINLAND_SETTLEMENT_BUILDINGS.map((building) => building.pad);
+
+/**
+ * The trade point sits one approach-length in front of the stall, and follows
+ * a Place move of that stall. The village plaza stays the map datum.
+ */
+export function mainlandMarketTradePoint(villageId: string): { x: number; z: number } {
+  const building = MAINLAND_SETTLEMENT_BUILDINGS.find(
+    (entry) => entry.villageId === villageId && entry.pad.id.endsWith(".market")
+  );
+  if (!building) throw new Error(`No mainland market stall for '${villageId}'`);
+  const { center, rotationY, frontApproachMeters } = building.pad;
+  const front = {
+    x: center.x + Math.sin(rotationY) * frontApproachMeters,
+    z: center.z + Math.cos(rotationY) * frontApproachMeters
+  };
+  return bindInteractionPoint(
+    `authored.mainland.${villageId}.market`,
+    front,
+    { x: center.x, z: center.z, rotationY }
+  );
+}
 
 /** Signed distance to working space, rather than a bare circle around a village. */
 export function mainlandSettlementClearanceAt(x: number, z: number): number {

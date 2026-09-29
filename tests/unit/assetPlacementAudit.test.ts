@@ -119,7 +119,7 @@ describe("Complete catalog-to-runtime asset coverage", () => {
     expect(Math.hypot(
       HARBOR_SKIFF_MOORING.playerPosition.x - HARBOR_SKIFF_MOORING.boatPosition.x,
       HARBOR_SKIFF_MOORING.playerPosition.z - HARBOR_SKIFF_MOORING.boatPosition.z
-    )).toBeLessThanOrEqual(HARBOR_SKIFF_MOORING.boardRadius);
+    )).toBeLessThanOrEqual(HARBOR_SKIFF_MOORING.hullBoardRadius); // boarding also accepts standing within hull reach
   });
 
   it("keeps the harbor market, cleaning table, and NPC approach spaces distinct", () => {

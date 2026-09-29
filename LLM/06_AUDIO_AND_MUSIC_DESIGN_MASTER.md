@@ -165,7 +165,7 @@ The player's physical connection to the island is maintained through continuous 
 - **`sfx.mount.trot_grass`**: Muffled, soft rhythmic hoof strikes on meadow soil. (Bank: 4 variants).
 - **`sfx.mount.trot_wood_bridge`**: Resonant, hollow clopping over timber bridge and pier boards. (Bank: 4 variants).
 - **`sfx.mount.donkey_snort`**: Occasional soft, endearing donkey breath puff and head shake during idle or after long gallop.
-- **Runtime wiring:** `MountBoarded` plays the `donkey-snort` bank, which alternates the existing source with the supplied Adobe Audition donkey snort.
+- **Runtime wiring:** `MountBoarded` plays the `donkey-snort` bank, which alternates the existing source with the supplied Adobe Audition donkey snort. A ridden donkey and a driven carriage horse voice the stride: a walk plays every other plant, and a trot or gallop collapses a pair closer than 0.08 seconds into one tap. The wagon creaks once every second wheel turn.
 - **`sfx.mount.donkey_bray_rare`**: Playful, warm bray for a rare idle/homecoming moment if an explicit presentation trigger is authored. Mount feeding is not a live mechanic (`02` §11B); this cue must not imply one.
 
 ---
@@ -415,10 +415,10 @@ Seamless 2D/3D ambient beds establish an authentic, breathing coastal ecosystem.
 - **`ambience.bed.interior`**: Cozy, crackling birch hearth fire, old pendulum wall-clock ticking steadily, rain pattering gently on cedar shingles.
 
 ### Inland Water: Spring, Fall & River
-- **`sfx.world.headwater_fall_loop`**: The authored upper-reach fall heard from the pool — a broad mass of falling water with a low body and a light spray hiss on top, widening as the listener approaches and softening to a distant roar beyond the gorge. Positional loop at the landing; distance-shaped over roughly 45 m. Specified target: no asset is admitted for it yet, and the manifest has no close-water fall loop to reuse.
-- **`sfx.world.river_run_loop`**: Quieter shallow run/riffle character under the fall — water working over stone, brightest at the outflow and settling into the upper river. Layered beneath the fall when both are audible so the pool does not stop dead at the lip. Specified target, same asset gap.
+- **`sfx.world.headwater_fall_loop`**: The authored upper-reach fall heard from the pool — a broad mass of falling water with a low body and a light spray hiss on top, widening as the listener approaches and softening to a distant roar beyond the gorge. The runtime cue is `headwater-fall`, a positional loop at the landing, distance-shaped over about 52 m.
+- **`sfx.world.river_run_loop`**: Quieter shallow run/riffle character under the fall — water working over stone, brightest at the outflow and settling into the upper river. The runtime cue is `headwater-riffle`, layered with the fall and shaped over about 34 m.
 
-Both cues are meant to follow the existing local-loop pattern (positional `setActionLoop` fed by a presentation builder like the windmill loop), so the fall is audible on approach, brightest at the impact, and quieter downstream. Until a CC0 recording is admitted and normalized (see §5.1) they remain specified, not wired.
+Both cues follow the existing local-loop pattern: positional `setActionLoop` from `syncWorldAudio`, the same way the windmill loop works.
 ### Day / Night & Diurnal Cycles
 - **`ambience.time.dawn_chorus`**: Burst of cheerful morning birdsong and active rooster crows greeting the sunrise (05:00 - 07:30).
 - **`ambience.time.midday_breeze`**: Warm, active summer wind rustling canopies and drying fields (11:00 - 15:00).
@@ -446,6 +446,9 @@ Both cues are meant to follow the existing local-loop pattern (positional `setAc
 **Current weather wiring:** `weatherLoops.storm` uses the supplied sea/rain/
 wind storm bed as `ambience-storm-sea`, while the `thunder` bank alternates the
 existing distant rumble with the supplied lightning-crack source on storm entry.
+`weatherLoops.fog` plays `ambience-fog`, and `syncWorldAudio` sounds `fog-horn`
+about every 45 seconds while fog lasts. Windy weather still raises the existing
+wind bed rather than a separate squall loop.
 
 ---
 
@@ -499,6 +502,8 @@ Music tracks are produced in **4 synchronized, dynamic stems** (44.1 kHz, 16-bit
   │ Fades up during Sport-Fishing encounters and navigating heavy storms.   │
   └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+The four-stem score above is the specified target. The runtime plays one stereo loop at a time and crossfades a place change over about four seconds after an eight-second border dwell. `theme-night` and `theme-dusk` are quiet medieval pieces in the main theme's family. By day, Pinewatch uses `theme-forest`, Highridge and the Sunreach ridge use `theme-highland`, and the rest of Sunreach uses `theme-sunreach`. Rain and storm lower that music. Daytime insect beds are `ambience-meadow` or, on Sunreach, `ambience-scrub`; `ambience-insects` returns at dusk and night. Pinewatch also layers `ambience-forest` and a positional `pinewatch-lake` shore loop. Reedwater adds `reedwater-run`. Rain indoors plays `ambience-roof-rain` and lowers the outdoor rain. Offshore and the open channel play `buoy-bell` at most every 45 seconds. Mounts voice the stride, and each paddle stroke plays `oar-bite`.
 
 ### 4.2 Dynamic Musical Cues & Region Themes
 
@@ -652,10 +657,7 @@ checking repeated gameplay in context.
 | 3 — Place, weather and music | Existing world beds first, then authored variations or adaptive music | `setWorldContext`, manifest `beds`/`weatherLoops`, current music selection and lifecycle | Region/weather transitions are coherent; startup/recovery and resource costs stay within the measured target-device budget; human approves the mix |
 
 These rows identify source wiring to inspect, not a fresh playback certificate.
-Dedicated strain/near-snap layers, mass-specific landings, station-specific
-loops, occlusion and adaptive stems remain specified work until the actual
-manifest, callers and listening evidence establish them. Do not rename a bus
-or create a gameplay condition simply to match a speculative cue name.
+Bite, hook-set, catch and strain are dedicated three-take banks. A separate near-snap layer, mass-specific landings, station-specific loops, occlusion and adaptive stems remain specified work until the actual manifest, callers and listening evidence establish them. Do not rename a bus or create a gameplay condition simply to match a speculative cue name.
 
 ## 6.2 Trigger and lifetime contract
 

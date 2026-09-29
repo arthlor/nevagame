@@ -3,19 +3,8 @@
 
 const ATLAS = "/assets/ui/atlas";
 
-/** Wayfarer HUD paintings: pewter, leather, paper and equipment. */
+/** Tool-belt and utility paintings for the hoe, seeds, water, rod, harvest, satchel, journal, and chart. */
 export const UI_TIDEBOOK = {
-  "quest-panel": `${ATLAS}/tidebook-quest-panel.png`,
-  "tool-plaque": `${ATLAS}/tidebook-tool-plaque.png`,
-  "tool-plaque-selected": `${ATLAS}/tidebook-tool-plaque-selected.png`,
-  "clock-face": `${ATLAS}/tidebook-clock-face.png`,
-  "calendar-tag": `${ATLAS}/tidebook-calendar-tag.png`,
-  "purse-tag": `${ATLAS}/tidebook-purse-tag.png`,
-  "label-paper": `${ATLAS}/tidebook-label-paper.png`,
-  "navigation-rail": `${ATLAS}/tidebook-navigation-rail.png`,
-  "sea-dial": `${ATLAS}/tidebook-sea-dial.png`,
-  "pointer": `${ATLAS}/tidebook-pointer.png`,
-  "meter-frame": `${ATLAS}/tidebook-meter-frame.png`,
   "hoe": `${ATLAS}/tidebook-hoe.png`,
   "seeds": `${ATLAS}/tidebook-seeds.png`,
   "water": `${ATLAS}/tidebook-water.png`,
@@ -61,6 +50,7 @@ export const UI_SEEDS = {
   "seed.apple_sapling": `${ATLAS}/seed-apple_sapling.png`,
   "seed.sunflower": `${ATLAS}/seed-sunflower.png`,
   "seed.olive_pit": `${ATLAS}/seed-olive_pit.png`,
+  "seed.olive_sapling": `${ATLAS}/seed-olive_sapling.png`,
 } as const;
 
 export type SeedSpriteKey = keyof typeof UI_SEEDS;
@@ -126,11 +116,17 @@ export const UI_SUPPLIES = {
   "item.copper_sheet": `${ATLAS}/item-copper_sheet.png`,
   "item.brass_fittings": `${ATLAS}/item-brass_fittings.png`,
   "item.oiled_canvas": `${ATLAS}/item-oiled_canvas.png`,
+  "item.salt_cured_fish": `${ATLAS}/item-salt_cured_fish.png`,
+  "item.meal_harvest_bowl": `${ATLAS}/item-meal_harvest_bowl.png`,
+  "item.meal_fish_stew": `${ATLAS}/item-meal_fish_stew.png`,
+  "item.meal_orchard_tart": `${ATLAS}/item-meal_orchard_tart.png`,
+  "item.chum_rich": `${ATLAS}/item-chum_rich.png`,
+  "item.chum_deep": `${ATLAS}/item-chum_deep.png`,
 } as const;
 
 export type SupplySpriteKey = keyof typeof UI_SUPPLIES;
 
-/** Catch and produce quality medallions. */
+/** Catch quality medallions. Produce grades use cropQuality. */
 export const UI_QUALITY = {
   "normal": `${ATLAS}/quality-normal.png`,
   "silver": `${ATLAS}/quality-silver.png`,
@@ -139,6 +135,16 @@ export const UI_QUALITY = {
 } as const;
 
 export type QualitySpriteKey = keyof typeof UI_QUALITY;
+
+/** Harvest-grade medallions. Same rope-ring metal ladder as catch quality, with a wheat sheaf in the centre. */
+export const UI_CROP_QUALITY = {
+  "normal": `${ATLAS}/quality-crop-normal.png`,
+  "silver": `${ATLAS}/quality-crop-silver.png`,
+  "gold": `${ATLAS}/quality-crop-gold.png`,
+  "iridium": `${ATLAS}/quality-crop-iridium.png`,
+} as const;
+
+export type CropQualitySpriteKey = keyof typeof UI_CROP_QUALITY;
 
 /** Farm field-sign chips shown while the GIS overlay is held. */
 export const UI_GIS = {
@@ -159,6 +165,9 @@ export const UI_PORTRAITS = {
   "npc.maeve": `${ATLAS}/portrait-maeve.png`,
   "npc.tomas": `${ATLAS}/portrait-tomas.png`,
   "npc.ines": `${ATLAS}/portrait-ines.png`,
+  "npc.rowan": `${ATLAS}/portrait-rowan.png`,
+  "npc.mara": `${ATLAS}/portrait-mara.png`,
+  "npc.ada": `${ATLAS}/portrait-ada.png`,
 } as const;
 
 export type PortraitSpriteKey = keyof typeof UI_PORTRAITS;
@@ -174,6 +183,7 @@ export const UI_WEATHER = {
   "wind": `${ATLAS}/weather-wind.png`,
   "thermometer": `${ATLAS}/weather-thermometer.png`,
   "wave": `${ATLAS}/weather-wave.png`,
+  "drought": `${ATLAS}/weather-drought.png`,
 } as const;
 
 export type WeatherSpriteKey = keyof typeof UI_WEATHER;
@@ -274,6 +284,7 @@ export const UI_ACTION = {
   "cast": `${ATLAS}/action-cast.png`,
   "board": `${ATLAS}/action-board.png`,
   "dock": `${ATLAS}/action-dock.png`,
+  "fertilize": `${ATLAS}/action-fertilize.png`,
 } as const;
 
 export type ActionSpriteKey = keyof typeof UI_ACTION;
@@ -301,6 +312,19 @@ export const UI_MAP_NODES = {
   "lighthouse": `${ATLAS}/mapnode-lighthouse.png`,
   "offshore": `${ATLAS}/mapnode-offshore.png`,
   "sunreach": `${ATLAS}/mapnode-sunreach.png`,
+  "pinewatch": `${ATLAS}/mapnode-pinewatch.png`,
+  "reedhaven": `${ATLAS}/mapnode-reedhaven.png`,
+  "highridge": `${ATLAS}/mapnode-highridge.png`,
+  "mainland_lake": `${ATLAS}/mapnode-mainland_lake.png`,
+  "mainland_river": `${ATLAS}/mapnode-mainland_river.png`,
+  "reedhaven_coast": `${ATLAS}/mapnode-reedhaven_coast.png`,
+  "spring": `${ATLAS}/mapnode-spring.png`,
+  "overlook": `${ATLAS}/mapnode-overlook.png`,
+  "beach": `${ATLAS}/mapnode-beach.png`,
+  "bluff": `${ATLAS}/mapnode-bluff.png`,
+  "gull_rest": `${ATLAS}/mapnode-gull_rest.png`,
+  "driftwood": `${ATLAS}/mapnode-driftwood.png`,
+  "lantern": `${ATLAS}/mapnode-lantern.png`,
 } as const;
 
 export type MapnodeSpriteKey = keyof typeof UI_MAP_NODES;
@@ -334,4 +358,4 @@ export type GuildcraftSpriteKey = keyof typeof UI_GUILDCRAFT;
 /** Seamless paper tile behind every panel. Copied whole, not keyed. */
 export const UI_PARCHMENT_GRAIN = `${ATLAS}/parchment-grain.png`;
 
-export const UI_ATLAS_SPRITE_COUNT = 190;
+export const UI_ATLAS_SPRITE_COUNT = 208;

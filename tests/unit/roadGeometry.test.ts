@@ -181,6 +181,24 @@ describe("Organic road geometry", () => {
     } finally { geometry.dispose(); }
   });
 
+  it("paves the wedge between roads that meet", () => {
+    const geometry = authoredRoadGeometry();
+    const surface = indexedRoadSurface(geometry);
+    const junction = WORLD_ROUTE_JUNCTIONS.find((candidate) => candidate.routeIds.length >= 3
+      && candidate.id.startsWith("mainland-junction:"));
+    if (!junction) throw new Error("No multi-road mainland junction");
+    let pavedOffRoad = 0;
+    for (let step = 0; step < 16; step++) {
+      const angle = (step / 16) * Math.PI * 2;
+      const x = junction.center.x + Math.cos(angle) * 3.4;
+      const z = junction.center.z + Math.sin(angle) * 3.4;
+      if (WorldLayout.nearestRouteDistance(x, z).distance < 1.1) continue;
+      if (Number.isFinite(surface.heightAt(x, z))) pavedOffRoad++;
+    }
+    expect(pavedOffRoad).toBeGreaterThan(0);
+    geometry.dispose();
+  });
+
   it("samples a smooth nonnegative crown, shoulder and feather; wheel tracks never cut the collider", () => {
     const profile = WORLD_ROUTE_PROFILES.arterial;
     const halfWidth = profile.widthMeters * 0.5;
@@ -288,8 +306,10 @@ describe("Organic road geometry", () => {
     expect(first.userData.roadTriangleCount).toBeGreaterThan(0);
     expect(first.userData.terrainConformity.sourceJunctionTriangleCount).toBe(
       WORLD_ROUTE_JUNCTIONS.length * first.userData.junctionCoreSegmentCount
-        + first.userData.junctionArmCount * 2
+        + first.userData.junctionArmCount * 12
+        + first.userData.junctionGoreTriangleCount
     );
+    expect(first.userData.junctionGoreTriangleCount).toBeGreaterThan(0);
     expect(first.userData.junctionTriangleCount).toBeGreaterThanOrEqual(
       first.userData.terrainConformity.sourceJunctionTriangleCount
     );
@@ -297,6 +317,18 @@ describe("Organic road geometry", () => {
     expect(first.userData.junctionArmCount).toBeGreaterThan(WORLD_ROUTE_JUNCTIONS.length);
 
     const positions = first.getAttribute("position");
+    const junction = WORLD_ROUTE_JUNCTIONS[0];
+    let nearest = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < positions.count; index++) {
+      const distance = Math.hypot(positions.getX(index) - junction.center.x, positions.getZ(index) - junction.center.z);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = index;
+      }
+    }
+    expect(nearestDistance).toBeLessThan(junction.radiusMeters);
+    expect(roadColors.getW(nearest)).toBe(1);
     for (let index = 0; index < positions.count * 3; index++) {
       expect(Number.isFinite(positions.array[index])).toBe(true);
     }

@@ -5,22 +5,24 @@ import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from 
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
 import { clearReach } from "../../src/persistence/terrainMigrationSupport";
 import { STARTER_CARRIAGE_ID } from "../../src/simulation/mounts/Carriage";
-import { playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
+import { MOUNT_TUNING, playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
 import { FishingEncounter } from "../../src/simulation/fishing/FishingEncounter";
 import { SeededRng } from "../../src/simulation/core/Rng";
 import { FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
-import { expectFarmsPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectFarmsPreserved, expectInventoriesPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 
 const legacy = () => structuredClone(fixture) as unknown as SaveEnvelope;
 
 function preserveResources(after: SaveEnvelope, before: SaveEnvelope) {
-  for (const key of ["inventories", "crops", "processingJobs", "boats", "fishCargo", "quests", "journal", "clock", "weather", "metadata"] as const) {
+  expectBoatsPreserved(after.state, before.state);
+  for (const key of ["crops", "processingJobs", "fishCargo", "quests", "journal", "clock", "weather", "metadata"] as const) {
     expect(after.state[key], key).toEqual(before.state[key]);
   }
+  expectInventoriesPreserved(after.state, before.state);
   const withoutV57SettlementFields = (contracts: typeof before.state.contracts) => contracts.map((contract) =>
     Object.fromEntries(Object.entries(contract).filter(([key]) =>
       key !== "deliveredValueMoney" && key !== "legacyUnvaluedQuantity"
@@ -52,7 +54,9 @@ describe("Sunreach continuous shore migration (v39 / layout17)", () => {
     expect(after.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(validateSaveEnvelope(after)).toBe(true);
-    expect({ ...after.state.player, workCapacity: before.state.player.workCapacity }).toEqual(before.state.player);
+    // Later layout steps may re-ground a supported pose by a fraction of a millimetre.
+    expect({ ...after.state.player, workCapacity: before.state.player.workCapacity, y: before.state.player.y }).toEqual(before.state.player);
+    expect(Math.abs(after.state.player.y - before.state.player.y)).toBeLessThan(0.01);
     // v46 adds the inherited horse carriage; the donkey itself must be untouched.
     expect(after.state.mounts["mount.donkey_starter"]).toEqual(before.state.mounts["mount.donkey_starter"]);
     expect(after.state.mounts[STARTER_CARRIAGE_ID].fishCargoSlotIds).toEqual([null, null]);
@@ -102,12 +106,18 @@ describe("Sunreach continuous shore migration (v39 / layout17)", () => {
     }
     const untouched = structuredClone(before);
     const after = migrateSaveData(before);
+    const support = WorldLayout.traversalSurfaceHeight(point.x, point.z);
     expect(after.state.player).toMatchObject({ ...point, currentRegionId: "region.harbor" });
-    expect(after.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(point.x, point.z) + 0.5, 6);
-    expect(after.state.player.y).toBeGreaterThan(before.state.player.y);
     if (mounted) {
-      expect(after.state.player).toMatchObject(playerPoseFromMount(after.state.mounts[mount.id]));
-      expect({ ...after.state.mounts[mount.id], y: mount.y }).toEqual(mount);
+      // A retained mount pose within the mount support tolerance keeps its height
+      // (`recoverMainlandLayout`), and the rider follows the mount.
+      const migratedMount = after.state.mounts[mount.id];
+      expect(Math.abs(migratedMount.y - support)).toBeLessThanOrEqual(MOUNT_TUNING.terrainHeightToleranceMeters);
+      expect(after.state.player).toMatchObject(playerPoseFromMount(migratedMount));
+      expect({ ...migratedMount, y: mount.y }).toEqual(mount);
+    } else {
+      expect(after.state.player.y).toBeCloseTo(support + 0.5, 6);
+      expect(after.state.player.y).toBeGreaterThan(before.state.player.y);
     }
     expect(before).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);
@@ -145,7 +155,8 @@ describe("Sunreach continuous shore migration (v39 / layout17)", () => {
     if (where === "interior") Object.assign(before.state.player, FARMHOUSE_INTERIOR_DOOR.enterSpawn);
     else {
       const boat = Object.values(before.state.boats)[0];
-      Object.assign(boat, { x: 343, z: 58, y: 0 });
+      // Boarding clears the mooring flags (`NavigationDomain.boardBoat`), so a sailing hull is not docked.
+      Object.assign(boat, { x: 343, z: 58, y: 0, isDocked: false, dockedMarketId: null });
       Object.assign(before.state.player, { x: 343, z: 58, y: 0.5, activeBoatId: boat.id });
     }
     const after = migrateSaveData(before);

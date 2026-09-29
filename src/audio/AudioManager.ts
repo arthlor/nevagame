@@ -200,7 +200,7 @@ export class AudioManager {
       // Disable must stop the loop node even when the context is suspended
       // (hidden tab). Still-requested enables stay in actionLoops and resume on visibility.
       this.actionLoops.delete(cueId);
-      this.stopLoopCue(cueId);
+      this.stopLoopCue(cueId, 0.45);
       return;
     }
     if (!this.context || this.context.state !== "running") {
@@ -236,14 +236,16 @@ export class AudioManager {
       return;
     }
     const targetCue = this.musicRouting.sample(this.worldAudio?.music ?? "theme", performance.now());
+    const fight = targetCue === "theme-line-tension" || this.currentMusicCue === "theme-line-tension";
+    const musicFade = fight ? 1.5 : 4;
     if (this.currentMusicCue !== targetCue) {
-      this.stopLoopCue(this.currentMusicCue);
+      this.stopLoopCue(this.currentMusicCue, musicFade);
       this.currentMusicCue = targetCue;
       if (hasCue(this.currentMusicCue)) {
-        void this.startLoopCue(this.currentMusicCue);
+        void this.startLoopCue(this.currentMusicCue, undefined, musicFade);
       }
     } else if (hasCue(this.currentMusicCue) && !this.loops.has(this.currentMusicCue)) {
-      void this.startLoopCue(this.currentMusicCue);
+      void this.startLoopCue(this.currentMusicCue, undefined, musicFade);
     }
   }
 
@@ -458,6 +460,10 @@ export class AudioManager {
       for (const cueId of beds[this.bedId] ?? beds.farm) desired.add(cueId);
     }
     for (const cueId of weatherLoops[this.weatherId] ?? []) desired.add(cueId);
+    const raining = this.weatherId === "light-rain" || this.weatherId === "heavy-rain" || this.weatherId === "storm";
+    if (this.worldAudio?.bed === "interior" && raining && hasCue("ambience-roof-rain")) {
+      desired.add("ambience-roof-rain");
+    }
     return desired;
   }
 
@@ -574,7 +580,7 @@ export class AudioManager {
     return pool.reduce((oldest, voice) => voice.startedAt < oldest.startedAt ? voice : oldest);
   }
 
-  private async startLoopCue(cueId: AudioCueId, position?: AudioPosition): Promise<void> {
+  private async startLoopCue(cueId: AudioCueId, position?: AudioPosition, fadeSeconds?: number): Promise<void> {
     const context = this.context;
     const cue = cues[cueId];
     const gains = this.busGains();
@@ -589,12 +595,22 @@ export class AudioManager {
     const weatherWindScale = cueId === "ambience-wind"
       ? (this.weatherId === "storm" ? 2 : this.weatherId === "windy" ? 1.7 : this.weatherId === "fog" ? 0.7 : 1)
       : 1;
+    const musicWeatherScale = cue.bus !== "music" ? 1
+      : this.weatherId === "light-rain" ? 0.45
+      : this.weatherId === "heavy-rain" || this.weatherId === "storm" ? 0.3
+      : 1;
+    const interiorRain = this.worldAudio?.bed === "interior"
+      && (cueId === "ambience-rain-light" || cueId === "ambience-rain-heavy" || cueId === "ambience-storm-sea");
     const targetGain = Math.min(1.5,
-      cue.gain * (this.actionLoops.has(cueId) ? this.actionLoopGains.get(cueId) ?? 1 : layers?.[cueId] ?? 1) * weatherWindScale);
+      cue.gain * (this.actionLoops.has(cueId) ? this.actionLoopGains.get(cueId) ?? 1 : layers?.[cueId] ?? 1)
+      * weatherWindScale * musicWeatherScale * (interiorRain ? 0.25 : 1));
+    const fade = fadeSeconds ?? (this.actionLoops.has(cueId) ? 0.45 : cue.bus === "music" ? 4 : 2);
     if (existing) {
       if (this.loopGainTargets.get(cueId) !== targetGain) {
-        existing.gain.gain.cancelScheduledValues(context.currentTime);
-        existing.gain.gain.setTargetAtTime(targetGain, context.currentTime, 0.4);
+        const now = context.currentTime;
+        existing.gain.gain.cancelScheduledValues(now);
+        existing.gain.gain.setValueAtTime(existing.gain.gain.value, now);
+        existing.gain.gain.linearRampToValueAtTime(targetGain, now + fade);
         this.loopGainTargets.set(cueId, targetGain);
       }
       if (existing.panner && resolved) {
@@ -626,8 +642,7 @@ export class AudioManager {
       source.loopStart = Math.max(0, cue.offset);
       source.loopEnd = Math.min(buffer.duration, cue.offset + cue.duration);
       setAudioParamNow(gain.gain, 0, context.currentTime, 0);
-      const fadeSeconds = this.actionLoops.has(cueId) ? 0.12 : isMusic ? 3.2 : 1.2;
-      gain.gain.linearRampToValueAtTime(targetGain, context.currentTime + fadeSeconds);
+      gain.gain.linearRampToValueAtTime(targetGain, context.currentTime + fade);
       this.loopGainTargets.set(cueId, targetGain);
       source.connect(gain);
       if (panner) {
@@ -659,7 +674,7 @@ export class AudioManager {
     }
   }
 
-  private stopLoopCue(cueId: AudioCueId): void {
+  private stopLoopCue(cueId: AudioCueId, fadeSeconds?: number): void {
     this.loopStartGenerations.set(cueId, (this.loopStartGenerations.get(cueId) ?? 0) + 1);
     const voice = this.loops.get(cueId);
     if (!voice || !this.context) {
@@ -668,10 +683,11 @@ export class AudioManager {
     this.loops.delete(cueId);
     try {
       const now = this.context.currentTime;
-      const fadeSeconds = cues[cueId]?.bus === "music" ? 2.6 : 0.35;
+      const fade = fadeSeconds ?? (this.actionLoops.has(cueId) ? 0.45 : cues[cueId]?.bus === "music" ? 4 : 2);
       voice.gain.gain.cancelScheduledValues(now);
-      voice.gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
-      voice.source.stop(now + fadeSeconds + 0.05);
+      voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
+      voice.gain.gain.linearRampToValueAtTime(0, now + fade);
+      voice.source.stop(now + fade + 0.05);
     } catch {
       // A source may have already ended while the page was hidden.
     }

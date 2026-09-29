@@ -770,11 +770,12 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Koy Ortaklığı",
     "questTitle": "Bizden Uzun Yaşayan Aletler",
     "introDialogue": [
-      "Barnaby değirmenin aşınmış ahşap kolunu gösteriyor.",
-      "Yıllarca dedenin elleri bu kola basmıştı; şekli onun avucuna göre eğrilmiş. Aletlerin hikâyesini dinle ve bakımını yap."
+      "Bir ara köy değirmeninin koluna bak. Yalnızca bir yanı aşınmış, üstelik senin yüzünden değil.",
+      "Ortak arazideki buğdaydan biraz orada öğüt. Aynı taş koydaki her aileye hizmet eder. Mirasın işe yarayan tarafı budur: bir sonraki çift ele hazır tutulan bir alet."
     ],
     "completionDialogue": [
-      "Aletler sadece demir ve tahta değildir; onlara dokunan ellerin hatırasını taşırlar."
+      "Bu koydaki her alet, onu kullanan ellerin kaydıdır. Artık o kolda seninkiler de var.",
+      "Bu elma fidanını ortak arazi için al. Nereye ait olduğunu Elspeth söyleyecek."
     ],
     "objectives": {
       "step.homestead_mill_grain": {

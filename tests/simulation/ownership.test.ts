@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { Simulation } from "../../src/simulation/Simulation";
-import { farmLocalToWorld } from "../../src/world/FarmLayout";
+import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
+import { farmLocalToWorld, STARTER_FARM_LAYOUT } from "../../src/world/FarmLayout";
+import { INTERACTION_STANCE_OFFSET_METERS } from "../../src/world/InteractionReach";
+import { WorldLayout } from "../../src/world/WorldLayout";
+
+/**
+ * A fresh save starts without seeds, and planting needs the player on prepared soil, so tests that
+ * plant grant the seeds they use and stand on the starter plot.
+ */
+function withWheatSeed(sim: Simulation, quantity = 1): void {
+  InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+    { itemId: "seed.wheat", quantity }
+  ]);
+  sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
+  sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
+  sim.state.player.y = WorldLayout.traversalSurfaceHeight(sim.state.player.x, sim.state.player.z) + INTERACTION_STANCE_OFFSET_METERS;
+}
 
 describe("Simulation ownership boundaries", () => {
   it("atomically validates and commits resolved physics poses", () => {
@@ -68,6 +84,8 @@ describe("Simulation ownership boundaries", () => {
   it("uses one deterministic crop-placement rule for prompt and execution", () => {
     const left = new Simulation();
     const right = new Simulation();
+    withWheatSeed(left);
+    withWheatSeed(right);
     const leftPlacement = left.findPlantingPosition("farm.starter_garden", "crop.wheat");
     const rightPlacement = right.findPlantingPosition("farm.starter_garden", "crop.wheat");
 
@@ -80,6 +98,7 @@ describe("Simulation ownership boundaries", () => {
 
   it("routes player-facing mutations through semantic commands", () => {
     const sim = new Simulation();
+    withWheatSeed(sim, 2);
     const result = sim.execute({
       type: "crop.plant-near",
       farmId: "farm.starter_garden",
@@ -88,13 +107,16 @@ describe("Simulation ownership boundaries", () => {
 
     expect(result.success).toBe(true);
     expect(Object.keys(sim.state.crops)).toHaveLength(1);
-    const freePlot = farmLocalToWorld("farm.starter_garden", { x: 1.25, z: 0 });
-    expect(sim.query({ type: "crop.find-placement", farmId: "farm.starter_garden", cropId: "crop.wheat" }))
-      .toMatchObject({ success: false });
+    // The query answers in farm-local metres; the explicit command takes world coordinates.
+    const offered = sim.query({ type: "crop.find-placement", farmId: "farm.starter_garden", cropId: "crop.wheat" }) as
+      { success: boolean; x: number; z: number };
+    expect(offered.success).toBe(true);
+    const freePlot = farmLocalToWorld("farm.starter_garden", { x: offered.x, z: offered.z });
     expect(sim.execute({
       type: "crop.plant",
       request: { farmId: "farm.starter_garden", cropId: "crop.wheat", x: freePlot.x, z: freePlot.z }
     })).toMatchObject({ success: true });
+    expect(Object.keys(sim.state.crops)).toHaveLength(2);
   });
 
   it("does not reinterpret an off-farm world coordinate as farm-local", () => {

@@ -10,7 +10,7 @@ export type FootstepBankId =
   | "footstep-grass"
   | "footstep-sand"
   | "footstep-water"
-  | "donkey-trot";
+  | "donkey-hoof";
 
 const DOCK_RADIUS_PADDING = 1.4;
 const BROOK_WADE_REACH_METERS = 1;
@@ -66,7 +66,7 @@ export const footstepSurfaceAt = (x: number, z: number): FootstepSurface => {
 };
 
 export const footstepBankForSurface = (surface: FootstepSurface, isMounted = false): FootstepBankId => {
-  if (isMounted) return "donkey-trot";
+  if (isMounted) return "donkey-hoof";
   if (surface === "wood") return "footstep-wood";
   if (surface === "dock") return "footstep-dock";
   if (surface === "sand") return "footstep-sand";

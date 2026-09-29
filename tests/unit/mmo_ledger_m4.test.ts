@@ -7,7 +7,7 @@ import { LogisticsLedgerModal } from "../../src/ui/components/LogisticsLedgerMod
 import type { HoldStoresDto } from "../../src/simulation/core/contracts";
 
 const stores: HoldStoresDto = {
-  satchel: { occupiedSlots: 3, totalSlots: 16 },
+  satchel: { occupiedSlots: 3, totalSlots: 20 },
   vesselHolds: { occupiedSlots: 1, totalSlots: 4 },
   carriedCatch: null,
   supplies: [{ itemId: "item.bait_worms", name: "Bait Worms", count: 6 } as never],

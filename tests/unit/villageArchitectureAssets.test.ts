@@ -2,6 +2,12 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import catalog from "../../assets/specs/asset-catalog.json";
 import { buildAuthoredModel } from "../../tools/authored/pipeline/build";
+import {
+  STONE_BRIDGE_CHANNEL_ARCH,
+  STONE_BRIDGE_PIERS,
+  STONE_BRIDGE_SPRING,
+  STONE_BRIDGE_WEST_ARCH
+} from "../../tools/authored/generators/buildings/createStoneBridgeModel";
 import type { CatalogAssetSpec } from "../../tools/authored/kit";
 
 const ids = ["house_farmhouse_a", "building_lighthouse_a", "building_windmill_a", "bridge_stone_a", "prop_tool_shed_a",
@@ -55,16 +61,21 @@ describe("authored village architecture replacement contracts", () => {
         expect(hit, `${level.name}: ${deck.id} roadway`).toBeDefined();
         expect(Math.abs(hit.point.y - top)).toBeLessThan(0.032);
       }
-      for (const x of [-3.55, 3.55]) for (const dx of [-0.6, 0, 0.6]) for (const y of [0.5, 1.5]) {
-        expect(ray(new THREE.Vector3(x + dx, y, 4), new THREE.Vector3(0, 0, -1), 8, level), `${level.name}: open vault`).toHaveLength(0);
+      for (const arch of [STONE_BRIDGE_WEST_ARCH, STONE_BRIDGE_CHANNEL_ARCH]) {
+        for (const dx of [-0.6, 0, 0.6]) for (const y of [0.5, 1.5]) {
+          expect(ray(new THREE.Vector3(arch.center + dx, y, 4), new THREE.Vector3(0, 0, -1), 8, level), `${level.name}: open vault`).toHaveLength(0);
+        }
+        for (const offset of [-1.2, -0.7, 0.7, 1.2]) {
+          const outerRx = arch.rx + 0.22;
+          const outerRise = STONE_BRIDGE_SPRING + (arch.ry + 0.18) * Math.sqrt(1 - (offset / outerRx) ** 2);
+          expect(ray(new THREE.Vector3(arch.center + offset, outerRise + 0.06, 2.8), new THREE.Vector3(0, 0, -1), 1, level).length,
+            `${level.name}: continuous spandrel`).toBeGreaterThan(0);
+        }
       }
+      expect(spec.collisionPrimitives!.filter(primitive => primitive.id.startsWith("pier_")).map(primitive => primitive.center[0]))
+        .toEqual(STONE_BRIDGE_PIERS.map(pier => pier.x));
       for (const side of [-1, 1]) expect(ray(new THREE.Vector3(side * 8, 1.8, 0), new THREE.Vector3(-side, 0, 0), 2, level).length,
         `${level.name}: closed abutment`).toBeGreaterThan(0);
-      for (const cx of [-3.55, 3.55]) for (const offset of [-2.3, -1.8, -1.3, -0.8, 0.8, 1.3, 1.8, 2.3]) {
-        const outerRise = 0.32 + 2.35 * Math.sqrt(1 - (offset / (7.1 * 0.366 + 0.31)) ** 2);
-        expect(ray(new THREE.Vector3(cx + offset, outerRise + 0.06, 2.8), new THREE.Vector3(0, 0, -1), 1, level).length,
-          `${level.name}: continuous spandrel`).toBeGreaterThan(0);
-      }
     }
   });
 

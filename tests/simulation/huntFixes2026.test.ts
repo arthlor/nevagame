@@ -106,6 +106,8 @@ describe("Hunt fixes 2026", () => {
     expect(irrigate.reason).toBe("already-wet");
 
     sim.state.farms["farm.starter_garden"].soil.fertility = 100;
+    // Fertilizing needs the player on the plot, not at the well.
+    commitPlayerPose(sim, STARTER_FARM_LAYOUT.origin.x, STARTER_FARM_LAYOUT.origin.z);
     const fertilizerBefore = InventoryManager.getItemCount(
       sim.state.inventories[sim.state.player.inventoryId],
       "item.basic_fertilizer"

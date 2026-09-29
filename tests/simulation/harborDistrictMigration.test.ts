@@ -14,6 +14,7 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 import { clearReach } from "../../src/persistence/terrainMigrationSupport";
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
+import { expectInventoriesPreserved, expectMarketsPreserved, expectPlayerPreserved } from "../helpers/migrationPreservation";
 
 const legacy = () => structuredClone(predecessor) as unknown as SaveEnvelope;
 const added = harborDistrictPlacements((x, z) => WorldLayout.terrainHeight(x, z)).flatMap(p => {
@@ -31,9 +32,12 @@ describe("harbor district layout35 save recovery", () => {
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(after.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
-    for (const key of ["player", "mounts", "farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "markets", "metadata"] as const) {
+    for (const key of ["mounts", "farms", "crops", "processingJobs", "fishCargo", "contracts", "quests", "journal", "clock", "weather", "metadata"] as const) {
       expect(after.state[key], key).toEqual(before.state[key]);
     }
+    expectInventoriesPreserved(after.state, before.state);
+    expectPlayerPreserved(after.state, before.state);
+    expectMarketsPreserved(after.state, before.state);
     for (const [id, boat] of Object.entries(before.state.boats))
       expect({ ...after.state.boats[id], x: boat.x, y: boat.y, z: boat.z, headingRadians: boat.headingRadians }).toEqual(boat);
     expect(before).toEqual(untouched);

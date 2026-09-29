@@ -3,7 +3,9 @@ import type { ItemInspectionDto } from "../../simulation/core/contracts";
 import { freshnessTone } from "../../simulation/fishing/freshnessBands";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForFish, atlasForItem } from "../chrome/uiAtlas";
+import { ContentRegistry } from "../../content/ContentRegistry";
 import { formatCompactDuration } from "./formatCompactDuration";
+import { waterNeedLabel } from "./AlmanacPage";
 import { useTranslation } from "../../i18n/useTranslation";
 import { TR_ITEMS } from "../../i18n/locales/tr/items";
 import { TR_CROPS } from "../../i18n/locales/tr/crops";
@@ -66,6 +68,9 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
 
   const rarityTier = item.rarity?.tier ?? "plain";
   const sprite = atlasForItem(item.itemId) ?? atlasForFish(item.itemId);
+  const isTr = locale === "tr";
+  // Same ceiling the almanac uses, so "Steady" means the same thing in both places.
+  const maxCropWaterNeed = Math.max(25, ...[...ContentRegistry.crops.values()].map((crop) => crop.waterNeed));
 
   return (
     <aside
@@ -100,7 +105,7 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
           <dd data-testid="item-inspect-value">{`${item.baseValue.toLocaleString()} ${locale === "tr" ? "akçe" : "G"}`}</dd>
         </div>
         <div>
-          <dt>{locale === "tr" ? "Yığın sınırı" : "Stacks to"}</dt>
+          <dt>{isTr ? "Yığın sınırı" : "Stack limit"}</dt>
           <dd>{item.stackLimit}</dd>
         </div>
       </dl>
@@ -135,15 +140,11 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
           <h4>{locale === "tr" && item.agronomy.cropId && TR_CROPS[item.agronomy.cropId]?.name ? TR_CROPS[item.agronomy.cropId].name : item.agronomy.cropName}</h4>
           <dl className="item-inspect-agronomy-grid">
             <div>
-              <dt>{locale === "tr" ? "Su ihtiyacı" : "Water need"}</dt>
-              <dd>{item.agronomy.waterNeed}</dd>
-            </div>
-            <div>
-              <dt>{locale === "tr" ? "Büyüme" : "Grows in"}</dt>
+              <dt>{isTr ? "Büyüme" : "Grows in"}</dt>
               <dd>{formatGrowthDuration(item.agronomy.growthMinutes)}</dd>
             </div>
             <div>
-              <dt>{locale === "tr" ? "Verim" : "Yield"}</dt>
+              <dt>{isTr ? "Verim" : "Yield"}</dt>
               <dd>
                 {item.agronomy.yieldMin === item.agronomy.yieldMax
                   ? `${item.agronomy.yieldMin}`
@@ -151,10 +152,15 @@ export const ItemInspectCard: React.FC<ItemInspectCardProps> = ({ item, anchor =
               </dd>
             </div>
             <div>
-              <dt>{locale === "tr" ? "Toprak yükü" : "Soil cost"}</dt>
-              <dd>{item.agronomy.fertilityCost}</dd>
+              <dt>{isTr ? "Su" : "Water"}</dt>
+              <dd>{`${waterNeedLabel(item.agronomy.waterNeed, maxCropWaterNeed, isTr)} (${item.agronomy.waterNeed})`}</dd>
             </div>
           </dl>
+          <p className="item-inspect-soil">
+            {isTr
+              ? `Her hasat ${item.agronomy.fertilityCost} toprak verimi alır`
+              : `Each harvest takes ${item.agronomy.fertilityCost} fertility`}
+          </p>
           {item.agronomy.preferredClimates.length > 0 && (
             <p className="item-inspect-climates">
               <span>{locale === "tr" ? "Sevdiği iklim" : "Thrives in"}</span>

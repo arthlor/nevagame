@@ -6,18 +6,12 @@ import {
   WorldLayout
 } from "../../src/world/WorldLayout";
 import { STARTER_FARM_LAYOUT, worldToFarmLocal } from "../../src/world/FarmLayout";
-import {
-  createWorldEnvironmentLayout,
-  generateGroundCoverPlacements,
-  generateFarmPathPaverSamples,
-  GROUND_COVER_DENSITY,
-  GRASS_MAX_PATH_INFLUENCE,
-  hasGroundCoverClearance
-} from "../../src/world/WorldEnvironmentLayout";
+import { GRASS_MAX_PATH_INFLUENCE, GROUND_COVER_DENSITY, createWorldEnvironmentLayout, generateFarmPathPaverSamples, generateGroundCoverPlacements, generateSunreachGroundCoverPlacements, hasGroundCoverClearance } from "../../src/world/WorldEnvironmentLayout";
 import { groundCoverActiveCount } from "../../src/render/config/VisualRenderConfig";
 import { sampleWorldComposition } from "../../src/world/WorldCompositionField";
 import { SeededRng } from "../../src/simulation/core/Rng";
 import { retainHarborGroundCover } from "../../src/world/HarborCoastLayout";
+import { inHarborWorkingReserve } from "../../src/world/HarborDistrictLayout";
 import { mainlandGroundCoverSteps } from "../../src/world/MainlandEnvironmentLayout";
 import { runSync } from "../../src/utils/CooperativeTask";
 
@@ -47,8 +41,13 @@ describe("Organic road environment", () => {
     expect(generatedNevaCover.some((placement) => placement.assetId.startsWith("foliage_grass_"))).toBe(false);
     // The mainland dresses its own meadow accents after the starter district.
     expect(first.groundCoverPlacements.filter((placement) => !isSunreach(placement)))
-      .toEqual([...generatedNevaCover.filter(retainHarborGroundCover), ...runSync(mainlandGroundCoverSteps(42891))]);
-    expect(first.groundCoverPlacements.filter(isSunreach)).toHaveLength(360 + 72 + 96);
+      .toEqual([...generatedNevaCover.filter(retainHarborGroundCover), ...runSync(mainlandGroundCoverSteps(42891))]
+        .filter((placement) => !inHarborWorkingReserve(placement, 0.5)));
+    const sunreachCover = generateSunreachGroundCoverPlacements(42891);
+    expect(sunreachCover).toHaveLength(360 + 72 + 96);
+    // Cover inside the harbor working reserve is dropped after generation.
+    expect(first.groundCoverPlacements.filter(isSunreach))
+      .toEqual(sunreachCover.filter((placement) => !inHarborWorkingReserve(placement, 0.5)));
 
     const shoulderCover = first.groundCoverPlacements.filter((placement) =>
       placement.id.includes("ground-cover.shoulder.pebbles")
@@ -167,9 +166,10 @@ describe("Organic road environment", () => {
     const bridgeReeds = authored.filter((placement) => placement.id.includes("bridge-"));
     expect(WorldLayout.pathInfluence(wagon.x, wagon.z)).toBeLessThan(0.12);
     expect(bridgeReeds.every((placement) => WorldLayout.pathInfluence(placement.x, placement.z) < 0.12)).toBe(true);
-    // Mainland villages dress their own carts; mainlandEnvironment owns those.
+    // Mainland villages and the harbor district dress their own carts; their layouts own those.
     expect(authored.filter((placement) => placement.assetId === "prop_wagon_cart_a"
-      && !placement.id.startsWith("authored.mainland."))).toHaveLength(2);
+      && !placement.id.startsWith("authored.mainland.")
+      && !placement.id.startsWith("authored.harbor-district."))).toHaveLength(2);
     expect(bridgeReeds.filter((placement) => placement.assetId === "foliage_reeds_a")).toHaveLength(2);
   });
 

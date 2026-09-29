@@ -4,7 +4,24 @@ import { getRankForXp } from "../../content/progression";
 import { activeQuestTrackIds, type QuestState } from "../core/QuestTypes";
 import type { GameState, ClockState } from "../core/types";
 
-export const NPC_TALK_RADIUS = 3.5;
+/**
+ * Stand beside the person. The talk prompt measures this to the presented
+ * body, so a station beside a field does not cover the crop rows.
+ */
+export const NPC_TALK_RADIUS = 1.2;
+
+/**
+ * Station beats may carry the body this far from `npcAnchorAt`. The disk is
+ * owned here so the command allowance and the authored beats cannot drift.
+ */
+export const NPC_STATION_WANDER_METERS = 1.2;
+
+/**
+ * Talk, repair and turn-in measure the station anchor. This adds the beat
+ * wander (plus a small edge) so a player standing beside the body is accepted
+ * even when the body has paced to the far side of the station.
+ */
+export const NPC_TALK_ANCHOR_RADIUS = NPC_TALK_RADIUS + NPC_STATION_WANDER_METERS + 0.08;
 
 /**
  * Whether this NPC speaks for an active quest whose final objective is done and

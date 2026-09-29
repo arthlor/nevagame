@@ -36,6 +36,19 @@ describe("local farming audio manifest", () => {
         continue;
       }
 
+      if (source.origin === "elevenlabs") {
+        expect(source.creator).toBe("ElevenLabs");
+        expect(typeof source.model).toBe("string");
+        expect(source.generationId).toMatch(/^[A-Za-z0-9]+$/);
+        expect(source.sourceUrl).toMatch(/^https:\/\/elevenlabs\.io\/app\/flows\//);
+        expect(source.licenseUrl).toBe("https://elevenlabs.io/terms-of-use");
+        expect(source.licenseSnapshot).toBe("assets/audio/licenses/elevenlabs-sound-effects.txt");
+        const licenseSnapshot = path.join(ROOT, source.licenseSnapshot as string);
+        expect(fs.existsSync(licenseSnapshot)).toBe(true);
+        expect(fs.readFileSync(licenseSnapshot, "utf8")).toMatch(/ElevenLabs/);
+        continue;
+      }
+
       if (source.origin === "adobe-audition") {
         expect(source.sourceUrl).toBe("https://www.adobe.com/products/audition/offers/audition-dlc.html");
         expect(source.licenseUrl).toBe("https://www.adobe.com/products/audition/offers/audition-dlc.html");
@@ -110,6 +123,15 @@ describe("local farming audio manifest", () => {
     }
     expect(manifest.banks["footstep-grass"]).toEqual(["footstep-grass-a", "footstep-grass-b"]);
     expect(manifest.banks["donkey-snort"]).toEqual(["donkey-snort", "donkey-snort-adobe"]);
+    expect(manifest.banks["fishing-bite"]?.length).toBeGreaterThan(0);
+    expect(manifest.banks["fishing-hook"]?.length).toBeGreaterThan(0);
+    expect(manifest.banks["fishing-catch"]?.length).toBeGreaterThan(0);
+    expect(manifest.banks["fishing-strain"]?.length).toBeGreaterThan(0);
+    expect(manifest.cues["plant-seed"].sourceId).toBe("plant-seed");
+    expect(manifest.cues["craft-ready"].sourceId).not.toBe("treasure-chime");
+    expect(manifest.cues["theme-guitar-arpeggio"].sourceId).toBe("music-coast-travel");
+    expect(manifest.cues["theme-line-tension"].loop).toBe(true);
+    expect(manifest.weatherLoops.fog).toEqual(["ambience-fog"]);
     expect(manifest.banks.thunder).toEqual(["thunder", "thunder-adobe"]);
     expect(manifest.beds.coast).toContain("ambience-seagulls");
     expect(manifest.beds.interior).toContain("ambience-fireplace");

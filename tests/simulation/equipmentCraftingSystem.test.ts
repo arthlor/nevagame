@@ -27,6 +27,7 @@ import {
 import { farmLocalToWorld } from "../../src/world/FarmLayout";
 import { SeededRng } from "../../src/simulation/core/Rng";
 import { hookLakeTroutForTest } from "./sportFishingTestUtils";
+import { TRADE_PACKS } from "../../src/content/tradePacks";
 
 function moveToStation(sim: Simulation, stationId = "struct.workbench"): void {
   const station = sim.state.world.structures[stationId];
@@ -518,7 +519,9 @@ describe("station crafting lifecycle", () => {
     expect(PROCESSING_XP_BY_TIER).toEqual(PROCESSING_WORK_BY_TIER);
     const coveredIds = Object.values(assigned).flat();
     expect(new Set(coveredIds).size).toBe(coveredIds.length);
-    expect(new Set(coveredIds)).toEqual(new Set(ContentRegistry.recipes.keys()));
+    // The 30 village trade-pack recipes carry their own trade tiers (`tradePackEconomy.test.ts`).
+    const tradeRecipeIds = new Set(Object.values(TRADE_PACKS).map((pack) => pack.recipeId));
+    expect(new Set(coveredIds)).toEqual(new Set([...ContentRegistry.recipes.keys()].filter((id) => !tradeRecipeIds.has(id))));
     for (const [tier, ids] of Object.entries(assigned) as Array<[keyof typeof assigned, string[]]>) {
       for (const recipeId of ids) {
         const recipe = ContentRegistry.recipes.get(recipeId)!;

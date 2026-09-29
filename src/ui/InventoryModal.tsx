@@ -4,13 +4,12 @@ import { ItemInspectCard } from "./components/ItemInspectCard";
 import { useModalAccessibility } from "./useModalAccessibility";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
-import { atlasForFish, atlasForItem } from "./chrome/uiAtlas";
+import { atlasForCropQuality, atlasForFish, atlasForItem, qualitySpriteKey } from "./chrome/uiAtlas";
 import {
   ChromeButton,
   ChromeClose,
   ChromeDivider,
-  ChromeAlert,
-  ChromeQuality
+  ChromeAlert
 } from "./chrome/Chrome";
 import { IconFish, IconPack, IconSatchel, IconSprout, IconTools } from "./components/HudIcons";
 import { GameSheet, ItemSlot } from "./coastal/CoastalUI";
@@ -45,6 +44,20 @@ interface InventoryModalProps {
  * The item's own sprite, or a neutral bundle when the atlas has no cell for it
  * yet. Never another item's icon: identity must not be borrowed.
  */
+const CropGradeMark: React.FC<{ quality: string; size?: number; labelled?: boolean }> = ({
+  quality,
+  size = 16,
+  labelled = false
+}) => {
+  const key = qualitySpriteKey(quality);
+  return (
+    <span className={`crop-grade-mark crop-grade-mark--${key}`} data-testid="crop-grade-mark" data-quality={key}>
+      <AtlasImage src={atlasForCropQuality(quality)} size={size} alt="" />
+      {labelled && <span>{quality}</span>}
+    </span>
+  );
+};
+
 const SatchelItemIcon: React.FC<{ itemId: string; size: number; className?: string }> = ({ itemId, size, className }) => {
   const sprite = atlasForItem(itemId) ?? atlasForFish(itemId);
   if (sprite) return <AtlasImage src={sprite} alt="" size={size} className={className} />;
@@ -478,7 +491,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     filled
                     selected={isSelectable && isSelected}
                     quantity={slot.quantity > 1 ? slot.quantity : undefined}
-                    badge={slot.quality ? <ChromeQuality quality={slot.quality} showLabel={false} /> : undefined}
+                    badge={slot.quality ? <CropGradeMark quality={slot.quality} /> : undefined}
                     onSelect={isSelectable ? () => setSelectedSlotIndex(index) : undefined}
                     draggable={canDragToDiscard}
                     onDragStart={canDragToDiscard
@@ -501,7 +514,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     aria-disabled={isSelectable ? undefined : "true"}
                     tabIndex={isSelectable && isSelected ? 0 : -1}
                   >
-                    <SatchelItemIcon itemId={slot.itemId} size={40} className="slot-item-icon" />
+                    <SatchelItemIcon itemId={slot.itemId} size={28} className="slot-item-icon" />
                   </ItemSlot>
                 );
               })}
@@ -513,21 +526,31 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               <>
                 <div className="details-header">
                   <div className="details-icon-well">
-                    <SatchelItemIcon itemId={selectedSlot.itemId} size={54} />
+                    <SatchelItemIcon itemId={selectedSlot.itemId} size={40} />
                   </div>
-                  <div>
-                    <h3 className="details-name">{selectedSlot.name}</h3>
-                    {selectedSlot.categoryLabel && (
-                      <span className="details-category-tag">{selectedSlot.categoryLabel.toUpperCase()}</span>
-                    )}
-                  </div>
+                  <h3 className="details-name">{selectedSlot.name}</h3>
                 </div>
 
-                <div className="inventory-selected-strip">
-                  <span>{selectedSlot.categoryLabel ?? (locale === "tr" ? "eşya" : "item")}</span>
-                  {selectedSlot.quality && <ChromeQuality quality={selectedSlot.quality} />}
-                  <strong>{locale === "tr" ? `${selectedSlot.quantity} adet taşınıyor` : `${selectedSlot.quantity} carried`}</strong>
+                <div
+                  className="inventory-selected-strip"
+                  aria-label={selectedSlot.quality
+                    ? (locale === "tr"
+                        ? `${selectedSlot.quality} kalite, adet ${selectedSlot.quantity}`
+                        : `${selectedSlot.quality}, count ${selectedSlot.quantity}`)
+                    : (locale === "tr" ? `Adet ${selectedSlot.quantity}` : `Count ${selectedSlot.quantity}`)}
+                >
+                  {selectedSlot.quality && <CropGradeMark quality={selectedSlot.quality} size={20} labelled />}
+                  {selectedSlot.quality && <span className="inventory-selected-sep" aria-hidden="true">·</span>}
+                  <strong>{selectedSlot.quantity}</strong>
                 </div>
+
+                {selectedSlot.description && (
+                  <p className="details-description">
+                    {locale === "tr" && TR_ITEMS[selectedSlot.itemId]?.description
+                      ? TR_ITEMS[selectedSlot.itemId].description
+                      : selectedSlot.description}
+                  </p>
+                )}
 
                 {selectedSlot.cropId && planting?.valid && (
                   <div className="inventory-action-block">
@@ -542,6 +565,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     </ChromeButton>
                   </div>
                 )}
+
                 {selectedSlot.cropId && planting && !planting.valid && (
                   <ChromeAlert tone="caution" className="inventory-plant-blocker">
                     {planting.reason ?? (locale === "tr" ? "Buraya ekim yapılamaz" : "Planting is not available here")}
@@ -568,6 +592,15 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                   </div>
                 )}
 
+                {/* Agronomy and other numbers are for players who go looking;
+                    the default view answers "what is this and what is it for". */}
+                {selectedInspection && (
+                  <details className="inventory-item-details" data-testid="inventory-item-details">
+                    <summary>{locale === "tr" ? "Ayrıntılar" : "Details"}</summary>
+                    <ItemInspectCard item={selectedInspection} detailsOnly />
+                  </details>
+                )}
+
                 {onDiscardItem && (
                   <div className="inventory-action-block inventory-discard-block">
                     {discardArmed ? (
@@ -591,29 +624,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         {locale === "tr" ? (selectedSlot.quantity > 1 ? `${selectedSlot.quantity} adet at` : "Eşyayı at") : `Discard ${selectedSlot.quantity > 1 ? `stack of ${selectedSlot.quantity}` : "item"}`}
                       </ChromeButton>
                     )}
-                    <p className="inventory-discard-hint">
-                      {discardArmed
-                        ? (locale === "tr" ? "Bu işlem yığını tamamen yok eder." : "This destroys the stack for good.")
-                        : (locale === "tr" ? "Veya eşyayı heybenin dışına sürükleyip doğrudan atabilirsin." : "Or drag a slot out of the satchel to destroy it in one gesture.")}
-                    </p>
+                    {discardArmed && (
+                      <p className="inventory-discard-hint">
+                        {locale === "tr" ? "Bu işlem yığını tamamen yok eder." : "This destroys the stack for good."}
+                      </p>
+                    )}
                   </div>
-                )}
-
-                {selectedSlot.description && (
-                  <p className="details-description">
-                    {locale === "tr" && TR_ITEMS[selectedSlot.itemId]?.description
-                      ? TR_ITEMS[selectedSlot.itemId].description
-                      : selectedSlot.description}
-                  </p>
-                )}
-
-                {/* Agronomy and other numbers are for players who go looking;
-                    the default view answers "what is this and what is it for". */}
-                {selectedInspection && (
-                  <details className="inventory-item-details" data-testid="inventory-item-details">
-                    <summary>{locale === "tr" ? "Ayrıntılar" : "Details"}</summary>
-                    <ItemInspectCard item={selectedInspection} detailsOnly />
-                  </details>
                 )}
               </>
             ) : (

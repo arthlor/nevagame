@@ -18,6 +18,7 @@ import { WorldLayout } from '../../src/world/WorldLayout';
 import { getProcessingStationFrontPosition } from '../../src/world/ProcessingStationApproach';
 import { carriagePoint, carriageTuning } from '../../src/simulation/mounts/Carriage';
 import { InventoryManager } from '../../src/simulation/inventory/InventoryManager';
+import { expectInventoriesPreserved } from '../helpers/migrationPreservation';
 import { quoteVillageTradePack, villageTradeRouteMeters } from '../../src/simulation/economy/VillageTrade';
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from '../../src/persistence/SaveSchema';
 import { migrateSaveData } from '../../src/persistence/SaveMigrations';
@@ -162,7 +163,7 @@ describe('village trade loop', () => {
     const result=migrateSaveData(input);expect(input).toEqual(before);expect(result.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     for(const station of VILLAGE_TRADE_STATIONS)expect(result.state.world.structures[station.id].type).toBe('trading-station');
     expect(result.state.mounts['mount.carriage_4']).toBeUndefined();expect(result.state.boats['boat.player_trading_ship']).toBeUndefined();
-    expect(result.state.player.money).toBe(before.state.player.money);expect(result.state.inventories).toEqual(before.state.inventories);
+    expect(result.state.player.money).toBe(before.state.player.money);expectInventoriesPreserved(result.state, before.state);
     expect(validateSaveEnvelope(result)).toBe(true);expect(migrateSaveData(result)).toEqual(result);
   });
   it('moves a paid kitchen job to the yard without charging again or inventing its origin', () => {
@@ -193,7 +194,8 @@ describe('village trade loop', () => {
     expect(migrated.state.inventories).toEqual(before.state.inventories);
     expect(validateSaveEnvelope(migrated)).toBe(true);
     const restored = new Simulation(migrated.state);
-    stand(restored, getProcessingStationFrontPosition(station.id, station)!);
+    // The v65 step grants the yard from its authored constants, so stand at the restored save's own copy.
+    stand(restored, getProcessingStationFrontPosition(station.id, restored.state.world.structures[station.id])!);
     restored.advanceGameMinutes(job.effectiveDurationMinutes);
     expect(restored.execute({ type: 'processing.collect', jobId: job.id }).success).toBe(true);
     const cargo = restored.state.fishCargo[restored.state.player.carriedFishCargoId!];

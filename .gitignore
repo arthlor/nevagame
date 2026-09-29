@@ -12,6 +12,7 @@ assets/audio/licenses/
 !assets/audio/licenses/
 assets/audio/licenses/*
 !assets/audio/licenses/adobe-audition-content-terms.txt
+!assets/audio/licenses/elevenlabs-sound-effects.txt
 marketing/
 .env
 # Generated audit / capture artifacts (world-alignment alone is ~2.7 GB)

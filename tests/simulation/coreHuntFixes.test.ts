@@ -5,7 +5,7 @@ import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { GameClock, seasonAtMinute, DAYS_PER_SEASON, MINUTES_PER_DAY } from "../../src/simulation/core/GameClock";
 import { tickMarket } from "../../src/simulation/economy/updateMarket";
 import { SCHOOL_SPAWN_POINTS } from "../../src/simulation/domains/FishingDomain";
-import { HARBOR_MARKET, VILLAGE_MARKET, HARBOR_DOCK } from "../../src/world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_MAIN_PIER, HARBOR_MARKET, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { applyOfflineProgression } from "../../src/persistence/offlineDelta";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
@@ -239,9 +239,10 @@ describe("Core hunt fixes", () => {
   it("keeps the harbor slip walkable without swallowing the sailable hull slot", () => {
     const apron = HARBOR_DOCK.playerPosition;
     const hull = HARBOR_DOCK.boatPosition;
-    const mid = { x: (apron.x + hull.x) / 2, z: (apron.z + hull.z) / 2 };
+    // The berth lies alongside the extended main pier: the apron is on the deck, the hull slot is
+    // open water, and the deck edge reaches boarding range of the hull.
     expect(WorldLayout.isWalkable(apron.x, apron.z)).toBe(true);
-    expect(WorldLayout.isWalkable(mid.x, mid.z)).toBe(true);
+    expect(hull.x - HARBOR_MAIN_PIER.x - HARBOR_MAIN_PIER.width / 2).toBeLessThanOrEqual(HARBOR_DOCK.boardRadius);
     expect(WorldLayout.isSailable(hull.x, hull.z)).toBe(true);
     expect(WorldLayout.isSailable(hull.x, hull.z + 3)).toBe(true);
     expect(WorldLayout.isSailable(hull.x + 2, hull.z)).toBe(true);

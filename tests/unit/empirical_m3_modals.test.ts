@@ -119,7 +119,7 @@ describe("Milestone M3 ornate modal presentation", () => {
       })
     );
 
-    expect(html).toContain("Fish trade packs");
+    expect(html).toContain("Trade packs");
     expect(html).toContain("Sell trade pack");
     expect(html).toContain("Rainbow Trout");
     expect(html).not.toContain("Fish hold");

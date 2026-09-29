@@ -26,10 +26,11 @@ describe("village bulletin board placement", () => {
     expect(WorldLayout.terrainNormalY(x, z)).toBeGreaterThan(0.9);
   });
 
-  it("stands just outside the market's own interaction ring", () => {
+  it("stands outside the market's own interaction ring", () => {
+    // Place mode moved the board to the far side of the square, so how close it stands to the plaza
+    // is owned by the plaza test below; this one keeps the two prompts from sharing a spot.
     const distance = Math.hypot(x - VILLAGE_MARKET.position.x, z - VILLAGE_MARKET.position.z);
     expect(distance).toBeGreaterThan(VILLAGE_MARKET.radiusMeters);
-    expect(distance).toBeLessThan(VILLAGE_MARKET.radiusMeters + VILLAGE_BULLETIN.interactionRadiusMeters + 1);
   });
 
   it("keeps clear of every authored building envelope", () => {

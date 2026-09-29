@@ -61,7 +61,7 @@ async function main() {
     ...manifest.sheets.flatMap((sheet) =>
       sheet.sprites.map((sprite) => ({
         file: sprite.file,
-        size: sheet.output?.size ?? manifest.output.size,
+        size: sheet.output?.size ?? manifest.families[sheet.family]?.size ?? manifest.output.size,
         keyed: true
       }))
     ),

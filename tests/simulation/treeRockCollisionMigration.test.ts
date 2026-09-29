@@ -16,6 +16,7 @@ import { HARBOR_DOCK, VILLAGE_MARKET, HARBOR_MARKET } from "../../src/world/Worl
 import { FARMHOUSE_OUTSIDE_DOOR, FARMHOUSE_INTERIOR_DOOR } from "../../src/world/FarmhouseInterior";
 import type { SaveEnvelope } from "../../src/persistence/SaveSchema";
 import type { GameState } from "../../src/simulation/core/types";
+import { expectInventoriesPreserved } from "../helpers/migrationPreservation";
 
 function legacyEnvelope(): SaveEnvelope {
   return structuredClone(fixture) as unknown as SaveEnvelope;
@@ -149,7 +150,7 @@ describe("tree and rock collision (schema 36 / layout 15)", () => {
 
     const state = after.state as GameState;
     expect(Object.keys(state.crops)).toEqual(Object.keys(original.state.crops));
-    expect(state.inventories).toEqual(original.state.inventories);
+    expectInventoriesPreserved(state, original.state);
     expect(state.player.money).toBe(original.state.player.money);
     expect(state.player.proficiencies).toEqual(original.state.player.proficiencies);
     expect(state.metadata.rngState).toEqual(original.state.metadata.rngState);
@@ -172,7 +173,7 @@ describe("tree and rock collision (schema 36 / layout 15)", () => {
     expect(clear({ x: moved.x, z: moved.z }), "player is still inside a collider").toBe(true);
     expect(WorldLayout.isWater(moved.x, moved.z)).toBe(false);
     // Only the pose moves.
-    expect(after.state.inventories).toEqual(inventoriesBefore);
+    expectInventoriesPreserved(after.state, { ...envelope.state, inventories: inventoriesBefore });
     expect(validateSaveEnvelope(after)).toBe(true);
   });
 });

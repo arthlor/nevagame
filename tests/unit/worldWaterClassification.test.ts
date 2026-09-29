@@ -31,6 +31,9 @@ function findSupportedCoastPoint(
       };
       if (!WorldLayout.isWater(waterProbe.x, waterProbe.z)) continue;
       if (WorldLayout.fishingHabitatAt(waterProbe.x, waterProbe.z) !== "coast") continue;
+      // The harbor-district jetties turned some shore points into pier approaches, which report
+      // `pier` access; this probe wants the natural shoreline.
+      if (WorldLayout.fishingAccessAt(point.x, point.z, reachMeters).reason === "pier") continue;
       return point;
     }
   }

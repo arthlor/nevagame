@@ -290,13 +290,17 @@ describe("PhysicsWorld", () => {
     const sim = new Simulation();
     placePlayer(sim);
     let finalMotion = null as ReturnType<PhysicsWorld["step"]>["playerMotion"] | null;
-    for (let index = 0; index < 120; index++) {
+    // Pressing square into the wall for about two seconds lets the contact-skin correction feed back
+    // into a short sideways creep (about 13 cm along the wall, from roughly frame 100 to 150) before
+    // the player settles completely still, so the window runs past that settle.
+    for (let index = 0; index < 240; index++) {
       const frame = physics.step(sim.state, { x: 0, z: 1, sprint: false }, "on-foot", 1 / 60, index / 60);
       expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
       finalMotion = frame.playerMotion;
     }
     expect(sim.state.player.z).toBeGreaterThan(0.2);
     expect(sim.state.player.z).toBeLessThan(1.35);
+    expect(Math.abs(sim.state.player.x)).toBeLessThan(0.25);
     expect(finalMotion?.isCollisionBlocked).toBe(true);
     expect(finalMotion?.speedMetersPerSecond).toBeLessThan(0.05);
   });
@@ -625,7 +629,7 @@ describe("PhysicsWorld", () => {
   it("projects authored bridge steps and dock pilings instead of render triangles", () => {
     const bridge = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
     const dock = landmarkCollision(ASSET_IDS.DOCK_HARBOR_MAIN_A, "dock");
-    expect(bridge).toHaveLength(15);
+    expect(bridge).toHaveLength(16);
     expect(dock).toHaveLength(7);
     expect(bridge.every((proxy) => proxy.kind === "box")).toBe(true);
     expect(dock.filter((proxy) => proxy.id.includes("substructure"))).toHaveLength(1);
@@ -646,7 +650,7 @@ describe("PhysicsWorld", () => {
       .toBeCloseTo(bridgeEdge!.center.y + bridgeEdge!.halfExtents.y, 6);
     expect(WorldLayout.traversalSurfaceHeight(bridgePeak!.center.x, bridgeAnchor.z))
       .toBeCloseTo(bridgePeak!.center.y + bridgePeak!.halfExtents.y, 6);
-    expect(bridgeRails).toHaveLength(4);
+    expect(bridgeRails).toHaveLength(2);
     expect(Math.min(...bridgeRails.map((proxy) => Math.abs(proxy.center.z - bridgeLayout.z))))
       .toBeGreaterThan(1.8);
     expect(Math.min(...dock.map((proxy) => proxy.center.y - proxy.halfExtents.y)))
@@ -1279,6 +1283,49 @@ describe("PhysicsWorld", () => {
     expect(boat.z).toBeGreaterThan(startZ + 4);
     expect(WorldLayout.isSailable(boat.x, boat.z)).toBe(true);
     physics.dispose();
+  });
+
+  it("lets a hull sail the river under the bridge", async () => {
+    const bridge = WorldLayout.landmark("bridge");
+    const section = WorldLayout.riverSectionAt(bridge.z);
+    const channelX = section.centerX + section.thalwegOffset;
+    const bridgeCollision = landmarkCollision(ASSET_IDS.BRIDGE_STONE_A, "bridge");
+    const driveUpstream = async (boatTypeId: "boat.rowboat" | "boat.skiff") => {
+      const physics = await PhysicsWorld.create(bridgeCollision);
+      const sim = new Simulation();
+      const boat = sim.state.boats["boat.player_rowboat"];
+      boat.boatTypeId = boatTypeId;
+      boat.isDocked = false;
+      boat.dockedMarketId = null;
+      boat.fuel = boatTypeId === "boat.skiff" ? 80 : 0;
+      boat.x = channelX;
+      boat.z = bridge.z + 8;
+      boat.headingRadians = Math.PI;
+      boat.speed = 0;
+      sim.state.player.activeBoatId = boat.id;
+      sim.state.player.x = boat.x;
+      sim.state.player.z = boat.z;
+      for (let index = 0; index < 420; index++) {
+        const result = physics.step(
+          sim.state,
+          { x: 0, z: -1, sprint: false },
+          "boat-driving",
+          1 / 60,
+          index / 60
+        );
+        expect(sim.commitPhysicsFrame(result.frame).success).toBe(true);
+      }
+      physics.dispose();
+      return boat;
+    };
+
+    const rowboat = await driveUpstream("boat.rowboat");
+    expect(rowboat.z).toBeLessThan(bridge.z - BRIDGE_WORLD_PROFILE.deckWidth);
+    expect(WorldLayout.isSailable(rowboat.x, rowboat.z)).toBe(true);
+
+    const skiff = await driveUpstream("boat.skiff");
+    expect(skiff.z).toBeLessThan(bridge.z - BRIDGE_WORLD_PROFILE.deckWidth);
+    expect(WorldLayout.isSailable(skiff.x, skiff.z)).toBe(true);
   });
 
   it("walks continuously from the harbor shore up the dock stairs onto the pier deck", async () => {

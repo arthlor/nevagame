@@ -35,7 +35,7 @@ import type { InteractionResult } from "../core/contracts";
 import type { GameState } from "../core/types";
 import { distance2d } from "./DomainContext";
 
-import { npcAnchorAt, npcRecognitionLines, NPC_TALK_RADIUS } from "../presentation/NpcPresentation";
+import { npcAnchorAt, npcRecognitionLines, NPC_TALK_ANCHOR_RADIUS } from "../presentation/NpcPresentation";
 import {
   formatQuestObjective,
   questObjectiveFacts,
@@ -824,7 +824,7 @@ export class QuestDomain {
     // release the speaker's role anchor, so re-resolving per close would let a
     // second ready errand on the same person be refused after the first succeeds.
     const talkAnchor = npcAnchorAt(npcId, state.clock, state.quests);
-    if (distance2d(state.player, talkAnchor) > NPC_TALK_RADIUS) {
+    if (distance2d(state.player, talkAnchor) > NPC_TALK_ANCHOR_RADIUS) {
       return refused(`Move closer to ${npc.name} to talk`);
     }
 
@@ -913,7 +913,9 @@ export class QuestDomain {
       if (!progressed) break;
     }
 
-    {
+    // What they are waiting on or have heard of is offered only when nothing above happened, so a
+    // closed errand or a spoken step is not followed by a different thread's ask.
+    if (segments.length === 0) {
       let unprompted = 0;
       for (const trackId of this.conversationTrackOrder()) {
         if (unprompted >= MAX_UNPROMPTED_SEGMENTS) break;
@@ -1082,7 +1084,7 @@ export class QuestDomain {
     const completionSpeakerId = quest.completionSpeakerId ?? quest.speakerId;
     const speaker = ContentRegistry.npcs.get(completionSpeakerId);
     const anchor = validatedAnchor ?? npcAnchorAt(completionSpeakerId, state.clock, state.quests);
-    if (!turnInNpcId || turnInNpcId !== completionSpeakerId || !speaker || distance2d(state.player, anchor) > NPC_TALK_RADIUS) {
+    if (!turnInNpcId || turnInNpcId !== completionSpeakerId || !speaker || distance2d(state.player, anchor) > NPC_TALK_ANCHOR_RADIUS) {
       return { success: false, reason: `Return to ${speaker?.name ?? "the quest giver"} to turn this in` };
     }
 

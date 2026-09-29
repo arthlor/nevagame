@@ -6,10 +6,11 @@ import { WorldLayout } from "../../src/world/WorldLayout";
 import { createWorldStaticPlacements } from "../../src/world/WorldEnvironmentLayout";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import predecessor from "../fixtures/save_v60_layout30_village_mountain_predecessor.json";
+import { expectBoatsPreserved, expectInventoriesPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 
 const legacy = () => structuredClone(predecessor) as unknown as SaveEnvelope;
 const PRESERVED = ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts",
-  "quests", "journal", "clock", "weather", "boats", "markets"] as const;
+  "quests", "journal", "clock", "weather"] as const;
 
 describe("village mountain layout31 recovery", () => {
   it("keeps a validated schema60/layout30 predecessor", () => {
@@ -37,7 +38,10 @@ describe("village mountain layout31 recovery", () => {
     expect(Math.hypot(player.x, player.z + 160)).toBeLessThan(30);
     expect(player.money).toBe(before.state.player.money);
     expect(player.proficiencies).toEqual(before.state.player.proficiencies);
-    for (const key of PRESERVED) expect(after.state[key], key).toEqual(before.state[key]);
+    for (const key of PRESERVED) if (key !== "inventories") expect(after.state[key], key).toEqual(before.state[key]);
+    expectInventoriesPreserved(after.state, before.state);
+    expectBoatsPreserved(after.state, before.state);
+    expectMarketsPreserved(after.state, before.state);
     expect(saved).toEqual(before);
     expect(migrateSaveData(after)).toEqual(after);
   });
@@ -60,7 +64,10 @@ describe("village mountain layout31 recovery", () => {
     expect(Math.hypot(after.state.player.x - tree!.x, after.state.player.z - tree!.z)).toBeGreaterThan(0.5);
     expect(WorldLayout.isWater(after.state.player.x, after.state.player.z)).toBe(false);
     expect(after.state.player.money).toBe(before.state.player.money);
-    for (const key of PRESERVED) expect(after.state[key], key).toEqual(before.state[key]);
+    for (const key of PRESERVED) if (key !== "inventories") expect(after.state[key], key).toEqual(before.state[key]);
+    expectInventoriesPreserved(after.state, before.state);
+    expectBoatsPreserved(after.state, before.state);
+    expectMarketsPreserved(after.state, before.state);
     expect(saved).toEqual(before);
     expect(migrateSaveData(after)).toEqual(after);
   });

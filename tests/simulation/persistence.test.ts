@@ -9,7 +9,9 @@ import {
   validateSaveEnvelope,
   type SaveEnvelope
 } from "../../src/persistence/SaveSchema";
-import { migrateSaveData } from "../../src/persistence/SaveMigrations";
+import { MIGRATIONS, migrateSaveData } from "../../src/persistence/SaveMigrations";
+import { collisionPolishProxies } from "../../src/persistence/migrateCollisionPolish76";
+import { staticPoseIsClear } from "../../src/physics/StaticCollision";
 import type { GameState } from "../../src/simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
@@ -1339,7 +1341,7 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.boats["boat.fixture"]).toMatchObject(boatBefore);
   });
 
-  it("migrates the v16 coast layout by preserving X/Z and re-grounding land truth", () => {
+  it("preserves X/Z in the v17 coast step and clears a newly solid net rack when loading the current layout", () => {
     const legacy = structuredClone(createInitialGameState());
     const fixture = structuredClone(saveV16Layout7);
     legacy.schemaVersion = 16;
@@ -1349,6 +1351,9 @@ describe("Persistence & Offline Progression", () => {
     legacy.metadata.rngState = fixture.state.metadata.rngState;
     const playerX = fixture.state.player.x;
     const playerZ = fixture.state.player.z;
+    const coastStep = MIGRATIONS[17](legacy) as GameState;
+    expect(coastStep.player).toMatchObject({ x: playerX, z: playerZ });
+    expect(coastStep.player.y).toBeCloseTo(WorldLayout.terrainHeight(playerX, playerZ) + 0.5, 6);
 
     const migrated = migrateSaveData({ schemaVersion: 16, savedAtUtcMs: 1, state: legacy });
     const migratedFixture = migrated.state.world.structures["struct.coast_fixture"];
@@ -1357,12 +1362,18 @@ describe("Persistence & Offline Progression", () => {
     expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(migrated.state.player).toMatchObject({
-      x: playerX,
-      z: playerZ,
       rotationY: fixture.state.player.rotationY,
       money: fixture.state.player.money
     });
-    expect(migrated.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(playerX, playerZ) + 0.5, 6);
+    const added = collisionPolishProxies(migrated.state, true);
+    expect(added.filter(box => !staticPoseIsClear([box], { x: playerX, z: playerZ },
+      WorldLayout.traversalSurfaceHeight(playerX, playerZ), .4)).map(box => box.id))
+      .toEqual(["authored.prop.net-rack.harbor:pole"]);
+    expect(Math.hypot(migrated.state.player.x - playerX, migrated.state.player.z - playerZ)).toBeCloseTo(.5, 6);
+    expect(staticPoseIsClear(collisionPolishProxies(migrated.state), migrated.state.player,
+      WorldLayout.traversalSurfaceHeight(migrated.state.player.x, migrated.state.player.z), .4)).toBe(true);
+    expect(migrated.state.player.y).toBeCloseTo(
+      WorldLayout.traversalSurfaceHeight(migrated.state.player.x, migrated.state.player.z) + 0.5, 6);
     expect(migratedFixture).toMatchObject({
       x: fixture.state.world.structures["struct.coast_fixture"].x,
       z: fixture.state.world.structures["struct.coast_fixture"].z,
@@ -1826,6 +1837,7 @@ describe("Persistence & Offline Progression", () => {
     if (!front) throw new Error("Missing migrated mill front");
     reloaded.state.player.x = front.x;
     reloaded.state.player.z = front.z;
+    reloaded.state.player.y = WorldLayout.traversalSurfaceHeight(front.x, front.z) + 0.5;
     reloaded.advanceGameMinutes(5);
     expect(reloaded.collectProcessingJob("job_v36_mill").success).toBe(true);
     expect(

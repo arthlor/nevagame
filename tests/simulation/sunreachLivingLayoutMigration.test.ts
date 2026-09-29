@@ -8,6 +8,7 @@ import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { SUNREACH_DRESSING, SUNREACH_LIVING_ROUTES } from "../../src/world/SunreachLivingLayout";
+import { expectBoatsPreserved, expectInventoriesPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 
 const legacy = () => structuredClone(predecessor) as unknown as SaveEnvelope;
 const terracePose = SUNREACH_ANCHORS.terraceFarm;
@@ -82,9 +83,12 @@ describe("Sunreach living-settlement layout28 recovery", () => {
       expect(after.state.player.currentRegionId).toBe(WorldLayout.regionAt(terracePose.x, terracePose.z));
     }
 
-    for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "quests", "journal", "clock", "weather", "markets", "boats", "metadata"] as const) {
+    for (const key of ["farms", "crops", "processingJobs", "fishCargo", "quests", "journal", "clock", "weather", "metadata"] as const) {
       expect(after.state[key], key).toEqual(untouched.state[key]);
     }
+    expectInventoriesPreserved(after.state, untouched.state);
+    expectBoatsPreserved(after.state, untouched.state);
+    expectMarketsPreserved(after.state, untouched.state);
     for (const [id, before] of Object.entries(untouched.state.world.structures)) {
       const structure = after.state.world.structures[id]!;
       expect({ ...structure, y: before.y }, id).toEqual(before);

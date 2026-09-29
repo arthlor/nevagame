@@ -1,5 +1,5 @@
 import { bindInteractionPose, bindInteractionPoint, placementForStation } from "./InteractionPlacements";
-import { MAINLAND_SETTLEMENT_BUILDINGS } from "./MainlandSettlementLayout";
+import { MAINLAND_SETTLEMENT_BUILDINGS, mainlandMarketTradePoint } from "./MainlandSettlementLayout";
 import { VILLAGE_TRADE_STATIONS } from "./VillageTradeLayout";
 import { MAINLAND_VILLAGES } from "./NevaMainland";
 import { OCEAN_ISLETS, OCEAN_ISLAND_DEFINITIONS } from "./OceanIslets";
@@ -249,10 +249,12 @@ const BASE_WORLD_MARKET_LOCATIONS: Readonly<Record<string, Readonly<WorldMarketL
 
 export const WORLD_MARKET_LOCATIONS = Object.fromEntries(Object.entries(BASE_WORLD_MARKET_LOCATIONS).map(([id, market]) => {
   const mainland = MAINLAND_SETTLEMENT_BUILDINGS.find(b => `market.${b.villageId}` === id && b.pad.id.endsWith(".market"));
-  const parent = mainland ? { id: `authored.mainland.${mainland.villageId}.market`, ...mainland.pad.center, rotationY: mainland.pad.rotationY }
-    : id === "market.sunreach_cove" ? { id: "authored.sunreach.cove-market", x: 373 + SUNREACH_OFFSET_X, z: 56, rotationY: -Math.PI / 2 }
-      : id === "market.village" ? { id: "produce-stall", ...VILLAGE_MARKET.position, rotationY: VILLAGE_MARKET.rotationY }
-        : { id: "fish-market", ...HARBOR_MARKET.position, rotationY: HARBOR_MARKET.rotationY };
+  // Mainland counters trade at the stall front. The plaza in `market.position`
+  // stays the village datum for the chart, not the interaction ring.
+  if (mainland) return [id, { ...market, position: mainlandMarketTradePoint(mainland.villageId) }];
+  const parent = id === "market.sunreach_cove" ? { id: "authored.sunreach.cove-market", x: 373 + SUNREACH_OFFSET_X, z: 56, rotationY: -Math.PI / 2 }
+    : id === "market.village" ? { id: "produce-stall", ...VILLAGE_MARKET.position, rotationY: VILLAGE_MARKET.rotationY }
+      : { id: "fish-market", ...HARBOR_MARKET.position, rotationY: HARBOR_MARKET.rotationY };
   return [id, { ...market, position: bindInteractionPoint(parent.id, { ...market.position }, parent) }];
 })) as Readonly<Record<string, Readonly<WorldMarketLocation>>>;
 

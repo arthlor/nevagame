@@ -11,10 +11,9 @@
 3. `LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md` — visual authority: reference lock, geometry/facets, palette/materials, lighting, renderer baseline, water, vegetation, budgets and visual QA.
 4. `LLM/LLM_AGENT_ART_PIPELINE_INSTRUCTIONS.md` — 3D/procedural/rendering production authority: generator-to-GLB workflow (authored Three.js generators and authored GLB sources; retired Blender families stay frozen until ported), generator/spec rules, `VisualRenderConfig`, optimization and visual regression/style-match implementation.
 5. `LLM/06_AUDIO_AND_MUSIC_DESIGN_MASTER.md` — audio authority: bus graph, mixing/calibration, cue inventory, adaptive music, and audio asset standards. **Design-stage:** its cue inventory describes *specified targets*, not shipped coverage. `src/audio/` and the audio manifest own what actually plays; `01` §14 owns the domain-event contract that audio consumes.
-6. `LLM/ARCHEAGE_FARMING_SYSTEM.md` — farming inspiration/adaptation only; subordinate to the preceding authorities.
-7. `LLM/03_PRODUCTION_ROADMAP_LLM_AGENT_PLAYBOOK.md` — execution, milestones, validation, and completion-report authority.
-8. `LLM/ASSET_PRODUCTION.md` — operational authority for catalog-driven production (authored generators, authored GLBs and frozen legacy assets), validation, publishing, reports, Art Yard handoff, and runtime integration. `tools/authored/README.md` owns how authored Three.js generators are written and frozen families ported.
-9. `LLM/LAYOUT_EDITOR.md` — operational authority for the DEV-only in-game layout / Place / F2 editor.
+6. `LLM/03_PRODUCTION_ROADMAP_LLM_AGENT_PLAYBOOK.md` — execution, milestones, validation, and completion-report authority.
+7. `LLM/ASSET_PRODUCTION.md` — operational authority for catalog-driven production (authored generators, authored GLBs and frozen legacy assets), validation, publishing, reports, Art Yard handoff, and runtime integration. `tools/authored/README.md` owns how authored Three.js generators are written and frozen families ported.
+8. `LLM/LAYOUT_EDITOR.md` — operational authority for the DEV-only in-game layout / Place / F2 editor.
 
 `LLM/IMPLEMENTATION_STATUS_CHECKLIST.md` is a status snapshot, not an authority. There is no `05_` document.
 
@@ -68,11 +67,11 @@ Always read this file first. Select sections by the requested outcome and affect
 | Milestone or gameplay sequencing | Full `03`, relevant design owners and the evidence index in `IMPLEMENTATION_STATUS_CHECKLIST.md`. |
 | Release or visual-gold slice | Full `01`, `02`, `03`, `04`, Art Pipeline and `ASSET_PRODUCTION.md`; relevant audio/layout sources if included. Keep human visual, strict/determinism and production performance gates separate. |
 
-`referenceAuthoring` remains required for image/study-guided assets. Read only the selected brief; rerun `art:brief` when that brief changes. Routine asset work does not load `01`, `02`, `03`, full `04`, full Art Pipeline or ArcheAge by default.
+`referenceAuthoring` remains required for image/study-guided assets. Read only the selected brief; rerun `art:brief` when that brief changes. Routine asset work does not load `01`, `02`, `03`, full `04`, full Art Pipeline by default.
 
 ## Generate-asset prompt contract
 
-Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Attachment is not equal authority. First files to **obey**: this file, `LLM/ASSET_PRODUCTION.md`, `tools/authored/README.md`, the selected catalog entry, the owning generator, the isolated sheet if present, the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` and ArcheAge unread for this prompt class.
+Folder dumps (`@LLM`, `@tools`) do not change task-class routing. Attachment is not equal authority. First files to **obey**: this file, `LLM/ASSET_PRODUCTION.md`, `tools/authored/README.md`, the selected catalog entry, the owning generator, the isolated sheet if present, the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` unread for this prompt class.
 
 “Generate assets” always means: resolve or add catalog ID(s) → registered family generator (an authored Three.js generator in `tools/authored/generators/`; when the asset belongs to a frozen legacy family, port the family first) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → Art Yard link → `Awaiting human game review`. There is no Blender or Python production step. The upstream graphics skills do not provide an asset-generation workflow. Provider APIs still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend (or port and extend) the owning family generator; do not publish a one-off GLB. A GLB the human supplies (such as a Tripo generation) is the one exception to generator code: it becomes a committed `authored_glb` source with its own catalog entry and publishes through `art:generate` (`ASSET_PRODUCTION.md` §3.2). Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
 
@@ -91,7 +90,7 @@ For a broad graphics pass, use `.agents/skills/threejs-skill-router/SKILL.md` to
 ## Rule hierarchy
 
 1. The human's latest explicit instruction sets the task and can change its design scope. Preserve existing authorization; do not ask again for a step already authorized.
-2. For design decisions, use the owning authority: `01` for architecture/state/persistence, `02` for gameplay, `04` for appearance, Art Pipeline for rendering/asset implementation, `ASSET_PRODUCTION.md` for production operations, `06` for audio design, `LAYOUT_EDITOR.md` for the DEV editor, and `03` for execution/gates. Cross-domain conflicts resolve in that order; audio/editor rules remain subordinate to `01`/`02` on gameplay truth. ArcheAge is inspiration only.
+2. For design decisions, use the owning authority: `01` for architecture/state/persistence, `02` for gameplay, `04` for appearance, Art Pipeline for rendering/asset implementation, `ASSET_PRODUCTION.md` for production operations, `06` for audio design, `LAYOUT_EDITOR.md` for the DEV editor, and `03` for execution/gates. Cross-domain conflicts resolve in that order; audio/editor rules remain subordinate to `01`/`02` on gameplay truth.
 3. Read exact content membership, configuration values, schemas and artifact disposition from their declared code/data/generated owner. Prose explains intent and constraints and links to these values. An illustrative example is not a second implementation contract.
 4. Current code proves what is implemented; current test/runtime evidence proves only the behavior exercised. Neither silently changes approved design. A status log, previous pass or agent assumption cannot overrule an owner.
 

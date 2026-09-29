@@ -183,7 +183,7 @@ export const SmartContextualToolbar: React.FC<SmartContextualToolbarProps> = ({
               aria-pressed={selected}
               tabIndex={expanded && isRelevant || resting ? 0 : -1}
               data-testid={`tool-slot-${slot.slot}`} data-ready={slot.ready}
-              onClick={() => { playUiSound("click"); setNudge((count) => count + 1); onSelectSlot?.(slot.slot); }}>
+              onClick={() => { playUiSound("notch"); setNudge((count) => count + 1); onSelectSlot?.(slot.slot); }}>
               <GuildcraftArt art={selected ? "slot-selected" : "slot"} className="guild-slot-frame" />
               {slot.active && <GuildcraftArt art="ring" className="guild-slot-armed-ring" />}
               <span className="guild-slot-number">{slot.shortcutKey}</span>

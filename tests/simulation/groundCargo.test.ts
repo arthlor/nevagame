@@ -226,13 +226,25 @@ describe("ground trade packs", () => {
       state: structuredClone(sim.state)
     };
     v55.state.schemaVersion = 55;
+    // Trading stations arrived with v65, so a real v55 save carries none; the migration grants them.
+    const tradingStations = (state: typeof v55.state) =>
+      Object.entries(state.world.structures).filter(([, structure]) => structure.type === "trading-station");
+    const granted = tradingStations(v55.state).length;
+    expect(granted).toBeGreaterThan(0);
+    for (const [id] of tradingStations(v55.state)) delete v55.state.world.structures[id];
     const before = structuredClone(v55);
     const migrated = migrateSaveData(v55 as never);
     expect(v55).toEqual(before);
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-    const { schemaVersion: _v, ...rest } = migrated.state;
-    const { schemaVersion: _old, ...oldRest } = before.state as typeof migrated.state;
+    expect(tradingStations(migrated.state)).toHaveLength(granted);
+    const withoutStations = (state: typeof migrated.state) => {
+      const copy = structuredClone(state);
+      for (const [id] of tradingStations(copy)) delete copy.world.structures[id];
+      return copy;
+    };
+    const { schemaVersion: _v, ...rest } = withoutStations(migrated.state);
+    const { schemaVersion: _old, ...oldRest } = withoutStations(before.state as typeof migrated.state);
     expect(rest).toEqual(oldRest);
     expect(validateSaveEnvelope(migrated)).toBe(true);
     expect(migrateSaveData(migrated)).toEqual(migrated);

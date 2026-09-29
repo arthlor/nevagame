@@ -70,6 +70,102 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
   return amount * amount * (3 - 2 * amount);
 }
 
+/** Where a branch strip meets the route it continues. The ribbon stops here. */
+function junctionApronRadius(junction: WorldRouteJunction): number {
+  return junction.radiusMeters + junction.blendLengthMeters * 1.08;
+}
+
+/**
+ * A wedge between two meeting roads is paved out to here. Shallow forks need
+ * the longer run; a right-angle crossing meets sooner.
+ */
+export const JUNCTION_GORE_REACH_METERS = 10;
+/** Wider than this, the gap is the outside of the fork and stays meadow. */
+const JUNCTION_GORE_OPEN_ANGLE = 2.55;
+
+interface PlannedBranch extends JunctionBranch {
+  heading: number;
+  reach: number;
+  featherHalfWidth: number;
+}
+
+interface JunctionPlan {
+  junction: WorldRouteJunction;
+  branches: PlannedBranch[];
+}
+
+function leftNormal(direction: WorldPoint): WorldPoint {
+  return { x: -direction.z, z: direction.x };
+}
+
+function angleDelta(from: number, to: number): number {
+  let delta = to - from;
+  if (delta <= 0) delta += Math.PI * 2;
+  return delta;
+}
+
+function headingContains(start: number, end: number, heading: number): boolean {
+  return angleDelta(start, heading) <= angleDelta(start, end) + 1e-3;
+}
+
+/** Distance from the centre to where the two inner edges have clearly separated. */
+function goreMeetDistance(a: PlannedBranch, b: PlannedBranch, delta: number): number {
+  const span = Math.max(0.18, Math.sin(delta / 2));
+  return (a.halfWidth + b.halfWidth + 3.2) / (2 * span);
+}
+
+function planJunctions(
+  routes: readonly CompiledWorldRoute[],
+  junctions: readonly WorldRouteJunction[],
+  profiles: Readonly<Record<WorldRouteKind, Readonly<WorldRouteProfile>>>
+): JunctionPlan[] {
+  return junctions.map((junction) => {
+    const apron = junctionApronRadius(junction);
+    const branches: PlannedBranch[] = junctionBranches(routes, junction).map((branch) => {
+      const profile = profiles[branch.kind];
+      return {
+        ...branch,
+        heading: Math.atan2(branch.direction.x, branch.direction.z),
+        reach: apron,
+        featherHalfWidth: branch.halfWidth + branch.shoulderWidthMeters + profile.terrainFeatherMeters * 0.78
+      };
+    }).sort((left, right) => left.heading - right.heading);
+    for (let index = 0; index < branches.length; index++) {
+      const current = branches[index];
+      const next = branches[(index + 1) % branches.length];
+      const delta = angleDelta(current.heading, next.heading);
+      if (delta > JUNCTION_GORE_OPEN_ANGLE) continue;
+      const reach = Math.min(JUNCTION_GORE_REACH_METERS, Math.max(apron, goreMeetDistance(current, next, delta)));
+      current.reach = Math.max(current.reach, reach);
+      next.reach = Math.max(next.reach, reach);
+    }
+    return { junction, branches };
+  });
+}
+
+function pointInJunctionPlan(plan: JunctionPlan, point: WorldPoint): boolean {
+  const dx = point.x - plan.junction.center.x;
+  const dz = point.z - plan.junction.center.z;
+  const distance = Math.hypot(dx, dz);
+  const core = Math.max(0.72, plan.junction.radiusMeters * 0.74);
+  if (distance <= core * 1.08) return true;
+  const heading = Math.atan2(dx, dz);
+  for (const branch of plan.branches) {
+    const along = dx * branch.direction.x + dz * branch.direction.z;
+    if (along < -0.25 || along > branch.reach) continue;
+    const normal = leftNormal(branch.direction);
+    if (Math.abs(dx * normal.x + dz * normal.z) <= branch.featherHalfWidth) return true;
+  }
+  for (let index = 0; index < plan.branches.length; index++) {
+    const current = plan.branches[index];
+    const next = plan.branches[(index + 1) % plan.branches.length];
+    if (angleDelta(current.heading, next.heading) > JUNCTION_GORE_OPEN_ANGLE) continue;
+    if (distance > Math.min(current.reach, next.reach)) continue;
+    if (headingContains(current.heading, next.heading, heading)) return true;
+  }
+  return false;
+}
+
 /** A per-route offset, 0–1000 m, so neighbouring roads' track drift never runs in step. */
 export function routeStationOffset(routeId: string): number {
   let hash = 0x811c9dc5;
@@ -309,12 +405,14 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
     appendTriangle(base[0], base[2], base[3]);
   };
 
+  const junctionPlans = planJunctions(options.routes, options.junctions, options.profiles);
+  const junctionPlanById = new Map(junctionPlans.map((plan) => [plan.junction.id, plan]));
   const junctionForRoute = (routeId: string, point: WorldPoint): WorldRouteJunction | undefined => {
     return options.junctions.find((junction) =>
       junction.routeIds.includes(routeId)
-      // Keep each ribbon into the junction's inner core. The shaped arms
-      // explain its outline, but cannot replace curved approach shoulders.
-      && distance2D(point, junction.center) <= Math.max(0.72, junction.radiusMeters * 0.74) * 0.65
+      // The paved wedge and the branch strips own this ground. The route
+      // ribbon stops at that edge so the two surfaces do not stack.
+      && pointInJunctionPlan(junctionPlanById.get(junction.id)!, point)
     );
   };
 
@@ -362,12 +460,13 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
     // dissolve into the meadow without a second, drifting edge mesh.
     const featherHalfWidth = shoulderHalfWidth + compiledRoute.terrainFeatherMeters * 0.78;
 
-    for (const [sampleIndex, sample] of compiledRoute.samples.entries()) {
-      const join = routeJoin(compiledRoute, sampleIndex);
-      boundedJoinMaximum = Math.max(boundedJoinMaximum, join.miterScale);
+    const appendRoadRing = (
+      point: WorldPoint,
+      normal: WorldPoint,
+      station: number,
+      miterScale: number
+    ): number[] => {
       const ring: number[] = [];
-      const station = sample.distanceAlongRoute + stationOffset;
-
       for (const offset of TRANSVERSE_OFFSETS) {
         const lateralDistance = Math.abs(offset) * featherHalfWidth;
         const crossSection = sampleRoadCrossSection({
@@ -375,8 +474,8 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
           halfWidthMeters: packedHalfWidth,
           lateralDistanceMeters: lateralDistance
         });
-        const x = sample.point.x + join.normal.x * featherHalfWidth * offset * join.miterScale;
-        const z = sample.point.z + join.normal.z * featherHalfWidth * offset * join.miterScale;
+        const x = point.x + normal.x * featherHalfWidth * offset * miterScale;
+        const z = point.z + normal.z * featherHalfWidth * offset * miterScale;
         const y = isBridgeDeck(x, z)
           ? options.bridge.entrySurfaceY
           : heightAt(x, z);
@@ -389,23 +488,10 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
         ring.push(appendVertex({ x, y, z }, vertexColor, surfaceOpacity,
           [offset * featherHalfWidth, station], classCode));
       }
-      ringVertices.push(ring);
-    }
+      return ring;
+    };
 
-    for (let sampleIndex = 0; sampleIndex < compiledRoute.samples.length - 1; sampleIndex++) {
-      const start = compiledRoute.samples[sampleIndex].point;
-      const end = compiledRoute.samples[sampleIndex + 1].point;
-      // The authored bridge route contains exact west/east deck-boundary
-      // samples. Skipping only the fully enclosed intervals gives exact deck
-      // clipping while retaining a clean, capped approach at each boundary.
-      if (isBridgeDeck(start.x, start.z) && isBridgeDeck(end.x, end.z)) continue;
-      const startJunction = junctionForRoute(route.id, start);
-      const endJunction = junctionForRoute(route.id, end);
-      if (startJunction && endJunction && startJunction.id === endJunction.id) continue;
-      if (onGreaterRoad(routeIndex, start) && onGreaterRoad(routeIndex, end)) continue;
-
-      const currentRing = ringVertices[sampleIndex];
-      const nextRing = ringVertices[sampleIndex + 1];
+    const connectRings = (currentRing: number[], nextRing: number[], sampleIndex: number): void => {
       for (let column = 0; column < TRANSVERSE_OFFSETS.length - 1; column++) {
         if ((sampleIndex + column + routeIndex) % 2 === 0) {
           appendTriangle(currentRing[column], currentRing[column + 1], nextRing[column]);
@@ -416,6 +502,71 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
         }
         roadTriangleCount += 2;
       }
+    };
+
+    for (const [sampleIndex, sample] of compiledRoute.samples.entries()) {
+      const join = routeJoin(compiledRoute, sampleIndex);
+      boundedJoinMaximum = Math.max(boundedJoinMaximum, join.miterScale);
+      ringVertices.push(appendRoadRing(
+        sample.point,
+        join.normal,
+        sample.distanceAlongRoute + stationOffset,
+        join.miterScale
+      ));
+    }
+
+    const apronBoundary = (junction: WorldRouteJunction, inside: WorldPoint, outside: WorldPoint): WorldPoint => {
+      const plan = junctionPlanById.get(junction.id)!;
+      let low = 0;
+      let high = 1;
+      for (let step = 0; step < 18; step++) {
+        const t = (low + high) * 0.5;
+        const x = inside.x + (outside.x - inside.x) * t;
+        const z = inside.z + (outside.z - inside.z) * t;
+        if (pointInJunctionPlan(plan, { x, z })) low = t;
+        else high = t;
+      }
+      const t = (low + high) * 0.5;
+      return {
+        x: inside.x + (outside.x - inside.x) * t,
+        z: inside.z + (outside.z - inside.z) * t
+      };
+    };
+
+    for (let sampleIndex = 0; sampleIndex < compiledRoute.samples.length - 1; sampleIndex++) {
+      const startSample = compiledRoute.samples[sampleIndex];
+      const endSample = compiledRoute.samples[sampleIndex + 1];
+      const start = startSample.point;
+      const end = endSample.point;
+      // The authored bridge route contains exact west/east deck-boundary
+      // samples. Skipping only the fully enclosed intervals gives exact deck
+      // clipping while retaining a clean, capped approach at each boundary.
+      if (isBridgeDeck(start.x, start.z) && isBridgeDeck(end.x, end.z)) continue;
+      const startJunction = junctionForRoute(route.id, start);
+      const endJunction = junctionForRoute(route.id, end);
+      if (startJunction && endJunction && startJunction.id === endJunction.id) continue;
+      if (onGreaterRoad(routeIndex, start) && onGreaterRoad(routeIndex, end)) continue;
+
+      if ((startJunction || endJunction) && !(startJunction && endJunction)) {
+        const junction = (startJunction ?? endJunction)!;
+        const insideIndex = startJunction ? sampleIndex : sampleIndex + 1;
+        const outsideIndex = startJunction ? sampleIndex + 1 : sampleIndex;
+        const inside = compiledRoute.samples[insideIndex];
+        const outside = compiledRoute.samples[outsideIndex];
+        if (pointInJunctionPlan(junctionPlanById.get(junction.id)!, outside.point)) continue;
+        const boundary = apronBoundary(junction, inside.point, outside.point);
+        const outsideJoin = routeJoin(compiledRoute, outsideIndex);
+        const span = Math.max(1e-4, distance2D(inside.point, outside.point));
+        const travelled = distance2D(inside.point, boundary);
+        const station = stationOffset + inside.distanceAlongRoute
+          + (outside.distanceAlongRoute - inside.distanceAlongRoute) * (travelled / span);
+        const boundaryRing = appendRoadRing(boundary, outsideJoin.normal, station, outsideJoin.miterScale);
+        if (startJunction) connectRings(boundaryRing, ringVertices[outsideIndex], sampleIndex);
+        else connectRings(ringVertices[outsideIndex], boundaryRing, sampleIndex);
+        continue;
+      }
+
+      connectRings(ringVertices[sampleIndex], ringVertices[sampleIndex + 1], sampleIndex);
     }
 
     const appendRoundedCap = (sampleIndex: number, outwardSign: number): void => {
@@ -476,8 +627,10 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
 
   const junctionCoreSegmentCount = 20;
   let junctionArmCount = 0;
-  for (const junction of options.junctions) {
-    const branches = junctionBranches(options.routes, junction);
+  let junctionGoreTriangleCount = 0;
+  for (const plan of junctionPlans) {
+    const junction = plan.junction;
+    const branches = plan.branches;
     const coreRadius = Math.max(0.72, junction.radiusMeters * 0.74);
     const centerHeight = heightAt(junction.center.x, junction.center.z);
     const centerColor = junction.surface === "village-market"
@@ -512,58 +665,91 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
     }
 
     for (const [branchIndex, branch] of branches.entries()) {
-      const branchNormal = { x: -branch.direction.z, z: branch.direction.x };
-      const startDistance = coreRadius * 0.8;
-      const endDistance = junction.radiusMeters + junction.blendLengthMeters * 1.08;
-      const startHalfWidth = Math.max(
-        branch.halfWidth + branch.shoulderWidthMeters * 0.48,
-        coreRadius * 0.42
-      );
-      const endHalfWidth = branch.halfWidth + branch.shoulderWidthMeters * 0.9;
-      const startCenter = {
-        x: junction.center.x + branch.direction.x * startDistance,
-        z: junction.center.z + branch.direction.z * startDistance
-      };
-      const endCenter = {
-        x: junction.center.x + branch.direction.x * endDistance,
-        z: junction.center.z + branch.direction.z * endDistance
-      };
-      const startLeft = {
-        x: startCenter.x + branchNormal.x * startHalfWidth,
-        z: startCenter.z + branchNormal.z * startHalfWidth
-      };
-      const startRight = {
-        x: startCenter.x - branchNormal.x * startHalfWidth,
-        z: startCenter.z - branchNormal.z * startHalfWidth
-      };
-      const endLeft = {
-        x: endCenter.x + branchNormal.x * endHalfWidth,
-        z: endCenter.z + branchNormal.z * endHalfWidth
-      };
-      const endRight = {
-        x: endCenter.x - branchNormal.x * endHalfWidth,
-        z: endCenter.z - branchNormal.z * endHalfWidth
-      };
-      // Arms carry the road's own colour into the apron, so they read as the
-      // road widening rather than a paler slab laid over it.
+      const profile = options.profiles[branch.kind];
+      const featherHalfWidth = branch.featherHalfWidth;
+      const opacityAt = (lateral: number): number => 1 - smoothstep(0.08, 0.92, sampleRoadCrossSection({
+        profile,
+        halfWidthMeters: branch.halfWidth,
+        lateralDistanceMeters: lateral
+      }).edgeGrassAmount);
+      const branchNormal = leftNormal(branch.direction);
+      const startDistance = coreRadius * 0.86;
+      const endDistance = branch.reach;
       const branchColor = colorWithVariation(
         centerColor.clone().lerp(road, 0.65),
         branchIndex * 1.31 + junction.radiusMeters,
         0.035
       );
       const branchEdgeColor = branchColor.clone().lerp(dryShoulder, 0.2);
-      const startY = (point: WorldPoint): number => heightAt(point.x, point.z);
-      const endY = (point: WorldPoint): number => heightAt(point.x, point.z);
-      const startLeftIndex = appendVertex({ ...startLeft, y: startY(startLeft) }, branchColor);
-      const startRightIndex = appendVertex({ ...startRight, y: startY(startRight) }, branchColor);
-      // These ends join the packed route, not the meadow. Fading an entire
-      // longitudinal arm here lets alpha testing cut holes through the road.
-      const endLeftIndex = appendVertex({ ...endLeft, y: endY(endLeft) }, branchEdgeColor);
-      const endRightIndex = appendVertex({ ...endRight, y: endY(endRight) }, branchEdgeColor);
-      appendTriangle(startLeftIndex, startRightIndex, endRightIndex);
-      appendTriangle(startLeftIndex, endRightIndex, endLeftIndex);
-      junctionTriangleCount += 2;
+      const place = (point: WorldPoint, color: THREE.Color, opacity: number, across: number): number =>
+        appendVertex(
+          { ...point, y: heightAt(point.x, point.z) },
+          color,
+          opacity,
+          [across, 0],
+          ROAD_CLASS_CODES.shared
+        );
+      // Several stations across the strip keep the packed crown opaque. A
+      // single quad from centre to feather lets alpha testing cut the road
+      // into a pale tongue.
+      const laterals = [-1, -0.72, -0.42, 0, 0.42, 0.72, 1];
+      const ringAt = (distance: number): number[] => laterals.map((offset) => {
+        const across = offset * featherHalfWidth;
+        const lateral = Math.abs(across);
+        return place(
+          {
+            x: junction.center.x + branch.direction.x * distance + branchNormal.x * across,
+            z: junction.center.z + branch.direction.z * distance + branchNormal.z * across
+          },
+          Math.abs(offset) > 0.8 ? branchEdgeColor : branchColor,
+          opacityAt(lateral),
+          across
+        );
+      });
+      const startRing = ringAt(startDistance);
+      const endRing = ringAt(endDistance);
+      for (let column = 0; column < laterals.length - 1; column++) {
+        appendTriangle(startRing[column], startRing[column + 1], endRing[column + 1]);
+        appendTriangle(startRing[column], endRing[column + 1], endRing[column]);
+        junctionTriangleCount += 2;
+      }
       junctionArmCount++;
+    }
+
+    const goreSteps = 4;
+    for (let index = 0; index < branches.length; index++) {
+      const current = branches[index];
+      const next = branches[(index + 1) % branches.length];
+      const delta = angleDelta(current.heading, next.heading);
+      if (delta > JUNCTION_GORE_OPEN_ANGLE) continue;
+      const reach = Math.min(current.reach, next.reach);
+      const currentNormal = leftNormal(current.direction);
+      const nextNormal = leftNormal(next.direction);
+      const currentHalf = current.halfWidth + current.shoulderWidthMeters * 0.2;
+      const nextHalf = -(next.halfWidth + next.shoulderWidthMeters * 0.2);
+      for (let step = 0; step < goreSteps; step++) {
+        const near = coreRadius * 0.55 + (reach - coreRadius * 0.55) * step / goreSteps;
+        const far = coreRadius * 0.55 + (reach - coreRadius * 0.55) * (step + 1) / goreSteps;
+        const corner = (branch: PlannedBranch, normal: WorldPoint, lateral: number, distance: number): WorldPoint & { y: number } => ({
+          x: junction.center.x + branch.direction.x * distance + normal.x * lateral,
+          z: junction.center.z + branch.direction.z * distance + normal.z * lateral,
+          y: 0
+        });
+        const quad = [
+          corner(current, currentNormal, currentHalf, near),
+          corner(next, nextNormal, nextHalf, near),
+          corner(next, nextNormal, nextHalf, far),
+          corner(current, currentNormal, currentHalf, far)
+        ].map((point) => ({ ...point, y: heightAt(point.x, point.z) }));
+        appendQuad(quad as [
+          WorldPoint & { y: number },
+          WorldPoint & { y: number },
+          WorldPoint & { y: number },
+          WorldPoint & { y: number }
+        ], centerColor);
+        junctionTriangleCount += 2;
+        junctionGoreTriangleCount += 2;
+      }
     }
   }
 
@@ -634,6 +820,7 @@ export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): T
   geometry.userData.roundedCapCount = roundedCapCount;
   geometry.userData.junctionCoreSegmentCount = junctionCoreSegmentCount;
   geometry.userData.junctionArmCount = junctionArmCount;
+  geometry.userData.junctionGoreTriangleCount = junctionGoreTriangleCount;
   geometry.userData.junctionSurfaceKinds = options.junctions.map((junction) => junction.surface);
   return geometry;
 }

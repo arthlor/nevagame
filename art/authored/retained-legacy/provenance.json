@@ -1,0 +1,67 @@
+[
+  {
+    "id": "tree_olive_a",
+    "formerGenerator": "olive_tree",
+    "sourceGlb": "art/authored/retained-legacy/tree_olive_a.glb",
+    "sha256": "4024d89c76ce7b6023d0181b3c016c8f20ce24e49f0b4cc2b072e0a378306277",
+    "formerParameters": {
+      "height": 4.9,
+      "spread": 2.15,
+      "canopyClusters": 15,
+      "lean": 0.1,
+      "branchCount": 7,
+      "rootCount": 7,
+      "fruitCount": 18
+    }
+  },
+  {
+    "id": "tree_olive_b",
+    "formerGenerator": "olive_tree",
+    "sourceGlb": "art/authored/retained-legacy/tree_olive_b.glb",
+    "sha256": "ff1f24275205923665b876725b41fa5f3da51bc2db0cc41978b590b881be4d2d",
+    "formerParameters": {
+      "height": 4.5,
+      "spread": 2.35,
+      "canopyClusters": 14,
+      "lean": -0.13,
+      "branchCount": 7,
+      "rootCount": 8,
+      "fruitCount": 16
+    }
+  },
+  {
+    "id": "prop_wheelbarrow_a",
+    "formerGenerator": "wheelbarrow",
+    "sourceGlb": "art/authored/retained-legacy/prop_wheelbarrow_a.glb",
+    "sha256": "e8621eeeff23c54ad4bedb0a84df8d5d23a18ed154d1da16d832e13cff23159e",
+    "formerParameters": {}
+  },
+  {
+    "id": "prop_mooring_post_a",
+    "formerGenerator": "mooring_post",
+    "sourceGlb": "art/authored/retained-legacy/prop_mooring_post_a.glb",
+    "sha256": "6d519c1de9b3c6ddd320b543e9ce9318c8ea43d65e9c7975149f726256838128",
+    "formerParameters": {}
+  },
+  {
+    "id": "tree_dead_a",
+    "formerGenerator": "dead_tree",
+    "sourceGlb": "art/authored/retained-legacy/tree_dead_a.glb",
+    "sha256": "4552b76f670bdb61ff0b921cfadb8eb5ea87bcc3f5f0b250ef776ba18d284718",
+    "formerParameters": {}
+  },
+  {
+    "id": "prop_bookcase_wood_a",
+    "formerGenerator": "wood_bookcase",
+    "sourceGlb": "art/authored/retained-legacy/prop_bookcase_wood_a.glb",
+    "sha256": "c1318cb92ce488a942abd412a296173cfd9bdebd012d0c8c20382d1a341e0b29",
+    "formerParameters": {}
+  },
+  {
+    "id": "prop_sideboard_wood_a",
+    "formerGenerator": "wood_sideboard",
+    "sourceGlb": "art/authored/retained-legacy/prop_sideboard_wood_a.glb",
+    "sha256": "e5a79dfbc8ee5b3637d131852803ed5414356f5e32b818b137d0f42a03e07124",
+    "formerParameters": {}
+  }
+]

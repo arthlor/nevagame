@@ -9,20 +9,20 @@ import { rope } from "../props/parts";
  * glTF space: +Y up, ground-centred at (0, 0, 0), metres. The room's long axis runs X.
  *
  * Gameplay datum (matches `src/world/FarmhouseInterior.ts` and the catalog
- * `collisionPrimitives`, which are unchanged by this port):
+ * `collisionPrimitives`):
  * - south wall (-Z) is the entry: a 1.3 m open passage at x = 0 lines up with
- *   `FARMHOUSE_INTERIOR_DOOR` (z = -3.1) and the front collision gap (|x| < 0.6).
+ *   `FARMHOUSE_INTERIOR_DOOR` and the matching front collision gap (|x| < 0.65).
  * - north wall (+Z) is the hearth end: the wall itself is SOLID across its full
- *   width. `prop_fireplace_hearth_a` (2.4 m wide at z = +2.85, collision
- *   |x| < 1.15, z 2.3..3.4) plugs the catalog's legacy north collision gap, so
- *   the shell builds a stone flue breast above the mantel line, flanking stone
+ *   width, including its collision proxy behind `prop_fireplace_hearth_a`.
+ *   The shell builds a stone flue breast above the mantel line, flanking stone
  *   pilasters, and a raised hearth apron in front of the prop instead of a hole.
  * - side windows are recessed glowing assemblies on solid walls (the interior
  *   pocket is a separate map area, so windows read as daylight, not portals).
  *   The west window sits south of the bookcase zone; the east window lights the
  *   dining table. Two further windows flank the south entry door.
  * - floor top lands at y = 0.17 (`FARMHOUSE_INTERIOR_BOUNDS.floorY`); the solid
- *   plank ceiling closes the room at 3.5 m, under the 3.7 m camera ceiling.
+ *   plank ceiling closes the room at 3.5 m; camera clearance uses the lower
+ *   cross-beam underside at 3.34 m.
  *
  * Construction datum: stone wainscot -> plaster field -> dark timber frame
  * (corner posts, plates, rails) -> wall plates carry the five ceiling beams ->

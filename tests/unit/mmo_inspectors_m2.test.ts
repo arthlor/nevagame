@@ -118,7 +118,8 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
       expect(html).toContain("Harvest in 25m");
       expect(html).toContain("moisture-ideal");
       expect(html).toContain("Water Crop");
-      expect(html).toMatch(/5<!-- --> Work/);
+      // React separates adjacent text nodes with comments; compare the visible text.
+      expect(html.replace(/<!-- -->/g, "")).toContain("5 Work");
       expect(html).toContain("crop-inspection-close-btn");
       expect(html).toContain('aria-label="White Turnip crop inspection"');
     });

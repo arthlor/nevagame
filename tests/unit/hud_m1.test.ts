@@ -829,10 +829,10 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
   // R2: PlantingSeedBar 10 Crops, Hotkeys & Atlas Aliases
   // --------------------------------------------------------------------------
   describe("R2: PlantingSeedBar 10 Crops, Hotkeys & Atlas Aliases", () => {
-    it("resolves seed.olive_sapling alias to seed.olive_pit atlas sprite", () => {
+    it("resolves seed.olive_sapling to its own atlas sprite", () => {
       const spriteUrl = atlasForSeedItem("seed.olive_sapling");
       expect(spriteUrl).toBeDefined();
-      expect(spriteUrl).toContain("seed-olive_pit.png");
+      expect(spriteUrl).toContain("seed-olive_sapling.png");
     });
 
     it("renders hotkey hints [1], [2], [3] and handles canonical crops flax and apple tree", () => {

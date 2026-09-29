@@ -7,7 +7,10 @@ import { LABOR_STATIONS, LABOR_PROP_POSES } from "../../src/simulation/labor/Lab
 import { FARMHOUSE_OUTSIDE_DOOR } from "../../src/world/FarmhouseInterior";
 import { starterFarmsteadAnchor, farmWellWorldAnchor } from "../../src/world/FarmLayout";
 import { CART_WORKSHOP } from "../../src/world/VillageTradeLayout";
-import { HARBOR_DOCK, HARBOR_MAIN_PIER, VILLAGE_BULLETIN } from "../../src/world/WorldAnchors";
+import { HARBOR_DOCK, HARBOR_MAIN_PIER, HARBOR_MARKET, VILLAGE_BULLETIN, VILLAGE_MARKET } from "../../src/world/WorldAnchors";
+import { MAINLAND_SETTLEMENT_BUILDINGS } from "../../src/world/MainlandSettlementLayout";
+import { SUNREACH_OFFSET_X } from "../../src/world/WorldIslands";
+import { QUESTS } from "../../src/content/quests";
 import { BOAT_MOORINGS } from "../../src/world/WorldMoorings";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { WorldLayout } from "../../src/world/WorldLayout";
@@ -116,6 +119,37 @@ describe("prefab-bound interactions", () => {
     expect(WorldLayout.isPierDeck(expected.x, expected.z)).toBe(true);
     const mooring = BOAT_MOORINGS.find(m => m.id === "mooring.neva_harbor_rowboat")!;
     expect(mooring.playerPosition).toEqual(HARBOR_DOCK.playerPosition);
+  });
+
+  it("seats mainland market rings on the stall front and leaves the other counters on their stalls", () => {
+    for (const villageId of ["pinewatch", "reedhaven", "highridge"] as const) {
+      const placementId = `authored.mainland.${villageId}.market`;
+      delete INTERACTION_PLACEMENT_OVERRIDES[placementId];
+      const building = MAINLAND_SETTLEMENT_BUILDINGS.find((entry) =>
+        entry.villageId === villageId && entry.pad.id.endsWith(".market"));
+      if (!building) throw new Error(villageId);
+      const point = WORLD_MARKET_LOCATIONS[`market.${villageId}`].position;
+      const approach = building.pad.frontApproachMeters;
+      expect(point.x).toBeCloseTo(building.pad.center.x + Math.sin(building.pad.rotationY) * approach, 5);
+      expect(point.z).toBeCloseTo(building.pad.center.z + Math.cos(building.pad.rotationY) * approach, 5);
+      INTERACTION_PLACEMENT_OVERRIDES[placementId] = { x: 10, z: 20, rotationY: 1.2 };
+      expect(Math.hypot(point.x - 10, point.z - 20)).toBeCloseTo(approach, 5);
+      const facing = Math.atan2(point.x - 10, point.z - 20);
+      expect(Math.atan2(Math.sin(facing - 1.2), Math.cos(facing - 1.2))).toBeCloseTo(0, 5);
+    }
+    delete INTERACTION_PLACEMENT_OVERRIDES["produce-stall"];
+    delete INTERACTION_PLACEMENT_OVERRIDES["fish-market"];
+    delete INTERACTION_PLACEMENT_OVERRIDES["authored.sunreach.cove-market"];
+    expect(WORLD_MARKET_LOCATIONS["market.village"].position.x).toBeCloseTo(VILLAGE_MARKET.position.x, 5);
+    expect(WORLD_MARKET_LOCATIONS["market.village"].position.z).toBeCloseTo(VILLAGE_MARKET.position.z, 5);
+    expect(WORLD_MARKET_LOCATIONS["market.harbor"].position.x).toBeCloseTo(HARBOR_MARKET.position.x, 5);
+    expect(WORLD_MARKET_LOCATIONS["market.harbor"].position.z).toBeCloseTo(HARBOR_MARKET.position.z, 5);
+    expect(WORLD_MARKET_LOCATIONS["market.sunreach_cove"].position.x).toBeCloseTo(373 + SUNREACH_OFFSET_X, 5);
+    expect(WORLD_MARKET_LOCATIONS["market.sunreach_cove"].position.z).toBeCloseTo(56, 5);
+    const pinewatch = QUESTS.find((quest) => quest.id === "quest.tradelanes_pinewatch")
+      ?.objectives.find((step) => step.id === "step.tradelanes_pinewatch_wheat");
+    expect(pinewatch?.locationAnchor?.x).toBeCloseTo(WORLD_MARKET_LOCATIONS["market.pinewatch"].position.x, 5);
+    expect(pinewatch?.locationAnchor?.z).toBeCloseTo(WORLD_MARKET_LOCATIONS["market.pinewatch"].position.z, 5);
   });
 
   it("preserves an attached point's facing through repeated reads and rotations", () => {

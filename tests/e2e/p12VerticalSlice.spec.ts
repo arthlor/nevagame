@@ -565,18 +565,16 @@ async function walkToHarborDock(page: Page): Promise<void> {
 }
 
 async function walkToMaeveDialogueApproach(page: Page): Promise<void> {
-  // Maeve's NPC talk radius overlaps the fish-market trade radius at the
-  // front anchor. Stand just beyond the market's seven-metre envelope while
-  // staying within the NPC's 3.5-metre talk radius so the contextual action is
-  // unambiguously dialogue; the same market remains available from its stall.
-  const dx = HARBOR_MAEVE_ANCHOR.x - HARBOR_MARKET.position.x;
-  const dz = HARBOR_MAEVE_ANCHOR.z - HARBOR_MARKET.position.z;
-  const length = Math.hypot(dx, dz) || 1;
-  const distanceFromMarket = HARBOR_MARKET.radiusMeters + 0.65;
-  await walkTo(page, {
-    x: HARBOR_MARKET.position.x + (dx / length) * distanceFromMarket,
-    z: HARBOR_MARKET.position.z + (dz / length) * distanceFromMarket
-  }, { tolerance: 0.45 });
+  // Talk is the step beside her presented body. The stall's trade radius still
+  // contains that step; the closer person wins the shared priority.
+  const feet = await page.evaluate(() => {
+    const list = window.__NEVA_DEBUG?.npcs?.();
+    if (!Array.isArray(list)) return null;
+    const maeve = list.find((npc) => npc && typeof npc === "object" && "id" in npc && npc.id === "npc.maeve");
+    if (!maeve || typeof maeve !== "object" || !("pos" in maeve) || !Array.isArray(maeve.pos)) return null;
+    return { x: Number(maeve.pos[0]), z: Number(maeve.pos[2]) };
+  });
+  await walkTo(page, feet ?? { x: HARBOR_MAEVE_ANCHOR.x, z: HARBOR_MAEVE_ANCHOR.z }, { tolerance: 0.4 });
 }
 
 async function walkToElspeth(page: Page): Promise<void> {

@@ -123,7 +123,7 @@ Each spawned discrete object gets `userData.layoutEdit` (`LAYOUT_EDIT_USERDATA_K
 | `authored-detail` | pasted authored pins; legacy literal placement commits | `authoredPlacement(...)` in `WorldEnvironmentLayout.ts` | yes |
 | `environment-override` | non-interactive environment instances, including computed authored families | `PLACEMENT_OVERRIDES` | paste as **authored** pin; delete via `PLACEMENT_REMOVED` |
 | `interior-prop` | farmhouse furniture | `FarmhouseInterior.ts` (keeps Y) | yes |
-| `npc` | Named NPCs and their scheduled stops | `npcs.ts`; home harbor xz also in `WorldAnchors.ts` | no |
+| `npc` | Named NPCs and their scheduled stops | `npcs.ts` (an anchor that spreads a named constant, such as Elspeth's `ELSPETH_HOME_ANCHOR`, is patched at that constant); home harbor xz also in `WorldAnchors.ts` | no |
 
 Farm kinds are authored in **farm-local** coordinates (`world − STARTER_FARM_LAYOUT.origin`). The HUD shows **world** xz.
 
@@ -186,7 +186,7 @@ On drag, rotate, drop, paste, delete, Escape deselect, and F2 exit:
 5. **Fauna** — paste registers a new mixer on the duplicated cow/chicken/rabbit; delete stops and uncaches that mixer.
 6. **Attached interactions** — `INTERACTION_PLACEMENTS` declares gameplay-bearing prefab IDs. Their tags are promoted to `interaction-placement` before generic scenery can copy/delete them. `bindInteractionPose` and `bindInteractionPoint` resolve absolute authored poses and parent-relative working/boarding offsets without Three.js state:
    - Every processing and packing station shares its position and facing with the simulation approach and job effects.
-   - Every market prompt and market transaction reads `WORLD_MARKET_LOCATIONS`; content keeps live getters rather than copied coordinates.
+   - Every market prompt and market transaction reads `WORLD_MARKET_LOCATIONS`; content keeps live getters rather than copied coordinates. A mainland stall's trade point is its front approach, parented to the stall, not the village plaza.
    - The farmhouse door/exit, field pumps, chore working faces and notice board follow their own prop.
    - The cart workshop carries its unpurchased display bays and headings. Purchased vehicles remain independent.
    - Main harbor and Sunreach berth points follow their dock; guarded simulation updates move only hulls berthed at the prior point. The main pier support query transforms into the same rotated local frame.

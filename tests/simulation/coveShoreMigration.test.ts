@@ -8,7 +8,7 @@ import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { mooringById } from "../../src/world/WorldMoorings";
-import { expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectInventoriesPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v59_layout29_cove_predecessor.json";
@@ -70,8 +70,9 @@ describe("cove shore layout30 recovery", () => {
       expect({ x: after.state.player.x, z: after.state.player.z }).toEqual(point);
       expect(after.state.player.y).toBeCloseTo(support + 0.5, 6);
     }
-    for (const key of PRESERVED) expect(after.state[key], key).toEqual(untouched.state[key]);
-    expect(after.state.boats).toEqual(untouched.state.boats);
+    for (const key of PRESERVED) if (key !== "inventories") expect(after.state[key], key).toEqual(untouched.state[key]);
+    expectInventoriesPreserved(after.state, untouched.state);
+    expectBoatsPreserved(after.state, untouched.state);
     expectMarketsPreserved(after.state, untouched.state);
     expect(saved).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);

@@ -43,6 +43,14 @@ function createAppHarness() {
   return { app, sim, modeController, dispatchVirtualAction, handleCastFishing };
 }
 
+/** A fresh save starts without seeds, so the test grants the one seed it plants. */
+function plantWheat(sim: Simulation) {
+  InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
+    { itemId: "seed.wheat", quantity: 1 }
+  ]);
+  return sim.plantCropNearPlayer("farm.starter_garden", "crop.wheat");
+}
+
 function moveToBank(sim: Simulation): void {
   const river = WorldLayout.riverSectionAt(38);
   sim.state.player.x = river.centerX - river.leftWaterWidth - 2;
@@ -80,7 +88,7 @@ describe("contextual action contracts", () => {
     const { app, sim } = createAppHarness();
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
-    const planted = sim.plantCropNearPlayer("farm.starter_garden", "crop.wheat");
+    const planted = plantWheat(sim);
     expect(planted.success).toBe(true);
     const cropId = planted.placedCropId!;
     const crop = sim.state.crops[cropId];
@@ -104,7 +112,7 @@ describe("contextual action contracts", () => {
     const { app, sim } = createAppHarness();
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
-    const planted = sim.plantCropNearPlayer("farm.starter_garden", "crop.wheat");
+    const planted = plantWheat(sim);
     expect(planted.success).toBe(true);
     const cropId = planted.placedCropId!;
     const crop = sim.state.crops[cropId];
@@ -135,7 +143,7 @@ describe("contextual action contracts", () => {
     const { app, sim } = createAppHarness();
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
-    const planted = sim.plantCropNearPlayer("farm.starter_garden", "crop.wheat");
+    const planted = plantWheat(sim);
     expect(planted.success).toBe(true);
     sim.state.crops[planted.placedCropId!].stage = "withered";
     sim.state.player.workCapacity.current = 0;
@@ -150,7 +158,7 @@ describe("contextual action contracts", () => {
     const { app, sim } = createAppHarness();
     sim.state.player.x = STARTER_FARM_LAYOUT.origin.x;
     sim.state.player.z = STARTER_FARM_LAYOUT.origin.z;
-    const planted = sim.plantCropNearPlayer("farm.starter_garden", "crop.wheat");
+    const planted = plantWheat(sim);
     expect(planted.success).toBe(true);
     const crop = sim.state.crops[planted.placedCropId!];
     crop.stage = "growing";

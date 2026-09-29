@@ -126,6 +126,7 @@ describe("Milestone M4 — Satchel search, tidy & item inspect cards", () => {
       const html = render({ onDiscardItem: () => ({ success: true }) });
       expect(html).toContain('data-testid="inventory-discard-action"');
       expect(html).toContain('draggable="true"');
+      expect(html).not.toContain("drag a slot out");
     });
   });
 
@@ -195,7 +196,8 @@ describe("Milestone M4 — Satchel search, tidy & item inspect cards", () => {
       });
       expect(html).toContain('data-testid="item-inspect-agronomy"');
       expect(html).toContain("Wheat");
-      expect(html).toContain("35");
+      expect(html).toContain("Thirsty (35)");
+      expect(html).toContain("Each harvest takes 8 fertility");
       expect(html).toContain("2d");
       expect(html).toContain("2–4");
       expect(html).toContain("temperate");

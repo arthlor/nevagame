@@ -1,6 +1,7 @@
 import type { ClockState } from "../../simulation/core/types";
+import { NPC_STATION_WANDER_METERS } from "../../simulation/presentation/NpcPresentation";
 
-export const NPC_STATION_BEAT_RADIUS_METERS = 1.2;
+export const NPC_STATION_BEAT_RADIUS_METERS = NPC_STATION_WANDER_METERS;
 export const NPC_STATION_WALK_SPEED_METERS_PER_SECOND = 1.45;
 
 export interface NpcStationWaypoint {
@@ -69,8 +70,8 @@ export function advanceNpcStationBeat(
 
 /**
  * Four-point beats read as a person moving around a small working area rather
- * than tracing a triangle. Every offset stays inside the 1.2 m station disk so
- * the actor never leaves interaction range of its clock-derived anchor.
+ * than tracing a triangle. Every offset stays inside the station disk. The
+ * talk prompt follows the body; the command accepts the anchor plus this disk.
  */
 export const NPC_STATION_BEATS: Readonly<Record<string, NpcStationBeatSpec>> = {
   "npc.rowan": {
@@ -188,7 +189,7 @@ export function assertNpcStationBeatRadius(spec: NpcStationBeatSpec, radiusMeter
 /**
  * Loops walk-then-pause around authored offsets, easing each leg so the body
  * accelerates from the pause and settles into the next corner. Distances stay
- * inside the talk radius of the clock-derived station returned by `npcAnchorAt`.
+ * inside the station disk of the clock-derived anchor returned by `npcAnchorAt`.
  */
 export function sampleNpcStationBeat(
   spec: NpcStationBeatSpec,

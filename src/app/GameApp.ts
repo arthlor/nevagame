@@ -106,6 +106,8 @@ import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../render/config/Visu
 import { applyOfflineProgression, type OfflineProgressionSummary } from "../persistence/offlineDelta";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { selectVillageNotices, villageNoticeContext } from "../content/villageBulletin";
+import { SUMMIT_OVERLOOK_NOTE_ID } from "../content/foundNotes";
+import { overlookNoteAnchor } from "../world/MainlandEnvironmentLayout";
 import { buildPeoplePageDto } from "../simulation/presentation/PeoplePresentation";
 import { getAssetCoverageSummary, type AssetCoverageSummary } from "../render/assets/AssetCoverage";
 import { PhysicsWorld } from "../physics/PhysicsWorld";
@@ -907,6 +909,7 @@ export class GameApp {
   private readonly boatPresentation = new BoatPresentationBuffer();
   private assetCoverage: AssetCoverageSummary = EMPTY_ASSET_COVERAGE_SUMMARY;
   private lastPresentedPlayer: PresentedPlayerFrame | null = null;
+  private lastFootstepAtSeconds = -1;
   private readonly playerPresence: PlayerPresence = { ...IDLE_PLAYER_PRESENCE };
   private lastBoatMotion: Readonly<Record<string, BoatMotionSample>> = {};
   private lockedInteractionTarget: ResolvedInteractionTarget | null = null;
@@ -942,6 +945,7 @@ export class GameApp {
   private isTransitioningDoor: boolean = false;
   private doorTransitionTimer: ReturnType<typeof setTimeout> | null = null;
   private activeDialogueNpcId: string | null = null;
+  private activeFoundNoteId: string | null = null;
   private activeHint: { hintId: string; title: string; message: string; icon?: string } | null = null;
   private laborHud: LaborHudDto | null = null;
   private stormHelmHud: StormHelmHudDto | null = null;
@@ -1244,6 +1248,7 @@ export class GameApp {
         this.npcBarks.suppress(this.activeDialogueNpcId, performance.now() + POST_CONVERSATION_BARK_HOLD_MS);
       }
       this.activeDialogueNpcId = null;
+      this.activeFoundNoteId = null;
       this.dialogueTalkResult = null;
       this.worldScene.setDialogueNpc(null);
     }
@@ -1554,6 +1559,7 @@ export class GameApp {
     });
     const recallPhysics = this.physicsWorld;
     this.sim.setMountPathQuery(recallPhysics ? (from, to) => recallPhysics.isGroundPathClear(from, to) : undefined);
+    this.sim.setMountPoseClearQuery(recallPhysics ? (mount, from) => recallPhysics.isMountPoseClear(mount, this.sim.state, from) : undefined);
     this.playerPresentation.reset(this.sim.state.player, undefined, "load");
     this.boatPresentation.reset(this.sim.state.boats);
     if (import.meta.env.DEV) {
@@ -1708,6 +1714,8 @@ export class GameApp {
     this.startupOwnership.cancel(error);
     this.durableWritesEnabled = false;
     this.worldScene.dispose();
+    this.sim.setMountPoseClearQuery(undefined);
+    this.sim.setMountPathQuery(undefined);
     this.physicsWorld?.dispose();
     this.physicsWorld = null;
     this.bootReady = false;
@@ -2104,7 +2112,8 @@ export class GameApp {
         this.notify(`Not yet counted · first, ${currentStepDescription.charAt(0).toLowerCase()}${currentStepDescription.slice(1)}`, "info", 4200);
       }),
       this.sim.events.on("PlaceDiscovered", ({ title, view }) => {
-        this.notify(`Discovered · ${title}`, "reward", 3600, "story");
+        this.notify(`Discovered · ${title}`, "reward", 3600, "story", false);
+        gameAudio.playOneShot("place-discovered");
         const preset = view ? resolveArtViewPreset(view) : undefined;
         if (preset && !this.activeModal && !this.benchmarkView) this.gameCamera.beginArrivalView(preset.cameraPosition, preset.cameraTarget, preset.fovDegrees);
         this.requestAutosave();
@@ -2480,16 +2489,27 @@ export class GameApp {
     this.recordPhase("sync:scene", performance.now() - phaseMark);
     phaseMark = performance.now();
     for (const event of this.worldScene.drainPlayerAnimationEvents()) {
-      if (event.name !== "footstep_left" && event.name !== "footstep_right") continue;
-      const surface = footstepSurfaceAt(presentedPlayer.x, presentedPlayer.z);
-      gameAudio.playBank(
-        footstepBankForSurface(surface, Boolean(this.sim.state.player.activeMountId)),
-        {
+      if (event.name === "paddle_enter") {
+        gameAudio.playOneShot("oar-bite", {
           x: presentedPlayer.x,
           y: presentedPlayer.y,
           z: presentedPlayer.z
-        }
-      );
+        });
+        continue;
+      }
+      if (event.name !== "footstep_left" && event.name !== "footstep_right") continue;
+      const surface = footstepSurfaceAt(presentedPlayer.x, presentedPlayer.z);
+      if (presentationTimeSeconds - this.lastFootstepAtSeconds >= 0.22) {
+        this.lastFootstepAtSeconds = presentationTimeSeconds;
+        gameAudio.playBank(
+          footstepBankForSurface(surface, false),
+          {
+            x: presentedPlayer.x,
+            y: presentedPlayer.y,
+            z: presentedPlayer.z
+          }
+        );
+      }
       // Spawn under the foot that landed so the eye and the ear agree.
       const side = event.name === "footstep_left" ? -1 : 1;
       const perpendicularX = Math.cos(presentedPlayer.rotationY) * side * 0.16;
@@ -2501,6 +2521,7 @@ export class GameApp {
         presentationTimeSeconds
       );
     }
+    this.playMountHoofsteps(presentedPlayer);
     this.worldScene.updateEnvironment(
       this.sim.getState(),
       presentationTimeSeconds,
@@ -2841,7 +2862,7 @@ export class GameApp {
     if (startsBatch) playNoticeSound("reward");
   }
 
-  private notify(text: string, tone: NoticeTone, durationMs: number = NOTICE_DEFAULT_DURATION_MS, category: NoticeCategory = "general"): void {
+  private notify(text: string, tone: NoticeTone, durationMs: number = NOTICE_DEFAULT_DURATION_MS, category: NoticeCategory = "general", audible = true): void {
     const localizedText = translateReason(text, localeStore.current);
     if (this.restDigest) {
       if (!this.restDigest.includes(localizedText)) this.restDigest.push(localizedText);
@@ -2851,7 +2872,7 @@ export class GameApp {
     if (!notice) return;
     // Toasts expire; the Chronicle keeps them, so it is fed from the same call.
     this.chronicle.record(notice, this.sim.state.clock.currentMinute);
-    if (notice.count === 1) playNoticeSound(tone);
+    if (audible && notice.count === 1) playNoticeSound(tone);
   }
 
   /**
@@ -2882,8 +2903,18 @@ export class GameApp {
   public openDialogueModal(npcId: string): void {
     if (this.mode === "basic-fishing" || this.mode === "mounted") return;
     this.dialogueTalkResult = null;
+    this.activeFoundNoteId = null;
     this.activeDialogueNpcId = npcId;
     this.worldScene.setDialogueNpc(npcId);
+    this.setActiveModal("dialogue");
+  }
+
+  public openFoundNote(noteId: string): void {
+    if (this.mode === "basic-fishing" || this.mode === "mounted") return;
+    this.dialogueTalkResult = null;
+    this.activeDialogueNpcId = null;
+    this.worldScene.setDialogueNpc(null);
+    this.activeFoundNoteId = noteId;
     this.setActiveModal("dialogue");
   }
 
@@ -3063,6 +3094,15 @@ export class GameApp {
       modes: ["on-foot"],
       requiresLineOfSight: true,
       prompt: `Right-click to inspect ${inspection.name}`
+    };
+  }
+
+  /** Where talk is offered: the presented body, or the station before the model exists. */
+  private npcTalkPoint(npcId: string, anchor: { x: number; z: number }): { x: number; y: number; z: number } {
+    return this.worldScene.npcPresentedFeet(npcId) ?? {
+      x: anchor.x,
+      y: WorldLayout.traversalSurfaceHeight(anchor.x, anchor.z),
+      z: anchor.z
     };
   }
 
@@ -3423,8 +3463,10 @@ export class GameApp {
     if (this.mode === "on-foot") {
       // Silas repairs hulls at the harbor pier for the damaged share of the
       // catalog fee. The quote is simulation-owned, so the prompt cannot advertise a repair
-      // the command refuses.
-      const silas = npcAnchorAt("npc.silas", this.sim.state.clock, this.sim.state.quests);
+      // the command refuses. The prompt uses his presented feet; the command
+      // still accepts the station plus his beat.
+      const silasAnchor = npcAnchorAt("npc.silas", this.sim.state.clock, this.sim.state.quests);
+      const silas = this.npcTalkPoint("npc.silas", silasAnchor);
       if (Math.hypot(p.x - silas.x, p.z - silas.z) <= NPC_TALK_RADIUS) {
         for (const boat of Object.values(this.sim.state.boats)) {
           if (!boat.isDocked) continue;
@@ -3640,23 +3682,45 @@ export class GameApp {
     }
 
     if (this.mode === "on-foot") {
+      const note = overlookNoteAnchor();
+      const noteDistance = Math.hypot(p.x - note.x, p.z - note.z);
+      if (noteDistance <= 2) {
+        candidates.push({
+          id: `note:${SUMMIT_OVERLOOK_NOTE_ID}:read`,
+          entityId: SUMMIT_OVERLOOK_NOTE_ID,
+          kind: "station",
+          action: "inspect",
+          distanceMeters: noteDistance,
+          // A following donkey uses priority 0. Standing on the paper should still read it.
+          priority: -1,
+          worldPosition: {
+            x: note.x,
+            y: WorldLayout.terrainHeight(note.x, note.z),
+            z: note.z
+          },
+          modes: ["on-foot"],
+          requiresLineOfSight: true,
+          prompt: localeStore.current === "tr" ? "[E] Notu oku" : "[E] Read the note"
+        });
+      }
+    }
+
+    if (this.mode === "on-foot") {
       for (const [npcId, npc] of ContentRegistry.npcs.entries()) {
         const anchor = npcAnchorAt(npcId, this.sim.state.clock, this.sim.state.quests);
-        const distToNpc = Math.hypot(p.x - anchor.x, p.z - anchor.z);
+        const feet = this.npcTalkPoint(npcId, anchor);
+        const distToNpc = Math.hypot(p.x - feet.x, p.z - feet.z);
         if (distToNpc <= NPC_TALK_RADIUS) {
           candidates.push({
             id: `npc:${npcId}:talk`,
             kind: "station",
             action: "inspect",
             distanceMeters: distToNpc,
-            // Actionable stations/crops/boats win when their interaction space
-            // overlaps an NPC; dialogue remains available just outside it.
+            // Measured to the presented body, so a person pacing the yard does
+            // not cover the crop rows. Stations, crops and boats still win
+            // when their own reach overlaps this close step.
             priority: 1,
-            worldPosition: {
-              x: anchor.x,
-              y: WorldLayout.traversalSurfaceHeight(anchor.x, anchor.z),
-              z: anchor.z
-            },
+            worldPosition: feet,
             modes: ["on-foot"],
             requiresLineOfSight: true,
             prompt: `[E] Talk to ${npc.name}`,
@@ -4086,6 +4150,8 @@ export class GameApp {
       case "inspect":
         if (picked.id.startsWith("npc:") && picked.entityId) {
           this.openDialogueModal(picked.entityId);
+        } else if (picked.id.startsWith("note:") && picked.entityId) {
+          this.openFoundNote(picked.entityId);
         } else if (picked.kind === "crop" && picked.entityId) {
           this.setToast(picked.prompt.split(" · ")[0].replace(/^\[[^\]]+\]\s*/, ""), 1800);
         } else if (picked.stationId) {
@@ -4384,7 +4450,8 @@ export class GameApp {
         const npc = ContentRegistry.npcs.get(npcId);
         if (!npc) return false;
         const anchor = npcAnchorAt(npc.id, this.sim.state.clock, this.sim.state.quests);
-        window.__NEVA_DEBUG?.teleport(anchor.x, anchor.z);
+        const feet = this.worldScene.npcPresentedFeet(npc.id);
+        window.__NEVA_DEBUG?.teleport(feet?.x ?? anchor.x, feet?.z ?? anchor.z);
         return true;
       },
       moveToStation: (stationId) => {
@@ -4586,6 +4653,7 @@ export class GameApp {
       return;
     }
     const tool = selected.action.tool;
+    if (this.activeTool !== tool) gameAudio.playOneShot("hotbar-notch");
     if (tool === "seeds") {
       this.startPlantingFromSeeds();
     } else {
@@ -4931,24 +4999,26 @@ export class GameApp {
     }
   }
 
+  private playMountHoofsteps(player: { x: number; y: number; z: number }): void {
+    for (const step of this.worldScene.drainMountHoofsteps()) {
+      gameAudio.playOneShot(step.cue, { x: step.x, y: player.y, z: step.z });
+    }
+  }
+
   private playFarmingActionAudio(snapshot: FarmingActionSnapshot): void {
     const position = snapshot.target;
     const play = (cueId: AudioCueId): void => gameAudio.playOneShot(cueId, position);
-    if (snapshot.phase === "started" && (snapshot.action === "harvest" || snapshot.action === "unroot")) {
+    if (snapshot.phase === "started" && snapshot.action === "unroot") {
       play("sickle-swish");
       return;
     }
     if (snapshot.phase === "committed") {
       switch (snapshot.action) {
-        case "plant":
-          play("plant-dirt");
-          break;
         case "unroot":
           play("plant-dirt");
           break;
         case "fertilize":
           play("fertilizer-dust");
-          play("place");
           break;
         // Water and harvest cues belong to `CropWatered` / `CropHarvested` in
         // `bindDomainAudio`; playing them here as well doubled every cue.
@@ -5623,10 +5693,10 @@ export class GameApp {
     this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
       discontinuity: "recovery"
     });
-    this.setGameplayMode("on-foot");
+    this.setGameplayMode(this.sim.state.player.activeMountId ? "mounted" : "on-foot");
     this.modeController.resume();
     this.syncOverlayState();
-    this.notify("Character safely returned to the nearest landing", "success", 3000);
+    this.notify(result.reason ?? "Character safely returned to the nearest landing", "success", 3000);
     this.requestAutosave();
   }
 
@@ -5792,6 +5862,7 @@ export class GameApp {
           this.sim.execute({ type: "quest.focus-track", trackId });
         },
         activeDialogueNpcId: this.activeDialogueNpcId,
+        activeFoundNoteId: this.activeFoundNoteId,
         onTalkNpc: this.handleTalkNpc,
         activeHint: this.activeHint,
         onDismissHint: this.dismissActiveHint,
@@ -6331,6 +6402,8 @@ export class GameApp {
     this.npcBarks.dispose();
     this.marketBoards.dispose();
     this.rewardOverlay.dispose();
+    this.sim.setMountPoseClearQuery(undefined);
+    this.sim.setMountPathQuery(undefined);
     this.physicsWorld?.dispose();
     this.physicsWorld = null;
     this.worldScene.dispose();

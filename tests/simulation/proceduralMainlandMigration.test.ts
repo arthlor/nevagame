@@ -10,14 +10,14 @@ import { isMountableTraversalPoint, playerPoseFromMount } from "../../src/simula
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
 import { WorldLayout } from "../../src/world/WorldLayout";
-import { expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectInventoriesPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v58_layout28_procedural_predecessor.json";
 
 const legacy = () => structuredClone(predecessor) as unknown as SaveEnvelope;
 const PRESERVED = ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests",
-  "journal", "clock", "weather", "boats"] as const;
+  "journal", "clock", "weather"] as const;
 
 /** A dry, mountable point halfway along the rerouted forest road. */
 function forestRoadPoint(): { x: number; z: number } {
@@ -69,7 +69,9 @@ describe("procedural mainland layout29 recovery", () => {
       expect({ x: after.state.player.x, z: after.state.player.z }).toEqual(point);
       expect(after.state.player.y).toBeCloseTo(support + 0.5, 6);
     }
-    for (const key of PRESERVED) expect(after.state[key], key).toEqual(untouched.state[key]);
+    for (const key of PRESERVED) if (key !== "inventories") expect(after.state[key], key).toEqual(untouched.state[key]);
+    expectInventoriesPreserved(after.state, untouched.state);
+    expectBoatsPreserved(after.state, untouched.state);
     expectMarketsPreserved(after.state, untouched.state);
     expect(saved).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);

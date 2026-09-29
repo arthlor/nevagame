@@ -500,32 +500,6 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   else { setSellSortKey(key); setSellSortDir(1); }
                 }}
               />
-              {pendingBulk === "produce" && (
-                <div
-                  className="bulk-confirm-popover"
-                  role="alertdialog"
-                  aria-label={isTr ? `${bulkProduceQuote.revenue.toLocaleString()} altın karşılığında toplu mahsul satışını onayla` : `Confirm bulk produce sale for ${bulkProduceQuote.revenue.toLocaleString()} gold`}
-                >
-                  <p className="bulk-confirm-text">
-                    {isTr
-                      ? `${bulkProduceQuote.quantity} adet ürünü (${bulkProduceQuote.lineCount} çeşit) ${bulkProduceQuote.revenue.toLocaleString()} G karşılığında satmak istiyor musunuz? Bu işlem geri alınamaz.`
-                      : `Sell ${bulkProduceQuote.quantity} goods (${bulkProduceQuote.lineCount} lines) for ${bulkProduceQuote.revenue.toLocaleString()} G? This cannot be undone.`}
-                  </p>
-                  <div className="bulk-confirm-actions">
-                    <ChromeButton
-                      variant="gold"
-                      size="sm"
-                      soundCue="coins"
-                      onClick={handleSellAllProduce}
-                    >
-                      {isTr ? "Satışı onayla" : "Confirm sale"}
-                    </ChromeButton>
-                    <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
-                      {isTr ? "Vazgeç" : "Keep goods"}
-                    </ChromeButton>
-                  </div>
-                </div>
-              )}
               {ownedSellables.length === 0 ? (
                 <div className="no-cargo-card" data-testid="market-sell-empty">
                   {isTr ? "Heybenizde bu tezgâhın satın aldığı bir eşya yok." : "Nothing in your satchel that this stall buys."}
@@ -619,32 +593,6 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     else { setHoldSortKey(key); setHoldSortDir(1); }
                   }}
                 />
-                {pendingBulk === "fish" && (
-                  <div
-                    className="bulk-confirm-popover"
-                    role="alertdialog"
-                    aria-label={isTr ? `${bulkFishQuote.revenue.toLocaleString()} altın karşılığında toplu balık satışını onayla` : `Confirm bulk fish sale for ${bulkFishQuote.revenue.toLocaleString()} gold`}
-                  >
-                    <p className="bulk-confirm-text">
-                      {isTr
-                        ? `${bulkFishQuote.quantity} balığı (${bulkFishQuote.lineCount} çeşit) ${bulkFishQuote.revenue.toLocaleString()} G karşılığında satmak istiyor musunuz? Bu işlem geri alınamaz.`
-                        : `Sell ${bulkFishQuote.quantity} fish (${bulkFishQuote.lineCount} lines) for ${bulkFishQuote.revenue.toLocaleString()} G? This cannot be undone.`}
-                    </p>
-                    <div className="bulk-confirm-actions">
-                      <ChromeButton
-                        variant="gold"
-                        size="sm"
-                        soundCue="coins"
-                        onClick={handleSellAllFishCargo}
-                      >
-                        {isTr ? "Satışı onayla" : "Confirm sale"}
-                      </ChromeButton>
-                      <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
-                        {isTr ? "Avı sakla" : "Keep catch"}
-                      </ChromeButton>
-                    </div>
-                  </div>
-                )}
                 {fishCargoList.length === 0 ? (
                   <div className="no-cargo-card">
                     <span>{isTr ? "Tekne ambarında veya elde taşınan balık yükü yok." : "No fish cargo currently in boat hold or carried in hand."}</span>
@@ -871,12 +819,6 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               </div>
               <div className="guild-purchase-total">{isTr ? "Toplam" : "Total"} <strong data-testid="market-buy-total">{purchaseTotal?.toLocaleString() ?? "—"} G</strong></div>
               {purchaseBlocker && <p className="guild-trade-blocker" role="status">{purchaseBlocker}</p>}
-              <ChromeButton variant="gold" soundCue="coins" data-testid="market-buy-confirm" disabled={!!purchaseBlocker || purchaseTotal === undefined}
-                onClick={() => {
-                  if (!activeMarketId || purchaseBlocker) return;
-                  if (selectedBuy.kind === "seed") onBuySeed(activeMarketId, selectedBuy.itemId, buyQty);
-                  else onBuyItem(activeMarketId, selectedBuy.itemId, buyQty);
-                }}>{isTr ? `Satın al${buyValid ? ` ${buyQty}` : ""}` : `Buy${buyValid ? ` ${buyQty}` : ""}`}</ChromeButton>
               <span className="guild-ticket-destination">{isTr ? "Çantana gider" : "To your satchel"}</span>
               {purchaseTotal !== undefined && purchaseQuote?.affordable !== false && <p className="guild-remaining-purse">{isTr ? "Kalan bütçe" : "Remaining purse"} <strong>{(board.money - purchaseTotal).toLocaleString()} G</strong></p>}
             </div>}
@@ -982,49 +924,6 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     {isTr ? "Eline geçecek" : "You receive"} <strong>{sellValid && sellQty <= ownedCount ? liveGold.toLocaleString() : "—"} G</strong>
                   </div>
                   {(!sellValid || sellQty > ownedCount) && <p className="guild-trade-blocker" role="status">{isTr ? `1 ile ${ownedCount} arasında bir tam sayı girin.` : `Enter a whole quantity from 1 to ${ownedCount}.`}</p>}
-                  <div className="market-ticket-actions">
-                    <ChromeButton
-                      variant="gold"
-                      soundCue="coins"
-                      disabled={!activeMarketId || ownedCount <= 0 || !sellValid || sellQty > ownedCount}
-                      onClick={() =>
-                        activeMarketId && sellValid && sellQty <= ownedCount && onSellItem(activeMarketId, selectedOwned.itemId, clampedQty)
-                      }
-                    >
-                      {isTr ? "Sat" : "Sell"}
-                    </ChromeButton>
-                    <ChromeButton
-                      soundCue="coins"
-                      disabled={!activeMarketId || ownedCount <= 0}
-                      aria-expanded={pendingBulk === "item"}
-                      onClick={() => requestBulkSell("item", sellAllItemRevenue, handleSellAllOfItem)}
-                    >
-                      {isTr ? "Bu ürünün tümünü sat" : "Sell all of this item"}
-                    </ChromeButton>
-                  </div>
-                  {pendingBulk === "item" && (
-                    <div
-                      className="bulk-confirm-popover"
-                      role="alertdialog"
-                      aria-label={isTr ? `Tüm ${ticketName} ürünlerini ${sellAllItemRevenue.toLocaleString()} altına satmayı onayla` : `Confirm selling every ${ticketName} for ${sellAllItemRevenue.toLocaleString()} gold`}
-                    >
-                      <p className="bulk-confirm-text">
-                        {isTr ? (
-                          <>Tüm {ownedCount} adet {ticketName} ürününü <strong>{sellAllItemRevenue.toLocaleString()} G</strong> karşılığında satmak istiyor musun? Bu işlem geri alınamaz.</>
-                        ) : (
-                          <>Sell all {ownedCount} {ticketName} for <strong>{sellAllItemRevenue.toLocaleString()} G</strong>? This cannot be undone.</>
-                        )}
-                      </p>
-                      <div className="bulk-confirm-actions">
-                        <ChromeButton variant="gold" size="sm" soundCue="coins" onClick={handleSellAllOfItem}>
-                          {isTr ? "Satışı onayla" : "Confirm sale"}
-                        </ChromeButton>
-                        <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
-                          {isTr ? "Malları tut" : "Keep goods"}
-                        </ChromeButton>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="no-commodity-selected">
@@ -1118,6 +1017,117 @@ export const MarketModal: React.FC<MarketModalProps> = ({
         )}
 
         <footer className="market-modal-footer">
+          {pendingBulk === "produce" && (
+            <div
+              className="bulk-confirm-popover"
+              role="alertdialog"
+              aria-label={isTr ? `${bulkProduceQuote.revenue.toLocaleString()} altın karşılığında toplu mahsul satışını onayla` : `Confirm bulk produce sale for ${bulkProduceQuote.revenue.toLocaleString()} gold`}
+            >
+              <p className="bulk-confirm-text">
+                {isTr
+                  ? `${bulkProduceQuote.quantity} adet ürünü (${bulkProduceQuote.lineCount} çeşit) ${bulkProduceQuote.revenue.toLocaleString()} G karşılığında satmak istiyor musunuz? Bu işlem geri alınamaz.`
+                  : `Sell ${bulkProduceQuote.quantity} goods (${bulkProduceQuote.lineCount} lines) for ${bulkProduceQuote.revenue.toLocaleString()} G? This cannot be undone.`}
+              </p>
+              <div className="bulk-confirm-actions">
+                <ChromeButton
+                  variant="gold"
+                  size="sm"
+                  soundCue="coins"
+                  onClick={handleSellAllProduce}
+                >
+                  {isTr ? "Satışı onayla" : "Confirm sale"}
+                </ChromeButton>
+                <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
+                  {isTr ? "Vazgeç" : "Keep goods"}
+                </ChromeButton>
+              </div>
+            </div>
+          )}
+          {pendingBulk === "fish" && (
+            <div
+              className="bulk-confirm-popover"
+              role="alertdialog"
+              aria-label={isTr ? `${bulkFishQuote.revenue.toLocaleString()} altın karşılığında toplu balık satışını onayla` : `Confirm bulk fish sale for ${bulkFishQuote.revenue.toLocaleString()} gold`}
+            >
+              <p className="bulk-confirm-text">
+                {isTr
+                  ? `${bulkFishQuote.quantity} balığı (${bulkFishQuote.lineCount} çeşit) ${bulkFishQuote.revenue.toLocaleString()} G karşılığında satmak istiyor musunuz? Bu işlem geri alınamaz.`
+                  : `Sell ${bulkFishQuote.quantity} fish (${bulkFishQuote.lineCount} lines) for ${bulkFishQuote.revenue.toLocaleString()} G? This cannot be undone.`}
+              </p>
+              <div className="bulk-confirm-actions">
+                <ChromeButton
+                  variant="gold"
+                  size="sm"
+                  soundCue="coins"
+                  onClick={handleSellAllFishCargo}
+                >
+                  {isTr ? "Satışı onayla" : "Confirm sale"}
+                </ChromeButton>
+                <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
+                  {isTr ? "Avı sakla" : "Keep catch"}
+                </ChromeButton>
+              </div>
+            </div>
+          )}
+          {pendingBulk === "item" && (
+            <div
+              className="bulk-confirm-popover"
+              role="alertdialog"
+              aria-label={isTr ? `Tüm ${ticketName} ürünlerini ${sellAllItemRevenue.toLocaleString()} altına satmayı onayla` : `Confirm selling every ${ticketName} for ${sellAllItemRevenue.toLocaleString()} gold`}
+            >
+              <p className="bulk-confirm-text">
+                {isTr ? (
+                  <>Tüm {ownedCount} adet {ticketName} ürününü <strong>{sellAllItemRevenue.toLocaleString()} G</strong> karşılığında satmak istiyor musun? Bu işlem geri alınamaz.</>
+                ) : (
+                  <>Sell all {ownedCount} {ticketName} for <strong>{sellAllItemRevenue.toLocaleString()} G</strong>? This cannot be undone.</>
+                )}
+              </p>
+              <div className="bulk-confirm-actions">
+                <ChromeButton variant="gold" size="sm" soundCue="coins" onClick={handleSellAllOfItem}>
+                  {isTr ? "Satışı onayla" : "Confirm sale"}
+                </ChromeButton>
+                <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
+                  {isTr ? "Malları tut" : "Keep goods"}
+                </ChromeButton>
+              </div>
+            </div>
+          )}
+          {!pendingBulk && ledgerSection === "buy" && selectedBuy && (
+            <div className="market-footer-trade">
+              <span className="market-footer-summary">{getLocalizedItem(selectedBuy.itemId).name ?? selectedBuy.name} · {purchaseTotal?.toLocaleString() ?? "—"} G</span>
+              <ChromeButton variant="gold" soundCue="coins" data-testid="market-buy-confirm" disabled={!!purchaseBlocker || purchaseTotal === undefined}
+                onClick={() => {
+                  if (!activeMarketId || purchaseBlocker) return;
+                  if (selectedBuy.kind === "seed") onBuySeed(activeMarketId, selectedBuy.itemId, buyQty);
+                  else onBuyItem(activeMarketId, selectedBuy.itemId, buyQty);
+                }}>{isTr ? `Satın al${buyValid ? ` ${buyQty}` : ""}` : `Buy${buyValid ? ` ${buyQty}` : ""}`}</ChromeButton>
+            </div>
+          )}
+          {!pendingBulk && ledgerSection === "sell" && selectedOwned && ticketPrice?.success && ticketPrice.unitPrice != null && (
+            <div className="market-footer-trade">
+              <span className="market-footer-summary">{ticketName} · {sellValid && sellQty <= ownedCount ? liveGold.toLocaleString() : "—"} G</span>
+              <div className="market-ticket-actions">
+                <ChromeButton
+                  variant="gold"
+                  soundCue="coins"
+                  disabled={!activeMarketId || ownedCount <= 0 || !sellValid || sellQty > ownedCount}
+                  onClick={() =>
+                    activeMarketId && sellValid && sellQty <= ownedCount && onSellItem(activeMarketId, selectedOwned.itemId, clampedQty)
+                  }
+                >
+                  {isTr ? "Sat" : "Sell"}
+                </ChromeButton>
+                <ChromeButton
+                  soundCue="coins"
+                  disabled={!activeMarketId || ownedCount <= 0}
+                  aria-expanded={pendingBulk === "item"}
+                  onClick={() => requestBulkSell("item", sellAllItemRevenue, handleSellAllOfItem)}
+                >
+                  {isTr ? "Bu ürünün tümünü sat" : "Sell all of this item"}
+                </ChromeButton>
+              </div>
+            </div>
+          )}
           <ChromeButton onClick={onClose}>
             {isTr ? "Pazardan ayrıl" : "Leave market"}
           </ChromeButton>

@@ -1,30 +1,30 @@
 {
   "version": 3,
-  "generatedAt": "2026-09-28T14:00:47.331Z",
-  "specHash": "ec591892861381800f6b18cb208eb0a539dca2b952bec8fb8da0b062bb680b25",
+  "generatedAt": "2026-09-29T11:06:47.974Z",
+  "specHash": "0ccf07d3689859a306c4c6667ef279ebe56cf8baa28c628086722aeb20695068",
   "paletteHash": "75afa4dc77fb1109ae8872e6d009f6853b2d4a7ea745bff76d64461900d3ba4f",
   "toolchainHash": "8c82bb292d665bfa896471f8b862b5af025f509ce33efa9454f0b389a6070db9",
   "authoredProducerVersion": "authored-three@0.174.0",
   "authoredGlbProducerVersion": "authored-glb@2+sharp@0.35.4+libwebp@1.6.0",
   "vertexColorSpace": "linear-srgb",
-  "durationMs": 630,
-  "aggregateBytes": 63771660,
+  "durationMs": 592,
+  "aggregateBytes": 65227448,
   "summary": {
-    "assetCount": 342,
+    "assetCount": 349,
     "referenceReady": 102,
     "referenceDraft": 0,
-    "onTarget": 210,
+    "onTarget": 217,
     "belowTarget": 132,
-    "triangles": 996816,
-    "packagedTriangles": 1227778,
-    "productionMinimumTriangles": 326232,
-    "qualityTargetTriangles": 1045706,
-    "hardMaximumTriangles": 1941376,
-    "fileSizeBytes": 63771660,
-    "trianglePrimitives": 1978,
-    "nodes": 6806,
-    "cacheHits": 61,
-    "cacheMisses": 281,
+    "triangles": 1453602,
+    "packagedTriangles": 1925995,
+    "productionMinimumTriangles": 702292,
+    "qualityTargetTriangles": 1502780,
+    "hardMaximumTriangles": 2481876,
+    "fileSizeBytes": 65227448,
+    "trianglePrimitives": 3222,
+    "nodes": 15847,
+    "cacheHits": 67,
+    "cacheMisses": 282,
     "artContractPassed": true
   },
   "assets": [
@@ -386,6 +386,7 @@
       "file": "bridge_stone_a.glb",
       "family": "architecture",
       "generator": "stone_bridge",
+      "producer": "authored",
       "seed": 229,
       "dimensions": [
         14.369999885559082,
@@ -411,7 +412,7 @@
         "wood_dark_01",
         "wood_weathered_01"
       ],
-      "vertexColorLoops": 92988,
+      "vertexColorLoops": 90588,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "bridge_stone_a_root",
@@ -423,9 +424,9 @@
       "collision": "compound",
       "lod": "hero",
       "readDistanceMeters": 60,
-      "durationMs": 1,
-      "inputHash": "f963c6fae3d6aa6eac1387e7fa7434e1086422e3098a3aec750db0fa86110e3c",
-      "cacheHit": true,
+      "durationMs": 388,
+      "inputHash": "3ee1d56f8c156c6fca3e5e8b5c8f58c9c951ed51f73dadd7099ed79e3e7996ef",
+      "cacheHit": false,
       "budget": {
         "trianglesMin": 2500,
         "trianglesTarget": 28000,
@@ -434,37 +435,37 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "2c06595ebfbfb4189f3b7982334d7d1236a81f6cf97d16ac77626b610a0ff407",
+        "briefHash": "58497f29acdc58693545ae6496f80695905d92741a1a1e3cddadcff6cfb45fff",
         "sources": 3,
         "components": 5,
         "criticalFeatures": 3,
         "reviewViews": 7
       },
       "warnings": [
-        "20608 triangles are below quality target 28000"
+        "20032 triangles are below quality target 28000"
       ],
-      "nodes": 22,
+      "nodes": 23,
       "meshes": 3,
-      "triangles": 20608,
-      "packagedTriangles": 30996,
+      "triangles": 20032,
+      "packagedTriangles": 30196,
       "lodLevels": [
         {
           "node": "bridge_stone_a_LOD0",
           "distanceMeters": 0,
-          "triangles": 20608,
+          "triangles": 20032,
           "ratio": 1
         },
         {
           "node": "bridge_stone_a_LOD1",
           "distanceMeters": 40,
-          "triangles": 6676,
-          "ratio": 0.32395186335403725
+          "triangles": 6580,
+          "ratio": 0.3284744408945687
         },
         {
           "node": "bridge_stone_a_LOD2",
           "distanceMeters": 74,
-          "triangles": 3712,
-          "ratio": 0.18012422360248448
+          "triangles": 3584,
+          "ratio": 0.17891373801916932
         }
       ],
       "materials": 4,
@@ -478,18 +479,22 @@
         "KHR_materials_emissive_strength",
         "KHR_mesh_quantization"
       ],
-      "bytes": 402180,
-      "fileHash": "ce166df924b4f63c0dc36909741a288c967c5dcca64df510329ede572542ea93",
-      "semanticHash": "472f790bb3fe0368b7bd905b02d91dc2287e96bc8331a23c540dbfb2766b8d20",
+      "bytes": 392248,
+      "fileHash": "fcdb4fd43d52be93397c9b2feecc4dcf7a1ab426a530296f9d043de8cca4b314",
+      "semanticHash": "57bd7c5887bd63c97d987223fb15636bbb7bc6126192acc74a59f5f455da07a4",
       "qualityStatus": "below_target",
       "animationClips": [],
       "surfaceContract": {
         "primitives": 15,
-        "triangles": 30996,
+        "triangles": 30196,
         "interpolatedTriangles": 340,
         "skinVertices": 0,
         "deformation": []
-      }
+      },
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "building_cart_workshop_a",
@@ -1076,6 +1081,157 @@
       }
     },
     {
+      "id": "building_fish_market_coastal_a",
+      "file": "building_fish_market_coastal_a.glb",
+      "family": "architecture",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
+      "seed": 20260916,
+      "dimensions": [
+        6.88925838470459,
+        6.595380006432515,
+        6.378324508666992
+      ],
+      "bounds": {
+        "min": [
+          -3.2431695501458924,
+          -3.890380012989026,
+          -0.028324399913564946
+        ],
+        "max": [
+          3.6460888345586975,
+          2.704999993443489,
+          6.350000108753427
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "foliage_sage_01",
+        "foliage_shadow_01",
+        "metal_dark_01",
+        "metal_iron_01",
+        "plaster_cream_01",
+        "plaster_warm_01",
+        "soil_dry_01",
+        "stone_cool_01",
+        "wood_dark_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": null,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_fish_market_coastal_a_root",
+        "building_fish_market_coastal_a_LOD0",
+        "building_fish_market_coastal_a_LOD1",
+        "COL_building_fish_market_coastal_a"
+      ],
+      "collision": "box",
+      "lod": "hero",
+      "readDistanceMeters": 40,
+      "durationMs": 2,
+      "inputHash": "efd42f69ab8ab52a555375c19b76dbcfde69ebd6239e43166e1fb438396ab234",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 90000,
+        "trianglesTarget": 112300,
+        "trianglesMax": 140000,
+        "materialsMax": 16
+      },
+      "warnings": [],
+      "nodes": 1268,
+      "meshes": 333,
+      "triangles": 112300,
+      "packagedTriangles": 156870,
+      "lodLevels": [
+        {
+          "node": "building_fish_market_coastal_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 112300,
+          "ratio": 1
+        },
+        {
+          "node": "building_fish_market_coastal_a_LOD1",
+          "distanceMeters": 40,
+          "triangles": 44570,
+          "ratio": 0.3968833481745325
+        }
+      ],
+      "materials": 11,
+      "trianglePrimitives": 332,
+      "vertexColorPrimitives": 332,
+      "texturedPrimitives": 0,
+      "normalPrimitives": 332,
+      "doubleSidedMaterials": 11,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 1028668,
+      "fileHash": "9bc616e8ee3e4e5f0edfb3ed17fe0e334b6c05391374717f9c99949c1acaaf9b",
+      "semanticHash": "4e1e662445b4961fc29d3615ebe1483ee61e88c9ab4f603434992c308cafc881",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "source": {
+        "file": "art/authored/fish-market-shop/export/building_fish_market_coastal_a.glb",
+        "sha256": "39c8b41b40e972f5ae1e74222fa54356f4ab63d5cb8ed9ed24c84bdd8142bf98",
+        "bytes": 8963700,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [
+          {
+            "material": "wood_weathered_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "metal_iron_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "metal_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "plaster_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "soil_dry_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "plaster_cream_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_cool_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_shadow_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "accent_ochre_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_sage_01",
+            "extension": "KHR_materials_emissive_strength"
+          }
+        ],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
+    },
+    {
       "id": "building_ice_house_a",
       "file": "building_ice_house_a.glb",
       "family": "architecture",
@@ -1367,6 +1523,358 @@
       "animationClips": []
     },
     {
+      "id": "building_medieval_market_stall_a",
+      "file": "building_medieval_market_stall_a.glb",
+      "family": "architecture",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
+      "seed": 20260916,
+      "dimensions": [
+        5.666936818385921,
+        5.310970012199879,
+        4.044542936987542
+      ],
+      "bounds": {
+        "min": [
+          -2.717841106314513,
+          -3.1094699838280677,
+          -2.427724288267541e-8
+        ],
+        "max": [
+          2.9490957120714074,
+          2.201500028371811,
+          4.044542912710299
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "foliage_sage_01",
+        "foliage_shadow_01",
+        "metal_dark_01",
+        "metal_iron_01",
+        "plaster_cream_01",
+        "plaster_warm_01",
+        "roof_terracotta_01",
+        "roof_turf_01",
+        "roof_warm_orange_01",
+        "stone_cool_01",
+        "stone_warm_01",
+        "wood_dark_01",
+        "wood_warm_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": null,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_medieval_market_stall_a_root",
+        "building_medieval_market_stall_a_LOD0",
+        "building_medieval_market_stall_a_LOD1",
+        "COL_building_medieval_market_stall_a"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 35,
+      "durationMs": 2,
+      "inputHash": "280846ec854b56b3cf241e88c2195e86c894b33c2bb3a6a35e8c631a7084c5b4",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 40000,
+        "trianglesTarget": 46698,
+        "trianglesMax": 54000,
+        "materialsMax": 16
+      },
+      "warnings": [],
+      "nodes": 1304,
+      "meshes": 255,
+      "triangles": 46698,
+      "packagedTriangles": 71092,
+      "lodLevels": [
+        {
+          "node": "building_medieval_market_stall_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 46698,
+          "ratio": 1
+        },
+        {
+          "node": "building_medieval_market_stall_a_LOD1",
+          "distanceMeters": 40,
+          "triangles": 24394,
+          "ratio": 0.5223778320270676
+        }
+      ],
+      "materials": 13,
+      "trianglePrimitives": 254,
+      "vertexColorPrimitives": 254,
+      "texturedPrimitives": 0,
+      "normalPrimitives": 254,
+      "doubleSidedMaterials": 13,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 491236,
+      "fileHash": "278f9fa536f33ecd99db49fefbfed6127165de276a61bac49fe6fa4f81615828",
+      "semanticHash": "87a0cba997688064b196e058f2324edf039dd8d8326f2238d12a913a9ed8e510",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "source": {
+        "file": "art/authored/medieval-market-stall/export/building_medieval_market_stall_a.glb",
+        "sha256": "31dda2741f136ce4459e2b5ff2877721a1dc846455e63f88233f6a4809e731f4",
+        "bytes": 7672828,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [
+          {
+            "material": "metal_iron_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_cool_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "plaster_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "metal_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_terracotta_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_sage_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_turf_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_warm_orange_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_weathered_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "plaster_cream_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_shadow_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "accent_ochre_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          }
+        ],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
+    },
+    {
+      "id": "building_medieval_timber_cottage_a",
+      "file": "building_medieval_timber_cottage_a.glb",
+      "family": "architecture",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
+      "seed": 20260916,
+      "dimensions": [
+        10.93100000485778,
+        6.323429638177294,
+        8.948875138282776
+      ],
+      "bounds": {
+        "min": [
+          -5.801000006198883,
+          -3.9050000065565107,
+          -0.03449999314546581
+        ],
+        "max": [
+          5.129999998658896,
+          2.4184296316207834,
+          8.91437514513731
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_ochre_01",
+        "accent_red_01",
+        "emissive_lantern_01",
+        "foliage_sage_01",
+        "foliage_shadow_01",
+        "metal_dark_01",
+        "metal_iron_01",
+        "plaster_cream_01",
+        "roof_terracotta_01",
+        "roof_turf_01",
+        "roof_warm_orange_01",
+        "stone_cool_01",
+        "stone_golden_01",
+        "wood_dark_01",
+        "wood_warm_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": null,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_medieval_timber_cottage_a_root",
+        "building_medieval_timber_cottage_a_LOD0",
+        "building_medieval_timber_cottage_a_LOD1",
+        "building_medieval_timber_cottage_a_LOD2",
+        "COL_building_medieval_timber_cottage_a"
+      ],
+      "collision": "box",
+      "lod": "hero",
+      "readDistanceMeters": 60,
+      "durationMs": 21,
+      "inputHash": "8ee1f8d0d07b56714712a539c942c55f95c33495733c60adf3884038bd6d44df",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 180000,
+        "trianglesTarget": 224786,
+        "trianglesMax": 260000,
+        "materialsMax": 16
+      },
+      "warnings": [],
+      "nodes": 4757,
+      "meshes": 269,
+      "triangles": 224786,
+      "packagedTriangles": 361504,
+      "lodLevels": [
+        {
+          "node": "building_medieval_timber_cottage_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 224786,
+          "ratio": 1
+        },
+        {
+          "node": "building_medieval_timber_cottage_a_LOD1",
+          "distanceMeters": 40,
+          "triangles": 91396,
+          "ratio": 0.40659115781231925
+        },
+        {
+          "node": "building_medieval_timber_cottage_a_LOD2",
+          "distanceMeters": 90,
+          "triangles": 45322,
+          "ratio": 0.20162287686955593
+        }
+      ],
+      "materials": 13,
+      "trianglePrimitives": 268,
+      "vertexColorPrimitives": 268,
+      "texturedPrimitives": 0,
+      "normalPrimitives": 268,
+      "doubleSidedMaterials": 13,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_lights_punctual",
+        "KHR_materials_emissive_strength",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 1120044,
+      "fileHash": "0d628f801798afe82e4678b22af436259ea255085ed241681ac10cc48424d970",
+      "semanticHash": "10a73ff1373c644c21a83d9c912e15ad81c2737f3919581ac28f345d718a2695",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "source": {
+        "file": "art/authored/medieval-cottage/export/building_medieval_timber_cottage_a.glb",
+        "sha256": "820f6d280a1cc9298499c96aa6c9d1a4ec5f59c245117c2419a587c6bea8a071",
+        "bytes": 18388696,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [
+          {
+            "material": "metal_iron_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_cool_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_weathered_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_shadow_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "metal_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "plaster_cream_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_terracotta_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "accent_red_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_warm_orange_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_turf_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "accent_ochre_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_golden_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_sage_01",
+            "extension": "KHR_materials_emissive_strength"
+          }
+        ],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
+    },
+    {
       "id": "building_outhouse_a",
       "file": "building_outhouse_a.glb",
       "family": "architecture",
@@ -1451,6 +1959,326 @@
         "skinVertices": 0,
         "deformation": []
       }
+    },
+    {
+      "id": "building_sunreach_cove_market_a",
+      "file": "building_sunreach_cove_market_a.glb",
+      "family": "architecture",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
+      "seed": 20260925,
+      "dimensions": [
+        5.582960620506741,
+        5.249750103246164,
+        4.338937823889865
+      ],
+      "bounds": {
+        "min": [
+          -2.6856075245586832,
+          -3.0934999890327446,
+          -2.1504924174742257e-8
+        ],
+        "max": [
+          2.8973530959480582,
+          2.156250114213419,
+          4.338937802384941
+        ]
+      },
+      "paletteTokensUsed": [
+        "accent_red_01",
+        "foliage_sage_01",
+        "foliage_shadow_01",
+        "metal_dark_01",
+        "metal_iron_01",
+        "plaster_cream_01",
+        "plaster_warm_01",
+        "roof_terracotta_01",
+        "roof_turf_01",
+        "roof_warm_orange_01",
+        "stone_cool_01",
+        "stone_golden_01",
+        "stone_warm_01",
+        "wood_dark_01",
+        "wood_warm_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": null,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_sunreach_cove_market_a_root",
+        "building_sunreach_cove_market_a_LOD0",
+        "building_sunreach_cove_market_a_LOD1",
+        "COL_building_sunreach_cove_market_a"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 35,
+      "durationMs": 1,
+      "inputHash": "ceea93e01845c1b83b289219d750910522126db347740b86f0835893d3f6174a",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 40000,
+        "trianglesTarget": 45564,
+        "trianglesMax": 54000,
+        "materialsMax": 16
+      },
+      "warnings": [],
+      "nodes": 1034,
+      "meshes": 219,
+      "triangles": 45756,
+      "packagedTriangles": 69608,
+      "lodLevels": [
+        {
+          "node": "building_sunreach_cove_market_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 45756,
+          "ratio": 1
+        },
+        {
+          "node": "building_sunreach_cove_market_a_LOD1",
+          "distanceMeters": 40,
+          "triangles": 23852,
+          "ratio": 0.5212868257714836
+        }
+      ],
+      "materials": 13,
+      "trianglePrimitives": 218,
+      "vertexColorPrimitives": 218,
+      "texturedPrimitives": 0,
+      "normalPrimitives": 218,
+      "doubleSidedMaterials": 13,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 436488,
+      "fileHash": "5e330c87daa50c4d2fe9e0b1780bf8b966fc4c6fb1ddd8d788a1e565025c5ce1",
+      "semanticHash": "21e232a21de8cff21bb7f0aee0f5b27f8a2805cd43b70f153eccd1a3dad8f437",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "source": {
+        "file": "art/authored/sunreach-market-stall/export/building_sunreach_cove_market_a.glb",
+        "sha256": "ca5092720b155ca4d1f4f392bf0161b9ca8a2a8c0565fa6063c5e941f718e0bd",
+        "bytes": 7165820,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [
+          {
+            "material": "plaster_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_sage_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "plaster_cream_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_weathered_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "metal_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_golden_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "accent_red_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_cool_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_warm_orange_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_shadow_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "metal_iron_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_turf_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_terracotta_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          }
+        ],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
+    },
+    {
+      "id": "building_thatched_cottage_a",
+      "file": "building_thatched_cottage_a.glb",
+      "family": "architecture",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
+      "seed": 20260914,
+      "dimensions": [
+        4.979554546645732,
+        4.225541095377471,
+        5.925000190734863
+      ],
+      "bounds": {
+        "min": [
+          -2.378445728263054,
+          -2.3200000005960466,
+          -0.5000000944733625
+        ],
+        "max": [
+          2.601108818382677,
+          1.9055410947814244,
+          5.425000096261501
+        ]
+      },
+      "paletteTokensUsed": [
+        "emissive_lantern_01",
+        "foliage_shadow_01",
+        "metal_dark_01",
+        "plaster_cream_01",
+        "roof_turf_01",
+        "stone_cool_01",
+        "stone_golden_01",
+        "wood_dark_01",
+        "wood_warm_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": null,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_thatched_cottage_a_root",
+        "building_thatched_cottage_a_LOD0",
+        "building_thatched_cottage_a_LOD1",
+        "COL_building_thatched_cottage_a"
+      ],
+      "collision": "box",
+      "lod": "medium",
+      "readDistanceMeters": 30,
+      "durationMs": 30,
+      "inputHash": "86c55e658e838cfe11cdbc62b076efdc90b5da237026155cd6803e79c907799a",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 22000,
+        "trianglesTarget": 22916,
+        "trianglesMax": 26000,
+        "materialsMax": 10
+      },
+      "warnings": [],
+      "nodes": 538,
+      "meshes": 144,
+      "triangles": 22916,
+      "packagedTriangles": 35037,
+      "lodLevels": [
+        {
+          "node": "building_thatched_cottage_a_LOD0",
+          "distanceMeters": 0,
+          "triangles": 22916,
+          "ratio": 1
+        },
+        {
+          "node": "building_thatched_cottage_a_LOD1",
+          "distanceMeters": 40,
+          "triangles": 12121,
+          "ratio": 0.5289317507418397
+        }
+      ],
+      "materials": 9,
+      "trianglePrimitives": 143,
+      "vertexColorPrimitives": 143,
+      "texturedPrimitives": 0,
+      "normalPrimitives": 143,
+      "doubleSidedMaterials": 9,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_mesh_gpu_instancing",
+        "EXT_meshopt_compression",
+        "KHR_materials_emissive_strength",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 1120564,
+      "fileHash": "3c6c39295781bf6df59c8c09d9ffce0a269f4786ef170a13077f8780ca4a4682",
+      "semanticHash": "cab282d3d2881d22366aaace97420ef89f52b1dcae4c3de233bf6f65ea12709f",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "source": {
+        "file": "art/authored/thatched-cottage/export/building_thatched_cottage_a.glb",
+        "sha256": "05243f2fe670af25e4cea9b3b6d5ccbe87e5988a55c5c3f3a0ccce17e66d9938",
+        "bytes": 2349160,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [
+          {
+            "material": "wood_weathered_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_turf_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_cool_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_golden_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "metal_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_shadow_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "plaster_cream_01",
+            "extension": "KHR_materials_emissive_strength"
+          }
+        ],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "building_windmill_a",
@@ -1559,6 +2387,139 @@
         "skinVertices": 0,
         "deformation": []
       }
+    },
+    {
+      "id": "building_wooden_outhouse_a",
+      "file": "building_wooden_outhouse_a.glb",
+      "family": "architecture",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
+      "seed": 20260915,
+      "dimensions": [
+        4.576000099182129,
+        3.890000057220459,
+        3.30249999910593
+      ],
+      "bounds": {
+        "min": [
+          -2.2380000495910646,
+          -2.450000023841858,
+          -0.15999999821186067
+        ],
+        "max": [
+          2.3380000495910642,
+          1.440000033378601,
+          3.1425000008940693
+        ]
+      },
+      "paletteTokensUsed": [
+        "foliage_shadow_01",
+        "metal_dark_01",
+        "plaster_cream_01",
+        "plaster_warm_01",
+        "roof_turf_01",
+        "stone_cool_01",
+        "stone_golden_01",
+        "stone_warm_01",
+        "wood_dark_01",
+        "wood_weathered_01"
+      ],
+      "vertexColorLoops": null,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "building_wooden_outhouse_a_root",
+        "building_wooden_outhouse_a_LOD0",
+        "COL_building_wooden_outhouse_a"
+      ],
+      "collision": "box",
+      "lod": "small",
+      "readDistanceMeters": 15,
+      "durationMs": 48,
+      "inputHash": "2a1bebe237f9167c5d5a8cd50c7c9ba0adaa0dae6c66a63399e3291beb34ae8a",
+      "cacheHit": true,
+      "budget": {
+        "trianglesMin": 4000,
+        "trianglesTarget": 4610,
+        "trianglesMax": 6000,
+        "materialsMax": 10
+      },
+      "warnings": [],
+      "nodes": 136,
+      "meshes": 28,
+      "triangles": 4610,
+      "packagedTriangles": 4610,
+      "lodLevels": [],
+      "materials": 8,
+      "trianglePrimitives": 27,
+      "vertexColorPrimitives": 27,
+      "texturedPrimitives": 0,
+      "normalPrimitives": 27,
+      "doubleSidedMaterials": 8,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_mesh_gpu_instancing",
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 197228,
+      "fileHash": "69b5f605748b45dc894be04df2c74debd37b282e72824813a1a2d68e507fe6cd",
+      "semanticHash": "65759567cb65ed21ff355b7c4c44664d0c63de528b3c1458d575afbd89bc1812",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "source": {
+        "file": "art/authored/wooden-outhouse/export/building_wooden_outhouse_a.glb",
+        "sha256": "ae396dfe6d59a2009839ce24139274f925a9bb3d8449b5422537c6954935f07a",
+        "bytes": 503148,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [
+          {
+            "material": "stone_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_cool_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "wood_weathered_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "metal_dark_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "foliage_shadow_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "stone_golden_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "roof_turf_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "plaster_cream_01",
+            "extension": "KHR_materials_emissive_strength"
+          },
+          {
+            "material": "plaster_warm_01",
+            "extension": "KHR_materials_emissive_strength"
+          }
+        ],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "char_npc_ada_b",
@@ -18348,8 +19309,8 @@
       "collision": "compound",
       "lod": "hero",
       "readDistanceMeters": 30,
-      "durationMs": 462,
-      "inputHash": "13da2824be15813f2d1c6ca104a08dbcff6d93b4c6b79cbe7804d3ab046de2eb",
+      "durationMs": 222,
+      "inputHash": "9a84547631a1f335c160687ac6e85f1c06f76489f2d5c65ccc3bd97f0fa5e9b6",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 1000,
@@ -18358,7 +19319,7 @@
         "materialsMax": 5
       },
       "warnings": [],
-      "nodes": 17,
+      "nodes": 18,
       "meshes": 3,
       "triangles": 9672,
       "packagedTriangles": 14512,
@@ -18393,9 +19354,9 @@
         "KHR_materials_emissive_strength",
         "KHR_mesh_quantization"
       ],
-      "bytes": 181868,
-      "fileHash": "d2c9e5ef760ea6dee149faf37bc4b25ecb7c766b5bd9e38edf4e5f7103920550",
-      "semanticHash": "42c19cad0aa443a06d17edb2e8659dd994a13ae5284a67c0908da15fa3fce7a7",
+      "bytes": 181956,
+      "fileHash": "fc6a6b60822974dcf43b43e941031dee034cfb457be983ff766ff4d68cbb94ef",
+      "semanticHash": "f18be35097be925f6457b5d8a9527442ca2cfa30f9799cd285adea02032a4f64",
       "qualityStatus": "on_target",
       "animationClips": [],
       "surfaceContract": {
@@ -19292,6 +20253,7 @@
       "file": "prop_beehive_a.glb",
       "family": "prop",
       "generator": "apiary_hive",
+      "producer": "authored",
       "seed": 114,
       "dimensions": [
         0.4880159795284271,
@@ -19321,11 +20283,11 @@
       "requiredNodes": [
         "prop_beehive_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 8,
-      "inputHash": "6c62a6351f5f753b5033967b34b87f87f84941aa518cec5f2a295ba486673eec",
+      "durationMs": 9,
+      "inputHash": "35f92fd2ba6cee6b660330d74c10512248e672ef5f244873aecc54332501a4e7",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 114,
@@ -19353,15 +20315,20 @@
       ],
       "bytes": 16740,
       "fileHash": "4d2c8a0917469a89b6c0fe37bd6bc97fd4d1555767afe340da91233b407374fe",
-      "semanticHash": "57b04b99251bf755d09ef5dc35c5cd8eef4b80541cd2f8ff3b3bb7d344e66cc5",
+      "semanticHash": "81975ca2e864a78c8a47854944c5c07838eb0c6eff8fa2595b79e7891c35f11e",
       "qualityStatus": "below_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_bench_wood_a",
       "file": "prop_bench_wood_a.glb",
       "family": "prop",
       "generator": "wood_bench",
+      "producer": "authored",
       "seed": 117,
       "dimensions": [
         1.7000000476837158,
@@ -19389,11 +20356,11 @@
       "requiredNodes": [
         "prop_bench_wood_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 4,
-      "inputHash": "c16612af7636fe5e8b26ca6814c203b17de3dbb8f2906c24a31db6b3a6397204",
+      "durationMs": 5,
+      "inputHash": "9ff1ee544318a0b44c4d7637fd9961afc36bcba354bfd783fdfb031acec0bbab",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 156,
@@ -19421,31 +20388,36 @@
       ],
       "bytes": 10076,
       "fileHash": "d09170d8362f7a617876ff947ed029700d88a2ae7d77dd5a9c3683e3c620a077",
-      "semanticHash": "c49e6fb29f797b0b6072267e6525da681200aec4f2dd0a867e76929dc208a232",
+      "semanticHash": "dee5a34215f34c8777283c10b7d78e054234f32c4191f09d576186a8a2b06a75",
       "qualityStatus": "below_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_bookcase_wood_a",
       "file": "prop_bookcase_wood_a.glb",
       "family": "prop",
-      "generator": "wood_bookcase",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 120,
       "dimensions": [
-        1.0099999904632568,
-        0.38999998569488525,
-        1.7699999809265137
+        1.0100241327509873,
+        0.39000824892834146,
+        1.7700000405311584
       ],
       "bounds": {
         "min": [
-          -0.5049999952316284,
-          -0.19499999284744263,
+          -0.5050120663754937,
+          -0.19500411701359013,
           0
         ],
         "max": [
-          0.5049999952316284,
-          0.19499999284744263,
-          1.7699999809265137
+          0.5050120663754937,
+          0.19500413191475133,
+          1.7700000405311584
         ]
       },
       "paletteTokensUsed": [
@@ -19454,16 +20426,16 @@
         "wood_dark_01",
         "wood_warm_01"
       ],
-      "vertexColorLoops": 2196,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "prop_bookcase_wood_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 1,
-      "inputHash": "f15f2cd55d624f00bf207ec540aeaf602109dd6b1b21326c20892ba478c79c86",
+      "durationMs": 3,
+      "inputHash": "a532a29550b44c05791e43f1fd11e5c16150a65b034cb8da7d84cb8595229978",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 186,
@@ -19480,6 +20452,7 @@
       "materials": 4,
       "trianglePrimitives": 4,
       "vertexColorPrimitives": 4,
+      "texturedPrimitives": 0,
       "normalPrimitives": 4,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
@@ -19492,19 +20465,26 @@
       "semanticHash": "ae7c2a05f975e39b13651ea8b49ded8936836e120f3247ec89f1a83f4985acc0",
       "qualityStatus": "on_target",
       "animationClips": [],
-      "surfaceContract": {
-        "primitives": 4,
-        "triangles": 732,
-        "interpolatedTriangles": 0,
-        "skinVertices": 0,
-        "deformation": []
-      }
+      "packaging": "source-compression",
+      "source": {
+        "file": "art/authored/retained-legacy/prop_bookcase_wood_a.glb",
+        "sha256": "c1318cb92ce488a942abd412a296173cfd9bdebd012d0c8c20382d1a341e0b29",
+        "bytes": 23812,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_cargo_crate_large_a",
       "file": "prop_cargo_crate_large_a.glb",
       "family": "prop",
       "generator": "cargo_crate_large",
+      "producer": "authored",
       "seed": 124,
       "dimensions": [
         0.8840000033378601,
@@ -19534,11 +20514,11 @@
       "requiredNodes": [
         "prop_cargo_crate_large_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 13,
-      "inputHash": "66913249da191e93ed59d23380b335f3a9e84b8c77f7fffae7c21a0fb94b5dff",
+      "durationMs": 15,
+      "inputHash": "71063cddc36ff271c0a0d2cea3ac1116bed2a571bd4e9138c5e178673abed597",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 156,
@@ -19564,9 +20544,13 @@
       ],
       "bytes": 27952,
       "fileHash": "3b4a05f7e25270b65c01e9fca66ef5b93c20671fa675d3dc3c68f39c8b98b817",
-      "semanticHash": "b422d2371a8b2389118aa2916557af673b480a50db65143069ce038c05060608",
+      "semanticHash": "29201cabe06a5622e7e60649c992b4547d2405ffd9f27472bf4d6b2c80b695fc",
       "qualityStatus": "on_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_cargo_sack_a",
@@ -20571,6 +21555,7 @@
       "file": "prop_dock_lantern_a.glb",
       "family": "prop",
       "generator": "dock_lantern_post",
+      "producer": "authored",
       "seed": 119,
       "dimensions": [
         0.26600000262260437,
@@ -20600,11 +21585,11 @@
       "requiredNodes": [
         "prop_dock_lantern_a_root"
       ],
-      "collision": "none",
+      "collision": "compound",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 6,
-      "inputHash": "eba3f8db6d27211cd169c6dc8c79afd485de22eab8e9623a4afdefd45a3ffd89",
+      "durationMs": 7,
+      "inputHash": "4d5efa3ca3df9c3d10868556b05737d7281bc1ac5f78a516477c1ff81ed2216d",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 156,
@@ -20633,9 +21618,13 @@
       ],
       "bytes": 13632,
       "fileHash": "cbaf8aeef501468a64853647ecc8905efe2ba8c0f56c2a63f88c289598ad8035",
-      "semanticHash": "87497287885c542c03666bc7f0beec3d562ecea4f43080f55990bc514f545655",
+      "semanticHash": "d8a554c3b0bb663ae844e0868d09d2c2836396bc9d601b958fc79ec1d5432f72",
       "qualityStatus": "below_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_dock_platform_a",
@@ -21008,6 +21997,7 @@
       "file": "prop_fallen_log_a.glb",
       "family": "prop",
       "generator": "fallen_log",
+      "producer": "authored",
       "seed": 117,
       "dimensions": [
         2.9846835136413574,
@@ -21037,11 +22027,11 @@
       "requiredNodes": [
         "prop_fallen_log_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 5,
-      "inputHash": "f1ae83334b4354315eea2f579542945a77f28d3cfca00da722cfedda53299d3c",
+      "durationMs": 6,
+      "inputHash": "6954930a1482c087c13a11ba95f4c2ab4f95f2840940bf5b18a1485595c148a4",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 138,
@@ -21069,9 +22059,13 @@
       ],
       "bytes": 15948,
       "fileHash": "69332ed7d10da8683bf5806bc27dcfdb86e2723616e308ba02bb35ac718b6a11",
-      "semanticHash": "e2f11154d2ce346c7db443731ce593f77eeaf5248d6db3b290ccf7096497426c",
+      "semanticHash": "5ee312380a5c1642d00c7f8b093213deb67c13e8ee8237af51c6c5a48e7d63a9",
       "qualityStatus": "below_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_farm_gate_a",
@@ -21675,6 +22669,7 @@
       "file": "prop_fishing_net_rack_a.glb",
       "family": "prop",
       "generator": "fishing_net_rack",
+      "producer": "authored",
       "seed": 319,
       "dimensions": [
         2.75,
@@ -21704,11 +22699,11 @@
       "requiredNodes": [
         "prop_fishing_net_rack_a_root"
       ],
-      "collision": "none",
+      "collision": "compound",
       "lod": "medium",
       "readDistanceMeters": 30,
-      "durationMs": 26,
-      "inputHash": "67756f9367a3fe1aed65f3ec3beca9a4753f5029236d2b6d94aa5b0cb8f99f27",
+      "durationMs": 67,
+      "inputHash": "2a9f65d0caf3ab7ebcf9fa0a07d4e9ab2bbf75319720928a5a4c449329320a60",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 220,
@@ -21734,9 +22729,13 @@
       ],
       "bytes": 70996,
       "fileHash": "6d03f8f84226a070d7f236e7cb7f0ce55c71a2ae50db8904293265e62b4368e0",
-      "semanticHash": "de338aa36f53da2e1a1d1bf689f55a371cc381d36e1c96f0af521d4b1264dd6c",
+      "semanticHash": "9ec8c47f7a5778e940cea623de926e49906dffa02301878d33a9ad6ab8b05e41",
       "qualityStatus": "on_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_floor_plant_a",
@@ -21819,7 +22818,8 @@
       "id": "prop_galleon_a",
       "file": "prop_galleon_a.glb",
       "family": "prop",
-      "generator": "imported_blend",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 20260923,
       "dimensions": [
         8.931267261505127,
@@ -21841,7 +22841,7 @@
       "paletteTokensUsed": [
         "wood_honey_01"
       ],
-      "vertexColorLoops": 0,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "prop_galleon_a_root",
@@ -21852,9 +22852,9 @@
       "collision": "box",
       "lod": "medium",
       "readDistanceMeters": 80,
-      "durationMs": 1,
-      "inputHash": "48dcb98f22caa44003c9ac5e7295aebe8de00ebf1c672a46f699aa30cf183ea9",
-      "cacheHit": false,
+      "durationMs": 3,
+      "inputHash": "6d00a42d4eecd0cf671fc97fedc372419588612084a124a71579b301ec6861fe",
+      "cacheHit": true,
       "budget": {
         "trianglesMin": 7000,
         "trianglesTarget": 7867,
@@ -21883,28 +22883,47 @@
       "materials": 1,
       "trianglePrimitives": 2,
       "vertexColorPrimitives": 0,
+      "texturedPrimitives": 2,
       "normalPrimitives": 2,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
       "extensions": [
-        "EXT_meshopt_compression"
+        "EXT_meshopt_compression",
+        "EXT_texture_webp"
       ],
-      "bytes": 3493552,
-      "fileHash": "5eb261ab1063bb87707381c1b909d8d1166f8fa5777dc50b190a108bb9495222",
-      "semanticHash": "78483b0ede414999073a2bd4d588de96aacc7994e890cb151f7f78500cfe1722",
+      "bytes": 556608,
+      "fileHash": "4180cd9c4bceac6f0da03929c88628800fedc95bfa9a27b9e057c920918ce4d5",
+      "semanticHash": "aed7a242197f79999f093ae1667e074b326d96f8fb62057355e22a76e034f2f4",
       "qualityStatus": "on_target",
       "animationClips": [],
-      "staticSourceContract": {
-        "passed": true,
-        "sourceSha256": "be95fe8e3f04527aada5112e1c4062553803223b49769866ac7f8f1687b88a02",
-        "sourceRegionCount": 1,
-        "candidateRegionCount": 1,
-        "uniformScale": 22.010747435271128,
-        "maximumPositionErrorMeters": 8.797284500872138e-7,
-        "maximumNormalErrorDegrees": 1.2840706020496733,
-        "maximumUvError": 0
+      "packaging": "source-compression",
+      "source": {
+        "file": "art/imported/tripo/adapted/prop_galleon_a.glb",
+        "sha256": "5eb261ab1063bb87707381c1b909d8d1166f8fa5777dc50b190a108bb9495222",
+        "bytes": 3493552,
+        "preservedSourceBytes": false,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": [
+          {
+            "image": 0,
+            "name": "ship_basecolor",
+            "source": {
+              "mimeType": "image/jpeg",
+              "width": 4096,
+              "height": 4096,
+              "bytes": 3131961
+            },
+            "resampled": true,
+            "output": {
+              "mimeType": "image/webp",
+              "width": 1024,
+              "height": 1024,
+              "bytes": 194950
+            }
+          }
+        ]
       },
-      "packaging": "lossless-compression-only",
       "compression": [
         "EXT_meshopt_compression"
       ]
@@ -22052,6 +23071,77 @@
       "semanticHash": "31aa1da0e5be5baab59135731fab228f179e49017f550d2b615ed094afa6a6ba",
       "qualityStatus": "below_target",
       "animationClips": []
+    },
+    {
+      "id": "prop_ground_note_a",
+      "file": "prop_ground_note_a.glb",
+      "family": "prop",
+      "generator": "ground_note",
+      "producer": "authored",
+      "seed": 131,
+      "dimensions": [
+        0.4200628399848938,
+        0.2800000011920929,
+        0.048400990664958954
+      ],
+      "bounds": {
+        "min": [
+          -0.2100314199924469,
+          -0.14000000059604645,
+          0.006000246852636337
+        ],
+        "max": [
+          0.2100314199924469,
+          0.14000000059604645,
+          0.05440123751759529
+        ]
+      },
+      "paletteTokensUsed": [
+        "canvas_cream_01",
+        "wood_dark_01"
+      ],
+      "vertexColorLoops": 888,
+      "vertexColorSpace": "linear-srgb",
+      "requiredNodes": [
+        "prop_ground_note_a_root"
+      ],
+      "collision": "none",
+      "lod": "none",
+      "readDistanceMeters": 8,
+      "durationMs": 104,
+      "inputHash": "5fd25e558659dcec6311ac92116b3b3ec0f0236afea8e4649c3b2802dab680ba",
+      "cacheHit": false,
+      "budget": {
+        "trianglesMin": 60,
+        "trianglesTarget": 200,
+        "trianglesMax": 500,
+        "materialsMax": 2
+      },
+      "warnings": [],
+      "nodes": 2,
+      "meshes": 1,
+      "triangles": 296,
+      "packagedTriangles": 296,
+      "lodLevels": [],
+      "materials": 2,
+      "trianglePrimitives": 2,
+      "vertexColorPrimitives": 2,
+      "normalPrimitives": 2,
+      "doubleSidedMaterials": 0,
+      "artContractStatus": "passed",
+      "extensions": [
+        "EXT_meshopt_compression",
+        "KHR_mesh_quantization"
+      ],
+      "bytes": 8348,
+      "fileHash": "581fc4f7bd57312ca07ed84ef651d0251c106985647aeca1e61963406f8602af",
+      "semanticHash": "4b816ac8b1ff7a92fa4a7685eee9b652c1cac92a9515f3d36f2320708dac23fe",
+      "qualityStatus": "on_target",
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_harvest_basket_a",
@@ -22202,6 +23292,7 @@
       "file": "prop_lamp_post_a.glb",
       "family": "prop",
       "generator": "lamp_post",
+      "producer": "authored",
       "seed": 347,
       "dimensions": [
         0.9799999892711639,
@@ -22230,11 +23321,11 @@
       "requiredNodes": [
         "prop_lamp_post_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "small",
       "readDistanceMeters": 30,
-      "durationMs": 16,
-      "inputHash": "ab4f3b93db74694294e1c337f92f769803811cb479618d1bc55d43fb15656f49",
+      "durationMs": 13,
+      "inputHash": "d4f6c4381a37b6a7813b30b096c2068e6ff67047c5923732e03ee77fe296c58c",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 220,
@@ -22263,9 +23354,13 @@
       ],
       "bytes": 14788,
       "fileHash": "77b4836aba2fe7a65c2d22cd7fb38fdce1a264c2328126cab88144fc8aed8440",
-      "semanticHash": "2dede2aaa3cfea7c5ded1d07d9db1ca1f23be4b304f9f76ef6e223a8b734352f",
+      "semanticHash": "d2028d163007b8008035eb0f59c9181fd32f32921bfd5dac18cdd588045919b5",
       "qualityStatus": "below_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_laundry_line_a",
@@ -23121,23 +24216,24 @@
       "id": "prop_mooring_post_a",
       "file": "prop_mooring_post_a.glb",
       "family": "prop",
-      "generator": "mooring_post",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 119,
       "dimensions": [
-        0.5651897490024567,
-        0.5169984400272369,
-        1.0399999618530273
+        0.5652001662553642,
+        0.5170157493783669,
+        1.0399898968951313
       ],
       "bounds": {
         "min": [
-          -0.24727469682693481,
+          -0.24728167768738676,
           -0.2569098174571991,
-          0
+          0.000005558056753840468
         ],
         "max": [
-          0.31791505217552185,
-          0.26008862257003784,
-          1.0399999618530273
+          0.3179184885679774,
+          0.2601059319211678,
+          1.0399954549518853
         ]
       },
       "paletteTokensUsed": [
@@ -23146,16 +24242,16 @@
         "wood_dark_01",
         "wood_weathered_01"
       ],
-      "vertexColorLoops": 2388,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "prop_mooring_post_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 0,
-      "inputHash": "3c205e5bc2fe3b71a804192f9df0bbceefb94083d461b933136db2fdc1b6dbd7",
+      "durationMs": 3,
+      "inputHash": "97b3764c7d83f03f3cec11c99ef9ca1ac747f2945f315b41931d88999be250d0",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 120,
@@ -23172,6 +24268,7 @@
       "materials": 4,
       "trianglePrimitives": 4,
       "vertexColorPrimitives": 4,
+      "texturedPrimitives": 0,
       "normalPrimitives": 4,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
@@ -23184,13 +24281,19 @@
       "semanticHash": "5200474ac1cec4efca86ed20ac2af0994101d365475eae7bb61b1a67e279284f",
       "qualityStatus": "on_target",
       "animationClips": [],
-      "surfaceContract": {
-        "primitives": 4,
-        "triangles": 796,
-        "interpolatedTriangles": 48,
-        "skinVertices": 0,
-        "deformation": []
-      }
+      "packaging": "source-compression",
+      "source": {
+        "file": "art/authored/retained-legacy/prop_mooring_post_a.glb",
+        "sha256": "6d519c1de9b3c6ddd320b543e9ce9318c8ea43d65e9c7975149f726256838128",
+        "bytes": 23280,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_path_slab_a",
@@ -23509,6 +24612,7 @@
       "file": "prop_picnic_table_a.glb",
       "family": "prop",
       "generator": "picnic_table",
+      "producer": "authored",
       "seed": 119,
       "dimensions": [
         1.9000478982925415,
@@ -23537,11 +24641,11 @@
       "requiredNodes": [
         "prop_picnic_table_a_root"
       ],
-      "collision": "none",
+      "collision": "compound",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 5,
-      "inputHash": "2a218a72dfe86e019006a6664fb72111811b53829db0845769c1627c73729876",
+      "durationMs": 6,
+      "inputHash": "8ce4e41d5f121969841ae0b0f33a502abd8e0f61e58d83d0b59758f0d613b7c0",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 186,
@@ -23567,9 +24671,13 @@
       ],
       "bytes": 13940,
       "fileHash": "030046bf74333c71f9b68c1968a4161f820f2308e78a0df8e4e31effbe2fe572",
-      "semanticHash": "49bca64f214374e865e8bfaa830d980b8f7120e3130a6d1518c15da26d60c672",
+      "semanticHash": "0ed09fd637f38e72ce6e6be96ef8016b75ce51e0982bb1f7bbf81533fb367ccd",
       "qualityStatus": "on_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_pier_railing_a",
@@ -23650,6 +24758,7 @@
       "file": "prop_potting_bench_a.glb",
       "family": "prop",
       "generator": "potting_bench",
+      "producer": "authored",
       "seed": 120,
       "dimensions": [
         1.399999976158142,
@@ -23680,11 +24789,11 @@
       "requiredNodes": [
         "prop_potting_bench_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 11,
-      "inputHash": "43744f53bc2d11078e21412f0c5a7f2ad88b5c241661c2a88f2be100769a6633",
+      "durationMs": 13,
+      "inputHash": "d5f531dc458230837a41550e8e36a3734b6a9243f61a8261741d286d1bd6195d",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 156,
@@ -23710,9 +24819,13 @@
       ],
       "bytes": 30404,
       "fileHash": "f126a951feb62b3860f6a37294b0f747f900bce6ebf18fbee86ad6aea15fd10c",
-      "semanticHash": "19806d76c816342787060d6c70068b35d0d4297a1e05c16a4c4f95c1dabec4c2",
+      "semanticHash": "2134a8230d19df430810e1eaea622f33b3b3e2cc007e2c3030c9bb8facce74f9",
       "qualityStatus": "on_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_produce_crate_a",
@@ -24160,23 +25273,24 @@
       "id": "prop_sideboard_wood_a",
       "file": "prop_sideboard_wood_a.glb",
       "family": "prop",
-      "generator": "wood_sideboard",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 121,
       "dimensions": [
-        1.3799999952316284,
-        0.4919999986886978,
-        0.8629999756813049
+        1.3799999356269836,
+        0.4920327958474837,
+        0.8629560639834088
       ],
       "bounds": {
         "min": [
           -0.6899999976158142,
-          -0.25699999928474426,
-          0
+          -0.25700702099855754,
+          0.000028697115717901678
         ],
         "max": [
-          0.6899999976158142,
-          0.23499999940395355,
-          0.8629999756813049
+          0.6899999380111694,
+          0.2350257748489262,
+          0.8629847610991267
         ]
       },
       "paletteTokensUsed": [
@@ -24185,16 +25299,16 @@
         "wood_dark_01",
         "wood_warm_01"
       ],
-      "vertexColorLoops": 1728,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "prop_sideboard_wood_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 0,
-      "inputHash": "0835c7ff696291fcdef61d38bbf17bdf0faff110290136ec91163941fe854c9c",
+      "durationMs": 2,
+      "inputHash": "31e7d79ee950110d8f29971ad4e770300a6302d0a7a75e5573e97577c88bf9f4",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 168,
@@ -24211,6 +25325,7 @@
       "materials": 4,
       "trianglePrimitives": 4,
       "vertexColorPrimitives": 4,
+      "texturedPrimitives": 0,
       "normalPrimitives": 4,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
@@ -24223,13 +25338,19 @@
       "semanticHash": "7873620cd73ca2c4c6a8e6aefc64e4b3c0201ef8af63ab2f789bbe5d52baec9d",
       "qualityStatus": "on_target",
       "animationClips": [],
-      "surfaceContract": {
-        "primitives": 4,
-        "triangles": 576,
-        "interpolatedTriangles": 100,
-        "skinVertices": 0,
-        "deformation": []
-      }
+      "packaging": "source-compression",
+      "source": {
+        "file": "art/authored/retained-legacy/prop_sideboard_wood_a.glb",
+        "sha256": "e5a79dfbc8ee5b3637d131852803ed5414356f5e32b818b137d0f42a03e07124",
+        "bytes": 18236,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_signboard_hanging_a",
@@ -24304,6 +25425,7 @@
       "file": "prop_signpost_trail_a.glb",
       "family": "prop",
       "generator": "trail_signpost",
+      "producer": "authored",
       "seed": 121,
       "dimensions": [
         0.7301285117864609,
@@ -24333,11 +25455,11 @@
       "requiredNodes": [
         "prop_signpost_trail_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
       "durationMs": 9,
-      "inputHash": "13ee356cfbb31a19292206b28897469f44fa2a9b9b1eb6605db3f74708322704",
+      "inputHash": "a533ab145b8ab34313646e65332b650bdf0641de7d3ddee974491727bd0cd52a",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 144,
@@ -24365,9 +25487,13 @@
       ],
       "bytes": 18880,
       "fileHash": "9504b0693d322e65b247dd0a3f708db7300c81ee96059a7a5cf14269e9155b6a",
-      "semanticHash": "9d36d2c153d39705f969c54aa9659449e03fdc79b6187d70076a7ead13afadaf",
+      "semanticHash": "24b55c8f33816a1c4b346100e7170d36888103eb881f6183cc4989e94c1fdf79",
       "qualityStatus": "below_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_smoke_plume_a",
@@ -27161,6 +28287,7 @@
       "file": "prop_trail_kiosk_a.glb",
       "family": "prop",
       "generator": "trail_kiosk",
+      "producer": "authored",
       "seed": 118,
       "dimensions": [
         1.5432322025299072,
@@ -27190,11 +28317,11 @@
       "requiredNodes": [
         "prop_trail_kiosk_a_root"
       ],
-      "collision": "none",
+      "collision": "compound",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 10,
-      "inputHash": "b91b1210e5e1b0e6cfb43aa54f084206fb1604660c5729150b67672e218e7d3e",
+      "durationMs": 11,
+      "inputHash": "234af6d24e7e2d96be395cd17c2a01e9cf18917f0a33900b35e6eb7d3f09bf38",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 192,
@@ -27220,9 +28347,13 @@
       ],
       "bytes": 24756,
       "fileHash": "b9ef731ded8d0b75ff66fd84bb5fec575bd74281b7e1ead41d6c330dfe11a013",
-      "semanticHash": "aa7e467cad1dba76fffbebed616127ecebf212e34d9e25478faf7821595350a9",
+      "semanticHash": "35980d5d292f5e69c481acf9142f0c2abf5fe857a97135182e8e6ed62e8d73b4",
       "qualityStatus": "on_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_treasure_chest_a",
@@ -27451,6 +28582,7 @@
       "file": "prop_water_trough_a.glb",
       "family": "prop",
       "generator": "water_trough",
+      "producer": "authored",
       "seed": 119,
       "dimensions": [
         1.5360000133514404,
@@ -27480,11 +28612,11 @@
       "requiredNodes": [
         "prop_water_trough_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 17,
-      "inputHash": "2a8d6ab5c2ee420112e1ddd35d887b00a01d3df859e85c0cf1fce3a03b1bb9a8",
+      "durationMs": 7,
+      "inputHash": "a033047aa5be11d7d18ccd26157dafdc2d5d349c032a248abb0ae19aa5e88b46",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 126,
@@ -27510,9 +28642,13 @@
       ],
       "bytes": 12988,
       "fileHash": "87a7603084bea3449127179b060ec22889078722a0179035fb89bad0c0dec02e",
-      "semanticHash": "4964b5a4139faa21d53c9554fdf76e31fe95273a28f64c21d8c225fc2c1b9b66",
+      "semanticHash": "6ad7ffbb45560c02fe465fe1e2358eacffb9a62af566691a3bf8b79d5dd651e2",
       "qualityStatus": "on_target",
-      "animationClips": []
+      "animationClips": [],
+      "packaging": "static-optimization",
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_water_well_a",
@@ -27665,23 +28801,24 @@
       "id": "prop_wheelbarrow_a",
       "file": "prop_wheelbarrow_a.glb",
       "family": "prop",
-      "generator": "wheelbarrow",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 118,
       "dimensions": [
-        0.5351024270057678,
-        1.323846459388733,
-        0.5928523689508438
+        0.5350675248217859,
+        1.3238464891910553,
+        0.5928524524206757
       ],
       "bounds": {
         "min": [
-          -0.2676108479499817,
-          -0.7004117965698242,
-          -0.0018730908632278442
+          -0.2675934043085713,
+          -0.700411856174469,
+          -0.0018671474383124553
         ],
         "max": [
-          0.26749157905578613,
-          0.6234346628189087,
-          0.590979278087616
+          0.26747412051321456,
+          0.6234346330165863,
+          0.5909853049823632
         ]
       },
       "paletteTokensUsed": [
@@ -27690,16 +28827,16 @@
         "wood_dark_01",
         "wood_warm_01"
       ],
-      "vertexColorLoops": 3624,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "prop_wheelbarrow_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 15,
-      "durationMs": 0,
-      "inputHash": "d982ec07f7ab1554bbfe617e96907aff1aa05b2a2b2cde0f66986f1fbe676a1d",
+      "durationMs": 5,
+      "inputHash": "0da3f8926f05d64bbaf4bd8b33ff98308ab35afc4061b0bb8aa1e65bfde09c96",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 168,
@@ -27716,6 +28853,7 @@
       "materials": 4,
       "trianglePrimitives": 4,
       "vertexColorPrimitives": 4,
+      "texturedPrimitives": 0,
       "normalPrimitives": 4,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
@@ -27728,13 +28866,19 @@
       "semanticHash": "5ac657428a1771c654711be2da6ba4aa3423040cac28fa0683a4f313c2027ab6",
       "qualityStatus": "on_target",
       "animationClips": [],
-      "surfaceContract": {
-        "primitives": 4,
-        "triangles": 1208,
-        "interpolatedTriangles": 0,
-        "skinVertices": 0,
-        "deformation": []
-      }
+      "packaging": "source-compression",
+      "source": {
+        "file": "art/authored/retained-legacy/prop_wheelbarrow_a.glb",
+        "sha256": "e8621eeeff23c54ad4bedb0a84df8d5d23a18ed154d1da16d832e13cff23159e",
+        "bytes": 30816,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "prop_worm_compost_a",
@@ -31507,23 +32651,24 @@
       "id": "tree_dead_a",
       "file": "tree_dead_a.glb",
       "family": "vegetation",
-      "generator": "dead_tree",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 111,
       "dimensions": [
-        1.660111129283905,
-        0.9800756573677063,
-        4.851259544491768
+        1.6599232271446915,
+        0.9799244660415398,
+        4.851259350776672
       ],
       "bounds": {
         "min": [
-          -0.3872172236442566,
-          -0.5917477607727051,
-          -0.008659198880195618
+          -0.38712326512406914,
+          -0.5916349638465939,
+          -0.0086592435836792
         ],
         "max": [
-          1.2728939056396484,
-          0.3883278965950012,
-          4.842600345611572
+          1.2727999620206223,
+          0.38828950219494596,
+          4.842600107192993
         ]
       },
       "paletteTokensUsed": [
@@ -31531,16 +32676,16 @@
         "wood_dark_01",
         "wood_weathered_01"
       ],
-      "vertexColorLoops": 1182,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "tree_dead_a_root"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "none",
       "readDistanceMeters": 30,
-      "durationMs": 0,
-      "inputHash": "8f43fa17cef304f0da7def1bd82cf03e5dbe8a1af17a87c26038863fd052017c",
+      "durationMs": 3,
+      "inputHash": "997bb3b00e16e86e5ddb3c37222b2fe7943c16984c76f5fc93fcedd459cd9918",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 240,
@@ -31559,6 +32704,7 @@
       "materials": 3,
       "trianglePrimitives": 3,
       "vertexColorPrimitives": 3,
+      "texturedPrimitives": 0,
       "normalPrimitives": 3,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
@@ -31571,13 +32717,19 @@
       "semanticHash": "03035dac50dd07341186997d2574bee34458f5f657ffd35d3c4f9e73b979a36f",
       "qualityStatus": "below_target",
       "animationClips": [],
-      "surfaceContract": {
-        "primitives": 3,
-        "triangles": 394,
-        "interpolatedTriangles": 136,
-        "skinVertices": 0,
-        "deformation": []
-      }
+      "packaging": "source-compression",
+      "source": {
+        "file": "art/authored/retained-legacy/tree_dead_a.glb",
+        "sha256": "4552b76f670bdb61ff0b921cfadb8eb5ea87bcc3f5f0b250ef776ba18d284718",
+        "bytes": 15948,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "tree_maple_a",
@@ -32034,23 +33186,24 @@
       "id": "tree_olive_a",
       "file": "tree_olive_a.glb",
       "family": "vegetation",
-      "generator": "olive_tree",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 191,
       "dimensions": [
-        3.7316149473190308,
-        3.389808773994446,
-        4.489652820397168
+        3.7316150069236755,
+        3.389652342955442,
+        4.489577786946297
       ],
       "bounds": {
         "min": [
           -1.247383952140808,
-          -1.7899867296218872,
+          -1.7899292710699328,
           0.004000000189989805
         ],
         "max": [
-          2.4842309951782227,
-          1.5998220443725586,
-          4.493652820587158
+          2.4842310547828674,
+          1.5997230718855093,
+          4.493577787136287
         ]
       },
       "paletteTokensUsed": [
@@ -32059,18 +33212,18 @@
         "foliage_shadow_01",
         "wood_warm_01"
       ],
-      "vertexColorLoops": 7368,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "tree_olive_a_root",
         "tree_olive_a_LOD0",
         "tree_olive_a_LOD1"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "medium",
       "readDistanceMeters": 30,
-      "durationMs": 0,
-      "inputHash": "9aeb002c5d9dfac881e0fb6aec701acc6cf933058cba90c43d9e0101f0512c9e",
+      "durationMs": 26,
+      "inputHash": "808346dfc282f076f1411f9dc9880ae8fe728a02d3d3b7179136c5191f5db71b",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 300,
@@ -32080,7 +33233,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "4c38ae9b20fc24f155f406401099360b0fc717d7eb7dc3c9326eed74197367d4",
+        "briefHash": "5e1e1edf95049706bab942d44575159f0086a148bb78d7cf0afaa8976ed02722",
         "sources": 1,
         "components": 3,
         "criticalFeatures": 3,
@@ -32110,6 +33263,7 @@
       "materials": 4,
       "trianglePrimitives": 7,
       "vertexColorPrimitives": 7,
+      "texturedPrimitives": 0,
       "normalPrimitives": 7,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
@@ -32122,35 +33276,42 @@
       "semanticHash": "b622b06f000c5a7c53481b9fda15b533b00f888c8b61f227ee0af3a13b1059a0",
       "qualityStatus": "below_target",
       "animationClips": [],
-      "surfaceContract": {
-        "primitives": 7,
-        "triangles": 2456,
-        "interpolatedTriangles": 2085,
-        "skinVertices": 0,
-        "deformation": []
-      }
+      "packaging": "source-compression",
+      "source": {
+        "file": "art/authored/retained-legacy/tree_olive_a.glb",
+        "sha256": "4024d89c76ce7b6023d0181b3c016c8f20ce24e49f0b4cc2b072e0a378306277",
+        "bytes": 94460,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "tree_olive_b",
       "file": "tree_olive_b.glb",
       "family": "vegetation",
-      "generator": "olive_tree",
+      "generator": "authored_glb",
+      "producer": "authored_glb",
       "seed": 223,
       "dimensions": [
         4.205102443695068,
-        3.7824612855911255,
-        4.215030856896192
+        3.7823330390550702,
+        4.215057245912675
       ],
       "bounds": {
         "min": [
           -2.5319597721099854,
-          -1.9516513347625732,
+          -1.9516211557814689,
           0.004000000189989805
         ],
         "max": [
           1.673142671585083,
-          1.8308099508285522,
-          4.219030857086182
+          1.8307118832736013,
+          4.219057246102665
         ]
       },
       "paletteTokensUsed": [
@@ -32159,18 +33320,18 @@
         "foliage_shadow_01",
         "wood_dark_01"
       ],
-      "vertexColorLoops": 7080,
+      "vertexColorLoops": null,
       "vertexColorSpace": "linear-srgb",
       "requiredNodes": [
         "tree_olive_b_root",
         "tree_olive_b_LOD0",
         "tree_olive_b_LOD1"
       ],
-      "collision": "none",
+      "collision": "box",
       "lod": "medium",
       "readDistanceMeters": 30,
-      "durationMs": 1,
-      "inputHash": "150692a444acb1ba106b89785a7a9ccf8fc245ba3e9699c2a43af3322aeafc7a",
+      "durationMs": 8,
+      "inputHash": "01078b792e2e5e9d6177713048dc57f6dfa9843478e0215cadf4a9e3c7b35a11",
       "cacheHit": false,
       "budget": {
         "trianglesMin": 300,
@@ -32180,7 +33341,7 @@
       },
       "referenceAuthoring": {
         "status": "ready",
-        "briefHash": "c7b11df19cfaad11ae543fc582b04430a11e3f26bdf50df1b02b11febdbdb40c",
+        "briefHash": "8de8ebe88b2a0a58b74a074517c7bbd92eaceb9a81c230f584d44523e315f3a5",
         "sources": 1,
         "components": 3,
         "criticalFeatures": 3,
@@ -32210,6 +33371,7 @@
       "materials": 4,
       "trianglePrimitives": 7,
       "vertexColorPrimitives": 7,
+      "texturedPrimitives": 0,
       "normalPrimitives": 7,
       "doubleSidedMaterials": 0,
       "artContractStatus": "passed",
@@ -32222,13 +33384,19 @@
       "semanticHash": "b00363ad2892fb6b0091afcc5989b39f68d782e68037f93ba85c0719477d6a9e",
       "qualityStatus": "below_target",
       "animationClips": [],
-      "surfaceContract": {
-        "primitives": 7,
-        "triangles": 2360,
-        "interpolatedTriangles": 1961,
-        "skinVertices": 0,
-        "deformation": []
-      }
+      "packaging": "source-compression",
+      "source": {
+        "file": "art/authored/retained-legacy/tree_olive_b.glb",
+        "sha256": "ff1f24275205923665b876725b41fa5f3da51bc2db0cc41978b590b881be4d2d",
+        "bytes": 90296,
+        "preservedSourceBytes": true,
+        "repairedBounds": 0,
+        "removedMaterialExtensions": [],
+        "textures": []
+      },
+      "compression": [
+        "EXT_meshopt_compression"
+      ]
     },
     {
       "id": "tree_pine_a",

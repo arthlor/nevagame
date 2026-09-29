@@ -16,7 +16,7 @@ import { MAINLAND_SETTLEMENT_BUILDINGS } from "../../src/world/MainlandSettlemen
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { createWorldStaticPlacements } from "../../src/world/WorldEnvironmentLayout";
 import { WorldLayout } from "../../src/world/WorldLayout";
-import { expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectMarketsPreserved, expectStructuresPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v50_layout22_organic_predecessor.json";
@@ -38,7 +38,7 @@ function preserved(before: GameState, after: GameState): void {
   }
   expectMarketsPreserved(after, expected);
   for (const key of ["money", "workCapacity", "proficiencies", "equipment", "ownedRodIds", "carriedFishCargoId", "activeBoatId", "activeMountId"] as const) {
-    expect(after.player[key], key).toEqual(before.player[key]);
+    expect(after.player[key], key).toEqual(expected.player[key]);
   }
   expect(after.world.fishingPressureByHabitat).toEqual(before.world.fishingPressureByHabitat);
   expect(after.world.lastSchoolSpawnMinute).toBe(before.world.lastSchoolSpawnMinute);
@@ -83,8 +83,8 @@ describe("organic mainland layout23 save recovery", () => {
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect(migrated.state.player).toMatchObject({ x: saved.state.player.x, z: saved.state.player.z });
-    expect(migrated.state.world.structures).toEqual(expectedStructuresAfterSunreachLayout28(saved.state.world.structures));
-    expect(migrated.state.boats).toEqual(saved.state.boats);
+    expectStructuresPreserved(migrated.state.world.structures, expectedStructuresAfterSunreachLayout28(saved.state.world.structures));
+    expectBoatsPreserved(migrated.state, saved.state);
     preserved(saved.state, migrated.state);
     expect(validateSaveEnvelope(migrated)).toBe(true);
     expect(migrateSaveData(migrated)).toEqual(migrated);

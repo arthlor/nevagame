@@ -4,10 +4,10 @@ import { migrateHeadwaterSpring55 } from "../../src/persistence/migrateHeadwater
 import { validateSaveEnvelope, type SaveEnvelope } from "../../src/persistence/SaveSchema";
 import { IndexedDbSaveRepository } from "../../src/persistence/IndexedDbSaveRepository";
 import { WorldLayout } from "../../src/world/WorldLayout";
-import { WORLD_LAYOUT_REVISION, HARBOR_SKIFF_MOORING } from "../../src/world/WorldAnchors";
+import { WORLD_LAYOUT_REVISION, harborMooringForBoatType } from "../../src/world/WorldAnchors";
 import { isInHeadwaterGrayboxEnvelope } from "../../src/world/HeadwaterWaterfallGraybox";
 import { playerPoseFromMount, isMountableTraversalPoint } from "../../src/simulation/mounts/Mounts";
-import { expectMarketsPreserved } from "../helpers/migrationPreservation";
+import { expectBoatsPreserved, expectMarketsPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import { headSchemaDevelopmentSave } from "../helpers/headSchemaDevelopmentSave";
 import predecessor from "../fixtures/save_v54_layout26_headwater_predecessor.json";
@@ -67,7 +67,7 @@ describe("headwater spring layout27 recovery", () => {
       expect(WorldLayout.isWater(p.x, p.z)).toBe(false);
       expect(p.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(p.x, p.z) + 0.5, 6);
     }
-    for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "weather", "boats", "mounts"] as const) {
+    for (const key of ["farms", "crops", "inventories", "processingJobs", "fishCargo", "contracts", "quests", "journal", "weather", "mounts"] as const) {
       if (key === "mounts" && mounted) {
         const { x: _x, y: _y, z: _z, ...restBefore } = untouched.state.mounts[after.state.player.activeMountId!];
         const { x: _x2, y: _y2, z: _z2, ...restAfter } = after.state.mounts[after.state.player.activeMountId!];
@@ -77,6 +77,7 @@ describe("headwater spring layout27 recovery", () => {
       expect(after.state[key], key).toEqual(expected[key]);
     }
     expect(after.state.clock).toEqual(expected.clock);
+    expectBoatsPreserved(after.state, expected);
     expectMarketsPreserved(after.state, expected);
     expect(saved).toEqual(untouched);
     expect(migrateSaveData(after)).toEqual(after);
@@ -101,11 +102,13 @@ describe("headwater spring layout27 recovery", () => {
     const after = migrateSaveData(saved);
     expect(validateSaveEnvelope(after)).toBe(true);
     const docked = after.state.boats["boat.player_rowboat"];
-    expect(docked.x).toBe(HARBOR_SKIFF_MOORING.boatPosition.x);
-    expect(docked.z).toBe(HARBOR_SKIFF_MOORING.boatPosition.z);
+    // v55 docks the hull at the harbor; v69 then moves every harbor-docked boat to its type's berth.
+    const mooring = harborMooringForBoatType(docked.boatTypeId);
+    expect(docked.x).toBe(mooring.boatPosition.x);
+    expect(docked.z).toBe(mooring.boatPosition.z);
     expect(docked.y).toBe(0);
     expect(docked.isDocked).toBe(true);
-    expect(docked.dockedMarketId).toBe(HARBOR_SKIFF_MOORING.marketId);
+    expect(docked.dockedMarketId).toBe(mooring.marketId);
   });
 
   it("moves a structure written inside the envelope onto valid ground", () => {

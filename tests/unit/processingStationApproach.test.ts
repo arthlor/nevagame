@@ -12,7 +12,8 @@ import {
   getProcessingStationFrontPosition,
   getProcessingStationRuntimeRotationY,
   PROCESSING_STATION_IDS,
-  PROCESSING_STATION_INTERACTION_RADIUS
+  PROCESSING_STATION_INTERACTION_RADIUS,
+  PROCESSING_STATION_FRONT_ALIGNMENT_MIN
 } from "../../src/world/ProcessingStationApproach";
 
 const STATIONS = [
@@ -120,10 +121,15 @@ describe("processing station front approach", () => {
       };
       expect(WorldLayout.isWalkable(front.x, front.z), stationId).toBe(true);
       expect(WorldLayout.isWater(front.x, front.z), stationId).toBe(false);
+      // The fish table's front is fixed by its saved structure; the extended main pier moved
+      // the dock 56 degrees off it, which the runtime's own front-alignment limit still admits.
+      const minimumAlignment = stationId === HARBOR_FISH_TABLE.structureId
+        ? PROCESSING_STATION_FRONT_ALIGNMENT_MIN
+        : 0.75;
       expect(
         authoredDirection.x * accessDirection.x + authoredDirection.z * accessDirection.z,
         stationId
-      ).toBeGreaterThan(0.75);
+      ).toBeGreaterThan(minimumAlignment);
     }
   });
 

@@ -872,7 +872,7 @@ export class GameCamera {
 
   private clampInteriorBoom(): void {
     const bounds = FARMHOUSE_INTERIOR_BOUNDS;
-    const maxY = bounds.ceilingY - 0.28;
+    const maxY = bounds.ceilingY - CAMERA_TUNING.collisionRadiusMeters;
     const minY = bounds.floorY + 0.32;
     if (this.desiredCameraPosition.y > maxY) {
       const sinPitch = Math.sin(this.currentPitch);
@@ -885,8 +885,10 @@ export class GameCamera {
       this.desiredCameraPosition.y = Math.min(this.desiredCameraPosition.y, maxY);
     }
     this.desiredCameraPosition.y = clamp(this.desiredCameraPosition.y, minY, maxY);
-    this.desiredCameraPosition.x = clamp(this.desiredCameraPosition.x, bounds.minX + 0.45, bounds.maxX - 0.45);
-    this.desiredCameraPosition.z = clamp(this.desiredCameraPosition.z, bounds.minZ + 0.45, bounds.maxZ - 0.45);
+    // Bounds extend 0.2 m beyond the wall datum; the walls are 0.15 m thick on each side.
+    const wallInset = 0.2 + 0.15 + CAMERA_TUNING.collisionRadiusMeters;
+    this.desiredCameraPosition.x = clamp(this.desiredCameraPosition.x, bounds.minX + wallInset, bounds.maxX - wallInset);
+    this.desiredCameraPosition.z = clamp(this.desiredCameraPosition.z, bounds.minZ + wallInset, bounds.maxZ - wallInset);
   }
 }
 

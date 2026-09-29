@@ -7,6 +7,7 @@ import { MAINLAND_ROUTES } from "../../src/world/NevaMainland";
 import { SUNREACH_ROUTES } from "../../src/world/SunreachWorld";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { expectInventoriesPreserved } from "../helpers/migrationPreservation";
 import { installMemoryIndexedDB } from "../helpers/memoryIndexedDB";
 import predecessor from "../fixtures/save_v69_layout37_road_network_predecessor.json";
 
@@ -66,7 +67,8 @@ describe("road network layout38 recovery", () => {
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
     expect({ x: after.state.player.x, z: after.state.player.z }).toEqual(point);
     expect(after.state.player.y).toBeCloseTo(WorldLayout.traversalSurfaceHeight(point.x, point.z) + 0.5, 6);
-    for (const key of PRESERVED) expect(after.state[key], key).toEqual(before.state[key]);
+    for (const key of PRESERVED) if (key !== "inventories") expect(after.state[key], key).toEqual(before.state[key]);
+    expectInventoriesPreserved(after.state, before.state);
     expect(after.state.player.money).toBe(before.state.player.money);
     expect(after.state.player.proficiencies).toEqual(before.state.player.proficiencies);
     expect(saved).toEqual(before);
