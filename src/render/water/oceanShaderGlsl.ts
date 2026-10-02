@@ -1,8 +1,8 @@
 /**
  * Shared GLSL chunks adapted from WaterThreeJS
- * (https://github.com/achrefelouafi/WaterThreeJS) for Neva's cozy baseline.
+ * (https://github.com/achrefelouafi/WaterThreeJS) for Neva's water implementation.
  *
- * Adaptation notes (Art Pipeline §6, 04 §8):
+ * Runtime adaptation notes:
  * - Neva's GPU wave field displaces vertically only, so there is no
  *   horizontal Gerstner map to invert here; buoyancy samples the same
  *   vertical field on the CPU.

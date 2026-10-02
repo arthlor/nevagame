@@ -10,6 +10,7 @@ import { WorldLayout } from "../../world/WorldLayout";
 import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
 import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
+import { GROUND_STONES_GLSL } from "../materials/GroundStoneShader";
 
 /**
  * Running water of the mainland brooks (`MainlandBrooks`): one ribbon per
@@ -27,7 +28,7 @@ import { PALETTE_HEX } from "../materials/PaletteTokens";
  * Presentation only; the brooks own no water
  * state. Numbers live in `VisualRenderConfig.waterSurface.brooks`.
  */
-const BROOK_PROGRAM_CACHE_KEY = "neva-brook-surface-v10-sea-mouth";
+const BROOK_PROGRAM_CACHE_KEY = "neva-brook-surface-v11-shared-stones";
 /** Lift above the rendered floor, so the water never flickers into it. */
 const FLOOR_CLEARANCE_METERS = 0.07;
 /**
@@ -319,38 +320,7 @@ float brookNoise(vec2 p) {
 float brookRipple(vec2 p, float shift) {
   return brookNoise(vec2(p.x - shift, p.y)) * 0.62 + brookNoise(vec2(p.x * 2.1 - shift * 1.7, p.y * 2.3 + 7.1)) * 0.38;
 }
-// Loose rounded stones, one or none to a cell: each is an ellipse of its own
-// size, stretch and turn, so they lie with grit showing between them. A cell
-// keeps its stone when its hash is under \`keep\`. Returns the stone's body, a
-// dome for its rounded top and a hash that picks its colour; \`slope\` tilts
-// its surface away from its crown and \`nearest\` is the distance to the
-// nearest kept stone in radii.
-vec4 brookStones(vec2 p, float keep, out vec2 slope, out float nearest) {
-  vec2 n = floor(p), f = fract(p);
-  vec4 stone = vec4(0.0);
-  slope = vec2(0.0);
-  nearest = 8.0;
-  for (int j = -1; j <= 1; j++) {
-    for (int i = -1; i <= 1; i++) {
-      vec2 cell = n + vec2(float(i), float(j));
-      if (brookHash(cell + 3.7) > keep) continue;
-      float size = brookHash(cell + 9.1);
-      float turn = brookHash(cell + 5.3) * 6.2831853;
-      vec2 toCentre = vec2(float(i), float(j)) + vec2(brookHash(cell), brookHash(cell + vec2(17.3, 5.1))) * 0.5 + 0.25 - f;
-      vec2 r = mat2(cos(turn), -sin(turn), sin(turn), cos(turn)) * toCentre;
-      r.x /= 1.0 + size * 0.55;
-      float radius = mix(0.26, 0.44, size);
-      float d = length(r) / radius;
-      nearest = min(nearest, d);
-      float body = 1.0 - smoothstep(0.78, 1.0, d);
-      if (body > stone.x) {
-        stone = vec4(body, 1.0 - d * d, 0.0, brookHash(cell + 11.9));
-        slope = -toCentre / radius;
-      }
-    }
-  }
-  return stone;
-}
+${GROUND_STONES_GLSL}
 `;
 
 function createBrookMaterial(time: THREE.IUniform<number>): THREE.MeshStandardMaterial {
@@ -423,7 +393,7 @@ brookFoam = clamp(brookFoam, 0.0, 1.0) * brookWater;
 vec2 brookStoneSlope;
 float brookStoneNearest;
 float brookBank = clamp(brookAcross - 1.0, 0.0, 1.0);
-vec4 brookStone = brookStones(vBrookWorld / uBrookPebbleSize, mix(0.95, 0.0, pow(brookBank, 0.8)),
+vec4 brookStone = nevaGroundStones(vBrookWorld / uBrookPebbleSize, mix(0.95, 0.0, pow(brookBank, 0.8)),
   brookStoneSlope, brookStoneNearest);
 float brookStoneMask = brookStone.x;
 // Mostly cool grey stones, a few pale ones and the odd warm one.

@@ -68,6 +68,11 @@ function timeLabel(minutes: number): string {
   if (minutes < 60) return `${Math.max(0, Math.ceil(minutes))}m left`;
   const hours = Math.floor(minutes / 60);
   const remainder = Math.ceil(minutes % 60);
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return remHours > 0 ? `${days}d ${remHours}h left` : `${days}d left`;
+  }
   return remainder > 0 ? `${hours}h ${remainder}m left` : `${hours}h left`;
 }
 
@@ -103,7 +108,9 @@ function icedHoldAvailable(state: GameState, speciesId: string, vesselId: string
 function contractOpportunity(state: GameState, contract: ContractState, vesselId: string | null): ExpeditionOpportunityDto {
   const targetName = itemName(contract.targetItemIdOrSpecies);
   const remaining = Math.max(0, contract.quantityRequired - contract.quantityFulfilled);
-  const minutesLeft = contract.expiresAtMinute - state.clock.currentMinute;
+  const rawMinutesLeft = contract.expiresAtMinute - state.clock.currentMinute;
+  const maxDuration = ContentRegistry.contractTemplates.get(contract.templateId)?.durationMinutes ?? 2880;
+  const minutesLeft = Math.min(Math.max(0, rawMinutesLeft), maxDuration);
   const isProduce = isProduceContractType(contract.type);
   const blockers: string[] = [];
   const inventory = state.inventories[state.player.inventoryId];

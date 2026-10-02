@@ -5,9 +5,10 @@ import { FinalColorPass, type FinalColorInputs } from "./FinalColorPass";
 import { FxaaStage } from "./FxaaStage";
 import { GtaoStage } from "./GtaoStage";
 import { HdrBloomStage } from "./HdrBloomStage";
+import { SunShaftStage } from "./SunShaftStage";
 import { assertProgramsRunnable } from "./programHealth";
 
-type StageKind = "gtao" | "bloom" | "fxaa";
+type StageKind = "gtao" | "bloom" | "fxaa" | "sun-shafts";
 
 export interface EnhancedFrameOptions {
   /** Capture `no-post`: every optional effect off, same targets and conversion. */
@@ -21,6 +22,7 @@ export interface EnhancedPathTargets {
   scene: THREE.WebGLRenderTarget;
   output: THREE.WebGLRenderTarget | null;
   gtao: { gather: THREE.WebGLRenderTarget; denoised: THREE.WebGLRenderTarget } | null;
+  sunShafts: THREE.WebGLRenderTarget | null;
   bloom: readonly THREE.WebGLRenderTarget[];
 }
 
@@ -28,6 +30,7 @@ export interface EnhancedPathTargets {
 export interface EnhancedActiveStages {
   gtao: boolean;
   bloom: boolean;
+  sunShafts: boolean;
   fxaa: boolean;
 }
 
@@ -35,7 +38,7 @@ const UNIT_SIZE: Readonly<{ width: number; height: number }> = Object.freeze({ w
 
 /**
  * The High tier's render path: the world into one linear HDR colour/depth
- * target (which also feeds the water snapshot), optional GTAO and HDR bloom
+ * target (which also feeds the water snapshot), optional GTAO, sunlight and HDR bloom
  * over that target, then one final-colour pass and optional FXAA.
  *
  * Optional stages are created only while an effect needs them. `setEffects`
@@ -49,6 +52,7 @@ export class EnhancedRenderPath {
   private outputTarget: THREE.WebGLRenderTarget | null = null;
   private readonly finalPass = new FinalColorPass();
   private gtao: GtaoStage | null = null;
+  private sunShafts: SunShaftStage | null = null;
   private bloom: HdrBloomStage | null = null;
   private fxaa: FxaaStage | null = null;
   private readonly creating = new Set<StageKind>();
@@ -78,6 +82,7 @@ export class EnhancedRenderPath {
       aoSize: UNIT_SIZE,
       aoIntensity: 0,
       aoEdgeTolerance: CANONICAL_RENDER_CONFIG.postProcessing.ambientOcclusion.edgeDepthTolerance,
+      sunShafts: null,
       bloom: null,
       bloomStrength: 0,
       finish: this.neutralFinish
@@ -88,6 +93,7 @@ export class EnhancedRenderPath {
   public get preparing(): boolean {
     return this.creating.size > 0
       || this.awaiting("gtao", this.gtao)
+      || this.awaiting("sun-shafts", this.sunShafts)
       || this.awaiting("bloom", this.bloom)
       || this.awaiting("fxaa", this.fxaa);
   }
@@ -109,18 +115,20 @@ export class EnhancedRenderPath {
     }
     this.outputTarget?.setSize(this.width, this.height);
     this.gtao?.setSize(this.width, this.height);
+    this.sunShafts?.setSize(this.width, this.height);
     this.bloom?.setSize(this.width, this.height);
   }
 
   public setEffects(effects: ResolvedGraphicsEffects): void {
     const previous = this.effects;
     this.effects = effects;
-    if (previous && (previous.hdrBloom !== effects.hdrBloom || previous.fxaa !== effects.fxaa
+    if (previous && (previous.sunShafts !== effects.sunShafts || previous.hdrBloom !== effects.hdrBloom || previous.fxaa !== effects.fxaa
       || previous.ambientOcclusion !== effects.ambientOcclusion)) {
       // A new request gets a new attempt; a stage that failed stays off until then.
       this.failed.clear();
     }
     if (!this.wants("gtao") && this.gtao) { this.gtao.dispose(); this.gtao = null; }
+    if (!this.wants("sun-shafts") && this.sunShafts) { this.sunShafts.dispose(); this.sunShafts = null; }
     if (!this.wants("bloom") && this.bloom) { this.bloom.dispose(); this.bloom = null; }
     if (!this.wants("fxaa") && this.fxaa) {
       this.fxaa.dispose();
@@ -133,6 +141,7 @@ export class EnhancedRenderPath {
   public activeStages(): EnhancedActiveStages {
     return {
       gtao: this.gtao !== null && this.wants("gtao"),
+      sunShafts: Boolean(this.sunShafts?.active) && this.wants("sun-shafts"),
       bloom: this.bloom !== null && this.wants("bloom"),
       fxaa: this.fxaa !== null && this.wants("fxaa")
     };
@@ -191,6 +200,13 @@ export class EnhancedRenderPath {
         bloom = this.bloom.render(renderer, this.sceneTarget, renderer.toneMappingExposure);
       }
 
+      let sunShafts: THREE.Texture | null = null;
+      if (this.sunShafts) this.sunShafts.active = false;
+      if (!options.noPost && this.sunShafts && this.wants("sun-shafts")) {
+        options.beginPass("sun-shafts");
+        sunShafts = this.sunShafts.render(renderer, camera, this.sceneTarget);
+      }
+
       const smoothing = !options.noPost && this.fxaa !== null && this.wants("fxaa");
       const output = smoothing ? this.ensureOutputTarget() : null;
       options.beginPass("post");
@@ -199,6 +215,7 @@ export class EnhancedRenderPath {
       inputs.ambientOcclusion = ambientOcclusion;
       inputs.aoSize = this.gtao?.size ?? UNIT_SIZE;
       inputs.aoIntensity = options.aoIntensity;
+      inputs.sunShafts = sunShafts;
       inputs.bloom = bloom;
       inputs.bloomStrength = this.bloom?.strength ?? 0;
       inputs.finish = options.noPost ? this.neutralFinish : this.effects?.colorFinish ?? this.neutralFinish;
@@ -218,6 +235,7 @@ export class EnhancedRenderPath {
       scene: this.sceneTarget,
       output: this.outputTarget,
       gtao: this.gtao?.targets ?? null,
+      sunShafts: this.sunShafts?.target ?? null,
       bloom: this.bloom?.targets ?? []
     };
   }
@@ -225,6 +243,8 @@ export class EnhancedRenderPath {
   public dispose(): void {
     this.disposed = true;
     this.gtao?.dispose();
+    this.sunShafts?.dispose();
+    this.sunShafts = null;
     this.bloom?.dispose();
     this.fxaa?.dispose();
     this.gtao = null;
@@ -244,6 +264,7 @@ export class EnhancedRenderPath {
     if (!effects) return false;
     switch (kind) {
       case "gtao": return effects.ambientOcclusion === "gtao";
+      case "sun-shafts": return effects.sunShafts;
       case "bloom": return effects.hdrBloom;
       case "fxaa": return effects.fxaa;
     }
@@ -259,6 +280,14 @@ export class EnhancedRenderPath {
         await stage.prepare(this.renderer, camera, this.sceneTarget);
         return stage;
       }, (stage) => { this.gtao = stage; });
+    }
+    if (this.wants("sun-shafts") && !this.sunShafts) {
+      this.create("sun-shafts", async () => {
+        const stage = new SunShaftStage();
+        stage.setSize(this.width, this.height);
+        await stage.prepare(this.renderer);
+        return stage;
+      }, (stage) => { this.sunShafts = stage; });
     }
     if (this.wants("bloom") && !this.bloom) {
       this.create("bloom", async () => {

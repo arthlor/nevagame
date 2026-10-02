@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import { roadTransverseStations } from "./RoadProfile";
+export { roadTransverseStations, sampleRoadCrossSection } from "./RoadProfile";
+export type { RoadCrossSectionInput, RoadCrossSectionSample } from "./RoadProfile";
+import { compileRoadFootprint, routeStationOffset, roadOffsetJoin, roadGatewayPlan, partitionRoadTriangles, RoadFootprintRegion, type CompiledRoadFootprint, type RoadPlanPoint, type RoadPolygon, type RoadPolygons } from "./RoadFootprint";
 import { PALETTE_HEX } from "../render/materials/PaletteTokens";
 import type {
   CompiledWorldRoute,
@@ -9,6 +13,7 @@ import type {
 } from "./WorldLayout";
 
 export interface OrganicRoadGeometryOptions {
+  footprint?: CompiledRoadFootprint;
   routes: readonly CompiledWorldRoute[];
   junctions: readonly WorldRouteJunction[];
   profiles: Readonly<Record<WorldRouteKind, Readonly<WorldRouteProfile>>>;
@@ -29,20 +34,6 @@ export interface OrganicRoadGeometryOptions {
   isBridgeDeck: (x: number, z: number) => boolean;
 }
 
-export interface RoadCrossSectionInput {
-  profile: Readonly<WorldRouteProfile>;
-  halfWidthMeters: number;
-  lateralDistanceMeters: number;
-}
-
-export interface RoadCrossSectionSample {
-  normalizedCoreDistance: number;
-  crownMeters: number;
-  shoulderAmount: number;
-  edgeGrassAmount: number;
-  surfaceOffsetMeters: number;
-}
-
 /**
  * Class code each road vertex carries in its `roadClass` attribute: the three
  * route kinds, then shared surfaces (junctions, the bridge gateway) that carry
@@ -52,775 +43,441 @@ export const ROAD_CLASS_CODES: Readonly<Record<WorldRouteKind | "shared", number
   arterial: 0, lane: 1, trail: 2, shared: 3
 });
 
-const TRANSVERSE_OFFSETS = [
-  -1, -0.97, -0.9, -0.78, -0.62, -0.42, -0.21, -0.14, 0,
-  0.14, 0.21, 0.42, 0.62, 0.78, 0.9, 0.97, 1
-] as const;
-
-function paletteColor(token: keyof typeof PALETTE_HEX): THREE.Color {
-  return new THREE.Color(PALETTE_HEX[token]);
-}
-
-function clamp01(value: number): number {
-  return THREE.MathUtils.clamp(value, 0, 1);
-}
-
+function paletteColor(token: keyof typeof PALETTE_HEX): THREE.Color { return new THREE.Color(PALETTE_HEX[token]); }
+function clamp01(value: number): number { return THREE.MathUtils.clamp(value, 0, 1); }
 function smoothstep(edge0: number, edge1: number, value: number): number {
-  const amount = clamp01((value - edge0) / Math.max(0.0001, edge1 - edge0));
-  return amount * amount * (3 - 2 * amount);
+  const t = clamp01((value - edge0) / Math.max(0.0001, edge1 - edge0));
+  return t * t * (3 - 2 * t);
+}
+export { routeStationOffset } from "./RoadFootprint";
+
+interface SourceVertex { x: number; y: number; z: number; color: readonly [number, number, number]; across: number; along: number; classCode: number }
+
+interface RoadInterfaceStitchResult {
+  indices: number[];
+  gatewayVertexStart: number;
+  roadTriangleCount: number;
+  junctionTriangleCount: number;
+  adjustedVertexCount: number;
+  insertedVertexCount: number;
+  repairedInterfaceDiagonals: number;
+  maximumHeightLiftMeters: number;
+  maximumHeightLiftPoint: { x: number; z: number; from: number; to: number } | null;
 }
 
-/** Where a branch strip meets the route it continues. The ribbon stops here. */
-function junctionApronRadius(junction: WorldRouteJunction): number {
-  return junction.radiusMeters + junction.blendLengthMeters * 1.08;
-}
-
-/**
- * A wedge between two meeting roads is paved out to here. Shallow forks need
- * the longer run; a right-angle crossing meets sooner.
- */
-export const JUNCTION_GORE_REACH_METERS = 10;
-/** Wider than this, the gap is the outside of the fork and stays meadow. */
-const JUNCTION_GORE_OPEN_ANGLE = 2.55;
-
-interface PlannedBranch extends JunctionBranch {
-  heading: number;
-  reach: number;
-  featherHalfWidth: number;
-}
-
-interface JunctionPlan {
-  junction: WorldRouteJunction;
-  branches: PlannedBranch[];
-}
-
-function leftNormal(direction: WorldPoint): WorldPoint {
-  return { x: -direction.z, z: direction.x };
-}
-
-function angleDelta(from: number, to: number): number {
-  let delta = to - from;
-  if (delta <= 0) delta += Math.PI * 2;
-  return delta;
-}
-
-function headingContains(start: number, end: number, heading: number): boolean {
-  return angleDelta(start, heading) <= angleDelta(start, end) + 1e-3;
-}
-
-/** Distance from the centre to where the two inner edges have clearly separated. */
-function goreMeetDistance(a: PlannedBranch, b: PlannedBranch, delta: number): number {
-  const span = Math.max(0.18, Math.sin(delta / 2));
-  return (a.halfWidth + b.halfWidth + 3.2) / (2 * span);
-}
-
-function planJunctions(
-  routes: readonly CompiledWorldRoute[],
-  junctions: readonly WorldRouteJunction[],
-  profiles: Readonly<Record<WorldRouteKind, Readonly<WorldRouteProfile>>>
-): JunctionPlan[] {
-  return junctions.map((junction) => {
-    const apron = junctionApronRadius(junction);
-    const branches: PlannedBranch[] = junctionBranches(routes, junction).map((branch) => {
-      const profile = profiles[branch.kind];
-      return {
-        ...branch,
-        heading: Math.atan2(branch.direction.x, branch.direction.z),
-        reach: apron,
-        featherHalfWidth: branch.halfWidth + branch.shoulderWidthMeters + profile.terrainFeatherMeters * 0.78
-      };
-    }).sort((left, right) => left.heading - right.heading);
-    for (let index = 0; index < branches.length; index++) {
-      const current = branches[index];
-      const next = branches[(index + 1) % branches.length];
-      const delta = angleDelta(current.heading, next.heading);
-      if (delta > JUNCTION_GORE_OPEN_ANGLE) continue;
-      const reach = Math.min(JUNCTION_GORE_REACH_METERS, Math.max(apron, goreMeetDistance(current, next, delta)));
-      current.reach = Math.max(current.reach, reach);
-      next.reach = Math.max(next.reach, reach);
-    }
-    return { junction, branches };
-  });
-}
-
-function pointInJunctionPlan(plan: JunctionPlan, point: WorldPoint): boolean {
-  const dx = point.x - plan.junction.center.x;
-  const dz = point.z - plan.junction.center.z;
-  const distance = Math.hypot(dx, dz);
-  const core = Math.max(0.72, plan.junction.radiusMeters * 0.74);
-  if (distance <= core * 1.08) return true;
-  const heading = Math.atan2(dx, dz);
-  for (const branch of plan.branches) {
-    const along = dx * branch.direction.x + dz * branch.direction.z;
-    if (along < -0.25 || along > branch.reach) continue;
-    const normal = leftNormal(branch.direction);
-    if (Math.abs(dx * normal.x + dz * normal.z) <= branch.featherHalfWidth) return true;
+/** Match ownership interfaces without resampling the terrain on Boolean cuts. */
+function stitchRoadInterfaces(
+  positions: number[], colors: number[], frames: number[], classes: number[],
+  indices: readonly number[], roadTriangleCount: number, junctionTriangleCount: number, gatewayVertexStart: number, sampledHeights: ReadonlyMap<string, number>
+): RoadInterfaceStitchResult {
+  interface Node { x: number; z: number; height: number; sampledHeight?: number; gatewayHeight?: number }
+  interface Edge { a: number; b: number; count: number; gateway: boolean; cuts: Array<{ node: Node; amount: number }> }
+  const originalVertexCount = positions.length / 3;
+  const keyAt = (index: number): string => `${positions[index * 3]},${positions[index * 3 + 2]}`;
+  const nodes = new Map<string, Node>();
+  for (let index = 0; index < originalVertexCount; index++) {
+    const x = positions[index * 3], y = positions[index * 3 + 1], z = positions[index * 3 + 2], key = keyAt(index);
+    const node = nodes.get(key) ?? { x, z, height: y };
+    node.height = Math.max(node.height, y);
+    const sampledHeight = sampledHeights.get(key);
+    if (sampledHeight !== undefined && Math.fround(sampledHeight) === y) node.sampledHeight = y;
+    if (index >= gatewayVertexStart) node.gatewayHeight = y;
+    nodes.set(key, node);
   }
-  for (let index = 0; index < plan.branches.length; index++) {
-    const current = plan.branches[index];
-    const next = plan.branches[(index + 1) % plan.branches.length];
-    if (angleDelta(current.heading, next.heading) > JUNCTION_GORE_OPEN_ANGLE) continue;
-    if (distance > Math.min(current.reach, next.reach)) continue;
-    if (headingContains(current.heading, next.heading, heading)) return true;
-  }
-  return false;
-}
-
-/** A per-route offset, 0–1000 m, so neighbouring roads' track drift never runs in step. */
-export function routeStationOffset(routeId: string): number {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < routeId.length; index++) {
-    hash ^= routeId.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return Math.round(((hash >>> 0) / 0xffffffff) * 1000);
-}
-
-/**
- * Canonical worked-road relief: a low crown falling to a loose shoulder that
- * feathers into the ground. It is symmetric across the centre line and never
- * drops below the graded terrain base used by the coarse Rapier heightfield.
- * Wheel tracks are lighting only (`RoadSurfaceMaterial`); they are never cut
- * into the collider, so the carriage and walkers ride a smooth crown.
- */
-export function sampleRoadCrossSection(input: RoadCrossSectionInput): RoadCrossSectionSample {
-  const lateralDistance = Math.abs(input.lateralDistanceMeters);
-  const packedHalfWidth = Math.max(0.0001, input.halfWidthMeters);
-  const shoulderHalfWidth = packedHalfWidth + input.profile.shoulderWidthMeters;
-  const featherHalfWidth = shoulderHalfWidth + input.profile.terrainFeatherMeters * 0.78;
-  const normalizedCoreDistance = clamp01(lateralDistance / packedHalfWidth);
-  const shoulderAmount = smoothstep(
-    packedHalfWidth * 0.86,
-    shoulderHalfWidth,
-    lateralDistance
-  );
-  const edgeGrassAmount = smoothstep(
-    shoulderHalfWidth * 0.86,
-    featherHalfWidth,
-    lateralDistance
-  ) * 0.9;
-  const crownMeters = Math.pow(1 - normalizedCoreDistance, 1.42) * input.profile.crownMeters;
-  const shoulderDropMeters = smoothstep(
-    packedHalfWidth * 0.84,
-    shoulderHalfWidth,
-    lateralDistance
-  ) * input.profile.shoulderDropMeters;
-  const feather = 1 - smoothstep(
-    shoulderHalfWidth * 0.72,
-    featherHalfWidth,
-    lateralDistance
-  );
-  return {
-    normalizedCoreDistance,
-    crownMeters,
-    shoulderAmount,
-    edgeGrassAmount,
-    surfaceOffsetMeters: Math.max(0, crownMeters - shoulderDropMeters) * feather
-  };
-}
-
-function normalize2D(x: number, z: number): WorldPoint {
-  const length = Math.max(0.0001, Math.hypot(x, z));
-  return { x: x / length, z: z / length };
-}
-
-function dot2D(a: WorldPoint, b: WorldPoint): number {
-  return a.x * b.x + a.z * b.z;
-}
-
-function distance2D(a: WorldPoint, b: WorldPoint): number {
-  return Math.hypot(a.x - b.x, a.z - b.z);
-}
-
-function blendColors(
-  base: THREE.Color,
-  warm: THREE.Color,
-  dry: THREE.Color,
-  shoulderAmount: number
-): THREE.Color {
-  return base.clone()
-    .lerp(warm, shoulderAmount * 0.58)
-    .lerp(dry, shoulderAmount * 0.12);
-}
-
-function outwardDirections(
-  route: CompiledWorldRoute,
-  center: WorldPoint
-): WorldPoint[] {
-  let closestIndex = 0;
-  let closestDistance = Number.POSITIVE_INFINITY;
-  for (const [index, sample] of route.samples.entries()) {
-    const distance = distance2D(sample.point, center);
-    if (distance < closestDistance) {
-      closestDistance = distance;
-      closestIndex = index;
-    }
-  }
-
-  const directions: WorldPoint[] = [];
-  for (const neighborIndex of [closestIndex - 1, closestIndex + 1]) {
-    if (neighborIndex < 0 || neighborIndex >= route.samples.length) continue;
-    const neighbor = route.samples[neighborIndex].point;
-    const direction = normalize2D(neighbor.x - center.x, neighbor.z - center.z);
-    if (distance2D(neighbor, center) > 0.35) directions.push(direction);
-  }
-  if (directions.length > 0) return directions;
-
-  const tangent = route.samples[closestIndex]?.tangent ?? { x: 1, z: 0 };
-  return [tangent, { x: -tangent.x, z: -tangent.z }];
-}
-
-interface JunctionBranch {
-  direction: WorldPoint;
-  halfWidth: number;
-  shoulderWidthMeters: number;
-  kind: WorldRouteKind;
-}
-
-function junctionBranches(
-  routes: readonly CompiledWorldRoute[],
-  junction: WorldRouteJunction
-): JunctionBranch[] {
-  const branches: JunctionBranch[] = [];
-  for (const route of routes) {
-    if (!junction.routeIds.includes(route.route.id)) continue;
-    for (const direction of outwardDirections(route, junction.center)) {
-      const existing = branches.find((branch) => dot2D(branch.direction, direction) > 0.96);
-      if (existing) {
-        existing.direction = normalize2D(
-          existing.direction.x + direction.x,
-          existing.direction.z + direction.z
-        );
-        if (route.halfWidth > existing.halfWidth) existing.kind = route.route.kind;
-        existing.halfWidth = Math.max(existing.halfWidth, route.halfWidth);
-        existing.shoulderWidthMeters = Math.max(
-          existing.shoulderWidthMeters,
-          route.shoulderWidthMeters
-        );
-        continue;
+  const edgeKey = (a: number, b: number): string => { const ka = keyAt(a), kb = keyAt(b); return ka < kb ? `${ka}/${kb}` : `${kb}/${ka}`; };
+  const storedArea = (a: number, b: number, c: number): number => (positions[b * 3] - positions[a * 3]) * (positions[c * 3 + 2] - positions[a * 3 + 2]) - (positions[b * 3 + 2] - positions[a * 3 + 2]) * (positions[c * 3] - positions[a * 3]);
+  const collectEdges = (): Map<string, Edge> => {
+    const result = new Map<string, Edge>();
+    for (let offset = 0; offset < indices.length; offset += 3) {
+      // Canonical contacts may collapse a previously nonzero cut face. A
+      // zero-footprint triangle cannot contribute gates or cut chains.
+      if (Math.abs(storedArea(indices[offset], indices[offset + 1], indices[offset + 2])) <= 1e-10) continue;
+      for (let corner = 0; corner < 3; corner++) {
+      const a = indices[offset + corner], b = indices[offset + (corner + 1) % 3];
+      if (keyAt(a) === keyAt(b)) continue;
+      const key = edgeKey(a, b), edge = result.get(key);
+      if (edge) { edge.count++; edge.gateway ||= a >= gatewayVertexStart && b >= gatewayVertexStart; }
+      else result.set(key, { a, b, count: 1, gateway: a >= gatewayVertexStart && b >= gatewayVertexStart, cuts: [] });
       }
-      branches.push({
-        direction,
-        halfWidth: route.halfWidth,
-        shoulderWidthMeters: route.shoulderWidthMeters,
-        kind: route.route.kind
-      });
+    }
+    return result;
+  };
+  let edges = collectEdges();
+  const ulp = (value: number): number => 2 ** Math.max(-149, Math.floor(Math.log2(Math.abs(value))) - 23);
+  const boundary = new Set<Node>();
+  for (const edge of edges.values()) if (edge.count === 1) for (const index of [edge.a, edge.b]) boundary.add(nodes.get(keyAt(index))!);
+  const representatives: Node[] = [], representativeCells = new Map<string, Node[]>(), canonical = new Map<Node, Node>();
+  // Independently rounded cuts can differ by one ULP in one coordinate while
+  // denoting the same interface contact. Collapse that numerical wedge before
+  // interpolating heights. Per-axis bounds avoid widening the tolerance along
+  // Z merely because a distant island's X coordinates have a larger ULP.
+  for (const node of [...boundary].sort((a, b) => Number(b.gatewayHeight !== undefined) - Number(a.gatewayHeight !== undefined) || Number(b.sampledHeight !== undefined) - Number(a.sampledHeight !== undefined) || a.x - b.x || a.z - b.z)) {
+    const column = Math.floor(node.x / 2), row = Math.floor(node.z / 2);
+    let representative: Node | undefined;
+    for (let x = column - 1; x <= column + 1 && !representative; x++) for (let z = row - 1; z <= row + 1 && !representative; z++) {
+      representative = representativeCells.get(`${x},${z}`)?.find(candidate => Math.abs(candidate.x - node.x) <= Math.max(ulp(candidate.x), ulp(node.x)) && Math.abs(candidate.z - node.z) <= Math.max(ulp(candidate.z), ulp(node.z)));
+    }
+    if (!representative) {
+      representative = node; representatives.push(node);
+      const key = `${column},${row}`, values = representativeCells.get(key) ?? []; values.push(node); representativeCells.set(key, values);
+    }
+    representative.height = Math.max(representative.height, node.height);
+    if (node.sampledHeight !== undefined) representative.sampledHeight = node.sampledHeight;
+    if (node.gatewayHeight !== undefined) representative.gatewayHeight = node.gatewayHeight;
+    canonical.set(node, representative);
+  }
+  for (let index = 0; index < originalVertexCount; index++) {
+    const node = nodes.get(keyAt(index))!, representative = canonical.get(node);
+    if (representative) { positions[index * 3] = representative.x; positions[index * 3 + 2] = representative.z; }
+  }
+  for (const node of boundary) nodes.delete(`${node.x},${node.z}`);
+  for (const representative of representatives) nodes.set(`${representative.x},${representative.z}`, representative);
+  edges = collectEdges();
+  // Only unmatched edges can be ownership gates or T-junctions. Index their
+  // endpoint nodes locally rather than comparing every road vertex/triangle.
+  const cellSize = 2, cells = new Map<string, Set<Node>>();
+  for (const edge of edges.values()) if (edge.count === 1) for (const index of [edge.a, edge.b]) {
+    const node = nodes.get(keyAt(index))!, key = `${Math.floor(node.x / cellSize)},${Math.floor(node.z / cellSize)}`;
+    const cell = cells.get(key) ?? new Set<Node>(); cell.add(node); cells.set(key, cell);
+  }
+  for (const edge of edges.values()) {
+    const ax = positions[edge.a * 3], az = positions[edge.a * 3 + 2], bx = positions[edge.b * 3], bz = positions[edge.b * 3 + 2];
+    const dx = bx - ax, dz = bz - az, lengthSquared = dx * dx + dz * dz;
+    // Both the endpoint and its independently clipped neighbour have been
+    // rounded. Their combined positional uncertainty is one Float32 ULP.
+    const tolerance = Math.hypot(Math.max(ulp(ax), ulp(bx)), Math.max(ulp(az), ulp(bz)));
+    const candidates = new Set<Node>();
+    for (let column = Math.floor((Math.min(ax, bx) - tolerance) / cellSize); column <= Math.floor((Math.max(ax, bx) + tolerance) / cellSize); column++) {
+      for (let row = Math.floor((Math.min(az, bz) - tolerance) / cellSize); row <= Math.floor((Math.max(az, bz) + tolerance) / cellSize); row++) {
+        for (const node of cells.get(`${column},${row}`) ?? []) candidates.add(node);
+      }
+    }
+    for (const node of candidates) {
+      if ((node.x === ax && node.z === az) || (node.x === bx && node.z === bz)) continue;
+      const amount = ((node.x - ax) * dx + (node.z - az) * dz) / lengthSquared;
+      if (amount <= 0 || amount >= 1 || Math.hypot(node.x - ax - amount * dx, node.z - az - amount * dz) > tolerance) continue;
+      const height = positions[edge.a * 3 + 1] + amount * (positions[edge.b * 3 + 1] - positions[edge.a * 3 + 1]);
+      node.height = Math.max(node.height, height);
+      if (edge.gateway) node.gatewayHeight = height;
+      else edge.cuts.push({ node, amount });
+    }
+    edge.cuts.sort((a, b) => a.amount - b.amount);
+  }
+  let maximumHeightLiftMeters = 0, adjustedVertexCount = 0;
+  const adjustedNodes = new Set<number>();
+  let maximumHeightLiftPoint: RoadInterfaceStitchResult["maximumHeightLiftPoint"] = null;
+  for (let index = 0; index < gatewayVertexStart; index++) {
+    const node = nodes.get(keyAt(index))!, y = Math.fround(node.gatewayHeight ?? node.sampledHeight ?? node.height);
+    if (y - positions[index * 3 + 1] > maximumHeightLiftMeters) {
+      maximumHeightLiftMeters = y - positions[index * 3 + 1];
+      maximumHeightLiftPoint = { x: node.x, z: node.z, from: positions[index * 3 + 1], to: y };
+    }
+    if (y !== positions[index * 3 + 1]) { adjustedVertexCount++; adjustedNodes.add(index); }
+    positions[index * 3 + 1] = y;
+  }
+  const newIndices: number[] = [];
+  let newRoadTriangleCount = 0, newJunctionTriangleCount = 0;
+  const insertionCache = new Map<string, number>();
+  for (let offset = 0; offset < indices.length; offset += 3) {
+    const original = indices.slice(offset, offset + 3), contour: number[] = [];
+    if (Math.abs(storedArea(original[0], original[1], original[2])) <= 1e-10) continue;
+    for (let corner = 0; corner < 3; corner++) {
+      const a = original[corner], b = original[(corner + 1) % 3], edge = edges.get(edgeKey(a, b));
+      contour.push(a);
+      if (!edge?.cuts.length) continue;
+      const cuts = edge.a === a ? edge.cuts : [...edge.cuts].reverse();
+      for (const cut of cuts) {
+        const amount = edge.a === a ? cut.amount : 1 - cut.amount;
+        const color = [0, 1, 2, 3].map(component => Math.fround(colors[a * 4 + component] + amount * (colors[b * 4 + component] - colors[a * 4 + component])));
+        const frame = [0, 1].map(component => Math.fround(frames[a * 2 + component] + amount * (frames[b * 2 + component] - frames[a * 2 + component])));
+        const y = Math.fround(cut.node.gatewayHeight ?? cut.node.sampledHeight ?? cut.node.height), cacheKey = [cut.node.x, y, cut.node.z, ...color, ...frame, classes[a]].join(',');
+        let inserted = insertionCache.get(cacheKey);
+        if (inserted === undefined) {
+          inserted = positions.length / 3; positions.push(cut.node.x, y, cut.node.z); colors.push(...color); frames.push(...frame); classes.push(classes[a]); insertionCache.set(cacheKey, inserted);
+        }
+        if (keyAt(contour.at(-1)!) !== keyAt(inserted)) contour.push(inserted);
+      }
+    }
+    if (contour.length > 1 && keyAt(contour[0]) === keyAt(contour.at(-1)!)) contour.pop();
+    // Independently rounded T nodes may make an edge locally reflex. Resolve
+    // the complete stored boundary once; flipping sequential fan children
+    // would turn a crossed child into an overlapping source sliver.
+    const triangles = contour.length === 3 ? [[0, 1, 2]] : THREE.ShapeUtils.triangulateShape(contour.map(index => new THREE.Vector2(positions[index * 3], positions[index * 3 + 2])), []);
+    // Earcut can omit exactly collinear boundary points. Their heights may
+    // carry a joined crown, so retain them by splitting only a truly collinear
+    // triangle edge; unlike a rounded off-edge fan, this cannot overlap.
+    const used = new Set(triangles.flat());
+    for (let corner = 0; corner < contour.length; corner++) if (!used.has(corner)) {
+      const point = contour[corner];
+      let retained = false;
+      for (let triangleIndex = 0; triangleIndex < triangles.length && !retained; triangleIndex++) {
+        const triangle = triangles[triangleIndex];
+        for (let edge = 0; edge < 3; edge++) {
+          const a = contour[triangle[edge]], b = contour[triangle[(edge + 1) % 3]], dx = positions[b * 3] - positions[a * 3], dz = positions[b * 3 + 2] - positions[a * 3 + 2];
+          const distanceAlong = (positions[point * 3] - positions[a * 3]) * dx + (positions[point * 3 + 2] - positions[a * 3 + 2]) * dz;
+          if (storedArea(a, b, point) !== 0 || distanceAlong <= 0 || distanceAlong >= dx * dx + dz * dz) continue;
+          const third = triangle[(edge + 2) % 3];
+          triangles.splice(triangleIndex, 1, [triangle[edge], corner, third], [corner, triangle[(edge + 1) % 3], third]);
+          used.add(corner); retained = true; break;
+        }
+      }
+    }
+    for (const triangle of triangles) {
+      const [a, b, c] = triangle.map(index => contour[index]);
+      const area = (positions[b * 3] - positions[a * 3]) * (positions[c * 3 + 2] - positions[a * 3 + 2]) - (positions[b * 3 + 2] - positions[a * 3 + 2]) * (positions[c * 3] - positions[a * 3]);
+      if (Math.abs(area) <= 1e-10) continue;
+      if (area > 0) newIndices.push(a, c, b); else newIndices.push(a, b, c);
+      if (offset < roadTriangleCount * 3) newRoadTriangleCount++;
+      else if (offset < (roadTriangleCount + junctionTriangleCount) * 3) newJunctionTriangleCount++;
     }
   }
-  return branches;
-}
-
-function routeJoin(
-  route: CompiledWorldRoute,
-  sampleIndex: number
-): { normal: WorldPoint; miterScale: number } {
-  const sample = route.samples[sampleIndex];
-  const previous = route.samples[Math.max(0, sampleIndex - 1)]?.tangent ?? sample.tangent;
-  const next = route.samples[Math.min(route.samples.length - 1, sampleIndex + 1)]?.tangent ?? sample.tangent;
-  const previousNormal = { x: -previous.z, z: previous.x };
-  const nextNormal = { x: -next.z, z: next.x };
-  const bisectorX = previousNormal.x + nextNormal.x;
-  const bisectorZ = previousNormal.z + nextNormal.z;
-  const miter = Math.hypot(bisectorX, bisectorZ) > 0.0001
-    ? normalize2D(bisectorX, bisectorZ)
-    : nextNormal;
-  const denominator = Math.abs(dot2D(miter, nextNormal));
-  return {
-    normal: miter,
-    // Bounded miter prevents acute authored corners from producing spikes or
-    // self-intersecting shoulder strips.
-    miterScale: THREE.MathUtils.clamp(1 / Math.max(0.72, denominator), 0.86, 1.28)
+  // Welding a clipped ownership contact can leave a needle triangle beside
+  // its neighbour. Improve only internal diagonals in that edited shared
+  // junction neighbourhood: all authored stations, heights and boundaries
+  // remain fixed, and ordinary source-plane triangulation stays untouched.
+  let repairedInterfaceDiagonals = 0;
+  const areaAt = (a: number, b: number, c: number): number => (positions[b * 3] - positions[a * 3]) * (positions[c * 3 + 2] - positions[a * 3 + 2]) - (positions[b * 3 + 2] - positions[a * 3 + 2]) * (positions[c * 3] - positions[a * 3]);
+  const quality = (a: number, b: number, c: number): number => {
+    const lengthSquared = (a: number, b: number): number => (positions[b * 3] - positions[a * 3]) ** 2 + (positions[b * 3 + 2] - positions[a * 3 + 2]) ** 2;
+    return Math.abs(areaAt(a, b, c)) / Math.max(lengthSquared(a, b), lengthSquared(b, c), lengthSquared(c, a));
   };
-}
-
-function colorWithVariation(color: THREE.Color, signal: number, amount: number = 0.06): THREE.Color {
-  const variation = 1 - amount * 0.5 + (Math.sin(signal) * 0.5 + 0.5) * amount;
-  return color.clone().multiplyScalar(variation);
-}
-
-function renderedCoordinate(value: number): number {
-  // BufferGeometry stores positions as float32. Sampling the owner with the
-  // same quantized coordinate prevents a one-ULP height seam at the bridge
-  // deck boundary and at coarse terrain cells.
-  return Math.fround(value);
+  for (let pass = 0; pass < 5; pass++) {
+    const sharedEdges = new Map<string, Array<{ offset: number; a: number; b: number; third: number }>>();
+    for (let offset = 0; offset < (newRoadTriangleCount + newJunctionTriangleCount) * 3; offset += 3) {
+      for (let corner = 0; corner < 3; corner++) {
+        const a = newIndices[offset + corner], b = newIndices[offset + (corner + 1) % 3], third = newIndices[offset + (corner + 2) % 3];
+        const key = edgeKey(a, b), values = sharedEdges.get(key) ?? []; values.push({ offset, a, b, third }); sharedEdges.set(key, values);
+      }
+    }
+    const visited = new Set<number>();
+    let flipped = false;
+    for (const values of sharedEdges.values()) {
+      if (values.length !== 2) continue;
+      const [first, second] = values;
+      if (visited.has(first.offset) || visited.has(second.offset)) continue;
+      const { a, b } = first, c = first.third, d = second.third;
+      // An internal diagonal may change only within one attribute frame. Road
+      // owners meeting with different route frames retain their authored seam.
+      const sameDatum = (left: number, right: number): boolean => classes[left] === classes[right]
+        && frames[left * 2] === frames[right * 2] && frames[left * 2 + 1] === frames[right * 2 + 1]
+        && [0, 1, 2, 3].every(component => colors[left * 4 + component] === colors[right * 4 + component]);
+      const secondA = keyAt(a) === keyAt(second.a) ? second.a : second.b;
+      const secondB = secondA === second.a ? second.b : second.a;
+      if (!sameDatum(a, secondA) || !sameDatum(b, secondB) || classes[a] !== classes[c] || classes[a] !== classes[d]) continue;
+      if (![a, b, c, d].some(index => adjustedNodes.has(index) || index >= originalVertexCount)) continue;
+      if (areaAt(a, b, c) * areaAt(a, b, d) >= 0 || areaAt(c, d, a) * areaAt(c, d, b) >= 0) continue;
+      const before = Math.min(quality(a, b, c), quality(a, b, d)), after = Math.min(quality(c, d, a), quality(c, d, b));
+      if (before >= 0.02 || after <= before * 1.2) continue;
+      const write = (offset: number, a: number, b: number, c: number): void => {
+        newIndices[offset] = a; newIndices[offset + 1] = areaAt(a, b, c) < 0 ? b : c; newIndices[offset + 2] = areaAt(a, b, c) < 0 ? c : b;
+      };
+      write(first.offset, c, d, a); write(second.offset, d, c, b);
+      visited.add(first.offset); visited.add(second.offset); repairedInterfaceDiagonals++; flipped = true;
+    }
+    if (!flipped) break;
+  }
+  // Keep explicit bridge slabs in the inspectable contiguous range they had
+  // before stitching; newly inserted earth vertices precede that range.
+  const insertedVertexCount = positions.length / 3 - originalVertexCount;
+  if (insertedVertexCount) for (const [values, stride] of [[positions, 3], [colors, 4], [frames, 2], [classes, 1]] as const) {
+    const gateway = values.splice(gatewayVertexStart * stride, (originalVertexCount - gatewayVertexStart) * stride); values.push(...gateway);
+  }
+  const remap = (index: number): number => index < gatewayVertexStart ? index : index < originalVertexCount ? index + insertedVertexCount : index - originalVertexCount + gatewayVertexStart;
+  return { indices: newIndices.map(remap), gatewayVertexStart: gatewayVertexStart + insertedVertexCount, roadTriangleCount: newRoadTriangleCount, junctionTriangleCount: newJunctionTriangleCount, adjustedVertexCount, insertedVertexCount, repairedInterfaceDiagonals, maximumHeightLiftMeters, maximumHeightLiftPoint };
 }
 
 export function buildOrganicRoadGeometry(options: OrganicRoadGeometryOptions): THREE.BufferGeometry {
-  const positions: number[] = [];
-  const colors: number[] = [];
-  const frames: number[] = [];
-  const classes: number[] = [];
-  const indices: number[] = [];
-  const road = paletteColor("path_dust_01");
-  const warmShoulder = paletteColor("soil_warm_01");
-  const dryShoulder = paletteColor("soil_dry_01");
-  const shoulderGrass = paletteColor("foliage_sage_01");
-  const warmStone = paletteColor("stone_warm_01");
-  const goldenStone = paletteColor("stone_golden_01");
-  const heightAt = (x: number, z: number): number => options.heightAt(renderedCoordinate(x), renderedCoordinate(z));
-  const isBridgeDeck = (x: number, z: number): boolean => options.isBridgeDeck(renderedCoordinate(x), renderedCoordinate(z));
-
-  // Every vertex carries its road's own frame: signed metres across the centre
-  // line and metres along it. Both are linear across a strip, so they survive
-  // any later triangle split exactly, and the material draws wheel tracks from
-  // them instead of from wear sampled at whatever vertices the mesh happens to
-  // have (which drew wobbling, pinching tracks).
-  const appendVertex = (
-    point: WorldPoint & { y: number },
-    color: THREE.Color,
-    opacity: number = 1,
-    frame: readonly [across: number, along: number] = [0, 0],
-    classCode: number = ROAD_CLASS_CODES.shared
-  ): number => {
-    const vertexIndex = positions.length / 3;
-    positions.push(point.x, point.y, point.z);
-    colors.push(color.r, color.g, color.b, clamp01(opacity));
-    frames.push(frame[0], frame[1]);
-    classes.push(classCode);
-    return vertexIndex;
-  };
-
-  const appendTriangle = (a: number, b: number, c: number): void => {
-    const ax = positions[a * 3];
-    const az = positions[a * 3 + 2];
-    const abx = positions[b * 3] - ax;
-    const abz = positions[b * 3 + 2] - az;
-    const acx = positions[c * 3] - ax;
-    const acz = positions[c * 3 + 2] - az;
-    if (abz * acx - abx * acz < 0) indices.push(a, c, b);
-    else indices.push(a, b, c);
-  };
-
-  const appendQuad = (
-    corners: readonly [
-      WorldPoint & { y: number },
-      WorldPoint & { y: number },
-      WorldPoint & { y: number },
-      WorldPoint & { y: number }
-    ],
-    color: THREE.Color
-  ): void => {
-    const base = corners.map((corner) => appendVertex(corner, color));
-    appendTriangle(base[0], base[1], base[2]);
-    appendTriangle(base[0], base[2], base[3]);
-  };
-
-  const junctionPlans = planJunctions(options.routes, options.junctions, options.profiles);
-  const junctionPlanById = new Map(junctionPlans.map((plan) => [plan.junction.id, plan]));
-  const junctionForRoute = (routeId: string, point: WorldPoint): WorldRouteJunction | undefined => {
-    return options.junctions.find((junction) =>
-      junction.routeIds.includes(routeId)
-      // The paved wedge and the branch strips own this ground. The route
-      // ribbon stops at that edge so the two surfaces do not stack.
-      && pointInJunctionPlan(junctionPlanById.get(junction.id)!, point)
-    );
-  };
-
-  // Where a lesser road runs on a greater road's surface — a branch leaving
-  // its trunk, a service loop along a lane — only the greater road is drawn,
-  // so two sets of tracks never lie across each other. Collision still takes
-  // the upper of both, as it always has.
-  const classRank: Readonly<Record<WorldRouteKind, number>> = { arterial: 0, lane: 1, trail: 2 };
-  const outranks = (other: number, route: number): boolean => {
-    const a = classRank[options.routes[other].route.kind], b = classRank[options.routes[route].route.kind];
-    return a < b || (a === b && other < route);
-  };
-  const onGreaterRoad = (routeIndex: number, point: WorldPoint): boolean => {
-    for (let other = 0; other < options.routes.length; other++) {
-      if (other === routeIndex || !outranks(other, routeIndex)) continue;
-      const greater = options.routes[other];
-      if (point.x < greater.minX || point.x > greater.maxX || point.z < greater.minZ || point.z > greater.maxZ) continue;
-      const reach = greater.halfWidth - 0.15;
-      for (const segment of greater.segments) {
-        if (point.x < segment.minX - reach || point.x > segment.maxX + reach
-          || point.z < segment.minZ - reach || point.z > segment.maxZ + reach) continue;
-        const t = clamp01(((point.x - segment.start.x) * segment.dx + (point.z - segment.start.z) * segment.dz) / segment.lengthSquared);
-        if (Math.hypot(point.x - segment.start.x - segment.dx * t, point.z - segment.start.z - segment.dz * t) <= reach) return true;
-      }
+  const footprint = options.footprint ?? compileRoadFootprint({ routes: options.routes, junctions: options.junctions, profiles: options.profiles, bridge: options.bridge });
+  const positions: number[] = [], colors: number[] = [], frames: number[] = [], classes: number[] = [], indices: number[] = [];
+  const cache = new Map<string, number>();
+  const sharedTriangles: Array<[SourceVertex, SourceVertex, SourceVertex]> = [];
+  const gatewayPlans = roadGatewayPlan(options.bridge);
+  const gatewayTriangles = gatewayPlans.flatMap(plan => {
+    const vertices = plan.polygon[0].slice(0, -1).map(([x, z]): SourceVertex => ({ x, y: options.isBridgeDeck(x, z) ? options.bridge.entrySurfaceY : options.heightAt(x, z), z, color: [0, 0, 0], across: 0, along: 0, classCode: ROAD_CLASS_CODES.shared }));
+    return [[vertices[0], vertices[1], vertices[2]], [vertices[0], vertices[2], vertices[3]]] as Array<[SourceVertex, SourceVertex, SourceVertex]>;
+  });
+  const gatewayHeightAt = (x: number, z: number, fallback: number): number => {
+    for (const [a, b, c] of gatewayTriangles) {
+      const determinant = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+      const wa = ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / determinant;
+      const wb = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / determinant;
+      const wc = 1 - wa - wb;
+      if (Math.min(wa, wb, wc) >= -0.0001) return a.y * wa + b.y * wb + c.y * wc;
     }
-    return false;
+    return fallback;
   };
+  const road = paletteColor("path_dust_01"), shoulder = paletteColor("soil_warm_01");
+  const coordinateKey = (x: number, z: number): string => `${Math.fround(x)},${Math.fround(z)}`;
+  const heightCache = new Map<string, number>();
+  const heightAt = (x: number, z: number): number => {
+    const key = coordinateKey(x, z), cached = heightCache.get(key);
+    if (cached !== undefined) return cached;
+    const height = options.heightAt(Math.fround(x), Math.fround(z)); heightCache.set(key, height); return height;
+  };
+  const appendVertex = (vertex: SourceVertex, opacity?: number): number => {
+    const x = Math.fround(vertex.x), y = Math.fround(vertex.y), z = Math.fround(vertex.z);
+    const alpha = opacity ?? footprint.coverageAt(x, z);
+    const values = [x, y, z, ...vertex.color, alpha, vertex.across, vertex.along, vertex.classCode].map(Math.fround);
+    const key = values.join(",");
+    const found = cache.get(key); if (found !== undefined) return found;
+    const index = positions.length / 3;
+    positions.push(x, y, z); colors.push(values[3], values[4], values[5], values[6]); frames.push(values[7], values[8]); classes.push(values[9]);
+    cache.set(key, index);
+    return index;
+  };
+  const appendTriangle = (vertices: readonly [SourceVertex, SourceVertex, SourceVertex], opacity?: number): boolean => {
+    const [a, b, c] = vertices;
+    const area = (Math.fround(b.x) - Math.fround(a.x)) * (Math.fround(c.z) - Math.fround(a.z)) - (Math.fround(b.z) - Math.fround(a.z)) * (Math.fround(c.x) - Math.fround(a.x));
+    if (Math.abs(area) <= 1e-10) return false;
+    const ids = vertices.map(vertex => appendVertex(vertex, opacity));
+    if (area > 0) indices.push(ids[0], ids[2], ids[1]); else indices.push(...ids);
+    return true;
+  };
+  const triangulate = (polygon: RoadPolygon, vertexAt: (point: RoadPlanPoint) => SourceVertex, onTriangle: (triangle: [SourceVertex, SourceVertex, SourceVertex]) => void): void => {
+    // Interpolate attributes on the source plane before quantization, then
+    // triangulate the contour actually stored by the renderer/collider.
+    const rings = polygon.map(ring => ring.slice(0, -1).map(point => {
+      const vertex = vertexAt(point); return { ...vertex, x: Math.fround(vertex.x), z: Math.fround(vertex.z) };
+    }).filter((vertex, index, all) => !index || vertex.x !== all[index - 1].x || vertex.z !== all[index - 1].z));
+    for (const ring of rings) if (ring.length > 1 && ring[0].x === ring.at(-1)!.x && ring[0].z === ring.at(-1)!.z) ring.pop();
+    if (rings[0].length < 3) return;
+    const retained = [rings[0], ...rings.slice(1).filter(ring => ring.length >= 3)];
+    const vectors = retained.map(ring => ring.map(vertex => new THREE.Vector2(vertex.x, vertex.z)));
+    const flat = retained.flat();
+    for (const triangle of THREE.ShapeUtils.triangulateShape(vectors[0], vectors.slice(1))) onTriangle(triangle.map(index => flat[index]) as [SourceVertex, SourceVertex, SourceVertex]);
+  };
+  let roadTriangleCount = 0, junctionTriangleCount = 0, gatewayTriangleCount = 0, maximumMiterScale = 0, roundedCapCount = 0;
+  let sourceTriangleCount = 0, maximumStationCount = 9;
+  const rgb = (color: THREE.Color): [number, number, number] => [color.r, color.g, color.b];
 
-  let roadTriangleCount = 0;
-  let junctionTriangleCount = 0;
-  let gatewayTriangleCount = 0;
-  let boundedJoinMaximum = 0;
-  let roundedCapCount = 0;
-
-  for (const [routeIndex, compiledRoute] of options.routes.entries()) {
-    const route = compiledRoute.route;
-    const profile = options.profiles[route.kind];
-    const classCode = ROAD_CLASS_CODES[route.kind];
-    const stationOffset = routeStationOffset(route.id);
-    const ringVertices: number[][] = [];
-    const packedHalfWidth = compiledRoute.halfWidth;
-    const shoulderHalfWidth = packedHalfWidth + compiledRoute.shoulderWidthMeters;
-    // The feather is part of the visible corridor, but not part of the packed
-    // travel surface. Keeping it in the same ribbon lets the worked earth
-    // dissolve into the meadow without a second, drifting edge mesh.
-    const featherHalfWidth = shoulderHalfWidth + compiledRoute.terrainFeatherMeters * 0.78;
-
-    const appendRoadRing = (
-      point: WorldPoint,
-      normal: WorldPoint,
-      station: number,
-      miterScale: number
-    ): number[] => {
-      const ring: number[] = [];
-      for (const offset of TRANSVERSE_OFFSETS) {
-        const lateralDistance = Math.abs(offset) * featherHalfWidth;
-        const crossSection = sampleRoadCrossSection({
-          profile,
-          halfWidthMeters: packedHalfWidth,
-          lateralDistanceMeters: lateralDistance
+  for (const [routeIndex, route] of options.routes.entries()) {
+    const profile = options.profiles[route.route.kind];
+    const stations = roadTransverseStations(profile, route.halfWidth);
+    maximumStationCount = Math.max(maximumStationCount, stations.length);
+    const region = footprint.routeRegions[routeIndex];
+    const sharedRouteRegion = footprint.sharedRouteRegions[routeIndex];
+    const classCode = ROAD_CLASS_CODES[route.route.kind], stationOffset = routeStationOffset(route.route.id);
+    const emit = (triangle: [SourceVertex, SourceVertex, SourceVertex], clip?: RoadPolygons, preclipped = false): void => {
+      sourceTriangleCount++;
+      const plan = triangle.map(vertex => [vertex.x, vertex.z] as RoadPlanPoint) as [RoadPlanPoint, RoadPlanPoint, RoadPlanPoint];
+      const [a, b, c] = triangle;
+      const determinant = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+      if (Math.abs(determinant) <= 1e-12) return;
+      const vertexAt = ([x, z]: RoadPlanPoint): SourceVertex => {
+        const wa = ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / determinant;
+        const wb = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / determinant;
+        const wc = 1 - wa - wb;
+        // The original stations sample canonical support. A Boolean cut then
+        // interpolates their plane, so near-collinear cuts cannot create a
+        // vertical fold by resampling different relief along the same edge.
+        let y = a.y * wa + b.y * wb + c.y * wc;
+        if (options.isBridgeDeck(Math.fround(x), Math.fround(z))) y = options.bridge.entrySurfaceY;
+        if (Math.abs(footprint.gatewayRegion.signedDistance(x, z)) < 0.0001) y = gatewayHeightAt(x, z, y);
+        return { x, y, z, color: a.color.map((value, component) => value * wa + b.color[component] * wb + c.color[component] * wc) as [number, number, number], across: a.across * wa + b.across * wb + c.across * wc, along: a.along * wa + b.along * wb + c.along * wc, classCode };
+      };
+      const appendOwned = (sourcePlan: [RoadPlanPoint, RoadPlanPoint, RoadPlanPoint], sourceClip?: RoadPolygons): void => {
+        for (const polygon of region.clipTriangle(sourcePlan, sourceClip)) triangulate(polygon, vertexAt, clipped => { if (appendTriangle(clipped)) roadTriangleCount++; });
+        for (const polygon of sharedRouteRegion.clipTriangle(sourcePlan, sourceClip)) triangulate(polygon, vertexAt, clipped => {
+          sharedTriangles.push(clipped.map(vertex => ({ ...vertex, across: 0, along: 0, classCode: ROAD_CLASS_CODES.shared })) as [SourceVertex, SourceVertex, SourceVertex]);
         });
-        const x = point.x + normal.x * featherHalfWidth * offset * miterScale;
-        const z = point.z + normal.z * featherHalfWidth * offset * miterScale;
-        const y = isBridgeDeck(x, z)
-          ? options.bridge.entrySurfaceY
-          : heightAt(x, z);
-        // The outer shoulder picks up a bounded amount of the meadow token
-        // before the coverage cut, so grass intrudes through colour and shape
-        // rather than a wide transparent blur. Wear is the material's.
-        const vertexColor = blendColors(road, warmShoulder, dryShoulder, crossSection.shoulderAmount)
-          .lerp(shoulderGrass, clamp01(crossSection.edgeGrassAmount * 0.7));
-        const surfaceOpacity = 1 - smoothstep(0.08, 0.92, crossSection.edgeGrassAmount);
-        ring.push(appendVertex({ x, y, z }, vertexColor, surfaceOpacity,
-          [offset * featherHalfWidth, station], classCode));
-      }
-      return ring;
-    };
-
-    const connectRings = (currentRing: number[], nextRing: number[], sampleIndex: number): void => {
-      for (let column = 0; column < TRANSVERSE_OFFSETS.length - 1; column++) {
-        if ((sampleIndex + column + routeIndex) % 2 === 0) {
-          appendTriangle(currentRing[column], currentRing[column + 1], nextRing[column]);
-          appendTriangle(nextRing[column], currentRing[column + 1], nextRing[column + 1]);
-        } else {
-          appendTriangle(currentRing[column], currentRing[column + 1], nextRing[column + 1]);
-          appendTriangle(currentRing[column], nextRing[column + 1], nextRing[column]);
-        }
-        roadTriangleCount += 2;
-      }
-    };
-
-    for (const [sampleIndex, sample] of compiledRoute.samples.entries()) {
-      const join = routeJoin(compiledRoute, sampleIndex);
-      boundedJoinMaximum = Math.max(boundedJoinMaximum, join.miterScale);
-      ringVertices.push(appendRoadRing(
-        sample.point,
-        join.normal,
-        sample.distanceAlongRoute + stationOffset,
-        join.miterScale
-      ));
-    }
-
-    const apronBoundary = (junction: WorldRouteJunction, inside: WorldPoint, outside: WorldPoint): WorldPoint => {
-      const plan = junctionPlanById.get(junction.id)!;
-      let low = 0;
-      let high = 1;
-      for (let step = 0; step < 18; step++) {
-        const t = (low + high) * 0.5;
-        const x = inside.x + (outside.x - inside.x) * t;
-        const z = inside.z + (outside.z - inside.z) * t;
-        if (pointInJunctionPlan(plan, { x, z })) low = t;
-        else high = t;
-      }
-      const t = (low + high) * 0.5;
-      return {
-        x: inside.x + (outside.x - inside.x) * t,
-        z: inside.z + (outside.z - inside.z) * t
       };
+      if (preclipped) for (const polygon of clip ?? []) triangulate(polygon, vertexAt, vertices => appendOwned(vertices.map(vertex => [vertex.x, vertex.z]) as [RoadPlanPoint, RoadPlanPoint, RoadPlanPoint]));
+      else appendOwned(plan, clip);
     };
-
-    for (let sampleIndex = 0; sampleIndex < compiledRoute.samples.length - 1; sampleIndex++) {
-      const startSample = compiledRoute.samples[sampleIndex];
-      const endSample = compiledRoute.samples[sampleIndex + 1];
-      const start = startSample.point;
-      const end = endSample.point;
-      // The authored bridge route contains exact west/east deck-boundary
-      // samples. Skipping only the fully enclosed intervals gives exact deck
-      // clipping while retaining a clean, capped approach at each boundary.
-      if (isBridgeDeck(start.x, start.z) && isBridgeDeck(end.x, end.z)) continue;
-      const startJunction = junctionForRoute(route.id, start);
-      const endJunction = junctionForRoute(route.id, end);
-      if (startJunction && endJunction && startJunction.id === endJunction.id) continue;
-      if (onGreaterRoad(routeIndex, start) && onGreaterRoad(routeIndex, end)) continue;
-
-      if ((startJunction || endJunction) && !(startJunction && endJunction)) {
-        const junction = (startJunction ?? endJunction)!;
-        const insideIndex = startJunction ? sampleIndex : sampleIndex + 1;
-        const outsideIndex = startJunction ? sampleIndex + 1 : sampleIndex;
-        const inside = compiledRoute.samples[insideIndex];
-        const outside = compiledRoute.samples[outsideIndex];
-        if (pointInJunctionPlan(junctionPlanById.get(junction.id)!, outside.point)) continue;
-        const boundary = apronBoundary(junction, inside.point, outside.point);
-        const outsideJoin = routeJoin(compiledRoute, outsideIndex);
-        const span = Math.max(1e-4, distance2D(inside.point, outside.point));
-        const travelled = distance2D(inside.point, boundary);
-        const station = stationOffset + inside.distanceAlongRoute
-          + (outside.distanceAlongRoute - inside.distanceAlongRoute) * (travelled / span);
-        const boundaryRing = appendRoadRing(boundary, outsideJoin.normal, station, outsideJoin.miterScale);
-        if (startJunction) connectRings(boundaryRing, ringVertices[outsideIndex], sampleIndex);
-        else connectRings(ringVertices[outsideIndex], boundaryRing, sampleIndex);
-        continue;
-      }
-
-      connectRings(ringVertices[sampleIndex], ringVertices[sampleIndex + 1], sampleIndex);
-    }
-
-    const appendRoundedCap = (sampleIndex: number, outwardSign: number): void => {
-      const sample = compiledRoute.samples[sampleIndex];
-      const touchingJunction = options.junctions.some((junction) =>
-        junction.routeIds.includes(route.id)
-        && distance2D(sample.point, junction.center) <= junction.radiusMeters + junction.blendLengthMeters * 0.72
-      );
-      if (touchingJunction || isBridgeDeck(sample.point.x, sample.point.z) || onGreaterRoad(routeIndex, sample.point)) return;
-      roundedCapCount++;
-      const tangent = {
-        x: sample.tangent.x * outwardSign,
-        z: sample.tangent.z * outwardSign
-      };
-      const normal = sample.normal;
-      const capRadius = shoulderHalfWidth;
-      // The cap's vertices keep the road's own frame, so its tracks run out
-      // into the cap instead of stopping at a seam.
-      const frameAt = (x: number, z: number): [number, number] => [
-        (x - sample.point.x) * normal.x + (z - sample.point.z) * normal.z,
-        sample.distanceAlongRoute + stationOffset
-          + (x - sample.point.x) * sample.tangent.x + (z - sample.point.z) * sample.tangent.z
-      ];
-      const center = {
-        x: sample.point.x + tangent.x * capRadius * 0.48,
-        z: sample.point.z + tangent.z * capRadius * 0.48,
-        y: heightAt(sample.point.x + tangent.x * capRadius * 0.48, sample.point.z + tangent.z * capRadius * 0.48)
-      };
-      const centerIndex = appendVertex(center, colorWithVariation(road, sample.distanceAlongRoute + routeIndex * 1.7, 0.035),
-        1, frameAt(center.x, center.z), classCode);
-      const arc: number[] = [];
-      const arcSegments = 8;
-      for (let step = 0; step <= arcSegments; step++) {
-        const angle = -Math.PI * 0.5 + (step / arcSegments) * Math.PI;
-        const x = sample.point.x + tangent.x * Math.cos(angle) * capRadius + normal.x * Math.sin(angle) * capRadius;
-        const z = sample.point.z + tangent.z * Math.cos(angle) * capRadius + normal.z * Math.sin(angle) * capRadius;
-        arc.push(appendVertex(
-          { x, y: heightAt(x, z), z },
-          colorWithVariation(road, sample.distanceAlongRoute + step * 0.37 + routeIndex, 0.035),
-          0.08,
-          frameAt(x, z),
-          classCode
-        ));
-      }
-      for (let step = 0; step < arcSegments; step++) {
-        appendTriangle(centerIndex, arc[step], arc[step + 1]);
-        roadTriangleCount++;
-      }
-      // The fan center sits beyond the endpoint. Close its diameter back to
-      // the ribbon; the arc triangles alone leave a triangular hole here.
-      appendTriangle(centerIndex, arc[arcSegments], arc[0]);
-      roadTriangleCount++;
-    };
-
-    appendRoundedCap(0, -1);
-    appendRoundedCap(compiledRoute.samples.length - 1, 1);
-  }
-
-  const junctionCoreSegmentCount = 20;
-  let junctionArmCount = 0;
-  let junctionGoreTriangleCount = 0;
-  for (const plan of junctionPlans) {
-    const junction = plan.junction;
-    const branches = plan.branches;
-    const coreRadius = Math.max(0.72, junction.radiusMeters * 0.74);
-    const centerHeight = heightAt(junction.center.x, junction.center.z);
-    const centerColor = junction.surface === "village-market"
-      ? road.clone().lerp(warmShoulder, 0.4)
-      : junction.surface === "landmark-gateway"
-        ? road.clone().lerp(warmShoulder, 0.34)
-        : road.clone().lerp(warmShoulder, junction.surface === "farm-yard" ? 0.3 : 0.22);
-    const centerIndex = appendVertex({ ...junction.center, y: centerHeight }, centerColor);
-    const coreRing: number[] = [];
-
-    // A compact faceted center gives the junction a shaped apron without the
-    // old circular decal. Its broad radius is deliberately smaller than the
-    // authored blend envelope so branch arms, not a disk, determine its outline.
-    for (let segment = 0; segment < junctionCoreSegmentCount; segment++) {
-      const angle = (segment / junctionCoreSegmentCount) * Math.PI * 2;
-      const radial = { x: Math.cos(angle), z: Math.sin(angle) };
-      const radiusVariation = 0.94 + Math.sin(angle * 2.0 + junction.radiusMeters * 0.7) * 0.035;
-      const point = {
-        x: junction.center.x + radial.x * coreRadius * radiusVariation,
-        z: junction.center.z + radial.z * coreRadius * radiusVariation
-      };
-      coreRing.push(appendVertex(
-        { ...point, y: heightAt(point.x, point.z) },
-        colorWithVariation(centerColor, segment * 0.61 + junction.radiusMeters, 0.038)
-      ));
-    }
-
-    for (let segment = 0; segment < junctionCoreSegmentCount; segment++) {
-      const next = (segment + 1) % junctionCoreSegmentCount;
-      appendTriangle(centerIndex, coreRing[next], coreRing[segment]);
-      junctionTriangleCount++;
-    }
-
-    for (const [branchIndex, branch] of branches.entries()) {
-      const profile = options.profiles[branch.kind];
-      const featherHalfWidth = branch.featherHalfWidth;
-      const opacityAt = (lateral: number): number => 1 - smoothstep(0.08, 0.92, sampleRoadCrossSection({
-        profile,
-        halfWidthMeters: branch.halfWidth,
-        lateralDistanceMeters: lateral
-      }).edgeGrassAmount);
-      const branchNormal = leftNormal(branch.direction);
-      const startDistance = coreRadius * 0.86;
-      const endDistance = branch.reach;
-      const branchColor = colorWithVariation(
-        centerColor.clone().lerp(road, 0.65),
-        branchIndex * 1.31 + junction.radiusMeters,
-        0.035
-      );
-      const branchEdgeColor = branchColor.clone().lerp(dryShoulder, 0.2);
-      const place = (point: WorldPoint, color: THREE.Color, opacity: number, across: number): number =>
-        appendVertex(
-          { ...point, y: heightAt(point.x, point.z) },
-          color,
-          opacity,
-          [across, 0],
-          ROAD_CLASS_CODES.shared
-        );
-      // Several stations across the strip keep the packed crown opaque. A
-      // single quad from centre to feather lets alpha testing cut the road
-      // into a pale tongue.
-      const laterals = [-1, -0.72, -0.42, 0, 0.42, 0.72, 1];
-      const ringAt = (distance: number): number[] => laterals.map((offset) => {
-        const across = offset * featherHalfWidth;
-        const lateral = Math.abs(across);
-        return place(
-          {
-            x: junction.center.x + branch.direction.x * distance + branchNormal.x * across,
-            z: junction.center.z + branch.direction.z * distance + branchNormal.z * across
-          },
-          Math.abs(offset) > 0.8 ? branchEdgeColor : branchColor,
-          opacityAt(lateral),
-          across
-        );
+    const rings = route.samples.map((sample, sampleIndex) => {
+      const join = roadOffsetJoin(route, sampleIndex);
+      maximumMiterScale = Math.max(maximumMiterScale, join.miterScale);
+      return stations.map((across): SourceVertex => {
+        const x = Math.fround(sample.point.x + join.normal.x * across * join.miterScale);
+        const z = Math.fround(sample.point.z + join.normal.z * across * join.miterScale);
+        const loose = smoothstep(route.halfWidth * 0.86, route.halfWidth + profile.shoulderWidthMeters, Math.abs(across));
+        return { x, y: options.isBridgeDeck(x, z) ? options.bridge.entrySurfaceY : heightAt(x, z), z, color: rgb(road.clone().lerp(shoulder, loose * 0.28)), across, along: stationOffset + sample.distanceAlongRoute, classCode };
       });
-      const startRing = ringAt(startDistance);
-      const endRing = ringAt(endDistance);
-      for (let column = 0; column < laterals.length - 1; column++) {
-        appendTriangle(startRing[column], startRing[column + 1], endRing[column + 1]);
-        appendTriangle(startRing[column], endRing[column + 1], endRing[column]);
-        junctionTriangleCount += 2;
+    });
+    for (let row = 1; row < rings.length; row++) {
+      const triangles: Array<[SourceVertex, SourceVertex, SourceVertex]> = [];
+      for (let column = 1; column < stations.length; column++) {
+        const a = rings[row - 1][column - 1], b = rings[row - 1][column], c = rings[row][column], d = rings[row][column - 1];
+        triangles.push([a, b, c], [a, c, d]);
       }
-      junctionArmCount++;
+      const span = footprint.routeSpanRegions[routeIndex][row - 1];
+      const partitions = footprint.routeFoldedSpans[routeIndex][row - 1] ? partitionRoadTriangles(triangles.map(triangle => triangle.map(vertex => [vertex.x, vertex.z]) as [RoadPlanPoint, RoadPlanPoint, RoadPlanPoint]), span) : null;
+      for (const [index, triangle] of triangles.entries()) emit(triangle, partitions?.[index] ?? span?.polygons, partitions !== null);
     }
-
-    const goreSteps = 4;
-    for (let index = 0; index < branches.length; index++) {
-      const current = branches[index];
-      const next = branches[(index + 1) % branches.length];
-      const delta = angleDelta(current.heading, next.heading);
-      if (delta > JUNCTION_GORE_OPEN_ANGLE) continue;
-      const reach = Math.min(current.reach, next.reach);
-      const currentNormal = leftNormal(current.direction);
-      const nextNormal = leftNormal(next.direction);
-      const currentHalf = current.halfWidth + current.shoulderWidthMeters * 0.2;
-      const nextHalf = -(next.halfWidth + next.shoulderWidthMeters * 0.2);
-      for (let step = 0; step < goreSteps; step++) {
-        const near = coreRadius * 0.55 + (reach - coreRadius * 0.55) * step / goreSteps;
-        const far = coreRadius * 0.55 + (reach - coreRadius * 0.55) * (step + 1) / goreSteps;
-        const corner = (branch: PlannedBranch, normal: WorldPoint, lateral: number, distance: number): WorldPoint & { y: number } => ({
-          x: junction.center.x + branch.direction.x * distance + normal.x * lateral,
-          z: junction.center.z + branch.direction.z * distance + normal.z * lateral,
-          y: 0
-        });
-        const quad = [
-          corner(current, currentNormal, currentHalf, near),
-          corner(next, nextNormal, nextHalf, near),
-          corner(next, nextNormal, nextHalf, far),
-          corner(current, currentNormal, currentHalf, far)
-        ].map((point) => ({ ...point, y: heightAt(point.x, point.z) }));
-        appendQuad(quad as [
-          WorldPoint & { y: number },
-          WorldPoint & { y: number },
-          WorldPoint & { y: number },
-          WorldPoint & { y: number }
-        ], centerColor);
-        junctionTriangleCount += 2;
-        junctionGoreTriangleCount += 2;
+    const isClosed = Math.hypot(route.samples[0].point.x - route.samples.at(-1)!.point.x, route.samples[0].point.z - route.samples.at(-1)!.point.z) < 1e-7;
+    for (const [capIndex, sampleIndex] of isClosed ? [] : [[0, 0], [1, route.samples.length - 1]]) {
+      const sample = route.samples[sampleIndex];
+      if (options.isBridgeDeck(sample.point.x, sample.point.z)) continue;
+      roundedCapCount++;
+      const center: SourceVertex = { x: Math.fround(sample.point.x), y: heightAt(sample.point.x, sample.point.z), z: Math.fround(sample.point.z), color: rgb(road), across: 0, along: stationOffset + sample.distanceAlongRoute, classCode };
+      const capRings: SourceVertex[][] = [];
+      // The same world-aligned disk as the footprint, clipped at the exact end row.
+      for (const radius of stations.filter(value => value > 0)) {
+        const arc: SourceVertex[] = [];
+        for (let step = 0; step < 16; step++) {
+          const angle = step / 16 * Math.PI * 2;
+          const cos = Math.cos(angle) * radius, sin = Math.sin(angle) * radius;
+          const dx = Math.abs(cos) < 1e-10 ? 0 : cos, dz = Math.abs(sin) < 1e-10 ? 0 : sin;
+          const x = Math.fround(sample.point.x + dx), z = Math.fround(sample.point.z + dz);
+          arc.push({ x, y: heightAt(x, z), z, color: rgb(shoulder), across: dx * sample.normal.x + dz * sample.normal.z, along: center.along + dx * sample.tangent.x + dz * sample.tangent.z, classCode });
+        }
+        capRings.push(arc);
+      }
+      // Subtract every body span and the other cap before clipping to the route
+      // owner: exposed arcs behind a curved end row also remain filled.
+      for (let ring = 0; ring < capRings.length; ring++) for (let step = 0; step < 16; step++) {
+        const arc = capRings[ring], next = (step + 1) % 16, clip = footprint.routeCapRegions[routeIndex][capIndex].polygons;
+        if (!ring) emit([center, arc[step], arc[next]], clip);
+        else { const previous = capRings[ring - 1]; emit([previous[step], arc[step], arc[next]], clip); emit([previous[step], arc[next], previous[next]], clip); }
       }
     }
   }
 
-  const halfDeckWidth = options.bridge.deckWidth * 0.5;
-  const slabCount = Math.max(2, Math.floor(options.bridge.gatewaySlabCount));
-  const totalGap = options.bridge.gatewaySlabGapMeters * (slabCount - 1);
-  const slabWidth = (options.bridge.deckWidth - totalGap) / slabCount;
-  const gatewayHeight = options.bridge.entrySurfaceY;
+  const junctionColor = rgb(road.clone().lerp(shoulder, 0.2));
+  const sharedVertex = ([x, z]: RoadPlanPoint): SourceVertex => ({ x, y: gatewayHeightAt(x, z, options.isBridgeDeck(Math.fround(x), Math.fround(z)) ? options.bridge.entrySurfaceY : heightAt(x, z)), z, color: junctionColor, across: 0, along: 0, classCode: ROAD_CLASS_CODES.shared });
+  // Junctions reuse the clipped crowned cells on each deterministic ribbon
+  // owner. Both sides of every body gate therefore have the same cut stations.
+  const recolorShared = (vertex: SourceVertex): SourceVertex => ({ ...vertex, color: junctionColor });
+  for (const triangle of sharedTriangles) if (appendTriangle([recolorShared(triangle[0]), recolorShared(triangle[1]), recolorShared(triangle[2])])) junctionTriangleCount++;
+  // Only the compact apron beyond all ribbons needs a separate fill. Clipping
+  // small grid triangles avoids giant polygon fans flattening a crowned edge.
+  const remainder = footprint.sharedRemainderRegion;
+  const gridStep = 0.5;
+  for (const polygon of remainder.polygons) {
+    const points = polygon[0];
+    const minX = Math.floor(Math.min(...points.map(p => p[0])) / gridStep), maxX = Math.ceil(Math.max(...points.map(p => p[0])) / gridStep);
+    const minZ = Math.floor(Math.min(...points.map(p => p[1])) / gridStep), maxZ = Math.ceil(Math.max(...points.map(p => p[1])) / gridStep);
+    const localRegion = new RoadFootprintRegion([polygon]);
+    for (let column = minX; column < maxX; column++) for (let row = minZ; row < maxZ; row++) {
+      const a: RoadPlanPoint = [column * gridStep, row * gridStep], b: RoadPlanPoint = [(column + 1) * gridStep, row * gridStep], c: RoadPlanPoint = [(column + 1) * gridStep, (row + 1) * gridStep], d: RoadPlanPoint = [column * gridStep, (row + 1) * gridStep];
+      for (const triangle of [[a, b, c], [a, c, d]] as Array<[RoadPlanPoint, RoadPlanPoint, RoadPlanPoint]>) {
+        for (const clipped of localRegion.clipTriangle(triangle)) triangulate(clipped, sharedVertex, vertices => { if (appendTriangle(vertices)) junctionTriangleCount++; });
+      }
+    }
+  }
+
   const gatewayVertexStart = positions.length / 3;
-
-  for (const [sideIndex, side] of [-1, 1].entries()) {
-    const edge = side < 0 ? options.bridge.westDeckEdge : options.bridge.eastDeckEdge;
-    for (let slabIndex = 0; slabIndex < slabCount; slabIndex++) {
-      const zStart = -halfDeckWidth + slabIndex * (slabWidth + options.bridge.gatewaySlabGapMeters);
-      const zEnd = zStart + slabWidth;
-      const boundaryInset = options.bridge.gatewayInsetMeters;
-      const irregular = Math.sin((slabIndex + 1) * 2.7 + sideIndex * 1.9);
-      // Anchor gateway stone slabs to the approach terrain edge.
-      const nearX = edge.x + side * boundaryInset;
-      const farX = edge.x + side * options.bridge.gatewayDepthMeters;
-      const nearZStart = options.bridge.center.z + zStart + 0.035 + irregular * 0.025;
-      const nearZEnd = options.bridge.center.z + zEnd - 0.035 + irregular * 0.018;
-      const farZStart = nearZStart + Math.sin(slabIndex * 1.4 + sideIndex) * 0.035;
-      const farZEnd = nearZEnd + Math.cos(slabIndex * 1.1 + sideIndex) * 0.028;
-      const slabColor = (slabIndex + sideIndex) % 2 === 0 ? warmStone : goldenStone;
-      const gatewayHeightAt = (x: number, z: number): number =>
-        isBridgeDeck(x, z) ? gatewayHeight : heightAt(x, z);
-      const nearStart = { x: nearX, y: gatewayHeightAt(nearX, nearZStart), z: nearZStart };
-      const nearEnd = { x: nearX, y: gatewayHeightAt(nearX, nearZEnd), z: nearZEnd };
-      const farStart = { x: farX, y: heightAt(farX, farZStart), z: farZStart };
-      const farEnd = { x: farX, y: heightAt(farX, farZEnd), z: farZEnd };
-      // Reverse the west-bank winding so both entries present their stone
-      // faces upward to the standard front-face material.
-      appendQuad(side < 0
-        ? [nearStart, farStart, farEnd, nearEnd]
-        : [nearStart, nearEnd, farEnd, farStart],
-      colorWithVariation(slabColor, slabIndex * 1.17 + sideIndex, 0.06));
-      gatewayTriangleCount += 2;
-    }
+  for (const plan of gatewayPlans) {
+    const color = rgb(paletteColor(plan.colorToken));
+    const vertices = plan.polygon[0].slice(0, -1).map(([x, z]): SourceVertex => ({ x, y: options.isBridgeDeck(x, z) ? options.bridge.entrySurfaceY : heightAt(x, z), z, color, across: 0, along: 0, classCode: ROAD_CLASS_CODES.shared }));
+    for (const ids of [[0, 1, 2], [0, 2, 3]]) if (appendTriangle(ids.map(index => vertices[index]) as [SourceVertex, SourceVertex, SourceVertex], 1)) gatewayTriangleCount++;
   }
-
+  const stitched = stitchRoadInterfaces(positions, colors, frames, classes, indices, roadTriangleCount, junctionTriangleCount, gatewayVertexStart, heightCache);
+  roadTriangleCount = stitched.roadTriangleCount; junctionTriangleCount = stitched.junctionTriangleCount;
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4));
   geometry.setAttribute("roadFrame", new THREE.Float32BufferAttribute(frames, 2));
   geometry.setAttribute("roadClass", new THREE.Float32BufferAttribute(classes, 1));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
-  geometry.userData.routeProfiles = options.routes.map((compiledRoute) => ({
-    ...options.profiles[compiledRoute.route.kind],
-    id: compiledRoute.route.id,
-    scope: compiledRoute.route.scope,
-    kind: compiledRoute.route.kind,
-    widthMeters: compiledRoute.route.widthMeters,
-    totalLength: compiledRoute.totalLength
-  }));
-  geometry.userData.compiledRouteCount = options.routes.length;
-  geometry.userData.roadTriangleCount = roadTriangleCount;
-  geometry.userData.junctionTriangleCount = junctionTriangleCount;
-  geometry.userData.bridgeGatewayTriangleCount = gatewayTriangleCount;
-  geometry.userData.bridgeGatewayBandCount = slabCount * 2;
-  geometry.userData.bridgeGatewayVertexStart = gatewayVertexStart;
-  geometry.userData.bridgeGatewayVertexCount = positions.length / 3 - gatewayVertexStart;
-  geometry.userData.bridgeGatewayHeight = gatewayHeight;
-  geometry.userData.maximumMiterScale = boundedJoinMaximum;
-  geometry.userData.roundedCapCount = roundedCapCount;
-  geometry.userData.junctionCoreSegmentCount = junctionCoreSegmentCount;
-  geometry.userData.junctionArmCount = junctionArmCount;
-  geometry.userData.junctionGoreTriangleCount = junctionGoreTriangleCount;
-  geometry.userData.junctionSurfaceKinds = options.junctions.map((junction) => junction.surface);
+  geometry.setIndex(stitched.indices); geometry.computeVertexNormals(); geometry.computeBoundingBox(); geometry.computeBoundingSphere();
+  geometry.userData = {
+    routeProfiles: options.routes.map(route => ({ ...options.profiles[route.route.kind], id: route.route.id, scope: route.route.scope, kind: route.route.kind, widthMeters: route.route.widthMeters, totalLength: route.totalLength })),
+    compiledRouteCount: options.routes.length, roadTriangleCount, junctionTriangleCount, bridgeGatewayTriangleCount: gatewayTriangleCount,
+    bridgeGatewayBandCount: gatewayPlans.length, bridgeGatewayVertexStart: stitched.gatewayVertexStart, bridgeGatewayVertexCount: positions.length / 3 - stitched.gatewayVertexStart, bridgeGatewayHeight: options.bridge.entrySurfaceY,
+    interfaceStitching: { adjustedVertexCount: stitched.adjustedVertexCount, insertedVertexCount: stitched.insertedVertexCount, repairedInterfaceDiagonals: stitched.repairedInterfaceDiagonals, maximumHeightLiftMeters: stitched.maximumHeightLiftMeters, maximumHeightLiftPoint: stitched.maximumHeightLiftPoint },
+    maximumMiterScale, roundedCapCount, transverseBaseStationCount: 9, maximumTransverseStationCount: maximumStationCount, sourceTriangleCount,
+    junctionPatchCount: footprint.sharedRegion.polygons.length, junctionSurfaceKinds: footprint.junctions.map(junction => junction.surface),
+    footprintAreaSquareMeters: footprint.sourceCorridorAreaSquareMeters
+  };
   return geometry;
 }

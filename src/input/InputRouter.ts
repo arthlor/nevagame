@@ -28,7 +28,7 @@ export interface VirtualMoveVector {
   z: number;
 }
 
-export type ActionCallback = (action: GameAction) => void;
+export type ActionCallback = (action: GameAction, source: "physical" | "virtual") => void;
 export type InterruptionCallback = () => void;
 
 /** Game canvas, boot shell, HUD, and modals. The rest of the page keeps the browser menu. */
@@ -146,6 +146,8 @@ export class InputRouter {
   private locomotionWhileSuspended = false;
   private layoutEditorActive = false;
   private readonly pointerNdc = { x: 0, y: 0 };
+  private pointerClient: { x: number; y: number } | null = null;
+  private canvasPointerClient: { x: number; y: number } | null = null;
   private readonly virtualMoveVector = { x: 0, z: 0 };
   private virtualSprint = false;
   private virtualFishing: FishingInputState = {
@@ -238,7 +240,7 @@ export class InputRouter {
   }
 
   public dispatchVirtualAction(action: GameAction): void {
-    if (!this.worldInputSuspended) this.dispatch(action);
+    if (!this.worldInputSuspended) this.dispatch(action, "virtual");
   }
 
   public clearVirtualInput(): void {
@@ -323,6 +325,29 @@ export class InputRouter {
           FISHING_STEER_INPUT_MAX
         )
       }
+    };
+  }
+
+  public getPointerClientPosition(): Readonly<{ x: number; y: number }> | null {
+    return this.pointerClient;
+  }
+
+  /** Reproject the physical pointer after a resize, even when it is over the HUD. */
+  public getPointerNdc(canvas: HTMLElement): { x: number; y: number } | null {
+    return this.projectPointer(this.pointerClient, canvas);
+  }
+
+  /** An explicit touch Place button confirms the last canvas aim, reprojected for the current viewport. */
+  public getCanvasPointerNdc(canvas: HTMLElement): { x: number; y: number } | null {
+    return this.projectPointer(this.canvasPointerClient, canvas);
+  }
+
+  private projectPointer(pointer: { x: number; y: number } | null, canvas: HTMLElement): { x: number; y: number } | null {
+    const bounds = canvas.getBoundingClientRect();
+    if (!pointer || bounds.width <= 0 || bounds.height <= 0) return null;
+    return {
+      x: ((pointer.x - bounds.left) / bounds.width) * 2 - 1,
+      y: -((pointer.y - bounds.top) / bounds.height) * 2 + 1
     };
   }
 
@@ -487,6 +512,7 @@ export class InputRouter {
   };
 
   private onPointerDown = (event: PointerEvent): void => {
+    this.pointerClient = { x: event.clientX, y: event.clientY };
     if (this.worldInputSuspended || !this.isCanvasTarget(event.target)) return;
     this.updatePointerNdc(event, event.target);
     if (event.pointerType === "touch") {
@@ -528,6 +554,7 @@ export class InputRouter {
       this.onTouchPointerMove(event);
       return;
     }
+    this.pointerClient = { x: event.clientX, y: event.clientY };
     const pointerTarget = this.orbitPointer?.id === event.pointerId
       ? this.orbitPointer.target
       : this.layoutPointer?.id === event.pointerId
@@ -621,6 +648,8 @@ export class InputRouter {
   };
 
   private updatePointerNdc(event: PointerEvent, target: HTMLElement): void {
+    this.pointerClient = { x: event.clientX, y: event.clientY };
+    this.canvasPointerClient = this.pointerClient;
     const bounds = target.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return;
     this.pointerNdc.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
@@ -695,6 +724,7 @@ export class InputRouter {
     if (!touch) return;
     const wasPrimary = this.touchPrimaryPointerId === event.pointerId;
     const wasTap = wasPrimary && !touch.dragged && this.touchPointers.size === 1;
+    if (wasTap) this.updatePointerNdc(event, touch.target);
     this.releaseTouchPointer(event.pointerId);
     if (this.touchPointers.size < 2) {
       this.touchPinchDistance = null;
@@ -750,7 +780,11 @@ export class InputRouter {
     if (isGameSurfaceTarget(event.target)) event.preventDefault();
   };
 
-  private onBlur = (): void => this.interrupt();
+  private onBlur = (): void => {
+    this.pointerClient = null;
+    this.canvasPointerClient = null;
+    this.interrupt();
+  };
   private onVisibilityChange = (): void => {
     if (document.hidden) this.interrupt();
   };
@@ -790,8 +824,8 @@ export class InputRouter {
     this.releaseAllTouchPointers();
   }
 
-  private dispatch(action: GameAction): void {
-    for (const listener of this.actionListeners) listener(action);
+  private dispatch(action: GameAction, source: "physical" | "virtual" = "physical"): void {
+    for (const listener of this.actionListeners) listener(action, source);
   }
 
   public dispose(): void {

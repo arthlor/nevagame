@@ -69,12 +69,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Gate Is Yours",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Gate's yours. House too — inheritance, not a repurchase from the village.",
-      "Your people worked these beds and knew the water past the headland. Start where they always started: dirt that cakes if you ignore it.",
-      "Here's wheat for the first rows. Field's behind me. Get them in before the afternoon wind skins the topsoil."
+      "I kept the gate clear. The house and these beds are yours now.",
+      "Your family always saved a little wheat for the next planting. Take these seeds; the prepared bed is just behind me."
     ],
     completionDialogue: [
-      "Steady hands. Same as his. Under the soil before it crusts."
+      "Six seeds to start with. Plant three, and keep the rest for another row."
     ],
     objectives: [
       {
@@ -101,11 +100,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Three Seeds In",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Onto the turned bed. Seeds out, then one clear patch at a time.",
-      "Leave them room. Crowded roots sulk, and sulking wheat feeds no one."
+      "Plant three wheat in the prepared bed. Leave a little room between them; we'll be walking these rows with a watering can."
     ],
     completionDialogue: [
-      "They're in. Now they sit there looking smug until you wet them."
+      "There. A small row, but it's yours. Give each planting some water."
     ],
     objectives: [
       {
@@ -133,14 +131,13 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Before the Crust",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "Can's by the gate if you set it down. Wet each thirsty one — damp soil, not a puddle.",
-      "This bed crusts fast after noon. Hit them while the top's still dark."
+      "Water each of your three plantings. Stop when the soil turns dark; that's enough for the roots."
     ],
     completionDialogue: [
       // ONBOARDING_PACE ripens this first bed in a few real minutes; the line
       // used to promise "a morning" and a rest the farmhouse refuses by day.
-      "See the dark? That's the bed drinking. It was kept warm for you, so these heads go gold in a few minutes — not a full season.",
-      "Cut them when they turn. Compost bin's by the house while you wait; Barnaby will say what the grain's for."
+      "That will do. This first bed grows quickly; harvest when the heads turn gold.",
+      "Barnaby can help you put the leftovers to work. You'll find the compost bin beside the house."
     ],
     objectives: [
       {
@@ -173,11 +170,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Cycle of the Soil",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "Hey there! I'm Barnaby, the homestead handyman. That first wheat of yours won't be long — the starter bed is quick.",
-      "Harvest it when the heads turn gold, and set the compost bin working: plant matter and a scoop of starter, and the worms do the rest. Then see me by the farmhouse workbench. Farming on Neva isn't just for bread — it's how we supply our fishing trips!"
+      "I'm Barnaby. I mend the tools here. You look after the grain, and I'll help you make use of what remains.",
+      "Harvest three ripe wheat plants. Then put plant matter and compost starter in the bin and collect the bait worms when they're ready. Meet me at the farmhouse workbench."
     ],
     completionDialogue: [
-      "That's prime grain right there! Heavy ears and full kernels. Now let's turn it into sea supplies."
+      "Grain for the mill, worms for the water. Nothing from this bed needs to go to waste."
     ],
     objectives: [
       {
@@ -219,12 +216,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Milling & Mixing Chum",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "To bring the big offshore fish to the surface, you need good chum to spark a feeding frenzy.",
-      "First, take your harvested wheat to the village mill to grind it into Ground Grain.",
-      "Then bring that Ground Grain and Bait Worms to my workbench to craft a Chum Bucket!"
+      "Grind your wheat at the village mill. Bring the Ground Grain and Bait Worms back to my workbench, and we’ll mix a Chum Bucket.",
+      "A little food on the water brings a school within reach. Silas will show you what to do when it arrives."
     ],
     completionDialogue: [
-      "Look at that chum bucket! Oily, fragrant, and packed with ground grain. The coastal schools will go wild for it."
+      "That will do. Keep the bucket for a school; take a few worms down to the river first."
     ],
     objectives: [
       {
@@ -267,12 +263,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Reading the Currents",
     speakerId: "npc.silas",
     introDialogue: [
-      "Ah, the new blood in Neva Cove! I'm Old Silas. Before you venture onto the open sea, you must master the river.",
-      "Walk down the path to the timber bridge over the river corridor. Cast your line into the freshwater.",
-      "Hold [E] to load the cast and let go to send it. When the float dips, tap [Space] to set the hook, then hold [Space] to lift the green bar and keep the fish inside it."
+      "I’m Silas. Your family used to fish below that timber bridge. Let’s see what the river gives you.",
+      "Catch two freshwater fish there. When the float dips, strike, then keep the fish inside the catching bar."
     ],
     completionDialogue: [
-      "Good strike! You've got the angler's touch. River fish are quick, but steady hands always win."
+      "Two fish from the old spot. Keep that steady hand; you’ll need it when we take the boat out."
     ],
     objectives: [
       {
@@ -298,12 +293,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Fair Trade at the Village",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "The village produce stall is always eager for extra grain and garden produce.",
-      "Cross the bridge into the village and find the produce stall on the square. Sell a little of your harvest there for coin — the catch goes to the harbor, but grain and greens belong to the village."
+      "Keep what you need for the next planting, then take a little produce to the stall on the village square. Your first harvest can pay for the next."
     ],
     completionDialogue: [
-      "Look at that purse jingle! Honest coin from your own labor. Now you're ready to see the wider harbor.",
-      "For longer routes, Maeve can show you the packing yards. A tied load goes to a village counter by hand, and the far village may need it more than we do."
+      "Your own harvest paid its way. Maeve keeps the fish market down at the harbor; go and introduce yourself."
     ],
     objectives: [
       {
@@ -333,13 +326,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Journey to the Salt",
     speakerId: "npc.maeve",
     introDialogue: [
-      "Welcome to the Southeast Harbor! I'm Maeve. Out here, the ocean dictates everything.",
-      "You can bring loose harvest to a produce stall, or make village trade packs at the packing yards. The road pays for carrying what another place needs; the kitchen is for meals.",
-      "Take a look at the Fish Market prices: pelagic saltwater fish command high prices, but remember: fish is perishable physical cargo!",
-      "The longer it sits in your hold, the more freshness decays. Keep your trips planned and swift!"
+      "Maeve. I buy the catch here and keep the delivery ledger. Before you sail, know where your fish is going.",
+      "Ordinary catches come to the Fish Market. A large fish pack must be carried to a village trade counter, unless you’ve accepted a contract for it elsewhere. Freshness falls on the journey."
     ],
     completionDialogue: [
-      "Now you understand the market balance. High risk, high reward, but only if you bring 'em in cold!"
+      "Silas has kept your family’s rowboat at the slip. Find him at the pier before you plan that first trip."
     ],
     objectives: [
       {
@@ -365,12 +356,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Commissioning the Old Rowboat",
     speakerId: "npc.silas",
     introDialogue: [
-      "Your family's old wooden rowboat is tied at the slip. The hull is sound cedar, but she needs fresh mooring registration and oarlock grease.",
-      "Bring me 30 coins for the harbor permit and 1 Ground Grain for grease, and I'll clear her for departure!"
+      "Your family’s rowboat is still at the slip. Sound cedar, even after all this time.",
+      "Bring 30 gold for her permit and one Ground Grain for the oarlock grease. I’ll get her ready."
     ],
     completionDialogue: [
-      "She's cleared for sea! I've tucked two Woven Lures into your tackle roll. Arm one with [R] before you set a sport-fishing hook.",
-      "Step down to the wooden slip, press [E] to board, and take her out into the bay."
+      "She’s yours to take out. I’ve added two Woven Lures; prepare one before you hook a school fish. Board at the wooden slip."
     ],
     objectives: [
       {
@@ -406,14 +396,12 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Call of the Deep",
     speakerId: "npc.silas",
     introDialogue: [
-      "This is what it's all about. Board your rowboat with your Chum Bucket and Woven Lures, then steer out toward the open water.",
-      "Look for circling gulls and water disturbances. Approach the school, cast your chum to ignite a frenzy, arm a lure with [R], and hook the fish!",
-      "Manage your line tension: reel when safe, slack when the line strains orange, and counter the runs with [A] and [D].",
-      "Stow your catch in the boat hold, race back before freshness drops, collect the pack by hand, and carry it inland to the Village Trade Center."
+      "Take the rowboat, chum and a Woven Lure to the marked lake school. Scatter the chum, prepare the lure, then hook a fish.",
+      "Reel while the line allows it; ease off when it strains. Bring the catch aboard, return to the harbor, and carry the pack to the Village Trade Center. Come back and tell me how it went."
     ],
     completionDialogue: [
-      "Magnificent! You've mastered the first loop of Neva: from wheat seed, to worm, to chum, to lake sport fish, to a hand-carried trade-pack sale!",
-      "The Expedition Board is active now. Keep tending the homestead, learning the water, and preparing for longer routes."
+      "Your family’s boat brought a catch home again. I was hoping I’d see that.",
+      "You can take orders from the Expedition Board now. Choose one you can bring back in time."
     ],
     objectives: [
       {
@@ -461,7 +449,7 @@ export const QUESTS: QuestDefinition[] = [
         targetId: "boat.player_rowboat",
         targetQuantity: 1,
         locationAnchor: { x: HARBOR_DOCK.boatPosition.x, z: HARBOR_DOCK.boatPosition.z, name: "Harbor Dock" },
-        location: { kind: "boat", id: "boat.player_rowboat" }
+        location: { kind: "market", id: "market.harbor" }
       },
       {
         id: "step.act5_sell_fish",
@@ -505,12 +493,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "A Promise Made at the Board",
     speakerId: "npc.maeve",
     introDialogue: [
-      "The board is more than a price list. Pick an order you can honestly finish before its deadline, then bring it to the market that posted it.",
-      "A steady farm delivery is sound work. A fish order can pay more, but the water, tackle, cargo room, and clock all have a say."
+      "Someone is waiting at the other end of every order. Pick one from the Expedition Board, check its deadline and destination, and deliver what it asks for."
     ],
     completionDialogue: [
-      "You chose a promise and kept it. That is how the cove learns it can rely on you.",
-      "Take this payment—and these clean scraps. Barnaby has an idea for putting both to work back at the homestead."
+      "Delivered as promised. Here’s your pay, and some clean fish scraps for Barnaby. He’s been asking how your field is doing."
     ],
     objectives: [
       {
@@ -536,12 +522,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Water Where It Matters",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "Maeve's payment is enough for the field-pump parts. Install them at the starter-farm well, then run the pump while the crops need water.",
-      "It will not grow anything for you. It will turn one careful watering job into a field decision."
+      "Carrying water row by row takes most of a morning. Fit a pump at the starter-farm well, then run it for the field. Maeve’s payment will cover the parts."
     ],
     completionDialogue: [
-      "Hear that steady rhythm? You bought back time, not responsibility.",
-      "Now bring those fish scraps to the harbor cleaning table. The sea can feed the soil as surely as the field feeds the harbor."
+      "That should spare you a few trips to the well. Now take those fish scraps to the harbor table; we can make something for the soil."
     ],
     objectives: [
       {
@@ -576,13 +560,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Land-Sea Cycle",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "Use Maeve's scraps at the harbor fish table to make fertilizer. Then carry it home and work it into the starter field.",
-      "Waste from one livelihood becomes preparation for the next. That is the quiet machinery of Neva Cove."
+      "Make fertilizer from Maeve’s scraps at the Harbor Fish Table, then work it into the starter field. No sense throwing away what the soil can use."
     ],
     completionDialogue: [
-      "There it is: field to bait, bait to fish, fish back to field. You are no longer following the cove's cycle—you are tending it.",
-      "I've written the method in your journal. Use it whenever the soil needs another season.",
-      "And Silas was asking after you down at the pier. Something about the channel, and a boat with an engine in it."
+      "That will feed the next crop. I’ve put the method in your journal.",
+      "Silas was asking for you at the pier. He has news from across the channel."
     ],
     objectives: [
       {
@@ -625,17 +607,15 @@ export const QUESTS: QuestDefinition[] = [
     herald: {
       npcId: "npc.silas",
       lines: [
-        "Sunreach lies across the open channel, and a rowboat will not hold its line in that swell. You want the Coastal Fishing Skiff at the harbor mooring.",
-        "She costs 850 in gold, and the broker will not sell a coastal hull to anyone without an Expert's hand on a rod. Nobody hands you that. Fish my waters in their seasons and keep Maeve's fish orders, and the hours will do the rest.",
-        "When she is yours, follow the buoys east into the sheltered cove and tie up at the mooring. Tomas keeps that cove. He will be expecting you."
+        "Tomas sent word from Sunreach. To reach him, you’ll need the Coastal Fishing Skiff at the harbor mooring. The broker asks for gold and an Expert angler’s experience.",
+        "Keep fishing and taking orders until you’re ready. Then follow the buoys east, dock inside Sunreach Cove, and find Tomas at the market."
       ]
     },
     introDialogue: [
-      "Tie up inside the markers and come up to the landing. Everything else can wait until you are standing on dry stone."
+      "Tie up inside the markers and come ashore. Silas said you might make the crossing."
     ],
     completionDialogue: [
-      "You came across on your own keel. The rowboats turn back at the markers; most people only try that swell once.",
-      "Welcome to Sunreach—warm stone, dry terraces, and a reef that rewards preparation. Ines keeps the terraces above us. She will want to see what your hands do with a dry field."
+      "Welcome to Sunreach. Take these sunflower seeds to Ines on the terraces above the cove. She can show you where they’ll take root."
     ],
     objectives: [
       {
@@ -686,10 +666,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Terraces for the Sun",
     speakerId: "npc.ines",
     introDialogue: [
-      "These terraces hold warmth and lose water quickly. Plant three sunflowers, water them with care, and bring one head to harvest."
+      "Tomas sent you? I’m Ines. These stone walls hold the soil, but the sun takes its water quickly. Plant three sunflowers, water them, and harvest a head when it’s ready."
     ],
     completionDialogue: [
-      "The terraces answered you. Sunreach asks for attention, not excess water."
+      "A good first head. Take the seed down to Tomas; he uses some for the reef. This olive sapling is yours to plant."
     ],
     objectives: [
       { id: "step.act7_meet_ines", type: "talk-npc", description: "Meet Ines at the terraces", targetId: "npc.ines", targetQuantity: 1, locationAnchor: SUNREACH_TERRACES },
@@ -708,10 +688,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Seed for the Sea",
     speakerId: "npc.tomas",
     introDialogue: [
-      "The sunflower head carries more than the next crop. Mill its seed into grain, then mix that grain into chum at the cove workbench."
+      "Ines grows most of what goes into my chum. Grind the sunflower seed at our hand mill, then mix a bucket at the cove workbench."
     ],
     completionDialogue: [
-      "Field work has become reef preparation. That is the Sunreach way."
+      "Keep that bucket aboard. There’s a school along the reef edge, just where the shelf drops away."
     ],
     objectives: [
       { id: "step.act7_mill_sunflower", type: "craft-recipe", description: "Mill Sunflower Seed into Ground Grain", targetId: "recipe.sunflower_to_grain", targetQuantity: 1, locationAnchor: { x: 444 + SUNREACH_OFFSET_X, z: 21, name: "Sunreach Hand Mill" }, location: { kind: "station", id: "struct.sunreach_hand_mill" } },
@@ -728,11 +708,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Reef's Answer",
     speakerId: "npc.tomas",
     introDialogue: [
-      "Take the skiff round to the reef edge, where the shelf drops away, and chum the school there. That is where this island's fish actually are.",
-      "Then work a light line from the deck. The golden sea bream hold along that edge. Bring one home in the hold, collect the pack from the dock, and carry it to the inland Village Trade Center while it is fresh."
+      "Take the skiff to the reef edge and chum the school. Catch a Golden Sea Bream from the deck.",
+      "Stow it for the crossing, then carry its pack from the harbor to the Village Trade Center. That inland journey counts against its freshness too."
     ],
     completionDialogue: [
-      "Fresh, local, and landed with room to spare. The reef has answered your preparation, and the inland counter has weighed it fairly."
+      "A reef catch made it to the village table. Ines will want the scraps from your next catch; her terraces could use them."
     ],
     objectives: [
       { id: "step.act7_chum_sunreach", type: "chum-school", description: "Chum the school at the Sunreach reef edge", targetQuantity: 1, locationAnchor: SUNREACH_REEF, location: { kind: "ecology", id: "ecology.sunreach" } },
@@ -753,10 +733,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Sunreach Land-Sea Cycle",
     speakerId: "npc.ines",
     introDialogue: [
-      "Bring two cove sardines to the fish table. Clean them into scraps, press three of those into fertilizer, and return the nutrients to the terrace soil."
+      "Catch two sardines in the cove and clean them at our fish table. Press three scraps into fertilizer, work it into these terraces, then come back to me."
     ],
     completionDialogue: [
-      "Now the cove feeds the terrace, and the terrace prepares the next voyage. You understand Sunreach as one living route."
+      "This soil has very little to spare. What you brought back will help the next planting. Stay a while; we have more work before the dry weather settles in."
     ],
     objectives: [
       // One sardine cleans into 2 scraps and fertilizer takes 3, so the cycle
@@ -790,11 +770,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Water You Started In",
     speakerId: "npc.silas",
     introDialogue: [
-      "You have been to the deep and come back. Good. Now go back to the river you learned in.",
-      "Most anglers never return to their first water once they own a boat. That is how they stop learning. Chum the Silverwater run and take a trout out of it."
+      "Let’s go back to the river below the bridge. Chum a school in Silverwater, hook a Rainbow Trout, and bring it in. There’s more to that first fishing spot than you saw from the bank."
     ],
     completionDialogue: [
-      "Same river, different angler. Keep that in mind every time a water looks beneath you."
+      "Still a quick little fish, even with better tackle. Remember this stretch when the sea keeps you ashore."
     ],
     objectives: [
       {
@@ -808,7 +787,7 @@ export const QUESTS: QuestDefinition[] = [
       {
         id: "step.tides_hook_river",
         type: "hook-sport-fish",
-        description: "Hook a Brook Trout in the river",
+        description: "Hook a Rainbow Trout in the river",
         targetId: "fish.trout",
         targetQuantity: 1,
         locationAnchor: SILVERWATER_RUN,
@@ -834,11 +813,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Deep Channel",
     speakerId: "npc.silas",
     introDialogue: [
-      "Under the trout there is something heavier, and it does not come up for a willow branch.",
-      "A catfish holds where the channel runs deepest and it will not be hurried. Bring one in."
+      "A Channel Catfish holds in the deeper river water. Bring tackle that can lift its weight, and take your time with it. I’d like to see one on your line."
     ],
     completionDialogue: [
-      "Patience and a rod that can take the weight. That is the whole of it."
+      "There it is. A different sort of patience from the trout, isn’t it? Let the rod work before you ask for more line."
     ],
     objectives: [
       {
@@ -861,11 +839,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Cold Water Teeth",
     speakerId: "npc.silas",
     introDialogue: [
-      "Pike keep to the lake and they keep to the cold. Come autumn they are everywhere; come high summer you will be lucky to see one, and they feed by daylight.",
-      "Do not fight the calendar. Go when the water is right, and until then there is other work."
+      "Try the lake for a Northern Pike. Check its season in the Almanac before you set out; some days are better spent mending tackle."
     ],
     completionDialogue: [
-      "You waited for the season instead of wearing yourself out against it. That is most of what I know."
+      "Look at those teeth. I’ve lost more lures to pike than I care to count. You kept yours long enough."
     ],
     objectives: [
       {
@@ -888,11 +865,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Summer Gold",
     speakerId: "npc.silas",
     introDialogue: [
-      "There is a fish in that same lake that shows itself for one season only, and it is the handsomest thing in Neva.",
-      "An arowana runs gold along the surface in high summer, mostly at dusk and after dark. You will need a rod with some spine — Heavy Sport or better. Out of summer they are scarce enough to call a rumour."
+      "I once saw a Golden Arowana turn under the evening light. Thought someone had dropped a coin in the lake.",
+      "Look for one in its summer run. Take Heavy Sport tackle or better, and check the Almanac before you go."
     ],
     completionDialogue: [
-      "Not many have seen one up close. Fewer have landed one. Write it down."
+      "That colour never quite stays in a drawing. Now you’ve seen it for yourself."
     ],
     objectives: [
       {
@@ -915,11 +892,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Old Coast",
     speakerId: "npc.silas",
     introDialogue: [
-      "The sturgeon was here before the harbor was. It runs the coast when the water turns cold and it is heavier than anything you have carried.",
-      "Make sure you have somewhere to put it before you hook it. A won fight with nowhere to stow the fish is a lost fish."
+      "Take a turn along the coast for a Sturgeon. Check the run and make room for it before you cast.",
+      "Bring the catch home, collect its pack, and carry it to the Village Trade Center. A fish that size needs a plan for the road too."
     ],
     completionDialogue: [
-      "That is an old animal and you brought it in whole. The coast keeps its own records; now you are in them."
+      "From the coast to the village, without leaving the hard part for someone else. That’s a trip worth remembering."
     ],
     objectives: [
       {
@@ -951,11 +928,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Every Water on the Chart",
     speakerId: "npc.silas",
     introDialogue: [
-      "Last thing. Hook a school in each water Neva has — the river, the lake, and the open coast — and then come and tell me.",
-      "Not to prove anything to me. So that when someone asks you where a fish lives, you answer from memory instead of guessing."
+      "Hook a school in the river, then the lake, then along the coast. Come back when you’ve tried all three; I want to hear which water you prefer."
     ],
     completionDialogue: [
-      "Then you can read the water. That is not a rank and nobody will hand you a rod for it. It just means you will keep eating."
+      "Three waters, three different pulls on the line. Next time someone asks where to start, you’ll have an answer of your own."
     ],
     objectives: [
       {
@@ -1006,13 +982,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Silver King",
     speakerId: "npc.silas",
     introDialogue: [
-      "One more thing, and only if you want it. Out past the shelf there is a fish that does not care how good you are.",
-      "A blue marlin. Summer or autumn, first light, the Master rod in your hands. Hook her, and the fight will teach you what every other lesson was for.",
-      "Do not keep her if you cannot carry her. A fish that size makes a fool of a boat with no room."
+      "There’s one I’ve never brought in: a Blue Marlin beyond the shelf. If you go after it, take the Master rod and leave a suitable hook free on the boat.",
+      "Check the Almanac for its run. This one can wait until you’re ready."
     ],
     completionDialogue: [
-      "A silver king, on your own line. I have seen four in my life and put none of them on a deck.",
-      "There is nothing left for me to teach you. Go and be the one the other anglers ask."
+      "A marlin on your own line. Sit down and tell me everything, starting with the first pull. I’ve waited years for this story."
     ],
     objectives: [
       {
@@ -1048,11 +1022,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Family Key",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "There is something I kept back, and I am sorry for it. A seed pouch, oilcloth, tied at the neck. It hung in your family's kitchen for as long as I knew them.",
-      "Your farmhouse and starter field are already yours. No deed at the market, no lease to renew. What you can earn here is the cove's trust — take the pouch and help keep the Village Commons in rotation."
+      "I found your family’s seed pouch in the kitchen, still tied with the same bit of string. I kept it for you.",
+      "Your own field is growing now. Take these seeds and help Barnaby get the Village Commons planted too."
     ],
     completionDialogue: [
-      "They saved seed every year rather than buy it. That is not thrift. That is a person deciding there will be a next season."
+      "They always kept a little seed back. I’m glad it will see another planting."
     ],
     objectives: [
       {
@@ -1079,11 +1053,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "A Furrow for Everyone",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "Those eastern rows are the Village Commons: no farmhouse, no private fence, no market claim. Everyone in the cove gets a share when the soil is kept working.",
-      "Put the family's saved wheat into three rows and water them in. Your own field is home; this one is how you become part of the place around it."
+      "The eastern beds belong to the Village Commons. We’ve let them stand empty too long. Plant three wheat there and water them in."
     ],
     completionDialogue: [
-      "Rows in, water on. A commons is not owned by the loudest voice — it lasts because somebody turns the soil when it needs turning."
+      "Good to see green in those rows again. I’ll keep an eye on them when I pass."
     ],
     objectives: [
       {
@@ -1116,11 +1089,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "A Fair Share",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "When it comes ripe, bring in all three rows yourself. A shared field only matters if its harvest actually reaches people.",
-      "Take one measure to the village stall and sell it there. The coin is yours for the work; the useful part is putting fresh food back into the cove's daily trade."
+      "Harvest the three wheat when they’re ready. Sell some at the village stall; the commons should put food back on the square, and you should be paid for tending it."
     ],
     completionDialogue: [
-      "That is a fair share. The commons has a harvest on the books again, and the cove knows it can count on you."
+      "A harvest from the commons again. Elspeth will be pleased when she sees the stall."
     ],
     objectives: [
       {
@@ -1153,12 +1125,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Tools That Outlast Us",
     speakerId: "npc.barnaby",
     introDialogue: [
-      "Look at the village mill handle sometime. Worn on one side only, and not by you.",
-      "Grind some of that commons wheat there. The same stone serves every family in the cove. That is the useful part of an inheritance: a tool kept ready for the next pair of hands."
+      "Take some wheat to the village mill. See the smooth patch on its handle? Your family helped wear that in. The stone still grinds well."
     ],
     completionDialogue: [
-      "Every tool round this cove is a record of the hands that used it. Yours are on that handle now too.",
-      "Take this apple sapling for the commons. Elspeth will tell you where it belongs."
+      "A little more wear on the old handle. Take this apple sapling to the commons; Elspeth has been saving a place for it."
     ],
     objectives: [
       {
@@ -1187,11 +1157,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Shade for the Next Season",
     speakerId: "npc.elspeth",
     introDialogue: [
-      "One thing is still missing from the commons, and it will take a long while to grow.",
-      "Plant an apple sapling there. An orchard is not a private claim or a quick payout — it is shade and fruit for people you may never meet. Bring me the first apple whenever the tree is ready."
+      "Plant Barnaby’s apple sapling in the Village Commons. Take your time with it, and bring me the first apple when it’s ready."
     ],
     completionDialogue: [
-      "Then the commons has a future written into it. Your family kept a home for you; you have kept something useful for the people after you. That is how a place remembers us."
+      "The first apple already. One day someone will sit under that tree without knowing who planted it. I’ll know."
     ],
     objectives: [
       {
@@ -1244,11 +1213,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Weight of an Order",
     speakerId: "npc.maeve",
     introDialogue: [
-      "You kept one order. Good. Now find out what happens when the number on it is large.",
-      "Take a bulk order off the board and fill it. Not a basket - a granary's worth. You will learn more about your own storage in one of those than in a season of small deliveries."
+      "Take a bulk order from the board. Check how much it needs before you start gathering; you can deliver it in parts at the listed counter."
     ],
     completionDialogue: [
-      "Now you know. Volume pays less for each measure and more in total, and it eats every slot you own while you gather it."
+      "The last measure is in. A large order goes better when you leave room for the work between deliveries."
     ],
     objectives: [
       {
@@ -1271,11 +1239,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Clock in the Hold",
     speakerId: "npc.maeve",
     introDialogue: [
-      "The other kind of order does not care how much you bring. It cares how fresh it is when it lands on my scales.",
-      "Take a fresh-fish order and meet its mark. Buy ice before you sail, not after - the clock starts when the fish does, and no amount of hurry buys back an hour you already spent."
+      "Take a fresh-fish order and meet its freshness mark. Pack ice before you sail and choose the way home before you hook the fish."
     ],
     completionDialogue: [
-      "Ice in the hold and a short route home. That is the entire trick, and most people learn it by losing a catch first."
+      "Fresh enough for the buyer, and here on time. You planned the return before it became a hurry."
     ],
     objectives: [
       {
@@ -1302,11 +1269,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "A Buyer Who Can Tell",
     speakerId: "npc.maeve",
     introDialogue: [
-      "There is a third sort, and it is the one that separates anglers. The buyer names a grade, and nothing under it will do.",
-      "You cannot hurry a grade. It comes from the fight - a clean one, on tackle that was never over its head. Take a quality order and bring it in at the mark."
+      "This buyer names a grade. Take a quality-target order and check the catch before you deliver; anything below the mark stays yours."
     ],
     completionDialogue: [
-      "That is the order most people fail. A buyer who can tell the difference is worth more to you than one who cannot."
+      "That meets the grade. Keep an eye on what buyers ask for; a good catch deserves the right counter."
     ],
     objectives: [
       {
@@ -1331,16 +1297,14 @@ export const QUESTS: QuestDefinition[] = [
     herald: {
       npcId: "npc.maeve",
       lines: [
-        "There is a fourth kind of promise, and Tomas tells it better than I do. It is his island's whole trade.",
-        "Take the skiff across and find him at the cove. And look at the board on your way: some of those orders only make sense on the far side of the channel."
-      ]
+          "Tomas has orders that cross the channel. Take the skiff to Sunreach and find him at the cove; check the board for a load that belongs on the far side."
+        ]
     },
     introDialogue: [
-      "Maeve says you have learned volume, freshness and grade. Here is the fourth thing: distance.",
-      "Fill an order whose goods have to cross the channel — our olives to the village, or Neva greens to Ines's terraces. Everything you already know still applies, only now the clock runs while you are at sea."
+      "Dock here at Sunreach, then fill a cross-channel order from the board. Our olives travel out; mainland goods come back. Check which side is waiting for your delivery."
     ],
     completionDialogue: [
-      "A crossing turns every one of those lessons into the same lesson. Load for the trip you are actually making."
+      "The goods arrived on the right side of the channel. Leave time for that crossing whenever you promise a delivery."
     ],
     objectives: [
       {
@@ -1374,11 +1338,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Freight and Favour",
     speakerId: "npc.maeve",
     introDialogue: [
-      "Four kinds of promise, and you have kept one of each. Come and tell me what you would say to somebody starting.",
-      "Not the prices. Anyone can read prices. What it actually costs you to keep a promise you made three days ago."
+      "Come by the Fish Market. You’ve handled bulk, freshness, grade and a crossing; I’d like to hear which delivery gave you the most trouble."
     ],
     completionDialogue: [
-      "That is the trade. Not the coin - the keeping. Say it to the next one who asks you, and the harbor will be fine."
+      "I’ll remember that when the next new trader asks. Leave your name in the ledger; there’s always another load waiting somewhere."
     ],
     objectives: [
       {
@@ -1402,14 +1365,14 @@ export const QUESTS: QuestDefinition[] = [
     actId: "track_tradelanes", actTitle: "Freight and Favour", questTitle: "The Woodland Round",
     speakerId: "npc.rowan",
     herald: { npcId: "npc.maeve", lines: [
-      "There are more kitchens round this cove than ours. Rowan in Pinewatch has timber to send back and grain to buy.",
-      "Take the woodland road, or find the landing across the cove. The useful route is the one you can return along with a load."
-    ] },
+          "Rowan needs grain in Pinewatch. Take the woodland road or sail to the landing across the cove. His timber yard is worth a look before you come home."
+        ] },
     introDialogue: [
-      "Eight measures of wheat will see the bakehouse through its next batch. Bring them to our counter and see what the road has earned you.",
-      "We trade timber and linen here. Look at your next job before you fill the return load."
+      "I’m Rowan. The bakehouse needs eight wheat for its next batch; sell them at our counter. We keep timber and linen for your return trip."
     ],
-    completionDialogue: ["Grain in, timber out. Now you have a reason to know both ends of that road."],
+    completionDialogue: [
+      "That’s the next batch of bread covered. Have a look at the supplies before you head home."
+    ],
     objectives: [
       { id: "step.tradelanes_meet_rowan", type: "talk-npc", targetId: "npc.rowan", targetQuantity: 1,
         description: "Meet Rowan at Pinewatch", locationAnchor: { ...MAINLAND_VILLAGES.pinewatch.npc, name: "Pinewatch Trade Yard" } },
@@ -1424,12 +1387,15 @@ export const QUESTS: QuestDefinition[] = [
     id: "quest.tradelanes_reedhaven", trackId: TRADELANES_QUEST_TRACK_ID,
     actId: "track_tradelanes", actTitle: "Freight and Favour", questTitle: "Where the Reeds Meet the Cove",
     speakerId: "npc.mara",
-    herald: { npcId: "npc.rowan", lines: ["Follow the coast road south to Reedhaven. Mara keeps bait and ice at the exchange, and she buys a catch carried to her counter."] },
+    herald: { npcId: "npc.rowan", lines: [
+          "Follow the coast road south to Reedhaven. Mara keeps bait and ice at the exchange, and buys fish packs carried to her counter."
+        ] },
     introDialogue: [
-      "A boat brings you to the landing; a cart takes the raised road. Either way, the last few steps are yours.",
-      "Bring one fresh fish pack to the exchange. Unload it first, then carry it to the scales. Keep the price and the time in mind for your next trip."
+      "Mara. Bring a fish pack to the Reedhaven Exchange. Unload it and carry it to the counter; the last few steps from the landing are on foot."
     ],
-    completionDialogue: ["That catch held its freshness. Take bait for the way back, and leave the marsh as quietly as you found it."],
+    completionDialogue: [
+      "The fish is on our counter. Remember how long the trip took when you plan the next catch."
+    ],
     objectives: [
       { id: "step.tradelanes_meet_mara", type: "talk-npc", targetId: "npc.mara", targetQuantity: 1,
         description: "Meet Mara in Reedhaven", locationAnchor: { ...MAINLAND_VILLAGES.reedhaven.npc, name: "Reedhaven Exchange" } },
@@ -1444,12 +1410,16 @@ export const QUESTS: QuestDefinition[] = [
     id: "quest.tradelanes_highridge", trackId: TRADELANES_QUEST_TRACK_ID,
     actId: "track_tradelanes", actTitle: "Freight and Favour", questTitle: "Supper Above the Cove",
     speakerId: "npc.ada",
-    herald: { npcId: "npc.mara", lines: ["Ada at Highridge buys for the mountain kitchens. There is no landing up there; keep to the pass road with your load."] },
+    herald: { npcId: "npc.mara", lines: [
+          "Ada needs fish in Highridge. Take the pass road; there’s no landing up there."
+        ] },
     introDialogue: [
-      "The sea is easy to see from here and harder to put on a plate. Bring two fish packs up the road and carry them to the counter one at a time.",
-      "The carriage carries two; the donkey carries the one on your back. Pack for the return as well. We keep workshop supplies up here."
+      "We can see the sea from Highridge, but supper still has to climb the road. Bring two fish packs and sell them at our counter, one at a time.",
+      "Use a wagon if you want to bring both on one trip. We stock workshop supplies for the way down."
     ],
-    completionDialogue: ["Two fresh suppers at the end of a mountain road. That is a route worth keeping, and there will be more orders on the board."],
+    completionDialogue: [
+      "Two catches made it up the hill. If you keep this route, we’ll be glad to see you at the counter again."
+    ],
     objectives: [
       { id: "step.tradelanes_meet_ada", type: "talk-npc", targetId: "npc.ada", targetQuantity: 1,
         description: "Meet Ada at Highridge", locationAnchor: { ...MAINLAND_VILLAGES.highridge.npc, name: "Highridge Provisions" } },
@@ -1477,11 +1447,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "What the Terraces Drink",
     speakerId: "npc.ines",
     introDialogue: [
-      "You have seen these terraces take water. Now watch them lose it. By afternoon the top row is dust again.",
-      "Plant a row and then run the cistern through it from the well. You brought a pump across the channel with you, whether or not you thought of it that way."
+      "The upper rows dry first. Plant two sunflowers there, then water the terraces from the well. The cistern should save us carrying cans up these steps."
     ],
     completionDialogue: [
-      "One pass of the cistern does what a morning of carrying cans does. Sunreach does not reward effort. It rewards arrangement."
+      "Water reached the new roots. That leaves us time to see what Tomas has found along the reef."
     ],
     objectives: [
       {
@@ -1514,12 +1483,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Southern Shelf",
     speakerId: "npc.tomas",
     introDialogue: [
-      "South of the scrub the reef shelf runs a long way out and nobody works it. Not because it is poor - because it is far from anywhere you could sell in time.",
-      "Take the skiff round and bring back an amberjack. They pull like a winch, so you will want Heavy Sport tackle or better; the cove stall keeps a rod for exactly that.",
-      "Never mind the clock on it yet. I want you to see what is down there first."
+      "There are amberjack along the southern shelf. I’ve been watching them from the cove; today I’d like to see one landed.",
+      "Take the skiff and Heavy Sport tackle or better. The cove stall stocks it. Check the Almanac for a good time to go."
     ],
     completionDialogue: [
-      "Now you have seen it. That water has been full the whole time we have been selling sardines off the cove wall."
+      "An amberjack from our shelf. There’s more here than the sardines we sell off the wall. Ines has an idea for getting part of our catch across the channel."
     ],
     objectives: [
       {
@@ -1543,11 +1511,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "Salt and Shade",
     speakerId: "npc.ines",
     introDialogue: [
-      "Here is what this island actually has. Not water. Sun, and wind that never stops, and salt off the cove.",
-      "Split a pair of sardines at the fish table and cure them. Ice buys you hours. This buys you weeks, and weeks is what a crossing costs."
+      "Catch two sardines and salt-cure them at our fish table. We’ve kept fish this way for years; it gives you time to find a buyer across the channel."
     ],
     completionDialogue: [
-      "No clock on it now. That is the whole of what Sunreach is for, and it took us two generations to work it out."
+      "Pack those cured fish in your satchel. Tomas knows where to sell them on the mainland."
     ],
     objectives: [
       {
@@ -1584,11 +1551,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "A Route Worth Keeping",
     speakerId: "npc.tomas",
     introDialogue: [
-      "Now run it the other way. Cured fish across the channel, and sell it in the village where nobody has tasted one in years.",
-      "This is the trip we could never make with fresh fish in the hold. Same water, same skiff. The difference is that the cargo stopped counting the hours."
+      "Take the Salt-Cured Fish to the Village Produce Market in Neva. You can carry it in your satchel; it doesn’t need a fish berth."
     ],
     completionDialogue: [
-      "Sunreach has a market on the other side of the channel now, and it did not need a faster boat. It needed salt."
+      "They bought it? Good. We have something for the return journey now. Tell Ines before you leave the terraces."
     ],
     objectives: [
       {
@@ -1612,11 +1578,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Dry Season's End",
     speakerId: "npc.ines",
     introDialogue: [
-      "So. Come and tell me what you make of us now.",
-      "People arrive here and see a place that is short of water. They are not wrong. But short of water is only a problem if you were planning to grow the same things they grow over there."
+      "Tomas says the cured fish sold in Neva. Come up to the terraces; I’d like to hear how the journey went."
     ],
     completionDialogue: [
-      "Every place is poor in something. The work is finding what it is rich in instead, and Sunreach is rich in exactly one thing. You found it."
+      "When you arrived, I wondered whether you’d stay past the first dry afternoon. Now you’ve tended our field and carried our food home. There’ll be a place for you here."
     ],
     objectives: [
       {
@@ -1654,16 +1619,14 @@ export const QUESTS: QuestDefinition[] = [
     herald: {
       npcId: "npc.ines",
       lines: [
-        "One more thing before you sail. Silas sent word across with the morning boat: he wants you at the harbor pier.",
-        "He says you are still fishing deep water with shore tackle, and that Maeve has an offshore rod on her rack."
-      ]
+          "Silas sent word: meet him at the harbor pier when you’re back. He has a deeper fishing ground to show you. Maeve stocks the Offshore Rod you’ll need."
+        ]
     },
     introDialogue: [
-      "You know our home waters now, and you are still carrying tackle meant for the ones near shore.",
-      "There is an offshore rod on Maeve's rack. It is not a reward and nobody is giving it to you. Go and buy it, and then we will talk about where it can take you."
+      "There’s deeper water I haven’t shown you yet. Buy the Offshore Rod from Maeve’s tackle stall, then meet me at the pier."
     ],
     completionDialogue: [
-      "Now you are carrying something that can hold a fish you cannot see the bottom under. Do not mistake that for being ready."
+      "That rod can take you farther out. Before we try the trench, check your fuel and leave room for the catch."
     ],
     objectives: [
       {
@@ -1686,11 +1649,11 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Deep Trench",
     speakerId: "npc.silas",
     introDialogue: [
-      "Southwest of the working grounds the bottom drops away and stays gone. We call it the trench because nobody has ever had a better word for it.",
-      "Swordfish hold there. They come up to feed in the dark and in dirty weather, and they run thickest in autumn and winter. Take the skiff out past where you can see the lighthouse and bring one back. Go on a night you have the fuel to be patient."
+      "Swordfish feed out at the trench, southwest of our usual grounds. Check their run in the Almanac and take enough fuel to wait for them.",
+      "Land one, bring it home, then carry the pack to the Village Trade Center. The return trip is part of the work."
     ],
     completionDialogue: [
-      "Off the trench and home again. There are maybe four people round this cove who have done that, and two of them are standing here."
+      "A swordfish from the trench, brought all the way to the village. I used to make that trip with your family. Good to have someone to talk about it with again."
     ],
     objectives: [
       {
@@ -1723,11 +1686,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "A Standing Arrangement",
     speakerId: "npc.maeve",
     introDialogue: [
-      "Silas will tell you seamanship is the hard part. Silas has never had to explain to a buyer why their order is not on the quay.",
-      "Two promises, both kept. One where the grade has to be right, and one where the volume has to be. Different skills entirely, and the harbor needs somebody who has both."
+      "I need someone I can put on the regular delivery list. Complete a quality-target order, then a bulk order. Watch the grade on the first and the quantity on the second."
     ],
     completionDialogue: [
-      "Grade and volume, in the same season, from the same person. That is not luck twice. That is somebody the harbor can plan around."
+      "Both orders delivered. I can put your name beside the next buyer’s request without wondering whether it will arrive. There’s a charter for work like that."
     ],
     objectives: [
       {
@@ -1758,11 +1720,10 @@ export const QUESTS: QuestDefinition[] = [
     questTitle: "The Charter",
     speakerId: "npc.maeve",
     introDialogue: [
-      "There is a paper the harbor keeps. It is not a licence and it does not let you do anything you cannot already do.",
-      "It says the people here will hold an order open for you, because they expect you back. Bring the fee and a case of cured fish for the table, and I will put your name on it."
+      "The harbor charter gives you room for one more active order. Bring 400 gold and two Salt-Cured Fish, and we’ll sign it here."
     ],
     completionDialogue: [
-      "Signed. You can carry one more standing order than the board would otherwise give you - not because you are owed it, but because somebody is prepared to wait."
+      "Your name is in the ledger. One more order, and a harbor that expects you home."
     ],
     objectives: [
       {
@@ -1804,17 +1765,15 @@ export const QUESTS: QuestDefinition[] = [
     herald: {
       npcId: "npc.maeve",
       lines: [
-        "One more thing, and it is not mine to ask. Elspeth sent word down from the garden: before you take that charter anywhere, she wants you to go round.",
-        "Silas first, then back by me, then Barnaby at his bench. Finish with her at the garden gate. It is not work. Humour an old baker."
-      ]
+          "Elspeth asked you to visit us before your next departure. Silas first, then back here, then Barnaby at his bench. She’ll be waiting in the farmhouse yard."
+        ]
     },
     introDialogue: [
-      "Before you take that charter anywhere, do one more thing for me, and it is not work.",
-      "Go round. Silas, Maeve, Barnaby. Say whatever you say. Then come back and tell me what you think you inherited, now that you have actually done it."
+      "Before your next journey, visit Silas, Maeve and Barnaby. Then come back to the garden. I’d like a quiet word before you go."
     ],
     completionDialogue: [
-      "Soil, a boat, a route and a name at three stalls. None of it was finished when it came to you and none of it will be finished when you hand it on.",
-      "That is the whole of it, and it is enough. Go and see what the horizon is for."
+      "When you arrived, I handed you a pouch of seeds. Now there are crops in the field, a boat at the slip, and people looking out for your return.",
+      "Keep the gate oiled. You’ll be coming home through it for a long while yet."
     ],
     objectives: [
       {
@@ -1825,9 +1784,8 @@ export const QUESTS: QuestDefinition[] = [
         targetQuantity: 1,
         locationAnchor: { x: HARBOR_SILAS_ANCHOR.x, z: HARBOR_SILAS_ANCHOR.z, name: "Harbor Pier" },
         dialogue: [
-          "So she is sending you round. Good. Sit a minute.",
-          "I am not going to tell you what you did well; you know that. I will tell you the slip was never mine. I only kept it until someone came back for the boat.",
-          "Go on to Maeve. She will pretend she is not waiting."
+          "Sit a minute. I kept your family’s slip clear all those years, hoping someone would take the boat out again.",
+          "You did. Go on to Maeve; she’ll pretend she isn’t waiting."
         ]
       },
       {
@@ -1838,9 +1796,8 @@ export const QUESTS: QuestDefinition[] = [
         targetQuantity: 1,
         locationAnchor: { x: HARBOR_MARKET.x, z: HARBOR_MARKET.z, name: "Harbor Fish Market" },
         dialogue: [
-          "Round you go, then. I will not keep you long.",
-          "The orders will keep coming whether you are here or not, and you will keep choosing. That is all a name on a charter means: people know you will choose well and come back.",
-          "Barnaby next. Mind he does not put you to work."
+          "Your name used to mean a small basket at the stall. Now I look for it on the delivery ledger.",
+          "Go and see Barnaby. Mind he doesn’t put you to work."
         ]
       },
       {
@@ -1851,9 +1808,8 @@ export const QUESTS: QuestDefinition[] = [
         targetQuantity: 1,
         locationAnchor: { x: -73.5, z: -58.8, name: "Farmhouse Workbench" },
         dialogue: [
-          "Come round to see me, have you? That bench of mine has your marks on it now, next to the old ones.",
-          "That is the only kind of inheritance I trust — the kind you can wear smooth with your own hands.",
-          "Off to Elspeth, then. Take the long way, past the rows. She will ask."
+          "See those marks on the bench? Some of them are yours now. I won’t sand them out.",
+          "Elspeth is waiting. Take the path past the rows; she’ll ask how they’re doing."
         ]
       },
       {

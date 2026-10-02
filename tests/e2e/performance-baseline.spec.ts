@@ -12,6 +12,7 @@ import {
   observedStallsBetween,
   orbitCamera,
   readPose,
+  readSimulationSeed,
   resampleRoute,
   routeSlice,
   settledHeapBytes,
@@ -49,6 +50,8 @@ import {
  * interleaved (A B C … A B C …) so thermal and order drift spread across
  * scenarios. NEVA_PERF_REPEATS (default 3) and NEVA_PERF_SCENARIOS (comma list)
  * narrow a run; NEVA_PERF_BUILD_LABEL names the served build in the report.
+ * NEVA_PERF_QUALITY selects low/medium/high (default high); Auto is never used
+ * because a tier change would invalidate a matching-quality comparison.
  * For an A/B, alternate single-repetition runs of each build into one run
  * directory per build and set NEVA_PERF_FIRST_REPETITION so records accumulate.
  * NEVA_PERF_CPU_PROFILE=1 also writes a V8 CPU profile of each warm pass
@@ -57,6 +60,9 @@ import {
  * timing evidence. NEVA_PERF_STARTUP_PROFILE=1 profiles navigation to control
  * the same way (`startup-<scenario>-r<n>.cpuprofile`), and NEVA_PERF_STARTUP_ONLY=1
  * records cold startup without the route passes.
+ * NEVA_PERF_CACHED_STARTUP=1 additionally measures entry after the route passes
+ * in the same browser/context. Only that disposable context's IndexedDB is
+ * cleared so the starting world matches, while HTTP/shader caches remain warm.
  */
 
 const enabled = process.env.NEVA_PERF_BASELINE === "1";
@@ -69,7 +75,12 @@ const PASS_MS = Number(process.env.NEVA_PERF_PASS_MS ?? 25_000);
 const captureCpuProfile = process.env.NEVA_PERF_CPU_PROFILE === "1";
 const captureStartupProfile = process.env.NEVA_PERF_STARTUP_PROFILE === "1";
 const startupOnly = process.env.NEVA_PERF_STARTUP_ONLY === "1";
+const captureCachedStartup = process.env.NEVA_PERF_CACHED_STARTUP === "1";
 const VIEWPORT = { width: 1920, height: 1080 };
+const requestedQuality = process.env.NEVA_PERF_QUALITY ?? "high";
+if (!["low", "medium", "high"].includes(requestedQuality)) {
+  throw new Error("NEVA_PERF_QUALITY must be low, medium or high");
+}
 
 type RouteSample = RoutePoint & { distance: number };
 
@@ -93,6 +104,8 @@ interface Scenario {
   id: string;
   covers: readonly string[];
   query: string;
+  /** Diagnostic views supplement real-input routes and run only when selected. */
+  explicitSelectionOnly?: boolean;
   /** Before each pass and outside the window: return to the start and restore conditions. */
   reset: (context: ScenarioContext) => Promise<void>;
   /** One measured pass. */
@@ -116,9 +129,8 @@ async function farmWalkPass({ page, routes }: ScenarioContext): Promise<DriveRes
 async function resetFarm({ page, routes }: ScenarioContext, weather: "clear" | "storm"): Promise<void> {
   const start = routes.farmEntry.at(-1)!;
   await page.evaluate(({ x, z }) => window.__NEVA_DEBUG!.teleport(x, z, -Math.PI / 2), start);
-  const minute = (await readPose(page)).minute;
-  await page.evaluate(({ minute, weather }) =>
-    window.__NEVA_DEBUG!.setReviewEnvironment({ minute, weather, presentationTimeSeconds: null }), { minute, weather });
+  await page.evaluate((weather) =>
+    window.__NEVA_DEBUG!.setReviewEnvironment({ minute: 600, weather, presentationTimeSeconds: null }), weather);
   await settle(page, weather === "storm" ? 4_000 : 1_500);
 }
 
@@ -130,6 +142,36 @@ async function timedInPage<T>(page: Page, action: () => Promise<T>): Promise<{ r
 }
 
 const scenarios: readonly Scenario[] = [
+  {
+    id: "static-camera-views",
+    covers: ["matching gameplay-camera poses", "populated farm", "forest road", "harbor", "batch frustum rejection"],
+    query: "debugStart=farm-art",
+    explicitSelectionOnly: true,
+    reset: (context) => resetFarm(context, "clear"),
+    pass: async ({ page, routes, events }) => {
+      const forest = await page.evaluate(() => window.__NEVA_DEBUG!.acceptanceRoute("mainland-farm-pinewatch"));
+      const views = [
+        { name: "farm", point: routes.farmWork[0], yaw: 0 },
+        { name: "forest", point: forest[Math.floor(forest.length / 2)], yaw: Math.PI / 2 },
+        { name: "harbor", point: routes.villageHarbor.at(-2)!, yaw: Math.PI }
+      ];
+      for (const { name, point, yaw } of views) {
+        await page.evaluate(({ x, z, yaw }) => {
+          window.__NEVA_DEBUG!.teleport(x, z, yaw);
+          window.__NEVA_DEBUG!.setReviewEnvironment({ minute: 600, weather: "clear", presentationTimeSeconds: null });
+        }, { x: point.x, z: point.z, yaw });
+        await settle(page, 1_500);
+        const reference = await page.evaluate(() => ({
+          pose: window.__NEVA_DEBUG!.pose(),
+          camera: window.__NEVA_DEBUG!.renderDiagnostics().camera
+        }));
+        expect(Math.hypot(reference.pose.x - point.x, reference.pose.z - point.z), `${name} reference pose`).toBeLessThan(0.15);
+        events.push({ name: `camera reference: ${name}`, target: { x: point.x, z: point.z, yaw }, ...reference });
+        await settle(page, PASS_MS / views.length);
+      }
+      return null;
+    }
+  },
   {
     id: "farm-populated-walk",
     covers: ["populated farm", "camera orbit"],
@@ -152,8 +194,10 @@ const scenarios: readonly Scenario[] = [
     query: "",
     reset: async ({ page, routes }) => {
       const [from, toward] = routeSlice(routes.farmVillage, 110, 120);
-      await page.evaluate(({ from, toward }) => window.__NEVA_DEBUG!.teleport(from.x, from.z,
-        Math.atan2(toward.x - from.x, toward.z - from.z)), { from, toward });
+      await page.evaluate(({ from, toward }) => {
+        window.__NEVA_DEBUG!.teleport(from.x, from.z, Math.atan2(toward.x - from.x, toward.z - from.z));
+        window.__NEVA_DEBUG!.setReviewEnvironment({ minute: 600, weather: "clear", presentationTimeSeconds: null });
+      }, { from, toward });
       await settle(page, 1_500);
     },
     pass: async ({ page, routes, events }) => {
@@ -249,8 +293,10 @@ const scenarios: readonly Scenario[] = [
     covers: ["loaded wagon", "farm-village road"],
     query: "debugStart=loaded-wagon",
     reset: async ({ page, start }) => {
-      await page.evaluate(({ x, z, rotationY }) =>
-        window.__NEVA_DEBUG!.teleport(x, z, rotationY, { keepMount: true }), start);
+      await page.evaluate(({ x, z, rotationY }) => {
+        window.__NEVA_DEBUG!.teleport(x, z, rotationY, { keepMount: true });
+        window.__NEVA_DEBUG!.setReviewEnvironment({ minute: 600, weather: "clear", presentationTimeSeconds: null });
+      }, start);
       await settle(page, 2_000);
     },
     pass: ({ page, routes, start }) => {
@@ -259,6 +305,37 @@ const scenarios: readonly Scenario[] = [
         Math.hypot(point.x - start.x, point.z - start.z) < Math.hypot(best.x - start.x, best.z - start.z) ? point : best);
       const road = resampleRoute(routeSlice(routes.farmVillage, joinAt.distance + 4, joinAt.distance + 90), 5);
       return followWaypoints(page, road, { mode: "carriage", durationMs: PASS_MS, arrivalRadius: 2.5 });
+    }
+  },
+  {
+    id: "mainland-junction-drive",
+    covers: ["loaded wagon", "Pinewatch junction", "mainland road grade"],
+    query: "debugStart=loaded-wagon",
+    explicitSelectionOnly: true,
+    reset: async ({ page, events }) => {
+      const approach = await page.evaluate(() => window.__NEVA_DEBUG!.acceptanceRoute("mainland-farm-pinewatch"));
+      const start = approach.find((point) => point.distance >= approach.at(-1)!.distance - 8)!;
+      const toward = approach[approach.indexOf(start) + 1];
+      const rotationY = Math.atan2(toward.x - start.x, toward.z - start.z);
+      await page.evaluate(({ x, z, rotationY }) => {
+        window.__NEVA_DEBUG!.teleport(x, z, rotationY, { keepMount: true });
+        window.__NEVA_DEBUG!.setReviewEnvironment({ minute: 600, weather: "clear", presentationTimeSeconds: null });
+      }, { ...start, rotationY });
+      events.push({ name: "mainland junction reference", junction: approach.at(-1), start: { ...start, rotationY } });
+      await settle(page, 2_000);
+    },
+    pass: async ({ page }) => {
+      const [approach, departure] = await page.evaluate(() => [
+        window.__NEVA_DEBUG!.acceptanceRoute("mainland-farm-pinewatch"),
+        window.__NEVA_DEBUG!.acceptanceRoute("mainland-pinewatch-highridge")
+      ]);
+      const course = [
+        ...routeSlice(approach, approach.at(-1)!.distance - 8, approach.at(-1)!.distance),
+        ...routeSlice(departure, 0, 80).slice(1)
+      ];
+      return followWaypoints(page, resampleRoute(course, 5).slice(1), {
+        mode: "carriage", durationMs: PASS_MS, arrivalRadius: 2.5
+      });
     }
   },
   {
@@ -326,8 +403,8 @@ const scenarios: readonly Scenario[] = [
 function gitIdentity(): Record<string, unknown> {
   try {
     return {
-      head: execSync("git rev-parse HEAD", { encoding: "utf8" }).trim(),
-      dirtyFiles: execSync("git status --porcelain", { encoding: "utf8" }).split("\n").filter(Boolean).length
+      head: execSync("git rev-parse HEAD", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(),
+      dirtyFiles: execSync("git status --porcelain", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean).length
     };
   } catch {
     return { head: "unknown" };
@@ -338,19 +415,23 @@ async function runScenario(browser: Browser, baseURL: string, scenario: Scenario
   const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1, baseURL });
   const page = await context.newPage();
   const runtimeErrors: string[] = [];
+  let replacingMeasuredDocument = false;
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") runtimeErrors.push(message.text());
   });
   page.on("requestfailed", (request) => {
+    if (replacingMeasuredDocument && request.failure()?.errorText === "net::ERR_ABORTED") return;
     const url = new URL(request.url());
     if (url.hostname.endsWith("google-analytics.com")) return;
     if (url.pathname === "/assets/video/intro.mp4" && request.failure()?.errorText === "net::ERR_ABORTED") return;
     runtimeErrors.push(`${request.url()}: ${request.failure()?.errorText}`);
   });
   await installPerformanceObservers(page);
-  // Manual High: Auto must not change the tier under measurement.
-  await page.addInitScript(() => window.localStorage.setItem("neva.graphics-quality.v1", "high"));
+  // A fixed manual tier keeps resolution/effect reductions out of the comparison.
+  await page.addInitScript(({ origin, quality }) => {
+    if (location.origin === origin) window.localStorage.setItem("neva.graphics-quality.v1", quality);
+  }, { origin: new URL(baseURL).origin, quality: requestedQuality });
   const cdp = await context.newCDPSession(page);
   await cdp.send("Performance.enable");
   const loadAverageStart = os.loadavg();
@@ -403,6 +484,7 @@ async function runScenario(browser: Browser, baseURL: string, scenario: Scenario
         graphics: rendered.graphics,
         renderPath: rendered.world.pipeline.path,
         activeEffects: rendered.world.pipeline.activeEffects,
+        failedStages: rendered.world.pipeline.failedStages,
         gpuRenderer: rendered.world.pipeline.gpuTiming.renderer,
         softwareRenderer: rendered.world.pipeline.gpuTiming.softwareRenderer,
         bundles: performance.getEntriesByType("resource").map((entry) => entry.name)
@@ -410,6 +492,14 @@ async function runScenario(browser: Browser, baseURL: string, scenario: Scenario
           .map((name) => name.replace(/^.*\/assets\//, ""))
       };
     });
+    const requestedSeedParameter = new URL(page.url()).searchParams.get("seed");
+    const seedIdentity = {
+      requestedSeed: requestedSeedParameter === null ? 42 : Number(requestedSeedParameter),
+      requestedSeedSource: requestedSeedParameter === null ? "benchmarkRequest default" : "URL seed parameter",
+      renderReportedSeed: diagnostics.seed,
+      simulationSeed: await readSimulationSeed(page),
+      simulationSeedSource: "DebugOverlay canonical state seed label"
+    };
 
     const passes: PassRecord[] = [];
     const heap = { afterFirstUseBytes: 0, afterWarmBytes: 0 };
@@ -449,6 +539,43 @@ async function runScenario(browser: Browser, baseURL: string, scenario: Scenario
       else heap.afterWarmBytes = settled;
     }
 
+    let cachedStartup: BaselineRunRecord["cachedStartup"];
+    if (captureCachedStartup) {
+      const url = page.url();
+      // This page belongs to a fresh, disposable context created above. Close
+      // its live database connections before clearing its measured-run saves;
+      // local quality preferences and HTTP/shader caches remain intact.
+      replacingMeasuredDocument = true;
+      try {
+        await page.goto("about:blank");
+      } finally {
+        replacingMeasuredDocument = false;
+      }
+      await cdp.send("Storage.clearDataForOrigin", { origin: new URL(baseURL).origin, storageTypes: "indexeddb" });
+      await page.goto(url);
+      await page.waitForFunction(() => window.__NEVA_RENDER_READY === true && Boolean(window.__NEVA_DEBUG),
+        undefined, { timeout: 300_000 });
+      const evidence = await startupEvidence(page);
+      const stalls = await observedStallsBetween(page, 0, evidence.timeToControlMs ?? Number.POSITIVE_INFINITY);
+      await settle(page, 3_000);
+      const pose = await readPose(page);
+      const rendered = await page.evaluate(() => window.__NEVA_DEBUG!.renderDiagnostics());
+      expect(rendered.sceneIdentity.worldSeed).toBe(diagnostics.seed);
+      expect(rendered.world.qualityTier).toBe(diagnostics.qualityTier);
+      expect(rendered.viewport).toEqual(diagnostics.viewport);
+      expect(rendered.world.pipeline.activeEffects).toEqual(diagnostics.activeEffects);
+      expect(rendered.world.pipeline.failedStages).toEqual([]);
+      expect(pose.mode).toBe(startPose.mode);
+      expect(pose.weather).toBe(startPose.weather);
+      expect(Math.hypot(pose.x - startPose.x, pose.z - startPose.z)).toBeLessThan(1);
+      cachedStartup = {
+        ...evidence,
+        stalls,
+        cacheCondition: "same browser/context after measured passes; disposable IndexedDB reset",
+        startPose: pose
+      };
+    }
+
     return {
       scenario: scenario.id,
       covers: scenario.covers,
@@ -462,9 +589,11 @@ async function runScenario(browser: Browser, baseURL: string, scenario: Scenario
           platform: `${os.platform()} ${os.release()}` },
         loadAverage: { start: loadAverageStart, end: os.loadavg() },
         passMs: PASS_MS,
-        ...diagnostics
+        ...diagnostics,
+        ...seedIdentity
       },
       startup: { ...startup, stalls: startupStalls },
+      cachedStartup,
       passes,
       heap,
       runtimeErrors
@@ -486,6 +615,7 @@ test.describe("sustained-play performance baseline", () => {
 
   for (let repetition = firstRepetition; repetition < firstRepetition + repetitions; repetition += 1) {
     for (const scenario of scenarios) {
+      if (scenario.explicitSelectionOnly && !selectedScenarios?.has(scenario.id)) continue;
       if (selectedScenarios && !selectedScenarios.has(scenario.id)) continue;
       test(`${scenario.id} run ${repetition}`, async ({ playwright, browserName }, testInfo) => {
         test.skip(browserName !== "chromium", "The baseline uses Chromium timing, long-task and CDP APIs");
@@ -506,7 +636,8 @@ test.describe("sustained-play performance baseline", () => {
               + `${pass.window.frames.p99Ms} ms, stalls ${pass.window.frames.stallsOver50Ms}`).join("; "));
 
           expect(record.runtimeErrors).toEqual([]);
-          expect(record.identity.qualityTier).toBe("high");
+          expect(record.identity.failedStages).toEqual([]);
+          expect(record.identity.qualityTier).toBe(requestedQuality);
           expect(record.identity.viewport).toEqual({ width: VIEWPORT.width, height: VIEWPORT.height, devicePixelRatio: 1 });
           for (const pass of record.passes) {
             expect(pass.window.frames.samples, `${scenario.id} ${pass.label} frames`).toBeGreaterThan(60);

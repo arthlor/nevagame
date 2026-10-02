@@ -55,7 +55,7 @@ import { InventoryManager } from "../inventory/InventoryManager";
 import type { CargoDomain } from "./CargoDomain";
 import type { DomainContext } from "./DomainContext";
 import { distance2d } from "./DomainContext";
-import type { ProgressionDomain } from "./ProgressionDomain";
+import { quoteEarnWorkCapacity, type ProgressionDomain } from "./ProgressionDomain";
 import { cargoClassFits, freeHandsBlocker, rodMeetsMinimum, rollSpeciesWeightKg } from "./domainRules";
 import type { SportFishingHudDto, WaterReadingDto } from "../core/contracts";
 import {
@@ -78,7 +78,7 @@ const SCHOOL_POSITION_OFFSETS = Object.freeze([
   { x: -3.5, z: 3 },
   { x: 2.5, z: -4 }
 ]);
-export const BASIC_FISHING_WORK_COST = 20;
+export const BASIC_FISHING_WORK_COST = 10;
 /** Bite-reaction is a short input window; a hitch must not consume the whole cue. */
 const BITE_REACTION_MAX_STEP_SECONDS = 0.05;
 /**
@@ -86,27 +86,37 @@ const BITE_REACTION_MAX_STEP_SECONDS = 0.05;
  * lake trout is a light bite of the Work pool while a pelagic tuna costs more.
  */
 export const SPORT_FISHING_WORK_COST_BY_CLASS: Record<CargoClass, number> = {
-  small: 18,
-  medium: 28,
-  large: 36,
-  gargantuan: 44
+  small: 10,
+  medium: 12,
+  large: 15,
+  gargantuan: 20
+};
+/** Historical paid encounters remain valid after the price change. Never used for new hooks. */
+export const SPORT_FISHING_LEGACY_MAX_CHARGE_BY_CLASS: Record<CargoClass, number> = {
+  small: 18, medium: 28, large: 36, gargantuan: 44
 };
 /** Representative cost shown in interaction prompts before a species is rolled. */
 export const SPORT_FISHING_WORK_COST = SPORT_FISHING_WORK_COST_BY_CLASS.medium;
-/** Portion of the discounted hook cost returned when a hooked sport fish is lost. */
-export const SPORT_FISHING_WORK_REFUND_RATIO = 0.6;
 /** Work earned for a flawless basic catch — the green bar never lost contact. */
-export const BASIC_FISHING_PERFECT_WORK_REBATE = 8;
+export const BASIC_FISHING_PERFECT_WORK_REBATE = 10;
 /** Maximum Work earned for landing a sport fish. Fight skill feeds the labor pool. */
 export const SPORT_FISHING_LANDING_WORK_REBATE = 12;
 /** A cheap hook cannot return almost its entire Work debit on landing or release. */
 export const SPORT_FISHING_LANDING_WORK_REBATE_RATIO = 0.4;
 
 export function sportLandingWorkRebate(chargedWork: number): number {
+  if (!Number.isFinite(chargedWork)) return 0;
   return Math.min(
     SPORT_FISHING_LANDING_WORK_REBATE,
     Math.max(0, Math.round(chargedWork * SPORT_FISHING_LANDING_WORK_REBATE_RATIO))
   );
+}
+
+/** A flawless catch can recover its payment, but cannot create extra Work after discounts. */
+export function basicPerfectWorkRebate(chargedWork: number): number {
+  return Number.isFinite(chargedWork)
+    ? Math.min(BASIC_FISHING_PERFECT_WORK_REBATE, Math.max(0, Math.floor(chargedWork)))
+    : 0;
 }
 /** Fight seconds a species signature moment stays on the HUD after it fires. */
 export const SIGNATURE_MOMENT_SECONDS = 3;
@@ -551,6 +561,14 @@ export class FishingDomain {
       keepAvailable: awaitingLandingChoice && species
         ? this.cargo.canStowClass(species.cargoClass)
         : false,
+      workSettlement: {
+        charged: encounter.workCharged ?? this.fallbackHookCost(encounter.fish.speciesId),
+        landingRecovery: Math.floor(quoteEarnWorkCapacity(
+          this.context.state.player.workCapacity,
+          sportLandingWorkRebate(encounter.workCharged ?? this.fallbackHookCost(encounter.fish.speciesId)),
+          this.context.state.clock.currentMinute
+        ))
+      },
       telemetry: {
         runDistanceMeters: Math.round(encounter.distanceMeters * 10) / 10,
         landingDistanceMeters: FISHING_TUNING.landingDistance,
@@ -758,10 +776,16 @@ export class FishingDomain {
     if (encounterState.awaitingLandingChoice !== true) {
       return { success: false, reason: "The fight is still running" };
     }
+    const chargedWork = encounterState.workCharged
+      ?? this.fallbackHookCost(encounterState.fish.speciesId);
     const landing = this.cargo.landCaughtFish(
       encounterState.fish,
       true,
-      () => this.commitSchoolCatch()
+      () => {
+        this.commitSchoolCatch();
+        this.clearResolvedEncounter();
+        this.progression.earnWork(sportLandingWorkRebate(chargedWork));
+      }
     );
     if (!landing.success) {
       return {
@@ -771,10 +795,6 @@ export class FishingDomain {
           : landing.reason ?? "Could not stow the catch"
       };
     }
-    const chargedWork = this.context.state.sportFishing?.workCharged
-      ?? this.fallbackHookCost(encounterState.fish.speciesId);
-    this.clearResolvedEncounter();
-    this.progression.earnWork(sportLandingWorkRebate(chargedWork));
     return { success: true };
   }
 
@@ -840,7 +860,6 @@ export class FishingDomain {
         }
       } else if (outcome === "escaped" || outcome === "line-snapped") {
         const encounterState = this.encounter.getState();
-        this.refundLostFightWork(encounterState.fish.speciesId, state.sportFishing?.workCharged);
         this.pendingLandSchoolId = null;
         this.encounter = null;
         state.sportFishing = null;
@@ -982,6 +1001,7 @@ export class FishingDomain {
       ecologyId,
       this.castWindForCurrentCast(power)
     );
+    newState.workCharged = work.cost;
     const lureUsed = this.consumePreparedLure();
     newState.willCatch = rod ? rng.chance(Math.min(
       1,
@@ -1052,13 +1072,13 @@ export class FishingDomain {
         reasonCode: "inventory-full"
       };
     }
+    state.basicFishing = null;
     events.emit("BasicFishingResolved", {
       ecologyId: attempt.ecologyId,
       habitatId: attempt.habitatId,
       reason: "cancelled",
       minute: state.clock.currentMinute
     });
-    state.basicFishing = null;
     return { success: true };
   }
 
@@ -1068,13 +1088,13 @@ export class FishingDomain {
     if (!attempt || attempt.phase !== "caught") {
       return { success: false, reason: "No catch is waiting" };
     }
+    state.basicFishing = null;
     events.emit("BasicFishingResolved", {
       ecologyId: attempt.ecologyId,
       habitatId: attempt.habitatId,
       reason: "cancelled",
       minute: state.clock.currentMinute
     });
-    state.basicFishing = null;
     return { success: true, reasonCode: "discarded" };
   }
 
@@ -1136,6 +1156,7 @@ export class FishingDomain {
       this.castWindForCurrentCast(castPower)
     );
     fishingState.phase = "casting" as BasicFishingPhase;
+    fishingState.workCharged = work.cost;
     const lureUsed = this.consumePreparedLure();
     fishingState.willCatch = rng.chance(Math.min(
       1,
@@ -1539,23 +1560,6 @@ export class FishingDomain {
     }
   }
 
-  /**
-   * A lost fight is not a wasted trip: hand back most of the Work the hook cost
-   * so a snapped line or a slipped hook stings without emptying the pool.
-   *
-   * The refund is a share of what the hook actually charged, captured at hook
-   * time. Re-deriving the cost here instead paid against whatever discount tier
-   * the player happened to be in when the fish got away — and a contract or
-   * quest completing mid-fight grants XP synchronously, so those can differ.
-   */
-  private refundLostFightWork(speciesId: FishSpeciesId, chargedWork?: number): void {
-    const charged = Number.isFinite(chargedWork) && (chargedWork as number) > 0
-      ? (chargedWork as number)
-      : this.fallbackHookCost(speciesId);
-    if (charged <= 0) return;
-    this.progression.creditWork(Math.round(charged * SPORT_FISHING_WORK_REFUND_RATIO));
-  }
-
   /** Pre-v33 fights carry no charged amount; price them as the hook would today. */
   private fallbackHookCost(speciesId: FishSpeciesId): number {
     const species = ContentRegistry.fishSpecies.get(speciesId);
@@ -1714,6 +1718,51 @@ export class FishingDomain {
       this.context.persistRng();
       return false;
     }
+    if (treasureStack.length > 0) {
+      treasureLootItemIds = treasureStack.flatMap(({ itemId, quantity }) =>
+        Array.from({ length: quantity }, () => itemId)
+      );
+    }
+
+    const quality = attempt.quality ?? "common";
+    const speciesId = attempt.catchItemId;
+    let basicRecord: "first" | "quality" | undefined;
+    let rankEvent: ReturnType<ProgressionDomain["addProficiencyXp"]> = null;
+    const commitCatch = (): void => {
+      if (catchAndTreasure.length > 0) InventoryManager.addItemsAtomically(inventory, catchAndTreasure);
+      if (!physicalCatch && speciesId && ContentRegistry.fishSpecies.has(speciesId)) {
+        const prior = state.journal.fishRecords[speciesId];
+        const priorCatches = prior?.catchCount ?? 0;
+        state.journal.fishRecords[speciesId] ??= {
+          discovered: true,
+          catchCount: 0,
+          bestQuality: quality,
+          firstCaughtMinute: state.clock.currentMinute
+        };
+        const record = state.journal.fishRecords[speciesId];
+        record.discovered = true;
+        if (attempt.habitatId) {
+          record.habitats ??= [];
+          if (!record.habitats.includes(attempt.habitatId)) record.habitats.push(attempt.habitatId);
+        }
+        record.catchCount = (record.catchCount ?? 0) + 1;
+        const rank: Record<string, number> = { common: 0, fine: 1, exceptional: 2, trophy: 3 };
+        if (priorCatches === 0) basicRecord = "first";
+        else if ((rank[quality] ?? 0) > (rank[prior?.bestQuality ?? "common"] ?? 0)) basicRecord = "quality";
+        if ((rank[quality] ?? 0) >= (rank[record.bestQuality ?? "common"] ?? 0)) {
+          record.bestQuality = quality;
+        }
+      }
+      rankEvent = this.progression.addProficiencyXp("fishing", attempt.isPerfect ? 50 : 25, false);
+      if (attempt.isPerfect) {
+        this.progression.earnWork(basicPerfectWorkRebate(attempt.workCharged ?? BASIC_FISHING_WORK_COST));
+      }
+      // All rewards and the RNG stream must be final before listeners can save
+      // or retry landing. A physical catch uses Cargo's pre-publication hook.
+      this.context.persistRng();
+      state.basicFishing = null;
+    };
+
     let physicalBoatId: BoatId | undefined;
     if (physicalCatch && species) {
       const landing = this.cargo.landCaughtFish({
@@ -1722,9 +1771,9 @@ export class FishingDomain {
         ecologyId: attempt.ecologyId,
         habitatId: attempt.habitatId,
         weightKg: rollSpeciesWeightKg(species.weightKg, rng),
-        quality: attempt.quality ?? "common",
+        quality,
         caughtAtMinute: state.clock.currentMinute
-      }, false);
+      }, false, commitCatch);
       if (!landing.success) {
         attempt.phase = "caught";
         rng.setState(rngStateBefore);
@@ -1732,57 +1781,17 @@ export class FishingDomain {
         return false;
       }
       physicalBoatId = landing.boatId;
+    } else {
+      commitCatch();
     }
-    if (catchAndTreasure.length > 0) InventoryManager.addItemsAtomically(inventory, catchAndTreasure);
 
-    if (treasureStack.length > 0) {
-      treasureLootItemIds = treasureStack.flatMap(({ itemId, quantity }) =>
-        Array.from({ length: quantity }, () => itemId)
-      );
+    if (treasureLootItemIds) {
       events.emit("BasicFishingTreasureCaught", {
         lootItemIds: treasureLootItemIds,
         minute: state.clock.currentMinute
       });
     }
-
-    const xpGained = attempt.isPerfect ? 50 : 25;
-    this.progression.addProficiencyXp("fishing", xpGained);
-    if (attempt.isPerfect) {
-      this.progression.earnWork(BASIC_FISHING_PERFECT_WORK_REBATE);
-    }
-
-    const quality = attempt.quality ?? "common";
-    const speciesId = attempt.catchItemId;
-    let basicRecord: "first" | "quality" | undefined;
-    if (!physicalCatch && speciesId && ContentRegistry.fishSpecies.has(speciesId)) {
-      const prior = state.journal.fishRecords[speciesId];
-      const priorCatches = prior?.catchCount ?? 0;
-      state.journal.fishRecords[speciesId] ??= {
-        discovered: true,
-        catchCount: 0,
-        bestQuality: quality,
-        firstCaughtMinute: state.clock.currentMinute
-      };
-      const record = state.journal.fishRecords[speciesId];
-      record.discovered = true;
-      if (attempt.habitatId) {
-        record.habitats ??= [];
-        if (!record.habitats.includes(attempt.habitatId)) record.habitats.push(attempt.habitatId);
-      }
-      record.catchCount = (record.catchCount ?? 0) + 1;
-      const rank: Record<string, number> = { common: 0, fine: 1, exceptional: 2, trophy: 3 };
-      if (priorCatches === 0) basicRecord = "first";
-      else if ((rank[quality] ?? 0) > (rank[prior?.bestQuality ?? "common"] ?? 0)) basicRecord = "quality";
-      if ((rank[quality] ?? 0) >= (rank[record.bestQuality ?? "common"] ?? 0)) {
-        record.bestQuality = quality;
-      }
-    }
-
-    // The catch and its treasure already consumed canonical RNG draws (treasure
-    // roll, weight roll). Sync `metadata.rngState` before the event-driven
-    // autosave can persist a stale stream and reroll the same sequence on load.
-    this.context.persistRng();
-    state.basicFishing = null;
+    if (rankEvent) events.emit("ProficiencyLeveledUp", rankEvent);
     events.emit("BasicFishingResolved", {
       ecologyId: attempt.ecologyId,
       habitatId: attempt.habitatId,

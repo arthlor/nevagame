@@ -5,7 +5,9 @@ import { CANONICAL_RENDER_CONFIG, type VisualRenderConfig } from "../config/Visu
 import {
   createSurfaceFallbackTexture,
   loadSurfaceTexture,
-  POLYHAVEN_SURFACE_TEXTURES
+  surfaceTextureDiagnostics,
+  POLYHAVEN_SURFACE_TEXTURES,
+  type SurfaceTextureLoader
 } from "./ExternalSurfaceTextures";
 import { PaletteMaterials } from "./PaletteMaterials";
 import { applyWorldAtmosphere } from "../atmosphere/AtmosphereMaterial";
@@ -997,7 +999,7 @@ export class TerrainSurfaceMaterial {
   }
 
   public loadExternalTextures(
-    loader: Pick<THREE.TextureLoader, "loadAsync"> = new THREE.TextureLoader()
+    loader: SurfaceTextureLoader
   ): Promise<void> {
     if (this.externalTextureLoadPromise) return this.externalTextureLoadPromise;
 
@@ -1049,6 +1051,8 @@ export class TerrainSurfaceMaterial {
 
     return this.externalTextureLoadPromise;
   }
+
+  public textureDiagnostics() { return surfaceTextureDiagnostics(this.ownedExternalTextures); }
 
   public get wetness(): number {
     return this.wetnessValue;

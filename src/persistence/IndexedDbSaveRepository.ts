@@ -132,8 +132,7 @@ export class IndexedDbSaveRepository {
     });
   }
 
-  public async saveGame(state: GameState, signal?: AbortSignal): Promise<boolean> {
-    const savedAtUtcMs = Date.now();
+  public async saveGame(state: GameState, signal?: AbortSignal, savedAtUtcMs = Date.now()): Promise<boolean> {
     // Freeze gameplay truth before any await so nested player/inventory/fishing
     // mutations during IDB cannot tear the envelope.
     const snapshot = structuredClone(state);

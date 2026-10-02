@@ -6,7 +6,7 @@ export const TR_QUEST_TRACKS: Record<string, LocalizedQuestTrackText> = {
   "track.tradecraft": { title: "İşini Bilen Tüccar", description: "Malzeme tedarik et, kazancı hesapla ve değerli dönüş yükleri hazırla." },
   "track.caravans": { title: "Köyler Arası Ticaret", description: "Yöresel ürünleri paketle, yük arabanı büyüt ve Sunreach ticaret yolunu aç." },
   "track.main": {
-    title: "Neva Omurgası",
+    title: "Kıyıda Bir Yuva",
     description: "Ata yadigârı çiftlikten başlayıp açık denizlere uzanan yolculuk."
   },
   "track.tides": {

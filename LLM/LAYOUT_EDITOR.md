@@ -18,7 +18,7 @@ It is **not**:
 - a `GameplayMode` or `GameAction`
 - simulation-owned save state (`layoutRevision` is not bumped by a drop)
 - a GLB generator (that remains catalog → registered generator or committed authored GLB → `art:generate`)
-- a license to invent weapons, combat, or extra HUD dashboards
+- a license to invent weapons, combat, or unrelated features
 
 Simulation still owns canonical gameplay. A drop writes **layout source**. Gameplay-bearing prefabs use the shared `InteractionPlacements` pose and attachment contract; the same session updates simulation-owned station and berthed-boat poses through guarded debug methods. A drop does not migrate other saves. Before promoting a layout edit that changes reachability, collision, saved structure coordinates or canonical topology, apply the `01` §6/§6.1 preservation and migration protocol; a successful editor commit is not that proof.
 
@@ -133,9 +133,11 @@ Interactive pose overrides store visual world yaw. Station bindings convert it t
 
 Objects with catalog `grounding` half-extents refuse a write if the footprint is unstable (`isPlacementFootprintStable`). The banner says so; move onto flatter ground.
 
-Outdoor drag and paste resolve the registered terrain through
+Outdoor drag and paste resolve the registered terrain and worked-road surface through
 `TerrainSnapping`: its BVH raycast supplies height and world-space normal, with
-the canonical terrain sampler as the fallback. A surface beyond the configured
+the canonical traversal surface sampler as the fallback. Road meshes join the
+DEV snapping registry so a base-terrain hit cannot hide their crowned relief.
+A surface beyond the configured
 slope limit is rejected before source is written. Indoor props keep their
 authored Y plane.
 
@@ -320,7 +322,7 @@ world-normal alignment, slope boundaries, stack limits, drag coalescing,
 transaction rollback, failed undo/redo, and re-entrancy. Physics tests cover
 replacing static colliders after a layout move.
 
-Do not claim the editor is visually approved; the human confirms picks and drops in the actual game.
+Verify affected picks and drops in the actual game and report that functional evidence or its access gap. Human review is required only when explicitly requested or included in release acceptance.
 
 ---
 

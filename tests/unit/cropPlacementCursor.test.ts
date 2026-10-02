@@ -49,6 +49,21 @@ function hoopVerticesOnSoil(cursor: CropPlacementCursor, world: { x: number; z: 
 describe("planting cursor", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it("shows the authoritative rotated rectangle even when the spacing radius is unchanged", () => {
+    const cursor = new CropPlacementCursor();
+    const result = placement({ x: 0, z: 0 }, true);
+    result.footprint = { width: 2, depth: 1 };
+    cursor.update(result);
+    const footprint = cursor.group.getObjectByName("crop_placement_footprint") as THREE.Mesh;
+    expect(footprint.geometry.boundingBox!.max.x).toBeCloseTo(1.018, 3);
+    expect(footprint.geometry.boundingBox!.max.z).toBeCloseTo(0.518, 3);
+    result.rotationRadians = Math.PI / 2;
+    cursor.update(result);
+    expect(footprint.geometry.boundingBox!.max.x).toBeCloseTo(0.518, 3);
+    expect(footprint.geometry.boundingBox!.max.z).toBeCloseTo(1.018, 3);
+    cursor.dispose();
+  });
+
   it("treats the yard as part of the farm and not as plantable soil", () => {
     const soil = farmLocalToWorld(FARM_ID, { x: 0, z: 0 });
     const yard = farmLocalToWorld(FARM_ID, { x: 10, z: 0 });

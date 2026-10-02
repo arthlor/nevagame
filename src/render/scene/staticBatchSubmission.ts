@@ -1,11 +1,20 @@
 import * as THREE from "three";
 
+export interface StaticBatchCullRegion {
+  /** Conservative instance bounds in the batch's local space. */
+  localBounds: THREE.Sphere;
+  visible: boolean;
+}
+
 /**
  * Static geometry keeps Three's per-pass instance culling, but its prepared draw
  * list need not be rebuilt/uploaded for an identical view. Shadow views naturally
  * invalidate this single-entry cache before the main view restores its own list.
  */
-export function configureStaticBatchSubmission(batch: THREE.BatchedMesh): void {
+export function configureStaticBatchSubmission(
+  batch: THREE.BatchedMesh,
+  regions: readonly StaticBatchCullRegion[] = []
+): void {
   const material = batch.material as THREE.Material;
   batch.sortObjects = material.transparent;
   const nativeRender = batch.onBeforeRender;
@@ -18,6 +27,24 @@ export function configureStaticBatchSubmission(batch: THREE.BatchedMesh): void {
   let sorting = batch.sortObjects;
   let transparent = material.transparent;
   let frustumCulling = batch.perObjectFrustumCulled;
+  let regionBoundsInvalidated = false;
+
+  if (regions.length > 1) {
+    const nativeIntersects = batch.intersectsFrustum;
+    const worldBounds = new THREE.Sphere();
+    batch.intersectsFrustum = (frustum) => {
+      // A pose edit requires re-batching to rebuild the cell bounds. Until then,
+      // leave rejection to native per-instance culling, which reads fresh poses.
+      if (regionBoundsInvalidated) return true;
+      if (!nativeIntersects.call(batch, frustum)) return false;
+      for (const region of regions) {
+        if (region.visible && frustum.intersectsSphere(worldBounds.copy(region.localBounds).applyMatrix4(batch.matrixWorld))) {
+          return true;
+        }
+      }
+      return false;
+    };
+  }
 
   batch.setVisibleAt = (instanceId, visible) => {
     if (batch.getVisibleAt(instanceId) !== visible) revision++;
@@ -25,6 +52,7 @@ export function configureStaticBatchSubmission(batch: THREE.BatchedMesh): void {
   };
   batch.setMatrixAt = (instanceId, matrix) => {
     revision++;
+    regionBoundsInvalidated = true;
     return nativeMatrix.call(batch, instanceId, matrix);
   };
   batch.onBeforeRender = (renderer, scene, camera, geometry, drawMaterial, group) => {

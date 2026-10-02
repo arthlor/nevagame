@@ -1,19 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Document, NodeIO } from "@gltf-transform/core";
-import { optimizeAsset } from "./optimize.mjs";
+import { createNodeIO, optimizeAsset } from "./optimize.mjs";
 import { validateSurfaceContract } from "./surface_contract.mjs";
 
 const spec = {
   id: "surface_fixture", generator: "fauna_chicken", family: "prop",
-  surfaceAuthoring: { normalPolicy: "authored", facetColors: "rest_face" },
+  surfaceAuthoring: { normalPolicy: "authored" },
   animationClips: [{ name: "idle", loop: true }],
   lodLevels: [{ node: "lod0" }, { node: "lod1" }],
 };
 
 // A second material and reduced skin catch checks that accidentally inspect
 // only the first primitive, the unreduced surface, or the bind pose.
-async function fixture({ defect, scale = 1 } = {}) {
+async function fixture({ defect, scale = 1, gradient = false, rgba = false } = {}) {
   const doc = new Document(), buffer = doc.createBuffer();
   const access = (name, type, data) => doc.createAccessor(name).setType(type).setArray(data).setBuffer(buffer);
   const scene = doc.createScene();
@@ -28,9 +28,11 @@ async function fixture({ defect, scale = 1 } = {}) {
     const mesh = doc.createMesh(`mesh${lod}`);
     for (let region = 0; region < 2; region++) {
       const target = lod === 1 && region === 1;
-      const colors = new Float32Array([.4,.3,.2, .4,.3,.2, .4,.3,.2]);
-      if (target && defect === "color seam") colors[3] = .7;
+      const colorValues = gradient ? [.1,.9,.2, .8,.2,.7, .3,.4,.9] : [.4,.3,.2, .4,.3,.2, .4,.3,.2];
+      const colors = new Float32Array(rgba ? colorValues.flatMap((value, index) => index % 3 === 2 ? [value, 1] : [value]) : colorValues);
       if (target && defect === "nonfinite color") colors[3] = NaN;
+      if (target && defect === "out-of-range color") colors[0] = 1.2;
+      if (target && defect === "invalid alpha") colors[3] = -0.1;
       const normals = new Float32Array([0,0,1, .6,0,.8, 0,.6,.8]);
       if (target && defect === "normal") normals.fill(0);
       if (target && defect === "winding") for (let i = 0; i < normals.length; i++) normals[i] *= -1;
@@ -41,10 +43,10 @@ async function fixture({ defect, scale = 1 } = {}) {
       const primitive = doc.createPrimitive()
         .setAttribute("POSITION", access(`position${lod}${region}`, "VEC3", new Float32Array([0,0,0, 1,0,0, 0,1,0])))
         .setAttribute("NORMAL", access(`normal${lod}${region}`, "VEC3", normals))
-        .setAttribute("COLOR_0", access(`color${lod}${region}`, "VEC3", colors))
+        .setAttribute("COLOR_0", access(`color${lod}${region}`, rgba ? "VEC4" : "VEC3", colors))
         .setAttribute("JOINTS_0", access(`joints${lod}${region}`, "VEC4", joints))
         .setAttribute("WEIGHTS_0", access(`weights${lod}${region}`, "VEC4", weights))
-        .setMaterial(doc.createMaterial(`region${lod}${region}`));
+        .setMaterial(doc.createMaterial(`region${lod}${region}`).setDoubleSided(gradient));
       if (target && defect === "missing color") primitive.setAttribute("COLOR_0", null);
       mesh.addPrimitive(primitive);
     }
@@ -73,12 +75,33 @@ test("surface and loop invariants survive Meshopt on every material and LOD", as
 });
 
 for (const [defect, message] of [
-  ["color seam", /nonconstant facet color/], ["nonfinite color", /invalid color/],
+  ["nonfinite color", /invalid color/], ["out-of-range color", /invalid color/],
   ["missing color", /missing color\/normal/], ["normal", /invalid normal/],
   ["winding", /normals oppose triangle winding/],
   ["weights", /unnormalized skin/], ["joint", /invalid joint/], ["loop", /loop seam/],
 ]) test(`surface gate rejects ${defect} in exported data`, async () => {
   await assert.rejects(() => fixture({ defect }).then((bytes) => validateSurfaceContract(bytes, spec)), message);
+});
+
+for (const rgba of [false, true]) test(`double-sided ${rgba ? "RGBA" : "RGB"} gradients and smooth normals survive packaging`, async () => {
+  const raw = await fixture({ gradient: true, rgba });
+  const before = await validateSurfaceContract(raw, spec);
+  const optimized = await optimizeAsset(raw, null, spec);
+  const after = await validateSurfaceContract(optimized, spec);
+  assert.equal(after.triangles, before.triangles);
+  assert.equal(after.interpolatedTriangles, before.interpolatedTriangles);
+  assert.equal(after.deformation[0].loopSeamMeters, 0);
+  const decoded = await createNodeIO().readBinary(optimized);
+  assert.ok(decoded.getRoot().listMaterials().every(material => material.getDoubleSided()));
+  for (const mesh of decoded.getRoot().listMeshes()) for (const primitive of mesh.listPrimitives()) {
+    const colors = primitive.getAttribute("COLOR_0");
+    assert.equal(colors.getElementSize(), rgba ? 4 : 3);
+    assert.notDeepEqual(colors.getElement(0, []), colors.getElement(1, []));
+  }
+});
+
+test("surface gate validates the alpha channel too", async () => {
+  await assert.rejects(() => fixture({ rgba: true, defect: "invalid alpha" }).then(bytes => validateSurfaceContract(bytes, spec)), /invalid color/);
 });
 
 test("imported sources keep their own surface contract", async () => {
@@ -87,7 +110,7 @@ test("imported sources keep their own surface contract", async () => {
 
 test("animated imports get post-LOD deformation checks without procedural recoloring rules", async () => {
   const imported = {...spec, generator: "authored_glb", surfaceAuthoring: undefined};
-  const result = await validateSurfaceContract(await fixture({defect: "color seam"}), imported);
+  const result = await validateSurfaceContract(await fixture({gradient: true}), imported);
   assert.equal(result.deformation.length, 1);
   await assert.rejects(() => fixture({defect: "loop"}).then(bytes => validateSurfaceContract(bytes, imported)), /loop seam/);
 });

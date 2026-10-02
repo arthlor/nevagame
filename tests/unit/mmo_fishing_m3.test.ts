@@ -75,7 +75,7 @@ describe("Milestone M3 — Dual Fishing Minigames & Cockpits", () => {
       const html = renderSport(baseSportHud);
       expect(html).toContain('data-testid="fishing-telemetry"');
       expect(html).toContain("12.4 m");
-      expect(html).toContain(`Landing at ${FISHING_TUNING.landingDistance} m`);
+      expect(html).toContain(`Land within ${FISHING_TUNING.landingDistance} m`);
     });
 
     it("swaps the run readout to a within-reach state inside landing range", () => {
@@ -84,7 +84,7 @@ describe("Milestone M3 — Dual Fishing Minigames & Cockpits", () => {
       );
       expect(html).toContain("Within reach");
       expect(html).toContain("is-in-range");
-      expect(html).not.toContain(`Landing at ${FISHING_TUNING.landingDistance} m`);
+      expect(html).not.toContain(`Land within ${FISHING_TUNING.landingDistance} m`);
     });
 
     it("reports water depth, and names a breach rather than printing a negative", () => {

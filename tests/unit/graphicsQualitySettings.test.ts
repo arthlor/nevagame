@@ -53,8 +53,8 @@ describe("Auto graphics quality", () => {
     const clock = { nowMs: 0 };
     expect(play(settings, clock, 60, 50, 45)).toEqual([]);
     expect(settings.effectiveTier).toBe("high");
-    expect(settings.reductions).toEqual({ bloom: false, ambientOcclusion: false, resolutionStep: 0 });
-    expect(settings.reductionsFor("high")).toEqual({ bloom: false, ambientOcclusion: false, resolutionStep: 0 });
+    expect(settings.reductions).toEqual({ sunShafts: false, bloom: false, ambientOcclusion: false, resolutionStep: 0 });
+    expect(settings.reductionsFor("high")).toEqual({ sunShafts: false, bloom: false, ambientOcclusion: false, resolutionStep: 0 });
   });
 
   it("walks sustained GPU pressure down the ladder one step per cooldown, then drops one tier", () => {
@@ -74,7 +74,7 @@ describe("Auto graphics quality", () => {
     }
     expect(settings.pressureSource).toBe("gpu");
     // The lower tier starts from its own full request.
-    expect(settings.reductions).toEqual({ bloom: false, ambientOcclusion: false, resolutionStep: 0 });
+    expect(settings.reductions).toEqual({ sunShafts: false, bloom: false, ambientOcclusion: false, resolutionStep: 0 });
   });
 
   it("skips GPU-only reductions and drops the tier when timing shows the CPU is the limit", () => {
@@ -103,7 +103,7 @@ describe("Auto graphics quality", () => {
     const recovered = play(settings, clock, 30, 1000 / 60, 6);
     expect(recovered.map(({ change, level }) => [change, level])).toEqual([["effects", 1], ["effects", 0]]);
     expect(recovered[1]!.atMs - recovered[0]!.atMs).toBeGreaterThanOrEqual(10_000);
-    expect(settings.reductions).toEqual({ bloom: false, ambientOcclusion: false, resolutionStep: 0 });
+    expect(settings.reductions).toEqual({ sunShafts: false, bloom: false, ambientOcclusion: false, resolutionStep: 0 });
   });
 
   it("waits longer before retrying a recovered step that did not hold", () => {
@@ -139,13 +139,13 @@ describe("Auto graphics quality", () => {
     play(settings, clock, 25, 40, 36);
     expect(settings.effectiveTier).toBe("medium");
     // The renderer is still drawing High until the handoff crosses the tier.
-    expect(settings.reductionsFor("high")).toEqual({ bloom: true, ambientOcclusion: true, resolutionStep: 2 });
-    expect(settings.reductionsFor("low")).toEqual({ bloom: false, ambientOcclusion: false, resolutionStep: 0 });
+    expect(settings.reductionsFor("high")).toEqual({ sunShafts: false, bloom: true, ambientOcclusion: true, resolutionStep: 2 });
+    expect(settings.reductionsFor("low")).toEqual({ sunShafts: false, bloom: false, ambientOcclusion: false, resolutionStep: 0 });
     expect(settings.reductionsFor("medium")).toEqual(settings.reductions);
 
     const raised = play(settings, clock, 14, 10, 4);
     expect(raised.map(({ change, tier, level }) => [change, tier, level])).toEqual([["tier", "high", LADDERS.high.length]]);
-    expect(settings.reductions).toEqual({ bloom: true, ambientOcclusion: true, resolutionStep: 2 });
+    expect(settings.reductions).toEqual({ sunShafts: false, bloom: true, ambientOcclusion: true, resolutionStep: 2 });
   });
 
   it("starts again from the full request when the player changes what the ladder reduces", () => {

@@ -16,6 +16,9 @@ import { GameSheet, ItemSlot } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
 import { useTranslation } from "../i18n/useTranslation";
 import { TR_ITEMS } from "../i18n/locales/tr/items";
+import { TR_CROPS } from "../i18n/locales/tr/crops";
+import { TR_FISH } from "../i18n/locales/tr/fish";
+import { qualityLabel } from "../i18n/itemText";
 
 interface InventoryModalProps {
   satchel: SatchelDto;
@@ -49,11 +52,12 @@ const CropGradeMark: React.FC<{ quality: string; size?: number; labelled?: boole
   size = 16,
   labelled = false
 }) => {
+  const { locale } = useTranslation();
   const key = qualitySpriteKey(quality);
   return (
     <span className={`crop-grade-mark crop-grade-mark--${key}`} data-testid="crop-grade-mark" data-quality={key}>
       <AtlasImage src={atlasForCropQuality(quality)} size={size} alt="" />
-      {labelled && <span>{quality}</span>}
+      {labelled && <span>{qualityLabel(quality, locale)}</span>}
     </span>
   );
 };
@@ -70,6 +74,13 @@ const SatchelItemIcon: React.FC<{ itemId: string; size: number; className?: stri
 
 type InventoryCategory = "all" | "farming" | "fishing" | "supplies";
 
+/** An armed discard must still refer to the exact lot the player saw. */
+export function satchelLotKey(slot: SatchelDto["slots"][number] | null | undefined): string | null {
+  return slot?.itemId && slot.quantity > 0
+    ? `${slot.index}:${slot.itemId}:${slot.quality ?? ""}:${slot.quantity}`
+    : null;
+}
+
 /**
  * Whether a slot survives the search box. Matching runs over the item name, its
  * category label and the crop a seed grows, so "wheat" finds both the seed and
@@ -77,13 +88,14 @@ type InventoryCategory = "all" | "farming" | "fishing" | "supplies";
  */
 export function matchesSatchelSearch(
   slot: Pick<SatchelDto["slots"][number], "itemId" | "name" | "categoryLabel" | "cropName">,
-  rawQuery: string
+  rawQuery: string,
+  locale = "en"
 ): boolean {
-  const query = rawQuery.trim().toLowerCase();
+  const query = rawQuery.trim().toLocaleLowerCase(locale);
   if (query.length === 0) return true;
   if (!slot.itemId) return false;
   return `${slot.name} ${slot.categoryLabel ?? ""} ${slot.cropName ?? ""}`
-    .toLowerCase()
+    .toLocaleLowerCase(locale)
     .includes(query);
 }
 
@@ -120,10 +132,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
    * while an unchanged lot keeps its armed state across those re-renders.
    */
   const [discardArmedKey, setDiscardArmedKey] = useState<string | null>(null);
-  const [draggingSlotIndex, setDraggingSlotIndex] = useState<number | null>(null);
+  const [draggingLot, setDraggingLot] = useState<{ index: number; key: string } | null>(null);
   const [organizeOpen, setOrganizeOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<InventoryCategory>("all");
-  const { t, locale } = useTranslation();
+  const { t, locale, translateReason } = useTranslation();
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(() => {
     const firstOccupied = satchel.slots.findIndex((slot) => slot.itemId !== null && slot.quantity > 0);
     return firstOccupied >= 0 ? firstOccupied : null;
@@ -146,11 +158,14 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     }
   }, []);
 
-  const allSlots = satchel.slots;
+  // Localize display fields only; lot identity and commands retain canonical IDs.
+  const allSlots = locale === "tr" ? satchel.slots.map((slot) => ({
+    ...slot,
+    name: slot.itemId ? (TR_ITEMS[slot.itemId]?.name ?? TR_FISH[slot.itemId]?.name ?? slot.name) : slot.name,
+    cropName: slot.cropId ? (TR_CROPS[slot.cropId]?.name ?? slot.cropName) : slot.cropName
+  })) : satchel.slots;
   const selectedSlot = selectedSlotIndex !== null ? allSlots[selectedSlotIndex] ?? null : null;
-  const selectedLotKey = selectedSlot?.itemId
-    ? `${selectedSlot.index}:${selectedSlot.itemId}:${selectedSlot.quality ?? ""}`
-    : null;
+  const selectedLotKey = satchelLotKey(selectedSlot);
   const discardArmed = selectedLotKey !== null && discardArmedKey === selectedLotKey;
   const planting = selectedSlot?.cropId ? onInspectPlanting(selectedSlot.cropId) : null;
 
@@ -163,7 +178,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
   const isSlotMatch = (slot: SatchelDto["slots"][number]): boolean => {
     if (!slot.itemId) return false;
-    if (!matchesSatchelSearch(slot, searchTerm)) return false;
+    if (!matchesSatchelSearch(slot, searchTerm, locale)) return false;
     if (activeCategory === "all") return true;
     return slot.inventoryCategory === activeCategory;
   };
@@ -186,7 +201,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     } else {
       setSelectedSlotIndex(null);
     }
-  }, [searchTerm, activeCategory, satchel, selectedSlotIndex]);
+  }, [searchTerm, activeCategory, satchel, selectedSlotIndex, locale]);
 
   const selectedInspection = selectedSlot?.itemId ? onInspectItem?.(selectedSlot.itemId) : null;
 
@@ -196,7 +211,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     playUiSound(result.success ? "confirm" : "error");
     // The satchel is re-read from the simulation on the next render, so the
     // notice is the only thing this component has to hold onto.
-    setSortNotice(result.success ? (locale === "tr" ? "Heybe düzenlendi" : "Satchel tidied") : result.reason ?? (locale === "tr" ? "Düzenlenecek bir şey yok" : "Nothing to tidy"));
+    setSortNotice(result.success ? (locale === "tr" ? "Heybe düzenlendi" : "Satchel tidied") : translateReason(result.reason) || (locale === "tr" ? "Düzenlenecek bir şey yok" : "Nothing to tidy"));
     setSelectedSlotIndex(null);
   };
 
@@ -216,10 +231,14 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
    * gesture and the inspector's armed Discard land here, so the two paths can
    * never disagree about what was destroyed.
    */
-  const discardSlot = (index: number | null): void => {
-    setDraggingSlotIndex(null);
+  const discardSlot = (index: number, expectedKey: string | null): void => {
+    setDraggingLot(null);
     setDiscardArmedKey(null);
-    const slotToDiscard = index === null ? null : allSlots[index] ?? null;
+    const slotToDiscard = allSlots[index];
+    if (!expectedKey || satchelLotKey(slotToDiscard) !== expectedKey) {
+      setDiscardNotice(locale === "tr" ? "Heybe değişti. Eşyayı yeniden seç." : "Satchel changed. Select the item again.");
+      return;
+    }
     if (!slotToDiscard?.itemId || slotToDiscard.quantity <= 0) return;
     const result = onDiscardItem?.(slotToDiscard.itemId, slotToDiscard.quantity, slotToDiscard.quality);
     if (!result) return;
@@ -227,7 +246,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     setDiscardNotice(
       result.success
         ? (locale === "tr" ? `${slotToDiscard.quantity} adet ${slotToDiscard.name} atıldı` : `Discarded ${slotToDiscard.quantity} ${slotToDiscard.name}`)
-        : result.reason ?? (locale === "tr" ? "Bu atılamaz" : "Could not discard that")
+        : translateReason(result.reason) || (locale === "tr" ? "Bu atılamaz" : "Could not discard that")
     );
     if (result.success) setSelectedSlotIndex(null);
   };
@@ -389,6 +408,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             <input
               id="inventory-search-input"
               type="search"
+              enterKeyHint="search"
               className="inventory-search-input"
               data-testid="inventory-search"
               placeholder={locale === "tr" ? "Heybede ara..." : "Find in satchel"}
@@ -422,32 +442,35 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             {isFilterActive && (
               <div className="inventory-filter-banner" role="status">
                 <span className="inventory-filter-status">
-                  {locale === "tr"
+                  {matchingEntries.length === 0
+                    ? (locale === "tr" ? "Eşleşen eşya yok." : "No matching items.")
+                    : locale === "tr"
                     ? `${matchingEntries.length} eşya${query ? ` “${searchTerm.trim()}” ile eşleşiyor` : " bu bölümde"}`
                     : `${matchingEntries.length} ${matchingEntries.length === 1 ? "item" : "items"}${query ? ` matching “${searchTerm.trim()}”` : " in this section"}`}
                 </span>
-                {query && (
+                {(query || matchingEntries.length === 0) && (
                   <button
                     type="button"
                     className="inventory-clear-search-btn"
-                    onClick={() => setSearchTerm("")}
-                    aria-label={locale === "tr" ? "Aramayı temizle" : "Clear search"}
+                    onClick={() => {
+                      setSearchTerm("");
+                      if (matchingEntries.length === 0) setActiveCategory("all");
+                      // The recovery button disappears once its filter clears.
+                      // Keep keyboard focus in the search or category control.
+                      modalRef.current?.querySelector<HTMLElement>(
+                        organizeOpen ? "#inventory-search-input" : "#inventory-tab-all"
+                      )?.focus();
+                    }}
+                    aria-label={matchingEntries.length === 0
+                      ? (locale === "tr" ? "Tüm eşyaları göster" : "Show all items")
+                      : (locale === "tr" ? "Aramayı temizle" : "Clear search")}
                   >
-                    {locale === "tr" ? "Temizle" : "Clear"}
+                    {matchingEntries.length === 0
+                      ? (locale === "tr" ? "Tümü" : "Show all")
+                      : (locale === "tr" ? "Temizle" : "Clear")}
                   </button>
                 )}
               </div>
-            )}
-            {isFilterActive && matchingEntries.length === 0 && (
-              <p className="guild-empty-search" role="status">
-                {query
-                  ? (locale === "tr"
-                      ? "Aramanızla eşleşen eşya yok. Başka bir isim deneyin veya aramayı temizleyin."
-                      : "No items match your search. Try another name or clear the search.")
-                  : (locale === "tr"
-                      ? "Heybenin bu bölümünde henüz bir şey yok."
-                      : "Your satchel has nothing in this section yet.")}
-              </p>
             )}
             <div
               className="inventory-grid"
@@ -498,13 +521,14 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                       ? (event) => {
                           event.dataTransfer.effectAllowed = "move";
                           event.dataTransfer.setData("text/plain", slot.itemId ?? "");
-                          setDraggingSlotIndex(index);
+                          const key = satchelLotKey(slot);
+                          if (key) setDraggingLot({ index, key });
                         }
                       : undefined}
-                    onDragEnd={canDragToDiscard ? () => setDraggingSlotIndex(null) : undefined}
+                    onDragEnd={canDragToDiscard ? () => setDraggingLot(null) : undefined}
                     label={isSelectable
                       ? (locale === "tr"
-                          ? `${slot.name}, ${slot.quality ? `${slot.quality} kalite, ` : ""}adet ${slot.quantity}${canDragToDiscard ? ", atmak için dışarı sürükle" : ""}`
+                          ? `${slot.name}, ${slot.quality ? `${qualityLabel(slot.quality, locale)} kalite, ` : ""}adet ${slot.quantity}${canDragToDiscard ? ", atmak için dışarı sürükle" : ""}`
                           : `${slot.name}, ${slot.quality ? `${slot.quality} quality, ` : ""}count ${slot.quantity}${canDragToDiscard ? ", drag out to destroy" : ""}`)
                       : (locale === "tr"
                           ? `${slot.name}, etkin filtre nedeniyle gizli`
@@ -521,7 +545,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             </div>
           </div>
 
-          <div className="inventory-details-card" aria-live="polite">
+          {(!isFilterActive || matchingEntries.length > 0) && <div className="inventory-details-card" aria-live="polite">
             {selectedSlot?.itemId ? (
               <>
                 <div className="details-header">
@@ -535,7 +559,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                   className="inventory-selected-strip"
                   aria-label={selectedSlot.quality
                     ? (locale === "tr"
-                        ? `${selectedSlot.quality} kalite, adet ${selectedSlot.quantity}`
+                        ? `${qualityLabel(selectedSlot.quality, locale)} kalite, adet ${selectedSlot.quantity}`
                         : `${selectedSlot.quality}, count ${selectedSlot.quantity}`)
                     : (locale === "tr" ? `Adet ${selectedSlot.quantity}` : `Count ${selectedSlot.quantity}`)}
                 >
@@ -568,11 +592,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
                 {selectedSlot.cropId && planting && !planting.valid && (
                   <ChromeAlert tone="caution" className="inventory-plant-blocker">
-                    {planting.reason ?? (locale === "tr" ? "Buraya ekim yapılamaz" : "Planting is not available here")}
+                    {translateReason(planting.reason) || (locale === "tr" ? "Buraya ekim yapılamaz" : "Planting is not available here")}
                   </ChromeAlert>
                 )}
 
-                {selectedInspection?.provisions && (
+                {onConsumeItem && selectedInspection?.provisions && (
                   <div className="inventory-action-block">
                     <ChromeButton
                       variant="gold"
@@ -586,7 +610,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     </ChromeButton>
                     {!selectedInspection.provisions.edible && (
                       <ChromeAlert tone="caution" className="inventory-consume-blocker">
-                        {selectedInspection.provisions.blockerReason ?? (locale === "tr" ? "Bunu şu an yiyemezsin" : "You cannot eat that right now")}
+                        {translateReason(selectedInspection.provisions.blockerReason) || (locale === "tr" ? "Bunu şu an yiyemezsin" : "You cannot eat that right now")}
                       </ChromeAlert>
                     )}
                   </div>
@@ -609,9 +633,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         soundCue="click"
                         className="inventory-discard-confirm"
                         data-testid="inventory-discard-confirm"
-                        onClick={() => discardSlot(selectedSlot.index)}
+                        aria-label={locale === "tr" ? `${selectedSlot.quantity} adet ${selectedSlot.name} imha et` : `Destroy ${selectedSlot.quantity} ${selectedSlot.name}`}
+                        aria-describedby="inventory-discard-warning"
+                        onClick={() => discardSlot(selectedSlot.index, discardArmedKey)}
                       >
-                        {locale === "tr" ? `${selectedSlot.quantity} adet ${selectedSlot.name} imha edilsin mi?` : `Destroy ${selectedSlot.quantity} ${selectedSlot.name}?`}
+                        {locale === "tr" ? `${selectedSlot.quantity} adet imha et` : `Destroy ${selectedSlot.quantity}`}
                       </ChromeButton>
                     ) : (
                       <ChromeButton
@@ -624,9 +650,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         {locale === "tr" ? (selectedSlot.quantity > 1 ? `${selectedSlot.quantity} adet at` : "Eşyayı at") : `Discard ${selectedSlot.quantity > 1 ? `stack of ${selectedSlot.quantity}` : "item"}`}
                       </ChromeButton>
                     )}
+                    {discardArmed && <ChromeButton variant="ghost" onClick={() => setDiscardArmedKey(null)}>{locale === "tr" ? "Vazgeç" : "Cancel"}</ChromeButton>}
                     {discardArmed && (
-                      <p className="inventory-discard-hint">
-                        {locale === "tr" ? "Bu işlem yığını tamamen yok eder." : "This destroys the stack for good."}
+                      <p id="inventory-discard-warning" className="inventory-discard-hint">
+                        {locale === "tr" ? "Geri alınamaz." : "Cannot be undone."}
                       </p>
                     )}
                   </div>
@@ -681,7 +708,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 )}
               </div>
             )}
-          </div>
+          </div>}
         </div>
 
         {discardNotice && (
@@ -690,7 +717,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
           </p>
         )}
 
-        {draggingSlotIndex !== null && onDiscardItem && (
+        {draggingLot !== null && onDiscardItem && (
           <div
             className="inventory-discard-zone"
             data-testid="inventory-discard-zone"
@@ -701,7 +728,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             }}
             onDrop={(event) => {
               event.preventDefault();
-              discardSlot(draggingSlotIndex);
+              discardSlot(draggingLot.index, draggingLot.key);
             }}
           >
             <span className="inventory-discard-zone-label">{locale === "tr" ? "İmha etmek için bırak" : "Release to destroy"}</span>

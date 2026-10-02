@@ -86,6 +86,49 @@ describe("PaletteMaterials vertex-color contracts", () => {
     expect(PaletteMaterials.canonicalizeLoaded(different)).toBe(different);
   });
 
+  it("preserves arbitrary authored material values and separates double-sided cache entries", () => {
+    const source = new THREE.MeshStandardMaterial({
+      name: "wood_warm_01", color: "#206aff", roughness: .24, metalness: .6,
+      vertexColors: true, flatShading: false, side: THREE.DoubleSide
+    });
+    const oneSided = source.clone();
+    oneSided.side = THREE.FrontSide;
+    expect(PaletteMaterials.canonicalizeLoaded(source)).toBe(source);
+    expect(source.color.getHexString()).toBe("206aff");
+    expect(source.roughness).toBe(.24);
+    expect(source.metalness).toBe(.6);
+    expect(source.vertexColors).toBe(true);
+    expect(source.flatShading).toBe(false);
+    expect(source.side).toBe(THREE.DoubleSide);
+    expect(PaletteMaterials.canonicalizeLoaded(oneSided)).toBe(oneSided);
+    expect(PaletteMaterials.canonicalizeLoaded(source.clone())).toBe(source);
+  });
+
+  it("preserves distinct native physical extensions even when source materials share a palette token", () => {
+    const source = new THREE.MeshPhysicalMaterial({
+      name: "wood_warm_01", color: "#206aff", roughness: .24, metalness: .6,
+      specularIntensity: .2, specularColor: "#ff8899", transmission: .35,
+      thickness: .4, attenuationColor: "#55aacc", attenuationDistance: 2
+    });
+    const different = source.clone();
+    different.specularIntensity = .8;
+    different.specularColor.set("#8899ff");
+    different.thickness = 1.2;
+    different.attenuationDistance = 8;
+
+    expect(PaletteMaterials.canonicalizeLoaded(source)).toBe(source);
+    expect(PaletteMaterials.canonicalizeLoaded(different)).toBe(different);
+    expect(source.specularIntensity).toBe(.2);
+    expect(source.specularColor.getHexString()).toBe("ff8899");
+    expect(source.thickness).toBe(.4);
+    expect(source.transmission).toBe(.35);
+    expect(source.attenuationDistance).toBe(2);
+    expect(different.specularIntensity).toBe(.8);
+    expect(different.specularColor.getHexString()).toBe("8899ff");
+    expect(different.thickness).toBe(1.2);
+    expect(different.attenuationDistance).toBe(8);
+  });
+
   it("resolves source-region materials through explicit catalog token metadata", () => {
     const darkStone = new THREE.MeshStandardMaterial({
       color: 0xffffff,

@@ -1,14 +1,16 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
 
-import { runtimeAssetCatalogPlugin } from "./tools/vite/runtimeAssetCatalogPlugin";
-import { environmentLayoutBakePlugin } from "./tools/vite/environmentLayoutBakePlugin";
+import { runtimeAssetCatalogPlugin } from "./tools/vite/runtimeAssetCatalogPlugin.ts";
+import { environmentLayoutBakePlugin } from "./tools/vite/environmentLayoutBakePlugin.ts";
 
 export default defineConfig({
-  plugins: [runtimeAssetCatalogPlugin(__dirname), environmentLayoutBakePlugin(__dirname)],
+  plugins: [runtimeAssetCatalogPlugin(import.meta.dirname), environmentLayoutBakePlugin(import.meta.dirname)],
   test: {
     globals: true,
     environment: "node",
+    // Keep the pre-migration lifecycle for mocks populated by module/setup code.
+    clearMocks: false,
     // The v3 heightfield and Rapier edge-case suites are intentionally
     // substantial; cap worker contention and allow the collision setup to
     // finish without making a slow host look like a behavioral failure.
@@ -24,7 +26,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src")
+      "@": path.resolve(import.meta.dirname, "./src")
     }
   }
 });

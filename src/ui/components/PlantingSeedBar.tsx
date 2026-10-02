@@ -1,16 +1,17 @@
-import { IconSprout} from "./HudIcons";
 import React, { useEffect, useRef } from "react";
-import type { SeedBeltDto } from "../../simulation/core/contracts";
+import type { CropPlacementResult, SeedBeltDto, WorkCostQuote } from "../../simulation/core/contracts";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForSeedItem } from "../chrome/uiAtlas";
 import { ChromeButton } from "../chrome/Chrome";
-import { GameSheet, ItemSlot, KeyHint, Notice } from "../coastal/CoastalUI";
+import { GameSheet, ItemSlot, Notice } from "../coastal/CoastalUI";
 import { useTranslation } from "../../i18n/useTranslation";
 
 export interface PlantingSeedBarProps {
   seedBelt: SeedBeltDto;
   selectedCropId: string | null;
   selectedCropName?: string | null;
+  placementPreview?: CropPlacementResult | null;
+  plantingWork?: WorkCostQuote | null;
   onSelectCrop: (cropId: string) => void;
   onCancel: () => void;
   currentSeason?: string;
@@ -36,12 +37,14 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
   seedBelt,
   selectedCropId,
   selectedCropName = null,
+  placementPreview = null,
+  plantingWork = null,
   onSelectCrop,
   onCancel,
   currentSeason = "spring",
   className = ""
 }) => {
-  const { locale, getLocalizedCrop } = useTranslation();
+  const { locale, getLocalizedCrop, translateReason } = useTranslation();
   const isTr = locale === "tr";
 
   const availableSeeds = seedBelt.seeds;
@@ -96,6 +99,15 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
   }
 
   const seasonDisplay = isTr ? (SEASON_TR[currentSeason.toLowerCase()] ?? currentSeason) : currentSeason;
+  const ready = Boolean(placementPreview?.valid && plantingWork?.affordable !== false && selectedCrop);
+  const feedback = !selectedCrop
+    ? (isTr ? "Tohum seçin" : "Select seed")
+    : plantingWork?.affordable === false
+      ? (isTr ? `Yetersiz Emek (${plantingWork.cost} gerekli)` : `Need ${plantingWork.cost} Work`)
+      : ready
+        ? (plantingWork ? `${plantingWork.cost} ${isTr ? "Emek" : "Work"}` : (isTr ? "Hazır" : "Ready to plant"))
+        : (plantingFeedback(placementPreview, isTr) ?? translateReason(placementPreview?.reason))
+          || (isTr ? "Toprağı işaret edin" : "Point at soil");
 
   return (
     <div
@@ -104,21 +116,31 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
       aria-label={isTr ? "Ekmek için bir tohum seçin" : "Choose a seed to plant"}
       data-testid="planting-seed-dock"
     >
-      <GameSheet family="ink" tone="slate" corners className="planting-dock-shell">
-        <div className="planting-dock-header-row">
-          <span className="planting-dock-title">
-            <IconSprout size={13} aria-hidden="true" /> {isTr ? "Tohum Kemeri" : "Seed Belt"}
-          </span>
-          <span className="planting-current-season-badge">
-            {isTr ? <>Mevsim: <strong>{seasonDisplay}</strong></> : <>Season: <strong>{currentSeason}</strong></>}
-          </span>
-        </div>
+      <span className="planting-current-season-badge">
+        <strong>{seasonDisplay}</strong>
+      </span>
+      <span className="hint-touch sr-only">{isTr ? "Yerleştir" : "Place"}</span>
 
-        <div className="planting-seeds-row">
+      <div
+        className={`planting-placement-status ${ready ? "is-ready" : placementPreview ? "is-blocked" : "is-aiming"}`}
+        role="status"
+        aria-live="polite"
+        data-testid="planting-placement-status"
+      >
+        <span className="planting-status-icon" aria-hidden="true">{ready ? "✓" : placementPreview ? "×" : "◎"}</span>
+        <span className="planting-status-text">{feedback}</span>
+      </div>
+
+      <GameSheet family="ink" tone="slate" corners className="planting-dock-shell">
+        <div className="planting-seed-options">
           {availableSeeds.map((seed, index) => {
             const isSelected = selectedCropId === seed.cropId;
             const hotkey = index < 9 ? `${index + 1}` : null;
             const localizedName = (isTr ? getLocalizedCrop(seed.cropId).name : null) || seed.name;
+            const climates = seed.preferredClimates
+              .map((climate) => climate.replace(/^climate\./, "").replace(/[-_]/g, " "))
+              .join(", ") || (isTr ? "herhangi bir iklim" : "any climate");
+            const slotTitle = `${localizedName} (${seed.count})${hotkey ? ` [${hotkey}]` : ""} · ${isTr ? "İklim:" : "Thrives in"} ${climates}`;
 
             return (
               <div key={seed.cropId} className="planting-seed-item-wrapper">
@@ -129,8 +151,8 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
                   className={`planting-seed-card ${isSelected ? "is-selected" : ""}`}
                   soundCue="cloth"
                   onSelect={() => onSelectCrop(seed.cropId)}
-                  label={`${localizedName}, ${seed.count} ${isTr ? "tohum" : "seeds"}${hotkey ? `, hotkey ${hotkey}` : ""}`}
-                  title={`${localizedName} (${seed.count})${hotkey ? ` [${hotkey}]` : ""}`}
+                  label={slotTitle}
+                  title={slotTitle}
                 >
                   {hotkey && (
                     <span className="seed-hotkey-badge" aria-hidden="true">
@@ -139,43 +161,47 @@ export const PlantingSeedBar: React.FC<PlantingSeedBarProps> = ({
                   )}
                   <AtlasImage src={atlasForSeedItem(seed.seedItemId)} alt="" size={28} />
                 </ItemSlot>
+                <span className="sr-only">
+                  {localizedName} · {isTr ? "İklim:" : "Thrives in"} {climates}
+                </span>
               </div>
             );
           })}
-
-          <div className="planting-dock-actions">
-            <ChromeButton onClick={onCancel} title={isTr ? "Ekimden Vazgeç (ESC)" : "Cancel Planting (ESC)"}>
-              {isTr ? "Vazgeç" : "Cancel"}
-            </ChromeButton>
-            <span className="planting-hint-chip">
-              <KeyHint keyName="LMB" /> {isTr ? "Yerleştir" : "Place"}
-            </span>
-          </div>
         </div>
 
-        {exhaustedName && (
-          <p className="planting-out-of-seeds" role="status" data-testid="planting-out-of-seeds">
-            {isTr
-              ? `${exhaustedName} tohumu bitti. Başka bir ürün seç.`
-              : `Out of ${exhaustedName} seeds. Choose another crop.`}
-          </p>
-        )}
-        {selectedCrop && (
-          <footer className="planting-dock-meta">
-            <div className="planting-meta-left">
-              <strong className="meta-value selected-crop-name">
-                {(isTr ? getLocalizedCrop(selectedCrop.cropId).name : null) || selectedCrop.name}
-              </strong>
-            </div>
-
-            <div className="planting-meta-right">
-              <span className="meta-soil-hint">
-                <IconSprout size={12} aria-hidden="true" /> {isTr ? "Sevdiği iklim:" : "Thrives in"} {selectedCrop.preferredClimates.map((climate) => climate.replace(/^climate\./, "").replace(/[-_]/g, " ")).join(", ") || (isTr ? "herhangi bir iklim" : "any climate")}
-              </span>
-            </div>
-          </footer>
-        )}
+        <button
+          type="button"
+          className="planting-cancel-btn"
+          onClick={onCancel}
+          title={isTr ? "Ekimden Vazgeç (ESC)" : "Cancel Planting (ESC)"}
+          aria-label={isTr ? "Ekimden Vazgeç (ESC)" : "Cancel Planting (ESC)"}
+        >
+          <span aria-hidden="true">✕</span>
+          <span className="sr-only">{isTr ? "Vazgeç" : "Cancel Planting (ESC)"}</span>
+        </button>
       </GameSheet>
+
+      {exhaustedName && (
+        <p className="planting-out-of-seeds sr-only" role="status" data-testid="planting-out-of-seeds">
+          {isTr
+            ? `${exhaustedName} tohumu bitti. Başka bir ürün seç.`
+            : `Out of ${exhaustedName} seeds. Choose another crop.`}
+        </p>
+      )}
     </div>
   );
 };
+
+function plantingFeedback(preview: CropPlacementResult | null, isTr: boolean): string | null {
+  switch (preview?.reasonCode) {
+    case "too-far": return isTr ? "Ekim alanına yaklaşın." : "Move closer to this bed.";
+    case "overlaps-crop": return isTr ? "Diğer bitkinin çevresinde yer bırakın." : "Leave space around the other crop.";
+    case "invalid-surface":
+    case "outside-farm": return isTr ? "Hazırlanmış toprağın içinde kalmalı." : "Must be inside prepared soil.";
+    case "farm-capacity": return isTr ? "Tarla dolu." : "This farm is full.";
+    case "structure-clearance": return isTr ? "Yapıların çevresinde yer bırakın." : "Leave room around buildings.";
+    case "no-seed": return isTr ? "Bu tohum bitti." : "Out of these seeds.";
+    default: return null;
+  }
+}
+

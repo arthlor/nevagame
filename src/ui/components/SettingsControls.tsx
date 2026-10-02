@@ -166,6 +166,10 @@ export const GraphicsControls: React.FC<{
         : active?.hdrBloom ? t("graphics.glowHdrActive")
           : failed("bloom") ? t("graphics.effectFailed")
             : preparing ? t("graphics.preparing") : null;
+  const shaftsNote = !choices.sunShafts ? null
+    : !enhanced ? t("graphics.shaftsUnavailable")
+      : reductions.includes("sun-shafts") ? t("graphics.shaftsPaused")
+        : failed("sun-shafts") ? t("graphics.effectFailed") : t("graphics.shaftsHint");
   const edgeNote = !status ? null
     : !enhanced ? t("graphics.edgeDirectNote")
       : active?.fxaa ? t("graphics.edgeActive")
@@ -287,6 +291,21 @@ export const GraphicsControls: React.FC<{
         </div>
 
         <div className="graphics-effect">
+          <h6 className="graphics-effect__title">{t("graphics.shaftsTitle")}</h6>
+          <ChoiceGroup<"on" | "off">
+            label={t("graphics.shaftsTitle")}
+            testId="graphics-sun-shafts"
+            selected={choices.sunShafts ? "on" : "off"}
+            options={[
+              { value: "off", label: t("graphics.glowOff") },
+              { value: "on", label: t("graphics.shaftsOn") }
+            ]}
+            onSelect={(value) => graphicsEffectSettings.customize({ sunShafts: value === "on" })}
+          />
+          <Note>{shaftsNote}</Note>
+        </div>
+
+        <div className="graphics-effect">
           <h6 className="graphics-effect__title">{t("graphics.edgeTitle")}</h6>
           <ChoiceGroup<EdgeSmoothingChoice>
             label={t("graphics.edgeTitle")}
@@ -404,10 +423,10 @@ type AudioLevelKey = "master" | "music" | "sfx" | "ambience";
 type AudioMuteKey = "masterMuted" | "musicMuted" | "sfxMuted" | "ambienceMuted";
 
 const AUDIO_ROWS: Array<{ label: string; labelTr: string; level: AudioLevelKey; muted: AudioMuteKey }> = [
-  { label: "Master", labelTr: "Genel Ses", level: "master", muted: "masterMuted" },
+  { label: "Master", labelTr: "Genel", level: "master", muted: "masterMuted" },
   { label: "Music", labelTr: "Müzik", level: "music", muted: "musicMuted" },
   { label: "Effects", labelTr: "Efektler", level: "sfx", muted: "sfxMuted" },
-  { label: "Ambience", labelTr: "Çevre & Doğa", level: "ambience", muted: "ambienceMuted" }
+  { label: "Ambience", labelTr: "Çevre", level: "ambience", muted: "ambienceMuted" }
 ];
 
 export const AudioControls: React.FC = () => {
@@ -454,7 +473,7 @@ export const AudioControls: React.FC = () => {
             />
             <ChromeButton
               className="audio-mute-button"
-              aria-label={muted ? `${label} sesini aç` : `${label} sesini kapat`}
+              aria-label={isTr ? `${label} sesini ${muted ? "aç" : "kapat"}` : `${muted ? "Unmute" : "Mute"} ${label.toLowerCase()}`}
               aria-pressed={muted}
               onClick={() => setSettings({ ...audioSettings.set({ [row.muted]: !muted }) })}
             >

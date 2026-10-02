@@ -22,8 +22,9 @@ import type {
 } from "../core/contracts";
 import type { CargoState, FishSchoolState, GameState } from "../core/types";
 import type { ActiveQuestDto } from "../core/QuestTypes";
-import { dayOfSeason, MINUTES_PER_DAY } from "../core/GameClock";
-import { WORK_DAILY_EARN_CAP, WORK_MEAL_DAILY_LIMIT, workEarningsDayFor } from "../domains/ProgressionDomain";
+import { dayOfSeason, formatGameDuration, MINUTES_PER_DAY } from "../core/GameClock";
+import { WORK_DAILY_EARN_CAP, WORK_MEAL_DAILY_LIMIT, workEarningsDayFor, quoteEarnWorkCapacity } from "../domains/ProgressionDomain";
+import { BASIC_FISHING_WORK_COST, basicPerfectWorkRebate } from "../domains/FishingDomain";
 import { PLAYER_SATCHEL_SLOT_COUNT } from "../inventory/InventoryLimits";
 import { WorldLayout } from "../../world/WorldLayout";
 import { findFarmIdAtWorld } from "../../world/FarmLayout";
@@ -256,9 +257,9 @@ export function buildStatusChips(state: GameState): HudStatusChipDto[] {
   return chips;
 }
 
-export function buildHudContracts(state: GameState): HudContractDto[] {
+export function buildHudContracts(state: Pick<GameState, "contracts" | "clock">): HudContractDto[] {
   if (!state.contracts || !Array.isArray(state.contracts)) return [];
-  const active = state.contracts.filter((c) => c.status === "active");
+  const active = state.contracts.filter((c) => c.status === "active" && c.expiresAtMinute > state.clock.currentMinute);
   const result: HudContractDto[] = [];
 
   for (const c of active) {
@@ -270,6 +271,9 @@ export function buildHudContracts(state: GameState): HudContractDto[] {
     const deliveryMarketName =
       market?.name ?? (c.deliveryMarketId === "market.village" ? "Village Market" : "Harbor Market");
 
+    const template = ContentRegistry.contractTemplates.get(c.templateId);
+    const maxDuration = template?.durationMinutes ?? 2880;
+    const remainingMinutes = Math.min(Math.max(0, c.expiresAtMinute - state.clock.currentMinute), maxDuration);
     const completed = c.quantityFulfilled >= c.quantityRequired;
     result.push({
       id: c.id,
@@ -280,8 +284,9 @@ export function buildHudContracts(state: GameState): HudContractDto[] {
       target: c.quantityRequired,
       unit: targetKind === "fish" ? "catch" : "produce",
       completed,
-      rewardMoney: c.rewardMoney,
+      rewardMoney: Math.max(c.rewardMoney, c.deliveredValueMoney ?? 0),
       deliveryMarketName,
+      deadlineLabel: `${formatGameDuration(remainingMinutes)} left`,
       isReadyToTurnIn: completed
     });
   }
@@ -601,6 +606,13 @@ export function buildWorldHudDto(
     carriedFish: carriedFishState ? buildCargoPresentation(carriedFishState) : null,
     boat: boatDto,
     basicFishingPhase: state.basicFishing?.phase ?? null,
+    basicFishingPerfectWorkRecovery: state.basicFishing?.isPerfect
+      ? Math.floor(quoteEarnWorkCapacity(
+          player.workCapacity,
+          basicPerfectWorkRebate(state.basicFishing.workCharged ?? BASIC_FISHING_WORK_COST),
+          clock.currentMinute
+        ))
+      : 0,
     expeditionUnlocked: state.quests.unlockedFeatureIds.includes("feature.expedition_planner"),
 
     // M1 Additions:

@@ -62,7 +62,7 @@ describe("gameplay reliability", () => {
     sim.execute({ type: "quest.talk-npc", npcId: "npc.elspeth" });
     const quest = sim.questDomain.getActiveQuestDto();
     expect(quest?.targetFarmId).toBe("farm.starter_garden");
-    expect(quest?.objectiveDescription).toBe("Plant Wheat: 0/3 at Starter Farm Field");
+    expect(quest?.objectiveDescription).toBe("Plant 3 wheat in the prepared bed · 0/3");
     expect(quest?.objectiveFacts && formatQuestObjective(quest.objectiveFacts, "en")).toBe(quest?.objectiveDescription);
     expect(quest?.progressNote).toBeUndefined();
   });

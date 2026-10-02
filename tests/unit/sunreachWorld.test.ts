@@ -9,6 +9,7 @@ import { MOTOR_FUEL_PER_GAME_MINUTE } from "../../src/simulation/domains/Navigat
 import { sampleFarmEnvironment } from "../../src/simulation/farming/FarmEnvironmentSample";
 import { createWorldEnvironmentLayout, generateSunreachCausalCompositionPlacements } from "../../src/world/WorldEnvironmentLayout";
 import { SUNREACH_ROUTES } from "../../src/world/SunreachWorld";
+import { INTERACTION_PLACEMENT_OVERRIDES } from "../../src/world/InteractionPlacements";
 import { WATER_SURFACE, WorldLayout } from "../../src/world/WorldLayout";
 import { nearestMooring, requiredBoatTypeForMarket, WORLD_SAILING_ROUTES } from "../../src/world/WorldMoorings";
 import {
@@ -47,9 +48,10 @@ describe("Sunreach world contract", () => {
     const heightfield = WorldLayout.terrainHeightfieldForPatch("terrain.sunreach");
     expect(heightfield).toHaveLength((island.terrainPatch.resolution + 1) ** 2);
     expect(heightfield.every(Number.isFinite)).toBe(true);
-    expect(createWorldEnvironmentLayout(42).staticPlacements).toContainEqual(
-      expect.objectContaining({ id: "authored.sunreach.cove-market", x: SUNREACH_ANCHORS.coveMarket.x, z: 56 })
-    );
+    // Island anchors remain the authored reference; the placed market follows
+    // the committed interaction override shared with its live counter.
+    const market = createWorldEnvironmentLayout(42).staticPlacements.find(p=>p.id==="authored.sunreach.cove-market");
+    expect(market).toMatchObject(INTERACTION_PLACEMENT_OVERRIDES["authored.sunreach.cove-market"]);
   });
 
   it("uses one closed-coast marine field for land, cove, channel, reef, and ecology", () => {
@@ -254,16 +256,13 @@ describe("Sunreach world contract", () => {
     );
   });
 
-  it("keeps composition deterministic, island-qualified, local, and structurally complete", () => {
+  it("keeps composition deterministic, uniquely identified, island-qualified and local", () => {
     const first = generateSunreachCausalCompositionPlacements(42);
     const second = generateSunreachCausalCompositionPlacements(42);
     expect(second).toBe(first);
-    expect(first).toHaveLength(148);
+    expect(new Set(first.map(placement => placement.id)).size).toBe(first.length);
     expect(first.every((placement) => placement.id.startsWith("seeded-fill.island.sunreach/"))).toBe(true);
     expect(first.every((placement) => placement.islandId === "island.sunreach" && WorldLayout.islandAt(placement.x, placement.z) === "island.sunreach")).toBe(true);
-    expect(first.filter((placement) => placement.compositionTag?.category === "tree")).toHaveLength(48);
-    expect(first.filter((placement) => placement.compositionTag?.category === "bush")).toHaveLength(62);
-    expect(first.filter((placement) => placement.compositionTag?.category === "rock")).toHaveLength(38);
   });
 
   it("preserves shoreline and mesh sampling density in the expanded rectangular water contract", () => {

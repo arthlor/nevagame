@@ -150,6 +150,8 @@ export interface ConversationSegment {
   kind: ConversationSegmentKind;
   lines: string[];
   questId?: QuestId;
+  /** Identifies authored step dialogue without relying on its English text. */
+  objectiveId?: string;
   trackId?: QuestTrackId;
   questTitle?: string;
   trackTitle?: string;
@@ -309,6 +311,10 @@ export type QuestObjectiveAction =
 export type QuestProgressKind = "cumulative" | "visit";
 
 export interface QuestObjectiveFacts {
+  /** Authored instruction and stable localization keys; presentation only. */
+  questId?: QuestId;
+  objectiveId?: string;
+  description?: string;
   action: QuestObjectiveAction;
   progressKind: QuestProgressKind;
   subject?: string;

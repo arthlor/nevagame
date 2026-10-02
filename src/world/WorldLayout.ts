@@ -7,7 +7,6 @@ import { sunreachRoadEarthworkScale } from "./SunreachLivingLayout";
 import { MAINLAND_ROUTES, mainlandBrookRoadCrossings, mainlandRouteGroundAt, mainlandBlendAt, mainlandBiomeAt, mainlandBiomeWeightsAt, mainlandMountainExposureAt, mainlandNaturalHeight, mainlandShoreCharacterAt, mainlandRegionAt, mainlandWaterSample, mainlandRoadBenchAt } from "./NevaMainland";
 import { isInsideLoop, type LoopSegmentIndex } from "./WorldGeometry";
 import { MAINLAND_ARCHITECTURE_PADS } from "./MainlandSettlementLayout";
-import { surfaceFieldAttributeSteps } from "../render/materials/SurfaceFieldAttributes";
 import { runSync, runCooperatively } from "../utils/CooperativeTask";
 import * as THREE from "three";
 import { HARBOR_BEACH_PATH, HARBOR_LANDING_PATH, harborCoastElevation, harborCoastInfluence, harborSandInfluence, harborShoreOffset } from "./HarborCoast";
@@ -37,10 +36,11 @@ import {
 } from "./WorldAnchors";
 import {
   buildOrganicRoadGeometry,
-  JUNCTION_GORE_REACH_METERS,
   sampleRoadCrossSection,
   type RoadCrossSectionSample
 } from "./RoadGeometry";
+import { compileRoadFootprint, type RoadFootprintSample } from "./RoadFootprint";
+import { roadCoverageAt } from "../render/materials/RoadCoverage";
 import { ROAD_CLASS_PROFILES, roadClassWidth, type RoadClassId, type RoadClassProfile } from "./RoadClasses";
 import { MAINLAND_ROAD_NETWORK } from "./MainlandRoadNetwork.generated";
 import { roadTerrainConformitySteps } from "./RoadTerrainConformity";
@@ -546,10 +546,10 @@ const PIER_STAIR_TREAD_HALF_DEPTH_METERS = 0.19;
 
 const BRIDGE_BOUNDARY_EPSILON = 0.001;
 
-interface TraversalRoadTriangle {
-  a: readonly [number, number, number];
-  b: readonly [number, number, number];
-  c: readonly [number, number, number];
+interface TraversalRoadTriangleIndex {
+  positions: Float32Array;
+  indices: Uint16Array | Uint32Array;
+  cells: ReadonlyMap<string, Uint32Array>;
 }
 
 interface RawTraversalSurfaceSample {
@@ -560,7 +560,15 @@ interface RawTraversalSurfaceSample {
 const terrainBaseHeightfieldCache = new Map<WorldTerrainPatchDefinition["id"], Float32Array>();
 let pathCollisionGeometryCache: THREE.BufferGeometry | null = null;
 let pathGeometryTemplateCache: THREE.BufferGeometry | null = null;
-let traversalRoadTriangleIndexCache: Map<string, TraversalRoadTriangle[]> | null = null;
+const roadPreparation = {
+  footprintMs: null as number | null,
+  sourceMs: null as number | null,
+  conformityWallMs: null as number | null,
+  renderPreparationWallMs: null as number | null,
+  traversalIndexMs: null as number | null,
+  traversalBufferBytes: null as number | null
+};
+let traversalRoadTriangleIndexCache: TraversalRoadTriangleIndex | null = null;
 let cachedTraversalSurfaceQuery: {
   x: number;
   z: number;
@@ -663,38 +671,44 @@ function pierStairTreadTopAssetY(assetX: number): number | null {
   return null;
 }
 
-function sharedTraversalRoadTriangleIndex(): Map<string, TraversalRoadTriangle[]> {
+function sharedTraversalRoadTriangleIndex(): TraversalRoadTriangleIndex {
   if (traversalRoadTriangleIndexCache) return traversalRoadTriangleIndexCache;
   const geometry = WorldLayout.buildPathCollisionGeometry();
+  const started = performance.now();
   const positions = geometry.getAttribute("position");
   const indices = geometry.getIndex();
   if (!indices) {
     geometry.dispose();
     throw new Error("[WorldLayout] Canonical traversal road geometry must be indexed");
   }
-  const cells = new Map<string, TraversalRoadTriangle[]>();
+  // Keep one packed position/index pair and store triangle offsets in cells.
+  // Per-triangle objects and three coordinate arrays multiplied settled heap.
+  const cells = new Map<string, number[]>();
   for (let offset = 0; offset < indices.count; offset += 3) {
-    const triangle: TraversalRoadTriangle = {
-      a: [positions.getX(indices.getX(offset)), positions.getY(indices.getX(offset)), positions.getZ(indices.getX(offset))],
-      b: [positions.getX(indices.getX(offset + 1)), positions.getY(indices.getX(offset + 1)), positions.getZ(indices.getX(offset + 1))],
-      c: [positions.getX(indices.getX(offset + 2)), positions.getY(indices.getX(offset + 2)), positions.getZ(indices.getX(offset + 2))]
-    };
-    const minimumX = Math.floor(Math.min(triangle.a[0], triangle.b[0], triangle.c[0]) / TERRAIN_GRID_STEP_METERS);
-    const maximumX = Math.floor(Math.max(triangle.a[0], triangle.b[0], triangle.c[0]) / TERRAIN_GRID_STEP_METERS);
-    const minimumZ = Math.floor(Math.min(triangle.a[2], triangle.b[2], triangle.c[2]) / TERRAIN_GRID_STEP_METERS);
-    const maximumZ = Math.floor(Math.max(triangle.a[2], triangle.b[2], triangle.c[2]) / TERRAIN_GRID_STEP_METERS);
+    const a = indices.getX(offset), b = indices.getX(offset + 1), c = indices.getX(offset + 2);
+    const minimumX = Math.floor(Math.min(positions.getX(a), positions.getX(b), positions.getX(c)) / TERRAIN_GRID_STEP_METERS);
+    const maximumX = Math.floor(Math.max(positions.getX(a), positions.getX(b), positions.getX(c)) / TERRAIN_GRID_STEP_METERS);
+    const minimumZ = Math.floor(Math.min(positions.getZ(a), positions.getZ(b), positions.getZ(c)) / TERRAIN_GRID_STEP_METERS);
+    const maximumZ = Math.floor(Math.max(positions.getZ(a), positions.getZ(b), positions.getZ(c)) / TERRAIN_GRID_STEP_METERS);
     for (let cellX = minimumX; cellX <= maximumX; cellX++) {
       for (let cellZ = minimumZ; cellZ <= maximumZ; cellZ++) {
         const key = `${cellX}:${cellZ}`;
         const bucket = cells.get(key) ?? [];
-        bucket.push(triangle);
+        bucket.push(offset);
         cells.set(key, bucket);
       }
     }
   }
   geometry.dispose();
-  traversalRoadTriangleIndexCache = cells;
-  return cells;
+  traversalRoadTriangleIndexCache = {
+    positions: positions.array as Float32Array,
+    indices: indices.array as Uint16Array | Uint32Array,
+    cells: new Map(Array.from(cells, ([key, offsets]) => [key, new Uint32Array(offsets)]))
+  };
+  roadPreparation.traversalIndexMs = performance.now() - started;
+  roadPreparation.traversalBufferBytes = positions.array.byteLength + indices.array.byteLength
+    + Array.from(traversalRoadTriangleIndexCache.cells.values()).reduce((sum, offsets) => sum + offsets.byteLength, 0);
+  return traversalRoadTriangleIndexCache;
 }
 
 function sampleTraversalRoadPlane(x: number, z: number): number | null {
@@ -708,15 +722,22 @@ function sampleTraversalRoadPlane(x: number, z: number): number | null {
   if (!Number.isFinite(WorldLayout.nearestRouteDistance(x, z).distance)) return null;
 
   let highest = Number.NEGATIVE_INFINITY;
-  for (const triangle of sharedTraversalRoadTriangleIndex().get(traversalCellKey(x, z)) ?? []) {
-    const { a, b, c } = triangle;
-    const determinant = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
+  const roadIndex = sharedTraversalRoadTriangleIndex();
+  const { positions, indices } = roadIndex;
+  const candidates = roadIndex.cells.get(traversalCellKey(x, z));
+  if (!candidates) return null;
+  for (const offset of candidates) {
+    const a = indices[offset] * 3, b = indices[offset + 1] * 3, c = indices[offset + 2] * 3;
+    const ax = positions[a], az = positions[a + 2];
+    const bx = positions[b], bz = positions[b + 2];
+    const cx = positions[c], cz = positions[c + 2];
+    const determinant = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
     if (Math.abs(determinant) <= 1e-12) continue;
-    const weightA = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / determinant;
-    const weightB = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / determinant;
+    const weightA = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / determinant;
+    const weightB = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / determinant;
     const weightC = 1 - weightA - weightB;
     if (Math.min(weightA, weightB, weightC) < -TRAVERSAL_TRIANGLE_EPSILON) continue;
-    highest = Math.max(highest, a[1] * weightA + b[1] * weightB + c[1] * weightC);
+    highest = Math.max(highest, positions[a + 1] * weightA + positions[b + 1] * weightB + positions[c + 1] * weightC);
   }
   return Number.isFinite(highest) ? highest : null;
 }
@@ -745,6 +766,8 @@ const STARTER_FARM_YARD_GATE = farmLocalToWorld(
   STARTER_FARM_LAYOUT.farmId,
   starterFarmEntryPath?.points.at(-1) ?? { x: 7.4, z: -8.4 }
 );
+// Stop on the outside of the Commons gate, before the cultivated bed's west edge.
+const COMMONS_ROAD_GATE = farmLocalToWorld(PLAYER_HOMESTEAD_LAYOUT.farmId, { x: -2, z: 0 });
 
 /**
  * Regional routes are reserved for a gameplay destination, a named landmark,
@@ -787,7 +810,7 @@ export const WORLD_ROUTES: readonly WorldRoute[] = [
       { x: 57, z: -56 },
       { x: 65, z: -62 },
       { x: 70, z: -68 },
-      PLAYER_HOMESTEAD_LAYOUT.origin
+      COMMONS_ROAD_GATE
     ]
   },
   {
@@ -930,9 +953,6 @@ function mainlandSharedRouteJunctions(): WorldRouteJunction[] {
   });
 }
 
-/** Wheel tracks fade back in over this distance beyond a junction's apron. */
-const JUNCTION_TRACK_FADE_METERS = 3.5;
-
 /** Passing places on the one-cart mainland roads: one bay per stretch this long. */
 const PASSING_PLACE_SPACING_METERS = 180;
 const PASSING_PLACE_CLEARANCE_METERS = 40;
@@ -1044,9 +1064,11 @@ const AUTHORED_ROUTE_JUNCTIONS: readonly WorldRouteJunction[] = [
   },
   {
     id: "village-commons",
-    center: PLAYER_HOMESTEAD_LAYOUT.origin,
-    radiusMeters: 3.8,
-    blendLengthMeters: 1.8,
+    center: COMMONS_ROAD_GATE,
+    // A pedestrian gate, not a cart turning court. The former wide apron
+    // covered cultivated soil and the west fence beyond this entrance.
+    radiusMeters: 1.4,
+    blendLengthMeters: 0.55,
     surface: "farm-yard",
     routeIds: ["village-homestead"]
   },
@@ -1510,6 +1532,29 @@ function buildCompiledRoute(route: WorldRoute): CompiledWorldRoute {
  */
 export const COMPILED_WORLD_ROUTES: readonly CompiledWorldRoute[] = WORLD_ROUTE_NETWORK.map(buildCompiledRoute);
 
+// Footprints depend only on immutable route/layout inputs, never terrain or
+// traversal height. Terrain workers and the mesh use the same derived owner.
+let roadFootprintCache: ReturnType<typeof compileRoadFootprint> | null = null;
+function sharedRoadFootprint() {
+  if (roadFootprintCache) return roadFootprintCache;
+  const started = performance.now();
+  roadFootprintCache = compileRoadFootprint({
+    routes: COMPILED_WORLD_ROUTES,
+    junctions: WORLD_ROUTE_JUNCTIONS,
+    profiles: WORLD_ROUTE_PROFILES,
+    bridge: {
+      center: BRIDGE_CENTER, halfSpan: BRIDGE_HALF_SPAN, deckWidth: BRIDGE_WORLD_PROFILE.deckWidth,
+      gatewayDepthMeters: BRIDGE_WORLD_PROFILE.gatewayDepthMeters,
+      gatewayInsetMeters: BRIDGE_WORLD_PROFILE.gatewayInsetMeters,
+      gatewaySlabCount: BRIDGE_WORLD_PROFILE.gatewaySlabCount,
+      gatewaySlabGapMeters: BRIDGE_WORLD_PROFILE.gatewaySlabGapMeters
+    }
+  });
+  roadPreparation.footprintMs = performance.now() - started;
+  return roadFootprintCache;
+}
+
+
 export const WORLD_PATHS: readonly (readonly WorldPoint[])[] = COMPILED_WORLD_ROUTES.map((compiledRoute) =>
   compiledRoute.samples.map((sample) => sample.point)
 );
@@ -1654,7 +1699,7 @@ function normalizedSurfaceWeights(weights: TerrainSurfaceWeights): TerrainSurfac
   ) as unknown as TerrainSurfaceWeights;
 }
 
-function routeJunctionInfluence(x: number, z: number): number {
+function routeGradingJunctionInfluence(x: number, z: number): number {
   let strongest = 0;
   for (const junction of WORLD_ROUTE_JUNCTIONS) {
     const dx = x - junction.center.x;
@@ -3522,7 +3567,7 @@ export class WorldLayout {
     );
     const desiredDelta = corridorAverage - naturalHeight;
     const cappedDelta = THREE.MathUtils.clamp(desiredDelta, -0.45, 0.45);
-    const junctionBlend = routeJunctionInfluence(x, z) * 0.18;
+    const junctionBlend = routeGradingJunctionInfluence(x, z) * 0.18;
     return naturalHeight + cappedDelta * Math.max(lateralBlend, junctionBlend)
       * profile.gradingStrength * cultivationScale;
   }
@@ -3531,11 +3576,20 @@ export class WorldLayout {
     const cultivationScale = sunreachRoadEarthworkScale(x, z);
     const route = this.nearestRouteDistance(x, z);
     const profile = WORLD_ROUTE_PROFILES[route.route.kind];
-    const sample = sampleRoadCrossSection({
+    const section = sampleRoadCrossSection({
       profile,
       halfWidthMeters: route.halfWidth,
       lateralDistanceMeters: route.distance
     });
+    const footprint = this.roadFootprintSample(x, z);
+    const sample = {
+      ...section,
+      normalizedCoreDistance: footprint.packed > 0.5
+        ? Math.min(section.normalizedCoreDistance, 1 - footprint.packed)
+        : section.normalizedCoreDistance,
+      shoulderAmount: footprint.shoulder,
+      edgeGrassAmount: 1 - footprint.coverage
+    };
     if (
       cultivationScale === 0
       || route.distance >= route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters * 0.78
@@ -3787,49 +3841,37 @@ export class WorldLayout {
     return bestProjection;
   }
 
+  /** Derived road ownership; no terrain, mesh or traversal work is triggered. */
+  public static roadFootprintSample(x: number, z: number): RoadFootprintSample {
+    return sharedRoadFootprint().sample(x, z);
+  }
+
+  /** The metre-scale visible edge also sampled by the meadow exclusion. */
+  public static roadCoverage(x: number, z: number): number {
+    return roadCoverageAt(x, z, sharedRoadFootprint().coverageAt(x, z), CANONICAL_RENDER_CONFIG.roadSurface);
+  }
+
   public static pathInfluence(x: number, z: number): number {
-    const route = this.nearestRouteDistance(x, z);
-    const profile = WORLD_ROUTE_PROFILES[route.route.kind];
-    const routeInfluence = 1 - smoothstep(
-      route.halfWidth * 0.72,
-      route.halfWidth + profile.shoulderWidthMeters * 0.72,
-      route.distance
-    );
-    return Math.max(routeInfluence, routeJunctionInfluence(x, z));
+    return this.roadFootprintSample(x, z).packed;
   }
 
   public static pathShoulderInfluence(x: number, z: number): number {
-    const route = this.nearestRouteDistance(x, z);
-    const profile = WORLD_ROUTE_PROFILES[route.route.kind];
-    const outer = 1 - smoothstep(
-      route.halfWidth + profile.shoulderWidthMeters * 0.18,
-      route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters,
-      route.distance
-    );
-    return Math.max(0, outer, routeJunctionInfluence(x, z) * 0.45);
+    const footprint = this.roadFootprintSample(x, z);
+    return footprint.coverage * (1 - footprint.packed);
   }
 
-  /**
-   * 1 in the uncut verge a little beyond a road's shoulder, where neither
-   * wheels nor feet reach and grass grows long; 0 on the road and in the open.
-   */
+  /** Uncut verge outside the resolved shoulder, including compound joins. */
   public static roadVergeInfluence(x: number, z: number): number {
-    const route = this.nearestRouteDistance(x, z);
-    const edge = route.halfWidth + route.shoulderWidthMeters;
-    return smoothstep(edge + 0.2, edge + 0.8, route.distance)
-      * (1 - smoothstep(edge + 1.8, edge + 3.4, route.distance))
-      * (1 - routeJunctionInfluence(x, z));
+    const footprint = this.roadFootprintSample(x, z);
+    const distance = -footprint.shoulderSignedDistance;
+    return smoothstep(0.2, 0.8, distance)
+      * (1 - smoothstep(1.8, 3.4, distance))
+      * (1 - footprint.junctionTraffic);
   }
 
-  /** Full roadside envelope used to keep large cover out of the graded corridor. */
+  /** Full coverage envelope used to keep large cover clear of worked ground. */
   public static roadsideInfluence(x: number, z: number): number {
-    const route = this.nearestRouteDistance(x, z);
-    const corridor = 1 - smoothstep(
-      route.halfWidth + route.shoulderWidthMeters * 0.28,
-      route.halfWidth + route.shoulderWidthMeters + route.terrainFeatherMeters,
-      route.distance
-    );
-    return Math.max(corridor, routeJunctionInfluence(x, z) * 0.82);
+    return this.roadFootprintSample(x, z).coverage;
   }
 
   public static farmSoilInfluence(x: number, z: number): number {
@@ -3888,30 +3930,11 @@ export class WorldLayout {
     }
     const waterDistance = this.waterSignedDistance(x, z);
     const river = this.riverBankSample(x, z);
-    const route = this.nearestRouteDistance(x, z);
     const dryRoute = waterDistance < -0.2 ? 1 : 0;
 
-    // Terrain-level path warmth uses the same compiled centerline, width, and
-    // junction envelope as the visible ribbon. A second village-wide dirt
-    // wash made meadow triangles read as road.
-    const junction = routeJunctionInfluence(x, z) * dryRoute;
-    const profile = WORLD_ROUTE_PROFILES[route.route.kind];
-    const packedCore = (1 - smoothstep(
-      route.halfWidth * 0.16,
-      route.halfWidth + profile.shoulderWidthMeters * 0.4,
-      route.distance
-    )) * dryRoute;
-    const shoulderOuter = (1 - smoothstep(
-      route.halfWidth + profile.shoulderWidthMeters * 0.16,
-      route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters,
-      route.distance
-    )) * dryRoute;
-    const path = Math.max(packedCore, junction * 0.72);
-    const shoulder = Math.max(
-      0,
-      shoulderOuter - packedCore * 0.72,
-      junction * 0.22
-    ) * 0.52;
+    const footprint = this.roadFootprintSample(x, z);
+    const path = footprint.packed * dryRoute;
+    const shoulder = footprint.coverage * (1 - footprint.packed) * 0.52 * dryRoute;
     const farm = this.farmSoilInfluence(x, z);
     const wet = this.shorelineWetness(x, z);
     const estuary = this.estuaryInfluence(x, z);
@@ -4143,25 +4166,14 @@ export class WorldLayout {
   ): TerrainSurfaceSample {
     const marine = this.marineSampleAt(x, z);
     const drainage = sunreachDrainageSample(x, z);
-    const route = this.nearestRouteDistance(x, z);
-    const profile = WORLD_ROUTE_PROFILES[route.route.kind];
     // The material crosses the indexed shore over several vertices. A binary
     // sand/seabed assignment exposes a sawtooth color edge through clear water.
     const shoreLand = 1 - smoothstep(-2, 2, marine.signedShoreDistance);
     const dryRoute = 1 - smoothstep(-2, -0.2, marine.signedShoreDistance);
-    const packedCore = (1 - smoothstep(
-      route.halfWidth * 0.16,
-      route.halfWidth + profile.shoulderWidthMeters * 0.4,
-      route.distance
-    )) * dryRoute;
-    const shoulderOuter = (1 - smoothstep(
-      route.halfWidth + profile.shoulderWidthMeters * 0.16,
-      route.halfWidth + profile.shoulderWidthMeters + profile.terrainFeatherMeters,
-      route.distance
-    )) * dryRoute;
+    const footprint = this.roadFootprintSample(x, z);
     const cultivationScale = sunreachRoadEarthworkScale(x, z);
-    const path = packedCore * cultivationScale;
-    const shoulder = Math.max(0, shoulderOuter - packedCore * 0.72) * 0.52 * cultivationScale;
+    const path = footprint.packed * dryRoute * cultivationScale;
+    const shoulder = footprint.coverage * (1 - footprint.packed) * 0.52 * dryRoute * cultivationScale;
     const farm = this.farmSoilInfluence(x, z);
     const wet = this.shorelineWetness(x, z);
     const normalY = sampledNormalY ?? this.terrainNormalY(x, z);
@@ -4388,18 +4400,29 @@ export class WorldLayout {
   }
 
   /**
-   * The same road ribbon without the per-vertex surface field attributes.
-   * Those attributes are a renderer concern and cost a full terrain sample per
-   * vertex — several seconds — while collision and traversal only ever read
-   * positions and indices, which are identical in both forms.
+   * The resolved support mesh with positions and indices only. Rendering and
+   * traversal retain exactly these buffers; colours and road frames are
+   * presentation attributes and are omitted from physical clones.
    */
   public static buildPathCollisionGeometry(): THREE.BufferGeometry {
     pathCollisionGeometryCache ??= this.buildPathGeometryBase();
-    const geometry = pathCollisionGeometryCache.clone();
-    // The road frame and class feed only the render template.
-    geometry.deleteAttribute("roadFrame");
-    geometry.deleteAttribute("roadClass");
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", pathCollisionGeometryCache.getAttribute("position").clone());
+    geometry.setIndex(pathCollisionGeometryCache.index!.clone());
+    geometry.boundingBox = pathCollisionGeometryCache.boundingBox?.clone() ?? null;
+    geometry.boundingSphere = pathCollisionGeometryCache.boundingSphere?.clone() ?? null;
+    geometry.userData = structuredClone(pathCollisionGeometryCache.userData);
     return geometry;
+  }
+
+  /** Owned worker input; never transfer the canonical traversal/cache buffers. */
+  public static preparedPathGeometrySource(): THREE.BufferGeometry | null {
+    return pathCollisionGeometryCache?.clone() ?? null;
+  }
+
+  /** Presentation diagnostics only; wall times include cooperative scheduling. */
+  public static roadPreparationDiagnostics(): Readonly<typeof roadPreparation> {
+    return { ...roadPreparation };
   }
 
   public static async buildPathGeometryAsync(signal?: AbortSignal, onProgress?: () => void): Promise<THREE.BufferGeometry> {
@@ -4411,71 +4434,65 @@ export class WorldLayout {
     return runSync(this.pathGeometryTemplateSteps());
   }
 
-  private static *pathGeometryTemplateSteps(): Generator<void, THREE.BufferGeometry, void> {
-    // Surface fields are added to a copy so the field-free base stays reusable
-    // for collision and traversal.
-    pathCollisionGeometryCache ??= this.buildPathGeometryBase();
-    const geometry = pathCollisionGeometryCache.clone();
+  private static *pathGeometryTemplateSteps(preparedSource?: THREE.BufferGeometry): Generator<void, THREE.BufferGeometry, void> {
+    if (!preparedSource) pathCollisionGeometryCache ??= this.buildPathGeometryBase();
+    const geometry = (preparedSource ?? pathCollisionGeometryCache!).clone();
+    const started = performance.now();
     let completed = false;
     try {
-    const positions = geometry.getAttribute("position");
-    const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
-    const classes = geometry.getAttribute("roadClass");
-    // Render-only context the material reads beside the exact road frame:
-    // x = class code / 3 (cart road, lane, footpath, shared surface),
-    // y = loose shoulder, z = junction traffic, which wears the tracks out.
-    const roadContext = new Uint8Array(positions.count * 3);
-    // Evaluate the joined footprint after conformity has inserted terrain-grid
-    // vertices. The apron interior keeps the coverage authored on the strip;
-    // nearest-route distance would cut holes between the branches. Only this
-    // render clone changes; collision positions and indices stay exact.
-    for (let index = 0; index < positions.count; index++) {
-      if (index % 32 === 0) yield;
-      const x = positions.getX(index);
-      const z = positions.getZ(index);
-      const classCode = Math.round(classes.getX(index));
-      roadContext[index * 3] = Math.round(classCode * 85);
-      if (this.isBridgeDeck(x, z)) continue;
-      const route = this.nearestRouteDistance(x, z);
-      const section = sampleRoadCrossSection({
-        profile: WORLD_ROUTE_PROFILES[route.route.kind],
-        halfWidthMeters: route.halfWidth,
-        lateralDistanceMeters: route.distance
-      });
-      let coverage = 1 - smoothstep(0.08, 0.92, section.edgeGrassAmount);
-      let junctionTraffic = 0;
-      for (const junction of WORLD_ROUTE_JUNCTIONS) {
-        const dx = x - junction.center.x;
-        const dz = z - junction.center.z;
-        // Churned ground runs a few metres past the apron, so wheel tracks
-        // fade in beyond the junction arms rather than starting at their ends.
-        const reach = junction.radiusMeters + junction.blendLengthMeters + JUNCTION_TRACK_FADE_METERS;
-        if (dx * dx + dz * dz >= reach * reach) continue;
-        const distance = Math.sqrt(dx * dx + dz * dz);
-        junctionTraffic = Math.max(junctionTraffic, 1 - smoothstep(
-          junction.radiusMeters, reach,
-          distance
-        ));
-        const radius = Math.max(0.72, junction.radiusMeters * 0.74);
-        const apron = junction.radiusMeters + junction.blendLengthMeters * 1.08;
-        const authored = colors.getW(index);
-        // The paved wedge between branches is authored opaque. Nearest-route
-        // distance would open a grass hole through the middle of the fork.
-        if (distance <= radius || (distance <= JUNCTION_GORE_REACH_METERS && authored >= 0.85)) coverage = 1;
-        else if (distance <= Math.max(apron, JUNCTION_GORE_REACH_METERS)) coverage = Math.max(coverage, authored);
+      const positions = geometry.getAttribute("position");
+      const normals = geometry.getAttribute("normal");
+      const sourceColors = geometry.getAttribute("color");
+      const classes = geometry.getAttribute("roadClass");
+      const colors = new Uint8Array(positions.count * 4);
+      const roadContext = new Uint8Array(positions.count * 3);
+      const base = this.tokenColor("path_dust_01")
+        .lerp(this.tokenColor("soil_warm_01"), CANONICAL_RENDER_CONFIG.roadSurface.earthBrownness * 0.18);
+      const loose = this.tokenColor("soil_warm_01");
+      const sand = this.tokenColor("sand_warm_01");
+      const damp = this.tokenColor("soil_damp_01");
+      const mineral = this.tokenColor("stone_warm_01");
+      const localSamples = new Map<string, TerrainSurfaceSample>();
+      const color = new THREE.Color();
+      const byte = (value: number) => Math.round(clamp01(value) * 255);
+      for (let index = 0; index < positions.count; index++) {
+        if (index % 32 === 0) yield;
+        const x = positions.getX(index), z = positions.getZ(index);
+        const footprint = this.roadFootprintSample(x, z);
+        const classCode = Math.round(classes.getX(index));
+        roadContext[index * 3] = Math.round(classCode * 85);
+        roadContext[index * 3 + 1] = byte(footprint.shoulder);
+        roadContext[index * 3 + 2] = byte(footprint.junctionTraffic);
+        const gatewayDistance = Math.abs(x - BRIDGE_CENTER.x) - BRIDGE_HALF_SPAN;
+        const gateway = classCode === 3 && gatewayDistance >= -BRIDGE_WORLD_PROFILE.gatewayOverlapMeters - 0.01
+          && gatewayDistance <= BRIDGE_WORLD_PROFILE.gatewayDepthMeters + 0.01
+          && Math.abs(z - BRIDGE_CENTER.z) <= BRIDGE_WORLD_PROFILE.deckWidth * 0.5 + 0.01;
+        if (gateway) {
+          color.setRGB(sourceColors.getX(index), sourceColors.getY(index), sourceColors.getZ(index));
+        } else {
+          // Broad local colour is sampled once per small ground cell. The road
+          // shader needs neither a terrain field nor its per-vertex allocations.
+          const cellX = Math.floor(x / 2), cellZ = Math.floor(z / 2);
+          const key = `${cellX}:${cellZ}`;
+          let local = localSamples.get(key);
+          if (!local) {
+            local = this.terrainSurfaceSample(cellX * 2 + 1, cellZ * 2 + 1, Math.abs(normals.getY(index)));
+            localSamples.set(key, local);
+          }
+          const mix = CANONICAL_RENDER_CONFIG.roadSurface.localGroundColorMix;
+          color.copy(base).lerp(loose, footprint.shoulder * 0.22)
+            .lerp(sand, clamp01(local.weights.beach + local.weights.wetShoreline) * mix)
+            .lerp(damp, clamp01(local.weights.dampSoil) * mix * 0.45)
+            .lerp(mineral, clamp01(local.weights.cliff) * mix * 0.3);
+        }
+        colors.set([byte(color.r), byte(color.g), byte(color.b), byte(gateway ? 1 : footprint.coverage)], index * 4);
       }
-      colors.setW(index, coverage);
-      roadContext[index * 3 + 1] = Math.round(section.shoulderAmount * 255);
-      roadContext[index * 3 + 2] = Math.round(junctionTraffic * 255);
-    }
-    geometry.deleteAttribute("roadClass");
-    geometry.setAttribute("roadContext", new THREE.Uint8BufferAttribute(roadContext, 3, true));
-    yield* surfaceFieldAttributeSteps(
-      geometry,
-      (x, z, sampledNormalY) => this.terrainSurfaceSample(x, z, sampledNormalY)
-    );
-    completed = true;
-    return geometry;
+      geometry.deleteAttribute("roadClass");
+      geometry.setAttribute("color", new THREE.Uint8BufferAttribute(colors, 4, true));
+      geometry.setAttribute("roadContext", new THREE.Uint8BufferAttribute(roadContext, 3, true));
+      roadPreparation.renderPreparationWallMs = performance.now() - started;
+      completed = true;
+      return geometry;
     } finally { if (!completed) geometry.dispose(); }
   }
 
@@ -4484,10 +4501,13 @@ export class WorldLayout {
   }
 
   private static *pathGeometryBaseSteps(): Generator<void, THREE.BufferGeometry, void> {
+    sharedRoadFootprint();
+    const sourceStarted = performance.now();
     const source = buildOrganicRoadGeometry({
       routes: COMPILED_WORLD_ROUTES,
       junctions: WORLD_ROUTE_JUNCTIONS,
       profiles: WORLD_ROUTE_PROFILES,
+      footprint: sharedRoadFootprint(),
       bridge: {
         center: BRIDGE_CENTER,
         halfSpan: BRIDGE_HALF_SPAN,
@@ -4504,6 +4524,8 @@ export class WorldLayout {
       heightAt: (x, z) => this.terrainHeight(x, z),
       isBridgeDeck: (x, z) => this.isBridgeDeck(x, z)
     });
+    roadPreparation.sourceMs = performance.now() - sourceStarted;
+    const conformityStarted = performance.now();
     const patchGeometries: THREE.BufferGeometry[] = [];
     for (const patch of this.terrainPatches()) patchGeometries.push(yield* roadTerrainConformitySteps(source, {
       sizeMeters: patch.sizeMeters,
@@ -4540,6 +4562,7 @@ export class WorldLayout {
       for (const patchGeometry of patchGeometries) patchGeometry.dispose();
     }
     source.dispose();
+    roadPreparation.conformityWallMs = performance.now() - conformityStarted;
     return geometry;
   }
 
@@ -4558,9 +4581,9 @@ export class WorldLayout {
     return this.terrainGeometrySteps(patchId);
   }
 
-  /** The road overlay build as resumable steps; see `terrainGeometryWork`. */
-  public static pathGeometryWork(): Generator<void, THREE.BufferGeometry, void> {
-    return this.pathGeometryTemplateSteps();
+  /** A prepared support mesh only needs the render bake; other callers build normally. */
+  public static pathGeometryWork(preparedSource?: THREE.BufferGeometry): Generator<void, THREE.BufferGeometry, void> {
+    return this.pathGeometryTemplateSteps(preparedSource);
   }
 
   private static *terrainGeometrySteps(
@@ -4688,7 +4711,7 @@ export class WorldLayout {
       const greenMask = Math.round(
         clamp01(vegetationShare * (1 - smoothstep(0.08, 0.42, shoreShare)) + routeUnderlayWeight) * 255
       );
-      // The precise 17-strip route ribbon owns visible worked ground. Keep its
+      // The resolved road footprint owns visible worked ground. Keep its
       // coarse terrain-grid underlay in its local ground palette so vertices cannot
       // produce a second several-metre brown halo outside the ribbon edge.
       const grassShare = weights.grass + weights.meadow;

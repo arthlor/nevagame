@@ -45,9 +45,13 @@ describe("village trade quest and lore route", () => {
     mainQuestTrack(sim.state.quests).activeQuestId = "quest.act4_harbor_journey";
     mainQuestTrack(sim.state.quests).activeStepIndex = 0;
     mainQuestTrack(sim.state.quests).stepProgress = {};
+    const storyIntroduction = talk(sim, "npc.maeve");
+    expect(storyIntroduction.segments.some((segment) => segment.questId === "quest.act4_harbor_journey")).toBe(true);
+    // A spoken story step is not followed by an unrelated thread's ask.
+    // The next conversation can offer the optional packing introduction.
+    expect(storyIntroduction.segments.some((segment) => segment.questId === "quest.caravan_first_stamp")).toBe(false);
     const introduction = talk(sim, "npc.maeve");
     expect(introduction.segments.some((segment) => segment.kind === "intro" && segment.questId === "quest.caravan_first_stamp")).toBe(true);
-    expect(introduction.segments.some((segment) => segment.questId === "quest.act4_harbor_journey")).toBe(true);
 
     expect(InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [
       { itemId: "produce.wheat", quantity: 10 }

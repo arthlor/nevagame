@@ -2,6 +2,7 @@ import type * as THREE from "three";
 import {
   deserializeWorldGeometry,
   worldGeometryJobKey,
+  worldGeometryTransferBuffers,
   type WorldGeometryJob,
   type WorldGeometryWorkerRequest,
   type WorldGeometryWorkerResponse
@@ -60,6 +61,10 @@ export class WorldGeometryWorkers {
       this.keys[id] = key;
       this.queue.push({ id, job });
     });
+    if (signal?.aborted) {
+      this.dispose(signal.reason);
+      return;
+    }
     signal?.addEventListener("abort", () => this.dispose(signal.reason), { once: true });
     for (let index = 0; index < Math.min(Math.max(1, concurrency), jobs.length); index++) this.spawn();
   }
@@ -115,7 +120,9 @@ export class WorldGeometryWorkers {
       return;
     }
     this.busy.set(worker, request.id);
-    worker.postMessage(request);
+    const transfer = request.job.kind === "path" && request.job.source
+      ? worldGeometryTransferBuffers(request.job.source) : [];
+    worker.postMessage(request, transfer);
   }
 
   private receive(worker: Worker, message: WorldGeometryWorkerResponse): void {

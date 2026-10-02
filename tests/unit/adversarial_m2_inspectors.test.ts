@@ -385,7 +385,7 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
       expect(html).toContain("0%");
       expect(html).toContain("Wrecked");
       expect(html).toContain("boat-sea-warning");
-      expect(html).toContain("Hull lost — tow to Neva Harbor for repairs");
+      expect(html).toContain("Tow to Neva Harbor for repairs");
       // A wrecked hull is the dominant state; the night advisory yields to it.
       expect(html).not.toContain("Night waters");
 
@@ -449,12 +449,15 @@ describe("Adversarial M2 Inspector, HUD & Telemetry Stress Suite", () => {
       expect(renderToString(React.createElement(WeatherHazardBanner, { hazard: undefined }))).toBe("");
     });
 
-    it("falls back safely to storm advisory for arbitrary severe text", () => {
+    it("preserves an unknown warning without inventing a storm or measurements", () => {
       const resolved = resolveMaritimeHazard({ text: "Unusual Atmospheric Anomaly", tone: "danger" });
       expect(resolved).not.toBeNull();
-      expect(resolved?.hazardId).toBe("storm");
+      expect(resolved?.hazardId).toBe("weather");
       expect(resolved?.severity).toBe("danger");
-      expect(resolved?.title).toBe("Severe Coastal Storm");
+      expect(resolved?.title).toBe("Unusual Atmospheric Anomaly");
+      expect(resolved?.conditionLabel).toBe("");
+      expect(resolved?.navigationalAdvisory).toBe("");
+      expect(resolved?.speedPenaltyPercent).toBeUndefined();
     });
   });
 

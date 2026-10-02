@@ -9,7 +9,6 @@ import {
   IconCompass,
   IconFish,
   IconLedger,
-  IconSparkle,
   IconSprout
 } from "./HudIcons";
 
@@ -88,25 +87,21 @@ const ActionsGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
         <h3>{isTr ? "Yolunu bulmak" : "Finding your way"}</h3>
         <p className="guide-lead">
           {isTr
-            ? "Konuşmak, tarlayla ilgilenmek veya olta savurmak için aletlerinin üstündeki yönlendirmeleri izle. Emek yalnızca başarılı işlerde harcanır; dinlenerek, erzak atıştırarak veya amelelik yaparak yenilenir — bir iş tezgâhında E'ye bas ve tam hakkını almak için ibre altın şeride denk geldiğinde vur. Depar atmak ise kendi dayanıklılığını tüketir."
-            : "Follow the prompt above your tools to talk, tend crops, or cast. Work is spent on successful tasks and refilled by resting, eating provisions, or working a labor shift — press E at a chore station and strike as the needle crosses the gold band for the full share. Sprinting uses its own stamina."}
+            ? "Karakterinin yanındaki eylemi izle. Gereken alet otomatik kuşanılır."
+            : "Follow the action beside your character. The tool you need is equipped automatically."}
         </p>
       </div>
     </div>
     <ControlsReference className="guide-controls-reference" />
-    <div className="guide-callout-card">
-      <div className="guide-callout-icon"><IconSparkle size={18} aria-hidden="true" /></div>
-      <div className="guide-callout-text">
-        <strong>{isTr ? "Toprağı İnceleme" : "Surveying the Soil"}</strong>
-        <p>
-          {isTr ? (
-            <>Toprak nemini, bereketini ve mahsul durumunu doğrudan arazide görmek için herhangi bir tarla parselindeyken <span className="guide-inline-key">Alt</span> tuşuna basılı tut.</>
-          ) : (
-            <>Hold <span className="guide-inline-key">Alt</span> while standing on any farm plot to read soil moisture, fertility, and crop status directly in the world.</>
-          )}
-        </p>
-      </div>
-    </div>
+    <details className="guide-work-notes">
+      <summary>{isTr ? "Emek ve depar" : "Work & Sprint"}</summary>
+      <p>{isTr
+        ? "İşler Emek harcar. Uyumak, yemek ve günlük işler Emek kazandırır; deparın dayanıklılığı ayrıdır."
+        : "Tasks use Work. Sleep, meals, and daily chores restore it; Sprint has separate stamina."}</p>
+      <p>{isTr
+        ? "Günlük işte ibre altın şeride geldiğinde vur."
+        : "At a chore station, strike when the needle reaches the gold band."}</p>
+    </details>
   </div>
 );
 
@@ -120,8 +115,8 @@ const FieldGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
         <h3>{isTr ? "Tohumdan hasada" : "From seed to harvest"}</h3>
         <p className="guide-lead">
           {isTr
-            ? "Tohum seçiminden hasada dek gösterilen özen ve kıyı mikrokliması, mahsulün olgunlaşmasını ve kalitesini belirler."
-            : "From seed selection to harvest, care and local micro-climate govern crop maturity and quality along the coast."}
+            ? "Mahsulleri sula, olgunlaşınca hasat et."
+            : "Keep crops watered and harvest when mature."}
         </p>
       </div>
     </div>
@@ -132,11 +127,11 @@ const FieldGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Tohum Seçimi" : "Select Seed Stock"}</h4>
           <p>
             {isTr
-              ? "İşlenmiş toprağın yanında dururken tohumları alet kemerine kuşan ya da Heybenden seç."
-              : "Equip seeds in your tool belt or select from your Satchel while standing near tilled soil."}
+              ? "Çiftlikte Ek eylemini seç, ardından ekmek istediğin tohumu seç."
+              : "Choose Plant at a farm, then select a seed."}
           </p>
           <span className="guide-step-tip">
-            {isTr ? "Tohum türünü mevcut toprak nemine göre seç" : "Suit seed varieties to current soil moisture"}
+            {isTr ? "Tohum türünü mevsime göre seç" : "Suit seed varieties to the season"}
           </span>
         </div>
       </div>
@@ -146,8 +141,8 @@ const FieldGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Dikim Yeri Seçimi" : "Choose a planting spot"}</h4>
           <p>
             {isTr
-              ? "Çiftliğindeki boş toprağa nişan al. Köşe işaretleri tek bir mahsulün kaplayacağı alanı gösterir."
-              : "Aim at clear ground inside your farm. The corner markers show the space for one crop."}
+              ? "Boş toprağa nişan al. Köşe işaretleri mahsulün kaplayacağı alanı gösterir."
+              : "Aim at clear ground. The corner markers show the crop footprint."}
           </p>
           <span className="guide-step-tip">
             {isTr ? "Mahsuller arasında ve yapıların uzağında yeterli mesafe bırak" : "Leave room between crops and away from buildings"}
@@ -160,11 +155,11 @@ const FieldGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Bakım ve Can Suyu" : "Tend & Nourish"}</h4>
           <p>
             {isTr
-              ? "Mahsulün nemini ve aşamasını kontrol et. Kıyı yağmurları parselleri doğal yoldan sular; kurak günlerde Sulama İbriğini kullan."
-              : "Inspect crops for moisture and stage. Coastal rain quenches plots naturally; use your Watering Can during dry spells."}
+              ? "Mahsulü incele; kuruysa sula. Yağmur da toprağı sular."
+              : "Inspect each crop; water it when dry. Rain waters the soil too."}
           </p>
           <span className="guide-step-tip">
-            {isTr ? "Sulamak Emek harcar, o yüzden yağmurları iyi değerlendir" : "Watering takes Work, so make use of the rain"}
+            {isTr ? "Elle sulama Emek harcamaz; pompa tüm tarlayı bir seferde sular." : "Hand watering is free; the pump waters the field in one go."}
           </span>
         </div>
       </div>
@@ -174,26 +169,13 @@ const FieldGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Hasat Zamanı" : "Bring in the harvest"}</h4>
           <p>
             {isTr
-              ? "Tam olgunluğa eren kusursuz mahsulleri topla. Ürünleri köy pazarındaki tezgâha taşı veya tezgâhlarda işleyerek kıymetli mallara dönüştür."
-              : "Gather prime crops when fully mature. Carry produce to the village market stall or process into artisanal goods."}
+              ? "Olgun mahsulü topla. Köyde sat veya bir tezgâhta işle."
+              : "Harvest mature crops. Sell them in the village or process them at a station."}
           </p>
           <span className="guide-step-tip">
             {isTr ? "Gösterilen yüksek özen yıldızlı ve kaliteli mahsul verir" : "Higher care yields star-quality crops"}
           </span>
         </div>
-      </div>
-    </div>
-    <div className="guide-callout-card">
-      <div className="guide-callout-icon"><IconSprout size={18} aria-hidden="true" /></div>
-      <div className="guide-callout-text">
-        <strong>{isTr ? "Tarlayı Okumak" : "Read the field"}</strong>
-        <p>
-          {isTr ? (
-            <>Yağmur, toprak nemi ve hava durumu mahsulün büyümesini adım adım şekillendirir. Mahsulleri yakından incele ve topraktaki besinleri takip etmek için <span className="guide-inline-key">Alt</span> tuşuna basılı tut.</>
-          ) : (
-            <>Rain, soil moisture, and weather shape crop maturity over time. Inspect crops closely and hold <span className="guide-inline-key">Alt</span> to monitor soil nutrients.</>
-          )}
-        </p>
       </div>
     </div>
   </div>
@@ -221,9 +203,9 @@ const WatersGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Suları Okuma ve Savurma" : "Read Waters & Cast"}</h4>
           <p>
             {isTr ? (
-              <>Balık çıkan sulara yaklaş veya teknenle açıl. <span className="guide-inline-key">E</span> tuşuna basılı tutarak olta yayını ayarla ve hareketli balık halkalarına doğru savur.</>
+              <>Balık tutabileceğin suya yaklaş. <span className="guide-inline-key">E</span> tuşuna basılı tut, savurmak için bırak.</>
             ) : (
-              <>Approach fishable waters or take your boat offshore. Hold <span className="guide-inline-key">E</span> to charge your cast arc and release into visible feeding ripples.</>
+              <>Approach fishable water. Hold <span className="guide-inline-key">E</span> to charge; release to cast.</>
             )}
           </p>
           <span className="guide-step-tip">
@@ -234,16 +216,16 @@ const WatersGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
       <div className="guide-step-card">
         <div className="guide-step-num"><span>2</span></div>
         <div className="guide-step-content">
-          <h4>{isTr ? "Yemleme ve İğneleme" : "Set the Hook"}</h4>
+          <h4>{isTr ? "Balığı kancala" : "Hook the bite"}</h4>
           <p>
             {isTr ? (
-              <>Sportif balık sürüsünü yemle, ardından iğneyi oturtmadan önce <span className="guide-inline-key">R</span> ile bir Örme Sahte Yem tak. Yem yalnızca başarılı kancalamada harcanır.</>
+              <><span className="guide-inline-key">Space</span> ile kancala. Basılı tutarak yakalama çubuğunu yükselt, bırakıp indir; balığı çubukta tut.</>
             ) : (
-              <>Chum a sport-fishing school, then arm a Woven Lure with <span className="guide-inline-key">R</span> before you set the hook. The lure is spent only when the paid hook succeeds.</>
+              <>Hook with <span className="guide-inline-key">Space</span>. Hold to raise the catch bar; release to lower it. Keep the fish inside.</>
             )}
           </p>
           <span className="guide-step-tip">
-            {isTr ? "Sportif balıkçılık her zaman yanında en az bir sahte yem gerektirir" : "Sport fishing always requires one lure within reach"}
+            {isTr ? "Kıyı avlarında Örme Sahte Yem isteğe bağlıdır" : "A Woven Lure is optional for basic catches"}
           </span>
         </div>
       </div>
@@ -253,13 +235,13 @@ const WatersGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Balıkla Mücadele" : "Follow the fish"}</h4>
           <p>
             {isTr ? (
-              <>Vurgulanan tepkileri takip et: <span className="guide-inline-key">W</span> ile sar, <span className="guide-inline-key">S</span> ile boşluk ver, <span className="guide-inline-key">A / D</span> ile yön ver. Gerilim sözcüklerini ve ibreyi gözden kaçırma.</>
+              <>Büyük avda vurgulanan tepkiyi izle: <span className="guide-inline-key">W</span> ile sar, <span className="guide-inline-key">S</span> ile boşluk ver, <span className="guide-inline-key">A / D</span> ile yön ver. Gerilim sözcüklerini ve ibreyi gözden kaçırma.</>
             ) : (
-              <>Follow the highlighted response: reel with <span className="guide-inline-key">W</span>, give slack with <span className="guide-inline-key">S</span>, and steer with <span className="guide-inline-key">A / D</span>. Watch the tension words and needle.</>
+              <>For sport fish, follow the highlighted response: reel with <span className="guide-inline-key">W</span>, give slack with <span className="guide-inline-key">S</span>, and steer with <span className="guide-inline-key">A / D</span>. Watch the tension words and needle.</>
             )}
           </p>
           <span className="guide-step-tip">
-            {isTr ? "Misinayı koparmadan balığı yormaya bak" : "Tire the fish without snapping your line"}
+            {isTr ? "Büyük avdan önce sürüyü yemle ve R ile sahte yemi tak" : "Before sport fishing, chum the school and arm a lure with R"}
           </span>
         </div>
       </div>
@@ -269,8 +251,8 @@ const WatersGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Avı Çekme ve İstifleme" : "Land & Pack the Catch"}</h4>
           <p>
             {isTr
-              ? "Sportif balıklar ve iri avlar ticari yüke dönüşür. Balığı teknenin açık ambarında tut, ardından yanaşmış tekneden al. Neva Köyü, Çamgözetleme, Sazlıksığınak veya Yüksekbayır tezgâhlarına taşı."
-              : "Sport fish and physical basic catches become trade packs. Keep a catch in an open boat slot, then collect it from the docked boat. Carry it to a counter in Neva Village, Pinewatch, Reedhaven or Highridge."}
+              ? "Büyük avı ambarına veya eline al. Teknen yanaşınca yükü topla, köyün yük tezgâhına taşı."
+              : "Keep a physical catch in a free hold slot or your hands. Collect it from the docked boat and carry it to a village trade counter."}
           </p>
           <span className="guide-step-tip">
             {isTr ? "Tazelik zamanla azalır — değerini korumak için buz kullan" : "Freshness degrades over time — use ice to preserve value"}
@@ -284,8 +266,8 @@ const WatersGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
         <strong>{isTr ? "Yoldaki Tazelik" : "Freshness on the Run"}</strong>
         <p>
           {isTr
-            ? "Tazelik durumuna dikkat et ve tekne ambarında buz bulundur. Liman Balık Pazarı malzeme ve olta takımı satar; köy tezgâhları ise taşıdığın yükleri satın alır. Uzun seferler daha iyi fiyat getirebilir ancak balık yolda yaşlanır."
-            : "Keep an eye on freshness and use ice in the boat hold. The Harbor Fish Market sells tackle and supplies; village counters buy your carried trade packs. Longer trips can find better prices, but the catch keeps ageing."}
+            ? "Buz, ambardaki balığı taze tutar. Limandan malzeme al; elindeki balık yükünü köyde sat."
+            : "Ice preserves fish in the hold. Buy supplies at the harbor; sell carried fish packs in the village."}
         </p>
       </div>
     </div>
@@ -302,8 +284,8 @@ const TradeGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
         <h3>{isTr ? "Malları Pazara Çıkarmak" : "Taking goods to market"}</h3>
         <p className="guide-lead">
           {isTr
-            ? "Mahsulünü sat, balık yüklerini iç bölgelere taşı ve kasabanın teslimat siparişlerini tamamla."
-            : "Sell your harvest, carry fish trade packs inland, and fill the town's delivery orders."}
+            ? "Mahsulünü sat, yük taşı veya teslimat siparişlerini tamamla."
+            : "Sell produce, carry trade packs, or fill delivery orders."}
         </p>
       </div>
     </div>
@@ -314,11 +296,11 @@ const TradeGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Köy Pazarı Takası" : "Inland Exchange"}</h4>
           <p>
             {isTr
-              ? "Taze tohum almak; hasat edilen mahsulü, tahılları ve hazırlanan erzakları satmak için köy tezgâhına uğra."
-              : "Visit the village stall to buy fresh seed stock and sell harvested produce, grains, and crafted provisions."}
+              ? "Köy tezgâhından tohum al; mahsul ve erzaklarını sat."
+              : "Buy seeds at the village stall; sell produce and provisions."}
           </p>
           <span className="guide-step-tip">
-            {isTr ? "Temel mahsuller köyde istikrarlı fiyatını korur" : "Staple crops maintain steady village prices"}
+            {isTr ? "Fiyat ve talebi tezgahtan kontrol et" : "Check the stall for price and demand"}
           </span>
         </div>
       </div>
@@ -328,11 +310,11 @@ const TradeGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Sandaldan Köye Taşıma" : "Boat to Village"}</h4>
           <p>
             {isTr
-              ? "Demirli teknenden yükü teslim al. Bir tanesini eşeğe yükle veya iki küçük/orta yükü arabaya koy. Neva Köyü, Çamgözetleme, Sazlıksığınak veya Yüksekbayır'da yükü indirip Ticaret Yükleri tezgâhına taşı."
-              : "Collect a pack from your docked boat. Carry one on the donkey, or load two small or medium packs into the carriage. At Neva Village, Pinewatch, Reedhaven or Highridge, unload and carry each pack to the Trade packs counter."}
+              ? "Yanaşmış teknenden yükü al. Eşekle taşı veya arabaya yükle. Köyde indir, yük tezgâhına elinde taşı."
+              : "Collect a pack from your docked boat. Carry it on the donkey or load the carriage. Unload in the village and carry it to the trade counter."}
           </p>
           <span className="guide-step-tip">
-            {isTr ? "Liman Balık Pazarı ambarındaki bir yükü doğrudan satın almaz" : "The Harbor Fish Market never sells a pack straight from the hold"}
+            {isTr ? "Satacağın yükü elinde taşımalısın" : "Trade packs must be in your hands to sell"}
           </span>
         </div>
       </div>
@@ -342,8 +324,8 @@ const TradeGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Pazar Talep Değişimleri" : "Market Demand Shifts"}</h4>
           <p>
             {isTr
-              ? "Pazar fiyatlarının yanındaki oklar talebin nasıl değiştiğini gösterir. Çamgözetleme tahıl ve balık ister, Sazlıksığınak yem ve buz takası yapar, Yüksekbayır ise geçidin yukarısına taze teslimatlara iyi öder. Sefer panosu varış noktasını ve güzergâhlarını gösterir."
-              : "The arrows beside a market quote show how demand is changing. Pinewatch needs grain and fish, Reedhaven trades bait and ice, and Highridge pays for fresh deliveries up the pass. The expedition board names the destination and its routes."}
+              ? "Fiyatın yanındaki ok, talebin yönünü gösterir. Sefer panosundan hedef ve güzergâh seç."
+              : "The arrow beside a quote shows changing demand. Use the expedition board to choose a destination and route."}
           </p>
           <span className="guide-step-tip">
             {isTr ? "Sefere çıkmadan önce pazar fiyatlarını kontrol et" : "Check quotes before packing an expedition"}
@@ -356,8 +338,8 @@ const TradeGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
           <h4>{isTr ? "Lonca Teslimat Siparişleri" : "Guild Delivery Orders"}</h4>
           <p>
             {isTr
-              ? "Altın ve lonca itibarı kazanmak için son teslim tarihinden önce ulaştırılması gereken tüccar sözleşmelerini kabul et."
-              : "Accept merchant contracts requiring specific consignments delivered before the deadline for gold and guild standing."}
+              ? "Siparişteki ürünleri süresi dolmadan belirtilen tezgâha teslim et."
+              : "Deliver the listed goods to the named counter before the deadline."}
           </p>
           <span className="guide-step-tip">
             {isTr ? "Önce yol gereksinimlerini ve taşıma kapasiteni incele" : "Inspect transit requirements and hold capacity first"}
@@ -371,8 +353,8 @@ const TradeGuide: React.FC<{ isTr: boolean }> = ({ isTr }) => (
         <strong>{isTr ? "Ambar ve Lojistik Hazırlığı" : "Hold & Logistics Preparation"}</strong>
         <p>
           {isTr
-            ? "Ambar & Erzak defteri geminin kapasitesini, yakıtını ve depolama alanını takip eder. Kargo kârını en üst düzeye çıkarmak için ticaret rotalarını dikkatle planla."
-            : "The Hold & Stores ledger tracks vessel capacity, fuel, and storage. Plan your trade routes carefully to maximize cargo profits."}
+            ? "Ambar defterinden yük yerlerini, erzağını ve depolarını kontrol et."
+            : "Check Hold & Stores for cargo space, supplies, and storage."}
         </p>
       </div>
     </div>

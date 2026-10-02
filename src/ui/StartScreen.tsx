@@ -332,7 +332,7 @@ export const StartScreen: FC<StartScreenProps> = ({
       aria-labelledby="start-screen-title"
       aria-describedby="start-screen-description"
       aria-busy={isLoading || isCheckingSave}
-      {...((mobileOrientationBlocked || isCheckingSave) ? { inert: "" } : {})}
+      {...((mobileOrientationBlocked || isCheckingSave) ? { inert: true } : {})}
       aria-hidden={mobileOrientationBlocked || isCheckingSave || undefined}
     >
       <div className="start-screen__backdrop" aria-hidden="true" />
@@ -348,7 +348,7 @@ export const StartScreen: FC<StartScreenProps> = ({
       )}
 
       {showUtilities && (
-        <div className="start-screen__utilities" {...(dialogOpen ? { inert: "" } : {})} aria-hidden={dialogOpen || undefined}>
+        <div className="start-screen__utilities" {...(dialogOpen ? { inert: true } : {})} aria-hidden={dialogOpen || undefined}>
           {showPwaInstallUtility && (
             <button
               type="button"
@@ -386,7 +386,7 @@ export const StartScreen: FC<StartScreenProps> = ({
         </div>
       )}
 
-      <div className="start-screen__content" {...(dialogOpen ? { inert: "" } : {})} aria-hidden={dialogOpen || undefined}>
+      <div className="start-screen__content" {...(dialogOpen ? { inert: true } : {})} aria-hidden={dialogOpen || undefined}>
         <div className="start-screen__brand-lockup">
           <span className="start-screen__brand-rule" aria-hidden="true" />
           <h1 id="start-screen-title">{t("start.brandName")}</h1>

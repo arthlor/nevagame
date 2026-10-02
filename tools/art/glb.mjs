@@ -7,9 +7,8 @@
  *
  * - declared accessor `min`/`max` are recomputed from the data (Tripo rounds them, which Khronos
  *   rejects as ACCESSOR_MIN_MISMATCH);
- * - provider material extensions Neva's palette owns (`KHR_materials_specular`,
- *   `KHR_materials_volume`) are dropped, as is `KHR_materials_emissive_strength` on a material
- *   whose emissive factor is zero, where it has no effect;
+ * - native material factors and extensions are retained; `KHR_materials_emissive_strength` on
+ *   a material whose emissive factor is zero is removed to avoid a Khronos no-effect warning;
  * - embedded textures larger than the asset's declared `textureMaxSize` are resampled to fit and
  *   re-encoded as WebP (`EXT_texture_webp`); textures within the cap keep their bytes.
  *
@@ -22,8 +21,6 @@ export const GLB_MAGIC = 0x46546c67;
 export const CHUNK_JSON = 0x4e4f534a;
 export const CHUNK_BIN = 0x004e4942;
 
-/** Material extensions a provider may declare but Neva's palette owns. */
-export const PROVIDER_MATERIAL_EXTENSIONS = Object.freeze(["KHR_materials_specular", "KHR_materials_volume"]);
 /** Texture sizes an authored GLB may declare; the budget file owns which ones a class may use. */
 export const TEXTURE_SIZES = Object.freeze([256, 512, 1024, 2048]);
 /** WebP settings for resampled textures: near-transparent quality with exact alpha. */
@@ -218,18 +215,12 @@ function declareExtension(json, name, required) {
   if (required) json.extensionsRequired = [...new Set([...(json.extensionsRequired ?? []), name])];
 }
 
-/** Drops provider material extensions and ineffective emissive strengths. */
+/** Removes ineffective emissive strengths; native PBR extensions remain source-owned. */
 export function normalizeMaterialExtensions(json) {
   const removed = [];
   for (const material of json.materials ?? []) {
     const extensions = material.extensions;
     if (!extensions) continue;
-    for (const name of PROVIDER_MATERIAL_EXTENSIONS) {
-      if (Object.hasOwn(extensions, name)) {
-        removed.push({ material: material.name ?? null, extension: name });
-        delete extensions[name];
-      }
-    }
     const emissive = material.emissiveFactor ?? [0, 0, 0];
     if (Object.hasOwn(extensions, "KHR_materials_emissive_strength") && emissive.every((value) => value === 0)) {
       removed.push({ material: material.name ?? null, extension: "KHR_materials_emissive_strength" });
@@ -237,7 +228,7 @@ export function normalizeMaterialExtensions(json) {
     }
     if (!Object.keys(extensions).length) delete material.extensions;
   }
-  dropUnusedExtensionDeclarations(json, [...PROVIDER_MATERIAL_EXTENSIONS, "KHR_materials_emissive_strength"]);
+  dropUnusedExtensionDeclarations(json, ["KHR_materials_emissive_strength"]);
   return removed;
 }
 

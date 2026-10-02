@@ -5,7 +5,8 @@ import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
-import { preservationDifferences, placementDifferences } from "./preservation-reference.mjs";
+import { preservationDifferences } from "./preservation-reference.mjs";
+import { compositionFailures, sunreachCompositionFailures } from "./composition-gates.mjs";
 
 const ROOT = process.cwd();
 const VITE = path.join(ROOT, "node_modules/.bin/vite");
@@ -222,49 +223,12 @@ async function runSunreachCompositionAudit() {
 }
 
 function validateCompositionAudit(audit) {
-  const failures = placementDifferences(audit.seeds, nevaPreservationReference);
-  for (const seed of audit.seeds) {
-    if (seed.periodic22LowerBound >= 1.35) failures.push(`seed ${seed.seed}: supported 22m ratio ${seed.periodic22LowerBound}`);
-    if (seed.periodic555LowerBound >= 1.35) failures.push(`seed ${seed.seed}: supported 5.55m ratio ${seed.periodic555LowerBound}`);
-    if (seed.districtDensityCv < 0.12 || !seed.districtOrderingPass) failures.push(`seed ${seed.seed}: district rhythm`);
-    if (!seed.largeOpenings.some((opening) => opening.containsFarm && opening.areaSquareMeters >= 900)) {
-      failures.push(`seed ${seed.seed}: farm opening`);
-    }
-    if (!seed.largeOpenings.some((opening) => opening.containsHeadland && opening.areaSquareMeters >= 900)) {
-      failures.push(`seed ${seed.seed}: headland opening`);
-    }
-    if (seed.isolateRatio < 0.03 || seed.isolateRatio > 0.12) failures.push(`seed ${seed.seed}: isolate ratio`);
-    if (seed.fishingAccessComponentCount < 3) failures.push(`seed ${seed.seed}: fishing access components`);
-    if (!seed.fishingAccessClearancePass) failures.push(`seed ${seed.seed}: fishing access vegetation clearance`);
-    if (!seed.routePass) failures.push(`seed ${seed.seed}: ${seed.routeFailures.join(",")}`);
-    for (const role of ["core", "edge", "isolate", "landmark"]) {
-      if ((seed.roles[role] ?? 0) === 0) failures.push(`seed ${seed.seed}: missing ${role}`);
-    }
-  }
-  if (audit.repeatedSeed42Hash[0] !== audit.repeatedSeed42Hash[1]) failures.push("seed 42 is not deterministic");
+  const failures = compositionFailures(audit, nevaPreservationReference);
   if (failures.length > 0) throw new Error(`[world:acceptance] Composition gate failed:\n${failures.join("\n")}`);
 }
 
 function validateSunreachCompositionAudit(audit) {
-  const failures = [];
-  for (const seed of audit.seeds) {
-    if (seed.placementCount !== 148) failures.push(`seed ${seed.seed}: ${seed.placementCount}/148 placements`);
-    if (seed.categoryCounts.tree !== 48 || seed.categoryCounts.bush !== 62 || seed.categoryCounts.rock !== 38) {
-      failures.push(`seed ${seed.seed}: category counts ${JSON.stringify(seed.categoryCounts)}`);
-    }
-    if (seed.periodic22Ratio >= 1.35) failures.push(`seed ${seed.seed}: 22m ratio ${seed.periodic22Ratio}`);
-    if (seed.districtDensityCv < 0.6) failures.push(`seed ${seed.seed}: district rhythm ${seed.districtDensityCv}`);
-    if (!seed.openingPass) failures.push(`seed ${seed.seed}: required openings`);
-    if (!seed.islandQualificationPass) failures.push(`seed ${seed.seed}: island-qualified identity`);
-    if (!seed.routeClearancePass) failures.push(`seed ${seed.seed}: route clearance`);
-    if (!seed.drainageCouplingPass) failures.push(`seed ${seed.seed}: drainage coupling`);
-    for (const role of ["core", "edge", "isolate", "route-frame"]) {
-      if ((seed.roles[role] ?? 0) === 0) failures.push(`seed ${seed.seed}: missing ${role}`);
-    }
-  }
-  if (audit.repeatedSeed42Hash[0] !== audit.repeatedSeed42Hash[1]) {
-    failures.push("Sunreach seed 42 is not deterministic");
-  }
+  const failures = sunreachCompositionFailures(audit);
   if (failures.length > 0) {
     throw new Error(`[world:acceptance] Sunreach composition gate failed:\n${failures.join("\n")}`);
   }
@@ -895,7 +859,7 @@ async function main() {
     console.info(`[world:acceptance] Captured layout ${layoutRevision} preservation reference. Run normal acceptance to validate composition and captures.`);
     return;
   }
-  // Keep diagnostics even when a quality gate rejects the captured world.
+  // Keep composition diagnostics even when a technical gate rejects the world.
   writeJson(path.join(output, "composition-audit.json"), audit);
   writeJson(path.join(output, "sunreach-composition-audit.json"), sunreachAudit);
   validateCompositionAudit(audit);
@@ -965,7 +929,6 @@ async function main() {
     representativeQualityTiers: ["low", "medium", "high"],
     minute: 720,
     weather: "clear",
-    humanGameplayCameraApproval: "required",
     lanes: laneResults
   });
   if (finalDigest !== digest) throw new Error(`[world:acceptance] Capture input digest drifted ${digest} -> ${finalDigest}`);

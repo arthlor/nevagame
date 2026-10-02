@@ -32,7 +32,7 @@ npm run art:validate -- --all                         # revalidate every publish
 npm run art:sync -- --all                             # revalidate and refresh manifest metadata
 npm run art:brief -- --asset prop_water_well_a        # print a referenceAuthoring brief
 npm run art:list -- --family character                # id, family, producer, file
-npm run art:generate:strict -- --all                  # release: reject below-target density
+npm run art:generate:strict -- --all                  # compatibility alias: ordinary mechanical gates
 npm run art:test                                      # surface-contract checker tests
 ```
 
@@ -49,27 +49,35 @@ npm run art:test                                      # surface-contract checker
    producer version, toolchain files, and for an authored GLB its source bytes)
    and revalidates cache hits from `generated/.cache/art/`.
 3. Builds cache misses into a fresh `generated/.staging/run-*`: authored
-   generators through their semantic art contract, authored GLBs through
+   generators through their semantic runtime contract, authored GLBs through
    normalization and admission (`LLM/ASSET_PRODUCTION.md` §3.2).
 4. Validates each raw GLB with the Khronos validator and the catalog contract.
 5. Packages: glTF-Transform dedupe/join/prune/weld/quantize + Meshopt
    (`optimize.mjs`) for generator output and static authored GLBs; lossless
    Meshopt with decoded parity for skinned or animated authored GLBs; source
    bytes for authored GLBs that already carry Meshopt.
-6. Revalidates the packaged GLB: nodes, attributes, pivots, bounds, min/max
-   budgets, materials, textures, collision, LOD, animations, the decoded
+6. Revalidates the packaged GLB: nodes, attributes, pivots, bounds, hard maximum budgets (floors/targets and lower LOD ratios are advisory), materials, textures, collision, LOD, animations, the decoded
    surface contract (`surface_contract.mjs`) and Khronos conformance.
 7. Promotes the selected GLBs and manifests to `generated/glb/` and
    `public/assets/models/` in one rollback-capable transaction, merging into
    the tracked public manifest, and prints the Art Yard link.
 8. Retains only the three newest staging runs.
 
-Procedural output (authored and frozen) carries `POSITION`, `NORMAL`,
-semantic `COLOR_0` and a palette material on every rendered primitive. An
-authored GLB may instead keep source textures (`TEXCOORD_0`, WebP within
-`textureMaxSize`). Runtime static 3D assets remain optimized GLB/glTF 2.0.
+The shared procedural kit currently uses `POSITION`, `NORMAL`, linear `COLOR_0`
+and palette materials; these central helper defaults may evolve. Authored GLBs
+and frozen imported sources may keep native PBR materials without palette-token
+names or `COLOR_0`. Source textures require valid `TEXCOORD_0` and remain within
+declared caps (`textureMaxSize` for authored GLBs). Runtime static 3D assets remain optimized GLB/glTF 2.0.
 Ground supporting maps are a renderer presentation path
 (`ExternalSurfaceTextures` + `VisualRenderConfig`), not catalog GLBs.
+Their raster inputs remain in `public/assets/textures/terrain/`. To stage the
+KTX2 derivatives, run `npx vite-node tools/art/compressSupportingMaps.ts
+--encoder /path/to/ktx --output output/terrain-ktx2` with Khronos KTX Software.
+The command reads the runtime owner's source URLs, keeps the original dimensions,
+records input/output hashes and encoding comparisons, validates each file, and
+writes only to the supplied candidate directory. It does not publish GLBs.
+Inspect the affected game surfaces and retain the report before copying admitted
+KTX2 maps to their owner-declared runtime paths.
 
 ## Files
 
@@ -94,11 +102,11 @@ For an explicitly requested Tripo (or other licensed provider) model:
 1. Commit the download unchanged under `art/imported/<provider>/sources/`.
 2. Add one catalog entry with `generator: "authored_glb"`,
    `parameters: { "sourceGlb": "art/imported/<provider>/sources/<file>.glb", "textureMaxSize": 1024 }`,
-   the measured dimensions and pivot, required nodes, palette (tokens for any
-   untextured parts), budget and, for a provider-derived model,
+   the measured dimensions and pivot, required nodes, an optional palette
+   treatment, budget and, for a provider-derived model,
    `sourceProvenance`.
 3. `npm run art:generate -- --asset <id>`; the producer repairs provider
-   bounds and extensions and caps textures. Fix a dimension or pivot failure
+   bounds and caps textures while retaining native material data. Fix a dimension or pivot failure
    in the catalog entry or the source, never by editing the published GLB.
 4. Integrate the catalog ID through `AssetLoader`/`WorldScene` and review it in
    the Art Yard and the game.
@@ -120,8 +128,4 @@ previous full manifest. Cache reuse never bypasses artifact validation.
 
 Report selected asset IDs, runtime integration point, mechanical generation
 status, focused inspection evidence or access gap, TypeScript status when
-applicable, save impact, `Docs updated:`, and:
-
-```text
-Awaiting human game review
-```
+applicable, save impact, `Docs updated:`, and the scoped completion result. Human visual review is required only for release or when explicitly requested; agent inspection does not claim a human decision.

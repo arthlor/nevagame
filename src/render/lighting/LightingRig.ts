@@ -1,5 +1,6 @@
 import { seasonAmbientTint, updateSeasonalTint } from "../materials/SeasonalTint";
 import * as THREE from "three";
+import { SunLight } from "three/addons/lights/SunLight.js";
 import type { GameState } from "../../simulation/core/types";
 import {
   DAWN_START_HOUR,
@@ -572,7 +573,11 @@ export function deriveLightingFrame(
 }
 
 export class LightingRig {
-  public readonly sun: THREE.DirectionalLight;
+  private readonly directionalSun: THREE.DirectionalLight;
+  private readonly cascadedSun: SunLight;
+  public get sun(): THREE.DirectionalLight | SunLight {
+    return CANONICAL_RENDER_CONFIG.shadows.cascades.enabled[this.qualityTier] ? this.cascadedSun : this.directionalSun;
+  }
   public readonly moon: THREE.DirectionalLight;
   public readonly skyFill: THREE.HemisphereLight;
   public readonly lightning: THREE.DirectionalLight;
@@ -599,18 +604,22 @@ export class LightingRig {
     this.renderer.shadowMap.autoUpdate = false;
     this.qualityTier = CANONICAL_RENDER_CONFIG.qualityTier;
 
-    this.sun = new THREE.DirectionalLight(
+    this.directionalSun = new THREE.DirectionalLight(
       CANONICAL_RENDER_CONFIG.sun.colorHex,
       CANONICAL_RENDER_CONFIG.sun.intensity
     );
+    this.cascadedSun = new SunLight(CANONICAL_RENDER_CONFIG.sun.colorHex, 0);
+    this.directionalSun.name = "neva_directional_sun";
+    this.cascadedSun.name = "neva_cascaded_sun";
     this.moon = new THREE.DirectionalLight(
       CANONICAL_RENDER_CONFIG.moon.colorHex,
       0
     );
-    this.configureShadowLight(this.sun);
+    this.configureShadowLight(this.directionalSun);
+    this.configureShadowLight(this.cascadedSun);
     this.configureShadowLight(this.moon);
     this.moon.castShadow = false;
-    this.scene.add(this.sun, this.sun.target, this.moon, this.moon.target);
+    this.scene.add(this.directionalSun, this.directionalSun.target, this.cascadedSun, this.moon, this.moon.target);
 
     this.skyFill = new THREE.HemisphereLight(
       CANONICAL_RENDER_CONFIG.skyFill.skyColorHex,
@@ -636,7 +645,7 @@ export class LightingRig {
     this.setQuality(this.qualityTier);
   }
 
-  private configureShadowLight(light: THREE.DirectionalLight): void {
+  private configureShadowLight(light: THREE.DirectionalLight | SunLight): void {
     light.castShadow = true;
     light.shadow.bias = CANONICAL_RENDER_CONFIG.shadows.bias;
     light.shadow.intensity = CANONICAL_RENDER_CONFIG.shadows.intensity;
@@ -651,18 +660,31 @@ export class LightingRig {
     const quality = CANONICAL_RENDER_CONFIG.quality[tier];
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = CANONICAL_RENDER_CONFIG.shadows.type[tier];
+    this.shadowAtlas.invalidate();
     this.renderer.shadowMap.needsUpdate = true;
-    for (const light of [this.sun, this.moon]) {
-      light.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
+    for (const light of [this.directionalSun, this.cascadedSun, this.moon]) {
+      // Two atlas tiles share the original total texel budget.
+      const mapSize = light instanceof SunLight
+        ? Math.max(32, Math.floor(quality.shadowMapSize / Math.SQRT2 / 32) * 32)
+        : quality.shadowMapSize;
+      light.shadow.mapSize.set(mapSize, mapSize);
       const camera = light.shadow.camera;
       camera.left = -quality.shadowCameraSize;
       camera.right = quality.shadowCameraSize;
       camera.top = quality.shadowCameraSize;
       camera.bottom = -quality.shadowCameraSize;
+      camera.far = light instanceof SunLight
+        ? quality.shadowCameraSize * CANONICAL_RENDER_CONFIG.shadows.cascades.rangeScale
+        : CANONICAL_RENDER_CONFIG.shadows.far;
       camera.updateProjectionMatrix();
       light.shadow.map?.dispose();
       light.shadow.map = null;
     }
+    const cascaded = this.sun === this.cascadedSun;
+    this.directionalSun.visible = !cascaded;
+    this.cascadedSun.visible = cascaded;
+    this.directionalSun.castShadow = !cascaded;
+    this.cascadedSun.castShadow = cascaded;
   }
 
   public pixelRatioCap(): number {
@@ -697,11 +719,46 @@ export class LightingRig {
     return this.shadowAtlas.diagnostics();
   }
 
+  /** A room probe owns its capture lights/maps; do not route them through the world atlas. */
+  public withNativeShadowCapture(run: () => void): void {
+    const shadow = this.renderer.shadowMap;
+    const render = shadow.render;
+    const needsUpdate = shadow.needsUpdate;
+    try {
+      shadow.render = this.originalShadowRender;
+      run();
+    } finally {
+      shadow.render = render;
+      shadow.needsUpdate = needsUpdate;
+    }
+  }
+
+  /** compileAsync gathers programs synchronously; restore live flags before awaiting readiness. */
+  public async prepareShadowVariants(compile: () => Promise<void>): Promise<void> {
+    const sun = this.sun;
+    for (const [day, night] of [[true, false], [false, true]]) {
+      const previousSun = sun.castShadow, previousMoon = this.moon.castShadow;
+      let pending: Promise<void>;
+      try {
+        sun.castShadow = day;
+        this.moon.castShadow = night;
+        pending = compile();
+      } finally {
+        sun.castShadow = previousSun;
+        this.moon.castShadow = previousMoon;
+      }
+      await pending;
+    }
+  }
+
   public dispose(): void {
     if (this.renderer.shadowMap.render === this.shadowRenderWrapper) {
       this.renderer.shadowMap.render = this.originalShadowRender;
     }
     this.shadowAtlas.dispose();
+    this.directionalSun.dispose();
+    this.cascadedSun.dispose();
+    this.moon.dispose();
   }
 
   public contactShadowsEnabled(): boolean {
@@ -760,10 +817,14 @@ export class LightingRig {
       this.snappedFocus.copy(focus);
     }
 
-    this.updateCelestialLight(this.sun, frame.sunDirection, frame.sunColor, frame.sunIntensity);
+    this.updateCelestialLight(this.directionalSun, frame.sunDirection, frame.sunColor,
+      this.sun === this.directionalSun ? frame.sunIntensity : 0);
+    this.updateCelestialLight(this.cascadedSun, frame.sunDirection, frame.sunColor,
+      this.sun === this.cascadedSun ? frame.sunIntensity : 0);
     this.updateCelestialLight(this.moon, frame.moonDirection, frame.moonColor, frame.moonIntensity);
     const moonOwnsShadows = frame.moonIntensity > frame.sunIntensity;
     this.sun.castShadow = !moonOwnsShadows && frame.sunIntensity > 0.01;
+    (this.sun === this.cascadedSun ? this.directionalSun : this.cascadedSun).castShadow = false;
     this.moon.castShadow = moonOwnsShadows && frame.moonIntensity > 0.01;
     // Moonlight is a weaker, softer key than the sun, so the shadow it casts is
     // lighter and broader. These are per-light scalars, so switching between the
@@ -799,14 +860,17 @@ export class LightingRig {
   }
 
   private updateCelestialLight(
-    light: THREE.DirectionalLight,
+    light: THREE.DirectionalLight | SunLight,
     direction: THREE.Vector3,
     color: THREE.Color,
     intensity: number
   ): void {
-    light.position.copy(this.snappedFocus).addScaledVector(direction, 120);
-    light.target.position.copy(this.snappedFocus);
-    light.target.updateMatrixWorld();
+    if (light instanceof SunLight) light.position.copy(direction);
+    else {
+      light.position.copy(this.snappedFocus).addScaledVector(direction, 120);
+      light.target.position.copy(this.snappedFocus);
+      light.target.updateMatrixWorld();
+    }
     light.updateMatrixWorld();
     light.color.copy(color);
     light.intensity = intensity;

@@ -8,6 +8,7 @@ uniform mat3 uCameraRotation;
 uniform vec3 uEye;
 uniform vec3 uZenith;
 uniform vec3 uHorizon;
+uniform vec3 uGroundRadiance;
 uniform vec3 uSunDirection;
 uniform vec3 uSunColor;
 uniform vec3 uMoonDirection;
@@ -113,7 +114,16 @@ vec3 lightningBolt(vec3 ray) {
 }
 
 void main() {
-  #ifdef SKY_EQUIRECT
+  #ifdef SKY_FULL_EQUIRECT
+  // Three's full-sphere convention differs from the upper strip used by water.
+  float longitude = (vUv.x - 0.5) * 6.28318530718;
+  float latitude = (vUv.y - 0.5) * 3.14159265359;
+  vec3 ray = vec3(cos(latitude) * cos(longitude), sin(latitude), cos(latitude) * sin(longitude));
+  if (ray.y < 0.0) {
+    gl_FragColor = vec4(mix(uGroundRadiance, uHorizon, pow(1.0 + ray.y, 8.0)), 1.0);
+    return;
+  }
+  #elif defined(SKY_EQUIRECT)
   // Reflection probe: the upper hemisphere as an equirectangular strip
   // (u: azimuth, v: elevation 0..π/2), sampled by the water's reflections.
   float probeAzimuth = vUv.x * 6.28318530718 - 3.14159265359;

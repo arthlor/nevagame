@@ -47,6 +47,7 @@ import type {
   CommodityQuote,
   CompassMarkerDto,
   CropInspectionDto,
+  CropPlacementResult,
   EmergencyTowQuoteDto,
   FarmForecastDto,
   HoldStoresDto,
@@ -66,6 +67,7 @@ import type {
   StormHelmHudDto,
   TrophyCatchDto,
   WorldHudDto,
+  WorkCostQuote,
   WorldMapDto,
   AlmanacDto,
   PeoplePageDto} from "../simulation/core/contracts";
@@ -79,6 +81,8 @@ import type { LayoutEditHudSelection } from "../layout-editor/layoutEdit";
 import type { GraphicsQualityPreference } from "../render/config/GraphicsQualitySettings";
 import type { QualityTier } from "../render/config/VisualRenderConfig";
 import { localWorldAcceptanceRequested } from "../app/localWorldAcceptance";
+import { useTranslation } from "../i18n/useTranslation";
+import { contextualInteractionLabel } from "./hud/SmartActionPrompt";
 
 const READY_STARTUP_STATE: StartupState = {
   status: "ready",
@@ -93,6 +97,8 @@ const READY_STARTUP_STATE: StartupState = {
   saveStatus: "empty",
   saveSummary: null
 };
+
+const EMPTY_NOTICES: readonly Notice[] = [];
 
 export interface GameUIProps {
   playerPosition: { x: number; z: number };
@@ -152,6 +158,8 @@ export interface GameUIProps {
   onInspectSeedBelt: () => SeedBeltDto;
   selectedPlantCropId?: string | null;
   selectedPlantCropName?: string | null;
+  placementPreview?: CropPlacementResult | null;
+  plantingWork?: WorkCostQuote | null;
   onCancelPlacement: () => void;
   isFarmGisHeld?: boolean;
   contextualCropChoices?: readonly ContextualCropChoice[];
@@ -289,6 +297,7 @@ export interface GameUIProps {
 }
 
 export const GameUI: React.FC<GameUIProps> = (props) => {
+  const { locale } = useTranslation();
   const {
   playerPosition,
   sessionRevision,
@@ -323,6 +332,8 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
   onInspectSeedBelt,
   selectedPlantCropId = null,
   selectedPlantCropName = null,
+  placementPreview = null,
+  plantingWork = null,
   onCancelPlacement,
   isFarmGisHeld = false,
   contextualCropChoices = [],
@@ -404,6 +415,7 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
   const [customWaypoint, setCustomWaypoint] = useState<{ x: number; z: number } | null>(null);
   const [followingRecordId, setFollowingRecordId] = useState<string | null>(null);
   const hasEndgameRecordGuidance = Boolean(worldHud.recordTracker?.length);
+  const handleOpenPause = React.useCallback(() => onSetActiveModal("pause"), [onSetActiveModal]);
   const canFollowRecords = !hasEndgameRecordGuidance;
   const recordSessionRevision = React.useRef(sessionRevision);
   useEffect(() => {
@@ -521,7 +533,7 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
           blocked={!!activeModal}
           promptText={promptText}
           toastMessage={toastMessage}
-          notices={activeModal ? [] : notices}
+          notices={activeModal ? EMPTY_NOTICES : notices}
           activeQuest={activeQuest}
           activeQuests={activeQuests}
           onFocusTrack={onFocusTrack}
@@ -529,7 +541,7 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
           onChooseCropAction={onChooseCropAction}
           canStartPlanting={canStartPlanting}
           onStartPlanting={onStartPlanting}
-          onOpenMenu={() => onSetActiveModal("pause")}
+          onOpenMenu={handleOpenPause}
           onOpenModal={onSetActiveModal}
           onInspectFarmForecast={onInspectFarmForecast}
           isPlacementActive={mode === "farm-placement"}
@@ -546,6 +558,7 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
         touchDevice={mobileTouchDevice}
         landscape={mobileLandscape}
         canFishHere={canFishHere}
+        interactionLabel={contextualInteractionLabel(promptText, locale)}
         orientationBlocked={mobileOrientationBlocked}
         bootReady={bootReady}
         mode={mode}
@@ -566,7 +579,7 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
         onSetFishingDrag={onSetFishingDrag}
       />
 
-      {mode !== "sport-fishing" && mode !== "farm-placement" && mode !== "basic-fishing" && !activeModal && !showTrophyModal && inspectedCrop && (
+      {mode !== "sport-fishing" && mode !== "farm-placement" && mode !== "basic-fishing" && !activeModal && !showTrophyModal && !farmingAction && inspectedCrop && (
         <CropInspection
           inspection={inspectedCrop}
           projectedPosition={inspectedCropPosition}
@@ -585,6 +598,8 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
           seedBelt={onInspectSeedBelt()}
           selectedCropId={selectedPlantCropId}
           selectedCropName={selectedPlantCropName}
+          placementPreview={placementPreview}
+          plantingWork={plantingWork}
           onSelectCrop={onSelectPlantCrop}
           onCancel={onCancelPlacement}
           currentSeason={worldHud.clock.seasonLabel}
@@ -605,6 +620,7 @@ export const GameUI: React.FC<GameUIProps> = (props) => {
       {basicFishingState && !activeModal && (
         <BasicFishingMinigameWidget
           fishingState={basicFishingState}
+          perfectWorkRecovery={worldHud.basicFishingPerfectWorkRecovery}
           onHoldChange={onSetBasicFishingHold}
           onHookBite={onHookBasicFishingBite}
           onDismissModal={onDismissBasicFishingModal}

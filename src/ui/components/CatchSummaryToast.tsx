@@ -37,6 +37,7 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
 }) => {
   const { locale, getLocalizedFish } = useTranslation();
   const [visible, setVisible] = useState(true);
+  const [held, setHeld] = useState(false);
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
 
@@ -53,12 +54,16 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
   useEffect(() => {
     setVisible(true);
     playUiSound("chime");
+  }, [resolvedId]);
+
+  useEffect(() => {
+    if (held) return;
     const timer = window.setTimeout(() => {
       setVisible(false);
       onDismissRef.current();
     }, 5200);
     return () => window.clearTimeout(timer);
-  }, [resolvedId]);
+  }, [resolvedId, held]);
 
   if (!visible) return null;
 
@@ -99,6 +104,12 @@ export const CatchSummaryToast: React.FC<CatchSummaryToastProps> = ({
       role="status"
       aria-live="polite"
       data-testid="catch-summary"
+      onPointerEnter={() => setHeld(true)}
+      onPointerLeave={() => setHeld(false)}
+      onFocus={() => setHeld(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false);
+      }}
     >
       {onClick ? (
         <button

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { Simulation } from "../../src/simulation/Simulation";
-import { SPORT_FISHING_WORK_COST_BY_CLASS } from "../../src/simulation/domains/FishingDomain";
+import { SPORT_FISHING_WORK_COST_BY_CLASS, SPORT_FISHING_LEGACY_MAX_CHARGE_BY_CLASS } from "../../src/simulation/domains/FishingDomain";
 import { hookLakeTroutForTest } from "./sportFishingTestUtils";
 
 describe("saved sport-fishing Work charge", () => {
@@ -29,7 +29,7 @@ describe("saved sport-fishing Work charge", () => {
     expect(validateSaveEnvelope(envelope)).toBe(true);
   });
 
-  it("rejects charges that could over-refund the hooked fish's class", () => {
+  it("retains historical paid charges and rejects charges above that fish's historical ceiling", () => {
     const simulation = new Simulation();
     hookLakeTroutForTest(simulation);
     const encounter = simulation.state.sportFishing!;
@@ -41,6 +41,8 @@ describe("saved sport-fishing Work charge", () => {
     expect(encounter.fish.speciesId).toBe("fish.trout");
     encounter.workCharged = SPORT_FISHING_WORK_COST_BY_CLASS.small;
     expect(validateSaveEnvelope(envelope)).toBe(true);
+    encounter.workCharged = SPORT_FISHING_LEGACY_MAX_CHARGE_BY_CLASS.small;
+    expect(validateSaveEnvelope(envelope)).toBe(true);
 
     for (const invalid of [
       0,
@@ -48,7 +50,7 @@ describe("saved sport-fishing Work charge", () => {
       1.5,
       Number.NaN,
       Number.POSITIVE_INFINITY,
-      SPORT_FISHING_WORK_COST_BY_CLASS.small + 1,
+      SPORT_FISHING_LEGACY_MAX_CHARGE_BY_CLASS.small + 1,
       SPORT_FISHING_WORK_COST_BY_CLASS.gargantuan,
       "18",
       null

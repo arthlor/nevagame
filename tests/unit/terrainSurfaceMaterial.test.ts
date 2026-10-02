@@ -129,7 +129,7 @@ describe("TerrainSurfaceMaterial", () => {
     expect(finalRain).toBeGreaterThan(mapBlend);
     expect(shader.fragmentShader).toContain("terrainMeadowShare = nevaSurfaceMeadowWeight()");
     expect(shader.fragmentShader).toContain("vegetationMask * (1.0 - nevaSurfaceFarmInfluence()) * terrainMeadowColorMix");
-    expect(shader.fragmentShader).toContain("inverseTransformDirection(baseNormal, viewMatrix)");
+    expect(shader.fragmentShader).toContain("transformNormalByInverseViewMatrix(baseNormal, viewMatrix)");
     expect(shader.fragmentShader).toContain("texture2D(terrainSparseGrassRoughnessTexture, terrainSparseGrassUv)");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCell");
     expect(shader.fragmentShader).toContain("nevaGroundPolygonCellSignal");

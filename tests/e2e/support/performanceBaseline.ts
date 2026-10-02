@@ -54,6 +54,15 @@ export function readPose(page: Page): Promise<PoseSample> {
   return page.evaluate(() => window.__NEVA_DEBUG!.pose());
 }
 
+/** The existing label reads canonical state; render scene identity names a benchmark seed. */
+export async function readSimulationSeed(page: Page): Promise<number> {
+  const label = await page.getByTestId("diagnostics").getByText(/^Seed \d+$/).textContent();
+  const match = /^Seed (\d+)$/.exec(label?.trim() ?? "");
+  const seed = match ? Number(match[1]) : Number.NaN;
+  if (!Number.isSafeInteger(seed)) throw new Error(`Invalid simulation seed label: ${label}`);
+  return seed;
+}
+
 async function syncHeldKeys(page: Page, held: Set<string>, desiredKeys: readonly string[]): Promise<void> {
   const desired = new Set(desiredKeys);
   for (const key of [...held]) {
@@ -414,6 +423,11 @@ export interface BaselineRunRecord {
   query: string;
   identity: Record<string, unknown>;
   startup: StartupEvidence & { stalls: ObservedStalls };
+  cachedStartup?: StartupEvidence & {
+    stalls: ObservedStalls;
+    cacheCondition: string;
+    startPose: PoseSample;
+  };
   passes: PassRecord[];
   heap: { afterFirstUseBytes: number; afterWarmBytes: number };
   runtimeErrors: string[];
@@ -504,6 +518,7 @@ export function writeBaselineSummary(runDirectory: string): { jsonPath: string; 
       };
     };
     const stageNames = new Set(runs.flatMap((run) => Object.keys(startupStages(run.startup.marks))));
+    const cached = runs.flatMap((run) => run.cachedStartup ? [run.cachedStartup] : []);
     return {
       scenario,
       covers: runs[0].covers,
@@ -516,6 +531,12 @@ export function writeBaselineSummary(runDirectory: string): { jsonPath: string; 
         decodedBeforeControlBytes: spread(runs.map((run) => run.startup.beforeControl.total.decodedBytes)),
         longTaskMaxMs: spread(runs.map((run) => run.startup.stalls.longTasks.maxMs))
       },
+      cachedStartup: cached.length > 0 ? {
+        cacheCondition: cached[0].cacheCondition,
+        timeToControlMs: spread(cached.map((entry) => entry.timeToControlMs ?? Number.NaN).filter(Number.isFinite)),
+        transferBeforeControlBytes: spread(cached.map((entry) => entry.beforeControl.total.transferBytes)),
+        longTaskMaxMs: spread(cached.map((entry) => entry.stalls.longTasks.maxMs))
+      } : null,
       firstUse: passSummary("first-use"),
       warm: passSummary("warm"),
       heap: {
@@ -614,6 +635,18 @@ export function writeBaselineSummary(runDirectory: string): { jsonPath: string; 
       max: scenario.startup.timeToControlMs.max / 1000 })} | ${warm ? format(warm.frameP50Ms) : "–"} | ${warm ? format(warm.frameP95Ms) : "–"} | `
       + `${warm ? format(warm.frameP99Ms) : "–"} | ${warm ? format(warm.stallsPerMinute) : "–"} | ${warm ? format(warm.cpuFrameMeanMs) : "–"} | `
       + `${warm && warm.gpuFrameP50Ms.runs > 0 ? format(warm.gpuFrameP50Ms) : "–"} | ${warm ? format(warm.drawsP50, 0) : "–"} | ${format(scenario.heap.afterWarmMiB, 0)} |`);
+  }
+  const cachedScenarios = scenarios.filter((scenario) => scenario.cachedStartup !== null);
+  if (cachedScenarios.length > 0) {
+    lines.push("", "## Cached startup", "",
+      "Same disposable browser/context after the measured passes. Its IndexedDB is reset to preserve the starting world; HTTP/shader caches remain warm.", "",
+      "| Scenario | Samples | Control (ms) | Transfer before control (bytes) | Worst long task (ms) |",
+      "|---|---|---|---|---|");
+    for (const scenario of cachedScenarios) {
+      const cached = scenario.cachedStartup!;
+      lines.push(`| ${scenario.scenario} | ${cached.timeToControlMs.runs} | ${format(cached.timeToControlMs, 0)} | `
+        + `${format(cached.transferBeforeControlBytes, 0)} | ${format(cached.longTaskMaxMs, 0)} |`);
+    }
   }
   lines.push("", "## Ranked recurring CPU cost (warm pass, leaf phases, mean ms per frame)", "",
     "| # | Scenario | Phase | Mean ms | p95 ms |", "|---|---|---|---|---|");

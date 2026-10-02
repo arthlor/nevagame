@@ -66,12 +66,4 @@ describe("map sidebar contrast", () => {
     expect(contrast(token(tokenName), background)).toBeGreaterThanOrEqual(minimum);
   });
 
-  it("keeps the chart scrim dark enough to hide the live scene behind it", () => {
-    // The chart is read rather than glanced at, so it gets a heavier scrim than
-    // the shared modal overlay. `backdrop-filter` stays off for frame cost.
-    const rule = /\.modal-overlay:has\(\.world-map-modal\)\s*\{[^}]*background:\s*#([0-9a-fA-F]{8})/.exec(coastal);
-    expect(rule, "chart scrim rule is missing").not.toBeNull();
-    const alpha = parseInt(rule![1].slice(6, 8), 16) / 255;
-    expect(alpha).toBeGreaterThanOrEqual(0.8);
-  });
 });

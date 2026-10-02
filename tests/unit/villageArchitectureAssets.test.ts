@@ -10,8 +10,9 @@ import {
 } from "../../tools/authored/generators/buildings/createStoneBridgeModel";
 import type { CatalogAssetSpec } from "../../tools/authored/kit";
 
+// Committed GLB architecture goes through the producer coverage in authoredGlb.test.ts.
 const ids = ["house_farmhouse_a", "building_lighthouse_a", "building_windmill_a", "bridge_stone_a", "prop_tool_shed_a",
-  "building_coastal_store_a", "building_coastal_shelter_a", "house_cottage_b", "building_ice_house_a"];
+  "building_coastal_store_a", "building_coastal_shelter_a", "building_ice_house_a"];
 const models = ids.map(id => {
   const spec = catalog.assets.find(a => a.id === id)! as CatalogAssetSpec;
   const { root } = buildAuthoredModel(spec);
@@ -102,8 +103,8 @@ describe("authored village architecture replacement contracts", () => {
     root.updateMatrixWorld(true);
   });
 
-  it("keeps both house flues under the existing smoke sockets at every distance", () => {
-    for (const [id, x, y, z] of [["house_farmhouse_a", 3.35, 8.9, -0.35], ["house_cottage_b", 1.53, 7.78, 1.22]] as const) {
+  it("keeps the generated farmhouse flue under its smoke socket at every distance", () => {
+    for (const [id, x, y, z] of [["house_farmhouse_a", 3.35, 8.9, -0.35]] as const) {
       for (const level of get(id).levels) {
         const hit = ray(new THREE.Vector3(x, y + 0.3, z), new THREE.Vector3(0, -1, 0), 0.5, level)[0];
         expect(hit, `${level.name}: flue`).toBeDefined();
@@ -112,7 +113,7 @@ describe("authored village architecture replacement contracts", () => {
     }
   });
 
-  it("packages all nine as bounded palette surfaces with useful LOD reductions", () => {
+  it("packages the generated architecture as bounded palette surfaces with useful LOD reductions", () => {
     for (const { spec, root, levels } of models) {
       expect(spec.generator).not.toBe("imported_blend");
       for (const name of spec.requiredNodes) expect(root.getObjectByName(name), name).toBeDefined();

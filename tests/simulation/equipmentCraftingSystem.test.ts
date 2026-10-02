@@ -76,10 +76,10 @@ describe("character equipment", () => {
 
   it("enforces the rounded 25% actions-per-Work cap against the neutral integer cost", () => {
     const sim = new Simulation();
-    own(sim, "equipment.copper_rose_watering_can");
+    own(sim, "equipment.balanced_sickle");
     expect(sim.execute({
       type: "equipment.equip",
-      equipmentId: "equipment.copper_rose_watering_can"
+      equipmentId: "equipment.balanced_sickle"
     }).success).toBe(true);
 
     const cases = [
@@ -89,7 +89,7 @@ describe("character equipment", () => {
       { base: 5, expected: 4, limit: "none" }
     ] as const;
     for (const sample of cases) {
-      const quote = sim.quoteWorkCost(sample.base, "farming", "farming.water");
+      const quote = sim.quoteWorkCost(sample.base, "farming", "farming.harvest");
       expect(quote.cost, `base ${sample.base}`).toBe(sample.expected);
       expect((quote.neutralCost ?? quote.cost) / quote.cost).toBeLessThanOrEqual(1.25);
       expect(quote.roundingLimited).toBe(sample.limit === "rounding");
@@ -97,7 +97,7 @@ describe("character equipment", () => {
     }
 
     sim.state.player.proficiencies.farming = 3_000;
-    const proficient = sim.quoteWorkCost(6, "farming", "farming.water");
+    const proficient = sim.quoteWorkCost(6, "farming", "farming.harvest");
     expect(proficient.neutralCost).toBe(5);
     expect(proficient.cost).toBe(4);
     expect(proficient.neutralCost! / proficient.cost).toBe(1.25);
@@ -105,7 +105,7 @@ describe("character equipment", () => {
     for (const rank of PROFICIENCY_RANKS) {
       sim.state.player.proficiencies.farming = rank.xpRequired;
       for (let baseCost = 1; baseCost <= 200; baseCost += 1) {
-        const quote = sim.quoteWorkCost(baseCost, "farming", "farming.water");
+        const quote = sim.quoteWorkCost(baseCost, "farming", "farming.harvest");
         expect(Number.isSafeInteger(quote.cost), `${rank.rankName} base ${baseCost} integer`).toBe(true);
         expect(quote.cost, `${rank.rankName} base ${baseCost} floor`)
           .toBeGreaterThanOrEqual(Math.ceil((quote.neutralCost! * 4) / 5));
@@ -115,7 +115,7 @@ describe("character equipment", () => {
     }
   });
 
-  it("keeps Field Hat useful without competing with watering or harvest tool savings", () => {
+  it("keeps Field Hat useful alongside the harvest tool while watering stays free", () => {
     const sim = new Simulation();
     own(sim, "equipment.field_hat", "equipment.copper_rose_watering_can", "equipment.balanced_sickle");
     expect(sim.execute({ type: "equipment.equip", equipmentId: "equipment.field_hat" }).success).toBe(true);
@@ -127,7 +127,7 @@ describe("character equipment", () => {
 
     expect(sim.quoteWorkCost(20, "farming", "farming.plant").equipmentMultiplier).toBe(0.85);
     expect(sim.quoteWorkCost(20, "farming", "farming.fertilize").equipmentMultiplier).toBe(0.85);
-    expect(sim.quoteWorkCost(20, "farming", "farming.water").equipmentMultiplier).toBe(0.8);
+    expect(sim.quoteWorkCost(0, "farming", "farming.water")).toMatchObject({ cost: 0, equipmentMultiplier: 1, equipmentApplied: false });
     expect(sim.quoteWorkCost(20, "farming", "farming.harvest").equipmentMultiplier).toBe(0.8);
 
     const farmId = "farm.starter_garden" as const;
@@ -139,7 +139,7 @@ describe("character equipment", () => {
       { itemId: "seed.wheat", quantity: 1 }
     ]);
     expect(sim.plantCrop(farmId, "crop.wheat", plantPosition.x, plantPosition.z).success).toBe(true);
-    expect(workBeforePlanting - sim.state.player.workCapacity.current).toBe(10);
+    expect(workBeforePlanting - sim.state.player.workCapacity.current).toBe(4);
 
     const inventory = sim.state.inventories[sim.state.player.inventoryId];
     const farm = sim.state.farms[farmId];
@@ -150,7 +150,31 @@ describe("character equipment", () => {
     )).toBe(true);
     const workBeforeFertilizing = sim.state.player.workCapacity.current;
     expect(sim.applyFertilizer(farmId).success).toBe(true);
-    expect(workBeforeFertilizing - sim.state.player.workCapacity.current).toBe(7);
+    expect(workBeforeFertilizing - sim.state.player.workCapacity.current).toBe(4);
+  });
+
+  it("keeps Copper Rose as a cosmetic can with free genuine watering and no obsolete Work bonus", () => {
+    const sim = new Simulation();
+    const cropId = matureStarterWheat(sim);
+    own(sim, "equipment.copper_rose_watering_can");
+    expect(sim.execute({ type: "equipment.equip", equipmentId: "equipment.copper_rose_watering_can" }).success).toBe(true);
+    sim.state.crops[cropId].moisture = 20;
+    sim.state.player.workCapacity.current = 0;
+    const xpBefore = sim.state.player.proficiencies.farming;
+    const definition = ContentRegistry.equipment.get("equipment.copper_rose_watering_can")!;
+    expect(definition.effects).toEqual([]);
+    expect(definition.description).not.toMatch(/Work|reduce/);
+    expect(sim.quoteWorkCost(0, "farming", "farming.water")).toMatchObject({
+      cost: 0,
+      equipmentMultiplier: 1,
+      equipmentApplied: false
+    });
+    expect(sim.waterCrop(cropId).success).toBe(true);
+    expect(sim.state.crops[cropId].moisture).toBe(100);
+    expect(sim.state.player.workCapacity.current).toBe(0);
+    expect(sim.state.player.proficiencies.farming).toBe(xpBefore + 5);
+    expect(sim.waterCrop(cropId)).toMatchObject({ success: false, reasonCode: "already-wet" });
+    expect(sim.state.player.proficiencies.farming).toBe(xpBefore + 5);
   });
 
   it("wires every specialist effect to its action and snapshots sea gear for the whole encounter", () => {
@@ -283,17 +307,41 @@ describe("character equipment", () => {
     expect(sim.state.player.equipment.equipped).toEqual(beforeInvalid);
   });
 
-  it("rejects authoritative changes while hands, movement mode, or the boat are unsafe", () => {
+  it("rejects gear changes while mounted", () => {
     const sim = new Simulation();
     own(sim, "equipment.field_hat");
     sim.state.player.activeMountId = "mount.player_donkey";
     expect(sim.execute({ type: "equipment.equip", equipmentId: "equipment.field_hat" }).reason).toContain("Dismount");
+  });
 
-    sim.state.player.activeMountId = null;
-    sim.state.player.activeBoatId = "boat.player_rowboat";
-    sim.state.boats["boat.player_rowboat"].isDocked = false;
-    sim.state.boats["boat.player_rowboat"].dockedMarketId = null;
-    expect(sim.execute({ type: "equipment.equip", equipmentId: "equipment.field_hat" }).reason).toContain("Moor");
+  it("allows gear changes aboard a moving rowboat, skiff, or trading ship", () => {
+    const sim = new Simulation();
+    own(sim, "equipment.field_hat");
+    const rowboat = sim.state.boats["boat.player_rowboat"];
+    const vessels = [
+      { id: "boat.player_rowboat", boatTypeId: "boat.rowboat" },
+      { id: "boat.player_skiff", boatTypeId: "boat.skiff" },
+      { id: "boat.player_trading_ship", boatTypeId: "boat.trading_ship" }
+    ] as const;
+    for (const vessel of vessels) {
+      sim.state.boats[vessel.id] = {
+        ...structuredClone(rowboat),
+        id: vessel.id,
+        boatTypeId: vessel.boatTypeId,
+        isDocked: false,
+        dockedMarketId: null,
+        speed: 4
+      };
+      sim.state.player.activeBoatId = vessel.id;
+      sim.state.player.equipment.equipped.head = "equipment.weathered_straw_hat";
+      expect(sim.execute({ type: "equipment.equip", equipmentId: "equipment.field_hat" }), vessel.id).toMatchObject({
+        success: true
+      });
+      expect(sim.state.player.equipment.equipped.head).toBe("equipment.field_hat");
+      expect(sim.inspectCharacterEquipment().canEquip).toBe(true);
+      expect(sim.inspectCharacterEquipment().equipBlocker).toBeUndefined();
+    }
+    expect(sim.execute({ type: "equipment.equip-rod", rodId: "rod.willow" })).toMatchObject({ success: true });
   });
 
   it("rejects a direct equipment command while a simulation action timeline is active", () => {
@@ -515,8 +563,8 @@ describe("station crafting lifecycle", () => {
         "recipe.oilskin_coat", "recipe.long_spout_can", "recipe.balanced_sickle"
       ]
     };
-    expect(PROCESSING_WORK_BY_TIER).toEqual({ light: 15, prepared: 25, standard: 35, masterwork: 70 });
-    expect(PROCESSING_XP_BY_TIER).toEqual(PROCESSING_WORK_BY_TIER);
+    expect(PROCESSING_WORK_BY_TIER).toEqual({ light: 5, prepared: 7, standard: 10, masterwork: 20 });
+    expect(PROCESSING_XP_BY_TIER).toEqual({ light: 15, prepared: 25, standard: 35, masterwork: 70 });
     const coveredIds = Object.values(assigned).flat();
     expect(new Set(coveredIds).size).toBe(coveredIds.length);
     // The 30 village trade-pack recipes carry their own trade tiers (`tradePackEconomy.test.ts`).
@@ -817,7 +865,7 @@ describe("station crafting lifecycle", () => {
       recipeName: "Weave Linen Roll",
       outputLabel: "Linen Roll",
       result: { kind: "items", stacks: [{ itemId: "item.linen_roll", quantity: 1 }] },
-      baseWork: 35,
+      baseWork: 10,
       xpReward: 35,
       status: "active"
     });

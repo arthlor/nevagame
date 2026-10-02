@@ -8,14 +8,17 @@
  * half hour before a day boundary carries into the next day instead of
  * printing a twenty-fifth hour.
  */
-export function formatCompactDuration(minutes: number): string {
+export function formatCompactDuration(minutes: number, locale = "en"): string {
+  const minuteUnit = locale === "tr" ? " dk" : "m";
+  const hourUnit = locale === "tr" ? " sa" : "h";
+  const dayUnit = locale === "tr" ? " gün" : "d";
   if (!Number.isFinite(minutes) || minutes <= 0) return "—";
-  if (minutes < 60) return `${Math.round(minutes)}m`;
+  if (minutes < 60) return `${Math.round(minutes)}${minuteUnit}`;
   const totalHours = Math.round(minutes / 60);
   if (totalHours >= 24) {
     const days = Math.floor(totalHours / 24);
     const hours = totalHours % 24;
-    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+    return hours > 0 ? `${days}${dayUnit} ${hours}${hourUnit}` : `${days}${dayUnit}`;
   }
-  return `${totalHours}h`;
+  return `${totalHours}${hourUnit}`;
 }

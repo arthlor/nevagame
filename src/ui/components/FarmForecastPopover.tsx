@@ -4,6 +4,7 @@ import { formatWeatherLabel, WeatherIcon } from "../weatherPresentation";
 import { ChromeClose } from "../chrome/Chrome";
 import { GameSheet } from "../coastal/CoastalUI";
 import { useTranslation } from "../../i18n/useTranslation";
+import { seasonLabel } from "../../i18n/placesTr";
 
 interface FarmForecastPopoverProps {
   forecast: FarmForecastDto;
@@ -12,30 +13,23 @@ interface FarmForecastPopoverProps {
   captureEscape?: boolean;
 }
 
-const SLOT_LABEL_TR: Record<string, string> = {
+const SLOT_LABEL_TR: Record<FarmForecastDto["slots"][number]["label"], string> = {
   Now: "Şimdi",
-  Morning: "Sabah",
-  Afternoon: "Öğle",
-  Evening: "Akşam",
-  Night: "Gece",
-  Tomorrow: "Yarın"
+  "+2h": "+2 sa",
+  "+5h": "+5 sa"
 };
 
-function localizeWeatherCondition(label: string, isTr: boolean): string {
-  if (!isTr) return label;
-  const lower = label.toLowerCase();
-  if (lower.includes("clear") || lower.includes("sunny") || lower.includes("fine")) return "Açık";
-  if (lower.includes("cloud") || lower.includes("overcast")) return "Bulutlu";
-  if (lower.includes("fog") || lower.includes("mist")) return "Sisli";
-  if (lower.includes("drizzle") || lower.includes("sprinkle")) return "Çiseleme";
-  if (lower.includes("rain") || lower.includes("shower")) return "Yağmurlu";
-  if (lower.includes("storm") || lower.includes("gale") || lower.includes("squall")) return "Fırtına";
-  if (lower.includes("snow") || lower.includes("blizzard")) return "Karlı";
-  if (lower.includes("calm")) return "Sakin";
-  if (lower.includes("breeze")) return "Esintili";
-  if (lower.includes("chop") || lower.includes("swell") || lower.includes("rough")) return "Dalgalı";
-  return label;
-}
+const CONDITION_LABEL_TR: Record<FarmForecastDto["rainLabel"] | FarmForecastDto["windLabel"] | FarmForecastDto["seaLabel"], string> = {
+  Soaking: "Yoğun yağış",
+  "Showers possible": "Yer yer yağış",
+  "Mostly dry": "Çoğunlukla kuru",
+  Gale: "Kuvvetli",
+  Breezy: "Esintili",
+  Light: "Hafif",
+  Rough: "Çalkantılı",
+  Swell: "Dalgalı",
+  Calm: "Sakin"
+};
 
 export const FarmForecastPopover: React.FC<FarmForecastPopoverProps> = ({
   forecast,
@@ -71,8 +65,8 @@ export const FarmForecastPopover: React.FC<FarmForecastPopoverProps> = ({
     >
       <div className="forecast-header">
         <div className="forecast-title-group">
-          <strong className="forecast-title">{isTr ? "Kıyı Hava Durumu" : "Coast forecast"}</strong>
-          <span className="forecast-season">{forecast.seasonLabel}</span>
+          <strong className="forecast-title">{isTr ? "Hava durumu" : "Forecast"}</strong>
+          <span className="forecast-season">{seasonLabel(forecast.seasonLabel, locale)}</span>
         </div>
         <ChromeClose onClick={onClose} label={isTr ? "Tahmini kapat" : "Close forecast"} className="forecast-close-btn" />
       </div>
@@ -96,16 +90,16 @@ export const FarmForecastPopover: React.FC<FarmForecastPopoverProps> = ({
         <div className="forecast-day-card forecast-metrics-card">
           <div className="forecast-impact-list">
             <div className="forecast-impact-item">
-              <span className="impact-label">{isTr ? "Yağış" : "Rain now"}</span>
-              <span className="impact-value">{localizeWeatherCondition(forecast.rainLabel, isTr)}</span>
+              <span className="impact-label">{isTr ? "Yağış" : "Rain"}</span>
+              <span className="impact-value">{isTr ? CONDITION_LABEL_TR[forecast.rainLabel] : forecast.rainLabel}</span>
             </div>
             <div className="forecast-impact-item">
-              <span className="impact-label">{isTr ? "Rüzgar" : "Wind now"}</span>
-              <span className="impact-value">{localizeWeatherCondition(forecast.windLabel, isTr)}</span>
+              <span className="impact-label">{isTr ? "Rüzgâr" : "Wind"}</span>
+              <span className="impact-value">{isTr ? CONDITION_LABEL_TR[forecast.windLabel] : forecast.windLabel}</span>
             </div>
             <div className="forecast-impact-item">
-              <span className="impact-label">{isTr ? "Deniz" : "Sea now"}</span>
-              <span className="impact-value">{localizeWeatherCondition(forecast.seaLabel, isTr)}</span>
+              <span className="impact-label">{isTr ? "Deniz" : "Sea"}</span>
+              <span className="impact-value">{isTr ? CONDITION_LABEL_TR[forecast.seaLabel] : forecast.seaLabel}</span>
             </div>
           </div>
         </div>

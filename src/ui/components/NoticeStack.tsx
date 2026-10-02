@@ -56,7 +56,7 @@ function parseNoticeText(text: string): NoticeDelta | null {
   return null;
 }
 
-export const NoticeStack: React.FC<NoticeStackProps> = ({ notices, className = "" }) => {
+export const NoticeStack: React.FC<NoticeStackProps> = React.memo(({ notices, className = "" }) => {
   const { locale } = useTranslation();
   const visible = useMemo(
     () =>
@@ -144,7 +144,7 @@ export const NoticeStack: React.FC<NoticeStackProps> = ({ notices, className = "
           ) : delta.kind === "money" ? (
             <IconCoin size={14} className="toast-money-coin" aria-hidden="true" />
           ) : null}
-          <span className="toast-message-text">{delta.label}</span>
+          <span className="toast-message-text">{locale === "tr" ? villageTradeTextTr(delta.label) : delta.label}</span>
         </div>
       );
     }
@@ -189,7 +189,7 @@ export const NoticeStack: React.FC<NoticeStackProps> = ({ notices, className = "
             {notice.count > 1 && (
               <span
                 className="toast-repeat-badge"
-                aria-label={`repeated ${notice.count} times`}
+                aria-label={locale === "tr" ? `${notice.count} kez tekrarlandı` : `repeated ${notice.count} times`}
               >
                 {`x${notice.count}`}
               </span>
@@ -235,4 +235,4 @@ export const NoticeStack: React.FC<NoticeStackProps> = ({ notices, className = "
         })}
     </aside>
   );
-};
+});

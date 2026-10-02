@@ -107,7 +107,13 @@ export function feasibleContractTargets(
 
 export function expireContracts(state: GameState): void {
   for (const contract of state.contracts) {
-    if (contract.status === "active" && state.clock.currentMinute >= contract.expiresAtMinute) {
+    if (contract.status !== "active") continue;
+    const template = ContentRegistry.contractTemplates.get(contract.templateId);
+    const maxDuration = template?.durationMinutes ?? 2880;
+    if (contract.expiresAtMinute > state.clock.currentMinute + maxDuration) {
+      contract.expiresAtMinute = state.clock.currentMinute + maxDuration;
+    }
+    if (state.clock.currentMinute >= contract.expiresAtMinute) {
       refundAndExpireContract(state, contract);
     }
   }

@@ -32,9 +32,10 @@ export function demandPlotY(demandPercent: number): number {
 }
 
 export const MarketDemandTrend: React.FC<MarketDemandTrendProps> = ({ trend }) => {
-  const { locale } = useTranslation();
+  const { locale, getLocalizedItem } = useTranslation();
   const isTr = locale === "tr";
   const { points } = trend;
+  const forecastDays = points[points.length - 1]?.dayOffset ?? 0;
   const step = points.length > 1 ? VIEW_WIDTH / (points.length - 1) : 0;
   const path = points
     .map((point, index) => `${index === 0 ? "M" : "L"}${(index * step).toFixed(1)},${demandPlotY(point.demandPercent).toFixed(1)}`)
@@ -44,7 +45,7 @@ export const MarketDemandTrend: React.FC<MarketDemandTrendProps> = ({ trend }) =
 
   const directionText = isTr ? DIRECTION_LABEL_TR[trend.direction] : DIRECTION_LABEL[trend.direction];
   const ariaLabel = isTr
-    ? `${trend.itemName} talep görünümü: ${directionText.toLowerCase()}, şu an %${trend.currentDemandPercent}`
+    ? `${getLocalizedItem(trend.itemId).name ?? trend.itemName} talep görünümü: ${directionText.toLowerCase()}, şu an %${trend.currentDemandPercent}`
     : `${trend.itemName} demand outlook: ${directionText.toLowerCase()}, now ${trend.currentDemandPercent}%`;
 
   return (
@@ -75,8 +76,8 @@ export const MarketDemandTrend: React.FC<MarketDemandTrendProps> = ({ trend }) =
 
       <p className="market-demand-trend-note">
         {isTr
-          ? `Gelecek ${points.length} gün için bugünkü stok tahmini (hedef ${trend.targetSupply} / mevcut ${trend.localSupply})`
-          : `Next ${points.length} days at today's stock (${trend.localSupply} of ${trend.targetSupply} target)`}
+          ? `Bugünkü stokla ${forecastDays} gün · ${trend.localSupply}/${trend.targetSupply} hedef`
+          : `Next ${forecastDays} days at today's stock (${trend.localSupply} of ${trend.targetSupply} target)`}
       </p>
     </section>
   );

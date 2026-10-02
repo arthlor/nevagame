@@ -41,7 +41,7 @@ const getChronicleFilterLabel = (filter: ChronicleFilter, isTr: boolean): string
   }
 };
 
-export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
+export const CoastalChronicle: React.FC<CoastalChronicleProps> = React.memo(({
   entries,
   activeFilter,
   onSelectFilter
@@ -58,7 +58,7 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
       className={`coastal-chronicle${expanded ? " is-expanded" : " is-collapsed"}`}
       data-testid="coastal-chronicle"
       data-expanded={expanded ? "true" : "false"}
-      aria-label={isTr ? "Kıyı vakanüvisi" : "Coastal chronicle"}
+      aria-label={isTr ? "Kıyı günlüğü" : "Coastal chronicle"}
     >
       <button
         type="button"
@@ -72,8 +72,8 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
         }}
       >
         <span className="chronicle-toggle-caret" aria-hidden="true">{expanded ? "▾" : "▸"}</span>
-        <span className="chronicle-toggle-label">{isTr ? "Vakanüvis" : "Chronicle"}</span>
-        <span className="chronicle-toggle-count" data-testid="chronicle-count">{entries.length}</span>
+        <span className="chronicle-toggle-label">{isTr ? "Günlük" : "Chronicle"}</span>
+        <span className="chronicle-toggle-count" data-testid="chronicle-count" aria-label={isTr ? `${entries.length} kayıt` : `${entries.length} entries`}>{entries.length}</span>
       </button>
 
       {expanded && (
@@ -83,8 +83,10 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
               <button
                 type="button"
                 key={filter}
+                id={`chronicle-tab-${filter}`}
                 role="tab"
                 aria-selected={activeFilter === filter}
+                aria-controls="chronicle-feed"
                 tabIndex={activeFilter === filter ? 0 : -1}
                 className={`chronicle-filter-btn${activeFilter === filter ? " is-active" : ""}`}
                 data-testid={`chronicle-filter-${filter}`}
@@ -98,12 +100,13 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
             ))}
           </div>
 
-          <ol className="chronicle-feed" id="chronicle-feed" data-testid="chronicle-feed">
+          <div id="chronicle-feed" role="tabpanel" aria-labelledby={`chronicle-tab-${activeFilter}`} tabIndex={0}>
+          <ol className="chronicle-feed" data-testid="chronicle-feed">
             {visible.length === 0 ? (
               <li className="chronicle-empty">
                 {activeFilter === "all"
-                  ? (isTr ? "Bugün henüz bir kayıt düşülmedi." : "Nothing logged yet today.")
-                  : (isTr ? `${getChronicleFilterLabel(activeFilter, isTr)} altında henüz bir kayıt yok.` : `Nothing under ${CHRONICLE_FILTER_LABEL[activeFilter]} yet.`)}
+                  ? (isTr ? "Henüz kayıt yok." : "No entries yet.")
+                  : (isTr ? "Bu başlıkta kayıt yok." : "No entries in this category.")}
               </li>
             ) : (
               visible.map((entry) => (
@@ -122,8 +125,9 @@ export const CoastalChronicle: React.FC<CoastalChronicleProps> = ({
               ))
             )}
           </ol>
+          </div>
         </>
       )}
     </section>
   );
-};
+});

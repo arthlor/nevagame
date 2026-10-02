@@ -11,9 +11,7 @@
 >
 > There is no Blender or Python step in production. `art:list` prints each selected asset's producer.
 >
-> **Inspection and approval:** Agents generate, integrate, and inspect affected assets in the Art Yard and actual game, correcting observed defects within the authorized scope. Use focused screenshots, motion checks or diagnostic views when they answer a visual question. Human visual approval remains a separate decision; agent inspection and mechanical success do not grant it.
-
-> **Harbor-coast evidence:** The approved coastal rebuild requires reference-frame inspection, iterative gameplay-camera captures, traversal recordings and browser measurements under `04` §8.1. These task-specific requirements exceed routine focused inspection and do not constitute human visual approval.
+> **Inspection and completion:** Agents generate, integrate and inspect affected assets in the Art Yard and actual game, correcting observed defects within scope. Focused screenshots, motion checks and diagnostics answer task-specific questions. Routine work completes with agent evidence. Human visual review is required only for release or when explicitly requested; claim it only when actually given.
 
 ---
 
@@ -29,27 +27,25 @@ helpers in full; do not dump the full catalog for one asset.
 
 # 1. Daily Asset Workflow
 
-Folder dumps (`@LLM`, `@tools`) do not change this routing. First files to **obey**: root `AGENTS.md`, this file, `tools/authored/README.md`, the selected catalog entry, the owning generator (or committed source GLB), the isolated sheet if present, and the relevant Art Bible section. Other attached files are for conflict resolution only. Leave `02` unread for generate-asset prompts even if `@LLM` attached them.
+Folder dumps (`@LLM`, `@tools`) do not change this routing. First files to **obey**: root `AGENTS.md`, this file, `tools/authored/README.md`, the selected catalog entry, the owning generator (or committed source GLB), and any references selected by the current task. Other attached files are for conflict resolution only. Leave `02` unread for generate-asset prompts even if `@LLM` attached them.
 
-**Generate assets** in this repo always means: resolve or add catalog ID(s) → registered authored generator (port a frozen family before changing it) → measure isolated-sheet identity into `parameters` when a sheet exists → `npm run art:brief -- --asset` only if that brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → Art Yard link → `Awaiting human game review`. The upstream graphics skills do not define asset generation. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend (or port and extend) the owning family generator; do not publish a one-off GLB. A GLB the human supplies (for example a Tripo generation) enters only as a committed `authored_glb` source with its own catalog entry (§3.2), never by copying it into `public/`. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
+**Generate assets** in this repo always means: resolve or add catalog ID(s) → registered authored generator (port a frozen family before changing it) → update catalog parameters and any task-selected brief → `npm run art:brief -- --asset` only if a retained brief changed → `npm run art:generate -- --asset` → integrate → focused Art Yard/game inspection and scoped corrections → Art Yard link and completion evidence. The upstream graphics skills do not define asset generation. Provider APIs (Tripo/Gemini/ElevenLabs) still need an explicit human request. If the named subject is missing from the catalog, add one catalog entry and extend (or port and extend) the owning family generator; do not publish a one-off GLB. A GLB the human supplies (for example a Tripo generation) enters only as a committed `authored_glb` source with its own catalog entry (§3.2), never by copying it into `public/`. Ground supporting maps are not generate-asset work: do not add catalog IDs for them or run `art:generate`.
 
-Isolated studio sheets are style-match evidence for the mapped catalog ID. Numbered crop/diorama PNGs in `tools/art/references/README.md` are graphics-only extracts from `art-reference.png`; do not copy their camera, staging, or pixels. `art/references/neva-ui-hud-on-foot.png` is the scoped gameplay-distance graphics benchmark for starter-farm terrain, worked-earth paths, meadow flowers/foliage, crop-bed presentation, and clear-day lighting; it never authorizes copying camera, UI, layout, depth of field, tilt-shift, or composition. The later grass study selected in Art Bible §7.2.4 owns continuous meadow coverage and fine-blade proportions. Catalog IDs win if a reference README drifts (`prop_wagon_cart_a`, not `vehicle_horse_cart_a`).
+References are optional task inputs. The agent may choose, revise or remove a recorded brief and may use images for the aspects relevant to the task. Existing files do not impose permanent silhouette, palette, construction, camera or composition locks. Catalog IDs and runtime interfaces remain authoritative if an image index drifts. Inspect form, motion and gameplay usability as needed; use the agent's design judgment rather than a prescribed sculpting order.
 
-Sculpt in passes, using focused inspection where it resolves form or readability: blockout (primary masses and negative space vs the isolated sheet) → structure (masonry, timber, shingles, openings) → sparse tertiary readable at 8 m → palette + vertex value on the existing `COLOR_0` path. Human revision remains `asset ID + observed miss + desired change`.
-
-Codex skill route for this prompt: use `.agents/skills/threejs-procedural-geometry/SKILL.md` as technique guidance, then consult its `references/geometry-craft-workflow.md` and `references/geometry-quality-gates.md` only when relevant. For a broad visual pass, use `.agents/skills/threejs-skill-router/SKILL.md` and load the smallest relevant specialists. The catalog, isolated sheet and owning generator still decide Neva asset production; implement in the registered authored generator and `tools/authored/kit/`. When the asset is frozen, port its family first (faithfully where it already reads well, redesigned where it reads weakly; `tools/authored/README.md` owns the porting steps). This pack has no provider-generation or release agent; provider calls need explicit human authorization, and release checks follow `03`.
+Codex skill route for this prompt: use `.agents/skills/threejs-procedural-geometry/SKILL.md` as technique guidance, then consult its `references/geometry-craft-workflow.md` and `references/geometry-quality-gates.md` only when relevant. For a broad visual pass, use `.agents/skills/threejs-skill-router/SKILL.md` and load the smallest relevant specialists. The catalog and owning generator decide production interfaces; current task references guide appearance only when selected; implement in the registered authored generator and `tools/authored/kit/`. When the asset is frozen, port its family first (preserving runtime contracts while revising appearance as appropriate; `tools/authored/README.md` owns the porting steps). This pack has no provider-generation or release agent; provider calls need explicit human authorization, and release checks follow `03`.
 
 The everyday route is:
 
 ```text
 selected catalog entry
-→ reference brief only when image/study guided
+→ optional task-selected reference brief
 → owning registered generator, or committed authored GLB source
 → selected generate + validation + optimization + atomic publish
 → automatic Art Yard entry
 → runtime/game integration
 → focused Art Yard/game inspection and scoped corrections
-→ human game review
+→ scoped completion report
 ```
 
 Commands always require an explicit selector. A bare generation command must fail rather than regenerate the full catalog.
@@ -79,7 +75,7 @@ After publication, the CLI prints a direct development link such as:
 http://localhost:3000/__neva_art_yard?asset=prop_water_well_a
 ```
 
-Integrate the asset and inspect the changed appearance or motion through the existing Art Yard/game controls, including its gameplay read distance. Correct observed defects within scope. If the runtime cannot be accessed, report that inspection gap precisely and complete independent mechanical work. Complete the handoff with `Awaiting human game review`; do not invent another approval loop.
+Integrate the asset and inspect the changed appearance or motion through the existing Art Yard/game controls, including its gameplay read distance. Correct observed defects within scope. If the runtime cannot be accessed, report that inspection gap precisely and complete independent mechanical work. Complete the scoped handoff after its applicable checks and inspection. Record any access gap; add human review only when the current task or release requires it.
 
 ## Daily gates
 
@@ -89,11 +85,11 @@ Keep:
 - selected reference-authoring validation when present;
 - palette and generator-parameter validation;
 - deterministic catalog seed and stable ID/name contracts;
-- the authored producer's semantic art contract (`tools/authored/README.md`), or the authored-GLB producer's admission checks (§3.2);
+- the authored producer's semantic runtime contract (`tools/authored/README.md`), or the authored-GLB producer's admission checks (§3.2);
 - raw Khronos GLB validation;
 - glTF Transform dedupe/join/prune/weld + Meshopt (or the authored-GLB packaging mode, §3.2);
 - optimized Khronos and semantic revalidation;
-- dimensions, bounds, pivot, required nodes, collision, LOD, animation, material, texture and triangle min/max checks;
+- dimensions, bounds, pivot, required nodes, collision, LOD, animation, material/texture contracts and hard triangle maximums; minimums, targets and lower LOD ratios remain advisory;
 - validated cache reuse;
 - rollback-capable atomic publication and generated/public hash parity;
 - runtime integration and focused inspection of changed appearance or motion; TypeScript check only when runtime TypeScript changed.
@@ -101,10 +97,10 @@ Keep:
 The following are not routine requirements; use them only when the task or an unresolved concern warrants them:
 
 - generated preview packages;
-- strict density gates or determinism double-generation;
+- determinism double-generation;
 - gameplay benchmarks, full capture sets, full builds or broad test suites.
 
-Do not introduce numeric style scoring as an asset gate. Human visual approval remains required for visual acceptance.
+Do not use numeric style scoring, reference similarity, draft brief status, triangle floors/targets or lower LOD ratios as production failures. `--strict` is a compatibility alias with the same enforced mechanical contracts. Human visual review is required only for release or when explicitly requested.
 
 ---
 
@@ -126,68 +122,36 @@ npm run art:determinism -- --family prop
 npm run art:generate -- --family prop
 ```
 
-## P0.75 visual-gold gate
+## Renderer/catalog integration and release
 
-The visual-gold gate refreshes provenance for the existing published GLBs,
-validates the current catalog/manifest contract, and runs the gameplay-camera
-benchmark. It does not regenerate or reauthor assets; per-asset triangle target
-floors are advisory in this lane, while production minimums, hard maximums,
-materials, nodes, palette, and runtime validation remain enforced.
+P0.75 checks technical integration through representative affected assets and scenes selected for the task; there is no mandatory scene order or human taste approval before further work. Validate published catalog/manifest compatibility and investigate runtime errors and hard budget failures. Existing visual baseline images are historical comparison evidence, not current art authorities.
 
 ```bash
-npm run art:sync -- --all
+# Published compatibility (frozen assets included)
 npm run art:validate -- --all
+
+# Diagnostic DEV render evidence; production profiling is a separate lane
 npm run art:benchmark
 ```
 
-The benchmark rejects browser errors and enforces its machine-owned preferred
-scene limits. It runs against the
-Vite DEV server; layout-editor picking intentionally keeps static prefabs
-unmerged and omits the baked static-shadow proxy. Therefore DEV measurements
-are diagnostic rather than production-equivalent proof, and a current
-over-budget DEV result must remain visible instead of being addressed by
-relaxing `tools/art/asset_budgets.json`.
+Shared or release work uses affected-scope generation and semantic determinism when required by §2 and `03` §4. An authorized release may select `--all`; frozen assets are checked by validation and never regenerated. `art:generate:strict` remains a compatibility alias and adds no target-density or art-certification requirement. Do not pad geometry to satisfy advisory counts.
 
-## Technical-art certification or release gate
+Generation/publication, published validation, determinism, agent inspection, production performance and human release review prove different things. `npm run test:budget` and, for world changes, `npm run world:acceptance` own the production lanes in `03` §4/§23. DEV measurements remain diagnostic; active F2 layout editing additionally restores unmerged prefabs. Preserve failures and their input scope instead of weakening hard budgets to get a pass.
 
-```bash
-npm run art:generate:strict -- --all
-npm run art:validate -- --all
-npm run art:determinism -- --all
-npm run art:benchmark
-```
-
-`--all` builds every authored and authored-GLB asset; frozen assets are
-covered by `art:validate`, which checks all of them. `art:generate:strict`
-rejects below-target candidates before publication; normal generation may
-publish that quality debt. Do not pad invisible geometry to reach a target. If
-an approved asset makes its target inappropriate, propose a catalog
-reassessment with silhouette, deformation and measured cost evidence; existing
-strict semantics remain in force until a scoped change is authorized.
-
-These commands establish different evidence: strict generation/publication,
-published validation, determinism and DEV render diagnostics. Production
-performance uses `npm run test:budget` and, where world scope requires it,
-`npm run world:acceptance`. `03` §4 defines those lanes. Human visual approval
-does not close technical certification; current results belong in the status
-checklist, not a hardcoded open/closed claim here.
-
-Inspect required release screenshots as evidence and investigate visible discrepancies. Correct defects within the authorized scope, rerunning the affected checks when inputs change. A capture alone is not human visual approval or performance proof.
-
----
+Inspect affected release views and investigate visible defects within the authorized scope. A screenshot does not establish performance or a human decision.
 
 # 3. Single Source and Runtime Contract
 
 - `assets/specs/asset-catalog.json` owns asset IDs, files, family/generator, seed, dimensions, palette, budgets, pivot, collision, instancing, LOD, required nodes, read distance, parameters, optional reference authoring, and character contracts.
 - `asset-catalog.schema.json` owns the accepted shape. Do not add parallel YAML, filename lists, per-family specs, or alternate exporters.
-- `art/palettes/neva.palette.json` owns production tokens and material properties.
+- `art/palettes/neva.palette.json` owns the shared palette helper tokens and material properties; agents may revise or extend this central owner. Imported source materials need not use it.
 - `tools/art/asset_budgets.json` owns scene and texture envelopes.
 - `tools/authored/generators/registry.ts` is the only generator dispatch table, `contracts.json` its parameter contracts, and `tools/art/legacy-generators.json` the recorded parameter contracts of the frozen families. A generator name belongs to exactly one of them; the CLI refuses a dual registration.
-- Runtime static 3D assets are optimized GLB/glTF 2.0 only. Never load `.blend`, `.fbx`, or `.obj` in the game, and never load a GLB outside the catalog: every runtime model, including the Tripo cast, goes through `AssetLoader` by catalog ID. Ground supporting maps are the documented non-GLB exception: local processed WebPs under `public/assets/textures/terrain/`, loaded only through `ExternalSurfaceTextures`, never through `art:generate` or a catalog ID.
-- glTF space is metres, +Y up, front +Z; use stable node names, deliberate pivots, palette materials, and `COLOR_0` on every untextured primitive.
+- Runtime static 3D assets are optimized GLB/glTF 2.0 only. Never load `.blend`, `.fbx`, or `.obj` in the game, and never load a GLB outside the catalog: every runtime model, including the Tripo cast, goes through `AssetLoader` by catalog ID. Ground supporting maps are the documented non-GLB exception: retained local raster derivatives and compressed KTX2 runtime maps under `public/assets/textures/terrain/`, loaded only through `ExternalSurfaceTextures`, never through `art:generate` or a catalog ID. `tools/art/compressSupportingMaps.ts` stages conversions from that owner's source URLs; inspect the report and affected game surfaces before admitting the derivatives. This path does not alter authored GLB sources or their lossless packaging/parity contract.
+- glTF space is metres, +Y up, front +Z; preserve stable node names and deliberate pivots. Shared palette materials and linear `COLOR_0` are available defaults, not universal appearance requirements. Authored GLBs and frozen imported sources may retain native PBR materials and optional vertex colors; textures still need valid UVs and declared caps.
 - Simulation owns gameplay truth. Catalog metadata, scene nodes, collision debug meshes, animations, and Three.js objects remain presentation/runtime data.
 
-Same catalog seed + parameters + generator code must reproduce the same semantic asset; an authored GLB reproduces from the same source bytes and `textureMaxSize`. Use seeded bounded variation; never uncontrolled RGB, random material assignment, or `Math.random()`-style nondeterminism.
+Same catalog seed + parameters + generator code must reproduce the same semantic asset; an authored GLB reproduces from the same source bytes and `textureMaxSize`. Use seeded variation; preserve deterministic generation rather than unseeded random output. Agents may change palette/material design through the central owners.
 
 `art:validate` checks the catalog schema, generator-parameter contracts,
 LOD/animation/reference contracts, source provenance, and published GLB
@@ -197,10 +161,7 @@ contract.
 
 ## 3.1 Procedural skinned creatures
 
-Every fauna and fish asset except the cow and the Tripo donkey and draft horse
-(authored GLBs) is a procedural skinned creature: one continuous surface per
-LOD bound to an armature authored in its generator, never a pile of primitives
-rotating on empties. The authored kit (`tools/authored/kit/rig.ts`,
+The existing procedural fauna/fish generators bind their LODs to authored armatures. Construction technique and appearance may change while preserving catalog nodes, skin/deformation and motion contracts. The authored kit (`tools/authored/kit/rig.ts`,
 `clips.ts`, `lod.ts`) owns construction; `tools/authored/README.md` owns its
 rules.
 
@@ -247,9 +208,8 @@ it:
 1. **Normalize** (`tools/art/glb.mjs`, byte-level on the GLB's own JSON and
    binary chunk, so node order, names, skins, clips and extras stay as
    authored): recompute declared accessor `min`/`max` from the data (Tripo
-   rounds them, which Khronos rejects); drop provider material extensions the
-   palette owns (`KHR_materials_specular`, `KHR_materials_volume`, and a
-   zero-effect `KHR_materials_emissive_strength`); resample embedded textures
+   rounds them, which Khronos rejects); retain source-native PBR materials and
+   supported glTF material extensions; resample embedded textures
    larger than `textureMaxSize` and re-encode them as WebP
    (`EXT_texture_webp`), leaving textures within the cap byte-identical.
    Geometry bytes are never rewritten here, and a source that needs nothing
@@ -272,14 +232,15 @@ it:
    must decode to the same accessors, images, nodes, skins and clips as the
    normalized source, compared by a semantic hash that ignores how buffer
    views are grouped; a mismatch fails the publish.
-4. **Validate** like every asset, with the authored-GLB material profile: a
-   textured primitive needs `TEXCOORD_0` instead of `COLOR_0`; an untextured
-   primitive needs `COLOR_0` and a material named for a declared palette
-   token; images must fit `textureMaxSize`; double-sided materials remain the
-   source's decision; `COL_*` collision meshes are exempt from the colour
-   rule. An authored GLB may declare an empty palette only when every
-   primitive is textured. `surfaceAuthoring` is rejected: the source owns its
-   normals and colours.
+4. **Validate** like every asset, with the authored-GLB material profile:
+   textured primitives need valid `TEXCOORD_0`, and images fit `textureMaxSize`.
+   Untextured source primitives may retain native PBR materials without
+   `COLOR_0` or palette-token names. If vertex colors are present, validate
+   their data; if a palette treatment is selected, validate its declared
+   references. An empty palette is valid for native source materials. The
+   source owns normals, material factors, supported material extensions and
+   double-sided decisions. `surfaceAuthoring` is rejected for authored GLBs:
+   the source owns its surface data.
 
 The cache keys an authored GLB on its source bytes, so replacing the source
 at the same path rebuilds it. Source authoring owns valid bind transforms,
@@ -317,33 +278,29 @@ records are committed unchanged under `art/imported/tripo/adapted/`, and
 `textureMaxSize` resamples their 4096² skin textures, while `skinnedAuthoring`
 still names the raw Tripo capture that their native-performance contract
 checks. Changing one of these assets means producing a new derivative GLB
-with the tool of the human's choice, committing it at the same path, and
+with an appropriate authoring tool within the task scope, committing it at the same path, and
 running the selected `art:generate`.
 
 **Photo-reconstructed buildings.** `npm run art:authored` rebuilds these
-buildings' committed exports in headless Chromium (their factories paint
-canvas textures, which the export bakes into palette `COLOR_0`) and then
-publishes them through `art:generate`; `--no-publish` stops at the committed
-source. It never copies a GLB into `public/` itself.
+buildings' committed exports in headless Chromium. Their factories paint
+canvas textures; the existing default adapter bakes colors into palette
+`COLOR_0`, while `--raw` skips that treatment. Material/export defaults may
+evolve centrally without imposing an artistic recipe. Publication remains
+through `art:generate`; `--no-publish` stops at the committed source. The
+exporter never copies a GLB into `public/` itself.
 
 ---
 
-# 4. Reference-Guided Assets
+# 4. Optional Reference Briefs
 
-`referenceAuthoring` is required when supplied images, generated studies, turnarounds, or reconstruction evidence guide the asset. It is not required for ordinary catalog-driven edits without such evidence.
+`referenceAuthoring` is optional, revisable metadata for a selected asset. The current task decides whether to use supplied images, studies, turnarounds or reconstruction evidence and which aspects matter. Existing briefs are not permanent appearance locks.
 
-- Keep the brief in the selected catalog entry; do not create a second spec tree.
-- Preserve source roles, component hierarchy, silhouette/negative space, hidden-surface confidence, critical features, generator bindings, failure modes, and requested review views.
-- Run `art:brief` only when that selected brief changes.
-- Read or emit only the selected asset's brief; do not load unrelated briefs.
-- The required views define review coverage through Art Yard/game controls. Agents use the views relevant to the changed form, hidden surfaces or motion; human acceptance retains the full applicable coverage. Routine work does not require a static-render package or capture of every view.
-- `ready` means the brief is structurally complete, not visually approved. Missing `repo://` files fail closed.
-- A brief on a frozen asset remains the evidence for its port; its generator bindings name the frozen family's recorded parameters until the port replaces them.
-- Isolated studio sheets under `tools/art/references/isolated/` may inform that one asset's silhouette, proportions, component counts, and construction language. Diorama stills remain graphics-only. `art/references/neva-ui-hud-on-foot.png` may guide the cataloged environment assets named by the Art Bible benchmark lock, but each image-guided asset still requires its own closed `referenceAuthoring` brief and parameter bindings.
-- Pass order for sheet-guided work: blockout → structure → sparse tertiary → palette. Use focused visual checks as needed; do not add a daily full screenshot or SSIM gate.
-- Human revision remains `asset ID + observed miss + desired change`.
-
----
+- Keep a useful brief in the selected catalog entry rather than a second spec tree. Revise or remove it when the task's direction changes.
+- When present, validate its schema, parameter bindings and referenced `repo://` files; missing declared files remain a data-integrity error. A structurally valid `draft` brief permits generation and does not require human approval.
+- Run `art:brief` only when a retained selected brief changes; read or emit only that asset's brief.
+- Choose inspection views that resolve the task's form, hidden-surface or motion questions. A historical view list or image does not impose full capture coverage, similarity scoring or a prescribed construction sequence.
+- A brief on a frozen asset may inform a port; replace its recorded generator bindings with the registered authored family's contract when porting.
+- References cannot change gameplay truth, runtime node/rig/socket contracts or the single catalog publication path. Feedback may identify `asset ID + observed problem + desired change`; routine work completes autonomously after relevant verification.
 
 # 5. Art Yard and Runtime Integration
 
@@ -351,14 +308,15 @@ source. It never copies a GLB into `public/` itself.
 
 - A successful selected publish makes the asset available automatically.
 - `?asset=<catalog-id>` opens the selected asset directly; `&live=1` builds an authored generator in the page instead of loading the published GLB.
+- In DEV, `?asset=<catalog-id>&artStage=<run-id>` reviews the selected run's optimized GLB through the canonical loader. A run may contain only selected assets: the roster contains those reported candidates, and partial runs omit multi-asset showcases. Every reported candidate must exist and resolve to the catalog. Missing/invalid staged data or an asset absent from that run displays an error; it must not silently load published models. Production Art Yard supports the published set only.
 - Character animation review automatically attaches the matching fishing, farming, carry, tailoring, toolmaking and equipment-inspection props through the same socket rules as the world. Runtime-context scrubbing also seeks the reel crank, so a paused hand and handle share the same phase. Static provider figures are reviewed as static models.
 - Orbit, distance/LOD, eye POV (1.6m), shading (lit, unlit flat albedo, wire overlay, pure wire, vertex colors, normals, LOD0, LOD1), physical dimensions/clearance/footprint, authoring sockets, skeleton rig, origin axes tripod, bounds, collision, animation scrubbing/frame-stepping, lighting, weather, ground, and water controls support focused agent inspection and human review.
 - Player context clips are previewed atomically with the required donkey, rowboat, or skiff companion and companion-inclusive bounds. Mounted gaits synchronize rider and animal phases; boarding/docking use the matching craft variant; `reel` layers over selectable on-foot, rowboat, or skiff bases. Timeline scrubbing seeks each action deterministically rather than changing mixer-global time.
-- The normal game is the final visual judge. Integrate the catalog ID through the existing loader/placement/batching path; do not create a direct loader or local asset registry.
-- Compatible repeated static assets use the existing batching/instancing path. Do not fold skinned, morph-target, or dynamic descendants into static batching. Production static LOD pieces use the existing per-instance level tracking and catalog switch distances; do not flatten them without preserving level selection. DEV keeps prefabs unmerged for layout-editor picking.
+- Inspect the integrated result in the normal game. Integrate the catalog ID through the existing loader/placement/batching path; do not create a direct loader or local asset registry.
+- Compatible repeated static assets use the existing batching/instancing path. Do not fold skinned, morph-target, or dynamic descendants into static batching. Production static LOD pieces use the existing per-instance level tracking and catalog switch distances; do not flatten them without preserving level selection. Normal DEV and production share batching; active F2 restores prefabs for layout-editor picking.
 - For a story-relevant asset or zone, the integrated review also checks that its practical role and relationship to the current quest beat read at gameplay distance. This is visual/environmental evidence only; quest progression remains owned by simulation/content code.
 
-Mechanical success permits the agent to say `generated`, `validated`, `published`, and `integrated` only when those gates passed. It does not permit `visually approved`, `final`, or `production-ready` before human game review.
+Mechanical success permits the agent to say `generated`, `validated`, `published`, and `integrated` only when those gates passed. Agent inspection supports scoped design completion. Say `human approved` only when that decision was given; `production-ready` additionally requires the applicable release evidence.
 
 ---
 
@@ -378,31 +336,22 @@ Mechanical success permits the agent to say `generated`, `validated`, `published
   catalog asset's own geometry, material and texture contracts without comparing
   the full library to the code-only budget.
 
-Do not paste full reports or logs into the task. Report selected asset IDs, integration point, mechanical result, focused inspection evidence or access gap, actionable errors if any, save impact, `Docs updated:`, and `Awaiting human game review`.
+Do not paste full reports or logs into the task. Report selected asset IDs, integration point, mechanical result, focused inspection evidence or access gap, actionable errors if any, save impact, `Docs updated:`, and the scoped completion result. Add human-review status only when required by the current task or release.
 
 ---
 
-# 7. Geometry, Materials, and Performance Minimums
+# 7. Runtime and Performance Constraints
 
-Follow the relevant Art Bible section. The compact non-negotiables are:
-
-- premium cozy, warm tactile, faceted low-poly coastal identity;
-- silhouette → primary mass → secondary structure → sparse tertiary detail;
-- controlled asymmetry and broad authored planes, not untouched primitives or noisy micro-detail;
-- approved palette tokens and shared matte/satin material families;
-- intentional hard/faceted/selective-smooth shading;
-- no photoreal scans as final albedo, plastic gloss, toon/ink outlines, local exposure hacks, or beauty-camera dependencies. Processed CC0 ground supporting maps remain under Art Pipeline section 6.2 and must remap into palette families;
-- provider textures stay within the asset's `textureMaxSize` and the Art Bible's texture targets; a larger cap needs a stated reason;
-- collision proxies and pivots serve gameplay placement;
-- LOD preserves silhouette, color blocks, and major planes;
-- triangle/material/texture limits come from the catalog, Art Bible, and machine budgets;
-- optimize invisible geometry/material duplication before weakening hero silhouettes.
-
----
+- Geometry, shading, materials, palette, effects and detail are agent design choices within task scope. Use the existing registered producer. Shared palette/material helpers and `VisualRenderConfig` may evolve centrally; native source PBR materials do not require palette conversion or vertex-color baking.
+- Preserve catalog dimensions, pivots, collision, required nodes, grips/sockets, rig/animation interfaces and valid GLB data; inspect affected motion and placement.
+- Triangle maximums, material/texture caps and upper LOD limits remain enforced. Triangle floors/targets and lower LOD ratios are advisory evidence, not failures or instructions to add invisible geometry.
+- LOD and quality degradation retain runtime level selection, canonical placement/collision and usable gameplay feedback. Profile affected cost with matching inputs; do not infer performance from geometry totals alone.
+- Provider/source assets and supporting maps retain license/provenance evidence. Supporting maps use `ExternalSurfaceTextures` and `VisualRenderConfig` with owned loading/fallback/disposal; no reference-imposed albedo, palette-remapping or photorealism ban applies.
+- Optimize unnecessary duplicate resources and invisible work where it helps measured cost, without substituting technical counts for design judgment.
 
 # 8. Token-Conscious Agent Rules
 
-- Use one agent for routine asset work; do not spawn parallel review agents.
+- Use bounded ownership when delegating; routine work does not require a separate reviewer or approval loop.
 - Batch related assets by family when they share the same generator context.
 - Keep the user-selected model and reasoning settings. Reduce unnecessary work through focused context, cache reuse and scoped verification.
 - The human should send revision feedback as `asset ID + observed problem + desired change`; do not restate the entire pipeline.
@@ -425,7 +374,8 @@ Save impact: no (unless explicitly changed)
 Docs updated: <paths, or `none — no documented fact changed`>
 Narrative role: <none or concise practical/story function>
 Inspection: <affected views/motion checked and result, or exact access gap>
-Visual status: Awaiting human game review
+Completion: <completed scope, or exact verification/access gap>
+Human review: <only when explicitly requested or required for release>
 ```
 
 Shared-kit, pipeline and release tasks additionally report only the heavier gates actually run and any actionable failures.

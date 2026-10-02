@@ -10,8 +10,15 @@ import { atlasForFish, atlasForItem } from "../chrome/uiAtlas";
 import { handleTabListKeyDown } from "../useTabListKeyboard";
 import { useTranslation } from "../../i18n/useTranslation";
 import { tradePackName } from "../../i18n/tradePackNames";
+import { TR_ITEMS } from "../../i18n/locales/tr/items";
+import { TR_FISH } from "../../i18n/locales/tr/fish";
+import { localizeCatalogText } from "../../i18n/catalogNames";
+import { placeLabel } from "../../i18n/placesTr";
 
 export type LedgerTransferDirection = "to-hold" | "to-satchel";
+
+const cargoName = (cargo: WorldHudCargoDto, locale: string): string =>
+  tradePackName(cargo.tradePackId, locale === "tr" ? TR_FISH[cargo.speciesId]?.name ?? cargo.name : cargo.name, locale);
 
 interface LogisticsLedgerModalProps {
   stores: HoldStoresDto;
@@ -54,8 +61,9 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
   onMoveStorageFish,
   onDropCatch
 }) => {
-  const { locale } = useTranslation();
+  const { locale, translateReason } = useTranslation();
   const isTr = locale === "tr";
+  const vesselName = (name: string) => localizeCatalogText(name, locale);
   const modalRef = useRef<HTMLDivElement>(null);
   const [transferNotice, setTransferNotice] = useState<string | null>(null);
   const [selectedBoatId, setSelectedBoatId] = useState<string>(
@@ -82,7 +90,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
         ? isTr
           ? `${quantity} ${itemName} ${direction === "to-hold" ? "ambara aktarıldı" : "heybenize alındı"}`
           : `Moved ${quantity} ${itemName} ${direction === "to-hold" ? "to the hold" : "to the satchel"}`
-        : result.reason ?? (isTr ? "İşlem reddedildi" : "That move was refused")
+        : translateReason(result.reason) || (isTr ? "İşlem reddedildi" : "That move was refused")
     );
   };
 
@@ -95,7 +103,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
         ? placement === "hook"
           ? isTr ? "Av kıç ayna kancasına asıldı" : "Hooked the catch on the transom"
           : isTr ? "Av ambara yerleştirildi" : "Stowed the catch in the hold"
-        : result.reason ?? (isTr ? "İşlem reddedildi" : "That stow was refused")
+        : translateReason(result.reason) || (isTr ? "İşlem reddedildi" : "That stow was refused")
     );
   };
 
@@ -114,7 +122,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
         ? isTr
           ? `${quantity} ${itemName} ${direction === "deposit" ? "depoya kaldırıldı" : "heybenize alındı"}`
           : `Moved ${quantity} ${itemName} ${direction === "deposit" ? "into storage" : "to the satchel"}`
-        : result.reason ?? (isTr ? "İşlem reddedildi" : "That move was refused")
+        : translateReason(result.reason) || (isTr ? "İşlem reddedildi" : "That move was refused")
     );
   };
 
@@ -127,7 +135,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
         ? direction === "store"
           ? isTr ? "Av depoya kaldırıldı" : "Stored the catch"
           : isTr ? "Av depodan alındı" : "Collected the catch"
-        : result.reason ?? (isTr ? "İşlem reddedildi" : "That move was refused")
+        : translateReason(result.reason) || (isTr ? "İşlem reddedildi" : "That move was refused")
     );
   };
 
@@ -140,7 +148,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
         ? isTr
           ? "Ticaret yükü yakına bırakıldı. Hazır olduğunuzda alabilirsiniz."
           : "Trade pack set down nearby. Collect it when ready."
-        : result.reason ?? (isTr ? "Burası uygun bir zemin değil" : "No clear ground here")
+        : translateReason(result.reason) || (isTr ? "Burası uygun bir zemin değil" : "No clear ground here")
     );
   };
 
@@ -164,7 +172,6 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
             <span className="ledger-icon" aria-hidden="true"><IconLedger size={24} /></span>
             <div>
               <h2 id="stores-title" className="ledger-title">{isTr ? "Ambar ve Depo" : "Hold & Stores"}</h2>
-              <span className="ledger-subtitle">{isTr ? "Yük ambarları, erzak ve eldeki yükler" : "Cargo space and supplies currently in hand"}</span>
             </div>
           </div>
           <ChromeClose onClick={onClose} label={isTr ? "Ambar ve Depo panelini kapat" : "Close Hold & Stores"} className="ledger-close-btn" />
@@ -174,7 +181,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
           <dl className="stores-capacity-line" aria-label={isTr ? "Mevcut kapasite" : "Current capacity"}>
             <div><dt>{isTr ? "Heybe" : "Satchel"}</dt><dd>{stores.satchel.occupiedSlots}/{stores.satchel.totalSlots} {isTr ? "göz" : "slots"}</dd></div>
             <div><dt><IconBoat size={16} aria-hidden="true" /> {isTr ? "Tekne ambarları" : "Vessel holds"}</dt><dd>{stores.vesselHolds.occupiedSlots}/{stores.vesselHolds.totalSlots} {isTr ? "göz" : "slots"}</dd></div>
-            <div><dt><IconFish size={16} aria-hidden="true" /> {isTr ? "Taşınan yük" : "Carried cargo"}</dt><dd>{stores.carriedCatch ? (isTr ? "1 adet elde" : "1 in hand") : (isTr ? "Yok" : "None")}</dd></div>
+            <div><dt><IconFish size={16} aria-hidden="true" /> {isTr ? "Taşınan yük" : "Carried cargo"}</dt><dd>{stores.carriedCatch ? (isTr ? "1" : "1") : (isTr ? "Yok" : "None")}</dd></div>
           </dl>
 
           <section className="ledger-section stores-supplies" aria-labelledby="stores-supplies-title">
@@ -186,7 +193,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                   className={`stores-supply-slot ${count > 0 ? "is-occupied" : "is-empty"}`}
                 >
                   <AtlasImage src={atlasForItem(itemId)} alt="" size={26} className="stores-supply-icon" />
-                  <span className="stores-supply-name">{name}</span>
+                  <span className="stores-supply-name">{isTr ? TR_ITEMS[itemId]?.name ?? name : name}</span>
                   <strong className="stores-supply-count">{count}</strong>
                 </li>
               ))}
@@ -201,35 +208,35 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                 <CargoSlot cargo={stores.carriedCatch} slotNumber={1} />
                 {activeVessel ? (
                   <>
-                    <div className="stores-stow-actions" role="group" aria-label={isTr ? "Taşınan avı yerleştir" : "Stow the carried catch"}>
-                      <ChromeButton
+                    {onStowCatch && <div className="stores-stow-actions" role="group" aria-label={isTr ? "Taşınan avı yerleştir" : "Stow the carried catch"}>
+                      {activeVessel.cargoSlots.some((slot) => slot.kind === "hold") && <ChromeButton
                         size="sm"
                         soundCue="click"
                         disabled={!activeVessel.stowCarried.hold}
                         onClick={() => runStowCatch(activeVessel.boatId, "hold")}
                       >
                         {isTr ? "Ambara koy" : "Stow in hold"}
-                      </ChromeButton>
-                      <ChromeButton
+                      </ChromeButton>}
+                      {activeVessel.cargoSlots.some((slot) => slot.kind === "hook") && <ChromeButton
                         size="sm"
                         soundCue="click"
                         disabled={!activeVessel.stowCarried.hook}
                         onClick={() => runStowCatch(activeVessel.boatId, "hook")}
                       >
-                        {isTr ? "Ayna kancasına as" : "Hang on transom hook"}
-                      </ChromeButton>
-                    </div>
+                        {isTr ? "Kancaya as" : "Hang on hook"}
+                      </ChromeButton>}
+                    </div>}
                     {!activeVessel.stowCarried.hold && !activeVessel.stowCarried.hook && (
-                      <p className="stores-stow-note">{isTr ? "Bu av için uygun ambar gözü veya kanca kalmadı." : "No hold slot or transom hook fits this catch."}</p>
+                      <p className="stores-stow-note">{isTr ? "Bu yük için uygun yer yok." : "No cargo slot fits this pack."}</p>
                     )}
                   </>
                 ) : (
-                  <p className="stores-stow-note">{isTr ? "Avı yüklemek için teknene bin." : "Board your vessel to stow this catch."}</p>
+                  <p className="stores-stow-note">{isTr ? "Yüklemek için teknene bin." : "Board your vessel to stow cargo."}</p>
                 )}
                 {onDropCatch && !activeVessel && (
                   <div className="stores-stow-actions" role="group" aria-label={isTr ? "Taşınan avı yere bırak" : "Set the carried catch down"}>
                     <ChromeButton size="sm" soundCue="click" onClick={runDropCatch}>
-                      {isTr ? "Yere bırak" : "Set down on the ground"}
+                      {isTr ? "Yere bırak" : "Set down"}
                     </ChromeButton>
                   </div>
                 )}
@@ -237,7 +244,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                   <p className="stores-stow-note">
                     {activeVessel
                       ? (isTr ? "Yükü yere bırakmak için karaya çıkın." : "Disembark to set this pack down.")
-                      : (isTr ? "Yere bırakılan yük burada kalır. Bozulabilen ürünler açık havada tazeliğini yitirir." : "A pack set on the ground stays here. Perishable goods continue to age in the open air.")}
+                      : (isTr ? "Yük burada kalır; tazeliği azalmaya devam eder." : "Cargo stays here; freshness keeps decreasing.")}
                   </p>
                 )}
               </section>
@@ -266,7 +273,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                       }}
                     >
                       <IconBoat size={15} aria-hidden="true" />
-                      <span>{v.name}</span>
+                      <span>{vesselName(v.name)}</span>
                       <span className="stores-vessel-tab-badge">
                         {v.occupiedSlots}/{v.cargoSlots.length}
                       </span>
@@ -288,8 +295,8 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
               >
                 <div className="stores-vessel-heading">
                   <div>
-                    <h3 id={`stores-${vessel.boatId}`}>{vessel.name}</h3>
-                    <span>{vessel.statusLabel} · {isTr ? `${vessel.occupiedSlots}/${vessel.cargoSlots.length} göz dolu` : `${vessel.occupiedSlots}/${vessel.cargoSlots.length} slots filled`}</span>
+                    <h3 id={`stores-${vessel.boatId}`}>{vesselName(vessel.name)}</h3>
+                    <span>{isTr ? (vessel.statusLabel === "Docked" ? "Bağlı" : "Denizde") : vessel.statusLabel} · {isTr ? `${vessel.occupiedSlots}/${vessel.cargoSlots.length} göz dolu` : `${vessel.occupiedSlots}/${vessel.cargoSlots.length} slots filled`}</span>
                   </div>
                   <Meter
                     className="ledger-hold-meter"
@@ -300,16 +307,20 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                     variant="hull"
                   />
                 </div>
-                <div className="vessel-slots-grid" aria-label={`${vessel.name} ${isTr ? "ambar gözleri" : "hold slots"}`}>
+                <div className="vessel-slots-grid" aria-label={`${vesselName(vessel.name)} ${isTr ? "yük yerleri" : "cargo slots"}`}>
                   {vessel.cargoSlots.map((slot) => slot.cargo
-                    ? <CargoSlot key={slot.cargo.cargoId} cargo={slot.cargo} slotNumber={slot.slotNumber} />
+                    ? <CargoSlot key={slot.cargo.cargoId} cargo={slot.cargo} slotNumber={slot.slotNumber} placement={slot.kind} />
                     : (
                       <ItemSlot
                         key={`${vessel.boatId}-slot-${slot.slotNumber}`}
                         className="vessel-hold-slot"
                         slotNumber={slot.slotNumber}
-                        label={isTr ? `Boş ambar gözü ${slot.slotNumber}` : `Empty hold slot ${slot.slotNumber}`}
-                      />
+                        label={slot.kind === "hook"
+                          ? (isTr ? `Boş ayna kancası ${slot.slotNumber}` : `Empty transom hook ${slot.slotNumber}`)
+                          : (isTr ? `Boş ambar gözü ${slot.slotNumber}` : `Empty hold slot ${slot.slotNumber}`)}
+                      >
+                        {slot.kind === "hook" && <span className="cell-cargo-meta">{isTr ? "Kanca" : "Hook"}</span>}
+                      </ItemSlot>
                     ))}
                 </div>
 
@@ -318,7 +329,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                     className="ledger-transfer"
                     role="group"
                     data-testid={`ledger-transfer-${vessel.boatId}`}
-                    aria-label={isTr ? `Heybe ile ${vessel.name} arasında eşya aktar` : `Move goods between the satchel and ${vessel.name}`}
+                    aria-label={isTr ? `Heybe ile ${vesselName(vessel.name)} arasında eşya aktar` : `Move goods between the satchel and ${vessel.name}`}
                   >
                     <TransferColumn
                       title={isTr ? "Heybe" : "Satchel"}
@@ -331,7 +342,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                       }
                     />
                     <TransferColumn
-                      title={isTr ? `${vessel.name} ambarı` : `${vessel.name} stores`}
+                      title={isTr ? `${vesselName(vessel.name)} ambarı` : `${vessel.name} stores`}
                       emptyLabel={isTr ? "Bu teknede erzak taşınmıyor." : "This vessel is carrying no stores."}
                       rows={vessel.stock}
                       actionLabel={isTr ? "Al" : "Take"}
@@ -356,20 +367,20 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                 >
                   <div className="stores-vessel-heading">
                     <div>
-                      <h3 id={`stores-storage-${facility.kind}`}>{facility.name}</h3>
+                      <h3 id={`stores-storage-${facility.kind}`}>{placeLabel(facility.name, locale)}</h3>
                       <span>
                         {facility.locked
-                          ? facility.blockerReason ?? (isTr ? "Kilitli" : "Locked")
+                          ? translateReason(facility.blockerReason) || (isTr ? "Kilitli" : "Locked")
                           : facility.near
                             ? (isTr ? "Erişim mesafesinde" : "Within reach")
-                            : (isTr ? "Eşya aktarmak için yanına yaklaşın" : "Walk to it to move goods")}{" "}
+                            : (isTr ? "Aktarmak için yaklaş" : "Move closer to transfer")}{" "}
                         · {isTr ? "Yük" : "Cargo"} {facility.fish.usedSlots}/{facility.fish.totalSlots} · {isTr ? "Eşya" : "Goods"}{" "}
                         {facility.goods.usedSlots}/{facility.goods.totalSlots}
                       </span>
                     </div>
                   </div>
 
-                  <div className="vessel-slots-grid" aria-label={`${facility.name} ${isTr ? "yük deposu" : "cargo storage"}`}>
+                  <div className="vessel-slots-grid" aria-label={`${placeLabel(facility.name, locale)} ${isTr ? "yük deposu" : "cargo storage"}`}>
                     {facility.fish.cargo.map((cargo, index) => (
                       <div key={cargo.cargoId} className="storage-fish-slot">
                         <CargoSlot cargo={cargo} slotNumber={index + 1} />
@@ -378,11 +389,11 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                             size="sm"
                             soundCue="click"
                             data-testid={`storage-take-${facility.kind}-${cargo.cargoId}`}
-                            aria-label={isTr ? `${tradePackName(cargo.tradePackId, cargo.name, locale)} yükünü ${facility.name} deposundan al` : `Take ${cargo.name} from ${facility.name}`}
+                            aria-label={isTr ? `${cargoName(cargo, locale)} yükünü ${placeLabel(facility.name, locale)} deposundan al` : `Take ${cargo.name} from ${facility.name}`}
                             disabled={facility.locked || !facility.near || Boolean(stores.carriedCatch)}
                             onClick={() => runStorageFish(facility.kind, cargo.cargoId, "take")}
                           >
-                            {isTr ? "Avı al" : "Take catch"}
+                            {isTr ? "Yükü al" : "Take cargo"}
                           </ChromeButton>
                         )}
                       </div>
@@ -391,7 +402,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                       <ItemSlot
                         className="vessel-hold-slot"
                         slotNumber={facility.fish.usedSlots + 1}
-                        label={isTr ? `Boş ${facility.name} balık gözü` : `Empty ${facility.name} fish slot`}
+                        label={isTr ? `${placeLabel(facility.name, locale)} boş yük gözü` : `Empty ${facility.name} cargo slot`}
                       />
                     )}
                   </div>
@@ -406,7 +417,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                         disabled={facility.locked || !facility.near}
                         onClick={() => runStorageFish(facility.kind, stores.carriedCatch!.cargoId, "store")}
                       >
-                        {isTr ? "Taşınan avı depola" : "Store carried catch"}
+                        {isTr ? "Yükü depola" : "Store cargo"}
                       </ChromeButton>
                     </div>
                   )}
@@ -416,7 +427,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                       className="ledger-transfer"
                       role="group"
                       data-testid={`ledger-storage-transfer-${facility.kind}`}
-                      aria-label={isTr ? `Heybe ile ${facility.name} arasında eşya aktar` : `Move goods between the satchel and ${facility.name}`}
+                      aria-label={isTr ? `Heybe ile ${placeLabel(facility.name, locale)} arasında eşya aktar` : `Move goods between the satchel and ${facility.name}`}
                     >
                       <TransferColumn
                         title={isTr ? "Heybe" : "Satchel"}
@@ -427,7 +438,7 @@ export const LogisticsLedgerModal: React.FC<LogisticsLedgerModalProps> = ({
                         onMove={(itemId, name, count) => runStorageGoods(facility.kind, itemId, name, count, "deposit")}
                       />
                       <TransferColumn
-                        title={isTr ? `${facility.name} eşyaları` : `${facility.name} goods`}
+                        title={isTr ? `${placeLabel(facility.name, locale)} eşyaları` : `${facility.name} goods`}
                         emptyLabel={isTr ? "Bu depoda eşya yok." : "This storage holds no goods."}
                         rows={facility.goods.stock}
                         actionLabel={isTr ? "Al" : "Take"}
@@ -465,7 +476,10 @@ const TransferColumn: React.FC<{
   testIdPrefix: string;
   rows: ReadonlyArray<{ itemId: string; name: string; count: number }>;
   onMove: (itemId: string, name: string, count: number) => void;
-}> = ({ title, emptyLabel, actionLabel, testIdPrefix, rows, onMove }) => (
+}> = ({ title, emptyLabel, actionLabel, testIdPrefix, rows, onMove }) => {
+  const { locale } = useTranslation();
+  const itemName = (row: { itemId: string; name: string }) => locale === "tr" ? TR_ITEMS[row.itemId]?.name ?? row.name : row.name;
+  return (
   <section className="ledger-transfer-column">
     <h4 className="ledger-transfer-title">{title}</h4>
     {rows.length === 0 ? (
@@ -475,13 +489,13 @@ const TransferColumn: React.FC<{
         {rows.map((row) => (
           <li key={row.itemId} className="ledger-transfer-row">
             <AtlasImage src={atlasForItem(row.itemId)} alt="" size={20} />
-            <span className="ledger-transfer-name">{row.name}</span>
+            <span className="ledger-transfer-name">{itemName(row)}</span>
             <ChromeButton
               size="sm"
               className="ledger-transfer-btn"
               data-testid={`${testIdPrefix}-${row.itemId}`}
-              aria-label={`${actionLabel} ${row.count} ${row.name}`}
-              onClick={() => onMove(row.itemId, row.name, row.count)}
+              aria-label={`${actionLabel} ${row.count} ${itemName(row)}`}
+              onClick={() => onMove(row.itemId, itemName(row), row.count)}
             >
               {actionLabel} {row.count}
             </ChromeButton>
@@ -490,22 +504,26 @@ const TransferColumn: React.FC<{
       </ul>
     )}
   </section>
-);
+  );
+};
 
-const CargoSlot: React.FC<{ cargo: WorldHudCargoDto; slotNumber: number }> = ({ cargo, slotNumber }) => {
+const CargoSlot: React.FC<{ cargo: WorldHudCargoDto; slotNumber: number; placement?: "hold" | "hook" }> = ({ cargo, slotNumber, placement }) => {
   const { locale } = useTranslation();
   const isTr = locale === "tr";
   const condition = cargo.kind === "farm" ? (isTr ? "durum" : "condition") : (isTr ? "tazelik" : "freshness");
+  const name = cargoName(cargo, locale);
+  const hookLabel = isTr ? "Kanca" : "Hook";
   return (
     <ItemSlot
       className="vessel-hold-slot is-occupied"
       filled
       slotNumber={slotNumber}
-      label={`${tradePackName(cargo.tradePackId, cargo.name, locale)}, ${cargo.weightKg.toFixed(1)} kg, ${cargo.freshnessPercent}% ${condition}`}
+      label={`${name}, ${cargo.weightKg.toFixed(1)} kg, ${cargo.freshnessPercent}% ${condition}${placement === "hook" ? `, ${hookLabel}` : ""}`}
     >
       <AtlasImage src={cargo.kind === "farm" ? atlasForItem(cargo.itemId!) : atlasForFish(cargo.speciesId)} alt="" size={30} />
       <ChromeQuality quality={cargo.quality} showLabel={false} />
-      <span className="cell-cargo-meta">{cargo.weightKg.toFixed(1)} kg</span>
+      <strong className="cell-cargo-name">{name}</strong>
+      <span className="cell-cargo-meta">{placement === "hook" ? `${hookLabel} · ` : ""}{cargo.weightKg.toFixed(1)} kg</span>
       <span className="cell-cargo-freshness">{isTr ? `%${cargo.freshnessPercent} ${condition}` : `${cargo.freshnessPercent}% ${condition}`}</span>
     </ItemSlot>
   );

@@ -1,13 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
-import { InventoryModal, matchesSatchelSearch } from "../../src/ui/InventoryModal";
+import { InventoryModal, matchesSatchelSearch, satchelLotKey } from "../../src/ui/InventoryModal";
 import {
   ItemInspectCard,
   formatGrowthDuration,
   freshnessToneFor
 } from "../../src/ui/components/ItemInspectCard";
 import type { ItemInspectionDto, SatchelDto } from "../../src/simulation/core/contracts";
+import { localeStore } from "../../src/i18n/localeStore";
+import { ChromeQuality } from "../../src/ui/chrome/Chrome";
+
+afterEach(() => localeStore.set("en"));
 
 const slot = (
   index: number,
@@ -68,10 +72,84 @@ const renderCard = (over: Partial<ItemInspectionDto> = {}): string =>
   renderToString(React.createElement(ItemInspectCard, { item: { ...baseCard, ...over } }));
 
 describe("Milestone M4 — Satchel search, tidy & item inspect cards", () => {
+  it("localizes cargo facts while preserving the domain's numbers", () => {
+    localeStore.set("tr");
+    const html = renderCard({ itemId: "fish.trout", name: "Rainbow Trout", categoryLabel: "fish",
+      rarity: { tier: "rare", label: "Rare", encounterWeight: 40 },
+      freshness: { percent: 42, label: "Turning", storageLabel: "Transom hook", decayRate: 1.25 }
+    });
+    for (const text of ["Gökkuşağı Alabalığı", "Eşya bilgileri", "Balık", "Nadir", "42% · Bayatlamaya başlamış", "Ayna kancası", "bozulma hızı 1.25×", "width:42%"])
+      expect(html).toContain(text);
+    for (const text of ["Item facts", "Rainbow Trout", "Turning", "spoils at", "Transom hook"])
+      expect(html).not.toContain(text);
+  });
+
+  it("localizes grade badges without changing their semantic grade", () => {
+    localeStore.set("tr");
+    const badge = renderToString(React.createElement(ChromeQuality, { quality: "fine" }));
+    expect(badge).toContain('title="İyi kalite"');
+    expect(badge).toContain('data-quality="silver"');
+    const html = render({ satchel: { ...satchel, slots: [{ ...satchel.slots[0], quality: "fine" }] } });
+    expect(html).toContain("İyi kalite, adet 8");
+    expect(html).not.toContain("fine kalite");
+  });
+
+  it("uses Turkish duration units with the existing rounding", () => {
+    expect(formatGrowthDuration(45, "tr")).toBe("45 dk");
+    expect(formatGrowthDuration(180, "tr")).toBe("3 sa");
+    expect(formatGrowthDuration(1500, "tr")).toBe("1 gün 1 sa");
+    expect(formatGrowthDuration(2879, "tr")).toBe("2 gün");
+  });
+
   // ==========================================================================
   // R6.1 SEARCH & AUTO-SORT
   // ==========================================================================
   describe("R6.1 Satchel controls", () => {
+    it("localizes item and crop names without changing the source lot", () => {
+      localeStore.set("tr");
+      const html = render();
+      expect(html).toContain("Buğday Tohumu");
+      expect(html).toContain("Buğday Ek");
+      expect(html).toContain("Gökkuşağı Alabalığı");
+      expect(html).not.toContain("Wheat Seed");
+      expect(satchel.slots[0].name).toBe("Wheat Seed");
+      expect(satchelLotKey(satchel.slots[0])).toBe("0:seed.wheat::8");
+    });
+
+    it("matches Turkish dotted and dotless letters using the display locale", () => {
+      const corn = { itemId: "seed.corn", name: "Mısır Tohumu", cropName: "Tatlı Mısır", categoryLabel: "seed" };
+      expect(matchesSatchelSearch(corn, "MISIR", "tr")).toBe(true);
+      expect(matchesSatchelSearch({ ...corn, name: "İncir" }, "incir", "tr")).toBe(true);
+      expect(matchesSatchelSearch(corn, "buğday", "tr")).toBe(false);
+    });
+
+    it("translates the authoritative planting blocker", () => {
+      localeStore.set("tr");
+      const html = render({ onInspectPlanting: () => ({ valid: false, reason: "Dismount before planting" }) });
+      expect(html).toContain("Ekimden önce binek veya arabadan in");
+      expect(html).not.toContain('data-testid="inventory-plant-action"');
+    });
+
+    it("offers eating only with a handler and preserves the quoted restore and refusal", () => {
+      const onInspectItem = () => ({ ...baseCard, provisions: { restoresWork: 17, edible: false, blockerReason: "You are well fed — try again tomorrow" } });
+      expect(render({ onInspectItem })).not.toContain('data-testid="inventory-consume-action"');
+      localeStore.set("tr");
+      const html = render({ onInspectItem, onConsumeItem: () => ({ success: true }) });
+      expect(html).toContain("Ye · 17 Emek tazeler");
+      expect(html).toMatch(/data-testid="inventory-consume-action"[^>]*disabled/);
+      expect(html).toContain("Karnın tok — yarın yine dene");
+    });
+
+    it("invalidates an armed discard when its slot, item, grade or quantity changes", () => {
+      const original = slot(0, { itemId: "produce.wheat", quantity: 4, quality: "fine" });
+      const key = satchelLotKey(original);
+      expect(satchelLotKey({ ...original })).toBe(key);
+      for (const change of [{ index: 1 }, { itemId: "seed.wheat" }, { quality: "common" as const }, { quantity: 5 }]) {
+        expect(satchelLotKey({ ...original, ...change })).not.toBe(key);
+      }
+      expect(satchelLotKey(slot(0))).toBeNull();
+      expect(satchelLotKey(undefined)).toBeNull();
+    });
     it("renders a search field alongside the existing category tabs", () => {
       const html = render();
       expect(html).toContain('data-testid="inventory-search"');

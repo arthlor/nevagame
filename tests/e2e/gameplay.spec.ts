@@ -2,9 +2,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "path";
 import fs from "fs";
-import { CURRENT_SCHEMA_VERSION } from "../../src/persistence/SaveSchema";
+import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { createInitialGameState } from "../../src/simulation/core/createInitialState";
-import { dayOfSeason } from "../../src/simulation/core/GameClock";
+import { calendarAtMinute, dayOfSeason, MINUTES_PER_DAY } from "../../src/simulation/core/GameClock";
 
 // These routes enter the world through the title screen. Automated entry skips
 // the optional cinematic; its presentation has no simulation contract, and
@@ -44,37 +44,39 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await expect(page.getByTestId("game-clock")).not.toBeVisible();
     expect(modelRequests).toHaveLength(0);
 
-    // 3. Start the real catalog-backed load and prove progress reaches its
-    // dynamically derived catalog total before the title fades away.
+    // 3. Start the real catalog-backed load and observe its measured asset
+    // total after the initial world-preparation phase's indeterminate bar.
     await startButton.click();
     const progress = page.getByTestId("startup-progress");
     await expect(progress).toBeVisible();
     if ((await startButton.count()) > 0) await expect(startButton).toBeDisabled();
     await expect(page.getByRole("progressbar", { name: "Preparing the Neva Land world" })).toBeVisible();
+    await expect.poll(async () => Number(await progress.getAttribute("max")), {
+      timeout: 180_000
+    }).toBeGreaterThan(1);
     const totalAssets = Number(await progress.getAttribute("max"));
-    expect(totalAssets).toBeGreaterThan(0);
-    await expect.poll(async () => Number(await progress.getAttribute("value")), {
+    // Production can finish and remove the progress element between polls.
+    // Observe the declared asset count, then wait for the real HUD.
+    await expect.poll(() => new Set(modelRequests).size, {
       timeout: 450_000
-    }).toBe(totalAssets);
-    expect(new Set(modelRequests).size).toBe(totalAssets);
+    }).toBeGreaterThanOrEqual(totalAssets);
 
     // 4. Verify HUD components (clock text depends on leftover save / offline progression)
     const clockTime = page.getByTestId("game-clock");
-    await expect(clockTime).toBeVisible({ timeout: 60_000 });
+    await expect(clockTime).toBeVisible({ timeout: 450_000 });
     await expect(page.getByRole("heading", { name: "Neva Land", exact: true })).not.toBeVisible();
 
     const purse = page.getByLabel("Purse: 100 gold");
     await expect(purse).toBeVisible();
     await expect(purse).toContainText("100 G");
     await expect(page.locator(".hud-hotkey-ribbon-wood")).toHaveCount(0);
-    await expect(page.getByTestId("tool-slot-5")).toHaveAttribute("aria-label", /Rod/);
+    await expect(page.getByRole("button", { name: "Open game menu" })).toBeVisible();
 
     // 5. Test opening Backpack Inventory through the player-facing hotkey.
     await page.keyboard.press("KeyI");
     const invModal = page.locator(".modal-content");
     await expect(invModal).toBeVisible();
     await expect(invModal).toContainText("Satchel");
-    await expect(invModal).toContainText("Wheat Seeds");
 
     // Close Inventory
     const closeBtn = invModal.getByRole("button", { name: "Close" }).last();
@@ -119,8 +121,8 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await expect(page.getByTestId("startup-start-button")).toBeEnabled({ timeout: 30_000 });
 
     const state = createInitialGameState(12345);
-    state.clock.dayCount = 12;
-    state.clock.currentMinute = 540;
+    const currentMinute = 12 * MINUTES_PER_DAY + 540;
+    Object.assign(state.clock, { currentMinute, ...calendarAtMinute(currentMinute) });
     state.player.money = 777;
     state.metadata.lastSavedUtcMs = 1_725_000_000_000;
     const rawSaveEnvelope = {
@@ -128,6 +130,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
       savedAtUtcMs: state.metadata.lastSavedUtcMs,
       state
     };
+    expect(validateSaveEnvelope(rawSaveEnvelope)).toBe(true);
     await page.evaluate(async (rawEnvelope) => {
       await new Promise<void>((resolve, reject) => {
         const request = indexedDB.open("neva_save_db", 1);
@@ -154,7 +157,7 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     const continueButton = page.getByTestId("startup-start-button");
     await expect(continueButton).toContainText("Continue", { timeout: 30_000 });
     // The summary shows the day within the season, not the absolute day count.
-    await expect(page.getByLabel("Existing save summary")).toContainText(
+    await expect(page.getByLabel("Saved game summary")).toContainText(
       `Day ${dayOfSeason(rawSaveEnvelope.state.clock.dayCount)}`
     );
     await expect(page.getByTestId("startup-new-game-button")).toBeVisible();
@@ -167,16 +170,39 @@ test.describe("Neva End-to-End Gameplay & Visual Verification", () => {
     await expect(continueButton).toContainText("Continue");
 
     await page.getByTestId("startup-options-button").click();
-    await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Options" })).toBeVisible();
     await expect(page.getByTestId("startup-fullscreen-button")).toBeVisible();
     await page.getByRole("navigation", { name: "Settings pages" }).getByRole("button", { name: "Controls" }).click();
     await expect(page.getByRole("heading", { name: "Controls" })).toBeVisible();
     await page.getByTestId("startup-options-close").click();
-    await expect(page.getByRole("dialog", { name: "Settings" })).not.toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Options" })).not.toBeVisible();
 
     await continueButton.click();
     await expect(page.getByTestId("startup-progress")).toBeVisible();
     if ((await continueButton.count()) > 0) await expect(continueButton).toBeDisabled();
+    await expect(page.getByTestId("game-clock")).toBeVisible({ timeout: 450_000 });
+    await expect(page.getByLabel("Purse: 777 gold")).toBeVisible();
+
+    await page.getByRole("button", { name: "Open game menu" }).click();
+    await page.getByRole("dialog", { name: "Paused" }).getByRole("button", { name: "Save now", exact: true }).click();
+    await expect.poll(() => page.evaluate(async () => {
+      return new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open("neva_save_db", 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const read = db.transaction("game_saves", "readonly").objectStore("game_saves").get("primary_save");
+          read.onsuccess = () => { db.close(); resolve(read.result?.savedAtUtcMs ?? 0); };
+          read.onerror = () => { db.close(); reject(read.error); };
+        };
+      });
+    })).toBeGreaterThan(rawSaveEnvelope.savedAtUtcMs);
+
+    await page.reload();
+    await expect(page.getByTestId("startup-start-button")).toContainText("Continue", { timeout: 30_000 });
+    await page.getByTestId("startup-start-button").click();
+    await expect(page.getByTestId("game-clock")).toBeVisible({ timeout: 450_000 });
+    await expect(page.getByLabel("Purse: 777 gold")).toBeVisible();
   });
 
   test("keeps the title layout readable at desktop and narrow sizes", async ({ page }) => {

@@ -27,11 +27,15 @@ const ACTION_BY_TYPE: Partial<Record<QuestObjectiveType, QuestObjectiveAction>> 
 export function questObjectiveFacts(
   objective: QuestObjectiveDefinition,
   current: number,
-  destinationName?: string
+  destinationName?: string,
+  questId?: string
 ): QuestObjectiveFacts {
   const required = Math.max(1, objective.targetQuantity);
   const action = ACTION_BY_TYPE[objective.type] ?? "other";
   return {
+    questId,
+    objectiveId: objective.id,
+    description: objective.description,
     action,
     progressKind: action === "talk" || action === "purchase" || action === "turn-in" ? "visit" : "cumulative",
     subject: objectiveSubject(objective),
@@ -58,6 +62,12 @@ export function formatQuestObjective(
   if (facts.action === "turn-in") {
     const name = facts.subject ?? (locale === "tr" ? "konuşmacı" : "them");
     return locale === "tr" ? `Devam etmek için ${name} ile konuş` : `Talk to ${name} to continue`;
+  }
+  // The authored instruction carries constraints a verb/subject pair cannot:
+  // a catch from the skiff, a named order, or a particular packing yard.
+  if (facts.description) {
+    const instruction = facts.description.replace(/[.!]$/, "");
+    return facts.required > 1 ? `${instruction} · ${facts.current}/${facts.required}` : instruction;
   }
   if (facts.action === "talk") {
     const name = facts.subject ?? (locale === "tr" ? "birisi" : "them");

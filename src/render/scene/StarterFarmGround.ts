@@ -14,6 +14,7 @@ export interface StarterFarmGroundOptions {
   surfaceMaterial?: THREE.MeshStandardMaterial;
   /** Optional stable prefix for authored farm families that reuse this builder. */
   groupName?: string;
+  marginMeters?: number;
 }
 
 function hashUnit(value: number): number {
@@ -24,11 +25,12 @@ function hashUnit(value: number): number {
 function buildCultivatedBed({
   origin,
   plantableArea,
-  heightAt
+  heightAt,
+  marginMeters
 }: StarterFarmGroundOptions): THREE.BufferGeometry {
   const config = CANONICAL_RENDER_CONFIG.farmGround;
   const segments = config.gridSegments;
-  const margin = config.cultivationMarginMeters;
+  const margin = marginMeters ?? config.cultivationMarginMeters;
   const minX = plantableArea.minX - margin;
   const maxX = plantableArea.maxX + margin;
   const minZ = plantableArea.minZ - margin;
@@ -48,8 +50,7 @@ function buildCultivatedBed({
       let localX = THREE.MathUtils.lerp(minX, maxX, columnProgress);
       let localZ = THREE.MathUtils.lerp(minZ, maxZ, rowProgress);
 
-      // A soft superellipse keeps the complete 8x8 planting area while rounding
-      // and wandering the worked perimeter into an authored field patch.
+      // The connected grid rounds the worked perimeter without detached edge fragments.
       const interiorJitter = 0.035;
       localX += (hashUnit(vertexIndex + 2.1) - 0.5) * interiorJitter;
       localZ += (hashUnit(vertexIndex + 7.7) - 0.5) * interiorJitter;
@@ -89,43 +90,6 @@ function buildCultivatedBed({
         indices.push(topLeft, bottomLeft, bottomRight, topLeft, bottomRight, topRight);
       }
     }
-  }
-
-  // Sparse shoulder fragments dissolve the rectangular edge into the surrounding grass.
-  const appendShoulder = (side: "north" | "south" | "west" | "east", index: number) => {
-    const acrossCount = 6;
-    const startProgress = (index + 0.08 + hashUnit(index + side.length) * 0.16) / acrossCount;
-    const endProgress = Math.min(1, startProgress + 0.08 + hashUnit(index + 81) * 0.055);
-    const outward = 0.18 + hashUnit(index + side.charCodeAt(0)) * 0.34;
-    let points: Array<[number, number]>;
-    if (side === "north" || side === "south") {
-      const edgeZ = side === "north" ? maxZ : minZ;
-      const direction = side === "north" ? 1 : -1;
-      points = [
-        [THREE.MathUtils.lerp(minX, maxX, startProgress), edgeZ],
-        [THREE.MathUtils.lerp(minX, maxX, endProgress), edgeZ],
-        [THREE.MathUtils.lerp(minX, maxX, (startProgress + endProgress) * 0.5), edgeZ + outward * direction]
-      ];
-    } else {
-      const edgeX = side === "east" ? maxX : minX;
-      const direction = side === "east" ? 1 : -1;
-      points = [
-        [edgeX, THREE.MathUtils.lerp(minZ, maxZ, startProgress)],
-        [edgeX, THREE.MathUtils.lerp(minZ, maxZ, endProgress)],
-        [edgeX + outward * direction, THREE.MathUtils.lerp(minZ, maxZ, (startProgress + endProgress) * 0.5)]
-      ];
-    }
-    const baseIndex = positions.length / 3;
-    for (const [localX, localZ] of points) {
-      const worldX = origin.x + localX;
-      const worldZ = origin.z + localZ;
-      positions.push(worldX, heightAt(worldX, worldZ) + 0.024, worldZ);
-    }
-    indices.push(baseIndex, baseIndex + 1, baseIndex + 2);
-  };
-
-  for (const side of ["north", "south", "west", "east"] as const) {
-    for (let index = 0; index < 6; index += 1) appendShoulder(side, index);
   }
 
   const indexed = new THREE.BufferGeometry();
@@ -176,7 +140,7 @@ function buildFurrowTroughs({
       const endZ = THREE.MathUtils.lerp(plantableArea.minZ - 0.18, plantableArea.maxZ + 0.18, endProgress);
       const startBend = Math.sin(startProgress * Math.PI * 2 + furrow * 0.73) * 0.055;
       const endBend = Math.sin(endProgress * Math.PI * 2 + furrow * 0.73) * 0.055;
-      const halfWidth = 0.14 + hashUnit(furrow * 29 + segment) * 0.045;
+      const halfWidth = config.furrowHalfWidthMeters * (0.9 + hashUnit(furrow * 29 + segment) * 0.2);
       const localPoints: Array<[number, number]> = [
         [baseX + startBend - halfWidth, startZ],
         [baseX + startBend + halfWidth, startZ],

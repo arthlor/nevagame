@@ -66,6 +66,12 @@ export function translateExpeditionText(text: string, locale?: string): string {
   const minutes = text.match(/^(\d+)m left$/);
   if (minutes) return `${minutes[1]} dk kaldı`;
 
+  const daysHours = text.match(/^(\d+)d (\d+)h left$/);
+  if (daysHours) return `${daysHours[1]} gün ${daysHours[2]} sa kaldı`;
+
+  const days = text.match(/^(\d+)d left$/);
+  if (days) return `${days[1]} gün kaldı`;
+
   const hoursMinutes = text.match(/^(\d+)h (\d+)m left$/);
   if (hoursMinutes) return `${hoursMinutes[1]} sa ${hoursMinutes[2]} dk kaldı`;
 

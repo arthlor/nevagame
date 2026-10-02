@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 
 import { CANONICAL_RENDER_CONFIG } from "../../src/render/config/VisualRenderConfig";
@@ -7,6 +7,8 @@ import {
   RoadSurfaceMaterial
 } from "../../src/render/materials/RoadSurfaceMaterial";
 import { ROAD_WHEEL_GAUGE_METERS } from "../../src/world/RoadClasses";
+import { POLYHAVEN_SURFACE_TEXTURES } from "../../src/render/materials/ExternalSurfaceTextures";
+import { GROUND_STONES_GLSL } from "../../src/render/materials/GroundStoneShader";
 
 describe("RoadSurfaceMaterial", () => {
   const materials: RoadSurfaceMaterial[] = [];
@@ -47,18 +49,25 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("roadTrackTrough * roadTrackReliefStrength");
     expect(shader.fragmentShader).toContain("mix(roughnessFactor, roadPuddleRoughness, roadPuddle * roadPuddleStrength)");
     expect(shader.fragmentShader).not.toContain("displacement");
-    // Shared world fields, supporting maps and the narrow coverage edge remain.
-    expect(shader.vertexShader).toContain("attribute vec4 surfaceWeights0");
-    expect(shader.fragmentShader).toContain("nevaSurfaceCliffWeight() + nevaSurfaceRiverbedWeight()");
-    expect(shader.fragmentShader).toContain("nevaSurfaceDampSoilWeight() + nevaSurfaceWetShorelineWeight()");
-    expect(shader.fragmentShader).toContain("nevaSurfaceWeatherWetness");
-    expect(shader.fragmentShader).toContain("nevaSurfaceFacetNormal");
+    // Broad local palette is packed in RGBA; the material needs no terrain
+    // weight attributes and only one supporting-map sample at one scale.
+    expect(shader.vertexShader).not.toContain("surfaceWeights");
+    expect(shader.vertexShader).not.toContain("surfaceCauses");
+    expect(shader.fragmentShader).not.toContain("nevaSurfaceFacetNormal");
     expect(shader.fragmentShader).toContain(
-      "texture2D(roadSourceColorTexture, roadFineUv, roadSourceLodBias)"
+      "texture2D(roadSourceColorTexture, roadSourceUv, roadSourceLodBias)"
     );
-    expect(shader.fragmentShader).toContain(
-      "texture2D(roadSourceRoughnessTexture, roadFineUv, roadSourceLodBias)"
-    );
+    expect(shader.fragmentShader.match(/texture2D\(roadSourceColorTexture/g)).toHaveLength(1);
+    expect(shader.fragmentShader).not.toContain("roadSourceRoughnessTexture");
+    // Brook gravel is embedded in the existing surface: no new map, geometry
+    // displacement or alpha holes, and fine detail fades below pixel scale.
+    expect(shader.fragmentShader).toContain(GROUND_STONES_GLSL);
+    expect(shader.fragmentShader).toContain("smoothstep(0.35, 1.2, roadStoneFootprint)");
+    expect(shader.fragmentShader).toContain("roadStoneMask * roadStoneColorMix");
+    expect(shader.fragmentShader).toContain("roadStoneNormalStrength * roadStoneMask");
+    expect(shader.uniforms.roadStoneCellScale.value).toBe(CANONICAL_RENDER_CONFIG.roadSurface.stones.cellScaleMeters);
+    expect(shader.uniforms.roadStoneCoreDensity.value).toBeLessThan(shader.uniforms.roadStoneShoulderDensity.value as number);
+    expect(shader.uniforms.roadSourceSampleScale.value).toBe(CANONICAL_RENDER_CONFIG.roadSurface.externalTexture.sampleScaleMeters);
     expect(shader.fragmentShader).toContain("fwidth(roadEdgeField)");
     expect(shader.fragmentShader).toContain("roadEdgeBand = 1.0 - smoothstep(roadEdgeFadeFull, 1.0, vRoadOpacity)");
     expect(shader.fragmentShader).toContain("roadCoverage + (roadDither - 0.5) * 0.12");
@@ -67,10 +76,7 @@ describe("RoadSurfaceMaterial", () => {
     expect(shader.fragmentShader).toContain("float shoreCrownDissolve");
     expect(shader.uniforms.roadShoreBlendInland.value).toBe(CANONICAL_RENDER_CONFIG.roadSurface.shoreBlendInlandMeters);
     expect(shader.uniforms.roadShoreBlendCrown.value).toBeLessThan(shader.uniforms.roadShoreBlendInland.value);
-    expect(shader.fragmentShader).toContain("float sharedRoadCellSignal = roadEdgeSignal;");
-    expect(shader.fragmentShader).toContain("inverseTransformDirection(baseNormal, viewMatrix)");
     expect(shader.uniforms.roadEdgeCellScale.value).toBe(CANONICAL_RENDER_CONFIG.roadSurface.polygonEdgeCellScaleMeters);
-    expect(shader.uniforms.roadFineDetailStrength.value).toBe(CANONICAL_RENDER_CONFIG.roadSurface.externalTexture.fineDetailStrength);
     expect(shader.uniforms.roadWetness.value).toBe(0);
     expect(road.material.flatShading).toBe(false);
     expect(road.material.transparent).toBe(false);
@@ -82,6 +88,37 @@ describe("RoadSurfaceMaterial", () => {
     expect(road.wetness).toBe(1);
     road.setWetness(-1);
     expect(road.wetness).toBe(0);
+    road.setWetness(Number.NaN);
+    expect(road.wetness).toBe(0);
+  });
+
+  it("loads the single supporting map once and disposes its replacement", async () => {
+    const road = new RoadSurfaceMaterial();
+    materials.push(road);
+    const texture = new THREE.Texture<HTMLImageElement>();
+    const dispose = vi.spyOn(texture, "dispose");
+    const loader = { loadAsync: vi.fn(async () => texture) };
+    const first = road.loadExternalTextures(loader);
+    expect(road.loadExternalTextures(loader)).toBe(first);
+    await first;
+    expect(loader.loadAsync).toHaveBeenCalledExactlyOnceWith(POLYHAVEN_SURFACE_TEXTURES.roadColor.url);
+    expect(texture.colorSpace).toBe(THREE.SRGBColorSpace);
+    road.dispose();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("retains its palette fallback when the supporting map is unavailable", async () => {
+    const road = new RoadSurfaceMaterial();
+    materials.push(road);
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await expect(road.loadExternalTextures({ loadAsync: async () => { throw new Error("unavailable"); } })).resolves.toBeUndefined();
+      expect(log).toHaveBeenCalledOnce();
+      expect(road.material.vertexColors).toBe(true);
+      expect(road.material.transparent).toBe(false);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("fails loudly when the installed standard-shader contract drifts", () => {

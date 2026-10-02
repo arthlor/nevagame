@@ -5,6 +5,8 @@ type AutosaveMethods = {
   requestAutosave: () => void;
   flushAutosave: () => Promise<void>;
   requestPeriodicAutosave: (nowMs: number) => void;
+  takeOnlineWorkSeconds: (nowUtcMs?: number) => number;
+  saveCurrentGame: () => Promise<boolean>;
 };
 
 const methods = GameApp.prototype as unknown as AutosaveMethods;
@@ -24,10 +26,13 @@ function fakeApp(saveGame: () => Promise<boolean>) {
     autosaveFailureNotified: false,
     saveRepo: { saveGame: vi.fn(saveGame) },
     // The repository is faked, so the saved state is never inspected.
-    sim: { state: {} },
+    sim: { state: { metadata: { lastSavedUtcMs: 0 } }, progression: { tickPassiveWorkRegen: vi.fn() } },
+    lastWorkRecoveryUtcMs: Date.now(),
     notify,
     requestAutosave: methods.requestAutosave,
-    flushAutosave: methods.flushAutosave
+    flushAutosave: methods.flushAutosave,
+    takeOnlineWorkSeconds: methods.takeOnlineWorkSeconds,
+    saveCurrentGame: methods.saveCurrentGame
   };
   return app;
 }

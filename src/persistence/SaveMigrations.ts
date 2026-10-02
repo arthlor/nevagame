@@ -9,6 +9,9 @@ import { migrateRoadApron74 } from "./migrateRoadApron74";
 import { migrateRoadGore75 } from "./migrateRoadGore75";
 import { migrateCollisionPolish76 } from "./migrateCollisionPolish76";
 import { migrateSatchelSlots77 } from "./migrateSatchelSlots77";
+import { migrateWorkedRoads78 } from "./migrateWorkedRoads78";
+import { migrateCommonsEntrance79 } from "./migrateCommonsEntrance79";
+import { migrateWorkRecovery80 } from "./migrateWorkRecovery80";
 import { migrateRoadNetwork70 } from "./migrateRoadNetwork70";
 import { migrateElspethYard71 } from "./migrateElspethYard71";
 import { migrateWorkCeiling72 } from "./migrateWorkCeiling72";
@@ -1512,7 +1515,10 @@ export const MIGRATIONS: Record<number, MigrationFunction> = {
   74: (state: unknown) => migrateRoadApron74(advanceLayoutRevision(state, 38) as GameState),
   75: (state: unknown) => migrateRoadGore75(advanceLayoutRevision(state, 39) as GameState),
   76: (state: unknown) => migrateCollisionPolish76(advanceLayoutRevision(state, 40) as GameState),
-  77: (state: unknown) => migrateSatchelSlots77(state as GameState)
+  77: (state: unknown) => migrateSatchelSlots77(state as GameState),
+  78: (state: unknown) => migrateWorkedRoads78(advanceLayoutRevision(state, 41) as GameState),
+  79: (state: unknown) => migrateCommonsEntrance79(advanceLayoutRevision(state, 42) as GameState),
+  80: (state: unknown) => migrateWorkRecovery80(state as GameState)
 };
 
 
@@ -1557,6 +1563,8 @@ function advanceLayoutRevision(state: unknown, target: number): unknown {
   if (due(39)) state = migrateRoadApron74(state as GameState);
   if (due(40)) state = migrateRoadGore75(state as GameState);
   if (due(41)) state = migrateCollisionPolish76(state as GameState);
+  if (due(42)) state = migrateWorkedRoads78(state as GameState);
+  if (due(43)) state = migrateCommonsEntrance79(state as GameState);
   return state;
 }
 

@@ -37,6 +37,7 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
     getLocalizedMarket,
     getLocalizedStationTitle,
     getLocalizedCraftingState,
+    translateReason,
     locale
   } = useTranslation();
   const isTr = locale === "tr";
@@ -93,7 +94,6 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
         <header className="modal-header crafting-modal__header">
           <div>
             <h2 id="crafting-modal-title">{station.stationType === "trading-station" ? (isTr ? "Köy Paketleme Tezgâhı" : "Village Packing Yard") : getLocalizedStationTitle(station.stationType)}</h2>
-            <p>{station.job ? (isTr ? "Bu tezgâhtaki işin" : "Your work at this station") : (isTr ? "Ne üreteceğini seç" : "Choose what to make")}</p>
           </div>
           <ChromeClose onClick={onClose} label={isTr ? "Üretimi kapat" : "Close crafting"} />
         </header>
@@ -104,9 +104,9 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
             <div>
               <small>{station.job.status === "complete" ? (isTr ? "Teslim almaya hazır" : "Ready to collect") : (isTr ? "Sürüyor" : "In progress")}</small>
               <h3>{getLocalizedRecipe(station.job.recipeId).name ?? station.job.recipeName}</h3>
-              <p>{isTr ? (station.job.status === "complete" ? "Teslim almaya hazır" : `${station.job.remainingMinutes} oyun dakikası kaldı · ${station.job.readyClockLabel} saatinde hazır`) : station.job.waitBriefing}</p>
+              {station.job.status !== "complete" && <p>{isTr ? `${station.job.remainingMinutes} oyun dakikası · ${station.job.readyClockLabel} hazır` : station.job.waitBriefing}</p>}
               <strong>{tradePackName(station.job.tradePackId, station.job.outputName, locale)}</strong>
-              <p>{isTr ? `+${station.job.xpReward} İşleme TP için teslim al` : `Collect for +${station.job.xpReward} Processing XP`}</p>
+              <p>{isTr ? `+${station.job.xpReward} İşleme TP` : `+${station.job.xpReward} Processing XP`}</p>
             </div>
           </div>
         ) : (
@@ -124,6 +124,7 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
                       setFeedback(null);
                     }}
                     aria-pressed={selected?.recipeId === recipe.recipeId}
+                    aria-controls="crafting-recipe-detail"
                   >
                     <span className="crafting-recipe-row__mark" aria-hidden="true">
                       <AtlasImage src={recipeSprite(recipe)} size={30} aria-hidden="true" />
@@ -136,7 +137,7 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
               })}
             </nav>
 
-            <section className="crafting-recipe-detail" aria-live="polite">
+            <section id="crafting-recipe-detail" className="crafting-recipe-detail" aria-live="polite">
               {selected ? (
                 <>
                   <div className="crafting-recipe-detail__title">
@@ -151,7 +152,7 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
                         <span className="crafting-requirement__item">
                           <AtlasImage src={atlasForItem(input.itemId)} size={28} aria-hidden="true" />
                           <span>{getLocalizedItem(input.itemId).name ?? input.name}
-                            {input.sources && <details className="crafting-ingredient-sources"><summary>{isTr ? "Nereden alınır?" : "Where to buy"}</summary>
+                            {input.sources && input.sources.length > 0 && <details className="crafting-ingredient-sources"><summary>{isTr ? "Nereden alınır?" : "Where to buy"}</summary>
                               {input.sources.map(source => <p key={source.marketId}>{getLocalizedMarket(source.marketId).name} · {source.stock} {isTr ? "stokta" : "in stock"} · {input.required} {isTr ? "adet" : "units"}: {source.cost} G</p>)}
                             </details>}
                           </span>
@@ -168,26 +169,27 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
                     <div><dt>{isTr ? "Teslim alınca" : "On collection"}</dt><dd>{isTr ? `+${selected.xpReward} İşleme TP` : `+${selected.xpReward} Processing XP`}</dd></div>
                   </dl>
                   {selected.tradeDestinations && <section className="crafting-trade-routes">
-                    <h4>{isTr ? "Teslimat rotaları" : "Delivery routes"}</h4>
-                    <p>{isTr ? "Bugünkü tekliflerdir; varışta talep ve tazeliğe göre değişir. Benzer paketler aynı talebi paylaşır." : "Current estimates change with demand and condition on arrival. Related packs share demand."}</p>
-                    <p>{isTr ? "Malzemeleri yeniden alma bedeli ve paketleme ücreti" : "Ingredient replacement cost and packing fee"}: {selected.replacementCost === null ? (isTr ? "Stok yetersiz" : "Not enough market stock") : `${selected.replacementCost} G`}. {isTr ? "Kendi ürettiğin malzemeler de bugünkü alış fiyatıyla hesaba katılır. Yol masrafları hariçtir." : "Homegrown inputs use today's purchase cost too. Travel costs are excluded."}</p>
-                    <p>{selected.decayPerMinute === 0 ? (isTr ? "Dayanıklı yük; bozulmaz." : "Durable cargo; does not spoil.") : (isTr ? "Erzak zamanla tazeliğini kaybeder. Uzun yollar için dayanıklı kumanyaları seç." : "Provisions lose freshness over time. Preserved goods keep longer on distant routes.")}</p>
+                    <details className="crafting-trade-details"><summary>{isTr ? "Teslimat teklifleri" : "Delivery estimates"}</summary>
+                    <p>{isTr ? "Varıştaki talep ve tazeliğe göre değişir. Benzer paketler talebi paylaşır." : "Values change with demand and freshness. Related packs share demand."}</p>
+                    <p>{isTr ? "Malzeme + paketleme" : "Ingredients + packing"}: {selected.replacementCost === null ? (isTr ? "Stok yetersiz" : "Not enough market stock") : `${selected.replacementCost} G`}. {isTr ? "Kendi ürünlerin alış fiyatıyla hesaplanır. Yol masrafları hariç." : "Own ingredients use purchase prices. Travel costs excluded."}</p>
+                    <p>{selected.decayPerMinute === 0 ? (isTr ? "Bozulmaz." : "Does not spoil.") : (isTr ? "Tazelik zamanla azalır." : "Freshness decreases over time.")}</p>
                     <dl className="crafting-job-facts">{selected.tradeDestinations.map(route => <div key={route.marketId}>
                       <dt>{getLocalizedMarket(route.marketId).name} · {(route.routeMeters / 1000).toFixed(1)} km</dt><dd>{route.gold} G · +{route.tradingXp} {isTr ? "Ticaret TP" : "Trading XP"}<br />
-                        {isTr ? "Tahmini kazanç" : "Estimated margin"}: {route.estimatedMargin === null ? '—' : `${route.estimatedMargin} G`} · {isTr ? "Talep" : "Demand"}: {route.demandPercent}%</dd>
+                        {isTr ? "Kazanç" : "Margin"}: {route.estimatedMargin === null ? '—' : `${route.estimatedMargin} G`} · {isTr ? "Talep" : "Demand"}: {route.demandPercent}%</dd>
                     </div>)}</dl>
+                    </details>
                   </section>}
-                  <p className="crafting-collection-note">{selected.result.kind === "farm-pack" ? (isTr ? "Yükü boş ellerinle al, bir köy tezgâhına taşıyıp sat. Paketlenen mahsulün kalitesi korunur." : "Collect with empty hands, then carry the pack to a village counter to sell. Harvest grades are preserved.") : isTr ? "Hazır olduğunda buradan al. Almadan önce çantanda yer aç." : "Collect here when ready. Make room in your storage before collecting."}</p>
+                  <p className="crafting-collection-note">{selected.result.kind === "farm-pack" ? (isTr ? "Boş ellerinle al, köy tezgâhına taşı." : "Collect with empty hands; carry to a village counter.") : isTr ? "Hazır olduğunda buradan al. Heybende yer ayır." : "Collect here when ready. Leave room in your satchel."}</p>
 
                   {(selected.work.roundingLimited || selected.work.throughputCapLimited) && (
                     <p className="crafting-rounding-note">
                       {isTr
                         ? (selected.work.roundingLimited
-                          ? "Bu küçük iş zaten olabilecek en az Emeği harcıyor."
-                          : "Donanımın bu iş için mümkün olan azami Emek tasarrufunu sağlıyor.")
+                          ? "En düşük Emek maliyeti."
+                          : "Donanım tasarrufu azami düzeyde.")
                         : (selected.work.roundingLimited
-                          ? "This small job already uses the least Work it can."
-                          : "Your gear gives the full Work saving available for this job.")}
+                          ? "Minimum Work cost."
+                          : "Maximum gear saving.")}
                     </p>
                   )}
 
@@ -206,15 +208,16 @@ export const CraftingModal: React.FC<CraftingModalProps> = ({ station, onClose, 
         <footer className="modal-footer crafting-modal__footer">
           <span role="status">{
             !station.withinReach
-              ? (station.reachBlocker ?? (isTr ? "Tezgâhın önüne geri dön." : "Move back to the front of the station."))
-              : feedback ?? (station.job ? (isTr ? "İş hazır olduğunda tezgâha geri dön." : "Return to the station when the job is ready.") : (isTr ? "Üretim başladığında malzemeler, Emek ve varsa ücret harcanır." : "Starting consumes materials, Work and any listed fee."))
+              ? (translateReason(station.reachBlocker) || (isTr ? "Tezgâha yaklaş." : "Move to the station."))
+              : feedback ?? (station.job ? (station.job.status === "complete" ? (isTr ? "Kapat, tezgâhtan teslim al." : "Close, then collect at the station.") : (isTr ? "Hazır olduğunda tezgâha dön." : "Return when ready.")) : (isTr ? "Malzemeler, Emek ve ücret başlangıçta harcanır." : "Materials, Work and fees are spent on start."))
           }</span>
           {!station.job && selected && (
             <ChromeButton
               type="button"
               disabled={selected.state === "locked" || selected.blockers.length > 0 || !station.withinReach}
               onClick={begin}
-            >{isTr ? `${getLocalizedRecipe(selected.recipeId).name ?? selected.name} Başlat` : `Start ${getLocalizedRecipe(selected.recipeId).name ?? selected.name}`}</ChromeButton>
+            aria-label={isTr ? `${getLocalizedRecipe(selected.recipeId).name ?? selected.name} başlat` : `Start ${getLocalizedRecipe(selected.recipeId).name ?? selected.name}`}
+            >{isTr ? "Başlat" : "Start"}</ChromeButton>
           )}
         </footer>
 

@@ -16,6 +16,7 @@ export const INTERACTION_PLACEMENT_OVERRIDES: Record<string, InteractionPlacemen
   "struct.trade_reedhaven": { x: -574.5, z: 329.2, rotationY: 7.854 },
   "authored.mainland.pinewatch.market": { x: -398.9, z: 57.9, rotationY: 2.0944 },
   "struct.trade_pinewatch": { x: -391, z: 43.3, rotationY: 4.7124 },
+  "struct.starter_mill": { x: 66, z: -68.1, rotationY: -0.2618 },
 };
 
 /** A gameplay-bearing prefab cannot be copied/deleted as ordinary scenery. */
@@ -46,7 +47,13 @@ export const INTERACTION_PLACEMENTS: Readonly<Record<string, { stationId?: strin
   "village_bulletin_board": {},
   "authored.arrival.village.firewood": {},
   "authored.arrival.village.rack": {},
-  "authored.prop.net-rack.harbor": {}
+  "authored.prop.net-rack.harbor": {},
+  "authored.commons.basket": {},
+  "authored.village.produce-crate": {},
+  "authored.prop.crate.harbor": {},
+  "authored.mainland.pinewatch.working-stock": {},
+  "authored.mainland.reedhaven.working-stock": {},
+  "authored.mainland.highridge.working-stock": {}
 };
 
 export function placementForStation(stationId: string): string | undefined {

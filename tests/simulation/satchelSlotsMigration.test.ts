@@ -19,7 +19,7 @@ describe("player satchel schema 77", () => {
     const after = migrateSaveData(saved);
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(after.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-    expect(after.state.schemaVersion).toBe(77);
+    expect(after.state.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
 
     const satchel = after.state.inventories[id];

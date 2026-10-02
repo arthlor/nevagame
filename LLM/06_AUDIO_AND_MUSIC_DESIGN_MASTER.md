@@ -21,7 +21,7 @@
 
 # 1. Audio Identity & Design Pillars
 
-Neva's audio landscape is designed to feel **warm, tactile, salt-weathered, and intimately grounded in physical work**. It mirrors the visual low-poly, hand-crafted coastal aesthetic: rich in physical presence, organic timbre, and spatial depth, while avoiding synthetic harshness or abrasive digital alarms.
+Neva's audio landscape is designed to feel **warm, tactile, salt-weathered, and intimately grounded in physical work**. Its physical presence, organic timbre and spatial depth serve the work and coastal setting, while avoiding synthetic harshness or abrasive digital alarms. Audio identity does not impose a visual style.
 
 ```
        LAND (EARTH & WOOD)          ↔          SEA (SALT & WATER)

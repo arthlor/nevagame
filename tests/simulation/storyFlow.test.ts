@@ -125,7 +125,7 @@ describe("one coherent conversation per talk", () => {
       "intro:quest.homestead_seed_pouch",
       "completion:quest.homestead_seed_pouch"
     ]);
-    expect(first.dialogue[0]).toContain("A seed pouch");
+    expect(first.dialogue[0]).toBe(ContentRegistry.quests.get("quest.homestead_seed_pouch")!.introDialogue[0]);
     expect(sim.state.journal.unlockedKnowledge).toContain("knowledge.family_seed_pouch");
     // The spine is untouched; asking again gives its own errand.
     expect(mainQuestTrack(sim.state.quests).activeQuestId).toBe("quest.act3_market_intro");
@@ -148,7 +148,7 @@ describe("one coherent conversation per talk", () => {
     setQuest(sim, "track.main", act5.id, act5.objectives.length - 1);
     const result = talk(sim, "npc.silas");
     expect(result.segments[0]).toMatchObject({ kind: "completion", questId: act5.id });
-    expect(result.dialogue[0]).toContain("Magnificent");
+    expect(result.dialogue[0]).toBe(act5.completionDialogue[0]);
     // The Tides track opens on this close and Silas is its speaker, so he goes on.
     expect(shape(result)).toContain("intro:quest.tides_home_water");
   });
@@ -184,6 +184,7 @@ describe("one coherent conversation per talk", () => {
       const farewell = talk(sim, npcId);
       expect(shape(farewell)).toEqual(["objective:quest.act10_open_horizons"]);
       const step = ContentRegistry.quests.get("quest.act10_open_horizons")!.objectives.find((objective) => objective.targetId === npcId)!;
+      expect(farewell.segments[0].objectiveId).toBe(step.id);
       expect(farewell.dialogue).toEqual(step.dialogue);
     }
     const close = talk(sim, "npc.elspeth");

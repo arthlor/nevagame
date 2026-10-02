@@ -186,6 +186,12 @@ export const FARM_FENCE_OVERRIDES: Readonly<Record<string, { x: number; z: numbe
   "fence_east_4": { x: 16.1, z: 4.6, rotationY: 1.5708 },
   "fence_east_0": { x: 15.9, z: 0.5, rotationY: 1.5708 },
   "fence_east_-2": { x: 15.9, z: -0.55, rotationY: 1.5708 },
+  "fence_south_6": { x: 4.9, z: -5.7, rotationY: 0 },
+  "fence_south_4": { x: 2.9, z: -5.7, rotationY: 0 },
+  "fence_south_2": { x: 0.9, z: -5.7, rotationY: 0 },
+  "fence_south_-2": { x: -1.1, z: -5.7, rotationY: 0 },
+  "fence_south_-4": { x: -3.1, z: -5.7, rotationY: 0 },
+  "fence_south_-6": { x: -5.1, z: -5.7, rotationY: 0 },
 };
 
 /** Extra fence posts created by the DEV layout editor (copy/paste). */
@@ -208,7 +214,7 @@ function applyFarmFenceOverrides(anchors: readonly FarmFenceAnchor[]): readonly 
 const STARTER_PROP_ANCHORS = [
   { id: "farm_hay_a", type: "hay-bale", x: -13.4, z: -8.2, rotationY: 0.22, scale: 1 },
   { id: "farm_hay_b", type: "hay-bale", x: -12.1, z: -8.5, rotationY: 0.66, scale: 0.94 },
-  { id: "stall_crate_a", type: "produce-crate", x: 12.3, z: -3.2, rotationY: -0.18, scale: 0.9 },
+  { id: "stall_crate_a", type: "produce-crate", x: 11.9, z: -5.7, rotationY: -0.18, scale: 0.9 },
   { id: "stall_basket_a", type: "harvest-basket", x: 5.7, z: -19.5, rotationY: 0.24, scale: 1 },
   { id: "farm_lamp_a", type: "lamp-post", x: 7.5, z: -6.4, rotationY: 0.7854, scale: 0.88 },
   { id: "farm_lamp_a_copy_1", type: "lamp-post", x: 14.8, z: 2.4, rotationY: 2.8798, scale: 0.88},

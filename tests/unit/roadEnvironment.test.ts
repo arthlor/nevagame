@@ -6,16 +6,60 @@ import {
   WorldLayout
 } from "../../src/world/WorldLayout";
 import { STARTER_FARM_LAYOUT, worldToFarmLocal } from "../../src/world/FarmLayout";
-import { GRASS_MAX_PATH_INFLUENCE, GROUND_COVER_DENSITY, createWorldEnvironmentLayout, generateFarmPathPaverSamples, generateGroundCoverPlacements, generateSunreachGroundCoverPlacements, hasGroundCoverClearance } from "../../src/world/WorldEnvironmentLayout";
+import { GRASS_MAX_PATH_INFLUENCE, GROUND_COVER_DENSITY, clearsCompleteRouteCorridor, createWorldEnvironmentLayout, generateFarmPathPaverSamples, generateGroundCoverPlacements, generateSunreachGroundCoverPlacements, hasGroundCoverClearance } from "../../src/world/WorldEnvironmentLayout";
 import { groundCoverActiveCount } from "../../src/render/config/VisualRenderConfig";
 import { sampleWorldComposition } from "../../src/world/WorldCompositionField";
 import { SeededRng } from "../../src/simulation/core/Rng";
 import { retainHarborGroundCover } from "../../src/world/HarborCoastLayout";
 import { inHarborWorkingReserve } from "../../src/world/HarborDistrictLayout";
-import { mainlandGroundCoverSteps } from "../../src/world/MainlandEnvironmentLayout";
+import { mainlandGroundCoverSteps, mainlandSettlementPlacements } from "../../src/world/MainlandEnvironmentLayout";
 import { runSync } from "../../src/utils/CooperativeTask";
 
 describe("Organic road environment", () => {
+  it("releases mainland vegetation at the shared road boundary and retains object-radius clearance", () => {
+    const route = WorldLayout.compiledRouteNetwork().find((candidate) => candidate.route.id === "mainland-pinewatch-highridge")!;
+    const sample = route.samples[Math.floor(route.samples.length * 0.5)];
+    const outer = route.halfWidth + route.shoulderWidthMeters + route.terrainFeatherMeters * 0.78;
+    const pointAt = (across: number) => ({
+      x: sample.point.x + sample.normal.x * across,
+      z: sample.point.z + sample.normal.z * across
+    });
+    const centre = pointAt(0);
+    expect(sampleWorldComposition(42891, centre.x, centre.z).route.clearance).toBe(1);
+    expect(clearsCompleteRouteCorridor(centre.x, centre.z)).toBe(false);
+
+    const outside = pointAt(outer + 0.4);
+    const distance = -WorldLayout.roadFootprintSample(outside.x, outside.z).coverageSignedDistance;
+    expect(distance).toBeGreaterThan(0.2);
+    expect(sampleWorldComposition(42891, outside.x, outside.z).route.clearance).toBe(0);
+    expect(clearsCompleteRouteCorridor(outside.x, outside.z, distance - 0.05)).toBe(true);
+    expect(clearsCompleteRouteCorridor(outside.x, outside.z, distance + 0.05)).toBe(false);
+  });
+
+  it("keeps mainland furniture, gardens and measured milestones beyond resolved road shoulders", () => {
+    const placements = mainlandSettlementPlacements();
+    const furniture = placements.filter((placement) => /\.(bench|waymark)$/.test(placement.id));
+    expect(furniture).toHaveLength(6);
+    for (const placement of furniture) {
+      const radius = placement.assetId === "prop_bench_wood_a" ? 1.6 : 0.9;
+      expect(WorldLayout.roadFootprintSample(placement.x, placement.z).coverageSignedDistance).toBeLessThan(-radius);
+    }
+    const gardens = placements.filter((placement) => /\.garden(-fence)?\./.test(placement.id));
+    expect(gardens.length).toBeGreaterThan(0);
+    for (const placement of gardens) {
+      const radius = placement.id.includes(".garden-fence.") ? 1.5 : 1.6;
+      expect(WorldLayout.roadFootprintSample(placement.x, placement.z).coverageSignedDistance).toBeLessThanOrEqual(-radius);
+    }
+    const milestones = placements.filter((placement) => placement.id.startsWith("authored.mainland.milestone."));
+    expect(milestones.length).toBeGreaterThan(0);
+    for (const placement of milestones) {
+      expect(WorldLayout.roadFootprintSample(placement.x, placement.z).coverageSignedDistance).toBeLessThan(-0.5);
+      const stage = Number(placement.id.split(".").at(-1));
+      expect(stage % 250).toBe(0);
+      expect(Number.isFinite(placement.x) && Number.isFinite(placement.z)).toBe(true);
+    }
+  });
+
   it("keeps quality density monotonic without changing the canonical high layout", () => {
     // VisualRenderConfig owns the per-tier scales; tiers only activate a
     // subset of the one canonical placement list, never more than it holds.
@@ -34,8 +78,10 @@ describe("Organic road environment", () => {
     const isSunreach = (placement: { compositionTag?: { islandId?: string } }) =>
       placement.compositionTag?.islandId === "island.sunreach";
     const generatedNevaCover = generateGroundCoverPlacements(42891);
-    expect(generatedNevaCover).toHaveLength(
-      Object.values(GROUND_COVER_DENSITY.high).reduce((total, count) => total + count, 0)
+    expect(generatedNevaCover.filter((placement) => placement.category !== "pebbles")).toHaveLength(
+      Object.entries(GROUND_COVER_DENSITY.high)
+        .filter(([category]) => category !== "pebbles")
+        .reduce((total, [, count]) => total + count, 0)
     );
     // Neva's short-grass carpet is the renderer's MeadowField, not scattered tufts.
     expect(generatedNevaCover.some((placement) => placement.assetId.startsWith("foliage_grass_"))).toBe(false);
@@ -49,25 +95,20 @@ describe("Organic road environment", () => {
     expect(first.groundCoverPlacements.filter(isSunreach))
       .toEqual(sunreachCover.filter((placement) => !inHarborWorkingReserve(placement, 0.5)));
 
-    const shoulderCover = first.groundCoverPlacements.filter((placement) =>
+    expect(first.groundCoverPlacements.some((placement) =>
       placement.id.includes("ground-cover.shoulder.pebbles")
-    );
-    expect(shoulderCover.length).toBeGreaterThan(0);
-    expect(shoulderCover.every((placement) =>
-      WorldLayout.pathInfluence(placement.x, placement.z) < 0.2
-      && !WorldLayout.isBridgeDeck(placement.x, placement.z)
-    )).toBe(true);
+      || placement.id.includes("ground-cover.path.pebbles")
+    )).toBe(false);
     expect(first.groundCoverPlacements.every((placement) =>
       !WorldLayout.isBridgeDeck(placement.x, placement.z)
     )).toBe(true);
 
-    const pathPebbles = first.groundCoverPlacements.filter((placement) =>
-      placement.id.includes("ground-cover.path.pebbles")
+    const shorelinePebbles = generatedNevaCover.filter((placement) => placement.category === "pebbles"
     );
-    expect(pathPebbles.length).toBeGreaterThan(0);
-    expect(pathPebbles.every((placement) =>
-      WorldLayout.pathInfluence(placement.x, placement.z) > 0.28
-      && !WorldLayout.isBridgeDeck(placement.x, placement.z)
+    expect(shorelinePebbles.length).toBeGreaterThan(0);
+    expect(shorelinePebbles.length).toBeLessThanOrEqual(GROUND_COVER_DENSITY.high.pebbles);
+    expect(shorelinePebbles.every((placement) =>
+      placement.id.includes("ground-cover.shoreline.")
     )).toBe(true);
   }, 60_000);
 

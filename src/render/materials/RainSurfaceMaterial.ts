@@ -35,7 +35,7 @@ export function applyRainSurface(material: THREE.MeshStandardMaterial): void {
       #ifdef USE_FOG
         // Use the resolved normal, including flat facets and instance rotation.
         // Downward faces stay dry; vertical faces receive a weaker runoff response.
-        float nevaRainUp = inverseTransformDirection(normal, viewMatrix).y;
+        float nevaRainUp = transformNormalByInverseViewMatrix(normal, viewMatrix).y;
         float nevaRainExposure = smoothstep(-0.12, 0.18, nevaRainUp)
           * mix(0.35, 1.0, smoothstep(0.0, 0.75, nevaRainUp));
         float nevaObjectWetness = nevaRainSurfaceWetness * nevaRainExposure;

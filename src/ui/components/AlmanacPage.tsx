@@ -7,6 +7,7 @@ import { atlasForFish } from "../chrome/uiAtlas";
 import { ContentRegistry } from "../../content/ContentRegistry";
 import { formatCompactDuration } from "./formatCompactDuration";
 import { useTranslation } from "../../i18n/useTranslation";
+import { qualityLabel } from "../../i18n/itemText";
 
 interface AlmanacPageProps {
   almanac: AlmanacDto;
@@ -72,6 +73,8 @@ const CLIMATE_LABELS_TR: Record<string, string> = {
   Temperate: "Ilıman",
   Arid: "Kurak",
   Humid: "Nemli",
+  Warm: "Sıcak",
+  Cool: "Serin",
   "Any ground": "Her toprak"
 };
 
@@ -82,19 +85,39 @@ function translateJoinedLabels(label: string, dict: Record<string, string>): str
     .join(" · ");
 }
 
-function translateSeasonAvailability(label: string): string {
-  if (label === "Strong run now") return "Şu an bol akın var";
-  if (label === "Scarce this season") return "Bu mevsim kıt";
-  if (label === "No current run") return "Şu an akın yok";
+function formatJoinedLabels(label: string, dict?: Record<string, string>): string {
+  return label
+    .split(" · ")
+    .map((part) => {
+      const trimmed = part.trim();
+      return dict ? (dict[trimmed] ?? trimmed) : trimmed;
+    })
+    .join(", ");
+}
+
+function formatAvailability(label: string, isTr: boolean): string {
+  if (isTr) {
+    if (label === "Strong run now" || label === "Strong run") return "Bol akın";
+    if (label === "Scarce this season" || label === "Scarce") return "Kıt";
+    if (label === "No current run" || label === "No run") return "Akın yok";
+    const match = label.match(/Returns in (\w+)/);
+    if (match) {
+      const s = SEASON_LABELS_TR[match[1]] ?? match[1];
+      return `${s} mevsiminde`;
+    }
+    return label;
+  }
+  if (label === "Strong run now") return "Strong run";
+  if (label === "Scarce this season") return "Scarce";
+  if (label === "No current run") return "No run";
   const match = label.match(/Returns in (\w+)/);
   if (match) {
-    const s = SEASON_LABELS_TR[match[1]] ?? match[1];
-    return `${s} mevsiminde döner`;
+    return `In ${match[1]}`;
   }
   return label;
 }
 
-export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
+export const AlmanacPage: React.FC<AlmanacPageProps> = React.memo(({ almanac }) => {
   const [strand, setStrand] = useState<AlmanacStrand>("fish");
   const [search, setSearch] = useState("");
   const { locale, getLocalizedFish, getLocalizedCrop } = useTranslation();
@@ -108,7 +131,7 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
     if (pages) pages.scrollTop = 0;
   };
 
-  const query = search.trim().toLowerCase();
+  const query = search.trim().toLocaleLowerCase(locale);
   // Thirstiest authored crop is the band ceiling; the 25 floor keeps a sane
   // scale if the registry is not ready (e.g. an isolated component test).
   const maxCropWaterNeed = useMemo(
@@ -121,10 +144,13 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
         (entry) => {
           if (query.length === 0) return true;
           const locName = isTr ? getLocalizedFish(entry.speciesId).name : "";
-          return `${entry.name} ${locName} ${entry.habitatsLabel} ${entry.seasonsLabel}`.toLowerCase().includes(query);
+          const labels = isTr
+            ? `${translateJoinedLabels(entry.habitatsLabel, HABITAT_LABELS_TR)} ${translateJoinedLabels(entry.seasonsLabel, SEASON_LABELS_TR)}`
+            : "";
+          return `${entry.name} ${locName} ${entry.habitatsLabel} ${entry.seasonsLabel} ${labels}`.toLocaleLowerCase(locale).includes(query);
         }
       ),
-    [almanac.fish, query, isTr, getLocalizedFish]
+    [almanac.fish, query, isTr, locale, getLocalizedFish]
   );
   const crops = useMemo(
     () =>
@@ -132,10 +158,11 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
         (entry) => {
           if (query.length === 0) return true;
           const locName = isTr ? getLocalizedCrop(entry.cropId).name : "";
-          return `${entry.name} ${locName} ${entry.climatesLabel}`.toLowerCase().includes(query);
+          const climates = isTr ? translateJoinedLabels(entry.climatesLabel, CLIMATE_LABELS_TR) : "";
+          return `${entry.name} ${locName} ${entry.climatesLabel} ${climates}`.toLocaleLowerCase(locale).includes(query);
         }
       ),
-    [almanac.crops, query, isTr, getLocalizedCrop]
+    [almanac.crops, query, isTr, locale, getLocalizedCrop]
   );
 
   return (
@@ -202,11 +229,11 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
         <p className="almanac-search-results" role="status">
           {strand === "fish"
             ? (isTr
-                ? `“${search.trim()}” ile eşleşen ${almanac.fish.length} balıktan ${fish.length} tanesi`
-                : `${fish.length} of ${almanac.fish.length} fish match “${search.trim()}”`)
+                ? `${fish.length} balık bulundu`
+                : `${fish.length} fish found`)
             : (isTr
-                ? `“${search.trim()}” ile eşleşen ${almanac.crops.length} mahsulden ${crops.length} tanesi`
-                : `${crops.length} of ${almanac.crops.length} crops match “${search.trim()}”`)}
+                ? `${crops.length} mahsul bulundu`
+                : `${crops.length} crops found`)}
         </p>
       )}
 
@@ -223,10 +250,12 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
             {fish.map((entry) => {
               const displayName = isTr ? getLocalizedFish(entry.speciesId).name : entry.name;
               const displayRarity = isTr ? (RARITY_LABELS_TR[entry.rarityLabel] ?? entry.rarityLabel) : entry.rarityLabel;
-              const displayHabitats = isTr ? translateJoinedLabels(entry.habitatsLabel, HABITAT_LABELS_TR) : entry.habitatsLabel;
-              const displaySeasons = isTr ? translateJoinedLabels(entry.seasonsLabel, SEASON_LABELS_TR) : entry.seasonsLabel;
-              const displayAvailability = isTr ? translateSeasonAvailability(entry.seasonAvailabilityLabel) : entry.seasonAvailabilityLabel;
-              const displayRuns = isTr ? translateJoinedLabels(entry.timeWindowsLabel, TIME_WINDOW_LABELS_TR) : entry.timeWindowsLabel;
+              const displayHabitats = isTr ? formatJoinedLabels(entry.habitatsLabel, HABITAT_LABELS_TR) : formatJoinedLabels(entry.habitatsLabel);
+              const displaySeasons = isTr
+                ? (entry.seasonsLabel === "All year" ? "Tüm yıl" : formatJoinedLabels(entry.seasonsLabel, SEASON_LABELS_TR))
+                : (entry.seasonsLabel === "All year" ? "All year" : formatJoinedLabels(entry.seasonsLabel));
+              const displayAvailability = formatAvailability(entry.seasonAvailabilityLabel, isTr);
+              const displayRuns = isTr ? (entry.timeWindowsLabel === "Any hour" ? "Günün her saati" : formatJoinedLabels(entry.timeWindowsLabel, TIME_WINDOW_LABELS_TR)) : (entry.timeWindowsLabel === "Any hour" ? "Any hour" : formatJoinedLabels(entry.timeWindowsLabel));
               const displayRod = isTr ? (ROD_CLASS_LABELS_TR[entry.rodClassLabel] ?? entry.rodClassLabel) : entry.rodClassLabel;
 
               return (
@@ -242,25 +271,32 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
                   <div className="almanac-entry-body">
                     <div className="almanac-entry-head">
                       <strong>{displayName}</strong>
-                      <span className="almanac-rarity">{displayRarity}</span>
-                      {entry.isSportFish && <span className="almanac-sport-tag">{isTr ? "Büyük Av" : "Sport"}</span>}
+                      <div className="almanac-entry-badges">
+                        <span className="almanac-rarity">{displayRarity}</span>
+                        {entry.isSportFish && <span className="almanac-sport-tag">{isTr ? "Büyük Av" : "Sport"}</span>}
+                      </div>
                     </div>
                     <dl className="almanac-facts">
                       <div><dt>{isTr ? "Sular" : "Waters"}</dt><dd>{displayHabitats}</dd></div>
-                      <div><dt>{isTr ? "Mevsim" : "Season"}</dt><dd>{displaySeasons}</dd></div>
-                      <div><dt>{isTr ? "Şimdiki mevsim" : "Current season"}</dt><dd>{displayAvailability}</dd></div>
+                      <div><dt>{isTr ? "Şimdi" : "Now"}</dt><dd>{displayAvailability}</dd></div>
                       <div><dt>{isTr ? "Akın vakti" : "Runs"}</dt><dd>{displayRuns}</dd></div>
                       <div><dt>{isTr ? "Olta" : "Rod"}</dt><dd>{displayRod}</dd></div>
-                      <div>
-                        <dt>{isTr ? "Ağırlık" : "Weight"}</dt>
-                        <dd>{`${entry.weightKg.min.toFixed(1)}–${entry.weightKg.max.toFixed(1)} kg`}</dd>
-                      </div>
-                      <div><dt>{isTr ? "Değer" : "Value"}</dt><dd>{`${entry.baseMarketValue} G`}</dd></div>
                     </dl>
+                    <details className="almanac-entry-details">
+                      <summary aria-label={isTr ? `${displayName} ayrıntıları` : `Details for ${displayName}`}>{isTr ? "Ayrıntılar" : "Details"}</summary>
+                      <dl className="almanac-facts">
+                        <div><dt>{isTr ? "Mevsim" : "Season"}</dt><dd>{displaySeasons}</dd></div>
+                        <div>
+                          <dt>{isTr ? "Ağırlık" : "Weight"}</dt>
+                          <dd>{`${entry.weightKg.min.toFixed(1)}–${entry.weightKg.max.toFixed(1)} kg`}</dd>
+                        </div>
+                        <div><dt>{isTr ? "Değer" : "Value"}</dt><dd>{`${entry.baseMarketValue} G`}</dd></div>
+                      </dl>
+                    </details>
                     {/* A personal record only exists once the species has been met. */}
                     {entry.discovered ? (
                       <p className="almanac-personal" data-testid="almanac-personal-record">
-                        <IconStar size={11} aria-hidden="true" />
+                        <IconStar size={11} filled={true} aria-hidden="true" />
                         {isTr
                           ? ` Avlandı: ${entry.caughtCount}${entry.bestWeightKg !== null ? ` · rekor ${entry.bestWeightKg.toFixed(1)} kg` : ""}`
                           : ` Landed ${entry.caughtCount}${entry.bestWeightKg !== null ? ` · best ${entry.bestWeightKg.toFixed(1)} kg` : ""}`}
@@ -286,7 +322,7 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
             {crops.length === 0 && <li className="almanac-empty">{isTr ? "Almanakta eşleşen kayıt bulunamadı." : "Nothing in the almanac matches that."}</li>}
             {crops.map((entry) => {
               const displayName = isTr ? getLocalizedCrop(entry.cropId).name : entry.name;
-              const displayClimates = isTr ? translateJoinedLabels(entry.climatesLabel, CLIMATE_LABELS_TR) : entry.climatesLabel;
+              const displayClimates = isTr ? (entry.climatesLabel === "Any ground" ? "Her toprak" : formatJoinedLabels(entry.climatesLabel, CLIMATE_LABELS_TR)) : (entry.climatesLabel === "Any ground" ? "Any ground" : formatJoinedLabels(entry.climatesLabel));
 
               return (
                 <li
@@ -301,12 +337,16 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
                   <div className="almanac-entry-body">
                     <div className="almanac-entry-head">
                       <strong>{displayName}</strong>
-                      {entry.regrows && <span className="almanac-sport-tag">{isTr ? "Yeniden Verir" : "Regrows"}</span>}
+                      {entry.regrows && (
+                        <div className="almanac-entry-badges">
+                          <span className="almanac-sport-tag">{isTr ? "Yeniden Verir" : "Regrows"}</span>
+                        </div>
+                      )}
                     </div>
                     <dl className="almanac-facts">
                       <div><dt>{isTr ? "Toprak" : "Ground"}</dt><dd>{displayClimates}</dd></div>
-                      <div><dt>{isTr ? "Büyüme" : "Grows in"}</dt><dd>{formatAlmanacDuration(entry.growthMinutes)}</dd></div>
-                      <div><dt>{isTr ? "Su ihtiyacı" : "Water"}</dt><dd>{`${waterNeedLabel(entry.waterNeed, maxCropWaterNeed, isTr)} (${entry.waterNeed})`}</dd></div>
+                      <div><dt>{isTr ? "Büyüme" : "Grows in"}</dt><dd>{formatAlmanacDuration(entry.growthMinutes, locale)}</dd></div>
+                      <div><dt>{isTr ? "Su ihtiyacı" : "Water"}</dt><dd>{waterNeedLabel(entry.waterNeed, maxCropWaterNeed, isTr)}</dd></div>
                       <div>
                         <dt>{isTr ? "Verim" : "Yield"}</dt>
                         <dd>
@@ -318,9 +358,9 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
                     </dl>
                     {entry.discovered ? (
                       <p className="almanac-personal" data-testid="almanac-personal-record">
-                        <IconStar size={11} aria-hidden="true" />
+                        <IconStar size={11} filled={true} aria-hidden="true" />
                         {isTr
-                          ? ` Hasat: ${entry.harvestedCount}${entry.bestQuality ? ` · en iyi ${entry.bestQuality}` : ""}`
+                          ? ` Hasat: ${entry.harvestedCount}${entry.bestQuality ? ` · en iyi ${qualityLabel(entry.bestQuality, locale)}` : ""}`
                           : ` Harvested ${entry.harvestedCount}${entry.bestQuality && ` · best ${entry.bestQuality}`}`}
                       </p>
                     ) : (
@@ -335,4 +375,4 @@ export const AlmanacPage: React.FC<AlmanacPageProps> = ({ almanac }) => {
       )}
     </section>
   );
-};
+});

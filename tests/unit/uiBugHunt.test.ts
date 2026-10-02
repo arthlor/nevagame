@@ -20,7 +20,7 @@ describe("UI Bug Hunt Regression Tests", () => {
       expect(html).toContain('class="guide-lead"');
       const source = readFileSync(new URL("../../src/ui/components/HowToPlayGuide.tsx", import.meta.url), "utf8");
       expect(source.match(/className="guide-lead"/g) ?? []).toHaveLength(4);
-      expect(html).toContain("Follow the prompt above your tools");
+      expect(html).toContain("Follow the action beside your character");
     });
   });
 

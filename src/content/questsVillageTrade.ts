@@ -37,12 +37,10 @@ export const VILLAGE_TRADE_QUESTS: QuestDefinition[] = [
   caravan('first_stamp', 'The First Stamp', {
     speakerId: 'npc.maeve', next: 'first_load', knowledgeId: 'knowledge.packing_stamp', money: 40, tradingXp: 60,
     intro: [
-      'Loose grain belongs on the produce stall. A tied trade pack belongs to a packing yard and must be carried to a village counter by hand.',
-      'Take ten wheat to Neva’s packing yard, not the kitchen. Tie one pack and sell it here in Neva first. The short trip teaches the hand-off; then we can compare what a longer road pays.'
+      "Take ten wheat to Neva’s packing yard and tie a trade pack. Carry it to our village counter and sell it there first. I want you to know the hand-off before I send you up the road."
     ],
     complete: [
-      'The counter took the pack, not ten loose handfuls. Its tag records Neva as the place it was made.',
-      'Now take the same kind of load to a village that needs our grain. The road, the time and the buyer’s stores will change the price.'
+      "Your first Neva stamp. Next time, take that same grain to a village that needs it and compare the offer."
     ],
     objectives: [
       pack('struct.trade_neva', 'wheat', 'Make a wheat trade pack at Neva Packing Yard.', 'step.caravan.first_stamp.pack'),
@@ -52,12 +50,10 @@ export const VILLAGE_TRADE_QUESTS: QuestDefinition[] = [
   caravan('first_load', 'Bread for Pinewatch', {
     speakerId: 'npc.maeve', completionSpeakerId: 'npc.rowan', next: 'woodland_return',
     intro: [
-      'Pinewatch has flax, apples and timber. None of those make bread. Rowan is expecting Neva grain for the ovens.',
-      'Pack ten wheat at our yard, carry it to Pinewatch and sell it at the counter. Compare the offer with your local sale, then speak to Rowan beside the timber yard.'
+      "Rowan needs grain for Pinewatch’s ovens. Make another wheat pack at our yard, sell it at his counter, then find him beside the timber yard."
     ],
     complete: [
-      'The wheat is on the bakehouse board. Your Neva stamp tells us where this loaf began before anyone lights an oven.',
-      'Our flax and apples can travel out while the grain comes in. Let me show you the next road.'
+      "That’s our next bread batch sorted. We have plenty of flax here; Mara could use some down in Reedhaven."
     ],
     objectives: [
       pack('struct.trade_neva', 'wheat', 'Make a Neva wheat trade pack.'),
@@ -67,12 +63,10 @@ export const VILLAGE_TRADE_QUESTS: QuestDefinition[] = [
   caravan('woodland_return', 'Cloth for the Marsh', {
     speakerId: 'npc.rowan', completionSpeakerId: 'npc.mara', next: 'upland_round',
     intro: [
-      'Pinewatch grows flax and apples, and the forest gives us timber. Mara’s dry stores in Reedhaven need cloth more than another log.',
-      'Make a flax pack here, take the raised road to Reedhaven and sell it at Mara’s counter. Leave space for what the marsh sends onward.'
+      "Mara’s stores need flax for wrapping and mending. Pack ours here at Pinewatch, then take the raised road to Reedhaven and sell it at her counter."
     ],
     complete: [
-      'Flax stays dry on these boards. We can wrap provisions for the boats without asking Pinewatch to move its forest.',
-      'Our corn and carrots have their own road. Highridge is uphill, so mind the bends as well as the price.'
+      "Good flax. We’ll put it to use in the stores. If you’re going uphill next, Ada has been asking for our corn."
     ],
     objectives: [
       pack('struct.trade_pinewatch', 'flax', 'Make a Pinewatch flax trade pack.'),
@@ -82,12 +76,10 @@ export const VILLAGE_TRADE_QUESTS: QuestDefinition[] = [
   caravan('upland_round', 'The Upland Table', {
     speakerId: 'npc.mara', completionSpeakerId: 'npc.ada', next: 'four_wheels', knowledgeId: 'knowledge.village_roads',
     intro: [
-      'Reedhaven’s raised beds give us corn and carrots. Highridge keeps roots and workshop metal, but the climb makes fresh lowland food dear.',
-      'Tie a corn pack at our yard and take it up to Ada. The longer road pays for a useful load only if it arrives in good condition.'
+      "Pack Reedhaven corn at our yard and take it up to Highridge. Ada’s table could use a change from roots and barley. Watch the bends on the climb."
     ],
     complete: [
-      'Corn from the wet ground, up here on a dry shelf. You can taste the distance in what this village pays.',
-      'We grow barley and potatoes. Pack barley for Neva on your way home; Maeve can show you what the cartwright built for a trader who knows the whole circuit.'
+      "Corn from the marsh. That will make a welcome supper. We have barley for Neva if you’d like a load for the way down."
     ],
     objectives: [
       pack('struct.trade_reedhaven', 'corn', 'Make a Reedhaven corn trade pack.'),
@@ -97,12 +89,10 @@ export const VILLAGE_TRADE_QUESTS: QuestDefinition[] = [
   caravan('four_wheels', 'Room for Four', {
     speakerId: 'npc.ada', completionSpeakerId: 'npc.maeve', next: 'six_loads',
     intro: [
-      'Highridge barley travels well. Take a pack down to Neva, then look inside the cartwright’s barn east of the square.',
-      'The four-pack wagon has its own draft horse. The maker asks for coin and a trader who has earned the experience to guide a loaded carriage.'
+      "Pack our barley and sell it in Neva. Then visit the cartwright’s barn east of the square and buy the four-pack wagon when you meet the price and Trading requirement."
     ],
     complete: [
-      'Four bays mean fewer empty miles, not four guaranteed good prices. Load each pack from the rear and check the counters before you set out.',
-      'That horse and carriage are yours now. Keep the road useful to the villages that built it.'
+      "A horse and four bays of your own. Load from the rear, and leave room for a useful return cargo. You’ve learned enough roads to make the trip count."
     ],
     objectives: [
       pack('struct.trade_highridge', 'barley', 'Make a Highridge barley trade pack.'),
@@ -115,10 +105,11 @@ export const VILLAGE_TRADE_QUESTS: QuestDefinition[] = [
   caravan('six_loads', 'The Merchant’s Wagon', {
     speakerId: 'npc.maeve', next: 'shared_load',
     intro: [
-      'Six bays can serve more than one village on the same round. Fill them all for one counter and its stores will fill too; the next pack may pay less.',
-      'The larger carriage is dear for a reason. Build your Trading experience and savings, then buy it at the barn when you can afford both the wagon and the work that follows.'
+      "The cartwright has a six-pack wagon now. Save for it and build your Trading experience; we can serve more than one village on a round. Check each counter’s demand before filling it."
     ],
-    complete: ['The second carriage is ready. Let us put more than one kind of Neva produce on the same road and see what two counters make of it.'],
+    complete: [
+      "Six bays ready. Let’s put grain and tomatoes on the same road, with a different buyer for each."
+    ],
     objectives: [
       { id: 'step.caravan.buy_six', type: 'purchase-upgrade', targetId: 'mount.carriage_6', targetQuantity: 1,
         description: 'Buy the six-pack wagon at Neva Cart Workshop.',
@@ -128,12 +119,11 @@ export const VILLAGE_TRADE_QUESTS: QuestDefinition[] = [
   caravan('shared_load', 'Two Counters, One Road', {
     speakerId: 'npc.maeve', completionSpeakerId: 'npc.mara', next: 'sunreach_freight', knowledgeId: 'knowledge.shared_load',
     intro: [
-      'Make one Neva wheat pack and load it into the six-pack wagon. With your hands free, make a tomato pack and load that beside it.',
-      'Take the grain to Pinewatch and the tomatoes to Reedhaven. One route can serve two tables, and each counter’s appetite changes after a sale.'
+      "Make a Neva wheat pack and load it into the six-pack wagon from the rear. With your hands free, make a tomato pack and load it too.",
+      "Sell the wheat in Pinewatch, then the tomatoes in Reedhaven. Check each offer when you arrive; the last sale changes what the next load is worth."
     ],
     complete: [
-      'Wheat went to the forest and tomatoes came to the marsh. The road did not get shorter; you made it work twice.',
-      'Leave some space and coin for the next departure. Maeve has a channel manifest that needs a larger hold.'
+      "Grain to the forest, tomatoes to the marsh, and only one departure. Maeve has a larger route in mind when you’re ready for the channel."
     ],
     objectives: [
       pack('struct.trade_neva', 'wheat', 'Make a Neva wheat trade pack.', 'step.caravan.shared_load.wheat'),
@@ -149,12 +139,11 @@ export const VILLAGE_TRADE_QUESTS: QuestDefinition[] = [
   caravan('sunreach_freight', 'Ten Bays Across the Channel', {
     speakerId: 'npc.maeve', completionSpeakerId: 'npc.tomas', next: 'island_return', knowledgeId: 'knowledge.channel_manifest',
     intro: [
-      'Sunreach has dry terraces and salt wind, not enough grain to fill every oven. The broad-deck coaster can take ten separate packs across the channel.',
-      'Buy her at Seabreak’s freight berth when your purse and Trading experience allow it. Load village wheat packs one by one, then carry each ashore for sale at Sunreach. Tomas keeps the receiving ledger at the cove.'
+      "Sunreach needs Neva grain. Buy the trading coaster at Seabreak Freight Berth when your gold and Trading experience allow it. She has room for ten packs.",
+      "Take ten Neva wheat packs across. Unload and carry each to the Sunreach counter, then speak to Tomas."
     ],
     complete: [
-      'Ten Neva stamps on one manifest. The grain is in our stores and the deck is empty again.',
-      'This crossing used to spend its hold on the journey out and bring little home. Sunflower seed and olives give you a reason to turn back loaded.'
+      "Ten packs accounted for. Our ovens will be busy. Before you go home, look at what the terraces can send back."
     ],
     objectives: [
       { id: 'step.caravan.buy_ship', type: 'purchase-upgrade', targetId: 'boat.trading_ship', targetQuantity: 1,
@@ -166,12 +155,10 @@ export const VILLAGE_TRADE_QUESTS: QuestDefinition[] = [
   caravan('island_return', 'A Cargo for Home', {
     speakerId: 'npc.tomas', completionSpeakerId: 'npc.maeve', knowledgeId: 'knowledge.return_cargo',
     intro: [
-      'Ines tends sunflower seed and olives on the terraces. They take water and patience here; the mainland cannot make them by wishing at an empty market shelf.',
-      'Prepare an olive pack at our cove yard. Carry it back to Neva and sell it by hand. Check the return offer before you fill the rest of the hold.'
+      "Pack our olives at the cove yard and take them to Neva’s counter. Bring back the offer before you fill a whole hold; I’d rather send what the village will use."
     ],
     complete: [
-      'Olives from the dry terraces, sold where Neva’s grain began its crossing. You have kept the road and the channel useful in both directions.',
-      'The ledger is yours to keep reading. A good route changes with weather, supply and the people waiting at its far end.'
+      "Sunreach olives, where your first grain pack was sold. You have a reason to travel both ways now. Keep checking the counters; a good route changes with its buyers."
     ],
     objectives: [
       pack('struct.trade_sunreach', 'olive_tree', 'Make a Sunreach olive trade pack.'),

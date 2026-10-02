@@ -8,7 +8,7 @@
     "commit": "d1cb23dcce6ea8ee4a60f6159daeb79d4b511dba",
     "license": "LICENSES/Threejs-Awesome-Graphics-Agent-Skills.MIT"
   },
-  "note": "The threejs-* directories mirror the upstream skills verbatim. Neva scope, art direction, renderer, gameplay, asset publication, and verification rules remain in root AGENTS.md and their declared owners. pairs_with lists optional related skills, not automatic loads.",
+  "note": "The threejs-* directories mirror the upstream skills verbatim. Neva scope, technical renderer and gameplay contracts, asset publication, and verification rules remain in root AGENTS.md and their declared owners. Agents choose visual design from the current task brief. pairs_with lists optional related skills, not automatic loads.",
   "skills": [
     { "name": "threejs-skill-router", "category": "meta", "backend": "n/a", "entry": true, "pairs_with": ["threejs-visual-validation"] },
     { "name": "threejs-visual-validation", "category": "meta", "backend": "agnostic", "pairs_with": [] },

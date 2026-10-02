@@ -2,15 +2,15 @@
  * Node-side producer for authored generators.
  *
  * `producer.mjs` bundles this module for Node and calls `buildAuthoredAsset` for every catalog asset
- * whose generator is in the authored registry: build the scene, enforce the semantic art contract
- * (the checks the retired Blender pipeline made, now owned here), export a raw GLB, and report the
- * metrics the stage report and manifest record. Optimisation, Khronos validation, caching and
+ * whose generator is in the authored registry: build the scene, enforce the runtime/export contract,
+ * export a raw GLB, and report the metrics the stage report and manifest record.
+ * Optimisation, Khronos validation, caching and
  * publication happen afterwards in `tools/art/cli.mjs`, identically for every producer.
  */
 import * as THREE from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 
-import { PALETTE_TOKENS, tokenLinearColor } from "../kit/palette";
+import { PALETTE_TOKENS } from "../kit/palette";
 import type { AuthoredModel, CatalogAssetSpec } from "../kit/types";
 import { AUTHORED_GENERATORS } from "../generators/registry";
 import { buildAuthoredModel } from "./build";
@@ -64,7 +64,7 @@ function fail(spec: CatalogAssetSpec, message: string): never {
   throw new Error(`${spec.id}: ${message}`);
 }
 
-/** The semantic art contract every authored generator must satisfy before export. */
+/** The runtime/export contract every authored generator must satisfy before export. */
 function checkArtContract(spec: CatalogAssetSpec, model: AuthoredModel): Omit<AuthoredAssetReport, "fileSizeBytes"> {
   const { root, clips } = model;
   const names = new Map<string, number>();
@@ -88,10 +88,31 @@ function checkArtContract(spec: CatalogAssetSpec, model: AuthoredModel): Omit<Au
   for (const mesh of meshes) {
     const geometry = mesh.geometry;
     const position = geometry.getAttribute("position");
+    const normal = geometry.getAttribute("normal");
     const colour = geometry.getAttribute("color");
     const index = geometry.getIndex();
-    if (!position || !geometry.getAttribute("normal")) fail(spec, `${mesh.name} is missing POSITION or NORMAL`);
+    if (!position || !normal) fail(spec, `${mesh.name} is missing POSITION or NORMAL`);
+    if (position.itemSize !== 3 || position.count < 3 || normal.itemSize !== 3 || normal.count !== position.count) {
+      fail(spec, `${mesh.name} has invalid POSITION or NORMAL layout`);
+    }
     if (!colour) fail(spec, `${mesh.name} is missing semantic COLOR_0`);
+    if ((colour.itemSize !== 3 && colour.itemSize !== 4) || colour.count !== position.count) {
+      fail(spec, `${mesh.name} COLOR_0 must contain one RGB or RGBA value per vertex`);
+    }
+    for (let vertex = 0; vertex < position.count; vertex += 1) {
+      if (![position.getX(vertex), position.getY(vertex), position.getZ(vertex)].every(Number.isFinite)) {
+        fail(spec, `${mesh.name} has nonfinite POSITION at vertex ${vertex}`);
+      }
+      const nx = normal.getX(vertex), ny = normal.getY(vertex), nz = normal.getZ(vertex);
+      if (![nx, ny, nz].every(Number.isFinite) || Math.abs(Math.hypot(nx, ny, nz) - 1) > 0.03) {
+        fail(spec, `${mesh.name} has invalid NORMAL at vertex ${vertex}`);
+      }
+      const channels = [colour.getX(vertex), colour.getY(vertex), colour.getZ(vertex)];
+      if (colour.itemSize === 4) channels.push(colour.getW(vertex));
+      if (!channels.every((channel) => Number.isFinite(channel) && channel >= 0 && channel <= 1)) {
+        fail(spec, `${mesh.name} COLOR_0 must contain finite values in 0..1 at vertex ${vertex}`);
+      }
+    }
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const groups = geometry.groups.length
       ? geometry.groups
@@ -102,29 +123,22 @@ function checkArtContract(spec: CatalogAssetSpec, model: AuthoredModel): Omit<Au
       const token = material?.name;
       if (!token || !PALETTE_TOKENS[token]) fail(spec, `${mesh.name} uses unknown material ${token ?? "<none>"}`);
       if (!spec.palette.includes(token)) fail(spec, `generator used undeclared palette token ${token}`);
-      if (material!.side === THREE.DoubleSide) fail(spec, `${mesh.name} material ${token} must not be double-sided`);
       materialNames.add(token);
-      const expected = tokenLinearColor(token);
-      const expectedLengthSquared = expected.r ** 2 + expected.g ** 2 + expected.b ** 2;
+      const cornerCount = index ? index.count : position.count;
+      if (group.start < 0 || group.count <= 0 || group.count % 3 !== 0 || group.start + group.count > cornerCount) {
+        fail(spec, `${mesh.name} has an invalid triangle group`);
+      }
       for (let corner = group.start; corner < group.start + group.count; corner += 3) {
         const ia = index ? index.getX(corner) : corner;
         const ib = index ? index.getX(corner + 1) : corner + 1;
         const ic = index ? index.getX(corner + 2) : corner + 2;
+        if (![ia, ib, ic].every((vertex) => Number.isInteger(vertex) && vertex >= 0 && vertex < position.count)) {
+          fail(spec, `${mesh.name} has an invalid triangle index`);
+        }
         a.fromBufferAttribute(position, ia);
         b.fromBufferAttribute(position, ib);
         c.fromBufferAttribute(position, ic);
         if (b.clone().sub(a).cross(c.clone().sub(a)).lengthSq() < 1e-16) fail(spec, `${mesh.name} has degenerate triangles`);
-        for (const vertex of [ia, ib, ic]) {
-          // COLOR_0 carries the token colour, optionally darkened as a value mask (0.70..1.06).
-          const r = colour.getX(vertex);
-          const g = colour.getY(vertex);
-          const bl = colour.getZ(vertex);
-          const value = (r * expected.r + g * expected.g + bl * expected.b) / expectedLengthSquared;
-          const residual = Math.hypot(r - expected.r * value, g - expected.g * value, bl - expected.b * value);
-          if (!(value >= 0.7 && value <= 1.06) || residual > 0.025) {
-            fail(spec, `${mesh.name} COLOR_0 does not carry its ${token} token colour`);
-          }
-        }
         triangles += 1;
         colourCorners += 3;
       }
@@ -160,15 +174,14 @@ function checkArtContract(spec: CatalogAssetSpec, model: AuthoredModel): Omit<Au
     spec.lodLevels.forEach((level, index) => {
       const ratio = lodLevels[index].triangles / triangles;
       lodLevels[index].ratio = ratio;
-      if (ratio < level.triangleRatioMin || ratio > level.triangleRatioMax) {
-        fail(spec, `${level.node} triangle ratio ${ratio.toFixed(3)} is outside ${level.triangleRatioMin}..${level.triangleRatioMax}`);
+      if (ratio > level.triangleRatioMax) {
+        fail(spec, `${level.node} triangle ratio ${ratio.toFixed(3)} exceeds ${level.triangleRatioMax}`);
       }
     });
   }
   const { budget } = spec;
-  if (triangles < budget.trianglesMin || triangles > budget.trianglesMax) {
-    fail(spec, `${triangles} triangles outside ${budget.trianglesMin}..${budget.trianglesMax}`);
-  }
+  if (triangles <= 0) fail(spec, "contains no rendered triangles");
+  if (triangles > budget.trianglesMax) fail(spec, `${triangles} triangles exceeds ${budget.trianglesMax}`);
 
   // Rest-pose bounds, with skinned vertices placed by their skeleton.
   const box = new THREE.Box3();

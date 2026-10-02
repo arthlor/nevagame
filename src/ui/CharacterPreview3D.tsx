@@ -75,6 +75,7 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
       return;
     }
     renderer.outputColorSpace = CANONICAL_RENDER_CONFIG.outputColorSpace;
+    const assetTextures = AssetLoader.acquireTextures(renderer);
     renderer.toneMapping = CANONICAL_RENDER_CONFIG.toneMapping;
     renderer.toneMappingExposure = CANONICAL_RENDER_CONFIG.exposure;
 
@@ -101,7 +102,8 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
     scene.add(rim);
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
+    timer.connect(document);
     const resize = (): void => {
       const bounds = host.getBoundingClientRect();
       const width = Math.max(1, Math.round(bounds.width));
@@ -221,13 +223,14 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
 
     const animate = (): void => {
       if (disposed) return;
-      const delta = Math.min(0.05, clock.getDelta());
+      timer.update();
+      const delta = Math.min(0.05, timer.getDelta());
       mixer?.update(delta);
       if (model) {
         currentAngle += (targetAngle - currentAngle) * Math.min(1, delta * 14);
         const timeSinceInteract = (performance.now() - lastInteractTime) / 1000;
         const idleSway = (!reducedMotion.matches && timeSinceInteract > 2.5)
-          ? Math.sin(clock.elapsedTime * 0.45) * 0.08
+          ? Math.sin(timer.getElapsed() * 0.45) * 0.08
           : 0;
         model.rotation.y = currentAngle + idleSway;
       }
@@ -239,6 +242,7 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
+      timer.dispose();
       observer.disconnect();
       canvas.removeEventListener("webglcontextlost", contextLost);
       canvas.removeEventListener("webglcontextrestored", contextRestored);
@@ -250,6 +254,7 @@ export const CharacterPreview3D: React.FC<CharacterPreview3DProps> = ({
       assemblerRef.current = null;
       mixer?.stopAllAction();
       renderer.dispose();
+      assetTextures.dispose();
       renderer.forceContextLoss();
       canvas.remove();
     };

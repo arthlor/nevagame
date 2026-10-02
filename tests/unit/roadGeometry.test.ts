@@ -12,7 +12,8 @@ import {
   WORLD_ROUTE_PROFILES,
   WorldLayout
 } from "../../src/world/WorldLayout";
-import { buildOrganicRoadGeometry, sampleRoadCrossSection } from "../../src/world/RoadGeometry";
+import { buildOrganicRoadGeometry, roadTransverseStations, sampleRoadCrossSection } from "../../src/world/RoadGeometry";
+import { compileRoadFootprint, roadOffsetJoin } from "../../src/world/RoadFootprint";
 import { ROAD_WHEEL_GAUGE_METERS } from "../../src/world/RoadClasses";
 
 type PositionAttribute = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
@@ -106,6 +107,13 @@ function baseTerrainPlaneSampler(): (x: number, z: number) => number {
   };
 }
 
+function float32SpatialRadius(values: readonly number[]): number {
+  const ulp = (value: number): number => 2 ** Math.max(-149, Math.floor(Math.log2(Math.abs(value))) - 23);
+  const x = Math.max(...values.filter((_, index) => index % 2 === 0).map(ulp));
+  const z = Math.max(...values.filter((_, index) => index % 2 === 1).map(ulp));
+  return Math.hypot(x * 0.5, z * 0.5);
+}
+
 function indexedRoadSurface(geometry: THREE.BufferGeometry) {
   type Triangle = [number[], number[], number[]];
   const cells = new Map<string, Triangle[]>();
@@ -123,10 +131,11 @@ function indexedRoadSurface(geometry: THREE.BufferGeometry) {
     const [a, b, c] = triangle;
     centroids.push([(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3]);
     area += Math.abs((b[0] - a[0]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[0] - a[0])) * 0.5;
-    const firstX = Math.floor(Math.min(a[0], b[0], c[0]) / cellSize);
-    const lastX = Math.floor(Math.max(a[0], b[0], c[0]) / cellSize);
-    const firstZ = Math.floor(Math.min(a[2], b[2], c[2]) / cellSize);
-    const lastZ = Math.floor(Math.max(a[2], b[2], c[2]) / cellSize);
+    const radius = float32SpatialRadius([a[0], a[2], b[0], b[2], c[0], c[2]]) * 2;
+    const firstX = Math.floor((Math.min(a[0], b[0], c[0]) - radius) / cellSize);
+    const lastX = Math.floor((Math.max(a[0], b[0], c[0]) + radius) / cellSize);
+    const firstZ = Math.floor((Math.min(a[2], b[2], c[2]) - radius) / cellSize);
+    const lastZ = Math.floor((Math.max(a[2], b[2], c[2]) + radius) / cellSize);
     for (let x = firstX; x <= lastX; x++) {
       for (let z = firstZ; z <= lastZ; z++) {
         const key = `${x}:${z}`;
@@ -141,19 +150,53 @@ function indexedRoadSurface(geometry: THREE.BufferGeometry) {
     centroids,
     heightAt(x: number, z: number): number {
       let highest = Number.NEGATIVE_INFINITY;
+      let nearest = Number.NEGATIVE_INFINITY;
       for (const [a, b, c] of cells.get(`${Math.floor(x / cellSize)}:${Math.floor(z / cellSize)}`) ?? []) {
         const determinant = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
         const wa = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / determinant;
         const wb = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / determinant;
         const wc = 1 - wa - wb;
-        if (Math.min(wa, wb, wc) >= -1e-6) highest = Math.max(highest, a[1] * wa + b[1] * wb + c[1] * wc);
+        if (Math.min(wa, wb, wc) >= 0) {
+          highest = Math.max(highest, a[1] * wa + b[1] * wb + c[1] * wc);
+          continue;
+        }
+        // Added cuts round to Float32 and can move a contour by half an ULP
+        // per axis. Bound membership in metres, rather than barycentric units
+        // whose spatial meaning varies arbitrarily with a triangle's altitude.
+        const radius = float32SpatialRadius([x, z, a[0], a[2], b[0], b[2], c[0], c[2]]);
+        let nearestDistance = Infinity, nearestHeight = Number.NEGATIVE_INFINITY;
+        for (const [start, end] of [[a, b], [b, c], [c, a]]) {
+          const dx = end[0] - start[0], dz = end[2] - start[2];
+          const t = THREE.MathUtils.clamp(((x - start[0]) * dx + (z - start[2]) * dz) / (dx * dx + dz * dz), 0, 1);
+          const distance = Math.hypot(x - start[0] - t * dx, z - start[2] - t * dz);
+          if (distance < nearestDistance) { nearestDistance = distance; nearestHeight = start[1] + t * (end[1] - start[1]); }
+        }
+        if (nearestDistance <= radius) nearest = Math.max(nearest, nearestHeight);
       }
-      return highest;
+      // A real triangle interior owns support. The bounded edge fallback is
+      // only for a contour gap caused by stored Float32 cut coordinates.
+      return Number.isFinite(highest) ? highest : nearest;
     }
   };
 }
 
 describe("Organic road geometry", () => {
+  it("samples an actual face interior before an unrelated nearby rounded edge", () => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute([
+      400, 0, 0, 401, 0, 0, 400, 0, 1,
+      400, 2, -0.00003, 401, 2, -0.00003, 400, 2, -0.000001
+    ], 3));
+    geometry.setIndex([0, 2, 1, 3, 5, 4]);
+    const x = 400.25, z = 0.000001;
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), mesh = new THREE.Mesh(geometry, material);
+    mesh.updateMatrixWorld();
+    const ray = new THREE.Raycaster(new THREE.Vector3(x, 10, z), new THREE.Vector3(0, -1, 0));
+    const support = ray.intersectObject(mesh)[0];
+    expect(support.point.y).toBe(0);
+    expect(indexedRoadSurface(geometry).heightAt(x, z)).toBe(support.point.y);
+    geometry.dispose(); material.dispose();
+  });
   it("fills free route-end caps continuously across their diameter", () => {
     const geometry = authoredRoadGeometry();
     const surface = indexedRoadSurface(geometry);
@@ -179,6 +222,23 @@ describe("Organic road geometry", () => {
       }
       expect(checked).toBeGreaterThan(100);
     } finally { geometry.dispose(); }
+  });
+
+  it("does not inflate collapsed interface faces into overlapping source bubbles", () => {
+    const geometry = authoredRoadGeometry();
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.updateMatrixWorld();
+    const ray = new THREE.Raycaster();
+    // Rounded ownership contacts formerly produced a closed, eight-face fan
+    // with no footprint boundary and five source interiors at this point.
+    for (const [x, z] of [[-396.66542561848956, 55.167948404947914], [-21.798885345458984, 20.874632517496746], [85.93096923828125, 54.4818229675293]]) {
+      ray.set(new THREE.Vector3(x, 100, z), new THREE.Vector3(0, -1, 0));
+      const hits = ray.intersectObject(mesh);
+      expect(hits, `source interiors at ${x},${z}`).toHaveLength(1);
+      expect(Number.isFinite(hits[0].point.y)).toBe(true);
+    }
+    geometry.dispose(); material.dispose();
   });
 
   it("paves the wedge between roads that meet", () => {
@@ -304,17 +364,10 @@ describe("Organic road geometry", () => {
     expect(first.userData.maximumMiterScale).toBeLessThanOrEqual(1.28);
     expect(first.userData.roundedCapCount).toBeGreaterThan(0);
     expect(first.userData.roadTriangleCount).toBeGreaterThan(0);
-    expect(first.userData.terrainConformity.sourceJunctionTriangleCount).toBe(
-      WORLD_ROUTE_JUNCTIONS.length * first.userData.junctionCoreSegmentCount
-        + first.userData.junctionArmCount * 12
-        + first.userData.junctionGoreTriangleCount
-    );
-    expect(first.userData.junctionGoreTriangleCount).toBeGreaterThan(0);
-    expect(first.userData.junctionTriangleCount).toBeGreaterThanOrEqual(
-      first.userData.terrainConformity.sourceJunctionTriangleCount
-    );
-    expect(first.userData.junctionCoreSegmentCount).toBe(20);
-    expect(first.userData.junctionArmCount).toBeGreaterThan(WORLD_ROUTE_JUNCTIONS.length);
+    expect(first.userData.transverseBaseStationCount).toBe(9);
+    expect(first.userData.maximumTransverseStationCount).toBeGreaterThanOrEqual(9);
+    expect(first.userData.junctionPatchCount).toBeGreaterThan(0);
+    expect(first.userData.junctionTriangleCount).toBeGreaterThanOrEqual(first.userData.terrainConformity.sourceJunctionTriangleCount);
 
     const positions = first.getAttribute("position");
     const junction = WORLD_ROUTE_JUNCTIONS[0];
@@ -359,7 +412,7 @@ describe("Organic road geometry", () => {
     second.dispose();
   }, 60000);
 
-  it("keeps the bridge deck empty, its gateways unchanged, and source vertices on canonical heights", () => {
+  it("keeps the bridge deck empty, gateways unchanged and retained authored nodes on canonical heights", () => {
     const geometry = WorldLayout.buildPathGeometry();
     const positions = geometry.getAttribute("position");
     const triangles = geometry.getIndex()!;
@@ -405,16 +458,71 @@ describe("Organic road geometry", () => {
 
     const authored = authoredRoadGeometry();
     const authoredPositions = authored.getAttribute("position");
+    const footprint = compileRoadFootprint({ routes: COMPILED_WORLD_ROUTES, junctions: WORLD_ROUTE_JUNCTIONS, profiles: WORLD_ROUTE_PROFILES,
+      bridge: { center: bridge, halfSpan, deckWidth: BRIDGE_WORLD_PROFILE.deckWidth, gatewayDepthMeters: BRIDGE_WORLD_PROFILE.gatewayDepthMeters, gatewayInsetMeters: BRIDGE_WORLD_PROFILE.gatewayInsetMeters, gatewaySlabCount: BRIDGE_WORLD_PROFILE.gatewaySlabCount, gatewaySlabGapMeters: BRIDGE_WORLD_PROFILE.gatewaySlabGapMeters } });
+    const nodeKey = (x: number, z: number): string => `${Math.fround(x)},${Math.fround(z)}`;
+    const canonicalNodes = new Set<string>();
+    for (const [routeIndex, route] of COMPILED_WORLD_ROUTES.entries()) {
+      // Self-overlapping/folded routes replace some original nodes with cuts
+      // of an earlier plane at the same coordinate. Their retained plane and
+      // disjoint coverage are checked independently in roadFootprint.test.ts.
+      if (footprint.routeFoldedSpans[routeIndex].some(Boolean) || footprint.routeSpanRegions[routeIndex].some(Boolean)) continue;
+      const stations = roadTransverseStations(WORLD_ROUTE_PROFILES[route.route.kind], route.halfWidth);
+      const addNode = (x: number, z: number): void => {
+        const owner = footprint.routeRegions[routeIndex], sharedOwner = footprint.sharedRouteRegions[routeIndex];
+        // A source node touching an ownership boundary may have only a
+        // zero-area contact after clipping; the other owner's plane can then
+        // occupy the same coordinate. Check retained interior sample nodes.
+        if (Math.max(owner.signedDistance(x, z), sharedOwner.signedDistance(x, z)) > 0.00001) canonicalNodes.add(nodeKey(x, z));
+      };
+      for (const [sampleIndex, sample] of route.samples.entries()) {
+        const join = roadOffsetJoin(route, sampleIndex);
+        for (const across of stations) addNode(Math.fround(sample.point.x + join.normal.x * across * join.miterScale), Math.fround(sample.point.z + join.normal.z * across * join.miterScale));
+      }
+      for (const [capIndex, sample] of [route.samples[0], route.samples.at(-1)!].entries()) {
+        const addCapNode = (x: number, z: number): void => { if (footprint.routeCapRegions[routeIndex][capIndex].signedDistance(x, z) > 0.00001) addNode(x, z); };
+        addCapNode(Math.fround(sample.point.x), Math.fround(sample.point.z));
+        for (const radius of stations.filter(value => value > 0)) for (let step = 0; step < 16; step++) {
+          const angle = step / 16 * Math.PI * 2;
+          addCapNode(Math.fround(sample.point.x + Math.cos(angle) * radius), Math.fround(sample.point.z + Math.sin(angle) * radius));
+        }
+      }
+    }
+    for (const polygon of footprint.sharedRemainderRegion.polygons) {
+      const xs = polygon[0].map(point => point[0]), zs = polygon[0].map(point => point[1]);
+      for (let x = Math.floor(Math.min(...xs) * 2) / 2; x <= Math.ceil(Math.max(...xs) * 2) / 2; x += 0.5) {
+        for (let z = Math.floor(Math.min(...zs) * 2) / 2; z <= Math.ceil(Math.max(...zs) * 2) / 2; z += 0.5) if (footprint.sharedRemainderRegion.contains(x, z)) canonicalNodes.add(nodeKey(x, z));
+      }
+    }
+    const stone = new THREE.BufferGeometry();
+    stone.setAttribute("position", authoredPositions);
+    const gatewayOffset = (authored.userData.roadTriangleCount + authored.userData.junctionTriangleCount) * 3;
+    stone.setIndex(Array.from(authored.getIndex()!.array).slice(gatewayOffset));
+    const stoneSurface = indexedRoadSurface(stone);
+    const checkedAuthoredNodes = new Map<string, { x: number; z: number; y: number; error: number }>();
     for (let index = 0; index < authoredPositions.count; index++) {
       const x = authoredPositions.getX(index);
       const y = authoredPositions.getY(index);
       const z = authoredPositions.getZ(index);
       if (!WorldLayout.isBridgeDeck(x, z)) {
-        expect(y).toBeCloseTo(WorldLayout.terrainHeight(x, z), 5);
+        const stoneHeight = stoneSurface.heightAt(x, z);
+        // The soil boundary follows the preserved slab plane, whose four
+        // corners intentionally do not reproduce the road crown between them.
+        if (Number.isFinite(stoneHeight)) expect(y).toBeCloseTo(stoneHeight, 5);
+        else if (canonicalNodes.has(nodeKey(x, z))) {
+          const key = nodeKey(x, z), error = Math.abs(y - WorldLayout.terrainHeight(x, z));
+          // A folded span can also cut another source plane at this X/Z.
+          // Verify the retained directly authored node, while the cut remains
+          // covered by the separate source-plane interpolation regression.
+          if (error < (checkedAuthoredNodes.get(key)?.error ?? Infinity)) checkedAuthoredNodes.set(key, { x, z, y, error });
+        }
       } else {
         expect(y).toBeGreaterThan(0.5);
       }
     }
+    for (const { x, z, y } of checkedAuthoredNodes.values()) expect(y, `authored sample at ${x},${z}`).toBeCloseTo(WorldLayout.terrainHeight(x, z), 5);
+    expect(checkedAuthoredNodes.size).toBeGreaterThan(10000);
+    stone.dispose();
     authored.dispose();
     geometry.dispose();
   }, 60000);
@@ -426,7 +534,7 @@ describe("Organic road geometry", () => {
     expect(render.index?.array).toEqual(collision.index?.array);
     const positions = render.getAttribute("position");
     const colors = render.getAttribute("color");
-    const original = collision.getAttribute("color");
+    expect(Object.keys(collision.attributes)).toEqual(["position"]);
     const context = render.getAttribute("roadContext");
     expect(context.count).toBe(positions.count);
     expect(context.itemSize).toBe(3);
@@ -450,7 +558,9 @@ describe("Organic road geometry", () => {
       if (context.getY(index) > 0.8) looseShoulder++;
       expect(alpha).toBeGreaterThanOrEqual(0);
       expect(alpha).toBeLessThanOrEqual(1);
-      if (original.getW(index) > 0.99 && alpha < 0.8) softened++;
+      const footprint = WorldLayout.roadFootprintSample(positions.getX(index), positions.getZ(index));
+      expect(Math.abs(alpha - footprint.coverage)).toBeLessThanOrEqual(0.5 / 255 + 1e-7);
+      if (alpha > 0 && alpha < 0.8) softened++;
       for (const junction of WORLD_ROUTE_JUNCTIONS) {
         if (Math.hypot(positions.getX(index) - junction.center.x,
           positions.getZ(index) - junction.center.z) < Math.max(0.72, junction.radiusMeters * 0.74) * 0.68) {
@@ -481,6 +591,7 @@ describe("Organic road geometry", () => {
     let maximumHeightChangeAt: [number, number] = [0, 0];
     let maximumBurial = 0;
     let maximumAddedHeight = 0;
+    let maximumAddedHeightAt: [number, number] = [0, 0];
     for (const [x, , z] of before.centroids) {
       const base = baseHeightAt(x, z);
       const change = Math.abs(
@@ -495,7 +606,7 @@ describe("Organic road geometry", () => {
     for (const [index, [x, y, z]] of after.centroids.entries()) {
       const base = baseHeightAt(x, z);
       const previousEnvelope = Math.max(base, before.heightAt(x, z));
-      maximumAddedHeight = Math.max(maximumAddedHeight, y - previousEnvelope);
+      if (y - previousEnvelope > maximumAddedHeight) { maximumAddedHeight = y - previousEnvelope; maximumAddedHeightAt = [x, z]; }
       // Gateway slabs are intentionally separate from the ground ribbon.
       if (index < roadCount) maximumBurial = Math.max(maximumBurial, base - y);
     }
@@ -506,7 +617,7 @@ describe("Organic road geometry", () => {
     // where Sunreach's coarser patch grid (360 m / 256) resamples sloped
     // ground (measured 0.85 mm at 1323, 150); traversal still resolves from
     // these exact conformed triangles, so the gameplay envelope is unchanged.
-    expect(maximumAddedHeight).toBeLessThan(0.001);
+    expect(maximumAddedHeight, `at ${maximumAddedHeightAt.join(", ")}`).toBeLessThan(0.001);
     expect(maximumBurial).toBeLessThan(0.00002);
     // Multi-patch terrain conformity resamples sloped ground per island grid;
     // the resulting sub-cm² area delta (measured 0.00067 on 10,871 m²) is
@@ -589,10 +700,18 @@ describe("Organic road geometry", () => {
     for (const junction of WORLD_ROUTE_JUNCTIONS) {
       expect(junction.blendLengthMeters).toBeGreaterThan(0);
       expect(WorldLayout.pathInfluence(junction.center.x, junction.center.z)).toBeGreaterThan(0.9);
-      expect(WorldLayout.pathShoulderInfluence(
-        junction.center.x + junction.radiusMeters + junction.blendLengthMeters * 0.75,
-        junction.center.z
-      )).toBeGreaterThan(0);
+      // The compiled nested boundary follows the actual road outlines, so its
+      // loose shoulder need not reach an arbitrary radial apron distance.
+      let shoulderSamples = 0;
+      const reach = junction.radiusMeters + junction.blendLengthMeters;
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 16) {
+        const x = junction.center.x + Math.cos(angle) * reach;
+        const z = junction.center.z + Math.sin(angle) * reach;
+        const sample = WorldLayout.roadFootprintSample(x, z);
+        expect(WorldLayout.pathShoulderInfluence(x, z)).toBeCloseTo(sample.shoulder, 8);
+        if (sample.shoulder > 0) shoulderSamples++;
+      }
+      expect(shoulderSamples).toBeGreaterThan(0);
     }
   });
 });

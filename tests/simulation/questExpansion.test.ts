@@ -233,7 +233,7 @@ describe("post-story quest expansion", () => {
     loaded.state.player.z = maeve.anchor.z;
     const first = loaded.execute({ type: "quest.talk-npc", npcId: "npc.maeve" }) as { dialogue?: string[] };
     const second = loaded.execute({ type: "quest.talk-npc", npcId: "npc.maeve" }) as { dialogue?: string[] };
-    expect(first.dialogue?.[0]).toContain("You kept one order");
+    expect(first.dialogue?.[0]).toBe(ContentRegistry.quests.get("quest.tradelanes_volume")!.introDialogue[0]);
     expect(second.dialogue).toEqual(first.dialogue);
   });
 

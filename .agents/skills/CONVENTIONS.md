@@ -27,9 +27,10 @@ realism is not a universal rule for stylized art. Visual-only randomness is allo
 where the project permits it and does not compromise required reproducibility.
 
 Style, composition and tuning suggestions are adaptable defaults. Follow the
-current brief and owning art direction. Explain a departure only when its
-tradeoff matters; no “Artistic deviation” form is required. Reuse established art
-intent; discuss alternatives only when the task leaves a meaningful design choice.
+current task brief and choose the design within technical contracts. Stored
+references and current visuals are optional evidence, not permanent style locks.
+No artistic-deviation form or routine human approval is required; inspect the
+result and report the evidence and any unresolved gaps.
 
 ## Examples and evidence
 

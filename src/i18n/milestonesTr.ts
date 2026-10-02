@@ -6,6 +6,8 @@ import { TR_CROPS } from "./locales/tr/crops";
 import type { RecordMilestoneDto } from "../simulation/core/contracts";
 
 const ECOLOGY_LABELS_TR: Record<string, string> = {
+  "ecology.neva": "Neva",
+  "ecology.sunreach": "Sunreach",
   river: "Irmak ve Gölet",
   shallows: "Kıyı Sığlıkları",
   headwaters: "Yukarı Havza",

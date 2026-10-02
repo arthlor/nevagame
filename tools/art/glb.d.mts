@@ -35,7 +35,6 @@ export interface AuthoredGlbReport {
 export const GLB_MAGIC: number;
 export const CHUNK_JSON: number;
 export const CHUNK_BIN: number;
-export const PROVIDER_MATERIAL_EXTENSIONS: readonly string[];
 export const TEXTURE_SIZES: readonly number[];
 export const TEXTURE_WEBP_OPTIONS: Readonly<Record<string, number | boolean>>;
 

@@ -24,7 +24,7 @@ export interface NauticalCompassAlmanacProps {
 const CARDINALS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 export const TidebookNavigation: React.FC<{
   compass: WorldHudDto["compass"]; onOpenMap: () => void;
-}> = ({ compass, onOpenMap }) => {
+}> = React.memo(({ compass, onOpenMap }) => {
   const { locale } = useTranslation();
   const isTr = locale === "tr";
   const region = placeLabel(compass.subRegionTitle, locale);
@@ -57,9 +57,9 @@ export const TidebookNavigation: React.FC<{
       <span className="guild-compass-caret" aria-hidden="true">◆</span>
     </button>
   );
-};
+});
 
-export const NauticalCompassAlmanac: React.FC<NauticalCompassAlmanacProps> = ({
+export const NauticalCompassAlmanac: React.FC<NauticalCompassAlmanacProps> = React.memo(({
   clock, weather, compass, playerPosition, onOpenMap, onToggleForecast, showForecast = false, className = "", passive = false
 }) => {
   const { locale } = useTranslation();
@@ -83,4 +83,27 @@ export const NauticalCompassAlmanac: React.FC<NauticalCompassAlmanacProps> = ({
       </button>
     </div>
   );
-};
+}, (prev, next) => {
+  if (prev.showForecast !== next.showForecast) return false;
+  if (prev.passive !== next.passive) return false;
+  if (prev.className !== next.className) return false;
+  if (prev.clock.label !== next.clock.label) return false;
+  if (prev.clock.isNight !== next.clock.isNight) return false;
+  if (prev.clock.dayInSeason !== next.clock.dayInSeason) return false;
+  if (prev.weather.type !== next.weather.type) return false;
+  if (prev.weather.temperatureC !== next.weather.temperatureC) return false;
+  if (prev.compass.headingDegrees !== next.compass.headingDegrees) return false;
+  if (prev.compass.windDegrees !== next.compass.windDegrees) return false;
+  if (prev.compass.subRegionTitle !== next.compass.subRegionTitle) return false;
+  if (prev.compass.nearbyMarkers !== next.compass.nearbyMarkers) return false;
+
+  if (prev.playerPosition && next.playerPosition) {
+    const dx = prev.playerPosition.x - next.playerPosition.x;
+    const dz = prev.playerPosition.z - next.playerPosition.z;
+    if (dx * dx + dz * dz > 0.04) return false;
+  } else if (prev.playerPosition !== next.playerPosition) {
+    return false;
+  }
+
+  return true;
+});

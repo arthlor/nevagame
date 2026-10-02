@@ -2,15 +2,15 @@ import React, { useState } from "react";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
 import type { HudContractDto, RecordMilestoneDto } from "../simulation/core/contracts";
 import { HudCluster, Meter } from "./coastal/CoastalUI";
-import { IconBoat, IconPin} from "./components/HudIcons";
+import { IconBoat, IconCheck, IconPin, IconStar } from "./components/HudIcons";
 import { GuildcraftArt } from "./hud/GuildcraftArt";
 import { playUiSound } from "./audio/uiAudio";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
-
-import { formatQuestObjective, questProgressNote } from "../simulation/presentation/QuestObjectiveCopy";
+import { formatLocalizedQuestObjective } from "../i18n/questObjectives";
 import { localizeCatalogText } from "../i18n/catalogNames";
 import { placeLabel } from "../i18n/placesTr";
 import { useTranslation } from "../i18n/useTranslation";
+import { translateExpeditionText } from "../i18n/expeditionTr";
 
 export interface QuestTrackerHUDProps {
   activeQuest: ActiveQuestDto | null;
@@ -24,15 +24,17 @@ export interface QuestTrackerHUDProps {
   activeContracts?: readonly HudContractDto[];
   records?: readonly RecordMilestoneDto[];
   onOpenDialogue?: (npcId: string) => void;
+  onOpenBoard?: () => void;
   className?: string;
 }
 
-export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
+export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = React.memo<QuestTrackerHUDProps>(({
   activeQuest,
   activeQuests,
   onFocusTrack,
   activeContracts = [],
   records = [],
+  onOpenBoard,
   className = ""
 }) => {
   const { locale, getLocalizedQuest, getLocalizedQuestTrack, getLocalizedMilestone } = useTranslation();
@@ -74,11 +76,8 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
     : activeQuest?.questTitle ?? "";
   const objectiveLocale = isTr ? "tr" : "en";
   const activeObjectiveText = activeQuest?.objectiveFacts
-    ? formatQuestObjective(activeQuest.objectiveFacts, objectiveLocale)
+    ? formatLocalizedQuestObjective(activeQuest.objectiveFacts, objectiveLocale)
     : activeQuest?.objectiveDescription ?? "";
-  const progressNote = activeQuest?.objectiveFacts
-    ? questProgressNote(activeQuest.objectiveFacts, objectiveLocale)
-    : undefined;
 
   return (
     <div
@@ -164,14 +163,6 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
 
           {!questCollapsed && (
             <div className="quest-tracker-content" id="quest-tracker-details" role={showThreadPicker ? "tabpanel" : undefined} aria-label={showThreadPicker ? (isTr ? "Aktif görev kolu" : "Active quest thread") : undefined}>
-              {activeQuest.completedSteps && activeQuest.completedSteps.length > 0 && (
-                <ul className="quest-completed-steps" aria-label={isTr ? "Tamamlanan adımlar" : "Completed steps"}>
-                  {activeQuest.completedSteps.map((step, index) => (
-                    <li key={`${step.action}-${index}`}>{formatQuestObjective(step, objectiveLocale)}</li>
-                  ))}
-                </ul>
-              )}
-              {progressNote && <p className="quest-progress-note">{progressNote}</p>}
               {activeQuest.targetQuantity > 1 && !activeQuest.isQuestReadyToTurnIn && (
                 <div className="quest-progress-wrap">
                   <Meter
@@ -183,18 +174,18 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
                     variant="gold"
                     className="quest-progress-meter"
                   />
-                  <span className="quest-progress-count">
+                  {!activeQuest.objectiveFacts && <span className="quest-progress-count">
                     {`${Math.min(activeQuest.currentProgress, activeQuest.targetQuantity)} / ${Math.max(
                       1,
                       activeQuest.targetQuantity
                     )}`}
-                  </span>
+                  </span>}
                 </div>
               )}
               {activeQuest.targetLocation && (
                 <div className="quest-location-hint">
                   <span className="location-pin" aria-hidden="true"><IconPin size={11} /></span>
-                  <span className="quest-location-name">{activeQuest.targetLocation.name}</span>
+                  <span className="quest-location-name">{placeLabel(activeQuest.targetLocation.name, locale)}</span>
                   {activeQuest.targetDistanceMeters !== undefined && (
                     <span className="quest-location-range">
                       {`${Math.round(activeQuest.targetDistanceMeters)} m`}
@@ -226,40 +217,59 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
 
       {records.length > 0 && (
         <HudCluster
-          className={`quest-tracker-hud-wood guild-quest${activeQuest && recordsCollapsed ? " collapsed" : ""}`}
+          className={`quest-tracker-hud-wood guild-quest record-tracker-hud${activeQuest && recordsCollapsed ? " collapsed" : ""}`}
           aria-label={activeQuest ? (isTr ? "Takip edilen rekor" : "Followed record") : (isTr ? "Rekorlar Panosu" : "Records Board")}
           data-testid={activeQuest ? "followed-record-tracker" : "endgame-record-tracker"}
         >
-          <header className="quest-tracker-header">
+          <header className="quest-tracker-header record-tracker-header">
             {activeQuest ? (
               <button
                 type="button"
-                className="quest-tracker-toggle"
+                className="quest-tracker-toggle record-tracker-toggle"
+                data-testid="record-tracker-toggle-btn"
                 aria-expanded={!recordsCollapsed}
                 aria-controls={!recordsCollapsed ? "followed-record-details" : undefined}
                 aria-label={recordsCollapsed ? (isTr ? "Takip edilen rekoru göster" : "Show followed record") : (isTr ? "Takip edilen rekoru gizle" : "Hide followed record details")}
                 onClick={() => { playUiSound("click"); setRecordsCollapsed((value) => !value); }}
               >
+                <span className="record-tracker-seal" aria-hidden="true">
+                  <IconStar size={13} filled={true} />
+                </span>
                 <span className="quest-tracker-copy">
                   <h3 className="quest-title">{isTr ? "İsteğe bağlı rekor" : "Optional record"}</h3>
                   <span className="quest-objective-text">{getLocalizedMilestone(records[0]).title}</span>
                 </span>
                 <span className={`quest-collapse-chevron ${recordsCollapsed ? "is-collapsed" : ""}`} aria-hidden="true">▾</span>
               </button>
-            ) : <h3 className="quest-title">{isTr ? "Rekorlar Panosu" : "Records Board"}</h3>}
+            ) : (
+              <div className="record-tracker-endgame-header">
+                <span className="record-tracker-seal" aria-hidden="true">
+                  <IconStar size={13} filled={true} />
+                </span>
+                <h3 className="quest-title">{isTr ? "Rekorlar Panosu" : "Records Board"}</h3>
+              </div>
+            )}
           </header>
-          {(!activeQuest || !recordsCollapsed) && <div className="quest-tracker-content" id={activeQuest ? "followed-record-details" : undefined}>
-            {records.map((record) => {
-              const locRecord = getLocalizedMilestone(record);
-              return (
-                <div key={record.id} className="contract-tracker-item">
-                  <span className="quest-objective-text">{locRecord.title}</span>
-                  <Meter label={locRecord.title} value={record.progress} max={1} showValue={false} showLabel={false} variant="gold" />
-                  <span className="quest-progress-count">{record.currentLabel}</span>
-                </div>
-              );
-            })}
-          </div>}
+          {(!activeQuest || !recordsCollapsed) && (
+            <div className="quest-tracker-content record-tracker-content" id={activeQuest ? "followed-record-details" : undefined}>
+              {records.map((record) => {
+                const locRecord = getLocalizedMilestone(record);
+                const percent = Math.round(record.progress * 100);
+                return (
+                  <div key={record.id} className="contract-tracker-item record-tracker-item">
+                    <div className="record-tracker-item-head">
+                      <span className="quest-objective-text">{locRecord.title}</span>
+                      <span className="quest-progress-count">{record.currentLabel}</span>
+                    </div>
+                    <div className="record-tracker-meter-row">
+                      <Meter label={locRecord.title} value={record.progress} max={1} showValue={false} showLabel={false} variant="gold" />
+                      <span className="record-tracker-percent">{percent}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </HudCluster>
       )}
 
@@ -288,9 +298,8 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
               <IconBoat size={18} aria-hidden="true" className="quest-tracker-icon" />
               <span className="quest-tracker-copy">
                 <h3 className="quest-title">
-                  {isTr ? `Aktif Sözleşmeler (${activeContracts.length})` : `Active Contracts (${activeContracts.length})`}
+                  {isTr ? `Teslimatlar (${activeContracts.length})` : `Deliveries (${activeContracts.length})`}
                 </h3>
-                <span className="quest-objective-text">{isTr ? "Pazar kargo teslimatları" : "Market cargo consignments"}</span>
               </span>
               <span
                 className={`quest-collapse-chevron ${contractsCollapsed ? "is-collapsed" : ""}`}
@@ -305,9 +314,6 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
             <div className="contracts-tracker-content" id="active-contracts-list" role="list" aria-label={isTr ? "Sözleşmeler listesi" : "Contracts list"}>
               {activeContracts.map((contract) => {
                 const targetName = isTr ? localizeCatalogText(contract.targetName, locale) : contract.targetName;
-                const unitLabel = isTr
-                  ? (contract.unit === "fish" || contract.unit === "catch" ? "balık" : "adet")
-                  : contract.unit;
                 return (
                   <div
                     key={contract.id}
@@ -318,32 +324,52 @@ export const QuestTrackerHUD: React.FC<QuestTrackerHUDProps> = ({
                     <div className="contract-item-head">
                       <span className="contract-target-name">{targetName}</span>
                       <span className="contract-reward-badge">
-                        {isTr ? `${contract.rewardMoney} Altın` : `From ${contract.rewardMoney} G`}
+                        {isTr ? `${contract.rewardMoney} akçe` : `${contract.rewardMoney} G`}
                       </span>
                     </div>
 
                     <div className="contract-item-progress-row">
                       <span className="contract-quantity-text">
-                        {`${contract.current} / ${contract.target} ${unitLabel}`}
+                        {contract.completed ? (
+                          <span className="contract-ready-status">
+                            <IconCheck size={11} aria-hidden="true" /> {isTr ? "Hazır" : "Ready"}
+                          </span>
+                        ) : (
+                          `${contract.current} / ${contract.target}`
+                        )}
                       </span>
-                      {contract.completed && (
-                        <span className="contract-ready-chip">{isTr ? "Hazır" : "Ready"}</span>
-                      )}
+                      <span className="contract-deadline">
+                        {translateExpeditionText(contract.deadlineLabel, locale)}
+                      </span>
                     </div>
-                    {!contract.completed && (
-                      <div className="contract-destination-row">
-                        <span className="contract-destination-label">
-                          <IconPin size={11} aria-hidden="true" /> {placeLabel(contract.deliveryMarketName, locale)}
-                        </span>
-                      </div>
-                    )}
+
+                    <div className="contract-destination-row">
+                      <span className="contract-destination-label">
+                        <IconPin size={11} aria-hidden="true" /> {placeLabel(contract.deliveryMarketName, locale)}
+                      </span>
+                    </div>
                   </div>
                 );
               })}
+              {onOpenBoard && (
+                <button type="button" className="contract-board-link" onClick={onOpenBoard}>
+                  {isTr ? "Teslimatları planla" : "Plan deliveries"}
+                </button>
+              )}
             </div>
           )}
         </HudCluster>
       )}
     </div>
   );
-};
+}, (prev, next) => {
+  if (prev.className !== next.className) return false;
+  if (prev.onFocusTrack !== next.onFocusTrack) return false;
+  if (prev.onOpenDialogue !== next.onOpenDialogue) return false;
+  if (prev.onOpenBoard !== next.onOpenBoard) return false;
+  if (prev.activeQuest !== next.activeQuest) return false;
+  if (prev.activeQuests !== next.activeQuests) return false;
+  if (prev.activeContracts !== next.activeContracts) return false;
+  if (prev.records !== next.records) return false;
+  return true;
+});

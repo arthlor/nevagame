@@ -1,5 +1,5 @@
 import { tradePackName } from "../i18n/tradePackNames";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { IconEnergy, IconPack } from "./components/HudIcons";
 import { FarmForecastPopover } from "./components/FarmForecastPopover";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
@@ -24,6 +24,8 @@ import type { ContextualCropChoice } from "./hud/ContextualCropChoice";
 import { MaritimeVesselConsole } from "./components/MaritimeVesselConsole";
 import { WeatherHazardBanner } from "./components/WeatherHazardBanner";
 import { useTranslation } from "../i18n/useTranslation";
+import { rememberModalOpener } from "./useModalAccessibility";
+import { qualityLabel } from "../i18n/itemText";
 
 export interface HUDProps {
   hud: WorldHudDto;
@@ -60,7 +62,7 @@ export interface HUDProps {
 
 const EMPTY_NOTICES: readonly Notice[] = [];
 
-export const HUD: React.FC<HUDProps> = ({
+export const HUD: React.FC<HUDProps> = React.memo(({
   hud,
   playerPosition,
   blocked = false,
@@ -124,13 +126,14 @@ export const HUD: React.FC<HUDProps> = ({
 
   useEffect(() => { if (blocked || !forecastEnabled) setShowForecast(false); }, [blocked, forecastEnabled]);
 
-  const handleToggleForecast = () => {
+  const handleToggleForecast = useCallback(() => {
     if (!forecastEnabled) return;
     playUiSound("open");
     setShowForecast((prev) => !prev);
-  };
+  }, [forecastEnabled]);
 
-  const handleModalOpen = (modal: ActiveModal) => {
+  const handleModalOpen = useCallback((modal: ActiveModal) => {
+    rememberModalOpener();
     if (modal === "pause" && onOpenMenu) {
       onOpenMenu();
     } else if (onOpenModal) {
@@ -138,17 +141,21 @@ export const HUD: React.FC<HUDProps> = ({
     } else if (modal === "pause") {
       onOpenMenu?.();
     }
-  };
+  }, [onOpenMenu, onOpenModal]);
+
+  const handleOpenCharacter = useCallback(() => handleModalOpen("character"), [handleModalOpen]);
+  const handleOpenExpedition = useCallback(() => handleModalOpen("expedition"), [handleModalOpen]);
+  const handleOpenMap = useCallback(() => handleModalOpen("map"), [handleModalOpen]);
 
   return (
     <div
       className={`guildcraft-hud${showForecast ? " has-forecast-open" : ""}`}
       aria-hidden={blocked || undefined}
-      {...(blocked ? { inert: "" } : {})}
+      {...(blocked ? { inert: true } : {})}
     >
       <HudCluster edge="top-left" className="guild-status-anchor interactive" aria-label={isTr ? "Oyuncu kaynakları" : "Player resources"}>
         <PlayerUnitFrame work={hud.work} sprint={hud.sprint} mount={hud.mount} statusEffects={hud.statusEffects}
-          onOpenCharacterSheet={() => handleModalOpen("character")} />
+          onOpenCharacterSheet={handleOpenCharacter} />
       </HudCluster>
       <HudCluster className="guild-objectives interactive" aria-label={isTr ? "Aktif hedefler" : "Active objectives"}>
         <QuestTrackerHUD
@@ -157,10 +164,11 @@ export const HUD: React.FC<HUDProps> = ({
           onFocusTrack={onFocusTrack}
           activeContracts={hud.activeContracts}
           records={hud.recordTracker}
+          onOpenBoard={hud.expeditionUnlocked ? handleOpenExpedition : undefined}
         />
       </HudCluster>
 
-      <TidebookNavigation compass={hud.compass} onOpenMap={() => handleModalOpen("map")} />
+      <TidebookNavigation compass={hud.compass} onOpenMap={handleOpenMap} />
 
       {/* Floating Notices & Notifications */}
       <NoticeStack notices={visibleNotices} />
@@ -176,7 +184,7 @@ export const HUD: React.FC<HUDProps> = ({
             {/* Nautical Compass & Celestial Almanac */}
             <NauticalCompassAlmanac
               playerPosition={playerPosition}
-              onOpenMap={() => handleModalOpen("map")}
+              onOpenMap={handleOpenMap}
               clock={hud.clock}
               weather={hud.weather}
               compass={hud.compass}
@@ -237,9 +245,9 @@ export const HUD: React.FC<HUDProps> = ({
                   </div>
                   <div className="pack-detail-row">
                     <span className="hud-context-note-detail">
-                      {`${carriedFish.freshnessPercent}%`}
+                      {isTr ? `%${carriedFish.freshnessPercent} taze` : `${carriedFish.freshnessPercent}% fresh`}
                     </span>
-                    <span className="pack-quality-label">{carriedFish.quality}</span>
+                    <span className="pack-quality-label">{qualityLabel(carriedFish.quality, locale)}</span>
                     {carriedFish.carrySpeedPenaltyPercent > 0 && (
                       <span
                         className="pack-speed-penalty"
@@ -276,7 +284,7 @@ export const HUD: React.FC<HUDProps> = ({
 
       {/* Bottom-Center Cluster: the immediate verb and only currently useful alternatives. */}
       <HudCluster edge="bottom-center" className="hud-play-cluster guild-play-anchor">
-        {!isPlacementActive && !basicFishingResultOpen && (basicFishingPhase || promptText) && (
+        {!isPlacementActive && !basicFishingResultOpen && (basicFishingPhase ? (basicFishingPhase === "bite-reaction" || basicFishingPhase === "bite") : promptText) && (
           <footer className="guild-interaction-anchor" aria-label={isTr ? "Bağlamsal etkileşimler" : "Contextual interactions"}>
             {basicFishingPhase ? (
               <div
@@ -284,24 +292,10 @@ export const HUD: React.FC<HUDProps> = ({
                 role="status"
                 data-testid="context-prompt"
               >
-                {basicFishingPhase === "charging-cast" ? (
-                  <span className="banner-text">
-                    {touchChrome ? (isTr ? "Savurmak için bırak" : "Release to cast") : (isTr ? "Savurmak için E veya Sol Tık'ı bırak" : "Release E or LMB to cast")}
-                  </span>
-                ) : basicFishingPhase === "bite-reaction" || basicFishingPhase === "bite" ? (
-                  <div className="banner-content-row">
-                    {!touchChrome && <KeyHint keyName="Space" />}
-                    <span className="banner-text is-bite-alert">{isTr ? "Balığı kancala" : "Hook the fish"}</span>
-                  </div>
-                ) : basicFishingPhase === "minigame" ? (
-                  <span className="banner-text">
-                    {touchChrome
-                      ? (isTr ? "Balığı şeritte tutmak için Sar'a basılı tut" : "Hold Reel to keep the fish in the bar")
-                      : (isTr ? "Balığı şeritte tutmak için Boşluk'a basılı tut" : "Hold Space to keep the fish in the bar")}
-                  </span>
-                ) : (
-                  <span className="banner-text">{isTr ? "Vuruş bekleniyor" : "Waiting for a bite"}</span>
-                )}
+                <div className="banner-content-row">
+                  {!touchChrome && <KeyHint keyName="Space" />}
+                  <span className="banner-text is-bite-alert">{isTr ? "Balığı kancala" : "Hook the fish"}</span>
+                </div>
               </div>
             ) : (
               <SmartActionPrompt
@@ -357,4 +351,59 @@ export const HUD: React.FC<HUDProps> = ({
       )}
     </div>
   );
-};
+}, (prev, next) => {
+  if (
+    prev.blocked !== next.blocked ||
+    prev.promptText !== next.promptText ||
+    prev.toastMessage !== next.toastMessage ||
+    prev.isPlacementActive !== next.isPlacementActive ||
+    prev.touchChrome !== next.touchChrome ||
+    prev.canStartPlanting !== next.canStartPlanting ||
+    prev.forecastEnabled !== next.forecastEnabled ||
+    prev.chronicleFilter !== next.chronicleFilter ||
+    prev.activeQuest !== next.activeQuest ||
+    prev.activeQuests !== next.activeQuests ||
+    prev.notices !== next.notices ||
+    prev.chronicleEntries !== next.chronicleEntries ||
+    prev.contextualCropChoices !== next.contextualCropChoices
+  ) {
+    return false;
+  }
+
+  // Player position tolerance: avoid virtual DOM passes for sub-0.2m movements
+  if (prev.playerPosition && next.playerPosition) {
+    const dx = prev.playerPosition.x - next.playerPosition.x;
+    const dz = prev.playerPosition.z - next.playerPosition.z;
+    if (dx * dx + dz * dz > 0.04) return false;
+  } else if (prev.playerPosition !== next.playerPosition) {
+    return false;
+  }
+
+  const pHud = prev.hud;
+  const nHud = next.hud;
+  if (
+    Math.round(pHud.work.current) !== Math.round(nHud.work.current) ||
+    pHud.work.maximum !== nHud.work.maximum ||
+    (pHud.sprint ? Math.round(pHud.sprint.current) : null) !== (nHud.sprint ? Math.round(nHud.sprint.current) : null) ||
+    (pHud.mount ? Math.round(pHud.mount.current) : null) !== (nHud.mount ? Math.round(nHud.mount.current) : null) ||
+    pHud.mount?.exhausted !== nHud.mount?.exhausted ||
+    pHud.clock.label !== nHud.clock.label ||
+    pHud.clock.isNight !== nHud.clock.isNight ||
+    pHud.weather.type !== nHud.weather.type ||
+    pHud.weather.temperatureC !== nHud.weather.temperatureC ||
+    pHud.money !== nHud.money ||
+    pHud.basicFishingPhase !== nHud.basicFishingPhase ||
+    pHud.compass.headingDegrees !== nHud.compass.headingDegrees ||
+    pHud.compass.subRegionTitle !== nHud.compass.subRegionTitle ||
+    pHud.carriedFish !== nHud.carriedFish ||
+    pHud.boat !== nHud.boat ||
+    pHud.weather.hazard !== nHud.weather.hazard ||
+    pHud.statusEffects !== nHud.statusEffects ||
+    pHud.activeContracts !== nHud.activeContracts ||
+    pHud.recordTracker !== nHud.recordTracker
+  ) {
+    return false;
+  }
+
+  return true;
+});

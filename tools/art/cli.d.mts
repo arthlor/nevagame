@@ -4,6 +4,7 @@ export interface ArtCliArgs {
   families: string[];
   all: boolean;
   publish: boolean;
+  /** Compatibility alias; all generation uses the same technical validation. */
   strict: boolean;
   useCache?: boolean;
 }
@@ -74,6 +75,7 @@ export interface CatalogAsset {
     events?: Array<{ name: string; timeSeconds: number }>;
   }>;
   referenceAuthoring?: ReferenceAuthoring;
+  surfaceAuthoring?: { normalPolicy: "authored" };
   sourceProvenance?: SourceProvenance;
 }
 
@@ -156,6 +158,12 @@ export function referenceAuthoringSummary(asset: CatalogAsset): {
   reviewViews: number;
 } | null;
 export function referenceBriefMarkdown(asset: CatalogAsset): string;
+export function refreshReferenceAuthoring<T extends Record<string, unknown>>(
+  entry: T,
+  asset: Pick<CatalogAsset, "referenceAuthoring">,
+): Omit<T, "referenceAuthoring"> & {
+  referenceAuthoring?: NonNullable<ReturnType<typeof referenceAuthoringSummary>>;
+};
 export function selectAssets(
   catalog: { assets: CatalogAsset[] },
   args: Pick<ArtCliArgs, "assets" | "families" | "all">,
@@ -170,6 +178,14 @@ export function promoteFilesAtomically(
   copies: Array<{ source: string; destination: string }>,
   removals: string[],
   backupRoot: string,
+): void;
+export function publishStage(
+  report: Record<string, unknown>,
+  optimizedDir: string,
+  selected: CatalogAsset[],
+  catalog: { assets: CatalogAsset[] },
+  strict: boolean,
+  repoRoot?: string,
 ): void;
 export function validatePublishedManifest(
   manifest: Record<string, unknown>,

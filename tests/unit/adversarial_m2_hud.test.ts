@@ -155,7 +155,7 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       state.weather.seaRoughness = 0.2;
       const htmlStorm = renderToString(React.createElement(HUD, { state, promptText: null }));
       expect(htmlStorm).toContain('data-hazard-id="storm" data-severity="danger"');
-      expect(htmlStorm).toContain("Severe Coastal Storm");
+      expect(htmlStorm).toContain("Coastal storm");
 
       // Case B: Dense Fog (< 0.5 visibility) -> Caution
       state.weather.type = "fog";
@@ -164,7 +164,7 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       state.weather.seaRoughness = 0.2;
       const htmlDenseFog = renderToString(React.createElement(HUD, { state, promptText: null }));
       expect(htmlDenseFog).toContain('data-hazard-id="dense-fog" data-severity="caution"');
-      expect(htmlDenseFog).toContain("Dense Maritime Fog");
+      expect(htmlDenseFog).toContain("Dense fog");
 
       // Case C: Light Fog (>= 0.5 visibility, calm wind/sea) -> No alert chip
       state.weather.type = "fog";
@@ -180,7 +180,7 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       state.weather.seaRoughness = 0.4;
       const htmlGale = renderToString(React.createElement(HUD, { state, promptText: null }));
       expect(htmlGale).toContain('data-hazard-id="squall" data-severity="caution"');
-      expect(htmlGale).toContain("Gale-Force Squall");
+      expect(htmlGale).toContain("Strong winds");
 
       // Case E: Rough Swell (seaRoughness >= 0.7) -> Caution
       state.weather.type = "clear";
@@ -188,7 +188,7 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       state.weather.seaRoughness = 0.85;
       const htmlSwell = renderToString(React.createElement(HUD, { state, promptText: null }));
       expect(htmlSwell).toContain('data-hazard-id="storm-waves" data-severity="caution"');
-      expect(htmlSwell).toContain("Hazardous Rough Swell");
+      expect(htmlSwell).toContain("Rough water");
 
       // Case F: Storm takes precedence over high wind and rough sea
       state.weather.type = "storm";
@@ -196,7 +196,7 @@ describe("Milestone M2 Adversarial & Empirical HUD Stress Suite", () => {
       state.weather.seaRoughness = 0.95;
       const htmlCombined = renderToString(React.createElement(HUD, { state, promptText: null }));
       expect(htmlCombined).toContain('data-hazard-id="storm" data-severity="danger"');
-      expect(htmlCombined).toContain("Severe Coastal Storm");
+      expect(htmlCombined).toContain("Coastal storm");
       // Only 1 severe weather chip at a time
       expect(htmlCombined.match(/data-testid="weather-hazard-banner"/g)).toHaveLength(1);
       expect(htmlCombined).not.toContain('data-hazard-id="squall"');

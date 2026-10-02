@@ -29,7 +29,7 @@ export const QUEST_TRACKS: QuestTrackDefinition[] = [
     unlock: { requiresCompletedQuestIds: ["quest.act2_harvest_and_compost"] } },
   {
     id: MAIN_QUEST_TRACK_ID,
-    title: "The Neva Spine",
+    title: "A Home by the Tide",
     entryQuestId: "quest.act1_welcome"
   },
   {

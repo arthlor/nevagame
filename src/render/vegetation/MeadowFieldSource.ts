@@ -256,7 +256,8 @@ function writeExclusion(data: MeadowFieldPatchData, ex: number, ez: number, valu
  */
 export function* stampRoadCoverageSteps(
   data: MeadowFieldPatchData,
-  pathGeometry: THREE.BufferGeometry
+  pathGeometry: THREE.BufferGeometry,
+  sampleCoverage?: (x: number, z: number) => number
 ): Generator<void, void, void> {
   const position = requiredAttribute(pathGeometry, "position");
   const color = pathGeometry.getAttribute("color");
@@ -267,6 +268,7 @@ export function* stampRoadCoverageSteps(
   const maxX = data.originX + data.sizeMeters;
   const maxZ = data.originZ + data.sizeMeters;
   const coverageAt = (vertex: number) => (color && color.itemSize >= 4 ? color.getW(vertex) : 1);
+  const sampled = sampleCoverage ? new Uint8Array(size * size) : null;
   let examinedTexels = 0;
   for (let triangle = 0; triangle < triangleCount; triangle += 1) {
     if (triangle % 512 === 0) yield;
@@ -300,6 +302,14 @@ export function* stampRoadCoverageSteps(
         const w1 = ((cx - px) * (az - pz) - (ax - px) * (cz - pz)) / area;
         const w2 = 1 - w0 - w1;
         if (w0 < -0.001 || w1 < -0.001 || w2 < -0.001) continue;
+        if (sampleCoverage) {
+          const texelIndex = ez * size + ex;
+          if (!sampled![texelIndex]) {
+            sampled![texelIndex] = 1;
+            writeExclusion(data, ex, ez, sampleCoverage(px, pz));
+          }
+          continue;
+        }
         const opacity = w0 * va + w1 * vb + w2 * vc;
         writeExclusion(data, ex, ez, roadCoverageAt(px, pz, opacity, CANONICAL_RENDER_CONFIG.roadSurface));
       }

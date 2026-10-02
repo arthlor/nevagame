@@ -141,7 +141,8 @@ import { commitStartupSave } from "./startup/commitStartupSave";
 import { applyDebugStartScenario, DEBUG_START_SCENARIOS, type DebugStartScenario } from "./startup/DebugStartScenario";
 import { yieldToTask } from "../utils/CooperativeTask";
 import { localeStore } from "../i18n/localeStore";
-import { translateReason, getLocalizedHint } from "../i18n/i18n";
+import { placeLabel } from "../i18n/placesTr";
+import { translateReason, getLocalizedHint, t } from "../i18n/i18n";
 
 /** How long the person just spoken to keeps their world barks to themselves. */
 const POST_CONVERSATION_BARK_HOLD_MS = 30_000;
@@ -178,7 +179,7 @@ import {
   interactionVerticalGap
 } from "../world/InteractionReach";
 import { continuedPlantingCrop } from "../simulation/farming/PlantingSelection";
-import { formatQuestObjective } from "../simulation/presentation/QuestObjectiveCopy";
+import { formatLocalizedQuestObjective } from "../i18n/questObjectives";
 import {
   FARMHOUSE_INTERIOR_DOOR,
   FARMHOUSE_OUTSIDE_DOOR,
@@ -597,7 +598,7 @@ const ART_VIEW_PRESETS: Readonly<Record<string, ArtViewPreset>> = {
    * Open sea looking straight down the evening sun path. The other water views
    * frame a shoreline, so none of them ever put the specular lobe on water:
    * the sun sits over land, or the glint band falls behind a headland. Water is
-   * a hero system (art bible section 8) and its sun/moon glitter had no review
+   * exposed to sun/moon glitter but had no review
    * camera at all, which is how a broken high-tier water shader reached the
    * working tree unseen. Pair with artMinute=1020 (sun at 8.5 degrees
    * elevation, azimuth -32.6) so the reflected view lands on the sun; the ray
@@ -787,6 +788,8 @@ export class GameApp {
   private placementResult: CropPlacementResult | null = null;
   private frozenPlacementResult: CropPlacementResult | null = null;
   private inspectedCrop: CropInspectionDto | null = null;
+  private lastPlantedCropId: string | null = null;
+  private lastPlantedTimeMs = 0;
   private readonly actionTimingScale: number;
   private get farmingActions() { return this.sim.actionTimeline; }
   private readonly interactionResolver = new InteractionTargetResolver();
@@ -803,6 +806,8 @@ export class GameApp {
   private basicCastSource: "interact" | "primary" | null = null;
   private isRunning: boolean = false;
   private lastTimeMs: number = 0;
+  /** Work uses actual UTC elapsed time even when RAF is throttled or the world pauses. */
+  private lastWorkRecoveryUtcMs = 0;
   private fps: number = 60;
   private frameCount: number = 0;
   private fpsTimer: number = 0;
@@ -1105,6 +1110,13 @@ export class GameApp {
     );
     this.inputRouter.setLocomotionWhileSuspended(this.activeModal === "crafting");
     if (this.modeController.blocksWorldInput) this.cancelDoorTransition();
+    if (startupBlocksInput || this.mobileOrientationBlocked || this.modeController.blocksWorldInput || this.benchmarkView) {
+      // These overlays live outside React's inert HUD subtree.
+      this.questPointer.hide();
+      this.questPointerTarget = null;
+      this.worldScene.setQuestWaypoint(null);
+      this.worldScene.setFarmQuestHighlight(null);
+    }
     if (this.activeModal !== "market") this.activeMarketId = null;
     if (this.activeModal !== "crafting") this.activeCraftingStationId = null;
   }
@@ -1610,7 +1622,7 @@ export class GameApp {
       });
       this.durableWritesEnabled = await commitStartupSave(
         attempt,
-        () => this.saveRepo.saveGame(this.sim.state, attempt.signal),
+        () => this.saveCurrentGame(attempt.signal),
         () => new Promise<boolean>((resolve, reject) => {
           const abort = () => { this.saveDecision = undefined; reject(attempt.signal.reason); };
           attempt.signal.addEventListener("abort", abort, { once: true });
@@ -1661,6 +1673,7 @@ export class GameApp {
     this.inputRouter.interrupt();
     this.physicsAccumulatorSeconds = 0;
     this.lastTimeMs = performance.now();
+    this.lastWorkRecoveryUtcMs = Math.max(Date.now(), this.sim.state.metadata.lastSavedUtcMs);
     this.bootReady = true;
     this.graphicsQuality.holdSampling(this.lastTimeMs, GRAPHICS_ENTRY_HOLD_MS);
     this.updateMobileViewportState();
@@ -1776,7 +1789,7 @@ export class GameApp {
   }
 
   private setupInputHandlers(): void {
-    this.inputRouter.onAction((action: GameAction) => {
+    this.inputRouter.onAction((action: GameAction, source) => {
       if (this.startupState.status !== "ready") return;
       const isHudOverlayOrToolAction =
         action.startsWith("open-") ||
@@ -1788,7 +1801,7 @@ export class GameApp {
       switch (action) {
         case "interact":
           if (this.mode === "sport-fishing" || this.mode === "basic-fishing" || this.activeModal) return;
-          if (this.mode === "farm-placement") this.confirmCropPlacement();
+          if (this.mode === "farm-placement") this.confirmCropPlacement(source === "virtual");
           else this.handleContextInteract();
           break;
         case "interact-release":
@@ -1813,6 +1826,11 @@ export class GameApp {
           break;
         case "pause":
           if (this.layoutEditor?.handleEscape()) return;
+          if (!this.activeModal && this.laborHud?.active) {
+            this.sim.execute({ type: "labor.cancel" });
+            this.renderUI();
+            return;
+          }
           if (this.inspectedCrop) {
             this.inspectedCrop = null;
             return;
@@ -2143,7 +2161,7 @@ export class GameApp {
         this.worldScene.beginPlayerAttachmentAction("board", boatId);
         this.setToast(`Aboard the ${name.toLowerCase()}`, 1800);
       }),
-      this.sim.events.on("BoatDocked", ({ boatId }) => {
+      this.sim.events.on("BoatDocked", ({ boatId, marketId }) => {
         this.worldScene.playBoatResponse(boatId, "dock", presentationSeconds());
         const boat = this.sim.state.boats[boatId];
         const returningWithCargo = Boolean(boat?.fishCargoSlotIds.some(Boolean));
@@ -2153,7 +2171,7 @@ export class GameApp {
           presentationSeconds()
         );
         this.worldScene.beginPlayerAttachmentAction("dock", boatId);
-        this.setToast("Docked at the mooring", 2200);
+        this.setToast(marketId ? "Docked at the mooring" : "Moored ashore", 2200);
       }),
       this.sim.events.on("CargoLoaded", ({ boatId, slotIndex }) => {
         this.worldScene.playBoatResponse(
@@ -2197,6 +2215,9 @@ export class GameApp {
       }),
       this.sim.events.on("FishHooked", () => this.worldScene.playPlayerAction("hookset")),
       this.sim.events.on("CropPlanted", ({ placedCropId }) => {
+        this.inspectedCrop = null;
+        this.lastPlantedCropId = placedCropId;
+        this.lastPlantedTimeMs = performance.now();
         this.worldScene.playWorldReaction(
           "work",
           presentedPlayerPosition(),
@@ -2416,7 +2437,7 @@ export class GameApp {
     this.farmingActionSnapshot = this.farmingActions.snapshot(nowMs);
 
     // 3. Tick Authoritative Simulation
-    this.sim.tick(deltaSeconds);
+    this.sim.tick(deltaSeconds, this.takeOnlineWorkSeconds());
     if (this.mode === "sport-fishing" && !this.sim.activeFishingEncounter) {
       this.hudFishingHold = { isReeling: false, isSlacking: false, isBracing: false, rodDirectionAngle: 0 };
       this.restoreGameplayModeFromState();
@@ -2877,15 +2898,16 @@ export class GameApp {
 
   /**
    * Surfaces the offline summary discarded by the load path until now: what
-   * matured, withered, finished, spoiled, or expired while away. One combined
+   * recovered, matured, withered, finished, spoiled, or expired while away. One combined
    * notice — the stack only shows two at once.
    */
   private notifyAwaySummary(summary: OfflineProgressionSummary): void {
-    if (summary.simulatedGameMinutes <= 0) return;
+    if (summary.simulatedGameMinutes <= 0 && summary.workRecovered <= 0) return;
     const isTr = localeStore.current === "tr";
     const count = (n: number, one: string, many: string, trLabel: string): string =>
       isTr ? `${n} ${trLabel}` : `${n} ${n === 1 ? one : many}`;
     const parts: string[] = [];
+    if (summary.workRecovered > 0) parts.push(isTr ? `+${summary.workRecovered} Emek` : `+${summary.workRecovered} Work recovered`);
     if (summary.cropsMaturedCount > 0) parts.push(count(summary.cropsMaturedCount, "crop ready", "crops ready", "ürün olgunlaştı"));
     if (summary.cropsWitheredCount > 0) parts.push(count(summary.cropsWitheredCount, "crop withered", "crops withered", "ürün soldu"));
     if (summary.jobsCompletedCount > 0) parts.push(count(summary.jobsCompletedCount, "job done", "jobs done", "iş tamamlandı"));
@@ -3226,6 +3248,8 @@ export class GameApp {
       for (const station of laborStations) {
         const laborDistance = Math.hypot(p.x - station.x, p.z - station.z);
         if (!assessInteractionReach(p, station, station.reachMeters).ok) continue;
+        const stationKey = station.id.replace(/^labor\./, "");
+        const stationName = t(`labor.stations.${stationKey}.title`);
         candidates.push({
           id: `labor:${station.id}`,
           entityId: station.id,
@@ -3241,8 +3265,8 @@ export class GameApp {
           modes: ["on-foot"],
           requiresLineOfSight: false,
           prompt: station.available
-            ? `[E] ${station.prompt} · +${station.yield} Work`
-            : `${station.name} · ${station.blocker ?? "Unavailable"}`
+            ? `[E] ${t(`labor.stations.${stationKey}.prompt`)} · +${station.yield} ${t("labor.work")}`
+            : `${stationName} · ${station.used ? t("labor.claimed") : translateReason(station.blocker ?? "Unavailable", localeStore.current)}`
         });
       }
     }
@@ -3747,8 +3771,9 @@ export class GameApp {
   private syncQuestGuidance(): void {
     const activeQuest = this.sim.questDomain.getActiveQuestDto();
     const facts = activeQuest?.objectiveFacts;
-    const label = activeQuest?.targetLocation?.name
-      ?? (facts ? formatQuestObjective(facts, localeStore.current === "tr" ? "tr" : "en") : "");
+    const label = activeQuest?.targetLocation
+      ? placeLabel(activeQuest.targetLocation.name, localeStore.current)
+      : (facts ? formatLocalizedQuestObjective(facts, localeStore.current === "tr" ? "tr" : "en") : "");
     if (activeQuest?.targetFarmId) {
       const centroid = farmPlantableCentroid(activeQuest.targetFarmId) ?? (
         activeQuest.targetLocation
@@ -3818,7 +3843,7 @@ export class GameApp {
     this.lastInteractionPointerY = pointer.y;
     this.lastInteractionMode = this.mode;
     this.cameraInteractionNearby = false;
-    if (this.activeModal || this.benchmarkView) {
+    if (this.activeModal || this.benchmarkView || this.mobileOrientationBlocked) {
       this.worldScene.setInteractionTargetFeedback(null);
       this.promptText = null;
       this.contextualCropChoices = [];
@@ -3971,20 +3996,27 @@ export class GameApp {
    * disagree about what the simulation granted.
    */
   private strikeLaborShift(): void {
+    const before = this.sim.query({ type: "labor.get-hud" }) as LaborHudDto;
+    if (!before.active) return;
     const result = this.sim.execute({ type: "labor.strike" });
     const granted = result.yield ?? 0;
+    const after = this.sim.query({ type: "labor.get-hud" }) as LaborHudDto;
+    const stations = this.sim.query({ type: "labor.get-stations" }) as LaborStationDto[];
     this.laborShiftFeedback = {
       token: ++this.laborShiftFeedbackToken,
       outcome: result.success ? result.grade ?? "clean" : "miss",
       granted,
-      reason: result.success ? undefined : result.reason
+      reason: result.success ? undefined : result.reason,
+      claimed: stations.find((station) => station.id === before.stationId)?.used ?? false,
+      choresRemaining: after.choresRemaining,
+      totalChores: after.totalChores
     };
     // The grade plaque outlives the shift briefly; after this window a modal
     // remount must not replay a stale result.
-    this.laborShiftFeedbackUntilMs = performance.now() + 2600;
+    this.laborShiftFeedbackUntilMs = performance.now() + 4800;
     if (result.success) {
-      const gradeLabel = this.laborShiftFeedback.outcome === "clean" ? "Clean strike" : "Glancing blow";
-      this.notify(`${gradeLabel} · +${granted} Work`, "success", 2200);
+      const gradeLabel = t(`labor.${this.laborShiftFeedback.outcome}`);
+      this.notify(`${gradeLabel} · +${granted} ${t("labor.work")}`, "success", 2200);
       this.requestAutosave();
     } else {
       this.notify(result.reason ?? "The strike missed", "warning");
@@ -4545,7 +4577,7 @@ export class GameApp {
             : null
         };
       },
-      saveNow: () => this.saveRepo.saveGame(this.sim.state),
+      saveNow: () => this.saveCurrentGame(),
       pose: () => {
         const player = this.sim.state.player;
         return {
@@ -4684,10 +4716,23 @@ export class GameApp {
     if (this.activeModal || this.layoutEditor?.isActive()) return;
     const seeds = this.sim.inspectSeedBelt().seeds;
     const continued = continuedPlantingCrop(cropId, seeds);
-    if (!continued.cropId) return;
+    if (!continued.cropId || continued.exhausted) {
+      this.setGameplayMode("on-foot");
+      this.inspectedCrop = null;
+      if (continued.exhausted) {
+        const cropName = ContentRegistry.crops.get(cropId)?.name ?? "Crop";
+        this.setToast(
+          seeds.length > 0
+            ? `Out of ${cropName} seeds. Choose another crop.`
+            : `Out of ${cropName} seeds.`,
+          2400
+        );
+      }
+      return;
+    }
     this.plantingCropId = continued.cropId;
     this.selectedCropId = continued.cropId;
-    this.enterCropPlacement(continued.cropId, { exhausted: continued.exhausted, quiet: !continued.exhausted });
+    this.enterCropPlacement(continued.cropId, { exhausted: false, quiet: true });
   }
 
   private enterCropPlacement(cropId: string, options: { exhausted?: boolean; quiet?: boolean } = {}): void {
@@ -4737,6 +4782,7 @@ export class GameApp {
 
 
   private updateCropPlacementPreview(): void {
+    this.worldScene.setPlantingGuide(this.sim.state, this.mode === "farm-placement" && !this.activeModal);
     if (this.mode !== "farm-placement" || this.activeModal || this.farmingActions.isActive || this.pointerIsOverInterface()) {
       this.clearPlacementPreview();
       return;
@@ -4746,12 +4792,10 @@ export class GameApp {
 
   /** The seed belt and other HUD panels own the pointer; the ground ring stays hidden. */
   private pointerIsOverInterface(): boolean {
-    const canvas = this.worldScene.renderer.domElement;
-    const rect = canvas.getBoundingClientRect();
-    const ndc = this.inputRouter.getInputState().pointerNdc;
-    const clientX = rect.left + ((ndc.x + 1) / 2) * rect.width;
-    const clientY = rect.top + ((1 - ndc.y) / 2) * rect.height;
-    const hit = document.elementFromPoint(clientX, clientY);
+    const pointer = this.inputRouter.getPointerClientPosition();
+    if (!pointer) return true;
+    const hit = document.elementFromPoint(pointer.x, pointer.y);
+    if (!hit) return true;
     return Boolean(hit?.closest(".interactive, button, a, input, textarea, select, [role='dialog']"));
   }
 
@@ -4760,11 +4804,10 @@ export class GameApp {
    * rendered hint and can lag a pointer move by one frame; committing from a
    * fresh simulation query keeps a fast move-and-click deterministic.
    */
-  private refreshCropPlacementAtPointer(): CropPlacementResult | null {
-    const hit = this.worldScene.raycastTerrain(
-      this.gameCamera.camera,
-      this.inputRouter.getInputState().pointerNdc
-    );
+  private refreshCropPlacementAtPointer(
+    pointer = this.inputRouter.getPointerNdc(this.worldScene.renderer.domElement)
+  ): CropPlacementResult | null {
+    const hit = pointer ? this.worldScene.raycastTerrain(this.gameCamera.camera, pointer) : null;
     if (!hit) {
       this.clearPlacementPreview();
       return null;
@@ -4773,24 +4816,10 @@ export class GameApp {
     // Farm bounds include the yard and paths. The ring is only for plantable soil.
     // A point inside the yard still returns an invalid result so a click cannot
     // fall back to the last soil spot while the cursor is hidden.
-    const farmId = findPlantableFarmAtWorld(hit.x, hit.z);
+    const farmId = findPlantableFarmAtWorld(hit.x, hit.z) ?? findFarmIdAtWorld(hit.x, hit.z);
     if (!farmId) {
       this.clearPlacementPreview();
-      const yardId = findFarmIdAtWorld(hit.x, hit.z);
-      if (!yardId) return null;
-      return {
-        valid: false,
-        reasonCode: "invalid-surface",
-        reason: "Plant on prepared farm soil",
-        farmId: yardId,
-        cropId: this.selectedCropId as CropPlacementResult["cropId"],
-        worldX: hit.x,
-        worldZ: hit.z,
-        localX: 0,
-        localZ: 0,
-        rotationRadians: 0,
-        footprint: { width: 0, depth: 0 }
-      };
+      return null;
     }
 
     const result = this.sim.query({
@@ -4816,22 +4845,28 @@ export class GameApp {
     if (this.mode !== "farm-placement") return;
     this.setGameplayMode("on-foot");
     this.frozenPlacementResult = null;
+    this.inspectedCrop = null;
     this.setToast("Planting cancelled", 1400);
   }
 
-  private confirmCropPlacement(): void {
+  private confirmCropPlacement(fromTouchControl = false): void {
     if (this.mode !== "farm-placement" || this.farmingActions.isActive) return;
+    this.inspectedCrop = null;
     const cropDef = ContentRegistry.crops.get(this.selectedCropId);
     if (!cropDef) {
       this.setToast("Choose seeds from your inventory first");
       return;
     }
-    // A fresh query wins; if the pointer misses terrain or the farm on the
-    // click frame, commit the spot the player was just shown. The refresh
-    // clears `placementResult` on a miss, so it must be read first. The plant
-    // command re-validates either way.
-    const shown = this.placementResult;
-    const placement = this.refreshCropPlacementAtPointer() ?? shown;
+    if (!fromTouchControl && this.pointerIsOverInterface()) {
+      this.clearPlacementPreview();
+      return;
+    }
+    // A miss must never reuse an earlier soil position. The action edge and
+    // the eventual command both validate the current target independently.
+    const pointer = fromTouchControl
+      ? this.inputRouter.getCanvasPointerNdc(this.worldScene.renderer.domElement)
+      : this.inputRouter.getPointerNdc(this.worldScene.renderer.domElement);
+    const placement = this.refreshCropPlacementAtPointer(pointer);
     if (!placement?.valid) {
       this.setToast(placement?.reason ?? "Point at prepared farm soil");
       return;
@@ -4876,7 +4911,12 @@ export class GameApp {
         }
       },
       (result) => {
-        if (result.success) this.setToast(`${cropDef.name} planted`);
+        this.inspectedCrop = null;
+        if (result.success) {
+          this.lastPlantedCropId = (result as { placedCropId?: string }).placedCropId ?? null;
+          this.lastPlantedTimeMs = performance.now();
+          this.setToast(`${cropDef.name} planted`);
+        }
         const chosen = this.selectionOverrideCropId ?? snapshotCropId;
         this.selectionOverrideCropId = null;
         this.resumePlanting(chosen);
@@ -4885,12 +4925,17 @@ export class GameApp {
   }
 
   private inspectPointedTarget(): void {
+    if (this.farmingActions.isActive) return;
     const pointer = this.inputRouter.getInputState().pointerNdc;
     const cropId = this.worldScene.pickCrop(this.gameCamera.camera, pointer);
     const crop = cropId ? this.sim.state.crops[cropId] : undefined;
     if (!cropId || !crop) {
       this.inspectedCrop = null;
       this.readWaterAtFeet();
+      return;
+    }
+    if (cropId === this.lastPlantedCropId && performance.now() - this.lastPlantedTimeMs < 2000) {
+      this.inspectedCrop = null;
       return;
     }
     const world = farmLocalToWorld(crop.farmId, crop);
@@ -4959,6 +5004,9 @@ export class GameApp {
       this.frozenPlacementResult = null;
       this.lockedInteractionTarget = null;
       this.inputRouter.setJumpBlocked(false);
+      if (snapshot.action === "plant") {
+        this.inspectedCrop = null;
+      }
     }
     this.worldScene.setFarmingActionPresentation(
       snapshot.action === "fertilize" ? "place" : snapshot.action,
@@ -5260,7 +5308,7 @@ export class GameApp {
           this.showContextualHint(
             "hint.boat_steering",
             `${boatName} Navigation`,
-            "[W/S] Throttle • [A/D] Steer • [E] Dock at a marked mooring.",
+            "[W/S] Throttle • [A/D] Steer • [E] Moor beside shore or a marked pier.",
             "anchor"
           );
           this.requestAutosave();
@@ -5269,18 +5317,24 @@ export class GameApp {
     } else if (this.mode === "boat-driving") {
       const boatId = this.sim.state.player.activeBoatId;
       const boat = boatId ? this.sim.state.boats[boatId] : null;
-      if (!boat || !this.sim.canDockActiveBoat()) {
-        this.setToast("Return to a marked mooring to disembark");
+      if (!boat) {
+        this.setToast("You are not aboard a boat");
+        return;
+      }
+      if (!this.sim.canDockActiveBoat()) {
+        this.setToast(this.sim.dockRefusalReason() ?? "Approach a shore with room to step ashore");
         return;
       }
       this.startFarmingAction("dock", boat.x, boat.z, { type: "boat.dock" }, (result) => {
-        if (result.success) {
-          this.setGameplayMode("on-foot");
-          this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
-            discontinuity: "docking"
-          });
-          this.requestAutosave();
+        if (!result.success) {
+          this.setToast(result.reason ?? "Approach a shore with room to step ashore");
+          return;
         }
+        this.setGameplayMode("on-foot");
+        this.playerPresentation.pushCanonicalPose(this.sim.state.player, {
+          discontinuity: "docking"
+        });
+        this.requestAutosave();
       }, boat.y, boat.id);
     }
   }
@@ -5439,7 +5493,7 @@ export class GameApp {
       return;
     }
     try {
-      const ok = await this.saveRepo.saveGame(this.sim.state);
+      const ok = await this.saveCurrentGame();
       if (ok) {
         this.lastAutosaveMs = performance.now();
         this.autosaveFailureNotified = false;
@@ -5452,6 +5506,9 @@ export class GameApp {
   }
 
   private onVisibilityChange = (): void => {
+    if (this.bootReady && this.isRunning) {
+      this.sim.progression.tickPassiveWorkRegen(this.takeOnlineWorkSeconds());
+    }
     if (document.hidden) {
       this.hiddenSinceLastFrame = true;
       this.requestAutosave();
@@ -5519,6 +5576,7 @@ export class GameApp {
         ambientOcclusion: resolved.ambientOcclusion === "gtao" && !drawn.gtao ? "off" : resolved.ambientOcclusion,
         practicalGlow: resolved.practicalGlow || (resolved.hdrBloom && !drawn.hdrBloom),
         hdrBloom: drawn.hdrBloom,
+        sunShafts: drawn.sunShafts,
         fxaa: drawn.fxaa,
         colorFinish: drawn.colorFinish ? { ...resolved.colorFinish } : { ...NEUTRAL_COLOR_FINISH }
       },
@@ -5580,6 +5638,21 @@ export class GameApp {
     });
   }
 
+  private takeOnlineWorkSeconds(nowUtcMs = Date.now()): number {
+    if (!this.bootReady || !this.isRunning) return 0;
+    const elapsed = Math.max(0, nowUtcMs - this.lastWorkRecoveryUtcMs) / 1000;
+    // A backwards system-clock correction cannot replay already accounted time.
+    this.lastWorkRecoveryUtcMs = Math.max(this.lastWorkRecoveryUtcMs, nowUtcMs);
+    return elapsed;
+  }
+
+  private saveCurrentGame(signal?: AbortSignal): Promise<boolean> {
+    const savedAtUtcMs = Math.max(Date.now(), this.lastWorkRecoveryUtcMs, this.sim.state.metadata.lastSavedUtcMs);
+    this.sim.progression.tickPassiveWorkRegen(this.takeOnlineWorkSeconds(savedAtUtcMs));
+    // The frozen state and its offline anchor describe the same instant.
+    return this.saveRepo.saveGame(this.sim.state, signal, savedAtUtcMs);
+  }
+
   /**
    * Periodic cadence is measured from the later of the last success and the
    * last periodic attempt. A failed store therefore retries once per interval.
@@ -5599,7 +5672,7 @@ export class GameApp {
         this.autosaveRequested = false;
         let saved = false;
         try {
-          saved = await this.saveRepo.saveGame(this.sim.state);
+          saved = await this.saveCurrentGame();
         } catch (error) {
           console.error("[GameApp] Autosave failed", error);
         }
@@ -5948,6 +6021,9 @@ export class GameApp {
         onInspectSeedBelt: () => this.sim.inspectSeedBelt(),
         selectedPlantCropId: this.selectedCropId,
         selectedPlantCropName: ContentRegistry.crops.get(this.selectedCropId)?.name ?? null,
+        placementPreview: this.placementResult,
+        plantingWork: this.mode === "farm-placement"
+          ? this.sim.quoteWorkCost(FARMING_ACTION_COST.plant, "farming", "farming.plant") : null,
         onCancelPlacement: () => this.exitCropPlacement(),
         isFarmGisHeld: this.isFarmGisHeld,
         contextualCropChoices: this.contextualCropChoices,

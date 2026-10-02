@@ -75,14 +75,18 @@ export function carriageGroundResponseAt(
 
   const tuning = CARRIAGE_TUNING.groundResponse;
   const weights = WorldLayout.terrainSurfaceWeights(x, z, support.normal.y);
-  const route = WorldLayout.nearestRouteDistance(x, z);
-  const core = Math.min(1, Math.max(0, weights.path / tuning.packedCoreFullWeight));
-  const shoulder = Math.min(1, Math.max(0, weights.shoulder / tuning.shoulderFullWeight)) * (1 - core);
+  const footprint = WorldLayout.roadFootprintSample(x, z);
+  // Wet ground palette weights are normalized for rendering. They cannot
+  // dilute the road that supplies physical support under the carriage.
+  const core = Math.min(1, Math.max(0, footprint.packed / tuning.packedCoreFullWeight));
+  const shoulder = Math.min(1, Math.max(0, footprint.shoulder / tuning.shoulderFullWeight)) * (1 - core);
   const softGround = Math.max(weights.dampSoil, weights.wetShoreline, weights.beach, weights.riverbed);
   const natural = tuning.firmGroundSpeedScale
     + (tuning.softGroundSpeedScale - tuning.firmGroundSpeedScale) * softGround;
   const shoulderBlend = natural + (tuning.shoulderSpeedScale - natural) * shoulder;
-  const road = tuning.roadSpeedScale[route.route.kind];
+  const roadClass = footprint.routeIndex === null ? WorldLayout.nearestRouteDistance(x, z).route.kind
+    : WorldLayout.compiledRouteNetwork()[footprint.routeIndex].route.kind;
+  const road = tuning.roadSpeedScale[roadClass];
   const groundSpeedScale = shoulderBlend + (road - shoulderBlend) * core;
   const downhill = (support.normal.x * Math.sin(headingRadians)
     + support.normal.z * Math.cos(headingRadians)) * (travelSign < 0 ? -1 : 1);

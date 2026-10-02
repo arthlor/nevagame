@@ -35,6 +35,7 @@ uniform float meadowWindStrength;
 uniform float meadowMotionScale;
 // presence x, z, strength, radius
 uniform vec4 meadowPresence;
+varying vec3 vMeadowNormal;
 varying float vMeadowT;
 varying vec3 vMeadowRootColor;
 varying vec3 vMeadowBodyColor;
@@ -93,6 +94,11 @@ vec2 meadowRotate(vec2 v, float angle) {
 export const MEADOW_FIELD_BLADE_VERTEX = /* glsl */ `
 vec3 objectNormal = vec3(0.0, 1.0, 0.0);
 vec3 meadowLocalPosition = vec3(0.0);
+vMeadowT = position.x;
+vMeadowRootColor = vec3(0.0);
+vMeadowBodyColor = vec3(0.0);
+vMeadowTipColor = vec3(0.0);
+vMeadowValue = 1.0;
 {
   float bladeT = position.x;
   float bladeSide = position.y;
@@ -114,84 +120,86 @@ vec3 meadowLocalPosition = vec3(0.0);
   vec2 exclusionUv = (rootXZ - meadowExclusionGrid.xy) / (meadowExclusionGrid.z * meadowExclusionGrid.w);
   float exclusion = textureLod(meadowExclusion, exclusionUv, 0.0).r;
   bool inside = all(greaterThanEqual(coverUv, vec2(0.0))) && all(lessThanEqual(coverUv, vec2(1.0)));
-  NevaMeadowSample meadowColor = nevaMeadowSample(rootXZ, cover.g, cover.b, cover.a);
-  // Semantic cover stays primary. Sparse patch edges reveal a little more
-  // ground without cutting holes in the connected low carpet.
-  float density = inside
-    ? cover.r * (1.0 - smoothstep(0.3, 0.6, exclusion)) * mix(nevaMeadowPatch.x, 1.0, meadowColor.growth)
-    : 0.0;
-  float survival = meadowUnit(seed);
-  // Blades near a density edge shorten instead of popping in and out.
-  float presence = smoothstep(survival - 0.14, survival + 0.02, density);
+  // Skip palette, height and motion work for fully excluded or faded blades.
+  if (inside && cover.r > 0.0 && exclusion < 0.6) {
+    NevaMeadowSample meadowColor = nevaMeadowSample(rootXZ, cover.g, cover.b, cover.a);
+    // Semantic cover stays primary. Sparse patch edges reveal a little more
+    // ground without cutting holes in the connected low carpet.
+    float density = cover.r * (1.0 - smoothstep(0.3, 0.6, exclusion))
+      * mix(nevaMeadowPatch.x, 1.0, meadowColor.growth);
+    float survival = meadowUnit(seed);
+    // Blades near a density edge shorten instead of popping in and out.
+    // Fully excluded ground must have no blades, including the lowest random ranks.
+    float presence = smoothstep(max(0.0, survival - 0.14), survival + 0.02, density);
 
-  float anchorDistance = distance(rootXZ, nevaMeadowField.xy);
-  float outerFade = 1.0 - smoothstep(meadowRadii.z - meadowRadii.w, meadowRadii.z, anchorDistance);
-  float nearFade = bladeIndex >= meadowTiles.y
-    ? 1.0 - smoothstep(meadowRadii.x, meadowRadii.x + meadowRadii.y, anchorDistance)
-    : 1.0;
-  float scale = presence * outerFade * nearFade;
+    float anchorDistance = distance(rootXZ, nevaMeadowField.xy);
+    float outerFade = 1.0 - smoothstep(meadowRadii.z - meadowRadii.w, meadowRadii.z, anchorDistance);
+    float nearFade = bladeIndex >= meadowTiles.y
+      ? 1.0 - smoothstep(meadowRadii.x, meadowRadii.x + meadowRadii.y, anchorDistance)
+      : 1.0;
+    float scale = presence * outerFade * nearFade;
 
-  vec3 terrainNormal;
-  float ground = meadowTerrainHeight(rootXZ, terrainNormal) - meadowTiles.w;
-  float tallness = clamp(cover.g * (0.45 + 1.05 * meadowColor.growth) - 0.15, 0.0, 1.0);
-  float heightPick = meadowUnit(seed);
-  float bladeHeight = mix(
-    mix(meadowHeightRange.x, meadowHeightRange.y, heightPick),
-    mix(meadowHeightRange.z, meadowHeightRange.w, heightPick),
-    tallness
-  );
-  bladeHeight *= mix(1.0, meadowWidthRange.w, cover.b) * mix(nevaMeadowPatch.y, 1.0, meadowColor.growth) * scale;
-  float farWidth = mix(1.0, meadowWidthRange.z, smoothstep(meadowRadii.x, meadowRadii.z, anchorDistance));
-  float bladeWidth = mix(meadowWidthRange.x, meadowWidthRange.y, meadowUnit(seed)) * farWidth * mix(0.45, 1.0, scale);
-  if (scale < 0.02) {
-    bladeHeight = 0.0;
-    bladeWidth = 0.0;
+    if (scale >= 0.02) {
+      vec3 terrainNormal;
+      float ground = meadowTerrainHeight(rootXZ, terrainNormal) - meadowTiles.w;
+      float tallness = clamp(cover.g * (0.45 + 1.05 * meadowColor.growth) - 0.15, 0.0, 1.0);
+      float heightPick = meadowUnit(seed);
+      float bladeHeight = mix(
+        mix(meadowHeightRange.x, meadowHeightRange.y, heightPick),
+        mix(meadowHeightRange.z, meadowHeightRange.w, heightPick),
+        tallness
+      );
+      bladeHeight *= mix(1.0, meadowWidthRange.w, cover.b) * mix(nevaMeadowPatch.y, 1.0, meadowColor.growth) * scale;
+      float farWidth = mix(1.0, meadowWidthRange.z, smoothstep(meadowRadii.x, meadowRadii.z, anchorDistance));
+      float bladeWidth = mix(meadowWidthRange.x, meadowWidthRange.y, meadowUnit(seed)) * farWidth * mix(0.45, 1.0, scale);
+
+      // Lean mostly with the local clump so patches read as combed, not random.
+      float clumpAngle = nevaMeadowNoise(rootXZ * 0.21 + vec2(17.0, -9.0)) * 6.2831853;
+      float ownAngle = meadowUnit(seed) * 6.2831853;
+      vec2 leanDirection = normalize(mix(vec2(cos(ownAngle), sin(ownAngle)), vec2(cos(clumpAngle), sin(clumpAngle)), 0.5) + vec2(0.0001));
+      vec2 sideDirection = meadowRotate(vec2(-leanDirection.y, leanDirection.x), (meadowUnit(seed) - 0.5) * 0.9);
+      float lean = mix(meadowMotion.x, meadowMotion.y, meadowUnit(seed)) * bladeHeight;
+
+      vec2 windDirection = normalize(meadowWindDir + vec2(0.0001));
+      float gust = nevaLandscapeGust(rootXZ, windDirection, meadowTime);
+      float flutter = sin(meadowTime * 2.1 + meadowUnit(seed) * 23.0);
+      float heightShare = bladeHeight / 0.25;
+      float sway = meadowMotion.z * meadowWindStrength * meadowMotionScale * heightShare;
+      vec2 windBend = windDirection * sway * (0.85 * gust + 0.15 * flutter)
+        + vec2(-windDirection.y, windDirection.x) * sway * 0.12 * flutter;
+      vec2 away = rootXZ - meadowPresence.xy;
+      float awayLength = length(away);
+      float push = meadowPresence.z * (1.0 - smoothstep(0.0, meadowPresence.w, awayLength));
+      vec2 pushBend = (away / max(awayLength, 0.0001)) * push * meadowMotion.w * heightShare;
+      vec2 bend = leanDirection * lean + windBend + pushBend;
+      float bendRatio = min(length(bend) / max(bladeHeight, 0.001), 0.92);
+      float tipHeight = bladeHeight * sqrt(1.0 - bendRatio * bendRatio);
+
+      // Quadratic curve: rises from the root, then gives way to the bend.
+      vec3 control = vec3(bend.x * 0.12, bladeHeight * 0.55, bend.y * 0.12);
+      vec3 tip = vec3(bend.x, tipHeight, bend.y);
+      float t = bladeT;
+      vec3 spine = 2.0 * (1.0 - t) * t * control + t * t * tip;
+      float halfWidth = bladeWidth * 0.5 * mix(0.55, 1.0, smoothstep(0.0, 0.3, t)) * pow(max(1.0 - t, 0.0), 0.75);
+      vec3 side = vec3(sideDirection.x, 0.0, sideDirection.y);
+      vec3 world = vec3(rootXZ.x, ground, rootXZ.y) + spine + side * bladeSide * halfWidth;
+
+      // Lighting follows the planted leaf's rest pose. Orienting an animated
+      // normal by its Y sign flipped whole patches when wind crossed the lean.
+      vec3 restTangent = vec3(leanDirection.x * lean, bladeHeight, leanDirection.y * lean);
+      vec3 faceNormal = normalize(cross(side, restTangent));
+      vec3 rounded = normalize(faceNormal + side * bladeSide * meadowShading.y);
+      objectNormal = normalize(mix(rounded, terrainNormal, meadowShading.x));
+
+      // Tiles are pure translations, so the local offset is the world offset.
+      meadowLocalPosition = world - meadowTileOrigin;
+      vMeadowT = t;
+      vMeadowRootColor = meadowColor.root;
+      vMeadowBodyColor = meadowColor.body;
+      vMeadowTipColor = meadowColor.tip;
+      vMeadowValue = 1.0 + (meadowUnit(seed) - 0.5) * 2.0 * meadowShading.z;
+    }
   }
-
-  // Lean mostly with the local clump so patches read as combed, not random.
-  float clumpAngle = nevaMeadowNoise(rootXZ * 0.21 + vec2(17.0, -9.0)) * 6.2831853;
-  float ownAngle = meadowUnit(seed) * 6.2831853;
-  vec2 leanDirection = normalize(mix(vec2(cos(ownAngle), sin(ownAngle)), vec2(cos(clumpAngle), sin(clumpAngle)), 0.5) + vec2(0.0001));
-  vec2 sideDirection = meadowRotate(vec2(-leanDirection.y, leanDirection.x), (meadowUnit(seed) - 0.5) * 0.9);
-  float lean = mix(meadowMotion.x, meadowMotion.y, meadowUnit(seed)) * bladeHeight;
-
-  vec2 windDirection = normalize(meadowWindDir + vec2(0.0001));
-  float gust = nevaLandscapeGust(rootXZ, windDirection, meadowTime);
-  float flutter = sin(meadowTime * 2.1 + meadowUnit(seed) * 23.0);
-  float heightShare = bladeHeight / 0.25;
-  float sway = meadowMotion.z * meadowWindStrength * meadowMotionScale * heightShare;
-  vec2 windBend = windDirection * sway * (0.85 * gust + 0.15 * flutter)
-    + vec2(-windDirection.y, windDirection.x) * sway * 0.12 * flutter;
-  vec2 away = rootXZ - meadowPresence.xy;
-  float awayLength = length(away);
-  float push = meadowPresence.z * (1.0 - smoothstep(0.0, meadowPresence.w, awayLength));
-  vec2 pushBend = (away / max(awayLength, 0.0001)) * push * meadowMotion.w * heightShare;
-  vec2 bend = leanDirection * lean + windBend + pushBend;
-  float bendRatio = min(length(bend) / max(bladeHeight, 0.001), 0.92);
-  float tipHeight = bladeHeight * sqrt(1.0 - bendRatio * bendRatio);
-
-  // Quadratic curve: rises from the root, then gives way to the bend.
-  vec3 control = vec3(bend.x * 0.12, bladeHeight * 0.55, bend.y * 0.12);
-  vec3 tip = vec3(bend.x, tipHeight, bend.y);
-  float t = bladeT;
-  vec3 spine = 2.0 * (1.0 - t) * t * control + t * t * tip;
-  vec3 tangent = normalize(2.0 * (1.0 - t) * control + 2.0 * t * (tip - control) + vec3(0.0, 0.0001, 0.0));
-  float halfWidth = bladeWidth * 0.5 * mix(0.55, 1.0, smoothstep(0.0, 0.3, t)) * pow(max(1.0 - t, 0.0), 0.75);
-  vec3 side = vec3(sideDirection.x, 0.0, sideDirection.y);
-  vec3 world = vec3(rootXZ.x, ground, rootXZ.y) + spine + side * bladeSide * halfWidth;
-
-  vec3 faceNormal = normalize(cross(side, tangent));
-  if (faceNormal.y < 0.0) faceNormal = -faceNormal;
-  vec3 rounded = normalize(faceNormal + side * bladeSide * meadowShading.y);
-  objectNormal = normalize(mix(rounded, terrainNormal, meadowShading.x));
-
-  // Tiles are pure translations, so the local offset is the world offset.
-  meadowLocalPosition = world - meadowTileOrigin;
-  vMeadowT = t;
-  vMeadowRootColor = meadowColor.root;
-  vMeadowBodyColor = meadowColor.body;
-  vMeadowTipColor = meadowColor.tip;
-  vMeadowValue = 1.0 + (meadowUnit(seed) - 0.5) * 2.0 * meadowShading.z;
 }
 `;
 
@@ -200,6 +208,7 @@ export const MEADOW_FIELD_FRAGMENT_DECLARATIONS = /* glsl */ `
 uniform vec4 meadowSurface;
 // translucency strength, power
 uniform vec2 meadowTranslucency;
+varying vec3 vMeadowNormal;
 varying float vMeadowT;
 varying vec3 vMeadowRootColor;
 varying vec3 vMeadowBodyColor;
@@ -223,7 +232,7 @@ diffuseColor.rgb = meadowBladeColor;
  * flip a back face shades like the meadow around it, not like a dark card.
  */
 export const MEADOW_FIELD_NORMAL_FRAGMENT = /* glsl */ `
-normal = normalize(vNormal);
+normal = normalize(vMeadowNormal);
 nonPerturbedNormal = normal;
 `;
 

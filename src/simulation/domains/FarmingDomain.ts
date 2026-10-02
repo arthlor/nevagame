@@ -58,14 +58,23 @@ export const FERTILITY_MAX = 100;
 /** Basic fertilizer restore; crop fertilityCost is 8–15, so +20 covers ~1–2 harvests. */
 export const FERTILITY_RESTORE = 20;
 export const FARMING_ACTION_COST = {
+  plant: 5,
+  water: 0,
+  harvest: 10,
+  unroot: 10,
+  fertilize: 5,
+  irrigate: 5
+} as const;
+export const IRRIGATION_WORK_PER_CROP = 1;
+/** Work tuning does not change the established Farming progression pace. */
+export const FARMING_ACTION_XP = {
   plant: 12,
   water: 5,
   harvest: 30,
-  unroot: 10,
   fertilize: 8,
   irrigate: 8
 } as const;
-export const IRRIGATION_WORK_PER_CROP = 2;
+export const IRRIGATION_XP_PER_CROP = 2;
 
 export function irrigationWorkForCropCount(cropCount: number): number {
   return cropCount > 0
@@ -397,6 +406,10 @@ export class FarmingDomain {
     if (!InventoryManager.hasItems(playerInventory, [{ itemId: cropDef.seedItemId, quantity: 1 }])) {
       return result(false, "no-seed", `No ${cropDef.name} seed in the satchel`);
     }
+    const work = this.progression.quoteWorkCost(FARMING_ACTION_COST.plant, "farming", "farming.plant");
+    if (!work.affordable) {
+      return result(false, "insufficient-work", `Need ${work.cost} Work to plant · ${work.availableWork} available`);
+    }
     return result(true);
   }
 
@@ -457,6 +470,10 @@ export class FarmingDomain {
   public plant(request: CropPlacementRequest): InteractionResult {
     const placement = this.validatePlacement(request);
     if (!placement.valid) {
+      if (placement.reasonCode === "insufficient-work") {
+        const work = this.progression.quoteWorkCost(FARMING_ACTION_COST.plant, "farming", "farming.plant");
+        return this.progression.insufficientWorkResult(work, "Planting");
+      }
       return { success: false, reason: placement.reason, reasonCode: placement.reasonCode };
     }
     const { state, events } = this.context;
@@ -496,7 +513,7 @@ export class FarmingDomain {
     };
     farm.placedCropIds.push(placedCropId);
     this.context.persistRng();
-    this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.plant);
+    this.progression.addProficiencyXp("farming", FARMING_ACTION_XP.plant);
     events.emit("CropPlanted", { placedCropId, cropId: cropDef.id, farmId: farm.id, minute: state.clock.currentMinute });
     return { success: true, placedCropId };
   }
@@ -516,7 +533,7 @@ export class FarmingDomain {
     const work = this.progression.trySpendWork(FARMING_ACTION_COST.water, "farming", "Watering", "farming.water");
     if (!work.success) return work;
     crop.moisture = 100;
-    this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.water);
+    this.progression.addProficiencyXp("farming", FARMING_ACTION_XP.water);
     events.emit("CropWatered", { placedCropId, farmId: crop.farmId, newMoisture: 100, minute: state.clock.currentMinute });
     return { success: true };
   }
@@ -588,7 +605,7 @@ export class FarmingDomain {
     farm.soil.fertility = Math.max(FERTILITY_MIN, farm.soil.fertility - cropDef.fertilityCost);
     const xpGained = Math.max(
       1,
-      Math.round(FARMING_ACTION_COST.harvest * CROP_QUALITY_XP_MULTIPLIER[quality])
+      Math.round(FARMING_ACTION_XP.harvest * CROP_QUALITY_XP_MULTIPLIER[quality])
     );
     state.journal.cropRecords[crop.cropId] ??= { harvestedCount: 0 };
     const record = state.journal.cropRecords[crop.cropId];
@@ -697,7 +714,7 @@ export class FarmingDomain {
       return work;
     }
     farm.soil.fertility = Math.min(FERTILITY_MAX, farm.soil.fertility + FERTILITY_RESTORE);
-    this.progression.addProficiencyXp("farming", FARMING_ACTION_COST.fertilize);
+    this.progression.addProficiencyXp("farming", FARMING_ACTION_XP.fertilize);
     events.emit("FarmFertilized", {
       farmId,
       newFertility: farm.soil.fertility,
@@ -785,7 +802,7 @@ export class FarmingDomain {
     for (const crop of cropsToWater) {
       crop.moisture = 100;
     }
-    this.progression.addProficiencyXp("farming", baseWork);
+    this.progression.addProficiencyXp("farming", FARMING_ACTION_XP.irrigate + cropsToWater.length * IRRIGATION_XP_PER_CROP);
     for (const crop of cropsToWater) {
       events.emit("CropWatered", { placedCropId: crop.id, farmId: crop.farmId, newMoisture: 100, minute: state.clock.currentMinute });
     }

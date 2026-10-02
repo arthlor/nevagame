@@ -35,6 +35,8 @@ import {
   dockedMooring,
   nearestMooring
 } from "../../world/WorldMoorings";
+import { planShoreDock, shoreBerthAt, type OccupiedHull, type ShoreHold } from "../../world/ShoreBerth";
+import type { BoatMooringDefinition } from "../../world/WorldIslands";
 import { SUNREACH_ANCHORS } from "../../world/WorldIslands";
 import { isBoatWrecked, repairBoatHull } from "../boats/BoatHull";
 import { npcAnchorAt, NPC_TALK_ANCHOR_RADIUS } from "../presentation/NpcPresentation";
@@ -44,6 +46,11 @@ import { resolveMountedRecovery, type MountPoseClearQuery } from "../mounts/Moun
 
 /** Drain motor-skiff fuel from simulation minutes while the vessel is underway. */
 export const MOTOR_FUEL_PER_GAME_MINUTE = 0.4;
+/**
+ * Mooring is offered only once the hull is no longer making way. Physics snaps
+ * a released throttle to zero below 0.015 m/s, so this threshold is that stop.
+ */
+export const DOCK_STOPPED_SPEED = 0.05;
 
 /**
  * Ground-drop tuning. One owner for the drop offset, the pickup reach and the
@@ -350,20 +357,18 @@ export class NavigationDomain {
   public canBoardBoat(boatId: BoatId): boolean {
     const { state } = this.context;
     const boat = state.boats[boatId];
-    const mooring = boat ? dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z) : null;
+    const berth = boat ? this.berthAccess(boat) : null;
     return Boolean(
       boat &&
+        berth &&
         (boatId !== "boat.player_rowboat" || state.quests.unlockedFeatureIds.includes("boat.player_rowboat")) &&
         !state.player.activeBoatId &&
         !state.player.activeMountId &&
         !state.basicFishing &&
         !state.sportFishing &&
-        boat.isDocked &&
-        mooring &&
-        boat.dockedMarketId === mooring.marketId &&
         (
-          distance2d(state.player, mooring.playerPosition) <= mooring.boardRadius ||
-          distance2d(state.player, boat) <= mooring.hullBoardRadius
+          distance2d(state.player, { x: berth.playerX, z: berth.playerZ }) <= berth.boardRadius ||
+          distance2d(state.player, boat) <= berth.hullReach
         )
     );
   }
@@ -468,21 +473,59 @@ export class NavigationDomain {
   }
 
   public canDockActiveBoat(): boolean {
+    return this.dockRefusalReason() === null;
+  }
+
+  /** Why docking is refused, or null when the active boat can moor here. */
+  public dockRefusalReason(): string | null {
     const { state } = this.context;
+    if (state.player.activeMountId) return "Dismount before docking a boat";
+    if (state.basicFishing || state.sportFishing) return "Finish fishing first";
     const boatId = state.player.activeBoatId;
     const boat = boatId ? state.boats[boatId] : null;
-    const mooring = boat ? nearestMooring(boat.x, boat.z, boat.boatTypeId) : null;
-    return Boolean(boat && mooring && distance2d(boat, mooring.boatPosition) <= mooring.dockRadius);
+    if (!boat) return "You are not aboard a boat";
+    if (Math.abs(boat.speed) > DOCK_STOPPED_SPEED) return "Bring the boat to a stop before mooring";
+    if (this.compatibleMooringAt(boat.x, boat.z, boat.boatTypeId)) return null;
+    const planned = planShoreDock(boat.x, boat.z, boat.headingRadians, boat.boatTypeId, this.occupiedHulls(boat.id));
+    if (!planned.ok) return planned.reason;
+    return null;
   }
 
   public dockActiveBoat(): { success: boolean; reason?: string } {
-    const { state, events } = this.context;
-    if (state.player.activeMountId) return { success: false, reason: "Dismount before docking a boat" };
-    const boatId = state.player.activeBoatId;
-    if (!boatId) return { success: false, reason: "You are not aboard a boat" };
-    if (!this.canDockActiveBoat()) return { success: false, reason: "Approach a dock or island landing to disembark" };
+    const refusal = this.dockRefusalReason();
+    if (refusal) return { success: false, reason: refusal };
+    const { state } = this.context;
+    const boatId = state.player.activeBoatId!;
     const boat = state.boats[boatId]!;
-    const mooring = nearestMooring(boat.x, boat.z, boat.boatTypeId);
+    const authored = this.compatibleMooringAt(boat.x, boat.z, boat.boatTypeId);
+    if (authored) {
+      this.snapToMooring(boatId, boat, authored);
+      return { success: true };
+    }
+    const planned = planShoreDock(boat.x, boat.z, boat.headingRadians, boat.boatTypeId, this.occupiedHulls(boat.id));
+    if (!planned.ok) return { success: false, reason: planned.reason };
+    const nudged = this.compatibleMooringAt(planned.hold.x, planned.hold.z, boat.boatTypeId);
+    if (nudged) {
+      this.snapToMooring(boatId, boat, nudged);
+      return { success: true };
+    }
+    this.moorOnShore(boatId, boat, planned.hold);
+    return { success: true };
+  }
+
+  private compatibleMooringAt(x: number, z: number, boatTypeId: string): Readonly<BoatMooringDefinition> | null {
+    const mooring = nearestMooring(x, z, boatTypeId);
+    return distance2d({ x, z }, mooring.boatPosition) <= mooring.dockRadius ? mooring : null;
+  }
+
+  private occupiedHulls(exceptId: string): OccupiedHull[] {
+    return Object.values(this.context.state.boats)
+      .filter((other) => other.id !== exceptId && other.isDocked)
+      .map((other) => ({ x: other.x, z: other.z, boatTypeId: other.boatTypeId }));
+  }
+
+  private snapToMooring(boatId: string, boat: BoatState, mooring: Readonly<BoatMooringDefinition>): void {
+    const { state, events } = this.context;
     Object.assign(boat, {
       x: mooring.boatPosition.x,
       y: mooring.boatPosition.y,
@@ -492,19 +535,67 @@ export class NavigationDomain {
       isDocked: true,
       dockedMarketId: mooring.marketId
     });
-    state.player.activeBoatId = null;
-    Object.assign(state.player, {
-      x: mooring.playerPosition.x,
-      y: WorldLayout.traversalSurfaceHeight(
-        mooring.playerPosition.x,
-        mooring.playerPosition.z
-      ) + 0.5,
-      z: mooring.playerPosition.z,
-      traversal: { ...state.player.traversal, isGrounded: true }
-    });
+    this.placePlayerAshore(mooring.playerPosition.x, mooring.playerPosition.z);
     events.emit("BoatDocked", { boatId, marketId: mooring.marketId, minute: state.clock.currentMinute });
     events.emit("BoatDisembarked", { boatId, minute: state.clock.currentMinute });
-    return { success: true };
+  }
+
+  private moorOnShore(boatId: string, boat: BoatState, hold: ShoreHold): void {
+    const { state, events } = this.context;
+    Object.assign(boat, {
+      x: hold.x,
+      z: hold.z,
+      headingRadians: hold.headingRadians,
+      speed: 0,
+      isDocked: true,
+      dockedMarketId: null
+    });
+    this.placePlayerAshore(hold.playerX, hold.playerZ);
+    events.emit("BoatDocked", { boatId, marketId: null, minute: state.clock.currentMinute });
+    events.emit("BoatDisembarked", { boatId, minute: state.clock.currentMinute });
+  }
+
+  private placePlayerAshore(x: number, z: number): void {
+    const { state } = this.context;
+    state.player.activeBoatId = null;
+    Object.assign(state.player, {
+      x,
+      y: WorldLayout.traversalSurfaceHeight(x, z) + 0.5,
+      z,
+      traversal: { ...state.player.traversal, isGrounded: true }
+    });
+    this.refreshPlayerRegion();
+  }
+
+  /**
+   * Authored berth when the saved pose matches one, otherwise a wild shore hold.
+   * Repair and tow keep using authored moorings directly.
+   */
+  private berthAccess(boat: BoatState): {
+    playerX: number;
+    playerZ: number;
+    boardRadius: number;
+    hullReach: number;
+  } | null {
+    if (!boat.isDocked) return null;
+    const mooring = dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z);
+    if (mooring && boat.dockedMarketId === mooring.marketId) {
+      return {
+        playerX: mooring.playerPosition.x,
+        playerZ: mooring.playerPosition.z,
+        boardRadius: mooring.boardRadius,
+        hullReach: mooring.hullBoardRadius
+      };
+    }
+    if (boat.dockedMarketId !== null) return null;
+    const shore = shoreBerthAt(boat.x, boat.z, boat.headingRadians, boat.boatTypeId);
+    if (!shore) return null;
+    return {
+      playerX: shore.playerX,
+      playerZ: shore.playerZ,
+      boardRadius: 1.75,
+      hullReach: shore.reachMeters
+    };
   }
 
   /** Flat fee for a tow to the nearest compatible mooring. */
@@ -710,11 +801,13 @@ export class NavigationDomain {
     }
     const aboard = state.player.activeBoatId === boat.id;
     const near = distance2d(state.player, boat) <= 4.5;
-    // Docked means fuel can come from the dock, not from anywhere on the map:
-    // the player still has to stand at the mooring the boat is tied to.
-    const mooring = boat.isDocked ? dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z) : null;
-    const atMooring = mooring !== null && distance2d(state.player, mooring.playerPosition) <= mooring.boardRadius;
-    if (!aboard && !near && !atMooring) {
+    // Docked means fuel can come from beside the hull, not from anywhere on the map.
+    const berth = this.berthAccess(boat);
+    const atBerth = berth !== null && (
+      distance2d(state.player, { x: berth.playerX, z: berth.playerZ }) <= berth.boardRadius
+      || distance2d(state.player, boat) <= berth.hullReach
+    );
+    if (!aboard && !near && !atBerth) {
       return { success: false, reason: "Move to the boat or dock before refueling" };
     }
     if (boat.fuel >= definition.fuelCapacity) {
@@ -878,12 +971,12 @@ export class NavigationDomain {
     if (state.player.activeBoatId && state.player.activeBoatId !== boatId) return false;
     if (!boat.isDocked) return false;
 
-    const mooring = dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z);
+    const berth = this.berthAccess(boat);
     return Boolean(
-      mooring &&
+      berth &&
       (
-        distance2d(state.player, mooring.playerPosition) <= mooring.boardRadius ||
-        distance2d(state.player, boat) <= mooring.hullBoardRadius
+        distance2d(state.player, { x: berth.playerX, z: berth.playerZ }) <= berth.boardRadius ||
+        distance2d(state.player, boat) <= berth.hullReach
       )
     );
   }

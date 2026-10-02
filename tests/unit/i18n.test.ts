@@ -409,7 +409,7 @@ describe("Neva i18n Localization Engine", () => {
       expect(htmlEn).toContain("Waters");
       expect(htmlEn).toContain("Trade");
       expect(htmlEn).toContain("Finding your way");
-      expect(htmlEn).toContain("Surveying the Soil");
+      expect(htmlEn).toContain("Work &amp; Sprint");
 
       localeStore.set("tr");
       const htmlTrActions = renderToString(React.createElement(HowToPlayGuide, { initialPage: "actions" }));
@@ -419,11 +419,11 @@ describe("Neva i18n Localization Engine", () => {
       expect(htmlTrActions).toContain("Sular");
       expect(htmlTrActions).toContain("Ticaret");
       expect(htmlTrActions).toContain("Yolunu bulmak");
-      expect(htmlTrActions).toContain("Toprağı İnceleme");
+      expect(htmlTrActions).toContain("Emek ve depar");
 
       const htmlTrField = renderToString(React.createElement(HowToPlayGuide, { initialPage: "field" }));
       expect(htmlTrField).toContain("Tohum Seçimi");
-      expect(htmlTrField).toContain("Tarlayı Okumak");
+      expect(htmlTrField).toContain("Hasat Zamanı");
 
       const htmlTrWaters = renderToString(React.createElement(HowToPlayGuide, { initialPage: "waters" }));
       expect(htmlTrWaters).toContain("Suları Okuma ve Savurma");
@@ -457,7 +457,7 @@ describe("Neva i18n Localization Engine", () => {
       expect(htmlTr).toContain("Yürü veya tekneye yön ver");
       expect(htmlTr).toContain("Depar at");
       expect(htmlTr).toContain("Yürürken dayanıklılık harcar");
-      expect(htmlTr).toContain("Seyir Defteri");
+      expect(htmlTr).toContain("Günlük");
       expect(htmlTr).toContain("Sefer Panosu");
     });
 
@@ -482,11 +482,11 @@ describe("Neva i18n Localization Engine", () => {
 
     it("localizes contextual tutorial hints", () => {
       const enHint = getLocalizedHint("hint.tide_cycle", "Tide cycle", "The sea rises and falls.", "en");
-      expect(enHint.title).toBe("Tides & Moon");
+      expect(enHint.title).toBe("Tides");
       expect(enHint.message).toContain("moon phase");
 
       const trHint = getLocalizedHint("hint.tide_cycle", "Tide cycle", "The sea rises and falls.", "tr");
-      expect(trHint.title).toBe("Gelgit & Ay");
+      expect(trHint.title).toBe("Gelgit");
       expect(trHint.message).toContain("ay döngüsüyle");
 
       const fallback = getLocalizedHint("hint.unknown", "Fallback Title", "Fallback Msg", "tr");

@@ -6,10 +6,9 @@ import {
   type WorldPoint
 } from "../../world/WorldLayout";
 import { WORLD_CHART_NODES, type WorldChartNode } from "../../world/WorldGameplayLocations";
-import { worldPointToMapSvg, worldPointToMapSvgUnclamped, mapSvgToWorldPoint } from "../../world/WorldMapProjection";
-import { IconCoin, IconCompass, IconFish, IconSprout } from "./HudIcons";
+import { worldPointToMapSvg } from "../../world/WorldMapProjection";
+import { IconCompass } from "./HudIcons";
 import { useModalAccessibility } from "../useModalAccessibility";
-import { handleTabListKeyDown } from "../useTabListKeyboard";
 import { ChromeClose } from "../chrome/Chrome";
 import { GameSheet } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
@@ -33,26 +32,14 @@ export interface WorldMapModalProps {
   onClose: () => void;
 }
 
-type MapLens = "geography" | "markets" | "fishing" | "farmland";
-
 function chartAreaViewBox(area: "sea" | "neva" | "sunreach") {
   if (area === "sea") return { x: 0, y: 0, width: 1000, height: 700 };
   const bounds = WorldLayout.islands().find((island) => island.id === `island.${area}`)!.authoredBounds;
-  const min = worldPointToMapSvgUnclamped({ x: bounds.minX, z: bounds.minZ });
-  const max = worldPointToMapSvgUnclamped({ x: bounds.maxX, z: bounds.maxZ });
-  const width = Math.max(250, max.x - min.x + 64, (max.y - min.y + 64) * 10 / 7);
+  const min = worldPointToMapSvg({ x: bounds.minX, z: bounds.minZ });
+  const max = worldPointToMapSvg({ x: bounds.maxX, z: bounds.maxZ });
+  const width = Math.max(260, max.x - min.x + 60, ((max.y - min.y + 60) * 10) / 7);
   const height = width * 0.7;
   return { x: (min.x + max.x - width) * 0.5, y: (min.y + max.y - height) * 0.5, width, height };
-}
-
-const CARDINALS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-const CARDINALS_TR = ["K", "KD", "D", "GD", "G", "GB", "B", "KB"];
-
-function nodeSupportsLens(node: MapNode, lens: MapLens): boolean {
-  if (lens === "markets") return Boolean(node.marketId);
-  if (lens === "fishing") return Boolean(node.fishingHabitat);
-  if (lens === "farmland") return Boolean(node.farmId);
-  return true;
 }
 
 function nodeIsInArea(node: MapNode, area: "sea" | "neva" | "sunreach"): boolean {
@@ -61,51 +48,22 @@ function nodeIsInArea(node: MapNode, area: "sea" | "neva" | "sunreach"): boolean
   return true;
 }
 
-function nodesForView(area: "sea" | "neva" | "sunreach", lens: MapLens): MapNode[] {
-  return MAP_NODES.filter((node) => nodeIsInArea(node, area) && nodeSupportsLens(node, lens));
+function nodesForView(area: "sea" | "neva" | "sunreach"): MapNode[] {
+  return MAP_NODES.filter((node) => nodeIsInArea(node, area));
 }
 
-function destinationForView(area: "sea" | "neva" | "sunreach", lens: MapLens, current: MapNode): MapNode {
-  const candidates = nodesForView(area, lens);
+function destinationForView(area: "sea" | "neva" | "sunreach", current: MapNode): MapNode {
+  const candidates = nodesForView(area);
   if (candidates.some((node) => node.id === current.id)) return current;
-  if (lens === "geography") {
-    const areaAnchor = area === "sunreach" ? "chart.sunreach_cove" : "chart.neva_harbor";
-    return candidates.find((node) => node.id === areaAnchor) ?? candidates[0] ?? current;
-  }
-  return candidates.reduce<MapNode | null>((nearest, node) => {
-    if (!nearest) return node;
-    const distance = Math.hypot(node.worldPosition.x - current.worldPosition.x, node.worldPosition.z - current.worldPosition.z);
-    const nearestDistance = Math.hypot(nearest.worldPosition.x - current.worldPosition.x, nearest.worldPosition.z - current.worldPosition.z);
-    return distance < nearestDistance ? node : nearest;
-  }, null) ?? current;
+  const areaAnchor = area === "sunreach" ? "chart.sunreach_cove" : "chart.neva_harbor";
+  return candidates.find((node) => node.id === areaAnchor) ?? candidates[0] ?? current;
 }
-
-const MAP_LENS_ICONS: Record<MapLens, React.ReactNode> = {
-  geography: <IconCompass size={18} aria-hidden="true" />,
-  markets: <IconCoin size={18} aria-hidden="true" />,
-  fishing: <IconFish size={18} aria-hidden="true" />,
-  farmland: <IconSprout size={18} aria-hidden="true" />
-};
-
-const MAP_LENS_LABELS: Record<MapLens, string> = {
-  geography: "Chart",
-  markets: "Markets",
-  fishing: "Fishing notes",
-  farmland: "Farms"
-};
-
-const MAP_LENS_LABELS_TR: Record<MapLens, string> = {
-  geography: "Harita",
-  markets: "Pazarlar",
-  fishing: "Balık notları",
-  farmland: "Çiftlikler"
-};
 
 interface MapNode {
   id: string;
   name: string;
   islandId: WorldChartNode["islandId"];
-  category: "farm" | "village" | "harbor" | "lighthouse" | "fishing";
+  category: "farm" | "village" | "harbor" | "lighthouse" | "fishing" | "landmark";
   worldPosition: WorldPoint;
   marketId?: MarketId;
   farmId?: string;
@@ -117,17 +75,18 @@ const MAP_NODES: MapNode[] = WORLD_CHART_NODES.map((node) => ({
   id: node.id,
   name: node.label,
   islandId: node.islandId,
-  category: node.kind === "farm"
-    ? "farm"
-    : node.kind === "dock"
-      ? "harbor"
-      : node.kind === "water"
-        ? "fishing"
-        : node.kind === "market"
-          ? "village"
-          : node.label.includes("Lighthouse")
-            ? "lighthouse"
-            : "village",
+  category:
+    node.kind === "farm"
+      ? "farm"
+      : node.kind === "dock"
+        ? "harbor"
+        : node.kind === "water"
+          ? "fishing"
+          : node.kind === "market"
+            ? "village"
+            : node.label.includes("Lighthouse")
+              ? "lighthouse"
+              : "landmark",
   worldPosition: node.position,
   marketId: node.marketId,
   farmId: node.farmId,
@@ -135,71 +94,21 @@ const MAP_NODES: MapNode[] = WORLD_CHART_NODES.map((node) => ({
   fishingEcologyId: node.fishingEcologyId
 }));
 
-const MAP_LABEL_OFFSETS: Record<string, { x: number; y: number; textAnchor: "start" | "middle" | "end" }> = {
-  "chart.knowledge.discovery.overlook": { x: -10, y: -30, textAnchor: "end" },
-  "chart.neva_farm": { x: 0, y: -47, textAnchor: "middle" },
-  "chart.neva_homestead": { x: 22, y: -14, textAnchor: "start" },
-  "chart.neva_village": { x: 22, y: 27, textAnchor: "start" },
-  "chart.neva_mill": { x: 0, y: -20, textAnchor: "middle" },
-  "chart.neva_crossing": { x: 18, y: 23, textAnchor: "start" },
-  "chart.neva_river": { x: -17, y: 27, textAnchor: "end" },
-  "chart.neva_harbor": { x: 16, y: 24, textAnchor: "start" },
-  "chart.neva_lighthouse": { x: -10, y: 25, textAnchor: "end" },
-  "chart.neva_offshore": { x: 0, y: -18, textAnchor: "middle" },
-  "chart.sunreach_cove": { x: 18, y: 16, textAnchor: "start" },
-  "chart.sunreach_open_channel": { x: -18, y: 16, textAnchor: "end" },
-  "chart.sunreach_terraces": { x: 0, y: 24, textAnchor: "middle" },
-  "chart.sunreach_ridge": { x: 18, y: 16, textAnchor: "start" },
-  "chart.sunreach_shelf": { x: 0, y: 24, textAnchor: "middle" }
-};
-
-const MAP_QUEST_LABEL_OFFSETS: Record<string, { x: number; y: number; textAnchor: "start" | "middle" | "end" }> = {
-  "Farmhouse Yard": { x: -115, y: 34, textAnchor: "start" }
-};
-
-function mapLabelPosition(nodeId: string, x: number, y: number, offsetScale = 1): { x: number; y: number; textAnchor: "start" | "middle" | "end" } {
-  const offset = MAP_LABEL_OFFSETS[nodeId] ?? { x: 0, y: 26, textAnchor: "middle" as const };
-  return {
-    x: Math.max(18, Math.min(982, x + offset.x * offsetScale)),
-    y: Math.max(18, Math.min(682, y + offset.y * offsetScale)),
-    textAnchor: offset.textAnchor
-  };
-}
-
-function questMarkerLabelPosition(label: string): { x: number; y: number; textAnchor: "start" | "middle" | "end" } {
-  const offset = MAP_QUEST_LABEL_OFFSETS[label] ?? { x: 0, y: -19, textAnchor: "middle" as const };
-  return {
-    x: offset.x,
-    y: offset.y,
-    textAnchor: offset.textAnchor
-  };
-}
-
-function fishingInsight(map: WorldMapDto, node: MapNode): {
-  waterType: string;
-  species: string[];
-  record: string | null;
-} | null {
-  if (!node.fishingHabitat) return null;
-  return map.fishingNotes[`${node.fishingEcologyId ?? "ecology.neva"}:${node.fishingHabitat}`];
-}
+const CHART_INK = "#3a342c";
+const CHART_PAPER = "#f4ead6";
 
 export const WorldMapModal: React.FC<WorldMapModalProps> = ({
-  map, questMarkers = [], customWaypoint, onSetCustomWaypoint, onInspectMarketDemand, onClose
+  map,
+  questMarkers = [],
+  onClose
 }) => {
   const { locale } = useTranslation();
   const isTr = locale === "tr";
   const chartName = (name: string) => placeLabel(name, locale);
   const [chartArea, setChartArea] = useState<"sea" | "neva" | "sunreach">("sea");
-  const [activeLens, setActiveLens] = useState<MapLens>("geography");
   const [selectedNodeId, setSelectedNodeId] = useState<string>("chart.neva_harbor");
-  const [internalWaypoint, setInternalWaypoint] = useState<{ x: number; z: number } | null>(customWaypoint ?? null);
-
-  const activeWaypoint = customWaypoint !== undefined ? customWaypoint : internalWaypoint;
-  const setWaypoint = (wp: { x: number; z: number } | null) => {
-    setInternalWaypoint(wp);
-    onSetCustomWaypoint?.(wp);
-  };
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [hoveredQuestId, setHoveredQuestId] = useState<string | null>(null);
 
   const [viewBox, setViewBox] = useState(() => chartAreaViewBox(chartArea));
 
@@ -226,14 +135,6 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   const playerMapPosition = worldPointToMapSvg({ x: playerX, z: playerZ });
 
   const selectedNode = MAP_NODES.find((n) => n.id === selectedNodeId) ?? MAP_NODES[0];
-  const waypointDestination = activeWaypoint
-    ? MAP_NODES.find((node) => node.worldPosition.x === activeWaypoint.x && node.worldPosition.z === activeWaypoint.z)
-    : null;
-  const selectedMarketInsight = selectedNode.marketId
-    ? onInspectMarketDemand(selectedNode.marketId)
-    : null;
-  const selectedFishingInsight = fishingInsight(map, selectedNode);
-  const selectedFarm = selectedNode.farmId ? map.farms[selectedNode.farmId] : undefined;
   const selectedDistance = Math.hypot(selectedNode.worldPosition.x - playerX, selectedNode.worldPosition.z - playerZ);
   const selectedTerrain = isTr
     ? WorldLayout.isSailable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
@@ -247,83 +148,51 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
         ? "Road or trail"
         : "Rough ground";
 
-  const areaIncludes = (node: MapNode) => chartArea === "neva" ? node.islandId === "island.neva"
-    : chartArea === "sunreach" ? node.islandId === "island.sunreach"
-    : node.islandId !== "island.neva" || node.id === "chart.neva_harbor" || node.id === "chart.neva_lighthouse";
-
   const zoomRatio = 1000 / viewBox.width;
-  const isZoomed = zoomRatio > 1.6;
-  const isMacro = zoomRatio < 1.35;
-  const markerScale = Math.min(1, Math.max(0.38, 1 / (zoomRatio * 0.75)));
+  const markerScale = Math.min(1, Math.max(0.48, 1 / (zoomRatio * 0.75)));
+  const schoolScale = Math.min(1, Math.max(0.78, markerScale));
   const questScale = markerScale;
   const playerScale = markerScale;
   const chartView = `${viewBox.x.toFixed(1)} ${viewBox.y.toFixed(1)} ${viewBox.width.toFixed(1)} ${viewBox.height.toFixed(1)}`;
 
-  const isMajorSeaHub = (nodeId: string) => [
-    "chart.neva_harbor",
-    "chart.sunreach_cove",
-    "chart.knowledge.discovery.cay",
-    "chart.knowledge.discovery.shoal",
-    "chart.knowledge.discovery.rest",
-    "chart.sunreach_open_channel",
-    "chart.neva_lighthouse"
-  ].includes(nodeId);
-
   const isNodeVisible = (node: MapNode) => {
-    if (!nodeSupportsLens(node, activeLens)) return false;
     const { x: px, y: py } = worldPointToMapSvg(node.worldPosition);
-    const inView = px >= viewBox.x - 60 && px <= viewBox.x + viewBox.width + 60 &&
-                   py >= viewBox.y - 60 && py <= viewBox.y + viewBox.height + 60;
-    if (!inView) return false;
-    if (!isMacro) return true;
-    return isMajorSeaHub(node.id) || node.id === selectedNodeId || areaIncludes(node);
+    return (
+      px >= viewBox.x - 40 &&
+      px <= viewBox.x + viewBox.width + 40 &&
+      py >= viewBox.y - 40 &&
+      py <= viewBox.y + viewBox.height + 40
+    );
   };
 
-  const directoryNodes = nodesForView(chartArea, activeLens);
+  const directoryNodes = nodesForView(chartArea);
 
-  // Dynamic Compass positioning so it always remains anchored in the viewport
-  const compassX = viewBox.x + viewBox.width - 85 * (viewBox.width / 1000);
-  const compassY = viewBox.y + 85 * (viewBox.height / 700);
-  const compassScale = Math.min(1, Math.max(0.42, viewBox.width / 1000));
+  // Dynamic Compass positioning
+  const compassX = viewBox.x + viewBox.width - 64 * (viewBox.width / 1000);
+  const compassY = viewBox.y + 64 * (viewBox.height / 700);
+  const compassScale = Math.min(1, Math.max(0.45, viewBox.width / 1000));
 
-  // Waypoint Course Calculations
-  const waypointMapPosition = activeWaypoint ? worldPointToMapSvg(activeWaypoint) : null;
-  const waypointDistance = activeWaypoint
-    ? Math.round(Math.hypot(activeWaypoint.x - playerX, activeWaypoint.z - playerZ))
-    : 0;
-  const waypointBearingDeg = activeWaypoint
-    ? Math.round((Math.atan2(activeWaypoint.x - playerX, -(activeWaypoint.z - playerZ)) * 180 / Math.PI + 360) % 360)
-    : 0;
-  const bearingCardinal = (isTr ? CARDINALS_TR : CARDINALS)[Math.round(waypointBearingDeg / 45) % 8];
-
-  // Focus and select node with automatic camera centering when zoomed
   const focusNode = (nodeId: string) => {
     setSelectedNodeId(nodeId);
     const node = MAP_NODES.find((n) => n.id === nodeId);
     if (!node) return;
     const { x: px, y: py } = worldPointToMapSvg(node.worldPosition);
-    if (isZoomed && (px < viewBox.x + 30 || px > viewBox.x + viewBox.width - 30 || py < viewBox.y + 30 || py > viewBox.y + viewBox.height - 30)) {
-      const minX = -100;
-      const maxX = 1100 - viewBox.width;
-      const minY = -80;
-      const maxY = 780 - viewBox.height;
-      setViewBox((prev) => ({
-        ...prev,
-        x: Math.max(minX, Math.min(maxX, px - prev.width / 2)),
-        y: Math.max(minY, Math.min(maxY, py - prev.height / 2))
-      }));
-    }
+    const minX = -100;
+    const maxX = 1100 - viewBox.width;
+    const minY = -80;
+    const maxY = 780 - viewBox.height;
+    setViewBox((prev) => ({
+      ...prev,
+      x: Math.max(minX, Math.min(maxX, px - prev.width / 2)),
+      y: Math.max(minY, Math.min(maxY, py - prev.height / 2))
+    }));
   };
 
-  // Switching preset camera bookmarks
   const switchArea = (area: "sea" | "neva" | "sunreach") => {
     setChartArea(area);
-    setSelectedNodeId(destinationForView(area, activeLens, selectedNode).id);
+    setSelectedNodeId(destinationForView(area, selectedNode).id);
     setViewBox(chartAreaViewBox(area));
   };
-
-  // Continuous Drag Panning Handlers with HTML5 Pointer Capture
-
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (e.button !== 0) return;
@@ -333,7 +202,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-      // Ignored for environments without pointer capture
+      // Ignored
     }
 
     dragRef.current = {
@@ -343,7 +212,6 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
       startViewBox: { ...viewBox },
       totalDist: 0
     };
-
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -377,32 +245,13 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
       // Ignored
     }
 
-    const wasDrag = dragRef.current.totalDist > 6;
     dragRef.current.isDragging = false;
-
-
-    // Direct click-to-pin nautical waypoint on open water or land
-    if (!wasDrag && svgRef.current) {
-      const clickedInteractive = (e.target as Element)?.closest?.(".map-node-group, .map-school, .map-compass-rose");
-      if (clickedInteractive) return;
-
-      const rect = svgRef.current.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      const svgX = viewBox.x + ((e.clientX - rect.left) / rect.width) * viewBox.width;
-      const svgY = viewBox.y + ((e.clientY - rect.top) / rect.height) * viewBox.height;
-      const clampedSvgX = Math.max(20, Math.min(980, svgX));
-      const clampedSvgY = Math.max(20, Math.min(680, svgY));
-      const worldTarget = mapSvgToWorldPoint({ x: clampedSvgX, y: clampedSvgY });
-      playUiSound("click");
-      setWaypoint(worldTarget);
-    }
   };
 
   const handlePointerCancel = () => {
     dragRef.current.isDragging = false;
   };
 
-  // Mousewheel Smooth Zooming Centered on Cursor
   const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
     if (!svgRef.current) return;
@@ -412,7 +261,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
     const cursorSvgY = viewBox.y + ((e.clientY - rect.top) / rect.height) * viewBox.height;
 
     const zoomFactor = e.deltaY > 0 ? 1.15 : 0.87;
-    const newWidth = Math.max(160, Math.min(1000, viewBox.width * zoomFactor));
+    const newWidth = Math.max(180, Math.min(1000, viewBox.width * zoomFactor));
     const newHeight = newWidth * 0.7;
 
     const newX = cursorSvgX - (cursorSvgX - viewBox.x) * (newWidth / viewBox.width);
@@ -428,7 +277,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
   const handleZoomIn = () => {
     setViewBox((prev) => {
-      const newWidth = Math.max(160, prev.width * 0.75);
+      const newWidth = Math.max(180, prev.width * 0.75);
       const newHeight = newWidth * 0.7;
       const centeredX = prev.x + (prev.width - newWidth) / 2;
       const centeredY = prev.y + (prev.height - newHeight) / 2;
@@ -480,13 +329,16 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
               <IconCompass size={22} />
             </span>
             <div>
-              <h2 id="map-title" className="map-title">{isTr ? "Neva Takımadası Deniz Haritası" : "Nautical Chart of the Neva Archipelago"}</h2>
-              <span className="map-subtitle">{isTr ? "Adalar, deniz yolları, çiftlikler ve balıkçılık notları" : "Islands, sea lanes, farms, and fishing notes"}</span>
+              <h2 id="map-title" className="map-title">
+                {isTr ? "Harita" : "Chart"}
+              </h2>
               {map.activeSchools.length > 0 && (
                 <span className="map-school-tally" data-testid="map-school-tally">
                   {isTr
                     ? `${map.activeSchools.length} sürü faal · en yakını ${map.activeSchools[0].distanceMeters} m`
-                    : `${map.activeSchools.length} school${map.activeSchools.length === 1 ? "" : "s"} working · nearest ${map.activeSchools[0].distanceMeters} m`}
+                    : `${map.activeSchools.length} school${
+                        map.activeSchools.length === 1 ? "" : "s"
+                      } working · nearest ${map.activeSchools[0].distanceMeters} m`}
                 </span>
               )}
             </div>
@@ -495,37 +347,9 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
           <ChromeClose onClick={onClose} label={isTr ? "Haritayı kapat" : "Close map"} className="map-close-btn" />
         </header>
 
-        <div className="map-modal-content" data-lens={activeLens}>
-          <div className="map-lenses-bar" role="tablist" aria-label={isTr ? "Harita filtreleri" : "Chart lenses"} data-testid="map-lenses" onKeyDown={handleTabListKeyDown}>
-            {(["geography", "markets", "fishing", "farmland"] as MapLens[]).map((lens) => {
-              const label = isTr ? MAP_LENS_LABELS_TR[lens] : MAP_LENS_LABELS[lens];
-              return (
-                <button
-                  key={lens}
-                  type="button"
-                  id={`map-lens-${lens}`}
-                  role="tab"
-                  aria-selected={activeLens === lens}
-                  aria-controls="map-lens-details"
-                  tabIndex={activeLens === lens ? 0 : -1}
-                  className={`map-lens-btn ${activeLens === lens ? "is-active" : ""}`}
-                  aria-label={label}
-                  title={label}
-                  onClick={() => {
-                    playUiSound("page-turn");
-                    setActiveLens(lens);
-                    setSelectedNodeId(destinationForView(chartArea, lens, selectedNode).id);
-                  }}
-                >
-                  {MAP_LENS_ICONS[lens]}
-                  <span className="map-lens-label">{label}</span>
-                </button>
-              );
-            })}
-          </div>
-
+        <div className="map-modal-content">
           <div className="map-canvas-container">
-            {/* Regional Navigation Bookmark Ribbon */}
+            {/* Regional navigation pills */}
             <nav className="map-area-tabs" aria-label={isTr ? "Harita bölgesi" : "Chart area"}>
               {(["sea", "neva", "sunreach"] as const).map((area) => (
                 <button
@@ -535,16 +359,43 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                   aria-pressed={chartArea === area}
                   onClick={() => switchArea(area)}
                 >
-                  {area === "sea" ? (isTr ? "Açık deniz" : "Open sea") : area === "neva" ? "Neva" : (isTr ? "Güneşeren" : "Sunreach")}
+                  {area === "sea" ? (isTr ? "Tümü" : "All") : area === "neva" ? "Neva" : isTr ? "Gündoğumu" : "Sunreach"}
                 </button>
               ))}
             </nav>
 
-            {/* On-Canvas Brass Zoom Controls */}
-            <div className="map-zoom-controls" aria-label={isTr ? "Harita yakınlaştırma kontrolleri" : "Chart zoom controls"}>
-              <button type="button" className="map-zoom-btn" onClick={handleZoomIn} title={isTr ? "Yakınlaş" : "Zoom in"} aria-label={isTr ? "Yakınlaş" : "Zoom in"}>+</button>
-              <button type="button" className="map-zoom-btn map-zoom-reset" onClick={handleZoomReset} title={isTr ? "Harita görünümünü sıfırla" : "Reset chart view"} aria-label={isTr ? "Harita görünümünü sıfırla" : "Reset chart view"}>1:1</button>
-              <button type="button" className="map-zoom-btn" onClick={handleZoomOut} title={isTr ? "Uzaklaş" : "Zoom out"} aria-label={isTr ? "Uzaklaş" : "Zoom out"}>−</button>
+            {/* Subtle Zoom Controls */}
+            <div
+              className="map-zoom-controls"
+              aria-label={isTr ? "Harita yakınlaştırma kontrolleri" : "Chart zoom controls"}
+            >
+              <button
+                type="button"
+                className="map-zoom-btn"
+                onClick={handleZoomIn}
+                title={isTr ? "Yakınlaş" : "Zoom in"}
+                aria-label={isTr ? "Yakınlaş" : "Zoom in"}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                className="map-zoom-btn map-zoom-reset"
+                onClick={handleZoomReset}
+                title={isTr ? "Sıfırla" : "Reset view"}
+                aria-label={isTr ? "Sıfırla" : "Reset view"}
+              >
+                ↺
+              </button>
+              <button
+                type="button"
+                className="map-zoom-btn"
+                onClick={handleZoomOut}
+                title={isTr ? "Uzaklaş" : "Zoom out"}
+                aria-label={isTr ? "Uzaklaş" : "Zoom out"}
+              >
+                −
+              </button>
             </div>
 
             <svg
@@ -552,7 +403,9 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
               viewBox={chartView}
               className="map-svg-canvas"
               role="group"
-              aria-label={isTr ? "Neva, Güneşeren ve boğaz adaları haritası" : "Map of Neva, Sunreach and the channel islands"}
+              aria-label={
+                isTr ? "Neva, Güneşeren ve boğaz adaları haritası" : "Map of Neva, Sunreach and the channel islands"
+              }
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -560,30 +413,30 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
               onWheel={handleWheel}
               style={{ cursor: dragRef.current.isDragging ? "grabbing" : "grab" }}
             >
-              <WorldChartTerrain activeLens={activeLens} />
+              <WorldChartTerrain />
 
+              {/* Handcrafted Medieval POI Emblems - NO permanent copy, tooltip on hover/select */}
               {MAP_NODES.filter(isNodeVisible).map((node) => {
                 const isSelected = selectedNodeId === node.id;
+                const isHovered = hoveredNodeId === node.id;
                 const { x: px, y: py } = worldPointToMapSvg(node.worldPosition);
-                const nodeMarketInsight = node.marketId
-                  ? onInspectMarketDemand(node.marketId)
-                  : null;
-                const nodeFishingInsight = fishingInsight(map, node);
-                const nodeFarm = node.farmId ? map.farms[node.farmId] : undefined;
-                const shouldShowLabel = !isMacro || isSelected || isMajorSeaHub(node.id);
+                const displayName = chartName(node.name);
+                const labelWidth = Math.max(54, displayName.length * 6.8 + 16);
+                // No permanent copy: only show tooltip on hover or active selection
+                const showTooltip = isHovered || isSelected;
 
                 return (
                   <g
                     key={node.id}
                     transform={`translate(${px * (1 - markerScale)} ${py * (1 - markerScale)}) scale(${markerScale})`}
-                    className="map-node-group"
-                    data-lens-relevant={nodeSupportsLens(node, activeLens)}
-                    data-major={isMajorSeaHub(node.id) || undefined}
+                    className={`map-node-group ${isSelected ? "is-selected" : ""}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       playUiSound("click");
                       focusNode(node.id);
                     }}
+                    onPointerEnter={() => setHoveredNodeId(node.id)}
+                    onPointerLeave={() => setHoveredNodeId(null)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
@@ -593,394 +446,256 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                     }}
                     role="button"
                     tabIndex={0}
-                    aria-label={isTr ? `${chartName(node.name)} seç` : `Select ${node.name}`}
+                    aria-label={isTr ? `${displayName} seç` : `Select ${node.name}`}
                     aria-pressed={isSelected}
                   >
+                    {/* Interactive hit halo */}
+                    <circle cx={px} cy={py} r={22} fill="transparent" className="map-node-halo" />
                     {isSelected && (
                       <circle
                         cx={px}
                         cy={py}
-                        r={15}
+                        r={18}
                         fill="none"
-                        stroke="#c4a46a"
-                        strokeWidth="1.5"
+                        stroke="#8a6230"
+                        strokeWidth="1.15"
+                        strokeDasharray="3 2"
                         className="map-node-selection-ring"
                       />
                     )}
 
-                    <circle
-                      cx={px}
-                      cy={py}
-                      r={22}
-                      fill="transparent"
-                      className="map-node-halo"
-                      aria-hidden="true"
-                    />
-
-                    <circle
-                      cx={px}
-                      cy={py}
-                      r={isSelected ? 11 : 7}
-                      fill={isSelected ? "#fbf7ee" : "#f0e6d0"}
-                      stroke={isSelected ? "#4a371c" : "#8a7a65"}
-                      strokeWidth={isSelected ? 1.8 : 1.2}
-                      className="map-node-dot"
-                    />
-
-                    {isSelected && (
-                      <image
-                        href={atlasForMapNode(node.id)}
-                        x={px - 8}
-                        y={py - 8}
-                        width={16}
-                        height={16}
-                        preserveAspectRatio="xMidYMid meet"
-                      />
-                    )}
-
-                    {activeLens === "markets" && isSelected && nodeMarketInsight && (
-                      <g transform={`translate(${px + 14}, ${py - 10})`}>
-                        <rect width="112" height="22" rx="4" fill="rgba(42, 28, 20, 0.92)" stroke="#c4a46a" strokeWidth="1" />
-                        <text x="6" y="15" fill="#fbf7ee" fontSize="11" fontWeight="700">
-                          {nodeMarketInsight.demandLabel ?? (isTr ? "Durgun" : "Steady")}
+                    {/* Sleek Tooltip - ONLY on hover or selection (NO permanent copy) */}
+                    {showTooltip && (
+                      <g className="map-node-label-pill" pointerEvents="none">
+                        <rect
+                          x={px - labelWidth / 2}
+                          y={py - 24}
+                          width={labelWidth}
+                          height={16}
+                          rx={4}
+                          fill="rgba(30, 22, 14, 0.94)"
+                          stroke="#c4a46a"
+                          strokeWidth={0.8}
+                        />
+                        <text
+                          x={px}
+                          y={py - 13}
+                          textAnchor="middle"
+                          fill="#fef9eb"
+                          fontSize={9}
+                          fontWeight="bold"
+                          fontFamily="serif"
+                          className="map-node-text"
+                        >
+                          {displayName}
                         </text>
                       </g>
-                    )}
-
-                    {activeLens === "fishing" && isSelected && nodeFishingInsight && nodeFishingInsight.species.length > 0 && (
-                      <g transform={`translate(${px + 14}, ${py - 10})`}>
-                        <rect width="128" height="22" rx="4" fill="rgba(30, 48, 56, 0.92)" stroke="#5ea3ad" strokeWidth="1" />
-                        <text x="6" y="15" fill="#e0f4f7" fontSize="11" fontWeight="700">
-                          {nodeFishingInsight.species[0] ?? (isTr ? "Henüz not yok" : "No notes yet")}
-                        </text>
-                      </g>
-                    )}
-
-                    {activeLens === "farmland" && isSelected && nodeFarm && (
-                      <g transform={`translate(${px + 14}, ${py - 10})`}>
-                        <rect width="115" height="22" rx="4" fill="rgba(40, 56, 32, 0.92)" stroke="#88aa6e" strokeWidth="1" />
-                        <text x="6" y="15" fill="#f0fae8" fontSize="11" fontWeight="700">
-                          {nodeFarm.plantedCount} {isTr ? "Mahsul Ekili" : "Crops Planted"}
-                        </text>
-                      </g>
-                    )}
-
-                    {shouldShowLabel && (
-                      <text
-                        {...mapLabelPosition(node.id, px, py)}
-                        fill={isSelected ? "#4a2810" : "#5a4a38"}
-                        fontSize={isSelected ? "10" : "9"}
-                        fontWeight={isSelected ? "700" : "500"}
-                        fontFamily="serif"
-                        className="map-node-text"
-                      >
-                        {chartName(node.name)}
-                      </text>
                     )}
                   </g>
                 );
               })}
 
-              {/* Live schools sit under the player mark so they never hide it */}
+              {/* Live fishing schools */}
               <g className="map-school-layer" data-testid="map-school-layer">
                 {map.activeSchools.map((school) => {
                   const at = worldPointToMapSvg({ x: school.x, z: school.z });
                   return (
                     <g
                       key={school.schoolId}
-                      transform={`translate(${at.x}, ${at.y}) scale(${markerScale})`}
+                      transform={`translate(${at.x}, ${at.y}) scale(${schoolScale})`}
                       className={`map-school${school.feeding ? " is-feeding" : ""}`}
                       data-testid="map-school"
                       data-feeding={school.feeding ? "true" : "false"}
                     >
-                      <circle
-                        r="8"
-                        fill="rgba(56, 189, 248, 0.06)"
-                        stroke={school.feeding ? "#f0a020" : "#5a9aaa"}
-                        strokeWidth="1"
-                        strokeDasharray="3 3"
+                      <image
+                        href="/ui-chart/school.png"
+                        x="-18"
+                        y="-9"
+                        width="36"
+                        height="18"
+                        preserveAspectRatio="xMidYMid meet"
                       />
-                      <circle r="2" fill={school.feeding ? "#f0a020" : "#5a9aaa"} />
-                      <title>{`${school.waterLabel} school · ${school.minutesRemaining} min left${school.feeding ? " · feeding" : ""}`}</title>
+                      {school.feeding && (
+                        <ellipse rx="19" ry="10" fill="none" stroke="#c4842a" strokeWidth="1.05" />
+                      )}
+                      <title>
+                        {isTr
+                          ? `${school.waterLabel} sürüsü · ${school.minutesRemaining} dk kaldı${
+                              school.feeding ? " · besleniyor" : ""
+                            }`
+                          : `${school.waterLabel} school · ${school.minutesRemaining} min left${
+                              school.feeding ? " · feeding" : ""
+                            }`}
+                      </title>
                     </g>
                   );
                 })}
               </g>
 
-              {/* Objective Quest Markers */}
+              {/* Objective Quest Markers - NO permanent text copy, tooltip on hover */}
               <g className="map-quest-layer" data-testid="map-quest-layer">
                 {questMarkers.map((marker) => {
                   const at = worldPointToMapSvg({ x: marker.x, z: marker.z });
                   const focused = marker.kind === "quest";
-                  const labelPosition = questMarkerLabelPosition(marker.label);
+                  const markerName = chartName(marker.label);
+                  const pillWidth = Math.max(50, markerName.length * 6.5 + 14);
+                  const isHovered = hoveredQuestId === marker.id;
+
                   return (
-                    <g key={marker.id} data-testid="map-quest-mark" data-kind={marker.kind}>
-                      <line
-                        x1={playerMapPosition.x} y1={playerMapPosition.y}
-                        x2={at.x} y2={at.y}
-                        stroke={focused ? "#b8862b" : "#a8935f"}
-                        strokeWidth={focused ? (isZoomed ? 1.4 : 2.2) : (isZoomed ? 1 : 1.5)}
-                        strokeDasharray={focused ? "8 5" : "4 5"}
-                        opacity={focused ? 0.85 : 0.5}
-                      />
+                    <g
+                      key={marker.id}
+                      data-testid="map-quest-mark"
+                      data-kind={marker.kind}
+                      onPointerEnter={() => setHoveredQuestId(marker.id)}
+                      onPointerLeave={() => setHoveredQuestId(null)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <g transform={`translate(${at.x}, ${at.y}) scale(${questScale})`}>
-                        <path d="M0 -13 L9.5 0 L0 13 L-9.5 0 Z"
-                          fill={focused ? "#d9a63c" : "#c2ad84"}
-                          stroke="#4a3a12" strokeWidth="2" strokeLinejoin="round" />
-                        {focused && <path d="M0 -6.4 L4.7 0 L0 6.4 L-4.7 0 Z" fill="#fff6dd" opacity="0.6" />}
-                        <text {...labelPosition} fill="#2c2118" fontSize="10.5" fontWeight="bold" fontFamily="serif">
-                          {chartName(marker.label)}
-                        </text>
-                        <text y="25" fill="#5a4a2c" fontSize="9.5" textAnchor="middle" fontFamily="serif">
-                          {`${marker.distanceMeters} m`}
-                        </text>
-                        <title>{isTr
-                          ? `Hedef · ${chartName(marker.label)} · ${marker.distanceMeters} m`
-                          : `Objective · ${marker.label} · ${marker.distanceMeters} m`}</title>
+                        <path
+                          d="M0 -11 L8 0 L0 11 L-8 0 Z"
+                          fill={focused ? "#c47a3a" : "#a89474"}
+                          stroke={CHART_INK}
+                          strokeWidth="1.15"
+                          strokeLinejoin="round"
+                        />
+                        {focused && <path d="M0 -5 L3.5 0 L0 5 L-3.5 0 Z" fill={CHART_PAPER} opacity="0.85" />}
+
+                        {/* Tooltip on hover only (no permanent copy) */}
+                        {isHovered && (
+                          <g pointerEvents="none">
+                            <rect
+                              x={-pillWidth / 2}
+                              y={-27}
+                              width={pillWidth}
+                              height={15}
+                              rx={3}
+                              fill="rgba(30, 22, 14, 0.94)"
+                              stroke="#c4a46a"
+                              strokeWidth={0.8}
+                            />
+                            <text
+                              y={-16}
+                              fill="#fcf6e8"
+                              fontSize="8.5"
+                              fontWeight="bold"
+                              fontFamily="serif"
+                              textAnchor="middle"
+                            >
+                              {markerName}
+                            </text>
+                          </g>
+                        )}
+
+                        <title>
+                          {isTr
+                            ? `Hedef · ${markerName} · ${marker.distanceMeters} m`
+                            : `Objective · ${marker.label} · ${marker.distanceMeters} m`}
+                        </title>
                       </g>
                     </g>
                   );
                 })}
               </g>
 
-              {/* Plotted Nautical Course Waypoint */}
-              {activeWaypoint && waypointMapPosition && (
-                <g className="map-custom-waypoint-layer" data-testid="map-custom-waypoint">
-                  <line
-                    x1={playerMapPosition.x}
-                    y1={playerMapPosition.y}
-                    x2={waypointMapPosition.x}
-                    y2={waypointMapPosition.y}
-                    stroke="#c4a46a"
-                    strokeWidth={markerScale * 1.4}
-                    strokeDasharray={`${markerScale * 6} ${markerScale * 4}`}
-                    opacity="0.6"
-                  />
-                  <g transform={`translate(${waypointMapPosition.x}, ${waypointMapPosition.y}) scale(${markerScale})`}>
-                    <circle r="6" fill="#9a3528" stroke="#f5da96" strokeWidth="1.5" />
-                    <polygon points="0,-4 1.5,-1.5 4,0 1.5,1.5 0,4 -1.5,1.5 -4,0 -1.5,-1.5" fill="#f5da96" />
-                    <text y="16" fill="#c4a46a" fontSize="8" fontWeight="600" fontFamily="serif" textAnchor="middle">
-                      {`${bearingCardinal} ${waypointBearingDeg}° · ${waypointDistance} m`}
-                    </text>
-                  </g>
-                </g>
-              )}
-
               {/* Player Position Beacon */}
               <g transform={`translate(${playerMapPosition.x}, ${playerMapPosition.y}) scale(${playerScale})`}>
-                <circle r="10" fill="none" stroke="#9a3528" strokeWidth="1.2" opacity="0.5" className="player-pulse-ring" />
-                <circle r="5" fill="#9a3528" stroke="#fbf7ee" strokeWidth="1.5" />
-                <text y="-10" fill="#4a2810" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="serif">
+                <circle r="9" fill="none" stroke="#9e3223" strokeWidth="1.05" opacity="0.45" className="player-pulse-ring" />
+                <circle r="4.5" fill="#9e3223" stroke={CHART_PAPER} strokeWidth="1.3" />
+                <polygon points="0,-8 2.2,-1.2 0,-2.4 -2.2,-1.2" fill="#e2c15a" stroke={CHART_INK} strokeWidth="0.5" />
+                <text y="-10" fill={CHART_INK} fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="serif" opacity="0.9">
                   {isTr ? "SEN" : "YOU"}
                 </text>
               </g>
 
-              {/* Compact 4-point windrose dynamically anchored */}
+              {/* Minimal Cozy Medieval Compass Rose */}
               <g
-                transform={`translate(${compassX}, ${compassY}) scale(${compassScale * 0.65})`}
+                transform={`translate(${compassX}, ${compassY}) scale(${compassScale * 0.6})`}
                 className="map-compass-rose"
+                aria-hidden="true"
               >
-                <circle r="25" fill="rgba(247, 243, 230, 0.85)" stroke="#bfa369" strokeWidth="1.5" />
-                <circle r="21" fill="none" stroke="#bfa369" strokeWidth="0.5" />
+                <circle r="22" fill={CHART_PAPER} stroke={CHART_INK} strokeWidth="1" />
+                <circle r="16" fill="none" stroke={CHART_INK} strokeWidth="0.45" />
+                <path d="M0 14 L1.3 2 L0 0 L-1.3 2 Z" fill={CHART_PAPER} stroke={CHART_INK} strokeWidth="0.6" strokeLinejoin="round" />
+                <path d="M14 0 L2 1.2 L0 0 L2 -1.2 Z" fill="none" stroke={CHART_INK} strokeWidth="0.7" strokeLinejoin="round" />
+                <path d="M-14 0 L-2 1.2 L0 0 L-2 -1.2 Z" fill="none" stroke={CHART_INK} strokeWidth="0.7" strokeLinejoin="round" />
+                <path d="M0 -15 L1.5 -2 L0 0 L-1.5 -2 Z" fill="#9e3223" stroke={CHART_INK} strokeWidth="0.45" strokeLinejoin="round" />
+                <circle r="1.5" fill={CHART_INK} />
 
-                {/* Cardinal pointers only */}
-                <polygon points="0,0 3,4 0,18" fill="#362516" />
-                <polygon points="0,0 -3,4 0,18" fill="#5c442c" />
-                <polygon points="0,0 4,3 18,0" fill="#362516" />
-                <polygon points="0,0 4,-3 18,0" fill="#5c442c" />
-                <polygon points="0,0 -4,3 -18,0" fill="#362516" />
-                <polygon points="0,0 -4,-3 -18,0" fill="#5c442c" />
-
-                {/* North pointer (red) */}
-                <polygon points="0,-19 3,-5 0,-1" fill="#9e2a2b" />
-                <polygon points="0,-19 -3,-5 0,-1" fill="#6c1d1e" />
-
-                <circle r="3" fill="#bfa369" stroke="#362516" strokeWidth="0.8" />
-
-                <text y="-21" textAnchor="middle" fill="#8f2628" fontSize="8" fontWeight="bold" fontFamily="serif">{isTr ? "K" : "N"}</text>
-                <text y="26" textAnchor="middle" fill="#5a4a38" fontSize="7" fontWeight="600" fontFamily="serif">{isTr ? "G" : "S"}</text>
-                <text x="25" y="3" textAnchor="middle" fill="#5a4a38" fontSize="7" fontWeight="600" fontFamily="serif">{isTr ? "D" : "E"}</text>
-                <text x="-25" y="3" textAnchor="middle" fill="#5a4a38" fontSize="7" fontWeight="600" fontFamily="serif">{isTr ? "B" : "W"}</text>
+                <text y="-18" textAnchor="middle" fill="#9e3223" fontSize="8" fontWeight="bold" fontFamily="serif">
+                  {isTr ? "K" : "N"}
+                </text>
+                <text y="23" textAnchor="middle" fill={CHART_INK} fontSize="6.5" fontWeight="600" fontFamily="serif">
+                  {isTr ? "G" : "S"}
+                </text>
+                <text x="22" y="2.5" textAnchor="middle" fill={CHART_INK} fontSize="6.5" fontWeight="600" fontFamily="serif">
+                  {isTr ? "D" : "E"}
+                </text>
+                <text x="-22" y="2.5" textAnchor="middle" fill={CHART_INK} fontSize="6.5" fontWeight="600" fontFamily="serif">
+                  {isTr ? "B" : "W"}
+                </text>
               </g>
             </svg>
           </div>
 
-          <aside
-            id="map-lens-details"
-            className="map-sidebar-details"
-            role="tabpanel"
-            aria-labelledby={`map-lens-${activeLens}`}
-            tabIndex={0}
-          >
-            <label className="guild-chart-destination">{isTr ? "Yer" : "Place"}
-              <select aria-label={isTr ? "Harita hedefi" : "Chart destination"} value={selectedNodeId} onChange={(event) => focusNode(event.target.value)}>
-                {directoryNodes.map((node) => <option key={node.id} value={node.id}>{chartName(node.name)}</option>)}
+          {/* Clean, Cozy Sidebar Details */}
+          <aside className="map-sidebar-details">
+            <label className="guild-chart-destination">
+              {isTr ? "Yer" : "Place"}
+              <select
+                aria-label={isTr ? "Harita hedefi" : "Chart destination"}
+                value={selectedNodeId}
+                onChange={(event) => focusNode(event.target.value)}
+              >
+                {directoryNodes.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {chartName(node.name)}
+                  </option>
+                ))}
               </select>
             </label>
+
+            {/* Selected Location Card */}
             <header className="sidebar-node-header">
-              <AtlasImage src={atlasForMapNode(selectedNode.id)} alt="" size={40} className="sidebar-node-atlas" />
+              <AtlasImage src={atlasForMapNode(selectedNode.id)} alt="" size={36} className="sidebar-node-atlas" />
               <div>
                 <span className="sidebar-category-badge">
                   {isTr
-                    ? selectedNode.category === "farm" ? "ÇİFTLİK"
-                      : selectedNode.category === "village" ? "KÖY"
-                      : selectedNode.category === "harbor" ? "LİMAN"
-                      : selectedNode.category === "lighthouse" ? "FENER"
-                      : "BALIKÇILIK"
+                    ? selectedNode.category === "farm"
+                      ? "ÇİFTLİK"
+                      : selectedNode.category === "village"
+                        ? "KÖY"
+                        : selectedNode.category === "harbor"
+                          ? "LİMAN"
+                          : selectedNode.category === "lighthouse"
+                            ? "FENER"
+                            : "KEŞİF"
                     : selectedNode.category.toUpperCase()}
                 </span>
                 <h3 className="sidebar-node-name">{chartName(selectedNode.name)}</h3>
               </div>
             </header>
 
-            {/* Set Course to Selected Location button */}
-            <button
-              type="button"
-              className="map-plot-course-btn"
-              onClick={() => {
-                playUiSound("click");
-                setWaypoint(selectedNode.worldPosition);
-              }}
-            >
-              <IconCompass size={14} aria-hidden="true" />
-              <span>{isTr ? `${chartName(selectedNode.name)} rotası çiz` : `Plot course to ${selectedNode.name}`}</span>
-            </button>
-
-            {/* Active Plotted Waypoint Card */}
-            {activeWaypoint && (
-              <div className="map-active-course-card">
-                <div className="map-course-header">
-                  <span className="map-course-title">
-                    {isTr
-                      ? `${waypointDestination ? chartName(waypointDestination.name) : "noktaya"} rota`
-                      : `Course to ${waypointDestination?.name ?? "chart point"}`}
-                  </span>
-                  <button
-                    type="button"
-                    className="map-course-clear-btn"
-                    onClick={() => {
-                      playUiSound("click");
-                      setWaypoint(null);
-                    }}
-                    title={isTr ? "Rotayı temizle" : "Clear active course"}
-                    aria-label={isTr ? "Rotayı temizle" : "Clear active course"}
-                  >
-                    {isTr ? "Temizle" : "Clear"}
-                  </button>
+            <div className="sidebar-section">
+              <h4>{isTr ? "Konum" : "Location"}</h4>
+              <div className="route-stat-card">
+                <div className="route-row">
+                  <span>{isTr ? "Mesafe" : "Distance"}</span>
+                  <strong>{Math.round(selectedDistance)} m</strong>
                 </div>
-                <div className="map-course-stats">
-                  <div className="route-row">
-                    <span>{isTr ? "Kerteriz" : "Bearing"}</span>
-                    <strong>{bearingCardinal} {waypointBearingDeg}°</strong>
-                  </div>
-                  <div className="route-row">
-                    <span>{isTr ? "Kuş uçuşu" : "Direct distance"}</span>
-                    <strong>{waypointDistance} m</strong>
-                  </div>
+                <div className="route-row">
+                  <span>{isTr ? "Zemin" : "Approach"}</span>
+                  <span className="tag-safe">{selectedTerrain}</span>
                 </div>
               </div>
-            )}
-
-            {activeLens === "geography" && (
-              <div className="sidebar-section">
-                <h4>{isTr ? "Rota" : "Route"}</h4>
-                <div className="route-stat-card">
-                  <div className="route-row">
-                    <span>{isTr ? "Kuş uçuşu" : "Direct distance"}</span>
-                    <strong>{Math.round(selectedDistance)} m</strong>
-                  </div>
-                  <div className="route-row">
-                    <span>{isTr ? "Zemin" : "Approach"}</span>
-                    <span className="tag-safe">{selectedTerrain}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeLens === "markets" && selectedMarketInsight?.success && (
-              <div className="sidebar-section">
-                <h4>{isTr ? "Pazar notu" : "Market note"}</h4>
-                <div className="route-stat-card">
-                  <div className="route-row">
-                    <span>{isTr ? "En çok aranan" : "Most wanted"}</span>
-                    <strong>{selectedMarketInsight.itemName}</strong>
-                  </div>
-                  <div className="route-row">
-                    <span>{isTr ? "Talep" : "Demand"}</span>
-                    <span className="tag-up">{selectedMarketInsight.demandLabel}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeLens === "fishing" && selectedFishingInsight && (
-              <div className="sidebar-section">
-                <h4>{isTr ? "Balık notları" : "Fishing notes"}</h4>
-                <div className="route-stat-card">
-                  <div className="route-row">
-                    <span>{isTr ? "Su türü" : "Water"}</span>
-                    <strong>{selectedFishingInsight.waterType}</strong>
-                  </div>
-                  <div className="route-row">
-                    <span>{isTr ? "Burada keşfedilen" : "Discovered here"}</span>
-                    <strong>{selectedFishingInsight.species.length > 0 ? selectedFishingInsight.species.join(", ") : (isTr ? "Henüz not yok" : "No notes yet")}</strong>
-                  </div>
-                  {selectedFishingInsight.record && (
-                    <div className="route-row"><span>{isTr ? "Rekor" : "Record"}</span><span>{selectedFishingInsight.record}</span></div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activeLens === "farmland" && selectedFarm && (
-              <div className="sidebar-section">
-                <h4>{isTr ? "Çiftlik notları" : "Farm notes"}</h4>
-                <div className="route-stat-card">
-                  <div className="route-row">
-                    <span>{isTr ? "Toprak" : "Soil"}</span>
-                    <strong className="farm-soil-value">{selectedFarm.fertilityPercent}%</strong>
-                  </div>
-                  <div className="route-row">
-                    <span>{isTr ? "İklim" : "Climate"}</span>
-                    <span>{selectedFarm.climateLabel}</span>
-                  </div>
-                  <div className="route-row">
-                    <span>{isTr ? "Ekim" : "Planted"}</span>
-                    <strong>{selectedFarm.plantedCount} {isTr ? "parsel" : "plots"}</strong>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="map-sidebar-tip">
-              <span>{activeLens === "fishing"
-                ? (isTr ? "Keşiflerinizi ve avlarınızı görmek için bir su yolu seçin." : "Select a waterway to read your discoveries and catches.")
-                : activeLens === "farmland"
-                  ? (isTr ? "Toprak ve ekim notlarını görmek için bir çiftlik seçin." : "Select a farm to read its soil and planting notes.")
-                  : activeLens === "markets"
-                    ? (isTr ? "Ticaret yollarını ve fiyat fırsatlarını görmek için bir pazar seçin." : "Select a market to see trade lanes and arbitrage.")
-                    : (isTr ? "Bir yer seçip rota çizin veya işaret koymak için haritaya tıklayın." : "Select a place, then plot its course, or click the chart to pin a point.")}</span>
             </div>
 
-            <div className="map-sidebar-directory">
-              <div className="map-directory-header">
+            <details className="map-sidebar-directory">
+              <summary className="map-directory-header">
                 <span className="map-directory-title">
-                  {activeLens === "markets"
-                    ? (isTr ? "Pazarlar" : "Markets")
-                    : activeLens === "fishing"
-                      ? (isTr ? "Balıkçılık yerleri" : "Fishing places")
-                      : activeLens === "farmland"
-                        ? (isTr ? "Çiftlikler" : "Farms")
-                        : chartArea === "sea"
-                          ? (isTr ? "Kayıtlı yerler" : "Charted places")
-                          : chartArea === "neva"
-                            ? (isTr ? "Neva ana kara yerleri" : "Neva mainland places")
-                            : (isTr ? "Güneşeren ada yerleri" : "Sunreach isle places")}
+                  {isTr ? "Kayıtlı Yerler" : "Charted Places"}
                 </span>
-                <span className="map-directory-count">
-                  {directoryNodes.length} {isTr ? "kayıtlı" : "charted"}
-                </span>
-              </div>
+                <span className="map-directory-count">{directoryNodes.length}</span>
+              </summary>
               <ul className="map-directory-list" role="list">
                 {directoryNodes.map((node) => {
                   const isNodeSelected = node.id === selectedNodeId;
@@ -1003,7 +718,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                   );
                 })}
               </ul>
-            </div>
+            </details>
           </aside>
         </div>
       </GameSheet>

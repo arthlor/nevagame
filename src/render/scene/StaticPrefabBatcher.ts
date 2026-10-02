@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { ASSET_BY_ID, type AssetId } from "../assets/AssetCatalog";
 import { WorldLayout } from "../../world/WorldLayout";
-import { configureStaticBatchSubmission } from "./staticBatchSubmission";
+import { configureStaticBatchSubmission, type StaticBatchCullRegion } from "./staticBatchSubmission";
 import type { EditableStaticSources } from "./EditableStaticSources";
 
 export interface StaticBatchInstance {
@@ -33,7 +33,7 @@ export interface StaticLodPlacement {
   selectedLevel: number;
 }
 
-export interface StaticBatchChunk {
+export interface StaticBatchChunk extends StaticBatchCullRegion {
   batch: THREE.BatchedMesh;
   instances: StaticBatchInstance[];
   center: THREE.Vector3;
@@ -113,7 +113,7 @@ context: StaticPrefabBatchContext
     }
     if (shouldSkip(object)) return;
     const material = object.material as THREE.MeshStandardMaterial;
-    const hasTexture = material instanceof THREE.MeshStandardMaterial && [
+    const hasTexture = material instanceof THREE.MeshPhysicalMaterial || (material instanceof THREE.MeshStandardMaterial && [
       material.map,
       material.alphaMap,
       material.aoMap,
@@ -125,10 +125,9 @@ context: StaticPrefabBatchContext
       material.metalnessMap,
       material.normalMap,
       material.roughnessMap
-    ].some(Boolean);
-    // Published Neva materials are palette-only. Some GLBs still carry an
-    // unused TEXCOORD_0 accessor, which needlessly splits otherwise
-    // compatible static/boat batches from their non-UV counterparts.
+    ].some(Boolean));
+    // Physical extensions may use UVs in additional texture slots. Strip only unused standard
+    // material UVs so compatible static/boat batches can share their attribute layout.
     let batchGeometry = object.geometry;
     if (!hasTexture && object.geometry.getAttribute("uv")) {
       let geometry = uvStrippedGeometries.get(object.geometry);
@@ -197,9 +196,10 @@ context: StaticPrefabBatchContext
       if (trackStaticLods) {
         let chunkRecord = chunks.get(chunkKey);
         if (!chunkRecord) {
+          const bounds = new THREE.Sphere().makeEmpty();
           chunkRecord = {
-            chunk: { batch: batched, instances: [], center: new THREE.Vector3(), radius: 0, visible: true, detail },
-            bounds: new THREE.Sphere().makeEmpty()
+            chunk: { batch: batched, instances: [], center: new THREE.Vector3(), radius: 0, visible: true, detail, localBounds: bounds },
+            bounds
           };
           chunks.set(chunkKey, chunkRecord);
         }
@@ -234,17 +234,16 @@ context: StaticPrefabBatchContext
     batched.customDepthMaterial = sources[0].mesh.customDepthMaterial;
     batched.receiveShadow = sources[0]?.mesh.receiveShadow ?? true;
     if (trackStaticLods) {
-      configureStaticBatchSubmission(batched);
+      configureStaticBatchSubmission(batched, [...chunks.values()].map(({ chunk }) => chunk));
       context.staticPrefabBatches.add(batched);
     }
     root.add(batched);
     for (const { chunk, bounds } of chunks.values()) {
-      bounds.applyMatrix4(root.matrixWorld);
-      chunk.center.copy(bounds.center);
-      chunk.radius = bounds.radius;
+      const worldBounds = bounds.clone().applyMatrix4(root.matrixWorld);
+      chunk.center.copy(worldBounds.center);
+      chunk.radius = worldBounds.radius;
       context.staticBatchChunks.push(chunk);
     }
   }
   for (const geometry of uvStrippedGeometries.values()) geometry.dispose();
 }
-

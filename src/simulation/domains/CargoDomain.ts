@@ -85,14 +85,15 @@ export class CargoDomain {
     record.catchCount += 1;
     record.largestWeightKg = Math.max(record.largestWeightKg ?? 0, fish.weightKg);
     if (qualityRank(fish.quality) > qualityRank(record.bestQuality)) record.bestQuality = fish.quality;
+    this.context.persistRng();
+    // Resolve the encounter and its paid Work before progression/outcome listeners can save or re-enter.
+    beforeOutcomeEvents?.();
     if (awardSportXp) {
       this.progression.addProficiencyXp(
         "fishing",
         sportFishLandingXp(speciesDef, fish.weightKg, fish.quality)
       );
     }
-    this.context.persistRng();
-    beforeOutcomeEvents?.();
     events.emit("FishLanded", {
       cargoId,
       speciesId: fish.speciesId,

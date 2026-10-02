@@ -115,6 +115,20 @@ function legacyEnvelope(version: 1 | 2 | 3): SaveEnvelope {
 }
 
 describe("NEVA farming correctness foundation", () => {
+  it("uses the current Work quote for preview and commit without spending on refusal", () => {
+    const sim = new Simulation();
+    const center = movePlayerToStarterFarm(sim);
+    InventoryManager.addItemsAtomically(sim.state.inventories[sim.state.player.inventoryId], [{ itemId: "seed.wheat", quantity: 1 }]);
+    sim.state.player.workCapacity.current = 0;
+    const before = structuredClone(sim.state);
+    expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", center.x, center.z))
+      .toMatchObject({ valid: false, reasonCode: "insufficient-work" });
+    expect(sim.plantCrop("farm.starter_garden", "crop.wheat", center.x, center.z))
+      .toMatchObject({ success: false, reasonCode: "insufficient-work" });
+    expect(sim.state).toEqual(before);
+    sim.state.player.workCapacity.current = 100;
+    expect(sim.validateCropPlacement("farm.starter_garden", "crop.wheat", center.x, center.z).valid).toBe(true);
+  });
   it("owns the complete starter homestead and physical market in one pure layout", () => {
     expect(STARTER_FARM_LAYOUT.plantableAreas).toEqual([
       { minX: -6, maxX: 6, minZ: -5, maxZ: 5 }
@@ -514,8 +528,7 @@ describe("NEVA farming correctness foundation", () => {
     expect(sim.state.player.proficiencies.farming).toBe(0);
 
     // With the full Work cost available, harvest succeeds and reports its XP.
-    // Harvest costs 30 Work; XP is that cost scaled by the quality multiplier,
-    // so the common-quality floor is 30 and 50 - 30 = 20 Work remains.
+    // Harvest costs 10 Work while retaining the quality-adjusted 30 XP floor.
     sim.state.player.workCapacity.current = 50;
     sim.state.player.proficiencies.farming = 0;
     const successResult = sim.harvestCrop(placedCropId);
@@ -523,7 +536,7 @@ describe("NEVA farming correctness foundation", () => {
     expect(successResult.yield).toBeGreaterThanOrEqual(3);
     expect(sim.state.player.proficiencies.farming).toBe(successResult.xpGained);
     expect(successResult.xpGained).toBeGreaterThanOrEqual(30);
-    expect(sim.state.player.workCapacity.current).toBe(20);
+    expect(sim.state.player.workCapacity.current).toBe(40);
   });
 
   it("uses the crop's explicit neutral climate for harvest quality", () => {

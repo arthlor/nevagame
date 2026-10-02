@@ -212,19 +212,19 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
       expect(html).toContain("Release Alt to hide");
 
       // Moisture tiers
-      expect(html).toContain("Moisture Tiers");
-      expect(html).toContain("Good moisture");
-      expect(html).toContain("Dry soil");
-      expect(html).toContain("Saturated soil");
+      expect(html).toContain("Moisture");
+      expect(html).toContain("Ideal");
+      expect(html).toContain("Dry");
+      expect(html).toContain("Saturated");
 
       // Soil fertility bands
-      expect(html).toContain("Soil Fertility");
-      expect(html).toContain("Rich fertility");
-      expect(html).toContain("Fair fertility");
-      expect(html).toContain("Depleted soil");
+      expect(html).toContain("Soil");
+      expect(html).toContain("Rich");
+      expect(html).toContain("Fair");
+      expect(html).toContain("Depleted");
 
       // Field progress
-      expect(html).toContain("Field Progress");
+      expect(html).toContain("Crop");
       expect(html).toContain("Ready to harvest");
       expect(html).toContain("Growing");
       expect(html).toContain("Prepared soil");
@@ -647,18 +647,18 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
       it("resolves maritime hazards: Dense Fog, Squall Winds, Rough Swell, Storm", () => {
         const fogHazard = resolveMaritimeHazard({ text: "Dense Fog Alert", tone: "caution" });
         expect(fogHazard?.hazardId).toBe("dense-fog");
-        expect(fogHazard?.title).toBe("Dense Maritime Fog");
-        expect(fogHazard?.speedPenaltyPercent).toBe(15);
+        expect(fogHazard?.title).toBe("Dense fog");
+        expect(fogHazard?.speedPenaltyPercent).toBeUndefined();
 
         const squallHazard = resolveMaritimeHazard({ text: "Gale Winds Rising", tone: "caution" });
         expect(squallHazard?.hazardId).toBe("squall");
-        expect(squallHazard?.title).toBe("Gale-Force Squall");
-        expect(squallHazard?.speedPenaltyPercent).toBe(20);
+        expect(squallHazard?.title).toBe("Strong winds");
+        expect(squallHazard?.speedPenaltyPercent).toBeUndefined();
 
         const swellHazard = resolveMaritimeHazard({ text: "Rough Swell Warning", tone: "caution" });
         expect(swellHazard?.hazardId).toBe("storm-waves");
-        expect(swellHazard?.title).toBe("Hazardous Rough Swell");
-        expect(swellHazard?.speedPenaltyPercent).toBe(25);
+        expect(swellHazard?.title).toBe("Rough water");
+        expect(swellHazard?.speedPenaltyPercent).toBeUndefined();
 
         const stormHazard = resolveMaritimeHazard({ text: "Coastal Storm", tone: "danger" });
         expect(stormHazard?.hazardId).toBe("storm");
@@ -968,7 +968,7 @@ describe("Milestone M2 MMO Inspectors, Navigation Console & Tactile GIS Suite", 
       );
 
       expect(html).toContain('data-testid="weather-hazard-banner"');
-      expect(html).toContain("Severe Coastal Storm");
+      expect(html).toContain("Coastal storm");
     });
 
     it("maintains strict simulation state immutability across M2 UI renders", () => {

@@ -9,6 +9,29 @@ afterEach(() => {
 });
 
 describe("opaque water snapshot ownership", () => {
+  it("restores the caller target while world and hidden-material shader variants are pending or fail", async () => {
+    const h = await createPipelineHarness();
+    const previousTarget = new THREE.WebGLRenderTarget(16, 16);
+    h.renderer.setRenderTarget(previousTarget);
+    try {
+      for (const prepare of [
+        () => h.pipeline.prepareWorldShaderVariant(h.camera),
+        () => h.pipeline.prepareAdditionalMaterials(new THREE.Scene(), h.camera)
+      ]) {
+        let reject!: (reason: Error) => void;
+        h.renderer.compileAsync.mockImplementationOnce(async () => {
+          expect(h.fake.activeTarget).not.toBe(previousTarget);
+          await new Promise<void>((_resolve, rejectPromise) => { reject = rejectPromise; });
+        });
+        const pending = prepare();
+        expect(h.fake.activeTarget).toBe(previousTarget);
+        reject(new Error("driver compilation failed"));
+        await expect(pending).rejects.toThrow("driver compilation failed");
+        expect(h.fake.activeTarget).toBe(previousTarget);
+      }
+    } finally { h.dispose(); previousTarget.dispose(); }
+  });
+
   it("snapshots color/depth in one GPU draw per frame and releases each resized/tier target", async () => {
     const harness = await createPipelineHarness({ waterDrawsPerFrame: 3 });
     const disposals: ReturnType<typeof vi.spyOn>[] = [];

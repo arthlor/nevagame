@@ -60,6 +60,13 @@ export interface LaborHudDto {
   stationName: string;
   /** Work a clean strike grants at this station, for the reward preview. */
   yield: number;
+  glancingYield: number;
+  /** The near-hit band and current grade come from the strike owner. */
+  glancingMin: number;
+  glancingMax: number;
+  timingGrade: "clean" | "glancing" | "miss";
+  choresRemaining: number;
+  totalChores: number;
   meter: number;
   targetMin: number;
   targetMax: number;
@@ -77,6 +84,8 @@ export interface LaborStationDto {
   available: boolean;
   /** Reason a nearby shift cannot begin, supplied by the Work owner. */
   blocker: string | null;
+  choresRemaining: number;
+  totalChores: number;
 }
 
 export interface InteractionResult {
@@ -369,6 +378,7 @@ export interface HudContractDto {
   completed: boolean;
   rewardMoney: number;
   deliveryMarketName: string;
+  deadlineLabel: string;
   isReadyToTurnIn?: boolean;
 }
 
@@ -524,6 +534,8 @@ export interface WorldHudDto {
   carriedFish: WorldHudCargoDto | null;
   boat: WorldHudBoatDto | null;
   basicFishingPhase: BasicFishingPhase | null;
+  /** Current perfect-catch credit after the paid-cast, pool and daily bounds. */
+  basicFishingPerfectWorkRecovery?: number;
   expeditionUnlocked: boolean;
 
   // M1 Additions:
@@ -886,6 +898,8 @@ export interface SportFishingHudDto {
   awaitingLandingChoice: boolean;
   /** Whether a Keep choice would fit; false means release or clear a slot. */
   keepAvailable: boolean;
+  /** Work was paid at the hook; only a successful keep/release earns the quoted recovery. */
+  workSettlement?: { charged: number; landingRecovery: number };
   /**
    * Live fight telemetry, read straight off the encounter's physics state.
    * The angler can already feel all of this through the fight; the readout
@@ -1035,6 +1049,7 @@ export type CropPlacementReasonCode =
   | "mounted"
   | "hands-occupied"
   | "locked"
+  | "insufficient-work"
   | "no-seed";
 
 export interface CropPlacementRequest {

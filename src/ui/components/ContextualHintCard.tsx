@@ -136,8 +136,11 @@ export const ContextualHintCard: React.FC<ContextualHintCardProps> = ({
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
       onFocus={() => setHeld(true)}
-      onBlur={() => setHeld(false)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false);
+      }}
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " " || (captureEscape && e.key === "Escape")) {
           e.preventDefault();
           e.stopPropagation();

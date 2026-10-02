@@ -1,6 +1,6 @@
 # Guildcraft HUD source art
 
-Produced with the built-in image-generation tool for the user-selected medieval MMO interface. The selected layout references live in `art/references/guildcraft/`; `LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md` section 17 owns the visual contract.
+Produced with the built-in image-generation tool for the user-selected medieval MMO interface. The references in `art/references/guildcraft/` and the prompts below record this shipped art's provenance; they do not prescribe future interface design.
 
 The shipped source sheets are `guildcraft-chrome.png` and `guildcraft-portrait.png`, both 1254 by 1254 pixels. They contain presentation art only. Labels, resource values, quantities, selection, weather and gameplay actions are live DOM content.
 

@@ -5,48 +5,63 @@ import { assertProgramsRunnable } from "./programHealth";
 
 type GtaoConfig = typeof CANONICAL_RENDER_CONFIG.gtao;
 
+function requireShaderAnchor(shader: string, anchor: string | RegExp, name: string, expected = 1): void {
+  const count = typeof anchor === "string"
+    ? shader.split(anchor).length - 1
+    : Array.from(shader.matchAll(new RegExp(anchor.source, "g"))).length;
+  if (count !== expected) {
+    throw new Error(`Three.js r${THREE.REVISION} GTAO ${name}: expected ${expected} shader anchor(s), found ${count}`);
+  }
+}
+
 export function configureGtaoDistanceLimits(
   pass: GTAOPass,
   config: Pick<GtaoConfig, "maxDistance" | "fadeDistance">
 ): void {
-  // 1. Patch gtaoMaterial to early-out past maxDistance, fade smoothly, and reject sky taps
-  let gtaoFrag = pass.gtaoMaterial.fragmentShader;
-  if (!gtaoFrag.includes("uGtaoMaxDistance")) {
-    gtaoFrag = "uniform float uGtaoMaxDistance;\nuniform float uGtaoFadeDistance;\n" + gtaoFrag;
-    gtaoFrag = gtaoFrag.replace(
-      "vec3 viewPos = getViewPosition(vUv, depth);",
-      "vec3 viewPos = getViewPosition(vUv, depth);\n\t\t\tif (viewPos.z < -uGtaoMaxDistance) {\n\t\t\t\tdiscard;\n\t\t\t\treturn;\n\t\t\t}"
-    );
-    gtaoFrag = gtaoFrag.replaceAll(
-      "if (abs(viewDelta.z) < thickness) {",
-      "if (sampleSceneUvDepth.z < 0.99999 && abs(viewDelta.z) < thickness) {"
-    );
-    gtaoFrag = gtaoFrag.replace(
-      "ao = pow(ao, scale);",
-      "ao = mix(ao, 1.0, smoothstep(uGtaoFadeDistance, uGtaoMaxDistance, -viewPos.z));\n\t\t\tao = pow(ao, scale);"
-    );
-    pass.gtaoMaterial.fragmentShader = gtaoFrag;
-    pass.gtaoMaterial.uniforms.uGtaoMaxDistance = { value: config.maxDistance };
-    pass.gtaoMaterial.uniforms.uGtaoFadeDistance = { value: config.fadeDistance };
-    pass.gtaoMaterial.needsUpdate = true;
-  } else if (pass.gtaoMaterial.uniforms.uGtaoMaxDistance) {
+  const gtaoSource = pass.gtaoMaterial.fragmentShader;
+  const pdSource = pass.pdMaterial.fragmentShader;
+  const maxDeclaration = "uniform float uGtaoMaxDistance;";
+  const gtaoPatched = gtaoSource.includes(maxDeclaration);
+  const pdPatched = pdSource.includes(maxDeclaration);
+  if (gtaoPatched || pdPatched) {
+    if (!gtaoPatched || !pdPatched
+      || !pass.gtaoMaterial.uniforms.uGtaoMaxDistance
+      || !pass.gtaoMaterial.uniforms.uGtaoFadeDistance
+      || !pass.pdMaterial.uniforms.uGtaoMaxDistance) {
+      throw new Error(`Three.js r${THREE.REVISION} GTAO distance patch is incomplete`);
+    }
     pass.gtaoMaterial.uniforms.uGtaoMaxDistance.value = config.maxDistance;
     pass.gtaoMaterial.uniforms.uGtaoFadeDistance.value = config.fadeDistance;
+    pass.pdMaterial.uniforms.uGtaoMaxDistance.value = config.maxDistance;
+    return;
   }
 
-  // 2. Patch pdMaterial to discard sky fragments and distant fragments before normal computation
-  let pdFrag = pass.pdMaterial.fragmentShader;
-  if (!pdFrag.includes("uGtaoMaxDistance")) {
-    pdFrag = "uniform float uGtaoMaxDistance;\n" + pdFrag;
-    pdFrag = pdFrag.replace(
-      "vec3 sampleNormal = getViewNormal(sampleUv);",
-      "if (sampleDepth >= 0.99999) return;\n\t\t\tvec3 sampleNormal = getViewNormal(sampleUv);"
-    );
-    // The replacement below declares viewPos before the distance guard.
-    // Remove the denoiser's later declaration first, so the new one survives.
-    pdFrag = pdFrag.replace("vec3 viewPos = getViewPosition(vUv, depth);", "");
-    const regex = /float depth = getDepth\(vUv\.xy\);[\s\S]*?if \((depth == 1\. \|\| dot\(viewNormal, viewNormal\) == 0\.)\) \{\s*discard;\s*return;\s*\}/;
-    const replacement = `float depth = getDepth(vUv.xy);
+  const viewPosition = "vec3 viewPos = getViewPosition(vUv, depth);";
+  const thicknessGuard = "if (abs(viewDelta.z) < thickness) {";
+  const aoScale = "ao = pow(ao, scale);";
+  const sampleNormal = "vec3 sampleNormal = getViewNormal(sampleUv);";
+  const denoiseDepthGuard = /float depth = getDepth\(vUv\.xy\);[\s\S]*?if \((depth == 1\. \|\| dot\(viewNormal, viewNormal\) == 0\.)\) \{\s*discard;\s*return;\s*\}/;
+
+  // Validate both upstream programs before mutating either material. An addon
+  // change must fail visibly rather than silently remove distance/sky guards.
+  requireShaderAnchor(gtaoSource, viewPosition, "gather view position");
+  requireShaderAnchor(gtaoSource, thicknessGuard, "gather sky taps", 2);
+  requireShaderAnchor(gtaoSource, aoScale, "gather fade");
+  requireShaderAnchor(pdSource, sampleNormal, "denoise sky taps");
+  requireShaderAnchor(pdSource, viewPosition, "denoise view position");
+  requireShaderAnchor(pdSource, denoiseDepthGuard, "denoise depth guard");
+
+  const gtaoFragment = "uniform float uGtaoMaxDistance;\nuniform float uGtaoFadeDistance;\n"
+    + gtaoSource.replace(viewPosition,
+      `${viewPosition}\n\t\t\tif (viewPos.z < -uGtaoMaxDistance) {\n\t\t\t\tdiscard;\n\t\t\t\treturn;\n\t\t\t}`)
+      .replaceAll(thicknessGuard, "if (sampleSceneUvDepth.z < 0.99999 && abs(viewDelta.z) < thickness) {")
+      .replace(aoScale,
+        `ao = mix(ao, 1.0, smoothstep(uGtaoFadeDistance, uGtaoMaxDistance, -viewPos.z));\n\t\t\t${aoScale}`);
+  const pdFragment = "uniform float uGtaoMaxDistance;\n"
+    + pdSource.replace(sampleNormal, `if (sampleDepth >= 0.99999) return;\n\t\t\t${sampleNormal}`)
+      // Remove the later declaration before adding the one above the guards.
+      .replace(viewPosition, "")
+      .replace(denoiseDepthGuard, `float depth = getDepth(vUv.xy);
 \t\t\tif (depth >= 0.99999) {
 \t\t\t\tdiscard;
 \t\t\t\treturn;
@@ -60,14 +75,15 @@ export function configureGtaoDistanceLimits(
 \t\t\tif (dot(viewNormal, viewNormal) == 0.) {
 \t\t\t\tdiscard;
 \t\t\t\treturn;
-\t\t\t}`;
-    pdFrag = pdFrag.replace(regex, replacement);
-    pass.pdMaterial.fragmentShader = pdFrag;
-    pass.pdMaterial.uniforms.uGtaoMaxDistance = { value: config.maxDistance };
-    pass.pdMaterial.needsUpdate = true;
-  } else if (pass.pdMaterial.uniforms.uGtaoMaxDistance) {
-    pass.pdMaterial.uniforms.uGtaoMaxDistance.value = config.maxDistance;
-  }
+\t\t\t}`);
+
+  pass.gtaoMaterial.fragmentShader = gtaoFragment;
+  pass.pdMaterial.fragmentShader = pdFragment;
+  pass.gtaoMaterial.uniforms.uGtaoMaxDistance = { value: config.maxDistance };
+  pass.gtaoMaterial.uniforms.uGtaoFadeDistance = { value: config.fadeDistance };
+  pass.pdMaterial.uniforms.uGtaoMaxDistance = { value: config.maxDistance };
+  pass.gtaoMaterial.needsUpdate = true;
+  pass.pdMaterial.needsUpdate = true;
 }
 
 export function bindGtaoSceneDepth(pass: GTAOPass, source: THREE.WebGLRenderTarget): void {
@@ -142,6 +158,8 @@ export class GtaoStage {
   ): Promise<GtaoStage> {
     const { GTAOPass } = await import("three/examples/jsm/postprocessing/GTAOPass.js");
     const pass = new GTAOPass(scene, camera, 1, 1);
+    pass.gtaoMaterial.name = "neva_gtao_gather";
+    pass.pdMaterial.name = "neva_gtao_denoise";
     pass.output = GTAOPass.OUTPUT.Off;
     pass.updateGtaoMaterial({
       radius: config.radius,
@@ -151,8 +169,15 @@ export class GtaoStage {
       screenSpaceRadius: false
     });
     pass.updatePdMaterial({ samples: config.denoiseSamples, radius: 6, rings: 2 });
-    configureGtaoDistanceLimits(pass, config);
-    return new GtaoStage(pass, config);
+    try {
+      configureGtaoDistanceLimits(pass, config);
+      return new GtaoStage(pass, config);
+    } catch (error) {
+      pass.dispose();
+      pass.gtaoMaterial.dispose();
+      pass.blendMaterial.dispose();
+      throw error;
+    }
   }
 
   public get texture(): THREE.Texture {

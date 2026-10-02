@@ -141,8 +141,7 @@ function roadsideVillageDetail(id: string, assetId: string, x: number, z: number
     for (let direction = 0; direction < (radius === 0 ? 1 : 12); direction++) {
       const angle = direction * Math.PI / 6;
       const candidateX = x + Math.sin(angle) * radius, candidateZ = z + Math.cos(angle) * radius;
-      const road = WorldLayout.nearestRouteDistance(candidateX, candidateZ);
-      if (road.distance <= road.halfWidth + road.shoulderWidthMeters + footprintRadius
+      if (WorldLayout.roadFootprintSample(candidateX, candidateZ).coverageSignedDistance >= -footprintRadius
         || WorldLayout.isWater(candidateX, candidateZ)
         || WorldLayout.terrainNormalY(candidateX, candidateZ) < 0.94
         || !workingSpaceIsClear(candidateX, candidateZ, footprintRadius)) continue;
@@ -206,16 +205,14 @@ export function mainlandSettlementPlacements(): EnvironmentAssetPlacement[] {
         : ["prop_potting_bench_a", "prop_harvest_basket_a", "prop_watering_can_rustic_a"];
     for (let index = 0; index < garden.length; index++) {
       const point = at((index - 1) * 2.3, rear - (index === 1 ? 1 : 0));
-      const road = WorldLayout.nearestRouteDistance(point.x, point.z);
-      if (WorldLayout.isWater(point.x, point.z) || road.distance < road.halfWidth + road.shoulderWidthMeters + 1.6
+      if (WorldLayout.isWater(point.x, point.z) || WorldLayout.roadFootprintSample(point.x, point.z).coverageSignedDistance > -1.6
         || WorldLayout.terrainNormalY(point.x, point.z) < 0.92) continue;
       details.push(authored(`${pad.id}.garden.${index}`, garden[index], point.x, point.z, pad.rotationY));
     }
     if (!isWorkshop) {
       for (const side of [-1, 1]) {
         const point = at(side * (pad.envelope[0] + 0.8), rear);
-        const road = WorldLayout.nearestRouteDistance(point.x, point.z);
-        if (!WorldLayout.isWater(point.x, point.z) && road.distance > road.halfWidth + road.shoulderWidthMeters + 1.5
+        if (!WorldLayout.isWater(point.x, point.z) && WorldLayout.roadFootprintSample(point.x, point.z).coverageSignedDistance < -1.5
           && WorldLayout.terrainNormalY(point.x, point.z) > 0.94) {
           details.push(authored(`${pad.id}.garden-fence.${side}`, "prop_fence_section_a", point.x, point.z, pad.rotationY + Math.PI / 2));
         }
@@ -344,8 +341,7 @@ function mainlandBrookDressingPlacements(): EnvironmentAssetPlacement[] {
   const placements: EnvironmentAssetPlacement[] = [];
   const clear = (x: number, z: number, margin: number): boolean => {
     if (mainlandBlendAt(x, z) < 0.999 || WorldLayout.isWater(x, z)) return false;
-    const road = WorldLayout.nearestRouteDistance(x, z);
-    return road.distance > road.halfWidth + road.shoulderWidthMeters + margin
+    return WorldLayout.roadFootprintSample(x, z).coverageSignedDistance < -margin
       && mainlandSettlementClearanceAt(x, z) > margin && mainlandWorkSiteClearanceAt(x, z) > margin;
   };
   const place = (id: string, assetId: string, x: number, z: number, rotationY: number, scale: number, margin: number): void => {
@@ -447,8 +443,7 @@ function mainlandWorkSitePlacements(): EnvironmentAssetPlacement[] {
     });
     for (const companion of site.companions) {
       const point = mainlandWorkSitePoint(site, companion.local[0], companion.local[1]);
-      const road = WorldLayout.nearestRouteDistance(point.x, point.z);
-      if (WorldLayout.isWater(point.x, point.z) || road.distance < road.halfWidth + road.shoulderWidthMeters + 1.6
+      if (WorldLayout.isWater(point.x, point.z) || WorldLayout.roadFootprintSample(point.x, point.z).coverageSignedDistance > -1.6
         || WorldLayout.terrainNormalY(point.x, point.z) < 0.9) continue;
       placements.push(authored(`worksite.${site.id}.${companion.key}`, companion.assetId, point.x, point.z,
         site.rotationY + companion.rotationY));
@@ -495,9 +490,8 @@ function mainlandRouteLandmarks(): EnvironmentAssetPlacement[] {
     const setback = junction.radiusMeters + junction.blendLengthMeters + (passing ? 2.2 : 1.4);
     const x = junction.center.x + Math.cos(heading) * setback;
     const z = junction.center.z + Math.sin(heading) * setback;
-    const nearest = WorldLayout.nearestRouteDistance(x, z);
     if (!inMainlandDressingArea(x, z) || !workingSpaceIsClear(x, z, passing ? 3 : 2)
-      || nearest.distance < nearest.halfWidth + nearest.shoulderWidthMeters + 0.8
+      || WorldLayout.roadFootprintSample(x, z).coverageSignedDistance > -0.8
       || WorldLayout.isWater(x, z) || WorldLayout.terrainNormalY(x, z) < 0.9) continue;
     const facing = Math.atan2(junction.center.x - x, junction.center.z - z);
     const key = junction.id.replace(/[^a-z0-9]+/gi, "-");
@@ -524,12 +518,20 @@ function mainlandRouteLandmarks(): EnvironmentAssetPlacement[] {
         const clear = (point: { x: number; z: number }) => Math.hypot(point.x - sample.point.x, point.z - sample.point.z) > 25;
         if (!WorldLayout.routeJunctions().every(junction => clear(junction.center)) || !culverts.every(crossing => clear(crossing.point))) continue;
         for (const side of [-1, 1]) {
-          const setback = route.halfWidth + route.shoulderWidthMeters + 0.9;
-          const x = sample.point.x + sample.normal.x * setback * side;
-          const z = sample.point.z + sample.normal.z * setback * side;
-          const nearest = WorldLayout.nearestRouteDistance(x, z);
+          let setback = route.halfWidth + route.shoulderWidthMeters + 0.9;
+          let x = sample.point.x + sample.normal.x * setback * side;
+          let z = sample.point.z + sample.normal.z * setback * side;
+          let roadDistance = WorldLayout.roadFootprintSample(x, z).coverageSignedDistance;
+          // Keep the authored stage and side, moving only far enough along its
+          // normal to clear the resolved shoulder rather than dropping the stone.
+          for (let attempt = 0; attempt < 8 && roadDistance >= -0.5; attempt++) {
+            setback += Math.max(0.25, roadDistance + 0.55);
+            x = sample.point.x + sample.normal.x * setback * side;
+            z = sample.point.z + sample.normal.z * setback * side;
+            roadDistance = WorldLayout.roadFootprintSample(x, z).coverageSignedDistance;
+          }
           if (!inMainlandDressingArea(x, z) || WorldLayout.isWater(x, z) || !workingSpaceIsClear(x, z, 1.5)
-            || nearest.distance < nearest.halfWidth + nearest.shoulderWidthMeters + 0.5 || WorldLayout.terrainNormalY(x, z) < 0.9) continue;
+            || roadDistance >= -0.5 || WorldLayout.terrainNormalY(x, z) < 0.9) continue;
           placements.push(authored(`milestone.${route.route.id}.${Math.round(stage)}`, "prop_milestone_a", x, z,
             Math.atan2(-sample.normal.x * side, -sample.normal.z * side)));
           break search;
@@ -636,8 +638,7 @@ export function* mainlandStructuralPlacementSteps(worldSeed: number): Generator<
             : 0.82 + scaleRoll * 0.7;
         const margin = spec.category === "tree" ? 2.8 * scale : spec.category === "rock" ? 1.8 * scale : 0.7;
         if (!workingSpaceIsClear(x, z, margin) || sample.route.clearance > 0.015) continue;
-        const route = WorldLayout.nearestRouteDistance(x, z);
-        if (route.distance <= route.halfWidth + route.shoulderWidthMeters + margin) continue;
+        if (WorldLayout.roadFootprintSample(x, z).coverageSignedDistance >= -margin) continue;
         const normalY = WorldLayout.terrainNormalY(x, z);
         if (normalY < (spec.category === "rock" ? 0.7 : spec.category === "reed" ? 0.86 : 0.81)) continue;
         const height = WorldLayout.terrainHeight(x, z);

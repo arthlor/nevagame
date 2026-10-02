@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { cloudShadowUniforms, CLOUD_SHADOW_RECEIVER_GLSL } from "./CloudShadows";
 import { aerialPerspectiveUniforms, AERIAL_PERSPECTIVE_GLSL } from "./AerialPerspective";
 import { applyRainSurface } from "../materials/RainSurfaceMaterial";
+import { installSkyMaterialReflections } from "./SkyMaterialReflections";
 
 const patched = new WeakSet<THREE.Material>();
 
@@ -10,6 +11,7 @@ export function applyWorldAtmosphere(
   material: THREE.MeshStandardMaterial,
   options: { rainSurface?: boolean } = {}
 ): void {
+  installSkyMaterialReflections(material);
   if (patched.has(material)) return;
   patched.add(material);
   if (options.rainSurface !== false) applyRainSurface(material);
@@ -41,14 +43,18 @@ export function applyWorldAtmosphere(
         .replace("#include <fog_fragment>", "");
     }
     const anchor = "getDirectionalLightInfo( directionalLight, directLight );";
+    const sunAnchor = "getSunLightInfo( sunLight, directLight );";
     const lights = THREE.ShaderChunk.lights_fragment_begin;
-    if (!lights.includes(anchor) || !shader.fragmentShader.includes("#include <lights_fragment_begin>")) {
+    if (!lights.includes(anchor) || !lights.includes(sunAnchor) || !shader.fragmentShader.includes("#include <lights_fragment_begin>")) {
       throw new Error("[CloudShadows] Directional lighting shader contract changed");
     }
     shader.fragmentShader = shader.fragmentShader.replace("#include <lights_fragment_begin>", lights.replace(anchor, `${anchor}
       #ifdef USE_FOG
       directLight.color *= mix(1.0, nevaCloudSunlight(vNevaCloudWorldPosition),
         step(0.999, dot(directionalLight.direction, normalize((viewMatrix * vec4(nevaCloudSunDirection, 0.0)).xyz))));
+      #endif`).replace(sunAnchor, `${sunAnchor}
+      #ifdef USE_FOG
+      directLight.color *= nevaCloudSunlight(vNevaCloudWorldPosition);
       #endif`));
   };
   material.customProgramCacheKey = () => `${key}:world-atmosphere-v1`;

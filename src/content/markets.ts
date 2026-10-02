@@ -45,7 +45,7 @@ export const MARKETS: Record<string, MarketDefinition> = {
     name: "Village Produce Market",
     acceptsFishTradePacks: true,
     regionId: "region.village",
-    description: "The bustling trade center for agriculture and daily staples. It also buys hand-carried fish trade packs brought inland from the boats.",
+    description: "Seeds and workshop supplies for the farm. Sell harvests and hand-carried fish packs here.",
     interactionPosition: {
       x: VILLAGE_MARKET.position.x,
       z: VILLAGE_MARKET.position.z,
@@ -121,7 +121,7 @@ export const MARKETS: Record<string, MarketDefinition> = {
     id: "market.harbor",
     name: "Harbor Fish Market & Wholesaler",
     regionId: "region.harbor",
-    description: "A wharf-side stall for tackle, supplies, and ordinary fish goods. Carry physical catches to Neva Village, Pinewatch, Reedhaven or Highridge to sell them as trade packs.",
+    description: "Tackle, ice and voyage supplies. Hand in harbor orders here; sell other fish packs at village counters.",
     interactionPosition: {
       x: WorldLayout.landmark("fish-market").x,
       z: WorldLayout.landmark("fish-market").z,
@@ -175,7 +175,7 @@ export const MARKETS: Record<string, MarketDefinition> = {
     id: "market.sunreach_cove",
     name: "Sunreach Cove Market",
     regionId: "region.sunreach_cove",
-    description: "A compact cove market trading terrace harvests, reef catch, and voyage supplies.",
+    description: "Terrace seeds, heavy tackle and voyage supplies. Buys local harvests and hand-carried catches.",
     interactionPosition: {
       x: WORLD_MARKET_LOCATIONS["market.sunreach_cove"].position.x,
       z: WORLD_MARKET_LOCATIONS["market.sunreach_cove"].position.z,
@@ -237,7 +237,7 @@ Object.assign(MARKETS, {
     name: "Pinewatch Timber & Trade",
     routeHint: "Woodland road or sheltered cove",
     regionId: "region.pinewatch",
-    description: "The forest village supplies timber and cloth. Its kitchens need field produce and fresh fish; the cove landing offers a shorter return than the woodland road.",
+    description: "Timber and cloth by the woodland road. Bring field produce and fish; the cove landing offers another route.",
     acceptsFishTradePacks: true,
     interactionPosition: mainlandMarketPosition("market.pinewatch"),
     retail: {
@@ -268,7 +268,7 @@ Object.assign(MARKETS, {
     name: "Reedhaven Marsh Exchange",
     routeHint: "Raised marsh road or cove landing",
     regionId: "region.reedhaven",
-    description: "Reedhaven keeps the marsh landing supplied with bait and ice. Grain, orchard fruit and seafish find buyers among its reed beds and fishing cottages.",
+    description: "Bait, ice and fuel beside the marsh landing. Buyers take grain, orchard fruit and fish.",
     acceptsFishTradePacks: true,
     interactionPosition: mainlandMarketPosition("market.reedhaven"),
     retail: {
@@ -305,7 +305,7 @@ Object.assign(MARKETS, {
     name: "Highridge Provisions",
     routeHint: "Mountain road; no boat landing",
     regionId: "region.highridge",
-    description: "Above the cove, the mountain village trades root crops and workshop supplies. Fresh seafood earns its place after the climb; the road is the only way to this counter.",
+    description: "Root-crop seeds and workshop supplies above the cove. Bring seafood by road; there is no boat landing.",
     acceptsFishTradePacks: true,
     interactionPosition: mainlandMarketPosition("market.highridge"),
     retail: {

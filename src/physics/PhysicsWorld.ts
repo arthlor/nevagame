@@ -423,8 +423,7 @@ export class PhysicsWorld implements PhysicsAdapter {
       rapier.ColliderDesc.trimesh(road.vertices, road.indices).setFriction(0.9)
     );
     this.ingestStaticCollision(staticCollision);
-    this.world.updateSceneQueries();
-    this.sceneQueriesDirty = false;
+    this.refreshSceneQueries();
   }
 
   private ensurePlayerColliderProfile(mounted: boolean): void {
@@ -443,8 +442,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     );
     if (mounted) this.controller.enableSnapToGround(MOUNT_GROUND_SNAP_METERS);
     else this.controller.enableSnapToGround(PLAYER_GROUND_SNAP_METERS);
-    this.world.updateSceneQueries();
-    this.sceneQueriesDirty = false;
+    this.refreshSceneQueries();
   }
 
   private static runtime: Promise<typeof RAPIER> | null = null;
@@ -485,8 +483,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     this.staticPropBodies.length = 0;
     this.ingestStaticCollision(proxies);
     this.dynamicBodyCountStale = true;
-    this.world.updateSceneQueries();
-    this.sceneQueriesDirty = false;
+    this.refreshSceneQueries();
   }
 
   private ingestStaticCollision(proxies: readonly StaticCollisionProxy[]): void {
@@ -545,7 +542,7 @@ export class PhysicsWorld implements PhysicsAdapter {
         handle: collider.handle, id: identify(collider), distance,
         position: { ...collider.translation() }, rotation: { ...collider.rotation() },
         shape: kind === this.rapier.ShapeType.Cuboid
-          ? { kind: "box", halfExtents: { ...collider.halfExtents() } }
+          ? { kind: "box", halfExtents: { ...collider.halfExtents()! } }
           : { kind: "capsule", radius: collider.radius(), halfHeight: collider.halfHeight() }
       });
     });
@@ -608,8 +605,11 @@ export class PhysicsWorld implements PhysicsAdapter {
       z: 0,
       w: Math.cos(normHeading / 2)
     };
+    // Simulation supplies every hull pose. Treat it as a query obstacle so the
+    // character controller cannot apply moving-platform friction to a nearby
+    // on-foot capsule before reporting the actual hull collision.
     const body = this.world.createRigidBody(
-      this.rapier.RigidBodyDesc.kinematicPositionBased()
+      this.rapier.RigidBodyDesc.fixed()
         .setTranslation(x, y, z)
         .setRotation(rotation)
         .setCanSleep(false)
@@ -1278,7 +1278,7 @@ export class PhysicsWorld implements PhysicsAdapter {
     const worldX = current.x - translation.x, worldZ = current.z - translation.z;
     const localX = worldX * cos - worldZ * sin;
     const localZ = worldX * sin + worldZ * cos;
-    const halfExtents = blocking.halfExtents();
+    const halfExtents = blocking.halfExtents()!;
     const pushLocalX = halfExtents.x - Math.abs(localX) + MOUNT_CAPSULE_RADIUS_METERS;
     const pushLocalZ = halfExtents.z - Math.abs(localZ) + MOUNT_CAPSULE_RADIUS_METERS;
     let pushX = 0, pushZ = 0;
@@ -1353,6 +1353,40 @@ export class PhysicsWorld implements PhysicsAdapter {
     if (Math.hypot(bodyPosition.x - boat.x, bodyPosition.z - boat.z) > 1.5) {
       physics.headingRadians = boat.headingRadians;
       physics.speed = boat.speed;
+    }
+
+    if (boat.isDocked) {
+      physics.speed = 0;
+      physics.headingRadians = boat.headingRadians;
+      const parkedRotation = {
+        x: 0,
+        y: Math.sin(boat.headingRadians / 2),
+        z: 0,
+        w: Math.cos(boat.headingRadians / 2)
+      };
+      physics.body.setTranslation({ x: boat.x, y: water.height, z: boat.z }, true);
+      physics.body.setRotation(parkedRotation, true);
+      this.sceneQueriesDirty = true;
+      return {
+        pose: {
+          x: boat.x,
+          y: boat.y,
+          z: boat.z,
+          headingRadians: boat.headingRadians,
+          speed: 0
+        },
+        motion: {
+          velocity: { x: 0, y: 0, z: 0 },
+          accelerationMetersPerSecondSquared: 0,
+          yawRateRadiansPerSecond: 0,
+          throttle: 0,
+          steering: 0,
+          controlEffort: 0,
+          roughnessResponse: 0,
+          isCollisionBlocked: false,
+          contactStrength: 0
+        }
+      };
     }
 
     const previousHeadingRadians = physics.headingRadians;
@@ -1930,8 +1964,7 @@ export class PhysicsWorld implements PhysicsAdapter {
         this.parkedCarriageBodies.push(body);
       }
       this.dynamicBodyCountStale = true;
-      this.world.updateSceneQueries();
-      this.sceneQueriesDirty = false;
+      this.refreshSceneQueries();
     }
 
     let mountGaitStep: MountGaitStepResult | null = null;
@@ -2119,20 +2152,27 @@ export class PhysicsWorld implements PhysicsAdapter {
     return false;
   }
 
+  /** Rapier's shared broad phase is refreshed by its pipeline, not a separate query tree. */
+  private refreshSceneQueries(): void {
+    this.world.propagateModifiedBodyPositionsToColliders();
+    // This adapter's scene is fixed/kinematic; stepping refreshes collision/query
+    // structures without becoming the owner of canonical time or gameplay poses.
+    this.world.step();
+    this.sceneQueriesDirty = false;
+  }
+
   /** Hull casts and nearby character movement consume accumulated hull motion. */
   private ensureSceneQueries(): void {
     if (!this.sceneQueriesDirty) return;
-    this.world.updateSceneQueries();
-    this.sceneQueriesDirty = false;
+    this.refreshSceneQueries();
   }
 
   /**
    * The world holds only fixed and kinematic-position-based bodies, so
-   * `world.step()` integrates nothing: the character controller runs its own
-   * queries and no contact events are consumed. Stepping still pays for the full
-   * broad and narrow phase every frame, which is the harbor's most expensive
-   * physics cost once the pier props are ingested. The count is recomputed
-   * rather than assumed so that adding a genuine dynamic body re-enables the
+   * the character controller runs its own queries and no contact events are
+   * consumed. The shared broad phase is refreshed when query obstacles change;
+   * a full pipeline step is otherwise unnecessary on every frame. The count is
+   * recomputed rather than assumed so adding a genuine dynamic body re-enables the
    * pipeline without anyone remembering this gate exists.
    */
   private shouldStepDynamics(): boolean {

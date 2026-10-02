@@ -49,14 +49,13 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
             <h2 id="expedition-title" className="modal-heading-with-mark">
               <IconExpedition size={19} aria-hidden="true" /> {isTr ? "Sefer Panosu" : "Expedition board"}
             </h2>
-            <span className="expedition-subtitle">{isTr ? "Duyurulan seferler ve gereken hazırlıklar" : "Posted opportunities and what you still need"}</span>
           </div>
           <ChromeClose onClick={onClose} label={isTr ? "Sefer panosunu kapat" : "Close expedition board"} />
         </header>
 
         <details className="expedition-readiness-disclosure">
           <summary className="expedition-readiness-summary">
-            <strong>{isTr ? "Sefer hazırlığı" : "Trip readiness"}</strong>
+            <strong>{isTr ? "Hazırlık" : "Readiness"}</strong>
             <span>
               {readiness.vessel
                 ? isTr
@@ -67,8 +66,8 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
             <span>{formatWeatherLabel(readiness.weatherType)} · {line(readiness.seaLabel)}</span>
             <span>
               {isTr
-                ? `${availableSupplyKinds} erzak türü mevcut`
-                : `${availableSupplyKinds} ${availableSupplyKinds === 1 ? "supply type" : "supply types"} available`}
+                ? `${availableSupplyKinds} erzak türü`
+                : `${availableSupplyKinds} ${availableSupplyKinds === 1 ? "supply type" : "supply types"}`}
             </span>
           </summary>
           <div className="expedition-readiness-strip" role="group" aria-label={isTr ? "Mevcut hazırlık detayları" : "Current readiness details"}>
@@ -127,17 +126,12 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
                 aria-controls="expedition-opportunity-details"
                 onClick={() => setSelectedId(opportunity.id)}
               >
-                <span className="expedition-notice-tone">
-                  {isTr
-                    ? (opportunity.tone === "steady" ? "Durgun" : "Cesur")
-                    : (opportunity.tone === "steady" ? "Steady" : "Bold")}
-                </span>
                 <strong>{line(opportunity.title.replace(/^(Steady|Bold):\s*/, ""))}</strong>
                 <span>{line(opportunity.destination)}</span>
                 <span className={opportunity.ready ? "is-ready" : "is-blocked"}>
                   {opportunity.ready
                     ? (isTr ? "Hazır" : "Ready")
-                    : (isTr ? `${opportunity.blockers.length} eksik var` : `${opportunity.blockers.length} to resolve`)}
+                    : (isTr ? `${opportunity.blockers.length} eksik` : `${opportunity.blockers.length} to resolve`)}
                 </span>
               </button>
             ))}
@@ -148,11 +142,6 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
               <>
                 <div className="expedition-selected-heading" aria-live="polite" aria-atomic="true">
                   <div>
-                    <span>
-                      {isTr
-                        ? (selected.tone === "steady" ? "Durgun sefer" : "Cesur sefer")
-                        : (selected.tone === "steady" ? "Steady opportunity" : "Bold opportunity")}
-                    </span>
                     <h3>{line(selected.title.replace(/^(Steady|Bold):\s*/, ""))}</h3>
                   </div>
                   <strong className={selected.ready ? "is-ready" : "is-blocked"}>
@@ -166,17 +155,15 @@ export const ExpeditionBoard: React.FC<ExpeditionBoardProps> = ({ board, onClose
                   <div><dt>{isTr ? "Kazanç" : "Return"}</dt><dd>{line(selected.valueLabel)}</dd></div>
                   {selected.deadlineLabel && <div><dt>{isTr ? "Süre" : "Deadline"}</dt><dd>{line(selected.deadlineLabel)}</dd></div>}
                 </dl>
-                {selected.ready ? (
-                  <p className="expedition-ready-note">{isTr ? "Bu duyuru için tüm gereksinimler sağlandı." : "All requirements for this notice are met."}</p>
-                ) : (
+                {!selected.ready && (
                   <div className="expedition-blockers">
-                    <h4><IconWarning size={15} aria-hidden="true" /> {isTr ? "Giderilmesi gerekenler" : "Resolve in order"}</h4>
+                    <h4><IconWarning size={15} aria-hidden="true" /> {isTr ? "Gerekenler" : "Before you go"}</h4>
                     <ol>{selected.blockers.map((blocker) => <li key={blocker}>{line(blocker)}</li>)}</ol>
                   </div>
                 )}
               </>
             ) : (
-              <p className="expedition-empty">{isTr ? "Şu anda duyurulmuş bir sefer yok." : "No opportunity is posted right now."}</p>
+              <p className="expedition-empty">{isTr ? "Henüz sefer yok." : "No trips posted."}</p>
             )}
           </section>
         </div>

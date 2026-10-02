@@ -1,10 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { LogisticsLedgerModal } from "../../src/ui/components/LogisticsLedgerModal";
 import type { HoldStoresDto } from "../../src/simulation/core/contracts";
+import { localeStore } from "../../src/i18n/localeStore";
+import { TR_ITEMS } from "../../src/i18n/locales/tr/items";
+
+afterEach(() => localeStore.set("en"));
 
 const stores: HoldStoresDto = {
   satchel: { occupiedSlots: 3, totalSlots: 20 },
@@ -56,7 +60,52 @@ const render = (over: Partial<React.ComponentProps<typeof LogisticsLedgerModal>>
     React.createElement(LogisticsLedgerModal, { stores, onClose: () => {}, ...over })
   );
 
+const carriedCatch: NonNullable<HoldStoresDto["carriedCatch"]> = {
+  kind: "fish", cargoId: "cargo.test", speciesId: "fish.trout", name: "Rainbow Trout",
+  weightKg: 4, quality: "fine", freshnessPercent: 87, freshnessTone: "fresh",
+  cargoClass: "medium", carrySpeedPenaltyPercent: 0
+};
+
 describe("Milestone M4 — Hold & Stores transfer (R6.2)", () => {
+  it("does not offer cargo commands without a handler", () => {
+    const html = render({ stores: { ...stores, carriedCatch } });
+    expect(html).not.toContain("Stow in hold");
+    expect(html).not.toContain("Hang on hook");
+    expect(html).toContain("Rainbow Trout");
+  });
+
+  it("offers only physical placements and keeps simulation eligibility", () => {
+    const html = render({ stores: { ...stores, carriedCatch }, onStowCatch: () => ({ success: true }) });
+    expect(html).toContain("Stow in hold");
+    expect(html).not.toContain("Hang on hook");
+    const hookedVessel = { ...stores.vessels[0], cargoSlots: [{ slotNumber: 1, kind: "hook" as const, cargo: null }], stowCarried: { hold: false, hook: false } };
+    const blocked = render({ stores: { ...stores, carriedCatch, vessels: [hookedVessel] }, onStowCatch: () => ({ success: true }) });
+    expect(blocked).not.toContain("Stow in hold");
+    expect(blocked).toMatch(/<button[^>]*disabled[^>]*>Hang on hook/);
+    expect(blocked).toContain('aria-label="Empty transom hook 1"');
+    expect(blocked).not.toContain("Empty hold slot 1");
+  });
+
+  it("identifies occupied hooks without changing cargo measurements", () => {
+    const vessel = { ...stores.vessels[0], cargoSlots: [{ slotNumber: 2, kind: "hook" as const, cargo: carriedCatch }] };
+    const html = render({ stores: { ...stores, vessels: [vessel] } });
+    expect(html).toContain('aria-label="Rainbow Trout, 4.0 kg, 87% freshness, Hook"');
+  });
+
+  it("localizes supplies, transfer names, vessel status and facility names", () => {
+    localeStore.set("tr");
+    const html = render({ onTransfer: () => ({ success: true }) });
+    expect(html).toContain(`Yükle 6 ${TR_ITEMS["item.bait_worms"].name}`);
+    expect(html).toContain(TR_ITEMS["item.boat_fuel"].name);
+    expect(html).toContain("Çiftlik Sandığı");
+    expect(html).toContain("Liman Soğuk Odası");
+    expect(html).toContain("Bağlı");
+    expect(html).toContain("Denizcilik loncası beratı gerekli");
+    expect(html).not.toContain("Requires the maritime guild charter");
+    expect(html).not.toContain("Bait Worms");
+    expect(stores.satchelStock[0].name).toBe("Bait Worms");
+  });
+
   it("stays read-only when the host offers no transfer handler", () => {
     const html = render();
     expect(html).not.toContain("ledger-transfer-");

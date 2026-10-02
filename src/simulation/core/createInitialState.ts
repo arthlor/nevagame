@@ -172,7 +172,8 @@ export function createInitialGameState(worldSeed: number = NEW_GAME_WORLD_SEED):
         earningsDay: 0,
         mealsToday: 0,
         laborUsedToday: [],
-        passiveRegenSeconds: 0
+        passiveRegenSeconds: 0,
+        offlineRegenSeconds: 0
       },
       proficiencies: {
         farming: 0,

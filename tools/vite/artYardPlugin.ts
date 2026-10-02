@@ -62,19 +62,24 @@ function resolveSource(rootDirectory: string, requestedStage: string | null, cat
   name: string;
   report: Record<string, unknown> | null;
 } {
-  if (!requestedStage) {
+  if (!requestedStage || requestedStage === "published") {
     const manifestPath = path.join(rootDirectory, "public/assets/models/asset-manifest.json");
     return { name: "published", report: fs.existsSync(manifestPath) ? readJson(manifestPath) : null };
   }
   if (requestedStage !== "latest" && !STAGE_PATTERN.test(requestedStage)) {
     throw new Error(`Unsafe art yard stage: ${requestedStage}`);
   }
-  const candidate = stageCandidates(rootDirectory).find((entry) =>
-    (requestedStage === "latest" || requestedStage === entry.name) &&
-    catalog.every((asset) => fs.existsSync(path.join(entry.directory, "optimized", asset.file))),
-  );
+  const catalogById = new Map(catalog.map((asset) => [asset.id, asset]));
+  const candidate = stageCandidates(rootDirectory).find((entry) => {
+    if (requestedStage !== "latest" && requestedStage !== entry.name) return false;
+    const selected = reportEntries(entry.report);
+    return selected.length > 0 && selected.every((report) => {
+      const asset = catalogById.get(report.id);
+      return asset !== undefined && fs.existsSync(path.join(entry.directory, "optimized", asset.file));
+    });
+  });
   if (!candidate) {
-    throw new Error(`${requestedStage === "latest" ? "No complete staged run" : `Staged run ${requestedStage} was not found`}`);
+    throw new Error(`${requestedStage === "latest" ? "No valid staged run" : `Staged run ${requestedStage} is unavailable or incomplete`}`);
   }
   return { name: candidate.name, report: candidate.report };
 }
@@ -87,7 +92,7 @@ function generateYardDataPayload(rootDirectory: string, catalogPath: string, sta
     version: 1,
     source: source.name,
     generatedAt: source.report?.generatedAt ?? null,
-    assets: catalog.map((asset) => {
+    assets: catalog.filter((asset) => source.name === "published" || reportById.has(asset.id)).map((asset) => {
       const report = reportById.get(asset.id);
       return {
         id: asset.id,

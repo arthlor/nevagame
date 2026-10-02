@@ -453,7 +453,8 @@
   }
 
   #ui-container .planting-dock {
-    width: min(94vw, 520px);
+    width: max-content;
+    max-width: min(94vw, 520px);
   }
 }
 

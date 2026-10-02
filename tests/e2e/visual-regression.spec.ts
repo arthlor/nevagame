@@ -7,9 +7,9 @@ const GOLD_SCENES = [
   { id: "lighthouse_coast", maxDiffPixels: 300 }
 ] as const;
 
-test.describe("deterministic visual-gold regression", () => {
+test.describe("optional deterministic visual regression", () => {
   for (const scene of GOLD_SCENES) {
-    test(`${scene.id} matches its approved game baseline`, async ({ page }) => {
+    test(`${scene.id} matches its recorded game baseline`, async ({ page }) => {
       const browserErrors: string[] = [];
       page.on("pageerror", (error) => browserErrors.push(`pageerror: ${error.message}`));
       page.on("console", (message) => {

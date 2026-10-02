@@ -49,10 +49,10 @@ describe("Milestone M5 — Pause menu recovery actions (F8.1)", () => {
       .not.toContain('data-testid="pause-emergency-tow"');
   });
 
-  it("reports the autosave state on the harbor log line", () => {
+  it("reports the autosave state beside the save label", () => {
     const sim = new Simulation();
     const html = render(sim);
-    expect(html).toContain("Harbor log");
+    expect(html).toContain("Save");
     expect(html).toMatch(/Last saved|Not saved yet|not being saved/);
   });
 });

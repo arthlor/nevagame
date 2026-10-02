@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
+import { CANONICAL_RENDER_CONFIG } from "../config/VisualRenderConfig";
 import type { ColorFinish } from "../config/GraphicsEffectSettings";
 
 const TONE_MAPPING_DEFINES = new Map<THREE.ToneMapping, string>([
@@ -31,6 +32,9 @@ const FINAL_COLOR_FRAGMENT = /* glsl */`
   uniform sampler2D tDepth;
   uniform sampler2D tAo;
   uniform sampler2D tBloom;
+  uniform sampler2D tSunShafts;
+  uniform float uSunShafts;
+  uniform vec2 uShaftNearFade;
   // x: AO on, y: intensity, z: relative depth tolerance
   uniform vec3 uAo;
   uniform vec2 uAoSize;
@@ -102,6 +106,12 @@ const FINAL_COLOR_FRAGMENT = /* glsl */`
     if (uAo.x > 0.5) color.rgb *= mix(1.0, reconstructAo(vUv), uAo.y);
     // Bloom joins the linear HDR scene, so the single tone map rolls it off.
     if (uBloomStrength > 0.0) color.rgb += texture2D(tBloom, vUv).rgb * uBloomStrength;
+    // Full-resolution depth suppresses scatter over nearby actors/interiors;
+    // the low-resolution light field cannot soften their silhouettes.
+    if (uSunShafts > 0.5) {
+      float distance = viewDistance(texture2D(tDepth, vUv).r);
+      color.rgb += texture2D(tSunShafts, vUv).rgb * smoothstep(uShaftNearFade.x, uShaftNearFade.y, distance);
+    }
     gl_FragColor = color;
 
     #ifdef LINEAR_TONE_MAPPING
@@ -136,6 +146,7 @@ export interface FinalColorInputs {
   aoSize: { width: number; height: number };
   aoIntensity: number;
   aoEdgeTolerance: number;
+  sunShafts: THREE.Texture | null;
   bloom: THREE.Texture | null;
   bloomStrength: number;
   finish: Readonly<ColorFinish> | null;
@@ -143,7 +154,7 @@ export interface FinalColorInputs {
 
 /**
  * The enhanced path's single output conversion: AO composite, optional HDR
- * bloom, exposure, the renderer's tone map, an optional colour finish and the
+ * bloom and sunlight, exposure, the renderer's tone map, an optional colour finish and the
  * sRGB transfer, in that order and exactly once. Its tone-map and colour-space
  * defines follow the renderer, as `OutputPass` does; every optional term is a
  * uniform branch, so toggling an effect never recompiles this program.
@@ -162,6 +173,12 @@ export class FinalColorPass {
         tDepth: { value: null },
         tAo: { value: null },
         tBloom: { value: null },
+        tSunShafts: { value: null },
+        uSunShafts: { value: 0 },
+        uShaftNearFade: { value: new THREE.Vector2(
+          CANONICAL_RENDER_CONFIG.atmosphere.aerialPerspective.nearFadeStartMeters,
+          CANONICAL_RENDER_CONFIG.atmosphere.aerialPerspective.nearFadeEndMeters
+        ) },
         toneMappingExposure: { value: 1 },
         uAo: { value: new THREE.Vector3() },
         uAoSize: { value: new THREE.Vector2(1, 1) },
@@ -200,6 +217,8 @@ export class FinalColorPass {
     uniforms.tAo.value = ao;
     (uniforms.uAo.value as THREE.Vector3).set(ao && inputs.aoIntensity > 0 ? 1 : 0, inputs.aoIntensity, inputs.aoEdgeTolerance);
     (uniforms.uAoSize.value as THREE.Vector2).set(inputs.aoSize.width, inputs.aoSize.height);
+    uniforms.tSunShafts.value = inputs.sunShafts;
+    uniforms.uSunShafts.value = inputs.sunShafts ? 1 : 0;
     uniforms.tBloom.value = inputs.bloom;
     uniforms.uBloomStrength.value = inputs.bloom ? inputs.bloomStrength : 0;
     const finish = inputs.finish;

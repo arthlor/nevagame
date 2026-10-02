@@ -1,7 +1,7 @@
 import type { DomainContext } from "./DomainContext";
 import { assessInteractionReach } from "../../world/InteractionReach";
 import type { ProgressionDomain } from "./ProgressionDomain";
-import { LABOR_STATIONS, laborStationAt } from "../labor/LaborStations";
+import { LABOR_STATIONS, laborStationAt, type LaborStationDefinition } from "../labor/LaborStations";
 import type { InteractionResult, LaborHudDto, LaborStationDto } from "../core/contracts";
 
 export interface LaborMinigameRuntime {
@@ -12,6 +12,16 @@ export interface LaborMinigameRuntime {
 
 const DEFAULT_METER_SPEED = 1.15;
 const GOOD_BAND_PADDING = 0.1;
+
+function timingGradeFor(station: LaborStationDefinition, meter: number): LaborHudDto["timingGrade"] {
+  if (meter >= station.targetMin && meter <= station.targetMax) return "clean";
+  if (meter >= station.targetMin - GOOD_BAND_PADDING && meter <= station.targetMax + GOOD_BAND_PADDING) return "glancing";
+  return "miss";
+}
+
+function workForGrade(station: LaborStationDefinition, grade: LaborHudDto["timingGrade"]): number {
+  return grade === "miss" ? 0 : Math.max(1, Math.round(station.yield * (grade === "clean" ? 1 : 0.5)));
+}
 
 /**
  * Skill-based Work capture. The meter is a pure function of elapsed real time
@@ -33,8 +43,13 @@ export class LaborDomain {
 
   public inspectHud(): LaborHudDto {
     const active = this.runtime;
+    const daily = this.inspectDailyChores();
     if (!active) {
-      return { active: false, stationId: null, stationName: "", yield: 0, meter: 0, targetMin: 0, targetMax: 0 };
+      return {
+        active: false, stationId: null, stationName: "", yield: 0, glancingYield: 0,
+        meter: 0, targetMin: 0, targetMax: 0, glancingMin: 0, glancingMax: 0,
+        timingGrade: "miss", ...daily
+      };
     }
     const station = laborStationAt(active.stationId);
     return {
@@ -42,6 +57,11 @@ export class LaborDomain {
       stationId: active.stationId,
       stationName: station?.name ?? "Work",
       yield: station?.yield ?? 0,
+      glancingYield: station ? workForGrade(station, "glancing") : 0,
+      glancingMin: Math.max(0, (station?.targetMin ?? 0) - GOOD_BAND_PADDING),
+      glancingMax: Math.min(1, (station?.targetMax ?? 0) + GOOD_BAND_PADDING),
+      timingGrade: station ? timingGradeFor(station, active.meter) : "miss",
+      ...daily,
       meter: active.meter,
       targetMin: station?.targetMin ?? 0,
       targetMax: station?.targetMax ?? 0
@@ -52,6 +72,7 @@ export class LaborDomain {
   public inspectStations(): LaborStationDto[] {
     const player = this.context.state.player;
     const active = this.runtime !== null;
+    const daily = this.inspectDailyChores();
     return Object.values(LABOR_STATIONS).map((station) => {
       const used = this.progression.hasWorkedLaborStation(station.id);
       const blocker = player.carriedFishCargoId
@@ -75,7 +96,8 @@ export class LaborDomain {
         reachMeters: station.reachMeters,
         used,
         available: blocker === null,
-        blocker
+        blocker,
+        ...daily
       };
     });
   }
@@ -137,21 +159,25 @@ export class LaborDomain {
           : "You stepped away from the work"
       };
     }
-    const center = (station.targetMin + station.targetMax) / 2;
-    const halfBand = (station.targetMax - station.targetMin) / 2;
-    const distance = Math.abs(active.meter - center);
-    let fraction = 0;
-    if (distance <= halfBand) fraction = 1;
-    else if (distance <= halfBand + GOOD_BAND_PADDING) fraction = 0.5;
-    if (fraction <= 0) {
+    const grade = timingGradeFor(station, active.meter);
+    if (grade === "miss") {
       return { success: false, reason: "The strike glanced off — line up the swing" };
     }
-    const requested = Math.max(1, Math.round(station.yield * fraction));
+    const requested = workForGrade(station, grade);
     const workBlocker = this.progression.workRoomBlocker(requested);
     if (workBlocker) return { success: false, reason: workBlocker };
     const granted = this.progression.earnWork(requested, station.id);
     if (granted <= 0) return { success: false, reason: "You are full of energy already" };
-    return { success: true, yield: granted, grade: fraction >= 1 ? "clean" : "glancing" };
+    return { success: true, yield: granted, grade };
+  }
+
+  private inspectDailyChores(): Pick<LaborHudDto, "choresRemaining" | "totalChores"> {
+    const used = this.progression.getWorkDailyStatus().laborUsedToday;
+    const stations = Object.values(LABOR_STATIONS);
+    return {
+      choresRemaining: stations.filter((station) => !used.includes(station.id)).length,
+      totalChores: stations.length
+    };
   }
 
   public cancel(): InteractionResult {

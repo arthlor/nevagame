@@ -17,6 +17,8 @@ export interface MobileControlsProps {
   /** On foot with a donkey: offers the same call the H key dispatches. */
   canCallDonkey?: boolean;
   canFishHere?: boolean;
+  /** Concise verb projected from the existing world prompt. */
+  interactionLabel?: string | null;
   activeModal: ActiveModal;
   basicFishingPhase: "charging-cast" | "waiting-bite" | "bite-reaction" | "minigame" | "caught" | "escaped" | "casting" | "waiting" | "bite" | null;
   onSetMoveVector: (vector: VirtualMoveVector) => void;
@@ -47,19 +49,36 @@ const MobileHoldButton: React.FC<HoldControlProps> = ({
   onPress,
   onRelease
 }) => {
+  const [pressed, setPressed] = useState(false);
   const activeRef = useRef(false);
+  const pointerRef = useRef<number | null>(null);
   const releaseRef = useRef(onRelease);
   releaseRef.current = onRelease;
 
-  useEffect(() => () => {
-    if (!activeRef.current) return;
-    activeRef.current = false;
-    releaseRef.current();
+  useEffect(() => {
+    const reset = () => {
+      if (!activeRef.current) return;
+      activeRef.current = false;
+      pointerRef.current = null;
+      setPressed(false);
+      releaseRef.current();
+    };
+    const onVisibilityChange = () => { if (document.visibilityState !== "visible") reset(); };
+    window.addEventListener("blur", reset);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", reset);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      reset();
+    };
   }, []);
 
   const release = (event?: React.PointerEvent<HTMLButtonElement>) => {
     if (!activeRef.current) return;
+    if (event && event.pointerId !== pointerRef.current) return;
     activeRef.current = false;
+    pointerRef.current = null;
+    setPressed(false);
     if (event && event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -69,12 +88,14 @@ const MobileHoldButton: React.FC<HoldControlProps> = ({
   return (
     <button
       type="button"
-      className={`mobile-action-button mobile-action-button--hold ${className}`.trim()}
+      className={`mobile-action-button mobile-action-button--hold ${pressed ? "is-pressed" : ""} ${className}`.trim()}
       onPointerDown={(event) => {
         event.preventDefault();
-        event.currentTarget.setPointerCapture(event.pointerId);
         if (activeRef.current) return;
+        pointerRef.current = event.pointerId;
+        event.currentTarget.setPointerCapture(event.pointerId);
         activeRef.current = true;
+        setPressed(true);
         onPress();
       }}
       onPointerUp={release}
@@ -83,9 +104,26 @@ const MobileHoldButton: React.FC<HoldControlProps> = ({
       onLostPointerCapture={() => {
         if (!activeRef.current) return;
         activeRef.current = false;
+        pointerRef.current = null;
+        setPressed(false);
         onRelease();
       }}
+      onKeyDown={(event) => {
+        if (event.key !== " " && event.key !== "Enter") return;
+        event.preventDefault();
+        if (event.repeat || activeRef.current) return;
+        activeRef.current = true;
+        setPressed(true);
+        onPress();
+      }}
+      onKeyUp={(event) => {
+        if (event.key !== " " && event.key !== "Enter") return;
+        event.preventDefault();
+        release();
+      }}
+      onBlur={() => release()}
       aria-label={label}
+      aria-pressed={pressed}
     >
       <span className="mobile-action-label">{label}</span>
     </button>
@@ -96,18 +134,21 @@ const MobileTapButton: React.FC<{
   label: string;
   className?: string;
   onTap: () => void;
-}> = ({ label, className = "", onTap }) => (
+  selected?: boolean;
+}> = ({ label, className = "", onTap, selected }) => (
   <button
     type="button"
     className={`mobile-action-button ${className}`.trim()}
     onClick={onTap}
     aria-label={label}
+    aria-pressed={selected}
   >
     <span className="mobile-action-label">{label}</span>
   </button>
 );
 
 const KNOB_TRAVEL_RATIO = 0.29;
+const JOYSTICK_DEADZONE = 0.06;
 
 const MobileJoystick: React.FC<{
   onChange: (vector: VirtualMoveVector) => void;
@@ -118,11 +159,24 @@ const MobileJoystick: React.FC<{
   const onChangeRef = useRef(onChange);
   const [vector, setVector] = useState<VirtualMoveVector>({ x: 0, z: 0 });
   const [knobTravel, setKnobTravel] = useState(34);
+  const [isActive, setIsActive] = useState(false);
   onChangeRef.current = onChange;
 
-  useEffect(() => () => {
-    pointerIdRef.current = null;
-    onChangeRef.current({ x: 0, z: 0 });
+  useEffect(() => {
+    const reset = () => {
+      pointerIdRef.current = null;
+      setIsActive(false);
+      setVector({ x: 0, z: 0 });
+      onChangeRef.current({ x: 0, z: 0 });
+    };
+    const onVisibilityChange = () => { if (document.visibilityState !== "visible") reset(); };
+    window.addEventListener("blur", reset);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", reset);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      reset();
+    };
   }, []);
 
   const emit = (next: VirtualMoveVector): void => {
@@ -140,6 +194,10 @@ const MobileJoystick: React.FC<{
     let x = (event.clientX - centerX) / radius;
     let z = (event.clientY - centerY) / radius;
     const length = Math.hypot(x, z);
+    if (length < JOYSTICK_DEADZONE) {
+      emit({ x: 0, z: 0 });
+      return;
+    }
     if (length > 1) {
       x /= length;
       z /= length;
@@ -149,22 +207,26 @@ const MobileJoystick: React.FC<{
 
   const release = (event?: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current === null) return;
+    if (event && pointerIdRef.current !== event.pointerId) return;
     if (event && event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     pointerIdRef.current = null;
+    setIsActive(false);
     emit({ x: 0, z: 0 });
   };
 
   return (
     <div
-      className="mobile-joystick"
+      className={`mobile-joystick ${isActive ? "is-active" : ""}`.trim()}
       role="group"
       aria-label={isTr ? "Hareket kontrol kolu" : "Movement joystick"}
       data-knob-travel={knobTravel.toFixed(1)}
       onPointerDown={(event) => {
         event.preventDefault();
+        if (pointerIdRef.current !== null) return;
         pointerIdRef.current = event.pointerId;
+        setIsActive(true);
         event.currentTarget.setPointerCapture(event.pointerId);
         update(event);
       }}
@@ -179,6 +241,7 @@ const MobileJoystick: React.FC<{
       onLostPointerCapture={() => {
         if (pointerIdRef.current === null) return;
         pointerIdRef.current = null;
+        setIsActive(false);
         emit({ x: 0, z: 0 });
       }}
     >
@@ -223,6 +286,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   mountGaitLabel = null,
   canCallDonkey = false,
   canFishHere = false,
+  interactionLabel = null,
   activeModal,
   basicFishingPhase,
   onSetMoveVector,
@@ -245,6 +309,13 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   // Tracks both steering thumbs so releasing one side never cancels the
   // other while it is still held.
   const steerHeldRef = useRef({ left: false, right: false });
+  const fishingInputRef = useRef(onSetFishingInput);
+  fishingInputRef.current = onSetFishingInput;
+  useEffect(() => {
+    if (mode !== "sport-fishing") return;
+    steerHeldRef.current = { left: false, right: false };
+    fishingInputRef.current({ isReeling: false, isSlacking: false, isBracing: false, rodDirectionAngle: 0 });
+  }, [mode, sportResponse?.action]);
 
   if (!touchDevice || !landscape || orientationBlocked || !bootReady || activeModal) return null;
 
@@ -263,7 +334,9 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
               onRelease={() => onSetFishingInput({ isReeling: false })}
             />
           )}
-          <MobileTapButton label={isTr ? "İptal" : "Cancel"} onTap={() => onVirtualAction("pause")} />
+          {basicFishingPhase !== "caught" && basicFishingPhase !== "escaped" && (
+            <MobileTapButton label={isTr ? "İptal" : "Cancel"} onTap={() => onVirtualAction("pause")} />
+          )}
         </div>
       </div>
     );
@@ -283,8 +356,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
     const holdKey = response === "slack" ? "isSlacking" : response === "brace" ? "isBracing" : "isReeling";
     // Short verb labels: the DTO carries phrases ("Reel it closer", "Pull
     // right") sized for the readout card, and a steer response must never
-    // label the reel hold. Neutral also reels, matching the in-card touch
-    // control's mapping.
+    // label the reel hold. Neutral is the landing window: release all input.
     const holdLabel = response === "slack" ? (isTr ? "Boşluk ver" : "Slack") : response === "brace" ? (isTr ? "Diren" : "Brace") : (isTr ? "Sar" : "Reel");
     const steerMagnitude = Math.abs(sportSteeringMagnitude) > 0 ? Math.abs(sportSteeringMagnitude) : 0.6;
     const applySteer = () => {
@@ -313,21 +385,23 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
               {(["Light", "Balanced", "Heavy"] as const).map((label, notch) => (
                 <MobileTapButton
                   key={label}
-                  label={label === "Light" ? (isTr ? "Hafif" : "Light") : label === "Balanced" ? (isTr ? "Dengeli" : "Balanced") : (isTr ? "Sıkı" : "Heavy")}
+                  label={label === "Light" ? (isTr ? "Hafif" : "Light") : label === "Balanced" ? (isTr ? "Orta" : "Medium") : (isTr ? "Sıkı" : "Heavy")}
                   className={dragNotch === notch ? "is-primary" : ""}
+                  selected={dragNotch === notch}
                   onTap={() => onSetFishingDrag(notch as 0 | 1 | 2)}
                 />
               ))}
             </div>
           )}
-          <div className="mobile-action-row">
+          {response !== "neutral" && <div className="mobile-action-row">
             <MobileHoldButton
+              key={response}
               label={holdLabel}
               className="is-primary mobile-action-button--response"
               onPress={() => onSetFishingInput({ [holdKey]: true } as Partial<FishingInputState>)}
               onRelease={() => onSetFishingInput({ [holdKey]: false } as Partial<FishingInputState>)}
             />
-          </div>
+          </div>}
         </div>
       </div>
     );
@@ -344,13 +418,13 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
       <div className="mobile-action-cluster" aria-label={isTr ? "Dokunmatik eylemler" : "Touch actions"}>
         <div className="mobile-action-row">
           <MobileTapButton
-            label={isPlacement ? (isTr ? "Yerleştir" : "Place") : isBoat ? (isTr ? "Yanaş" : "Dock") : (isTr ? "Etkileşim" : "Interact")}
+            label={isPlacement ? (isTr ? "Yerleştir" : "Place") : interactionLabel ?? (isTr ? "Etkileşim" : "Interact")}
             className="is-primary"
             onTap={() => onVirtualAction("interact")}
           />
           {!isMounted && !isPlacement && (
             <MobileHoldButton
-              label={isAngling ? (isTr ? "Olta At" : "Cast") : (isTr ? "Kullan" : "Use")}
+              label={isAngling ? (isTr ? "Olta At" : "Cast") : (isTr ? "Alet" : "Tool")}
               onPress={() => onVirtualAction("use-primary")}
               onRelease={() => onVirtualAction("use-primary-release")}
             />
@@ -363,11 +437,11 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
           {isPlacement ? (
             <MobileTapButton label={isTr ? "İptal" : "Cancel"} onTap={() => onVirtualAction("use-secondary")} />
           ) : (
-            !isMounted && !isBoat && (
+            !isMounted && (
               <MobileTapButton label={isTr ? "İncele" : "Inspect"} onTap={() => onVirtualAction("use-secondary")} />
             )
           )}
-          {!isBoat && (
+          {!isBoat && !isPlacement && (
             <MobileHoldButton
               label={isMounted && mountGaitLabel
                 ? (isTr ? (mountGaitLabel === "Trot" ? "Tırıs" : "Dörtnala") : mountGaitLabel)
@@ -376,7 +450,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
               onRelease={() => onSetSprint(false)}
             />
           )}
-          {!isBoat && !isMounted && (
+          {!isBoat && !isMounted && !isPlacement && (
             <MobileTapButton label={isTr ? "Zıpla" : "Jump"} onTap={onQueueJump} />
           )}
           {canCallDonkey && !isBoat && !isMounted && !isPlacement && (

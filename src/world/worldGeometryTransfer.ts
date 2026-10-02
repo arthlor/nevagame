@@ -5,7 +5,7 @@ import type { WorldTerrainPatchDefinition } from "./WorldIslands";
 /** One world geometry build a worker can run: a terrain patch or the road overlay. */
 export type WorldGeometryJob =
   | { kind: "terrain"; patchId: WorldTerrainPatchDefinition["id"] }
-  | { kind: "path" };
+  | { kind: "path"; source?: SerializedWorldGeometry };
 
 export interface SerializedWorldGeometry {
   attributes: { name: string; array: THREE.TypedArray; itemSize: number; normalized: boolean }[];
@@ -29,17 +29,27 @@ export function worldGeometryJobKey(job: WorldGeometryJob): string {
  * build, so the geometry is identical; only the scheduling differs.
  */
 export function runWorldGeometryJob(job: WorldGeometryJob, onHeartbeat?: () => void, heartbeatMs = 500): THREE.BufferGeometry {
-  const work = job.kind === "terrain" ? WorldLayout.terrainGeometryWork(job.patchId) : WorldLayout.pathGeometryWork();
-  let beat = performance.now();
-  for (let step = work.next(); ; step = work.next()) {
-    if (step.done) return step.value;
-    if (!onHeartbeat) continue;
-    const now = performance.now();
-    if (now - beat >= heartbeatMs) {
-      onHeartbeat();
-      beat = now;
+  const source = job.kind === "path" && job.source ? deserializeWorldGeometry(job.source) : undefined;
+  try {
+    const work = job.kind === "terrain" ? WorldLayout.terrainGeometryWork(job.patchId) : WorldLayout.pathGeometryWork(source);
+    let beat = performance.now();
+    for (let step = work.next(); ; step = work.next()) {
+      if (step.done) return step.value;
+      if (!onHeartbeat) continue;
+      const now = performance.now();
+      if (now - beat >= heartbeatMs) {
+        onHeartbeat();
+        beat = now;
+      }
     }
-  }
+  } finally { source?.dispose(); }
+}
+
+/** Each owned backing buffer appears once, including shared attribute views. */
+export function worldGeometryTransferBuffers(geometry: SerializedWorldGeometry): ArrayBuffer[] {
+  const buffers = geometry.attributes.map(({ array }) => array.buffer as ArrayBuffer);
+  if (geometry.index) buffers.push(geometry.index.buffer as ArrayBuffer);
+  return [...new Set(buffers)];
 }
 
 /**
@@ -53,17 +63,15 @@ export function serializeWorldGeometry(geometry: THREE.BufferGeometry): { geomet
     || geometry.drawRange.start !== 0 || Number.isFinite(geometry.drawRange.count)) {
     throw new Error("[WorldGeometry] only plain geometries cross the worker boundary");
   }
-  const transfer: ArrayBuffer[] = [];
   const attributes = Object.entries(geometry.attributes).map(([name, attribute]) => {
     if (!(attribute instanceof THREE.BufferAttribute) || attribute instanceof THREE.InstancedBufferAttribute) {
       throw new Error(`[WorldGeometry] attribute ${name} is not a plain buffer attribute`);
     }
-    transfer.push(attribute.array.buffer as ArrayBuffer);
     return { name, array: attribute.array, itemSize: attribute.itemSize, normalized: attribute.normalized };
   });
   const index = geometry.index ? geometry.index.array as Uint16Array | Uint32Array : null;
-  if (index) transfer.push(index.buffer as ArrayBuffer);
-  return { geometry: { attributes, index, userData: structuredClone(geometry.userData) }, transfer };
+  const serialized = { attributes, index, userData: structuredClone(geometry.userData) };
+  return { geometry: serialized, transfer: worldGeometryTransferBuffers(serialized) };
 }
 
 export function deserializeWorldGeometry(serialized: SerializedWorldGeometry): THREE.BufferGeometry {

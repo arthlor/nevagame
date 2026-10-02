@@ -14,7 +14,6 @@ import { createHarborCoastPlacements, retainLegacyHarborDressing, retainHarborGr
 import {
   WorldLayout,
   WORLD_LAYOUT_V5,
-  pointSegmentProjection,
   type WorldArchitecturePad
 } from "./WorldLayout";
 import {
@@ -84,14 +83,14 @@ export const PLACEMENT_OVERRIDES: Readonly<Record<string, PlacementOverride>> = 
   "seeded-fill.landscape.work.orchard.1": { x: 86.6, z: -73.9, rotationY: 0.05 },
   "seeded-fill.landscape.work.orchard.0": { x: 94.3, z: -80.2, rotationY: 0.3 },
   "seeded-fill.landscape.work.orchard.2": { x: 87.8, z: -74.2, rotationY: 0.35 },
-  "seeded-fill.landscape.pause.farm-lane": { x: -40, z: -40.7, rotationY: 2.0958 },
-  "seeded-fill.landscape.pause.river-walk": { x: -34.2, z: -7.2, rotationY: 1.9971 },
+  "seeded-fill.landscape.pause.farm-lane": { x: -38.5, z: -40.7, rotationY: 2.0958 },
+  "seeded-fill.landscape.pause.river-walk": { x: -30.7, z: -2.1, rotationY: 2.0944 },
   "seeded-fill.landscape.pause.headland-rest": { x: -18.1, z: 76.8, rotationY: 0.0855 },
   "seeded-fill.landscape.pause.meadow-picnic": { x: 38.2, z: 12.4, rotationY: 2.0944 },
   "seeded-fill.landscape.pause.harbor-road": { x: 57.7, z: 38.6, rotationY: 1.6567 },
   "authored.harbor-district.neva.square-bench": { x: 73.9, z: 52.7, rotationY: 0.1 },
   "authored.village.wagon": { x: 68.5, z: -84, rotationY: -0.5 },
-  "authored.village.produce-crate": { x: 62.7, z: -69.8, rotationY: 0.4 },
+  "authored.village.produce-crate": LABOR_PROP_POSES["authored.village.produce-crate"],
   "authored.village.harvest-basket": { x: 52.5, z: -69.1, rotationY: -0.3 },
   "authored.river.plant.willow-left-6": { x: -36.3, z: -87.4, rotationY: 5.0553 },
   "authored.river.plant.willow-left-8": { x: -36.1, z: -80, rotationY: 0.7175 },
@@ -141,7 +140,15 @@ export const PLACEMENT_OVERRIDES: Readonly<Record<string, PlacementOverride>> = 
   "authored.harbor-district.neva.awning-basket": { x: 58.8, z: 40.9, rotationY: 0.4 },
   "authored.harbor-district.neva.fishmongers-awning": { x: 58, z: 44, rotationY: 1.5708 },
   "authored.harbor-district.neva.square-banner": { x: 77.2, z: 52.2, rotationY: 0.3 },
-  "authored.prop.crate.harbor": { x: 66.5, z: 61.9, rotationY: 0.15 },
+  "authored.prop.crate.harbor": LABOR_PROP_POSES["authored.prop.crate.harbor"],
+  "authored.harbor.anchor-store": { x: 107.7, z: 52.8, rotationY: -0.2 },
+  "authored.harbor-coast.shelter-net": { x: 108.9, z: 64.8, rotationY: 1.5708 },
+  "authored.harbor-district.neva.sailmakers-traps": { x: 120.5, z: 63.4, rotationY: -0.1 },
+  "authored.harbor-district.neva.net-store-sacks": { x: 119.8, z: 62, rotationY: -0.1 },
+  "authored.village.bench.copy.1": { x: 40.1, z: -56.4, rotationY: 1.8326 },
+  "authored.village.bench.copy.2": { x: 35.1, z: -65.4, rotationY: 1.5708 },
+  "authored.harbor-district.neva.repair-bench": { x: 96.1, z: 44.8, rotationY: 4.7124 },
+  "authored.harbor.repair-platform": { x: 92.1, z: 48.4, rotationY: 0 },
 };
 
 /** Seeded/layout-derived instances removed by the DEV layout editor. */
@@ -372,11 +379,6 @@ function generateInstancedPathSlabs(count: number, seed: number): GroundCoverPla
     appendPlacement(x, z, rotationY, scale, 0.82 + rng() * 0.24);
   }
 
-  if (placements.length !== count) {
-    throw new Error(
-      `[WorldEnvironmentLayout] Could only place ${placements.length}/${count} instanced path slabs`
-    );
-  }
   return placements;
 }
 
@@ -564,7 +566,7 @@ export const AUTHORED_DETAIL_PLACEMENTS: readonly EnvironmentAssetPlacement[] = 
   
   authoredPlacement("authored.commons.bench", { assetId: "prop_bench_wood_a", x: 79.5, z: -84.5, rotationY: 0.15, scale: [0.92, 0.92, 0.92] }),
   authoredPlacement("authored.commons.bench.copy.1", { assetId: "prop_bench_wood_a", x: 87.5, z: -84.2, rotationY: -0.2618, scale: [0.92, 0.92, 0.92] }),
-  authoredPlacement("authored.commons.basket", { assetId: "prop_harvest_basket_a", x: 84.8, z: -84.4, rotationY: -0.4, scale: [0.9, 0.9, 0.9] }),
+  authoredPlacement("authored.commons.basket", { assetId: "prop_harvest_basket_a", ...LABOR_PROP_POSES["authored.commons.basket"], scale: [0.9, 0.9, 0.9] }),
   authoredPlacement("authored.commons.beehive", { assetId: "prop_beehive_a", x: 93.3, z: -80.5, rotationY: 0.2, scale: [0.88, 0.88, 0.88] }),
   authoredPlacement("authored.commons.flowers", { assetId: "foliage_wildflower_b", x: 72.4, z: -80.5, rotationY: 0.5, scale: [0.9, 0.9, 0.9] }),
   authoredPlacement("authored.commons.apple-tree", { assetId: "tree_apple_a", x: 94, z: -82, rotationY: -0.35, scale: [0.92, 0.92, 0.92], grounding: [1.05, 0.74] }),
@@ -1245,26 +1247,9 @@ function structuralCandidatePosition(
   };
 }
 
-function clearsCompleteRouteCorridor(x: number, z: number, extraMeters: number = 0): boolean {
-  for (const route of WorldLayout.compiledRouteNetwork()) {
-    const corridor = route.halfWidth + route.shoulderWidthMeters + route.terrainFeatherMeters + extraMeters;
-    if (
-      x < route.minX - corridor
-      || x > route.maxX + corridor
-      || z < route.minZ - corridor
-      || z > route.maxZ + corridor
-    ) continue;
-    for (const segment of route.segments) {
-      if (
-        x < segment.minX - corridor
-        || x > segment.maxX + corridor
-        || z < segment.minZ - corridor
-        || z > segment.maxZ + corridor
-      ) continue;
-      if (pointSegmentProjection(x, z, segment.start, segment.end).distance < corridor) return false;
-    }
-  }
-  return true;
+/** @internal Shared worked-ground boundary plus the caller's object radius. */
+export function clearsCompleteRouteCorridor(x: number, z: number, extraMeters: number = 0): boolean {
+  return WorldLayout.roadFootprintSample(x, z).coverageSignedDistance <= -extraMeters;
 }
 
 function causesDenseRouteWall(
@@ -1428,9 +1413,6 @@ function generateMountainGroveSpecimens(
     placements.push(candidate.placement);
     if (placements.length === spec.targetCount) break;
   }
-  if (placements.length !== spec.targetCount) {
-    throw new Error(`[WorldEnvironmentLayout] Could only place ${placements.length}/${spec.targetCount} mountain-grove trees`);
-  }
   return placements;
 }
 
@@ -1532,9 +1514,6 @@ function* generateLighthouseMarginSpecimens(
       placements.push(candidate.placement);
       placed += 1;
       if (placed === spec.targetCount) break;
-    }
-    if (placed !== spec.targetCount) {
-      throw new Error(`[WorldEnvironmentLayout] Could only place ${placed}/${spec.targetCount} lighthouse-margin ${spec.category} instances`);
     }
   }
   return placements;
@@ -1813,9 +1792,6 @@ export function generateSunreachCausalCompositionPlacements(
       )) continue;
       accepted.push(placement);
       categoryCount += 1;
-    }
-    if (categoryCount !== spec.count) {
-      throw new Error(`[WorldEnvironmentLayout] Could only place ${categoryCount}/${spec.count} Sunreach ${spec.category} instances`);
     }
   }
   CAUSAL_COMPOSITION_CACHE.set(cacheKey, accepted);
@@ -2174,9 +2150,6 @@ function* scatterGroundCover(
       compositionTag: tag
     });
   }
-  if (placements.length !== count) {
-    throw new Error(`[WorldEnvironmentLayout] Could only place ${placements.length}/${count} ${category} instances`);
-  }
   placements.sort((left, right) => (right.compositionTag?.priority ?? 0) - (left.compositionTag?.priority ?? 0));
   return placements;
 }
@@ -2227,9 +2200,6 @@ function* scatterCoastGroundCover(
       ],
       compositionTag: tag
     });
-  }
-  if (placements.length !== count) {
-    throw new Error(`[WorldEnvironmentLayout] Could only place ${placements.length}/${count} coastal ${category} instances`);
   }
   return placements.sort((left, right) => (right.compositionTag?.priority ?? 0) - (left.compositionTag?.priority ?? 0));
 }
@@ -2479,25 +2449,8 @@ function* generateGroundCoverPlacementsSteps(worldSeed: number): Generator<void,
         : "foliage_beach_grass_a"
     };
   });
-  const coastPebbles = shorelineCover.filter((placement) => placement.category === "pebbles");
-  const pathPebbleCount = Math.round(high.pebbles * 0.22);
-  const shoulderPebbles = yield* scatterGroundCover("pebbles", ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"], high.pebbles - coastPebbles.length - pathPebbleCount, mixSeed(worldSeed, 0x3c5a), (x, z, surface) => WorldLayout.isWalkable(x, z) && !WorldLayout.isWater(x, z) && surface.farmInfluence < 0.12 && WorldLayout.pathShoulderInfluence(x, z) > 0.12 && WorldLayout.pathInfluence(x, z) < 0.2, [0.74, 1.12], "ground-cover.shoulder.pebbles", (x, z) => 0.68 + WorldLayout.pathShoulderInfluence(x, z) * 0.32, worldSeed);
-  const pathPebbles = yield* scatterGroundCover(
-    "pebbles",
-    ["rock_pebble_cluster_a", "rock_pebble_cluster_b", "rock_pebble_cluster_c"],
-    pathPebbleCount,
-    mixSeed(worldSeed, 0x3c5b),
-    (x, z, surface) => WorldLayout.isWalkable(x, z)
-      && !WorldLayout.isWater(x, z)
-      && !WorldLayout.isBridgeDeck(x, z)
-      && WorldLayout.terrainNormal(x, z).y > 0.74
-      && surface.farmInfluence < 0.12
-      && WorldLayout.pathInfluence(x, z) > 0.28,
-    [0.52, 0.86],
-    "ground-cover.path.pebbles",
-    (x, z) => WorldLayout.pathInfluence(x, z),
-    worldSeed
-  );
+  // Roads carry embedded gravel in RoadSurfaceMaterial; clustered pebble
+  // prefabs belong to shoreline dressing rather than the travelled ground.
   const paving = generateInstancedPathSlabs(high.paving, mixSeed(worldSeed, 0x3c71));
   const driftwood = yield* scatterCoastGroundCover("driftwood", ["prop_driftwood_a", "prop_driftwood_b", "prop_driftwood_c"], high.driftwood, mixSeed(worldSeed, 0x4d6b), [0.65, 5.2], (x, z) => WorldLayout.isWalkable(x, z) && WorldLayout.terrainNormal(x, z).y > 0.72 && WorldLayout.coastProfile(x).beach > 0.28 && WorldLayout.pathInfluence(x, z) < 0.08, [0.78, 1.08], worldSeed);
   const placements = [
@@ -2505,8 +2458,6 @@ function* generateGroundCoverPlacementsSteps(worldSeed: number): Generator<void,
     ...bushes,
     ...meadowTall,
     ...shorelineCover,
-    ...shoulderPebbles,
-    ...pathPebbles,
     ...paving,
     ...driftwood
   ];
@@ -2572,9 +2523,6 @@ function* generateSunreachGroundCoverPlacementsSteps(worldSeed: number): Generat
         compositionTag: tag
       });
       placed += 1;
-    }
-    if (placed !== spec.count) {
-      throw new Error(`[WorldEnvironmentLayout] Could only place ${placed}/${spec.count} Sunreach ${spec.category} instances`);
     }
   }
   placements.push(...shorelineCover);

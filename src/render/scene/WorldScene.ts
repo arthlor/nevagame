@@ -27,6 +27,7 @@ import { yieldToTask } from "../../utils/CooperativeTask";
 import * as THREE from "three";
 import { setRainSurfaceWetness } from "../materials/RainSurfaceMaterial";
 import { createSpatialSurfaceBatch } from "./spatialSurfaceBatch";
+import { prepareTerrainPicking, TerrainPicker } from "./TerrainPicking";
 import {
   batchCompatibleMeshes,
   STATIC_BATCH_CHUNK_SIZE_METERS,
@@ -67,6 +68,7 @@ import {
 } from "../lighting/practicalLightBudget";
 import { FacetedWater } from "../water/FacetedWater";
 import { AssetLoader } from "../loaders/AssetLoader";
+import type { TextureLease } from "../loaders/TextureTranscoder";
 import { Simulation } from "../../simulation/Simulation";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { PALETTE_HEX } from "../materials/PaletteTokens";
@@ -77,6 +79,7 @@ import {
   isTerrainDebugMode,
   TerrainSurfaceMaterial
 } from "../materials/TerrainSurfaceMaterial";
+import { ShelterProbeLighting } from "../lighting/ShelterProbeLighting";
 import {
   ASSET_BY_ID,
   ASSET_IDS,
@@ -105,6 +108,7 @@ import {
   starterStructureAnchor
 } from "../../world/FarmLayout";
 import { CropPlacementCursor } from "./CropPlacementCursor";
+import { FarmPlantingGuide } from "./FarmPlantingGuide";
 import { STARTER_DONKEY_ID } from "../../simulation/mounts/Mounts";
 import { effectiveSeaRoughness } from "../../simulation/weather/seaState";
 import { HARBOR_FISH_TABLE, HARBOR_SKIFF_MOORING, VILLAGE_BULLETIN } from "../../world/WorldAnchors";
@@ -257,29 +261,18 @@ export interface WorldRenderDiagnostics {
     budgetBytes: number;
   };
   /** Dual-map shadow compositor state and refresh counters. */
-  shadowAtlas: {
-    enabled: boolean;
-    dimension: number;
-    staticRefreshes: number;
-    dynamicRefreshes: number;
-    combines: number;
-    lastStaticRefreshReason: string | null;
-    staticCasters: number;
-    dynamicCasters: number;
-    committedFocus: { x: number; y: number; z: number } | null;
-    cpu: {
-      frames: number;
-      staticP50Ms: number;
-      dynamicP50Ms: number;
-      combineP50Ms: number;
-      totalP50Ms: number;
-    } | null;
+  shadowAtlas: ReturnType<LightingRig["shadowAtlasDiagnostics"]>;
+  materialAdoption: {
+    shelter: ReturnType<ShelterProbeLighting["diagnostics"]>;
+    practicalGlows: number;
+    nodeGlows: number;
+    surfaceMaps: ReturnType<TerrainSurfaceMaterial["textureDiagnostics"]>;
   };
 }
 
 import { BoatWakePool } from "../water/BoatWakePool";
 import { createBrookSurface } from "../water/BrookSurface";
-import type { WorldGeometryJob } from "../../world/worldGeometryTransfer";
+import { serializeWorldGeometry, type WorldGeometryJob } from "../../world/worldGeometryTransfer";
 import { CropInstanceRenderer, cropStageAsset } from "./CropInstanceRenderer";
 import { WorldGeometryWorkers } from "./WorldGeometryWorkers";
 import {
@@ -803,13 +796,15 @@ function buildQuestBeaconShaftGeometry(): THREE.CylinderGeometry {
 }
 
 export class WorldScene {
+  private readonly shelterLighting: ShelterProbeLighting;
   private static readonly preparedStartupLayouts = new Map<number, WorldEnvironmentLayout>();
   public scene: THREE.Scene;
   public renderer: THREE.WebGLRenderer;
+  private readonly assetTextures: TextureLease;
   public water!: FacetedWater;
   private startupSignal?: AbortSignal;
   private disposed = false;
-  public sunLight: THREE.DirectionalLight;
+  public sunLight: THREE.Light;
   public hemiLight: THREE.HemisphereLight;
   private readonly lightingRig: LightingRig;
   private readonly rendererPipeline: RendererPipeline;
@@ -893,6 +888,7 @@ export class WorldScene {
   }> = [];
   /** Shared by every practical-light glow sprite; built on first use. */
   private practicalGlowTexture: THREE.DataTexture | null = null;
+  private practicalGlowNodes: typeof import("../materials/nodes/PracticalGlowNodes") | null = null;
   private readonly practicalLightFocus = new THREE.Vector3();
   private readonly practicalLightWorld = new THREE.Vector3();
   private readonly practicalLightWorldPositions: THREE.Vector3[] = [];
@@ -947,6 +943,7 @@ export class WorldScene {
   private sportFishingBodyYawInstanceId: string | null = null;
   private latestBoatPresentationInput: BoatPresentationInput | null = null;
   private readonly terrainMeshes: THREE.Mesh[] = [];
+  private readonly terrainPicker = new TerrainPicker();
   private readonly raycaster = new THREE.Raycaster();
   private readonly layoutEditRoots: THREE.Object3D[] = [];
   private layoutEditingEnabled = false;
@@ -971,6 +968,7 @@ export class WorldScene {
   private lastResizeWidth = 0;
   private lastResizeHeight = 0;
   private readonly placementCursor = new CropPlacementCursor();
+  private readonly plantingGuide = new FarmPlantingGuide();
   private readonly interactionFeedback = new THREE.Mesh(
     createInteractionContactGeometry(),
     new THREE.MeshBasicMaterial({
@@ -1125,17 +1123,32 @@ export class WorldScene {
       antialias: true,
       powerPreference: "high-performance"
     });
+    this.assetTextures = AssetLoader.acquireTextures(this.renderer);
     this.renderer.outputColorSpace = CANONICAL_RENDER_CONFIG.outputColorSpace;
     this.renderer.toneMapping = CANONICAL_RENDER_CONFIG.toneMapping;
     this.renderer.toneMappingExposure = CANONICAL_RENDER_CONFIG.exposure;
     this.lightingRig = new LightingRig(this.scene, this.renderer);
+    const interior = FARMHOUSE_INTERIOR_BOUNDS;
+    this.shelterLighting = new ShelterProbeLighting(this.renderer, this.scene, new THREE.Box3(
+      new THREE.Vector3(interior.minX, interior.floorY, interior.minZ),
+      new THREE.Vector3(interior.maxX, interior.ceilingY, interior.maxZ)
+    ), this.qualityTier, run => this.lightingRig.withNativeShadowCapture(run),
+    () => this.atmosphereSky?.materialReflectionTarget()?.texture ?? null);
     this.rendererPipeline = new RendererPipeline(
       this.renderer,
       this.scene,
       CANONICAL_RENDER_CONFIG.qualityTier
     );
-    this.rendererPipeline.onContextRestored(() => this.lightingRig.reattachAfterContextRestore());
+    this.rendererPipeline.onContextRestored(() => {
+      this.shelterLighting.reset();
+      this.lightingRig.reattachAfterContextRestore();
+      if (this.practicalGlowNodes) {
+        this.practicalGlowNodes.attachPracticalGlowNodes(this.renderer);
+        this.convertPracticalGlowNodes();
+      }
+    });
     this.sunLight = this.lightingRig.sun;
+    this.rendererPipeline.bindShelter(this.shelterLighting);
     this.hemiLight = this.lightingRig.skyFill;
 
     // 3. Build World Geometry
@@ -1240,8 +1253,8 @@ export class WorldScene {
 
   private async initializeWorldGeometry(onProgress?: () => void): Promise<void> {
     await Promise.all([
-      this.terrainSurfaceMaterial.loadExternalTextures(),
-      this.roadSurfaceMaterial.loadExternalTextures()
+      this.terrainSurfaceMaterial.loadExternalTextures(this.assetTextures),
+      this.roadSurfaceMaterial.loadExternalTextures(this.assetTextures)
     ]);
     await this.initializeWater();
     onProgress?.();
@@ -1250,6 +1263,7 @@ export class WorldScene {
     await yieldToTask(this.startupSignal);
     this.checkAlive();
     this.scene.add(this.placementCursor.group);
+    this.scene.add(this.plantingGuide.group);
     this.buildStarterFarmDetails();
     await yieldToTask(this.startupSignal);
     this.checkAlive();
@@ -1426,8 +1440,14 @@ export class WorldScene {
   public beginWorldGeometry(signal?: AbortSignal): void {
     if (this.worldGeometryWorkers || !WorldGeometryWorkers.supported()) return;
     const patches = [...WorldLayout.terrainPatches()].sort((left, right) => right.resolution - left.resolution);
+    // Entry prepares exact road support before saves/simulation can use it.
+    // Transfer an owned clone so the worker only adds render data to that mesh.
+    const preparedPath = WorldLayout.preparedPathGeometrySource();
+    const pathJob: WorldGeometryJob = preparedPath
+      ? { kind: "path", source: serializeWorldGeometry(preparedPath).geometry } : { kind: "path" };
+    preparedPath?.dispose();
     // Longest first: the road overlay, then the patches by vertex count.
-    const jobs: WorldGeometryJob[] = [{ kind: "path" }, ...patches.map((patch) => ({ kind: "terrain" as const, patchId: patch.id }))];
+    const jobs: WorldGeometryJob[] = [pathJob, ...patches.map((patch) => ({ kind: "terrain" as const, patchId: patch.id }))];
     this.worldGeometryWorkers = new WorldGeometryWorkers(jobs, WorldGeometryWorkers.defaultConcurrency(), signal);
   }
 
@@ -1467,6 +1487,7 @@ export class WorldScene {
         : `world_terrain_${patch.islandId.slice("island.".length)}`;
       layoutTerrain.userData.islandId = patch.islandId;
       layoutTerrain.userData.terrainPatchId = patch.id;
+      prepareTerrainPicking(layoutTerrain);
       this.terrainMeshes.push(layoutTerrain);
       this.environmentGroup.add(layoutTerrain);
 
@@ -1500,9 +1521,8 @@ export class WorldScene {
       this.environmentGroup.add(apron);
     }
 
-    // High-resolution path ribbon — paints the packed core and shoulder at
-    // 17-strip transverse resolution. A narrow alpha-tested polygon edge owns
-    // the visible merge; the coarse terrain grid remains a green underlay.
+    // The resolved worked-road surface owns joined cores and narrow shoulders.
+    // Its alpha-tested edge also supplies the meadow exclusion below.
     await yieldToTask(this.startupSignal);
     const pathGeometry = await this.worldGeometry({ kind: "path" }, onProgress);
     this.worldGeometryWorkers?.dispose();
@@ -1511,7 +1531,7 @@ export class WorldScene {
     onProgress?.();
     // The carpet follows the road's broad coverage edge at meadow-mask
     // resolution, then excludes building pads and the farmhouse interior.
-    await this.meadowField.stampRoadCoverage(pathGeometry, this.startupSignal);
+    await this.meadowField.stampRoadCoverage(pathGeometry, this.startupSignal, (x, z) => WorldLayout.roadCoverage(x, z));
     this.checkAlive();
     const interiorPad = 3;
     this.meadowField.stampFootprints([
@@ -1533,11 +1553,20 @@ export class WorldScene {
     pathMesh.name = "world_path_overlay";
     pathMesh.receiveShadow = true;
     pathMesh.renderOrder = 1;
+    // Place uses these exact surfaces for BVH snapping, including road relief.
+    if (import.meta.env.DEV) {
+      prepareTerrainPicking(pathMesh);
+      this.terrainMeshes.push(pathMesh);
+    }
     this.environmentGroup.add(pathMesh);
   }
 
   public setCropPlacementPreview(result: CropPlacementResult | null): void {
     this.placementCursor.update(result);
+  }
+
+  public setPlantingGuide(state: GameState, active: boolean): void {
+    this.plantingGuide.update(state, active);
   }
 
   private registerInteractionMaterials(id: string, root: THREE.Object3D): void {
@@ -1843,7 +1872,13 @@ export class WorldScene {
         ...this.cropInstances.presentationWorkStats()
       },
       assetCache: AssetLoader.cacheStats(),
-      shadowAtlas: this.lightingRig.shadowAtlasDiagnostics()
+      shadowAtlas: this.lightingRig.shadowAtlasDiagnostics(),
+      materialAdoption: {
+        shelter: this.shelterLighting.diagnostics(),
+        surfaceMaps: [...this.terrainSurfaceMaterial.textureDiagnostics(), ...this.roadSurfaceMaterial.textureDiagnostics()],
+        practicalGlows: this.practicalLights.filter(({ glow }) => glow !== null).length,
+        nodeGlows: this.practicalLights.filter(({ glow }) => glow?.material.type === "SpriteNodeMaterial").length
+      }
     };
   }
 
@@ -1851,10 +1886,7 @@ export class WorldScene {
     camera: THREE.Camera,
     pointerNdc: { x: number; y: number }
   ): { x: number; y: number; z: number } | null {
-    if (this.terrainMeshes.length === 0) return null;
-    this.raycaster.setFromCamera(new THREE.Vector2(pointerNdc.x, pointerNdc.y), camera);
-    const hit = this.raycaster.intersectObjects(this.terrainMeshes, false)[0];
-    return hit ? { x: hit.point.x, y: hit.point.y, z: hit.point.z } : null;
+    return this.terrainPicker.pick(this.terrainMeshes, camera, pointerNdc);
   }
 
   public pickCrop(camera: THREE.Camera, pointerNdc: { x: number; y: number }): string | null {
@@ -2168,6 +2200,7 @@ export class WorldScene {
         origin: PLAYER_HOMESTEAD_LAYOUT.origin,
         plantableArea,
         groupName: `commons_farm_bed_${index + 1}`,
+        marginMeters: CANONICAL_RENDER_CONFIG.farmGround.commonsMarginMeters,
         heightAt: (worldX, worldZ) => WorldLayout.terrainHeight(worldX, worldZ),
         surfaceMaterial: this.cultivatedSurfaceMaterial.material
       }));
@@ -2430,14 +2463,27 @@ export class WorldScene {
   private createPracticalGlow(light: THREE.PointLight): THREE.Sprite | null {
     if (!CANONICAL_RENDER_CONFIG.bloom.enabled) return null;
     this.practicalGlowTexture ??= createPracticalGlowTexture();
-    const sprite = new THREE.Sprite(createPracticalGlowMaterial(
+    const source = createPracticalGlowMaterial(
       this.practicalGlowTexture,
       CANONICAL_RENDER_CONFIG.practicalLights.colorHex
-    ));
+    );
+    const material = this.practicalGlowNodes ? this.practicalGlowNodes.createNodePracticalGlow(source) : source;
+    if (material !== source) source.dispose();
+    const sprite = new THREE.Sprite(material);
     sprite.scale.setScalar(CANONICAL_RENDER_CONFIG.bloom.glowSizeMeters);
     sprite.renderOrder = 1;
     light.add(sprite);
     return sprite;
+  }
+
+  private convertPracticalGlowNodes(): void {
+    if (!this.practicalGlowNodes) return;
+    for (const { glow } of this.practicalLights) {
+      if (!glow) continue;
+      const source = glow.material;
+      glow.material = this.practicalGlowNodes.createNodePracticalGlow(source);
+      source.dispose();
+    }
   }
 
   private applyPracticalLightBudget(): void {
@@ -2617,6 +2663,7 @@ export class WorldScene {
     );
     interiorShell.rotation.y = 0;
     this.environmentGroup.add(interiorShell);
+    this.shelterLighting.addRoomRoot(interiorShell);
 
     for (const propPlacement of FARMHOUSE_INTERIOR_PROPS) {
       const propModel = await this.loadModel(propPlacement.assetId);
@@ -2625,6 +2672,7 @@ export class WorldScene {
       if (propPlacement.scale) propModel.scale.setScalar(propPlacement.scale);
       this.tagLayoutEdit(propModel, createInteriorPropTag(propPlacement.id, propPlacement.assetId));
       this.environmentGroup.add(propModel);
+      this.shelterLighting.addRoomRoot(propModel);
       this.bindLayoutInstanceFeatures(propModel, { id: propPlacement.id });
     }
 
@@ -3284,6 +3332,7 @@ export class WorldScene {
       daylight: frame.daylight
     });
     if (record) record("env:rain", performance.now() - mark);
+    this.shelterLighting.update(focus, frame);
   }
 
   /**
@@ -6279,11 +6328,15 @@ export class WorldScene {
         }
         this.playerPelvis = pelvis;
         this.playerMesh = mesh;
+        this.shelterLighting.setActor(mesh);
         this.lightingRig.shadowAtlas.registerDynamicRoot(mesh);
         this.playerBackpackSocket = createTradePackBackSocket(mesh);
         this.playerEquipmentAssembler = new CharacterEquipmentAssembler(mesh, {
           loadModel: (assetId) => this.loadModel(assetId),
-          configureObject: (object) => this.setShadowPolicy(object, false),
+          configureObject: (object) => {
+            this.setShadowPolicy(object, false);
+            this.shelterLighting.markActorDirty();
+          },
           onToolChanged: (key, object) => {
             if (key === "rod") {
               this.fishingRodBend?.dispose();
@@ -6688,7 +6741,14 @@ export class WorldScene {
 
   public prepareForVisualCapture(camera: THREE.Camera): Promise<void> { return this.prepareForEntry(camera); }
 
-  public prepareForEntry(camera: THREE.Camera): Promise<void> {
+  public async prepareForEntry(camera: THREE.Camera): Promise<void> {
+    if (!this.practicalGlowNodes) {
+      const nodes = await import("../materials/nodes/PracticalGlowNodes");
+      this.checkAlive();
+      this.practicalGlowNodes = nodes;
+      nodes.attachPracticalGlowNodes(this.renderer);
+      this.convertPracticalGlowNodes();
+    }
     updateVegetationObstruction(camera, this.playerMesh?.getWorldPosition(this.tempCharacterWorldPosition) ?? null);
     // Distance-managed LOD and visibility only recompute when the anchor moves
     // or a load dirties them, and a fixed benchmark camera never moves. Force
@@ -6697,7 +6757,34 @@ export class WorldScene {
     this.distanceVisibilityDirty = true;
     this.updateDistanceManagedPresentation();
     for (const batch of this.rigidAnimationBatches.values()) batch.update(true);
-    return this.rendererPipeline.prepareForEntry(camera);
+    await this.rendererPipeline.prepareForEntry(camera);
+    // Practical lights join the world light list at night. Submit both layouts
+    // with each shadow owner, including the actor's covered-space material;
+    // restore visibility before waiting so no artificial light frame is drawn.
+    for (const practicalsVisible of [false, true]) {
+      await this.lightingRig.prepareShadowVariants(() => {
+        const previous = this.practicalLights.map(({ light }) => light.visible);
+        try {
+          for (const practical of this.practicalLights) {
+            practical.light.visible = practicalsVisible && practical.qualityEnabled;
+          }
+          return Promise.all([
+            this.rendererPipeline.prepareWorldShaderVariant(camera),
+            this.shelterLighting.prepareActorVariant(() => this.rendererPipeline.prepareWorldShaderVariant(camera))
+          ]).then(() => undefined);
+        } finally {
+          this.practicalLights.forEach(({ light }, index) => { light.visible = previous[index]!; });
+        }
+      });
+    }
+    const glowWarmup = new THREE.Scene();
+    for (const { glow } of this.practicalLights) {
+      if (!glow) continue;
+      const sprite = glow.clone();
+      sprite.visible = true;
+      glowWarmup.add(sprite);
+    }
+    await this.rendererPipeline.prepareAdditionalMaterials(glowWarmup, camera);
   }
 
   public setCaptureRenderMode(mode: CaptureRenderMode): void {
@@ -6884,6 +6971,8 @@ export class WorldScene {
   private applyDiscreteQuality(tier: QualityTier): void {
     this.qualityTier = tier;
     this.lightingRig.setQuality(tier);
+    this.shelterLighting.setQuality(tier);
+    this.sunLight = this.lightingRig.sun;
     this.rendererPipeline.setQuality(tier);
     this.atmosphereSky?.setVolumeBlend(highTierEffectStrength(this.qualityLevel));
     this.water?.setQuality(tier);
@@ -7015,8 +7104,10 @@ export class WorldScene {
     this.boatWakes?.dispose();
     this.boatWakes?.group.removeFromParent();
     this.rendererPipeline.dispose();
+    this.shelterLighting.dispose();
     this.terrainSurfaceMaterial.dispose();
     this.roadSurfaceMaterial.dispose();
+    this.assetTextures.dispose();
     this.cultivatedSurfaceMaterial.dispose();
 
     for (const group of this.schoolEffects.values()) {
@@ -7057,6 +7148,7 @@ export class WorldScene {
     disposeNamedGeneratedMesh(this.environmentGroup, "static_contact_grounding");
 
     this.placementCursor.dispose();
+    this.plantingGuide.dispose();
     this.interactionFeedback.geometry.dispose();
     (this.interactionFeedback.material as THREE.Material).dispose();
     this.interactionFeedback.removeFromParent();
@@ -7135,8 +7227,6 @@ export class WorldScene {
       this.layoutEditHelper = null;
     }
 
-    this.lightingRig.sun.shadow.map?.dispose();
-    this.lightingRig.moon.shadow.map?.dispose();
     this.lightingRig.dispose();
     this.renderer.dispose();
   }

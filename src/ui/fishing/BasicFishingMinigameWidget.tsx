@@ -12,6 +12,7 @@ import { useTranslation } from "../../i18n/useTranslation";
 
 interface BasicFishingMinigameWidgetProps {
   fishingState: Readonly<BasicFishingState>;
+  perfectWorkRecovery?: number;
   onHoldChange?: (holding: boolean) => void;
   onHookBite?: () => void;
   onDismissModal?: () => { success: boolean; reason?: string; reasonCode?: string };
@@ -21,6 +22,7 @@ interface BasicFishingMinigameWidgetProps {
 
 export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProps> = ({
   fishingState,
+  perfectWorkRecovery,
   onHoldChange,
   onHookBite,
   onDismissModal,
@@ -43,7 +45,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
     treasureProgress = 0.0,
     treasureCaught = false,
     catchItemId,
-    quality = "normal"
+    quality = "common"
   } = fishingState;
 
   const species = catchItemId ? ContentRegistry.fishSpecies.get(catchItemId) : undefined;
@@ -57,6 +59,8 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   const onHoldChangeRef = useRef(onHoldChange);
   onHoldChangeRef.current = onHoldChange;
   const [inventoryBlocked, setInventoryBlocked] = useState(false);
+  const [holding, setHolding] = useState(false);
+  const heldPointerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (prevPhaseRef.current === phase) return;
@@ -67,7 +71,11 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   }, [phase]);
 
   useEffect(() => {
-    if (phase !== "minigame") onHoldChangeRef.current?.(false);
+    if (phase !== "minigame") {
+      heldPointerRef.current = null;
+      setHolding(false);
+      onHoldChangeRef.current?.(false);
+    }
   }, [phase]);
 
   useEffect(() => () => {
@@ -75,18 +83,53 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
   }, []);
 
   const setMinigameHold = (holding: boolean) => {
+    setHolding(holding);
     onHoldChangeRef.current?.(holding);
+  };
+
+  useEffect(() => {
+    const release = () => {
+      heldPointerRef.current = null;
+      setHolding(false);
+      onHoldChangeRef.current?.(false);
+    };
+    const onVisibilityChange = () => { if (document.visibilityState !== "visible") release(); };
+    window.addEventListener("blur", release);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", release);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
+  const releaseMinigamePointer = (event: React.PointerEvent<HTMLElement>) => {
+    if (heldPointerRef.current !== event.pointerId) return;
+    heldPointerRef.current = null;
+    setMinigameHold(false);
   };
 
   const minigameHoldProps = {
     onPointerDown: (event: React.PointerEvent<HTMLElement>) => {
+      if (event.button !== 0 || heldPointerRef.current !== null) return;
       event.preventDefault();
+      heldPointerRef.current = event.pointerId;
       event.currentTarget.setPointerCapture(event.pointerId);
       setMinigameHold(true);
     },
-    onPointerUp: () => setMinigameHold(false),
-    onPointerCancel: () => setMinigameHold(false),
-    onLostPointerCapture: () => setMinigameHold(false)
+    onPointerUp: releaseMinigamePointer,
+    onPointerCancel: releaseMinigamePointer,
+    onLostPointerCapture: releaseMinigamePointer,
+    onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+      if (!event.repeat) setMinigameHold(true);
+    },
+    onKeyUp: (event: React.KeyboardEvent<HTMLElement>) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+      setMinigameHold(false);
+    },
+    onBlur: () => setMinigameHold(false)
   };
 
   const collectCatch = () => {
@@ -156,7 +199,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
                 <>Release <KeyHint keyName="E / LMB" glow /> to cast · <KeyHint keyName="Esc" /> cancel</>
               )}
             </span>
-            <span className="hint-touch">{isTr ? "Bırakmak için [Savur]'a dokun" : "Tap [Cast] to release"}</span>
+            <span className="hint-touch">{isTr ? "Atmak için Savur'a dokun" : "Tap Cast to release"}</span>
           </div>
         </GameSheet>
       </div>
@@ -177,15 +220,14 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           <div className="cast-hint">
             <span className="hint-desktop">
               {isTr ? (
-                <>Tasmala — <KeyHint keyName="Space" glow /> tuşuna bas</>
+                <><KeyHint keyName="Space" glow /> Kancala</>
               ) : (
-                <>Hook set — press <KeyHint keyName="Space" glow /></>
+                <><KeyHint keyName="Space" glow /> Hook fish</>
               )}
             </span>
-            <span className="hint-touch">{isTr ? "Balık oltada — Tasmala'ya dokun!" : "Fish on line — tap Hook!"}</span>
           </div>
           <ChromeButton variant="gold" soundCue="confirm" onClick={onHookBite}>
-            {isTr ? "Tasmala" : "Hook fish"}
+            {isTr ? "Kancala" : "Hook fish"}
           </ChromeButton>
         </GameSheet>
       </div>
@@ -201,6 +243,10 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           corners
           className="minigame-card"
           data-testid="reeling-minigame"
+          role="button"
+          tabIndex={0}
+          aria-pressed={holding}
+          aria-label={isTr ? "Çubuğu yükseltmek için basılı tut; alçaltmak için bırak" : "Hold to raise the bar; release to lower it"}
           {...minigameHoldProps}
         >
           <div className="minigame-header">
@@ -254,7 +300,7 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
             <div
               className="catch-progress-track"
               role="meter"
-              aria-label="Fish catch risk gauge"
+              aria-label={isTr ? "Av ilerlemesi" : "Catch progress"}
               aria-valuenow={Math.round(catchProgress * 100)}
               aria-valuemin={0}
               aria-valuemax={100}
@@ -270,13 +316,13 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
           <div className="minigame-footer-hint">
             <span className="hint-desktop">
               {isTr ? (
-                <>Baskıyı korumak için karta basılı tut ya da <KeyHint keyName="Space" glow /> bas · <KeyHint keyName="Esc" /> iptal</>
+                <>Balığı çubuğun içinde tut · <KeyHint keyName="Space" glow /> yükseltir · <KeyHint keyName="Esc" /> iptal</>
               ) : (
-                <>Hold the card or <KeyHint keyName="Space" glow /> to keep pressure · <KeyHint keyName="Esc" /> cancel</>
+                <>Keep the fish inside the bar · <KeyHint keyName="Space" glow /> raises it · <KeyHint keyName="Esc" /> cancel</>
               )}
             </span>
             <span className="hint-touch">
-              {isTr ? "Baskıyı korumak için [Sar] veya karta basılı tut" : "Hold [Reel] or card to keep pressure"}
+              {isTr ? "Balığı çubuğun içinde tut · Bas: yükselt · Bırak: alçalt" : "Keep fish inside the bar · Hold: raise · Release: lower"}
             </span>
           </div>
         </GameSheet>
@@ -303,6 +349,13 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
               {isTr ? "Kusursuz av" : "Perfect catch"}
             </div>
           )}
+          {isPerfect && perfectWorkRecovery !== undefined && (
+            <p className="catch-storage-line" data-testid="perfect-work-recovery">
+              {perfectWorkRecovery > 0
+                ? (isTr ? `Toplayınca +${perfectWorkRecovery} Emek` : `Collect to recover +${perfectWorkRecovery} Work`)
+                : (isTr ? "Şu anda Emek kazanılamıyor." : "No Work can be recovered right now.")}
+            </p>
+          )}
 
           {hasTreasure && treasureCaught && (
             <div className="treasure-summary-tag">
@@ -312,12 +365,12 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
 
           <p className="catch-storage-line">
             {isTr
-              ? (inventoryBlocked ? "Depo · Elde bekliyor" : "Depo · Alınınca heybeye")
-              : (inventoryBlocked ? "Storage · Waiting in hand" : "Storage · Satchel on collect")}
+              ? (inventoryBlocked ? "Heybe dolu" : "Heybeye alınır")
+              : (inventoryBlocked ? "Satchel full" : "Collect into satchel")}
           </p>
           {inventoryBlocked && (
             <p className="catch-storage-blocker">
-              {isTr ? "Heybe tamamen dolu. Yer aç ya da bu avı bırak." : "The satchel is full. Make room or discard this catch."}
+              {isTr ? "Yer aç veya avı bırak." : "Make room or discard the catch."}
             </p>
           )}
           <div className="catch-result-actions">
@@ -359,8 +412,8 @@ export const BasicFishingMinigameWidget: React.FC<BasicFishingMinigameWidgetProp
             <p className="cast-hint">{isTr ? "Balık iğneden kurtuldu." : "The fish slipped the hook."}</p>
             <p className="escape-tip">
               {isTr
-                ? "Yeşil çubuğu balığın üzerinde tutup hareketini takip etmeye çalış."
-                : "Try keeping the green bar over the fish and matching its movement."}
+                ? "Balığı çubuğun içinde tut."
+                : "Keep the fish inside the bar."}
             </p>
           </div>
           <ChromeButton className="dismiss-button dismiss-secondary" onClick={onDismissModal}>

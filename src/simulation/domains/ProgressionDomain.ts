@@ -1,17 +1,13 @@
 import type { DomainEvents } from "../core/EventBus";
 import { contractSlotsForRank, getNextRank, getRankForXp, PROFICIENCY_RANKS } from "../../content/progression";
 import { ContentRegistry } from "../../content/ContentRegistry";
-import { MINUTES_PER_DAY, REST_WAKE_MINUTE_OF_DAY } from "../core/GameClock";
+import { MINUTES_PER_DAY } from "../core/GameClock";
 import type { GameMinute, SkillId, WorkActionId, WorkCapacityState } from "../core/types";
 import type { SkillProgressDto, WorkCostQuote } from "../core/contracts";
 import type { DomainContext } from "./DomainContext";
 import { equipmentWorkMultiplier } from "../equipment/EquipmentEffects";
 
-/**
- * Work Capacity is a daily labor budget, not a passive bar. Waking time
- * regenerates nothing: the pool is earned by resting, eating provisions and
- * working skill minigames, bounded by a daily earn cap.
- */
+/** Work is a production budget with real-time recovery and bounded earned boosts. */
 /** Canonical Work pool ceiling. Saves below this ceiling are raised without refilling current. */
 export const WORK_CAPACITY_MAXIMUM = 750;
 /** Maximum Work a player can earn from meals, labor and skill in one day. */
@@ -22,21 +18,20 @@ export const WORK_REST_FRACTION = 0.1;
 export const WORK_REST_BASELINE_FRACTION = 0.4;
 /** Meals that restore Work per calendar day. */
 export const WORK_MEAL_DAILY_LIMIT = 3;
-/** Slow idle trickle: this much Work every real-time interval, clamped by the ceiling. */
-export const WORK_PASSIVE_REGEN_AMOUNT = 8;
+/** Online recovery, including pause/background time while the ready game remains open. */
+export const WORK_PASSIVE_REGEN_AMOUNT = 10;
+/** Closed-game recovery uses its own saved interval remainder. */
+export const WORK_OFFLINE_REGEN_AMOUNT = 5;
 export const WORK_PASSIVE_REGEN_INTERVAL_SECONDS = 300;
+
+function discardRecoveryAtCeiling(workCapacity: WorkCapacityState): void {
+  if (workCapacity.current < workCapacity.maximum) return;
+  workCapacity.passiveRegenSeconds = 0;
+  workCapacity.offlineRegenSeconds = 0;
+}
 
 export function workEarningsDayFor(minute: GameMinute): number {
   return Math.floor(minute / MINUTES_PER_DAY);
-}
-
-/**
- * Wake-boundary day for the offline rest rule (`01` §7): days start at
- * `REST_WAKE_MINUTE_OF_DAY`, so 23:59→00:01 grants no rest while 07:59→08:01
- * grants one night's. Distinct from the midnight earnings day above.
- */
-export function workWakeDayFor(minute: GameMinute): number {
-  return Math.floor((minute - REST_WAKE_MINUTE_OF_DAY) / MINUTES_PER_DAY);
 }
 
 /** Resets the daily earning tallies when the calendar day rolls over. */
@@ -48,11 +43,23 @@ export function rollWorkEarnings(workCapacity: WorkCapacityState, day: number): 
   workCapacity.laborUsedToday = [];
 }
 
-/**
- * Grants Work from a capped capture source and returns the amount actually
- * granted. `earnedToday` tracks the daily cap; the pool ceiling is a second
- * bound, so a near-full pool cannot be topped up for free.
- */
+/** Preview an earned boost using the current calendar cap and pool room. */
+export function quoteEarnWorkCapacity(
+  workCapacity: WorkCapacityState,
+  amount: number,
+  currentMinute: GameMinute
+): number {
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  const earned = workCapacity.earningsDay === workEarningsDayFor(currentMinute)
+    ? workCapacity.earnedToday ?? 0 : 0;
+  return Math.min(
+    amount,
+    Math.max(0, WORK_DAILY_EARN_CAP - earned),
+    Math.max(0, workCapacity.maximum - workCapacity.current)
+  );
+}
+
+/** Grants a capped earned boost and records only the amount actually received. */
 export function earnWorkCapacity(
   workCapacity: WorkCapacityState,
   amount: number,
@@ -62,11 +69,10 @@ export function earnWorkCapacity(
   const day = workEarningsDayFor(currentMinute);
   rollWorkEarnings(workCapacity, day);
   const earned = workCapacity.earnedToday ?? 0;
-  const roomInCap = Math.max(0, WORK_DAILY_EARN_CAP - earned);
-  const roomInPool = Math.max(0, workCapacity.maximum - workCapacity.current);
-  const granted = Math.min(amount, roomInCap, roomInPool);
+  const granted = quoteEarnWorkCapacity(workCapacity, amount, currentMinute);
   if (granted <= 0) return 0;
   workCapacity.current += granted;
+  discardRecoveryAtCeiling(workCapacity);
   workCapacity.earnedToday = earned + granted;
   workCapacity.regeneratedAtMinute = currentMinute;
   return granted;
@@ -86,6 +92,7 @@ export function restoreWorkOnRest(
   const granted = Math.min(workCapacity.maximum, target) - workCapacity.current;
   if (granted > 0) {
     workCapacity.current += granted;
+    discardRecoveryAtCeiling(workCapacity);
     workCapacity.regeneratedAtMinute = currentMinute;
   }
   rollWorkEarnings(workCapacity, workEarningsDayFor(currentMinute));
@@ -129,32 +136,41 @@ function rankBenefits(skill: SkillId, rankIndex: number, hasGuildCharter: boolea
 }
 
 /**
- * Slow real-time idle trickle. A running, unpaused game grants
- * `WORK_PASSIVE_REGEN_AMOUNT` every `WORK_PASSIVE_REGEN_INTERVAL_SECONDS` real
- * seconds, clamped by the ceiling and deliberately exempt from the daily earn
- * cap (it is a floor, not a source of burst). The accumulator resets while the
- * pool is full so a spent pool cannot bank a burst from idle time.
+ * Real-time recovery is exempt from the earned-boost cap. Online and offline
+ * partial intervals persist separately, so switching modes cannot complete a
+ * cheaper interval at the higher rate. Reaching the ceiling discards both
+ * remainders: time spent full never banks recovery for a later spend.
  */
-export function applyPassiveWorkRegen(
+function applyTimedWorkRegen(
   workCapacity: WorkCapacityState,
-  realSeconds: number
+  realSeconds: number,
+  remainderKey: "passiveRegenSeconds" | "offlineRegenSeconds",
+  amount: number
 ): number {
   if (!Number.isFinite(realSeconds) || realSeconds <= 0) return 0;
   if (workCapacity.current >= workCapacity.maximum) {
-    workCapacity.passiveRegenSeconds = 0;
+    discardRecoveryAtCeiling(workCapacity);
     return 0;
   }
-  const accrued = (workCapacity.passiveRegenSeconds ?? 0) + realSeconds;
+  const accrued = (workCapacity[remainderKey] ?? 0) + realSeconds;
   const steps = Math.floor(accrued / WORK_PASSIVE_REGEN_INTERVAL_SECONDS);
-  workCapacity.passiveRegenSeconds = accrued - steps * WORK_PASSIVE_REGEN_INTERVAL_SECONDS;
+  workCapacity[remainderKey] = accrued - steps * WORK_PASSIVE_REGEN_INTERVAL_SECONDS;
   if (steps <= 0) return 0;
-  const requested = steps * WORK_PASSIVE_REGEN_AMOUNT;
+  const requested = steps * amount;
   const room = Math.max(0, workCapacity.maximum - workCapacity.current);
   const granted = Math.min(requested, room);
   if (granted <= 0) return 0;
   workCapacity.current += granted;
-  if (granted < requested) workCapacity.passiveRegenSeconds = 0;
+  discardRecoveryAtCeiling(workCapacity);
   return granted;
+}
+
+export function applyPassiveWorkRegen(workCapacity: WorkCapacityState, realSeconds: number): number {
+  return applyTimedWorkRegen(workCapacity, realSeconds, "passiveRegenSeconds", WORK_PASSIVE_REGEN_AMOUNT);
+}
+
+export function applyOfflineWorkRegen(workCapacity: WorkCapacityState, realSeconds: number): number {
+  return applyTimedWorkRegen(workCapacity, realSeconds, "offlineRegenSeconds", WORK_OFFLINE_REGEN_AMOUNT);
 }
 
 export class ProgressionDomain {
@@ -199,8 +215,8 @@ export class ProgressionDomain {
     const { state } = this.context;
     const neutralCost = this.getDiscountedActionCost(baseCost, skill);
     const equipmentMultiplier = equipmentWorkMultiplier(state, action);
-    const candidateCost = Math.max(1, Math.round(neutralCost * equipmentMultiplier));
-    const throughputFloor = Math.max(1, Math.ceil((neutralCost * 4) / 5));
+    const candidateCost = neutralCost === 0 ? 0 : Math.max(1, Math.round(neutralCost * equipmentMultiplier));
+    const throughputFloor = neutralCost === 0 ? 0 : Math.max(1, Math.ceil((neutralCost * 4) / 5));
     const cost = Math.max(candidateCost, throughputFloor);
     const throughputCapLimited = candidateCost < throughputFloor;
     const current = state.player.workCapacity.current;
@@ -300,6 +316,7 @@ export class ProgressionDomain {
     if (!Number.isFinite(amount) || amount <= 0) return;
     const capacity = this.context.state.player.workCapacity;
     capacity.current = Math.min(capacity.maximum, capacity.current + amount);
+    discardRecoveryAtCeiling(capacity);
   }
 
   /** Rolls the daily earning tallies. Called on every elapsed-time step. */
@@ -310,7 +327,7 @@ export class ProgressionDomain {
     );
   }
 
-  /** Slow real-time idle trickle, applied on every unpaused frame. */
+  /** Online real-time recovery; independent of pause and accelerated game minutes. */
   public tickPassiveWorkRegen(realSeconds: number): number {
     return applyPassiveWorkRegen(this.context.state.player.workCapacity, realSeconds);
   }

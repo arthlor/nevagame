@@ -253,7 +253,8 @@ describe("Subsystem 3 Adversarial & Stress Testing", () => {
       const testSprites = [
         { key: "fish.carp", file: "fish-carp.png" },
         { key: "harvest", file: "action-harvest.png" },
-        { key: "gold", file: "quality-gold.png" },
+        // "gold" is also the currency sprite ID; use the unambiguous file alias.
+        { key: "quality-gold.png", file: "quality-gold.png" },
         { key: "rod", file: "tool-rod.png" },
         { key: "storm", file: "weather-storm.png" }
       ];

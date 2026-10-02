@@ -10,6 +10,7 @@ import { playerPoseFromMount, STARTER_DONKEY_ID } from "../../src/simulation/mou
 import { STARTER_CARRIAGE_ID } from "../../src/simulation/mounts/Carriage";
 import { FARMHOUSE_INTERIOR_DOOR, FARMHOUSE_OUTSIDE_DOOR } from "../../src/world/FarmhouseInterior";
 import { WorldLayout } from "../../src/world/WorldLayout";
+import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { BOAT_MOORINGS } from "../../src/world/WorldMoorings";
 import { WORLD_STATION_DEFINITIONS } from "../../src/world/WorldGameplayLocations";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
@@ -49,11 +50,13 @@ describe("collision polish schema 76 / layout 41", () => {
     expect(saved.state.world.layoutRevision).toBe(40);
     saved.state.player.workCapacity.current = 117;
     const before = structuredClone(saved);
+    expect(migrateCollisionPolish76(before.state).player).toEqual(before.state.player);
     const after = migrateSaveData(saved);
     expect(validateSaveEnvelope(after)).toBe(true);
     expect(after.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-    expect(after.state.world.layoutRevision).toBe(41);
-    expect(after.state.player).toEqual(before.state.player);
+    expect(after.state.world.layoutRevision).toBe(WORLD_LAYOUT_REVISION);
+    expect(after.state.player).toEqual({ ...before.state.player,
+      y: WorldLayout.traversalSurfaceHeight(before.state.player.x, before.state.player.z) + .5 });
     expect(after.state.mounts).toEqual(before.state.mounts);
     expect(after.state.fishCargo).toEqual(before.state.fishCargo);
     for (const key of unchanged) expect(after.state[key], key).toEqual(before.state[key]);

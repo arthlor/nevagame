@@ -175,10 +175,12 @@ export interface WorkCapacityState {
   /** Labor-shift station ids already worked for Work today. */
   laborUsedToday?: string[];
   /**
-   * Real seconds accrued toward the next slow idle trickle. Passive recovery is
-   * measured in real time, not game minutes, and resets when the pool is full.
+   * Real online seconds toward the next recovery interval. Pause/background
+   * time counts; accelerated game minutes do not. Cleared at the pool ceiling.
    */
   passiveRegenSeconds?: number;
+  /** Real offline seconds toward its own recovery interval, cleared at the ceiling. */
+  offlineRegenSeconds?: number;
 }
 
 export interface SoilState {
@@ -439,7 +441,7 @@ export interface FishingEncounterState {
   dragNotch?: 0 | 1 | 2;
   /**
    * Work the hook actually charged, after the proficiency discount in force at
-   * that moment. The lost-fight refund pays a share of *this* rather than
+   * that moment. The successful landing rebate pays a share of *this* rather than
    * re-deriving the cost later, which drifted whenever the fight crossed a
    * discount tier. Optional for legacy in-memory and pre-v33 saved fights.
    */
@@ -476,6 +478,8 @@ export interface BasicFishingState {
   remainingSeconds: number;
   catchItemId?: ItemId;
   willCatch: boolean;
+  /** Paid cast cost after rank and equipment; caps the perfect-catch rebate. Legacy casts may omit it. */
+  workCharged?: number;
 
   // Cast mechanics
   castPower?: number; // 0.0 .. 1.0

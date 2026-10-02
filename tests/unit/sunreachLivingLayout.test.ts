@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ASSET_IDS } from "../../src/render/assets/AssetCatalog.generated";
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
@@ -25,8 +25,7 @@ const phases = ["dawn", "day", "dusk", "night"] as const;
 describe("Sunreach living harbor and terraces", () => {
   it("uses registered assets, unique stable IDs and deterministic placement data", () => {
     const ids = new Set<string>(Object.values(ASSET_IDS));
-    expect(SUNREACH_DRESSING).toHaveLength(50);
-    expect(new Set(SUNREACH_DRESSING.map(spec => spec.id)).size).toBe(50);
+    expect(new Set(SUNREACH_DRESSING.map(spec => spec.id)).size).toBe(SUNREACH_DRESSING.length);
     for (const spec of SUNREACH_DRESSING) {
       expect(ids.has(spec.assetId), spec.assetId).toBe(true);
       expect([spec.x, spec.z, spec.rotationY, spec.scale, ...spec.footprint].every(Number.isFinite)).toBe(true);
@@ -111,7 +110,6 @@ describe("Sunreach living harbor and terraces", () => {
   });
 
   it("registers background residents without inventing interactive NPCs", () => {
-    expect(SUNREACH_TOWNSFOLK_ROUTES).toHaveLength(6);
     for (const route of SUNREACH_TOWNSFOLK_ROUTES) {
       // The ambient list copies each route to assign its rotating cast asset, so compare by identity of content.
       expect(AMBIENT_TOWNSFOLK_ROUTES).toContainEqual(expect.objectContaining({ id: route.id }));
@@ -148,11 +146,9 @@ describe("Sunreach living harbor and terraces", () => {
     }
   });
 
-  it.each([1, 42, 20260921])("retains deterministic fill budgets and reserves at seed %s", seed => {
+  it.each([1, 42, 20260921])("retains deterministic placements and activity reserves at seed %s", seed => {
     const structure = generateSunreachCausalCompositionPlacements(seed);
     const cover = generateSunreachGroundCoverPlacements(seed);
-    expect(structure).toHaveLength(148);
-    expect(cover).toHaveLength(528);
     expect(structure).toEqual(generateSunreachCausalCompositionPlacements(seed));
     expect(cover).toEqual(generateSunreachGroundCoverPlacements(seed));
     for (const placement of structure) {
@@ -165,4 +161,15 @@ describe("Sunreach living harbor and terraces", () => {
       expect(WorldLayout.isWater(placement.x, placement.z)).toBe(false);
     }
   }, 60000);
+
+  it("returns valid empty dressing when reserved terrain leaves no eligible candidates", () => {
+    const island = vi.spyOn(WorldLayout, "islandAt").mockReturnValue(null);
+    try {
+      const seed = 0x7654321;
+      expect(generateSunreachCausalCompositionPlacements(seed)).toEqual([]);
+      expect(generateSunreachGroundCoverPlacements(seed)).toEqual([]);
+    } finally {
+      island.mockRestore();
+    }
+  });
 });

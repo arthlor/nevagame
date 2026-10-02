@@ -180,7 +180,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
 
                 <div className="pause-save-line" aria-live="polite">
                   <div>
-                    <strong>{locale === "tr" ? "Kıyı Kaydı" : "Harbor log"}</strong>
+                    <strong>{locale === "tr" ? "Kayıt" : "Save"}</strong>
                     <span>{lastSaved}</span>
                   </div>
                   <ChromeButton size="sm" onClick={onQuickSave} disabled={!savingAvailable}>
@@ -223,10 +223,10 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                   <IconSatchel size={20} aria-hidden="true" /> {locale === "tr" ? "Heybe" : "Satchel"} <KeyHint keyName="I" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenJournal}>
-                  <IconJournal size={20} aria-hidden="true" /> {locale === "tr" ? "Seyir Defteri" : "Field Journal"} <KeyHint keyName="J" />
+                  <IconJournal size={20} aria-hidden="true" /> {locale === "tr" ? "Günlük" : "Journal"} <KeyHint keyName="J" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenMap}>
-                  <IconCompass size={20} aria-hidden="true" /> {locale === "tr" ? "Deniz Haritası" : "Nautical Chart"} <KeyHint keyName="M" />
+                  <IconCompass size={20} aria-hidden="true" /> {locale === "tr" ? "Harita" : "Chart"} <KeyHint keyName="M" />
                 </ChromeButton>
                 <ChromeButton onClick={onOpenLedger}>
                   <IconLedger size={20} aria-hidden="true" /> {locale === "tr" ? "Ambar ve Depo" : <>Hold &amp; Stores</>} <KeyHint keyName="L" />
@@ -258,8 +258,8 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
               <h2 id="pause-safe-return-title">{locale === "tr" ? "Güvenli limana dön?" : "Return to safety?"}</h2>
               <p id="pause-safe-return-description">
                 {locale === "tr"
-                  ? "Sizi derhal en yakın güvenli kıyıya taşır: Başlangıç Bahçesi veya açık sulardaysanız Günışığı iskelesi. Taşınan balık yüklerinin önce karaya indirilmesi gerekir; paranız ve ilerlemeniz korunur."
-                  : "This moves you to the nearest safe landing immediately: the Starter Garden, or the Sunreach dock when sailing distant waters. Physical fish cargo must be landed first; money and progress remain with you."}
+                  ? "Başlangıç Bahçesi'ne veya açık sulardaysan Günışığı iskelesine dönersin. Önce taşıdığın balığı yere bırak. Paran ve ilerlemen korunur."
+                  : "Return to the Starter Garden, or Sunreach dock in distant waters. Set down carried fish first. Keep your money and progress."}
               </p>
               <div className="pause-critical-actions">
                 <ChromeButton ref={safeReturnCancelRef} onClick={() => setPage("menu")}>
@@ -271,7 +271,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                   data-testid="pause-confirm-return"
                   onClick={onResetPlayerToSafePlace}
                 >
-                  {locale === "tr" ? "Güvenli Dönüşü Kullan" : "Use Safe Return"}
+                  {locale === "tr" ? "Geri dön" : "Return"}
                 </ChromeButton>
               </div>
             </section>
@@ -354,7 +354,7 @@ export const EscapeMenuModal: React.FC<EscapeMenuModalProps> = ({
                         variant="secondary"
                         onClick={() => uiScale.set("auto")}
                       >
-                        {locale === "tr" ? "Varsayılana Sıfırla" : "Reset to defaults"}
+                        {locale === "tr" ? "Boyutu sıfırla" : "Reset size"}
                       </ChromeButton>
                     </div>
                   </>

@@ -104,8 +104,7 @@ describe("Work Capacity ownership contract", () => {
       "src/simulation/domains/FarmingDomain.ts": ["FARMING_ACTION_COST"],
       "src/simulation/domains/FishingDomain.ts": [
         "BASIC_FISHING_WORK_COST",
-        "SPORT_FISHING_WORK_COST_BY_CLASS",
-        "SPORT_FISHING_WORK_REFUND_RATIO"
+        "SPORT_FISHING_WORK_COST_BY_CLASS"
       ],
       "src/simulation/domains/ProcessingDomain.ts": ["PROCESSING_WORK_COST"],
       [PROGRESSION_DOMAIN]: [

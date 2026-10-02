@@ -4,7 +4,7 @@ import { projectAssetCollision } from '../../src/physics/CollisionCatalogAdapter
 import { staticPoseIsClear } from '../../src/physics/StaticCollision';
 import { createWorldStaticPlacements, villageTradePlacements } from '../../src/world/WorldEnvironmentLayout';
 import type { AssetId } from '../../src/render/assets/AssetCatalog';
-import { carriagePoseIsClear, workshopCarriagePoses } from '../../src/simulation/mounts/Carriage';
+import { carriageFootprint, carriagePoseIsClear, workshopCarriagePoses } from '../../src/simulation/mounts/Carriage';
 import { BOAT_MOORINGS, WORLD_SAILING_ROUTES } from '../../src/world/WorldMoorings';
 import { canReachDeliveryMarket } from '../../src/simulation/domains/ContractDomain';
 import { questTrackProgress } from '../../src/simulation/core/QuestTypes';
@@ -34,7 +34,7 @@ function carry(sim: Simulation, id: string) {
   sim.state.player.carriedFishCargoId=id;
 }
 
-function worldBoxes(sim: Simulation) {
+function worldBoxes(sim: Pick<Simulation, 'state'>) {
   return createWorldStaticPlacements(sim.state.worldSeed).flatMap(p => {
     const root = new Object3D(); root.position.set(p.x, p.y ?? WorldLayout.terrainHeight(p.x,p.z),p.z);
     root.rotation.y = p.rotationY; root.scale.set(...p.scale);
@@ -42,14 +42,53 @@ function worldBoxes(sim: Simulation) {
   });
 }
 describe('village trade loop', () => {
-  it('keeps all yard approaches and both loaded-wagon departure lanes clear in the actual world', async () => {
+  it('keeps all current packing-yard approaches clear in the actual world', () => {
     const sim = new Simulation(); const boxes = worldBoxes(sim);
     for (const station of VILLAGE_TRADE_STATIONS) {
-      const front = getProcessingStationFrontPosition(station.id, station.position)!;
+      const placed = sim.state.world.structures[station.id];
+      const front = getProcessingStationFrontPosition(station.id, placed)!;
       expect(staticPoseIsClear(boxes, front, WorldLayout.traversalSurfaceHeight(front.x, front.z), .4), station.id).toBe(true);
-      const road = WorldLayout.nearestRouteDistance(station.position.x, station.position.z);
-      expect(road.distance - road.halfWidth, `${station.id} leaves the road open`).toBeGreaterThan(2.1);
     }
+  });
+  it('keeps packing-yard collision clear of wagon footprints across the adjacent road', () => {
+    const sim = new Simulation(); const boxes = worldBoxes(sim);
+    for (const station of VILLAGE_TRADE_STATIONS) {
+      const placed = sim.state.world.structures[station.id];
+      const road = WorldLayout.nearestRouteDistance(placed.x, placed.z);
+      const route = WorldLayout.compiledRouteNetwork()[road.routeIndex];
+      const stationBoxes = boxes.filter(box => box.id.startsWith(`${station.id}:`));
+      expect(stationBoxes.length, station.id).toBeGreaterThan(0);
+      // A fixed center-distance margin ignores the prefab's yaw and compound
+      // shape. Check the real horse/shaft/bed footprint against the placed yard.
+      // Whole-route terrain and other scenery belong to mainlandTraversal.
+      for (const vehicle of Object.values(TRADE_VEHICLES)) {
+        const radius = Math.max(...carriageFootprint({x:0,z:0,rotationY:0,mountTypeId:vehicle.id}).map(p=>p.radius));
+        const lateralLimit = Math.max(0, road.halfWidth - radius);
+        let samples = 0;
+        for (let distance = Math.max(0,road.distanceAlongRoute-10);
+          distance <= Math.min(route.totalLength,road.distanceAlongRoute+10); distance += .5) {
+          const segment = route.segments.find(s=>distance>=s.cumulativeStart && distance<=s.cumulativeEnd)!;
+          const t = (distance-segment.cumulativeStart)/segment.length;
+          for (const lateral of [-lateralLimit,0,lateralLimit]) for (const direction of [0,Math.PI]) {
+            const pose = {
+              x:segment.start.x+(segment.end.x-segment.start.x)*t+segment.tangent.z*lateral,
+              z:segment.start.z+(segment.end.z-segment.start.z)*t-segment.tangent.x*lateral,
+              rotationY:Math.atan2(segment.tangent.x,segment.tangent.z)+direction,
+              mountTypeId:vehicle.id
+            };
+            for (const point of carriageFootprint(pose)) {
+              expect(staticPoseIsClear(stationBoxes,point,WorldLayout.traversalSurfaceHeight(point.x,point.z),point.radius),
+                `${station.id} ${vehicle.id} at ${distance}m lateral ${lateral}, direction ${direction}`).toBe(true);
+            }
+            samples++;
+          }
+        }
+        expect(samples, `${station.id} ${vehicle.id} sampled road`).toBeGreaterThan(0);
+      }
+    }
+  });
+  it('keeps both loaded-wagon departure lanes clear in the actual world', async () => {
+    const sim = new Simulation(); const boxes = worldBoxes(sim);
     for (const display of workshopCarriagePoses()) {
       for (let d = 0; d <= 8; d += .5) expect(carriagePoseIsClear({ ...display, ...carriagePoint(display, 0, d) }, boxes), `${display.id} at ${d}m`).toBe(true);
       const definition = TRADE_VEHICLES[display.mountTypeId as keyof typeof TRADE_VEHICLES];
@@ -67,7 +106,7 @@ describe('village trade loop', () => {
       } finally { physics.dispose(); }
     }
   }, 120000);
-  it('recovers only saves overlapping new trade obstacles, including ground cargo on Sunreach', () => {
+  it('preserves player and ground cargo at the now-clear former Sunreach station location', () => {
     const input=structuredClone(legacy) as unknown as SaveEnvelope;
     const station=villageTradePlacements().find(p=>p.id==='struct.trade_sunreach')!;
     const root=new Object3D(); root.position.set(station.x,WorldLayout.terrainHeight(station.x,station.z),station.z);root.rotation.y=station.rotationY;
@@ -75,8 +114,14 @@ describe('village trade loop', () => {
     Object.assign(input.state.player,{x:box.center.x,z:box.center.z,y:WorldLayout.traversalSurfaceHeight(box.center.x,box.center.z)+.5});
     input.state.fishCargo['cargo.legacy_ground']={id:'cargo.legacy_ground',kind:'farm',itemId:'produce.wheat',lots:[{itemId:'produce.wheat',quantity:10}],quality:'common',weightKg:10,cargoClass:'medium',caughtAtMinute:480,freshness:91,location:{type:'ground',containerId:'ground',x:box.center.x,z:box.center.z}};
     const before=structuredClone(input);const result=migrateSaveData(input);
-    expect(input).toEqual(before);expect(Math.hypot(result.state.player.x-box.center.x,result.state.player.z-box.center.z)).toBeGreaterThan(.4);
-    expect(result.state.fishCargo['cargo.legacy_ground'].location).not.toEqual(before.state.fishCargo['cargo.legacy_ground'].location);
+    const boxes=worldBoxes({state:result.state});
+    const ground=WorldLayout.traversalSurfaceHeight(box.center.x,box.center.z);
+    // Place-mode overrides moved the station. An old raw-generator box is no
+    // longer evidence of an obstruction in the retained runtime composition.
+    expect(staticPoseIsClear(boxes,before.state.player,ground,.4)).toBe(true);
+    expect(staticPoseIsClear(boxes,before.state.player,ground,.45)).toBe(true);
+    expect(input).toEqual(before);expect(result.state.player).toMatchObject({x:box.center.x,z:box.center.z});
+    expect(result.state.fishCargo['cargo.legacy_ground']).toEqual(before.state.fishCargo['cargo.legacy_ground']);
     expect(result.state.fishCargo['cargo.legacy_ground'].freshness).toBe(91);expect(result.state.player.money).toBe(before.state.player.money);
     expect(validateSaveEnvelope(result)).toBe(true);expect(migrateSaveData(result)).toEqual(result);
   });

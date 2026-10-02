@@ -30,6 +30,7 @@ const TR_ACTION_MAP: Record<string, string> = {
   "Hold to read the soil overlay on a farm": "Tarlada toprak durumunu görmek için basılı tut",
   "Open or close the farm forecast": "Çiftlik hava tahminini aç veya kapat",
   "Inspect a crop, or read the water at the shore": "Mahsulü incele veya kıyıda suları oku",
+  "Call your donkey to your side": "Eşeğini çağır",
   "Hold to charge a cast, release to cast": "Savurma gücünü ayarlamak için basılı tut, savurmak için bırak",
   "Arm or put away a Woven Lure": "Örme Sahte Yemi tak veya kaldır",
   "Hook the bite, then hold to keep pressure": "Balığı kancala, gerilimi korumak için basılı tut",
@@ -39,7 +40,7 @@ const TR_ACTION_MAP: Record<string, string> = {
   "Pause, or close the open screen": "Oyunu duraklat veya açık ekranı kapat",
   "Character & Gear": "Karakter & Donanım",
   "Satchel": "Heybe",
-  "Field Journal": "Seyir Defteri",
+  "Field Journal": "Günlük",
   "Nautical chart": "Deniz Haritası",
   "Hold & Stores": "Ambar & Depolar",
   "Expedition board": "Sefer Panosu"
@@ -51,7 +52,8 @@ const TR_NOTE_MAP: Record<string, string> = {
   "Available shortcuts change near farms, water, and boats": "Çiftlik, su ve tekne yakınında kısayollar değişir",
   "Required before sport fishing": "Sportif balıkçılık öncesinde gereklidir",
   "Sport fishing": "Sportif balıkçılık",
-  "Once unlocked": "Açıldığında"
+  "Once unlocked": "Açıldığında",
+  "On foot; it needs a clear, level spot beside you": "Yürürken; yanında boş ve düz bir yer gerekir"
 };
 
 const renderKeyFragment = (keyStr: string) => {
@@ -91,7 +93,9 @@ const KeycapSequence: React.FC<{ keys: string; isTr: boolean }> = ({ keys, isTr 
 );
 
 const BindingRow: React.FC<{ binding: KeyBinding; isTr: boolean }> = ({ binding, isTr }) => {
-  const actionText = isTr ? (TR_ACTION_MAP[binding.action] ?? binding.action) : binding.action;
+  const actionText = isTr
+    ? (TR_ACTION_MAP[binding.action] ?? binding.action)
+    : binding.action === "Field Journal" ? "Journal" : binding.action;
   const noteText = binding.note ? (isTr ? (TR_NOTE_MAP[binding.note] ?? binding.note) : binding.note) : undefined;
 
   return (

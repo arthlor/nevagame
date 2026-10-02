@@ -5,7 +5,7 @@ import type { WorldAudioDto } from "../../src/simulation/presentation/WorldAudio
 type LoopVoice = {
   source: { stop: ReturnType<typeof vi.fn>; disconnect: () => void };
   gain: {
-    gain: { cancelScheduledValues: () => void; linearRampToValueAtTime: () => void };
+    gain: { value: number; cancelScheduledValues: () => void; setValueAtTime: () => void; linearRampToValueAtTime: () => void };
     disconnect: () => void;
   };
   panner: null;
@@ -24,7 +24,9 @@ function fakeVoice(): LoopVoice {
     source: { stop: vi.fn(), disconnect: () => undefined },
     gain: {
       gain: {
+        value: 0.25,
         cancelScheduledValues: () => undefined,
+        setValueAtTime: () => undefined,
         linearRampToValueAtTime: () => undefined
       },
       disconnect: () => undefined
@@ -53,8 +55,8 @@ describe("AudioManager.setActionLoop", () => {
       harness.syncBeds();
 
       expect(harness.loops.size).toBe(0);
-      expect(market.source.stop).toHaveBeenCalled();
-      expect(insects.source.stop).toHaveBeenCalled();
+      expect(market.source.stop).toHaveBeenCalledExactlyOnceWith(3.05);
+      expect(insects.source.stop).toHaveBeenCalledExactlyOnceWith(3.05);
       manager.dispose();
     } finally {
       vi.unstubAllGlobals();
@@ -73,7 +75,7 @@ describe("AudioManager.setActionLoop", () => {
 
     expect(harness.actionLoops.has("fishing-reel")).toBe(false);
     expect(harness.loops.has("fishing-reel")).toBe(false);
-    expect(voice.source.stop).toHaveBeenCalled();
+    expect(voice.source.stop).toHaveBeenCalledExactlyOnceWith(1.75);
     manager.dispose();
   });
 

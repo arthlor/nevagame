@@ -32,7 +32,8 @@ function focusableElements(root: HTMLElement): HTMLElement[] {
 const openerStack: HTMLElement[] = [];
 const modalStack: HTMLElement[] = [];
 
-function pushOpener(): void {
+/** Capture before the HUD becomes inert, which clears its focused control. */
+export function rememberModalOpener(): void {
   for (let index = openerStack.length - 1; index >= 0; index -= 1) {
     if (!openerStack[index].isConnected) openerStack.splice(index, 1);
   }
@@ -74,7 +75,7 @@ export interface ModalAccessibilityOptions {
  * The callbacks are refs because GameApp re-renders the React tree every frame.
  */
 export function useModalAccessibility<T extends HTMLElement>(
-  dialogRef: RefObject<T>,
+  dialogRef: RefObject<T | null>,
   onClose: () => void,
   options: ModalAccessibilityOptions = {}
 ): void {
@@ -85,7 +86,7 @@ export function useModalAccessibility<T extends HTMLElement>(
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    pushOpener();
+    rememberModalOpener();
     modalStack.push(dialog);
 
     const focusInitialControl = () => {

@@ -85,7 +85,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
         })
       );
 
-      expect(html).toContain('aria-label="Player profile and crest"');
+      expect(html).toContain('aria-label="Open character and gear"');
       expect(html).toContain('aria-label="Work"');
       expect(html).toContain('aria-valuenow="75"');
       expect(html).toContain('aria-valuemax="100"');
@@ -493,7 +493,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       );
 
       expect(html).toContain("data-testid=\"planting-seed-dock\"");
-      expect(html).toContain("Season: <strong>Spring</strong>");
+      expect(html).toContain('planting-current-season-badge"><strong>Spring</strong>');
       expect(html).toContain("Wheat");
       expect(html).toContain("Sweet Corn");
 
@@ -541,6 +541,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
           unit: "crates",
           rewardMoney: 320,
           deliveryMarketName: "Village Green Market",
+          deadlineLabel: "2h left",
           completed: false
         }
       ];
@@ -559,7 +560,7 @@ describe("Milestone 1 — Persistent HUD (R1) & Contextual Controls (R2) Suite",
       expect(html).toContain("Harbor Warehouse");
 
       // Contracts start folded so the story remains the primary task.
-      expect(html).toContain("Active Contracts (1)");
+      expect(html).toContain("Deliveries (1)");
       expect(html).toContain('aria-label="Show active market contracts"');
       expect(html).not.toContain('role="listitem"');
 

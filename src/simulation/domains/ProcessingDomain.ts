@@ -38,21 +38,31 @@ import type { EquipmentDomain } from "./EquipmentDomain";
 import { freeHandsBlocker } from "./domainRules";
 import { assessProcessingStationApproach } from "../../world/ProcessingStationApproach";
 
-/** Existing standard and masterwork values remain valid for saved in-flight jobs. */
-export const LIGHT_PROCESSING_WORK_COST = 15;
-export const PREPARED_PROCESSING_WORK_COST = 25;
-export const PROCESSING_WORK_COST = 35;
-export const MASTERWORK_PROCESSING_WORK_COST = 70;
+export const LIGHT_PROCESSING_WORK_COST = 5;
+export const PREPARED_PROCESSING_WORK_COST = 7;
+export const PROCESSING_WORK_COST = 10;
+export const MASTERWORK_PROCESSING_WORK_COST = 20;
 export const PROCESSING_WORK_BY_TIER: Record<ProcessingWorkTier, number> = {
   light: LIGHT_PROCESSING_WORK_COST,
   prepared: PREPARED_PROCESSING_WORK_COST,
   standard: PROCESSING_WORK_COST,
   masterwork: MASTERWORK_PROCESSING_WORK_COST
 };
-/** A cheaper job cannot become a higher-XP shortcut. */
+/** Work tuning leaves the established Processing progression pace intact. */
 export const PROCESSING_XP_BY_TIER: Record<ProcessingWorkTier, number> = {
-  ...PROCESSING_WORK_BY_TIER
+  light: 15,
+  prepared: 25,
+  standard: 35,
+  masterwork: 70
 };
+
+/** Existing paid jobs keep the exact Work/XP pair captured before the retune. */
+export function isValidProcessingWorkXpSnapshot(workTier: ProcessingWorkTier, baseWork: number, xpReward: number): boolean {
+  if (!Object.hasOwn(PROCESSING_WORK_BY_TIER, workTier)) return false;
+  const expectedXp = PROCESSING_XP_BY_TIER[workTier];
+  return xpReward === expectedXp
+    && (baseWork === PROCESSING_WORK_BY_TIER[workTier] || baseWork === expectedXp);
+}
 export const PROCESSING_JOB_SNAPSHOT_LIMITS = {
   maxDurationMinutes: 24 * 60,
   maxLabelCharacters: 160
@@ -75,12 +85,11 @@ export function isValidProcessingJobEconomicSnapshot(job: ProcessingJobState): b
     !Object.hasOwn(PROCESSING_WORK_BY_TIER, workTier) ||
     !Number.isSafeInteger(job.chargedMoney ?? 0) || (job.chargedMoney ?? 0) < 0 ||
     !Number.isSafeInteger(job.baseWork) ||
-    job.baseWork !== PROCESSING_WORK_BY_TIER[workTier] ||
+    !isValidProcessingWorkXpSnapshot(workTier, job.baseWork, job.xpReward) ||
     !Number.isSafeInteger(job.chargedWork) ||
     job.chargedWork < 1 ||
     job.chargedWork > job.baseWork ||
     !Number.isSafeInteger(job.xpReward) ||
-    job.xpReward !== PROCESSING_XP_BY_TIER[workTier] ||
     !Number.isSafeInteger(job.startedAtMinute) ||
     !Number.isSafeInteger(job.completesAtMinute) ||
     !Number.isSafeInteger(job.effectiveDurationMinutes) ||

@@ -9,7 +9,7 @@ import { forEachWeatherBoundedSegment } from "../simulation/farming/weatherBound
 import { advanceCargoFreshness } from "../simulation/fishing/calculateFreshness";
 import { tickMarket } from "../simulation/economy/updateMarket";
 import { SeededRng } from "../simulation/core/Rng";
-import { rollWorkEarnings, restoreWorkOnRest, workEarningsDayFor, workWakeDayFor } from "../simulation/domains/ProgressionDomain";
+import { applyOfflineWorkRegen, rollWorkEarnings, workEarningsDayFor } from "../simulation/domains/ProgressionDomain";
 import { expireContracts, pruneSettledContracts, refillContracts } from "../simulation/domains/ContractDomain";
 import { expireSpentSchools } from "../simulation/domains/FishingDomain";
 import { drainMotorFuel } from "../simulation/domains/NavigationDomain";
@@ -18,6 +18,7 @@ import { sampleFarmEnvironment } from "../simulation/farming/FarmEnvironmentSamp
 export interface OfflineProgressionSummary {
   elapsedRealMinutes: number;
   simulatedGameMinutes: number;
+  workRecovered: number;
   cropsMaturedCount: number;
   cropsWitheredCount: number;
   jobsCompletedCount: number;
@@ -43,12 +44,19 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
   const summary: OfflineProgressionSummary = {
     elapsedRealMinutes,
     simulatedGameMinutes: gameMinutesToSimulate,
+    workRecovered: 0,
     cropsMaturedCount: 0,
     cropsWitheredCount: 0,
     jobsCompletedCount: 0,
     cargoSpoiledCount: 0,
     contractsExpiredCount: 0
   };
+
+  // Work follows real elapsed seconds, independently of the accelerated world
+  // clock. Persist the processed timestamp even for sub-minute catch-up, so
+  // repeated loading cannot replay the same partial recovery interval.
+  summary.workRecovered = applyOfflineWorkRegen(state.player.workCapacity, cappedMs / 1000);
+  state.metadata.lastSavedUtcMs = Math.max(state.metadata.lastSavedUtcMs, nowUtcMs);
 
   if (gameMinutesToSimulate <= 0) {
     return summary;
@@ -92,14 +100,9 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
   clock.advanceMinutes(gameMinutesToSimulate);
   state.clock = { ...clock.getState() };
   for (const cropState of Object.values(state.crops)) cropState.lastUpdatedMinute = state.clock.currentMinute;
-  // Work is earned, not passively regenerated. Away time grants at most one
-  // night's rest if the absence crossed a wake boundary; it never stacks a
-  // pool per elapsed hour.
-  if (workWakeDayFor(state.clock.currentMinute) > workWakeDayFor(startMinute)) {
-    restoreWorkOnRest(state.player.workCapacity, state.clock.currentMinute);
-  } else {
-    rollWorkEarnings(state.player.workCapacity, workEarningsDayFor(state.clock.currentMinute));
-  }
+  // Calendar changes reset earned boosts; away time restores Work only at its
+  // real-time rate. The player must explicitly choose a rest for its bonus.
+  rollWorkEarnings(state.player.workCapacity, workEarningsDayFor(state.clock.currentMinute));
   drainMotorFuel(state, gameMinutesToSimulate);
   expireSpentSchools(state);
 
@@ -137,7 +140,6 @@ export function applyOfflineProgression(state: GameState, nowUtcMs: number): Off
   // shared weather-bounded helper.
 
   // Step 9: Update metadata
-  state.metadata.lastSavedUtcMs = nowUtcMs;
   // Time away is not play: `totalPlayMinutes` accrues only while the game runs.
   state.metadata.rngState = rng.getState();
 

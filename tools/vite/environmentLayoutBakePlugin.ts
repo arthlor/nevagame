@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -20,7 +21,7 @@ interface BakeSummary {
 
 /** Runs the bake script in its own vite-node process, so it sees the same sources as the build. */
 function runBake(rootDirectory: string, outFile: string): Promise<BakeSummary> {
-  const viteNode = path.join(rootDirectory, "node_modules/vite-node/vite-node.mjs");
+  const viteNode = createRequire(path.join(rootDirectory, "package.json")).resolve("vite-node/cli");
   const script = path.join(rootDirectory, "tools/world/bake-environment-layout.ts");
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [viteNode, script, "--", "--out", outFile], {

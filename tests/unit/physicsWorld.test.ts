@@ -86,8 +86,8 @@ describe("PhysicsWorld", () => {
     placePlayer(sim);
     const initial = physics.step(sim.state, { x: 0, z: 0, sprint: false }, "on-foot", 1 / 60, 0);
     physics.onCommitResult(sim.commitPhysicsFrame(initial.frame).success);
-    const world = (physics as unknown as { world: { updateSceneQueries(): void } }).world;
-    const refresh = vi.spyOn(world, "updateSceneQueries");
+    const world = (physics as unknown as { world: { step(): void } }).world;
+    const refresh = vi.spyOn(world, "step");
     for (let frame = 0; frame < 4; frame++) {
       refresh.mockClear();
       const result = physics.step(sim.state, { x: 1, z: 0, sprint: false }, "on-foot", 1 / 60, frame / 60);
@@ -123,7 +123,7 @@ describe("PhysicsWorld", () => {
     const hull = internal.ensureBoat("query-fixture", Object.values(sim.state.boats)[0].boatTypeId,
       100, hullY, 0, 0, 0);
     internal.resolvePlayer(sim.state, { x: 0, z: 0, sprint: false }, 1 / 60, true);
-    const refresh = vi.spyOn(internal.world, "updateSceneQueries");
+    const refresh = vi.spyOn(internal.world, "step");
     hull.body.setTranslation({ x: 1.14, y: hullY, z: 0 }, true);
     internal.sceneQueriesDirty = true;
     const y = hullY + 0.4;
@@ -137,6 +137,8 @@ describe("PhysicsWorld", () => {
       internal.controller.computedCollision(index)?.collider);
     expect(contacts.some(collider => collider !== null && hull.colliders.includes(collider!))).toBe(true);
     expect(result.player.x).toBeLessThan(0.05);
+    const retreat = internal.resolvePlayer(sim.state, { x: -1, z: 0, sprint: false }, 0.2, false);
+    expect(retreat.player.x).toBeLessThan(-0.1);
     refresh.mockRestore();
     physics.dispose();
   });
@@ -147,7 +149,7 @@ describe("PhysicsWorld", () => {
     placePlayer(sim);
     physics.step(sim.state, { x: 0, z: 0, sprint: false }, "on-foot", 1 / 60, 0);
     const world = (physics as unknown as { world: RAPIER.World }).world;
-    const refresh = vi.spyOn(world, "updateSceneQueries");
+    const refresh = vi.spyOn(world, "step");
     sim.state.boats = {};
     physics.step(sim.state, { x: 0, z: 0, sprint: false }, "on-foot", 1 / 60, 1 / 60);
     expect(refresh).toHaveBeenCalledTimes(1);
@@ -274,6 +276,32 @@ describe("PhysicsWorld", () => {
     expect(lastMotion?.controlEffort).toBeGreaterThan(0);
     expect(Number.isFinite(lastMotion?.accelerationMetersPerSecondSquared ?? NaN)).toBe(true);
     expect(Number.isFinite(lastMotion?.yawRateRadiansPerSecond ?? NaN)).toBe(true);
+  });
+
+  it("holds a docked hull still after it was making way", async () => {
+    const physics = await PhysicsWorld.create();
+    const sim = new Simulation();
+    const boat = sim.state.boats["boat.player_rowboat"];
+    boat.isDocked = false;
+    boat.dockedMarketId = null;
+    sim.state.player.activeBoatId = boat.id;
+    for (let index = 0; index < 40; index++) {
+      const frame = physics.step(sim.state, { x: 0, z: -1, sprint: false }, "boat-driving", 1 / 60, index / 60);
+      expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+    }
+    expect(Math.abs(boat.speed)).toBeGreaterThan(0.5);
+    const parked = { x: boat.x, z: boat.z };
+    boat.isDocked = true;
+    boat.speed = 0;
+    boat.dockedMarketId = "market.harbor";
+    sim.state.player.activeBoatId = null;
+    for (let index = 0; index < 30; index++) {
+      const frame = physics.step(sim.state, { x: 0, z: 0, sprint: false }, "on-foot", 1 / 60, 1 + index / 60);
+      expect(sim.commitPhysicsFrame(frame.frame).success).toBe(true);
+    }
+    expect(boat.x).toBeCloseTo(parked.x, 4);
+    expect(boat.z).toBeCloseTo(parked.z, 4);
+    expect(boat.speed).toBe(0);
   });
 
   it("blocks the player with startup-projected static collision", async () => {

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import Ajv2020 from "ajv/dist/2020.js";
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
@@ -20,7 +21,9 @@ import {
   computeToolchainHash,
   pruneStagingRuns,
   promoteFilesAtomically,
+  publishStage,
   referenceAuthoringSummary,
+  refreshReferenceAuthoring,
   referenceBriefHash,
   referenceBriefMarkdown,
   safeFilename,
@@ -28,6 +31,7 @@ import {
   validateCatalog,
   validateAnimationContract,
   validateGeneratorParameters,
+  validateGlb,
   validateLodContract,
   validateReferenceAuthoring,
   validatePublishedManifest
@@ -190,6 +194,78 @@ describe("Neva art catalog", () => {
     );
   });
 
+  it("keeps the strict generation selector as a compatibility alias", () => {
+    expect(parseArgs(["generate", "--asset", "tree_oak_a", "--strict", "--no-publish"]))
+      .toMatchObject({ strict: true, publish: false, assets: ["tree_oak_a"] });
+  });
+
+  it("preserves textured frozen imports through published admission", async () => {
+    const { catalog } = validateCatalog();
+    const imported = catalog.assets.find((asset) => asset.id === "char_npc_ambient_male_01")!;
+    expect(imported.generator).toBe("imported_blend");
+    await expect(validateGlb(path.join(ROOT, "public/assets/models", imported.file), imported, "test"))
+      .resolves.toMatchObject({ texturedPrimitives: 1, vertexColorPrimitives: 0, doubleSidedMaterials: 1 });
+    await expect(validateGlb(path.join(ROOT, "public/assets/models", imported.file), {
+      ...imported, generator: catalog.assets.find((asset) => asset.id === "fauna_dog_a")!.generator
+    }, "test")).rejects.toThrow("missing semantic COLOR_0");
+  });
+
+  it("removes retired brief metadata without changing publication identity", () => {
+    const previous = { id: "tree_olive_a", fileHash: "unchanged", referenceAuthoring: { status: "ready" } };
+    expect(refreshReferenceAuthoring(previous, {})).toEqual({ id: "tree_olive_a", fileHash: "unchanged" });
+    expect(previous.referenceAuthoring).toEqual({ status: "ready" });
+  });
+
+  it("refreshes existing brief metadata when the catalog evidence changes", () => {
+    const { catalog } = validateCatalog();
+    const oak = structuredClone(catalog.assets.find((asset) => asset.id === "tree_oak_a")!);
+    if (!oak.referenceAuthoring) throw new Error("oak fixture requires retained reference evidence");
+    oak.referenceAuthoring.status = "draft";
+    const refreshed = refreshReferenceAuthoring(
+      { id: oak.id, referenceAuthoring: { status: "ready", briefHash: "retired" } }, oak
+    );
+    expect(refreshed.referenceAuthoring).toMatchObject({
+      status: "draft", sources: oak.referenceAuthoring.sources.length
+    });
+    expect(refreshed.referenceAuthoring?.briefHash).not.toBe("retired");
+  });
+
+  it("clears retired evidence from unselected assets during partial publication", () => {
+    const { catalog } = validateCatalog();
+    const selected = catalog.assets.find((asset) => asset.id === "tree_oak_a")!;
+    const unselected = catalog.assets.find((asset) => asset.id === "tree_olive_a")!;
+    const published = JSON.parse(fs.readFileSync(PUBLIC_MANIFEST, "utf8"));
+    const selectedEntry = published.assets.find((asset: { id: string }) => asset.id === selected.id);
+    const unselectedEntry = published.assets.find((asset: { id: string }) => asset.id === unselected.id);
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "neva-partial-art-evidence-"));
+    try {
+      const publicDir = path.join(workspace, "public/assets/models");
+      const optimizedDir = path.join(workspace, "stage/optimized");
+      fs.mkdirSync(publicDir, { recursive: true });
+      fs.mkdirSync(optimizedDir, { recursive: true });
+      const unselectedBytes = fs.readFileSync(path.join(ROOT, "public/assets/models", unselected.file));
+      fs.writeFileSync(path.join(publicDir, unselected.file), unselectedBytes);
+      fs.copyFileSync(path.join(ROOT, "public/assets/models", selected.file), path.join(optimizedDir, selected.file));
+      fs.writeFileSync(path.join(publicDir, "asset-manifest.json"), JSON.stringify({
+        ...published, assets: [selectedEntry, {
+          ...unselectedEntry, referenceAuthoring: { status: "ready", briefHash: "retired" }
+        }]
+      }));
+      publishStage({ ...published, assets: [selectedEntry] }, optimizedDir, [selected], {
+        assets: [selected, unselected]
+      }, false, workspace);
+      const refreshed = JSON.parse(fs.readFileSync(path.join(publicDir, "asset-manifest.json"), "utf8"));
+      const retained = refreshed.assets.find((asset: { id: string }) => asset.id === unselected.id);
+      expect(retained).not.toHaveProperty("referenceAuthoring");
+      expect(retained.fileHash).toBe(unselectedEntry.fileHash);
+      expect(fs.readFileSync(path.join(publicDir, unselected.file))).toEqual(unselectedBytes);
+      expect(refreshed.assets.find((asset: { id: string }) => asset.id === selected.id).referenceAuthoring)
+        .toEqual(referenceAuthoringSummary(selected));
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
   it("retains only the three newest safe staging runs without touching cache or published assets", () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "neva-art-retention-"));
     const staging = path.join(workspace, "generated/.staging");
@@ -340,10 +416,15 @@ describe("Neva art catalog", () => {
     const missingView = structuredClone(oak);
     const missingReference = missingView.referenceAuthoring;
     if (!missingReference) throw new Error("cloned oak reference-authoring fixture is missing");
-    missingReference.reviewViews = missingReference.reviewViews.filter(
-      (view) => view !== "rear"
-    );
-    expect(() => validateReferenceAuthoring(missingView)).toThrow("missing required review views: rear");
+    missingReference.reviewViews = ["side"];
+    expect(validateReferenceAuthoring(missingView)).toBe(true);
+    missingReference.reviewViews = [];
+    expect(validateReferenceAuthoring(missingView)).toBe(true);
+    const schema = JSON.parse(fs.readFileSync(path.join(ROOT, "assets/specs/asset-catalog.schema.json"), "utf8"));
+    const validateBrief = new Ajv2020({ strict: true }).compile({
+      $defs: schema.$defs, $ref: "#/$defs/referenceAuthoring"
+    });
+    expect(validateBrief(missingReference)).toBe(true);
   });
 
   it("rolls every destination back if an atomic promotion fails", () => {

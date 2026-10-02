@@ -140,7 +140,8 @@ describe("UI Modals Server/Unit Render", () => {
         onClose: () => {}
       })
     );
-    expect(html).toContain("Field Journal");
+    expect(html).toContain('id="journal-title"');
+    expect(html).toContain("Journal");
   });
 
   it("renders WorldMapModal without throwing", () => {
@@ -152,7 +153,7 @@ describe("UI Modals Server/Unit Render", () => {
         onClose: () => {}
       })
     );
-    expect(html).toContain("Nautical Chart of the Neva Archipelago");
+    expect(html).toContain('id="map-title" class="map-title">Chart');
   });
 
   it("documents the live tool-slot map in the field guide", () => {

@@ -26,33 +26,26 @@ function commission(id: string, title: string, packId: string, marketId: string,
 /** A separate chain preserves every existing caravan quest cursor. */
 export const TRADE_CRAFT_QUESTS: QuestDefinition[] = [
   commission('materials', 'What a Load Costs', 'trade.neva_grain', 'market.pinewatch', [
-    'A sack of harvest is only the beginning. Our yard can turn milled grain, wheat and linen into a more valuable shipment.',
-    'Mill your own grain or buy it at Neva. Pinewatch sells linen, and weaving your own is another option. Bring the materials and the packing fee to our yard.',
-    'Read the estimated margin before packing. It counts the cost of replacing your ingredients, even when you grew them. Carry the finished grain sacks to Pinewatch.'
+    "Pinewatch wants Milled Grain Sacks. Mill or buy the grain in Neva, and buy linen in Pinewatch or weave it yourself. Bring those with wheat to our packing yard.",
+    "Check the margin before paying the packing fee. It counts replacement costs, even for grain from your own field. Then carry the sacks to Pinewatch."
   ], [
-    'Pinewatch paid for milled grain in a proper wrap. Count the linen and the packing fee too, even when the wheat came from your own field.',
-    'A finished load can earn more than raw harvest, but the next load still needs its materials. Keep that cost in your ledger.'
+    "Pinewatch has its grain. Keep enough of that payment for the next batch’s linen and packing fee; those costs don’t disappear because you grew the wheat."
   ], 'return_goods', 'knowledge.replacement_cost'),
   commission('return_goods', 'Useful Cargo on Both Roads', 'trade.highridge_metals', 'market.reedhaven', [
-    'Highridge stocks steel and copper. Pinewatch supplies timber. Bring them together at the Highridge packing yard for a workshop metal crate.',
-    'Deliver it to Reedhaven. Metal keeps on the road, but its buyers still fill their stores: a second similar crate may pay less.'
+    "Reedhaven’s repair crews need a Workshop Metal Crate. Get steel and copper from Highridge, timber from Pinewatch, and pack them at the Highridge yard. Then deliver the crate to Reedhaven."
   ], [
-    'Reedhaven can use Highridge metal where the wet boards take their toll. You brought the wood and fittings together before anyone had to ask twice.',
-    'The crate keeps longer than a meal, but the counter will not pay the same for an endless row of identical crates.'
+    "That should help with the landing repairs. Metal keeps well on the road, but check demand before making another crate just like it."
   ], 'premium'),
   commission('premium', 'Room Is Worth Money', 'trade.reedhaven_expedition', 'market.highridge', [
-    'A premium shipment earns more from one wagon space, but requires a practiced maker, an experienced trader and more money up front.',
-    'Reedhaven sells rich chum and lures. Bring canvas and timber from Pinewatch, then pack river expedition supplies at the marsh yard and take them uphill.',
-    'Preserved provisions keep longer than fresh meals. Spread your deliveries across different kinds of goods; related recipes share the same demand.'
+    "Highridge wants River Expedition Supplies. Buy rich chum and lures in Reedhaven, bring canvas and timber from Pinewatch, and pack them at the marsh yard.",
+    "This load needs more experience and money up front. Read the requirements and margin before you start, then carry it to Highridge."
   ], [
-    'One wagon bay held a whole expedition’s tools. Preparation gave that space value before the climb began.',
-    'The price was earned by the maker, the road and the village that needed the finished supply.'
+    "One bay carried a whole set of supplies up the hill. Keep that preparation cost in mind when you plan the next load."
   ], 'overseas'),
   commission('overseas', 'The Return Manifest', 'trade.sunreach_export', 'market.village', [
-    'Sunreach has olives and cured fish, but an export hamper also needs mainland grain and linen. Carry those ingredients out on your next crossing.',
-    'At the cove yard, compare the return offers and pack a Sunreach export hamper for Neva. The large freighter carries ten separate packs; each is loaded and carried ashore by hand.'
+    "Take ground grain and linen to Sunreach on your next crossing. Combine them with local olives and cured fish at the cove yard for a Sunreach Export Hamper.",
+    "Carry the hamper back to Neva and sell it. Check the offer before you commit the rest of the hold."
   ], [
-    'The return hamper carried Sunreach olives and cured fish beside grain and linen brought from the mainland.',
-    'A good trader sees both halves of the crossing. What the island makes useful comes home with the hold, not as an afterthought.'
+    "Mainland grain went out, and an island hamper came home. You’ve made both halves of the crossing useful. I’ll keep an eye out for your next manifest."
   ])
 ];

@@ -5,40 +5,55 @@ import type { LocalizedQuestText } from "../../types";
 export const TR_QUESTS: Record<string, LocalizedQuestText> = {
   "quest.tradecraft_materials": {
     actTitle: "İşini Bilen Tüccar", questTitle: "Bir Yükün Maliyeti",
-    introDialogue: ["Mahsul paketleri işin başlangıcı. Öğütülmüş tahıl, buğday ve ketenle daha değerli bir yük hazırlayabilirsin.",
-      "Tahılı değirmende öğüt ya da Neva pazarından al. Keten rulosunu Pinewatch’tan alabilir veya kendin dokuyabilirsin. Malzemeleri ve paketleme ücretini Neva tezgâhına getir.",
-      "Paketlemeden önce tahmini kazanca bak. Kendi yetiştirdiğin ürünler de yeniden alma bedeliyle hesaba katılır. Tahıl çuvallarını Pinewatch’a götür."],
-    completionDialogue: ["Pinewatch, düzgün sarılmış öğütülmüş tahıla para verdi. Buğdayı kendi tarladan getirsen de keteni ve paketleme ücretini hesaba kat.", "İşlenmiş yük, ham hasattan daha çok kazandırabilir; ama sonraki paket de malzeme isteyecek. O payı defterden silme."],
+    introDialogue: [
+      "Pinewatch’a Öğütülmüş Tahıl Çuvalları lazım. Tahılı Neva’da öğüt ya da satın al; keteni Pinewatch’tan alabilir veya dokuyabilirsin. Buğdayla birlikte bizim paketleme avlusuna getir.",
+      "Paketleme ücretini vermeden kazanca bak. Kendi tarlanın ürünü de yerine yenisini koyma bedeliyle hesaplanır. Sonra çuvalları Pinewatch’a taşı."
+    ],
+    completionDialogue: [
+      "Pinewatch tahılını aldı. Ödemeden sonraki partinin ketenini ve paketleme ücretini ayır; buğdayı kendin yetiştirince bu masraflar kaybolmuyor."
+    ],
     objectives: { "step.tradecraft.materials.make": { description: "Neva tezgâhında öğütülmüş tahıl çuvalları hazırla." }, "step.tradecraft.materials.deliver": { description: "Tahıl çuvallarını Pinewatch’ta sat." } }
   },
   "quest.tradecraft_return_goods": {
     actTitle: "İşini Bilen Tüccar", questTitle: "İki Yönde de Dolu Yük",
-    introDialogue: ["Highridge çelik ve bakır satar; Pinewatch ise kereste. Malzemeleri Highridge tezgâhında bir atölye metal kasasına dönüştür.", "Kasayı Reedhaven’a götür. Metal yolda bozulmaz ama alıcıların deposu dolar: benzer yükleri arka arkaya satarsan fiyat düşebilir."],
-    completionDialogue: ["Highridge metalini Reedhaven’a ulaştırdın. Islak tahtaların yıprattığı yerlerde bu kasa işe yarayacak.", "Metal yolda bozulmaz ama ambar sonsuz değil. Aynı kasadan durmadan getirirsen fiyat da değişir."],
+    introDialogue: [
+      "Reedhaven’daki onarım işleri için Atölye Metal Kasası lazım. Çelikle bakırı Highridge’den, keresteyi Pinewatch’tan al. Highridge avlusunda paketleyip Reedhaven’a teslim et."
+    ],
+    completionDialogue: [
+      "İskelenin onarımında işe yarar. Metal yolda dayanır ama aynısından bir kasa daha yapmadan talebe bak."
+    ],
     objectives: { "step.tradecraft.return_goods.make": { description: "Highridge’de bir atölye metal kasası hazırla." }, "step.tradecraft.return_goods.deliver": { description: "Metal kasasını Reedhaven’da sat." } }
   },
   "quest.tradecraft_premium": {
     actTitle: "İşini Bilen Tüccar", questTitle: "Yük Yerinin Değeri",
-    introDialogue: ["Değerli bir sevkiyat, arabadaki tek bölmeden daha çok kazandırır. Bunun için işleme ve ticaret tecrübesi, bir de daha fazla sermaye gerekir.", "Reedhaven’dan yoğun yem ve olta yemi al. Pinewatch’tan muşamba ve kereste getir. Nehir seferi malzemelerini sazlık köyünde paketleyip Highridge’e taşı.", "Dayanıklı kumanya, taze yemeklerden uzun süre korunur. Yükünü çeşitlendir; benzer tarifler aynı talebi paylaşır."],
-    completionDialogue: ["Tek bir araba bölmesine koca bir seferin malzemesi sığdı. O yere değerini, yokuşa çıkmadan önce yaptığın hazırlık verdi.", "Bu bedelde yapanın emeği, yolun zahmeti ve alıcı köyün ihtiyacı var."],
+    introDialogue: [
+      "Highridge’e Nehir Seferi Malzemeleri lazım. Reedhaven’dan yoğun yem harcıyla sahte yem, Pinewatch’tan muşambayla kereste al. Sazlıktaki avluda paketle.",
+      "Bu yük daha çok tecrübe ve peşin masraf ister. Başlamadan şartlara ve kazanca bak, sonra Highridge’e taşı."
+    ],
+    completionDialogue: [
+      "Bir bölmede bütün sefer malzemelerini tepeye çıkardın. Sonraki yükü planlarken hazırlık masrafını unutma."
+    ],
     objectives: { "step.tradecraft.premium.make": { description: "Reedhaven’da nehir seferi malzemeleri hazırla." }, "step.tradecraft.premium.deliver": { description: "Sefer malzemelerini Highridge’de sat." } }
   },
   "quest.tradecraft_overseas": {
     actTitle: "İşini Bilen Tüccar", questTitle: "Dönüş Yükü",
-    introDialogue: ["Sunreach’te zeytin ve tuzlanmış balık var. İhracat sepeti için anakaradan tahıl ve keten de gerekir; bir sonraki seferinde yanında götür.", "Koy tezgâhında dönüş fiyatlarını karşılaştır ve Neva’ya götürmek üzere bir ihracat sepeti hazırla. Büyük yük gemisinin on bölmesi ayrı yükler taşır; her paket tek tek yüklenir ve kıyıya taşınır."],
-    completionDialogue: ["Dönüş sepetinde Sunreach zeytiniyle tuzlu balığı, ana karadan götürdüğün tahıl ve ketenle yan yana geldi.", "İyi tüccar geçişin iki yanını da görür. Adanın işe yarar kıldığı şey, ambarda eve döner."],
+    introDialogue: [
+      "Sonraki geçişte Sunreach’e öğütülmüş tahıl ve keten götür. Koy avlusunda yerel zeytinle kurutulmuş balık ekleyip Sunreach İhracat Sepeti hazırla.",
+      "Sepeti Neva’ya getirip sat. Ambarın kalanını doldurmadan teklife bak."
+    ],
+    completionDialogue: [
+      "Ana karanın tahılı gitti, adanın sepeti döndü. Geçişin iki yönü de işe yaradı. Sonraki yük listeni beklerim."
+    ],
     objectives: { "step.tradecraft.overseas.make": { description: "Sunreach’te bir ihracat sepeti hazırla." }, "step.tradecraft.overseas.deliver": { description: "Sunreach ihracat sepetini Neva’da sat." } }
   },
 
   "quest.caravan_first_stamp": {
     actTitle: "Köyler Arası Ticaret", questTitle: "İlk Damga",
     introDialogue: [
-      "Açık tahıl manav tezgâhına gider. Bağlı ticaret paketi ise köyün paketleme avlusunda hazırlanır ve varış tezgâhına elden taşınır.",
-      "On buğdayı mutfağa değil, Neva’nın paketleme avlusuna götür. Bir paket hazırlayıp önce burada, Neva’da sat. Kısa yol teslimi öğretir; sonra uzun yolun getirdiği fiyat farkına bakarız."
+      "On buğdayı Neva Paketleme Avlusu’nda bir ticaret paketi yap. Önce bizim köy tezgâhına taşıyıp sat. Seni yola göndermeden teslimi öğrenmeni istiyorum."
     ],
     completionDialogue: [
-      "Tezgâh on avuç açık buğdayı değil, bağlı paketi aldı. Damgası yükün Neva’da hazırlandığını söylüyor.",
-      "Şimdi aynı yükü tahıla ihtiyacı olan köye götür. Yol, geçen zaman ve alıcının ambarı fiyatı değiştirecek."
+      "İlk Neva damgan. Şimdi aynı tahılı ona ihtiyaç duyan bir köye götür, teklifleri karşılaştır."
     ],
     objectives: {
       "step.caravan.first_stamp.pack": { description: "Neva Paketleme Avlusu’nda bir buğday paketi hazırla." },
@@ -49,12 +64,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Pinewatch’a Ekmeklik Tahıl",
     "introDialogue": [
-      "Pinewatch’ta keten, elma ve kereste var. Hiçbiri ekmek olmaz. Rowan fırınlar için Neva tahılı bekliyor.",
-      "On buğdayı avlumuzda paketleyip Pinewatch tezgâhında sat. Teklifi Neva’daki satışınla karşılaştır, sonra kereste avlusunda Rowan’la konuş."
+      "Rowan’ın Pinewatch fırınları için tahıla ihtiyacı var. Bizim avluda bir buğday paketi daha hazırla, onun tezgâhında sat; sonra kereste avlusunun yanında kendisini bul."
     ],
     "completionDialogue": [
-      "Buğday fırının listesine girdi. Neva damgası, ilk ekmek pişmeden önce tahılın nereden geldiğini gösteriyor.",
-      "Tahıl buraya gelirken bizim ketenle elma da yola çıkabilir. Gel, sonraki yolu göstereyim."
+      "Sonraki ekmeğin tahılı tamam. Burada ketenimiz bol; Reedhaven’daki Mara’ya biraz lazım."
     ],
     "objectives": {
       "step.caravan.struct.trade_neva.pack": {
@@ -69,12 +82,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Bataklık İçin Keten",
     "introDialogue": [
-      "Pinewatch keten ve elma yetiştirir; orman da kereste verir. Reedhaven’da Mara’nın kuru ambarları, bir kütükten çok kumaşa ihtiyaç duyar.",
-      "Burada keten paketi hazırla, yükseltilmiş yoldan Reedhaven’a götürüp Mara’nın tezgâhında sat. Bataklığın yollayacağı yüke de yer bırak."
+      "Mara’nın deposunda sarıp sarmalamak, onarmak için keten lazım. Burada Pinewatch ketenini paketle, yükseltilmiş yoldan Reedhaven’a götürüp tezgâhında sat."
     ],
     "completionDialogue": [
-      "Keten şu kuru tahtalarda iyi saklanır. Pinewatch ormanını yerinden oynatmadan tekne erzağını sarabileceğiz.",
-      "Bizim mısırla havucun da gidecek yolu var. Highridge yokuş yukarı; virajı da fiyatı da göz önünde tut."
+      "Güzel keten. Depoda işe yarar. Buradan tepeye çıkacaksan Ada bizim mısırdan istiyordu."
     ],
     "objectives": {
       "step.caravan.struct.trade_pinewatch.pack": {
@@ -89,12 +100,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Yaylanın Sofrası",
     "introDialogue": [
-      "Reedhaven’ın yükseltilmiş tarhlarında mısır ve havuç yetişir. Highridge kök sebze ve atölye malzemesi tutar; alçaktan gelen taze yiyecek ise geçidi aşmak zorundadır.",
-      "Avlumuzda bir mısır paketi bağla, Ada’ya kadar çıkar. Yük sağlam varırsa uzun yolun karşılığı da fiyata yansır."
+      "Bizim avluda Reedhaven mısırını paketle, Highridge’e çıkar. Ada’nın sofrasına kök sebzelerle arpadan başka bir şey gelsin. Yokuşun virajlarına dikkat et."
     ],
     "completionDialogue": [
-      "Islak topraktan çıkan mısır, burada kuru rafta. Bu köyün verdiği bedelde aştığın mesafenin tadı var.",
-      "Biz arpa ve patates yetiştiririz. Neva’ya dönüşte arpa götür; Maeve sana bu yolları bilen tüccar için arabacının ne yaptığını göstersin."
+      "Sazlıktan mısır gelmiş. Akşam sofrasına iyi gider. İnişte yük istersen Neva’ya gönderecek arpamız var."
     ],
     "objectives": {
       "step.caravan.struct.trade_reedhaven.pack": {
@@ -109,12 +118,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Dört Paketlik Yer",
     "introDialogue": [
-      "Highridge arpası yola dayanır. Bir paket Neva’ya indir, sonra meydanın doğusundaki arabacı ahırına bak.",
-      "Dört paketlik arabanın kendi atı var. Usta hem parasını hem de yüklü arabayı sürecek kadar Ticaret tecrübesini ister."
+      "Arpamızı paketleyip Neva’da sat. Sonra meydanın doğusundaki arabacı ahırına uğra. Paran ve Ticaret tecrüben yettiğinde dört paketlik arabayı al."
     ],
     "completionDialogue": [
-      "Dört bölme daha az boş yol demek, her pakete iyi fiyat garantisi değil. Yükleri arkadan yerleştir; yola çıkmadan tezgâhlara bak.",
-      "Atıyla araba artık senin. Onu yapan köylerin işine yarayacak bir rota tut."
+      "Artık kendi atın ve dört yük bölmen var. Arkadan yükle, dönüşte alacağın mala da yer bırak. Yolu değerlendirecek kadar köy tanıdın."
     ],
     "objectives": {
       "step.caravan.struct.trade_highridge.pack": {
@@ -132,11 +139,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Tüccarın Arabası",
     "introDialogue": [
-      "Altı bölmeyle aynı seferde birden fazla köye mal taşıyabilirsin. Hepsini tek tezgâha boşaltırsan onun ambarı dolar, sonraki paket daha az eder.",
-      "Büyük araba pahalı. Hem Ticaret tecrübeni hem birikimini artır; arabayla yapacağın işe de para ayırarak ahırdan satın al."
+      "Arabacıda altı paketlik araba var. Parasını biriktir, Ticaret tecrübeni artır; tek seferde birkaç köye uğrayabiliriz. Doldurmadan tezgâhların talebine bak."
     ],
     "completionDialogue": [
-      "İkinci araba hazır. Şimdi aynı yola iki çeşit Neva ürünü çıkaralım, iki tezgâhın ne dediğine bakalım."
+      "Altı bölme hazır. Tahılla domatesi aynı yola çıkaralım; her birinin alıcısı ayrı olsun."
     ],
     "objectives": {
       "step.caravan.buy_six": {
@@ -147,12 +153,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
   "quest.caravan_shared_load": {
     actTitle: "Köyler Arası Ticaret", questTitle: "Bir Yol, İki Tezgâh",
     introDialogue: [
-      "Neva’da bir buğday paketi hazırla ve altı paketlik arabaya yükle. Ellerin boşalınca bir domates paketi hazırlayıp onu da yanına koy.",
-      "Tahılı Pinewatch’a, domatesi Reedhaven’a götür. Tek seferde iki sofraya hizmet edebilirsin; her tezgâhın talebi satıştan sonra değişir."
+      "Neva’da bir buğday paketi hazırla, altı paketlik arabaya arkadan yükle. Ellerin boşalınca domates paketi hazırla, onu da yükle.",
+      "Buğdayı Pinewatch’ta, sonra domatesi Reedhaven’da sat. Varınca her teklife bak; önceki satış sonraki yükün fiyatını etkiler."
     ],
     completionDialogue: [
-      "Buğday ormana, domates bataklığa vardı. Yol kısalmadı; sen aynı yolu iki kere işe yarar kıldın.",
-      "Sonraki yolculuk için biraz yer ve para bırak. Maeve’nin büyük ambar isteyen bir kanal yük defteri var."
+      "Tahıl ormana, domates sazlığa, hepsi tek seferde. Boğaza hazır olduğunda Maeve’nin aklında daha uzun bir rota var."
     ],
     objectives: {
       "step.caravan.shared_load.wheat": { description: "Neva’da bir buğday ticaret paketi hazırla." },
@@ -167,12 +172,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Boğazın Ötesine On Paket",
     "introDialogue": [
-      "Sunreach’in kuru taraçaları ve tuzlu rüzgârı var ama her fırını doyuracak tahılı yok. Geniş güverteli yük gemisi kanaldan on ayrı paket taşıyabilir.",
-      "Paran ve Ticaret tecrüben yettiğinde gemiyi Seabreak yük rıhtımından al. Köy buğdayı paketlerini tek tek yükle, Sunreach’te karaya çıkarıp sat. Tomas koyun teslim defterini tutuyor."
+      "Sunreach’e Neva tahılı lazım. Paran ve Ticaret tecrüben yettiğinde Seabreak Yük Rıhtımı’ndan ticaret gemisini al. On paketlik yeri var.",
+      "On Neva buğday paketini karşıya götür. Her birini indirip Sunreach tezgâhına elden taşı, sonra Tomas’la konuş."
     ],
     "completionDialogue": [
-      "Tek defterde on Neva damgası. Tahıl ambarımızda, güverte yeniden boş.",
-      "Eskiden bu geçiş ambarı gidişte doldurup dönüşte pek az şey getirirdi. Ayçiçeği çekirdeğiyle zeytin, dolu dönmen için bir sebep."
+      "On paket de teslim edildi. Fırınlarımız çalışacak. Eve dönmeden taraçalardan ne götürebileceğine bak."
     ],
     "objectives": {
       "step.caravan.buy_ship": {
@@ -187,12 +191,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Köyler Arası Ticaret",
     "questTitle": "Eve Dönen Yük",
     "introDialogue": [
-      "Ines taraçalarda ayçiçeği ve zeytin yetiştiriyor. İkisi de burada su ve sabır ister; ana kara boş pazar rafına bakarak bunları üretemez.",
-      "Koy avlusunda zeytin paketi hazırla. Neva’ya götürüp elden sat. Ambarın kalanını doldurmadan dönüş tekliflerine bak."
+      "Zeytinimizi koy avlusunda paketle, Neva’nın tezgâhına götür. Bütün ambarı doldurmadan önce teklife bak; köyün kullanacağı kadar gönderelim."
     ],
     "completionDialogue": [
-      "Kuru taraçaların zeytini, Neva tahılının yola çıktığı yerde satıldı. Yol ve kanal artık iki yönde de iş görüyor.",
-      "Defteri okumaya devam et. İyi rota; havaya, arza ve yolun sonunda bekleyen insana göre değişir."
+      "İlk tahıl paketini sattığın yere Sunreach zeytini getirdin. Artık iki yönde de taşıyacak malın var. Tezgâhlara bakmayı sürdür; iyi rota alıcısına göre değişir."
     ],
     "objectives": {
       "step.caravan.struct.trade_sunreach.pack": {
@@ -207,16 +209,15 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "1. Bölüm: Ata Çiftliğinin Uyanışı",
     "questTitle": "Kapı Artık Senin",
     "introDialogue": [
-      "Kapı senin. Ev de öyle; mirastır bu, köyden parayla satın alınmış değil.",
-      "Senin ailen bu tarhlarda ter döktü, burnun ardındaki suları iyi bilirdi. Onların her zaman başladığı yerden başla: bakmazsan kabuk bağlayan topraktan.",
-      "Buğday tenekede. Tarla arkamda. Öğleden sonra rüzgârı üst toprağı kurutmadan tohumları toprağa kavuştur."
+      "Kapının önünü açık tuttum. Ev de bu tarhlar da artık senin.",
+      "Ailen her hasattan gelecek ekime biraz buğday ayırırdı. Al şu tohumları; hazır tarh hemen arkamda."
     ],
     "completionDialogue": [
-      "Ellerin titrememiş. Tıpkı onun gibi. Kabuk bağlamadan toprağın altına girdiler."
+      "Başlangıç için altı tohum. Üçünü ek, kalanını sonraki sıra için sakla."
     ],
     "objectives": {
       "step.act1_welcome_talk": {
-        "description": "Bostan kapısında Elspeth ile konuş"
+        "description": "Çiftlik evinin avlusunda Elspeth ile konuş"
       }
     }
   },
@@ -224,11 +225,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "1. Bölüm: Ata Çiftliğinin Uyanışı",
     "questTitle": "Üç Tohum Toprağa",
     "introDialogue": [
-      "Sürülmüş tarha geç. Tohumları çıkar, her seferinde bir temiz yere ek.",
-      "Aralarında mesafe bırak. Sıkışık kökler küser; küskün buğday da kimseyi doyurmaz."
+      "Hazır tarha üç buğday ek. Aralarında biraz yer bırak; sularken bu sıraların arasından geçeceğiz."
     ],
     "completionDialogue": [
-      "Toprağa girdiler. Şimdi sen onları ıslatana kadar orada mağrur mağrur otururlar."
+      "İşte oldu. Küçük bir sıra ama senin emeğin. Şimdi her birine su ver."
     ],
     "objectives": {
       "step.act1_sow_3_wheat": {
@@ -240,12 +240,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "1. Bölüm: Ata Çiftliğinin Uyanışı",
     "questTitle": "Kabuk Bağlamadan Önce",
     "introDialogue": [
-      "Güğüm kapının yanındadır, bıraktıysan oradan al. Susamış olan her birine can suyu ver — gölet yapma, toprağı nemlendir kâfi.",
-      "Bu tarh öğleden sonra çabuk kabuk bağlar. Üstü hâlâ koyuyken sula."
+      "Üç ekini de sula. Toprak koyulaşınca bırak; köklere o kadarı yeter."
     ],
     "completionDialogue": [
-      "Koyulaşmayı gördün mü? İşte tarh kana kana içiyor demektir. Senin için ılık tutulmuştu, o yüzden bu başaklar birkaç dakikaya sararır — bütün bir mevsim beklemezsin.",
-      "Döndüklerinde orakla biç. Beklerken evin yanındaki kompost teknesine bak; Barnaby buğdayın ne işe yarayacağını sana anlatır."
+      "Bu kadar yeter. İlk tarh çabuk büyür; başaklar sararınca hasat et.",
+      "Artanları nasıl değerlendireceğini Barnaby gösterir. Kompost teknesi evin yanında."
     ],
     "objectives": {
       "step.act1_water_3_crops": {
@@ -257,11 +256,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "2. Bölüm: Tahıldan Yeme",
     "questTitle": "Toprağın Döngüsü",
     "introDialogue": [
-      "Selam sana! Ben Barnaby, çiftliğin tamircisiyim. İlk buğdayın fazla bekletmez — başlangıç tarhı pek seridir.",
-      "Başaklar altın sarısına dönünce orakla biç, sonra kompost teknesini çalıştır: bitki artıkları ve bir kürek mayalık malzeme koydun mu gerisini solucanlar halleder. Sonra çiftlik evi tezgâhında yanıma gel. Neva'da çiftçilik sadece ekmek için değildir — balık seferlerimizi de böyle donatırız!"
+      "Ben Barnaby. Buradaki aletleri onarırım. Sen tahıla bak, ben de artanları değerlendirmene yardım edeyim.",
+      "Olgunlaşan üç buğdayı hasat et. Sonra tekneye bitki artıklarıyla kompost mayası koy; hazır olunca yem solucanlarını al. Çiftlik evindeki tezgâhımda buluşuruz."
     ],
     "completionDialogue": [
-      "İşte birinci sınıf dane! Ağır başaklar ve dolgun taneler. Şimdi bunu deniz azığına dönüştürelim."
+      "Tahıl değirmene, solucanlar oltaya. Bu tarhtan çıkan hiçbir şey boşa gitmesin."
     ],
     "objectives": {
       "step.act2_harvest_3_wheat": {
@@ -276,12 +275,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "2. Bölüm: Tahıldan Yeme",
     "questTitle": "Öğütme ve Yem Karma",
     "introDialogue": [
-      "Açık denizin iri balıklarını yüzeye çekmek için sağlam bir yem harcı (chum) gerekir ki ortalık kırıma uğrasın.",
-      "Önce hasat ettiğin buğdayı köy değirmenine götürüp Öğütülmüş Tahıl haline getir.",
-      "Sonra o Öğütülmüş Tahıl ile Yem Solucanlarını benim tezgâhıma getir de bir Kova Yem Harcı karalım!"
+      "Buğdayını köy değirmeninde öğüt. Öğütülmüş Tahıl ile Yem Solucanlarını tezgâhıma getir; bir kova yem harcı hazırlayalım.",
+      "Suya biraz yem atınca sürü yaklaşır. Geldiğinde ne yapacağını Silas gösterir."
     ],
     "completionDialogue": [
-      "Şu yem kovasına bir bak! Yağlı, mis kokulu ve öğütülmüş tahılla dolu. Kıyıdaki balık sürüleri buna bayılacak."
+      "Tamamdır. Kovayı sürü için sakla; önce birkaç solucan alıp nehre in."
     ],
     "objectives": {
       "step.act2_mill_grain": {
@@ -296,12 +294,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "3. Bölüm: Nehrin Fısıltısı",
     "questTitle": "Akıntıları Okumak",
     "introDialogue": [
-      "Gümüşsu Nehri çağıldıyor. Oltanı kap ve kıyıya in.",
-      "Akıntının derinleştiği, köpüklerin dindiği durgun sulara dikkat et. Alabalıklar orada saklanır.",
-      "Misina gerildiğinde acele etme; balığın gücünü tüketmesine izin ver."
+      "Bana Silas derler. Ailen şu ahşap köprünün aşağısında balık tutardı. Bakalım nehir sana ne verecek.",
+      "Orada iki tatlı su balığı yakala. Şamandıra batınca tasma at, sonra balığı yakalama çubuğunun içinde tut."
     ],
     "completionDialogue": [
-      "Güzel bir vuruş ve temiz bir çekiş! Akıntıyı okumayı öğreniyorsun."
+      "Eski yerden iki balık. Tekneyle açıldığımızda da böyle sakin kal."
     ],
     "objectives": {
       "step.act3_catch_2_river_fish": {
@@ -313,12 +310,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "3. Bölüm: Nehrin Fısıltısı",
     "questTitle": "Köyde Adil Ticaret",
     "introDialogue": [
-      "Köyün manav tezgâhı tahılla bostan ürünlerini bekler.",
-      "Köprüden geçip meydandaki manava git. Hasadının birazını sat. Av limana gider; tahılla sebzenin yeri köydür."
+      "Bir sonraki ekim için gerekeni ayır, kalan üründen birazını meydandaki tezgâha götür. İlk hasadın sonraki ekimin masrafını çıkarabilir."
     ],
     "completionDialogue": [
-      "Kesendeki para kendi emeğinin karşılığı. Şimdi daha büyük limanı görmeye hazırsın.",
-      "Uzun yollar için Maeve sana paketleme avlularını gösterebilir. Bağlı yük köy tezgâhına elden taşınır; uzak köy ona daha çok ihtiyaç duyabilir."
+      "Emeğinin karşılığını aldın. Maeve limandaki balık pazarına bakıyor; gidip tanış."
     ],
     "objectives": {
       "step.act3_sell_item_village": {
@@ -330,13 +325,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "4. Bölüm: Güneydoğu Limanı",
     "questTitle": "Liman Seferi",
     "introDialogue": [
-      "Güneydoğu Limanına hoş geldin! Ben Maeve. Buralarda her şeye okyanus karar verir.",
-      "Açık hasadı manava götürebilir, köy avlularında ticaret paketi de hazırlayabilirsin. Yol, başka köyün ihtiyacı olan yükün taşınmasına para verir; mutfak ise yemek içindir.",
-      "Balık Pazarı fiyatlarına bir bak: açık deniz tuzlu su balıkları iyi para eder ama unutma: balık çabuk bozulabilen fiziksel bir yüktür!",
-      "Ambarında ne kadar uzun durursa tazeliği o kadar düşer. Seferlerini iyi planla ve elini çabuk tut!"
+      "Ben Maeve. Burada balık alır, teslimat defterini tutarım. Açılmadan önce avını nereye götüreceğini bil.",
+      "Normal avını Balık Pazarı’na getir. Büyük balık paketini köyün ticaret tezgâhına elden taşı; başka bir pazara sipariş aldıysan oraya teslim et. Yolda tazeliği azalır."
     ],
     "completionDialogue": [
-      "Artık pazar dengesini anladın. Yüksek risk, yüksek kazanç; tabii balıkları soğuk getirebilirsen!"
+      "Silas ailenin filikasını kızakta tutuyor. İlk seferini planlamadan önce iskelede onu bul."
     ],
     "objectives": {
       "step.act4_talk_maeve": {
@@ -348,12 +341,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "4. Bölüm: Güneydoğu Limanı",
     "questTitle": "Sedir Filikanın Dönüşü",
     "introDialogue": [
-      "Ailenin eski ahşap filikası kızakta bağlı. Sedir gövdesi taş gibi ama taze bağlama kaydı ve kürek çatalı yağı lazım.",
-      "Bana liman izni için 30 akçe ve çatal yağı için 1 Öğütülmüş Tahıl getir, denize çıkış vizesini vereyim!"
+      "Ailenin filikası hâlâ kızakta. Bunca zamana rağmen sedir gövdesi sapasağlam.",
+      "İzin için 30 altın, kürek çatalının yağı için bir Öğütülmüş Tahıl getir. Ben tekneyi hazır ederim."
     ],
     "completionDialogue": [
-      "Denize açılma izni çıktı! Olta çantana iki Dokuma Sahte Yem iliştirdim. İri bir balığa olta atmadan önce [R] ile yemini tak.",
-      "Ahşap kızağa in, [E] tuşuyla bin ve tekneyi körfeze aç."
+      "Tekne hazır. Yanına iki Dokuma Sahte Yem koydum; sürüden balık tutmadan önce birini tak. Ahşap kızaktan binebilirsin."
     ],
     "objectives": {
       "step.act4_restore_rowboat_silas": {
@@ -365,30 +357,28 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "5. Bölüm: İlk Açılış",
     "questTitle": "Körfezin Çağrısı",
     "introDialogue": [
-      "İşte bütün mesele bu. Yem Kovalı ve Dokuma Sahte Yemlerinle filikana bin, sonra açık sulara doğru yol al.",
-      "Turlayan martılara ve sudaki kaynaşmaya bak. Sürüye yaklaş, yem harcını atıp balıkları hareketlendir, [R] ile sahte yemi tak ve oltanı savur!",
-      "Misina gerginliğini iyi yönet: güvenliyken sar, misina turuncu zorlanmaya girince boşluk bırak ve [A] ile [D] ile ters bas.",
-      "Avını ambarına istifle, tazelik düşmeden kıyıya yarış, yük paketini eline alıp Köy Ticaret Merkezine taşı."
+      "Filikanı, yem harcını ve bir Dokuma Sahte Yem alıp işaretli göl sürüsüne git. Harcı suya at, sahte yemi tak ve bir balık yakala.",
+      "Misina izin verdikçe sar; zorlanınca gevşet. Avını tekneye alıp limana dön, paketi Köy Ticaret Merkezi’ne taşı. Sonra bana da anlat."
     ],
     "completionDialogue": [
-      "Muhteşem! Neva'nın ilk büyük döngüsünü kavradın: buğday tohumundan solucana, solucandan yem harcına, yemden göl avına ve elden teslim ticaret paketine!",
-      "Sefer Panosu artık aktif. Çiftliğine bakmaya, suları tanımaya ve daha uzun rotalara hazırlanmaya devam et."
+      "Ailenin teknesi yeniden balıkla döndü. Bunu görmeyi umuyordum.",
+      "Artık Sefer Panosu’ndan sipariş alabilirsin. Vaktinde yetiştirebileceğin birini seç."
     ],
     "objectives": {
       "step.act5_board_rowboat": {
         "description": "Ahşap Filikana bin"
       },
       "step.act5_chum_school": {
-        "description": "Göl veya koydaki balık sürüsüne Yem Harcı at"
+        "description": "İlk göl sürüsüne Yem Harcı at"
       },
       "step.act5_hook_sport_fish": {
-        "description": "Trofe balığı oltaya tak"
+        "description": "Dokuma Sahte Yemi takıp yemlediğin göl sürüsünden bir balığı oltaya al"
       },
       "step.act5_land_sport_fish": {
         "description": "Mücadele ederek trofe balığı tekneye çek"
       },
       "step.act5_stow_cargo": {
-        "description": "Avı tekne ambarına yerleştir"
+        "description": "Avı tekne ambarına yerleştir veya kıyıya taşı"
       },
       "step.act5_dock_rowboat": {
         "description": "Filikanı iskeleye yanaştır"
@@ -405,12 +395,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "6. Bölüm: Döngüyü Kurmak",
     "questTitle": "Limanın Sözü",
     "introDialogue": [
-      "Pano kuru bir fiyat listesinden ibaret değildir. Vaktinden önce dürüstçe bitirebileceğin bir sipariş seç, sonra onu asan pazara teslim et.",
-      "Düzenli bir çiftlik teslimatı sağlam iştir. Balık siparişi daha çok kazandırabilir ama su, olta, ambar ve saat hepsi söz sahibidir."
+      "Her siparişin ucunda bekleyen biri var. Sefer Panosu’ndan birini seç; süresine ve teslim yerine bak, istenen malı götür."
     ],
     "completionDialogue": [
-      "Bir söz verdin ve tuttun. Körfez sana böyle güvenmeyi öğrenir işte.",
-      "Şu ödemeni al — bir de bu temiz balık artıklarını. Barnaby'nin bunları ata çiftliğinde değerlendirmek için bir fikri var."
+      "Söz verdiğin gibi teslim ettin. Ödemen burada; şu temiz balık artıklarını da Barnaby’ye götür. Tarlanın nasıl gittiğini soruyordu."
     ],
     "objectives": {
       "step.act6_complete_contract": {
@@ -422,12 +410,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "6. Bölüm: Döngüyü Kurmak",
     "questTitle": "Tarla Pompası",
     "introDialogue": [
-      "Maeve'in ödemesi tarla pompası parçalarına yeter. Onları ata çiftliğindeki kuyuya tak, sonra ekinler su istedikçe pompayı çalıştır.",
-      "Senin yerine bir şey büyütmez. Ama tek tek elle sulama zahmetini bütünsel bir tarla kararına çevirir."
+      "Sıra sıra su taşımak sabahın yarısını alıyor. Ata Çiftliği kuyusuna pompa kurup tarlayı sula. Maeve’nin verdiği para parçalara yeter."
     ],
     "completionDialogue": [
-      "Şu düzenli tıkırtıyı duyuyor musun? Zaman kazandın, sorumluluğu devretmedin.",
-      "Şimdi o balık artıklarını liman temizleme tezgâhına götür. Deniz de toprağı besler, tıpkı tarlanın limanı beslediği gibi."
+      "Artık kuyuya daha az gidip gelirsin. Şimdi balık artıklarını limandaki tezgâha götür; toprak için gübre yapalım."
     ],
     "objectives": {
       "step.act6_install_irrigation": {
@@ -442,13 +428,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "6. Bölüm: Döngüyü Kurmak",
     "questTitle": "Kara ve Deniz Döngüsü",
     "introDialogue": [
-      "Maeve'in balık artıklarını liman tezgâhında gübreye dönüştür. Sonra eve taşıyıp ata tarlasına yedir.",
-      "Bir zanaatın artığı, diğerinin hazırlığı olur. Neva Körfezi'nin sessiz çarkı böyle döner."
+      "Maeve’nin artıklarını Liman Balık Masası’nda gübreye çevir, sonra Ata Çiftliği toprağına ver. Toprağın işine yarayanı atmayalım."
     ],
     "completionDialogue": [
-      "İşte bu: tarladan yeme, yemden balığa, balıktan tekrar tarlaya. Artık körfezin döngüsünü sadece izlemiyorsun — onu bizzat işletiyorsun.",
-      "Yöntemi günlüğüne yazdım. Toprak bir mevsime daha ihtiyaç duyduğunda kullanırsın.",
-      "Silas da iskelede seni soruyordu. Boğazla ve motorlu bir tekneyle ilgili bir şeyler geveliyordu."
+      "Bir sonraki ekine yarar. Nasıl yapıldığını günlüğüne yazdım.",
+      "Silas iskelede seni soruyordu. Boğazın ötesinden haberi varmış."
     ],
     "objectives": {
       "step.act6_craft_fertilizer": {
@@ -463,23 +447,21 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "7. Bölüm: Boğazın Ötesi",
     "questTitle": "Açık Boğaz",
     "introDialogue": [
-      "Şamandıraların içine yanaşıp iskeleye çık. Kuru taşa ayak basana kadar her şey bekleyebilir."
+      "Şamandıraların içine yanaşıp karaya çık. Silas karşıya geçebileceğini söylemişti."
     ],
     "completionDialogue": [
-      "Kendi omurganın üzerinde geldin. Filikalar şamandıralarda geri döner; o dalgayı çoğu insan bir kez dener.",
-      "Sunreach'e hoş geldin — sıcak taşlar, kuru sekiler ve emeği ödüllendiren bir resif. İnes yukarımızdaki taraçalara bakar. Kuru toprakta elinden ne geleceğini merak edecektir."
+      "Sunreach’e hoş geldin. Şu ayçiçeği tohumlarını koyun üstündeki taraçalarda Ines’e götür. Nereye ekeceğini gösterir."
     ],
     "heraldLines": [
-      "Sunreach açık boğazın karşısında yer alır ve bir sandal o dalgalarda hattını koruyamaz. Liman bağlama yerindeki Sedir Balıkçı Filikasını edinmelisin.",
-      "850 altına mal olur ve komisyoncu elinde Uzman oltası olmayan birine açık su teknesi satmaz. Bunu kimse sana hediye etmez. Sularımda mevsiminde balık tut, Maeve'in siparişlerini yerine getir, gerisini geçen saatler halleder.",
-      "Tekne senin olunca şamandıraları doğuya, korunaklı koya doğru takip et ve bağlama yerine yanaş. Tomas o koya bakar; seni bekliyor olacak."
+      "Tomas Sunreach’ten haber yolladı. Yanına gitmek için limandaki Kıyı Balıkçı Filikası’nı almalısın. Satıcı parasının yanında Uzman düzeyinde balıkçılık tecrübesi de istiyor.",
+      "Hazır olana kadar balık tut, siparişleri tamamla. Sonra şamandıraları doğuya takip et, Sunreach Koyu’na yanaşıp pazarda Tomas’ı bul."
     ],
     "objectives": {
       "step.act7_own_skiff": {
-        "description": "Sedir Balıkçı Filikasına sahip ol"
+        "description": "Kıyı Balıkçı Filikasını satın al"
       },
       "step.act7_board_skiff": {
-        "description": "Sedir Balıkçı Filikasına bin"
+        "description": "Kıyı Balıkçı Filikasına bin"
       },
       "step.act7_dock_sunreach": {
         "description": "Boğazı geç ve Sunreach Koyuna yanaş"
@@ -493,10 +475,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "7. Bölüm: Boğazın Ötesi",
     "questTitle": "Güneş Taraçaları",
     "introDialogue": [
-      "Bu taraçalar sıcağı tutar ama suyu çabuk salar. Üç ayçiçeği ek, özenle sula ve bir başak hasat et."
+      "Tomas mı gönderdi? Ben Ines. Taş duvarlar toprağı tutar ama güneş suyunu çabuk alır. Üç ayçiçeği ek, sula; olgunlaşınca birini hasat et."
     ],
     "completionDialogue": [
-      "Taraçalar sesine karşılık verdi. Sunreach aşırı su değil, özenli dikkat ister."
+      "İlk hasadın güzel. Çekirdeği Tomas’a götür; bir kısmını resifte kullanır. Şu zeytin fidanını da sen dik."
     ],
     "objectives": {
       "step.act7_meet_ines": {
@@ -517,10 +499,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "7. Bölüm: Boğazın Ötesi",
     "questTitle": "Deniz İçin Tohum",
     "introDialogue": [
-      "Ayçiçeği tablası bir sonraki mahsulden fazlasını taşır. Çekirdeklerini öğütüp tahıla çevir, sonra o unu koy tezgâhında yem harcına kar."
+      "Yem harcımın çoğu Ines’in tarlasından gelir. Ayçiçeği çekirdeğini el değirmeninde öğüt, sonra koydaki tezgâhta bir kova harç hazırla."
     ],
     "completionDialogue": [
-      "Tarla emeği resif hazırlığına dönüştü. Sunreach yolu böyledir."
+      "Kovayı teknede tut. Resifin kenarında, tabanın derinleştiği yerde bir sürü var."
     ],
     "objectives": {
       "step.act7_mill_sunflower": {
@@ -535,11 +517,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "7. Bölüm: Boğazın Ötesi",
     "questTitle": "Resifin Cevabı",
     "introDialogue": [
-      "Burada hazırladığın yem harcını alıp şamandıraların ardındaki resif eşiğine git.",
-      "Sürüye yem serp, oltanı hazırla ve bir Altın Çipura avla. Onu ambarına alıp köye geri götür."
+      "Filikayla resifin kenarına git, sürüye yem harcı at. Güverteden bir Altın Çipura yakala.",
+      "Geçiş için ambara koy, sonra paketini limandan Köy Ticaret Merkezi’ne taşı. Karadaki yol da tazeliğinden götürür."
     ],
     "completionDialogue": [
-      "Altın Çipura, pırıl pırıl ve soğuk. Küçük bir yerin kendi kendine yetmesi işte böyle olur: büyüyerek değil, birbirine kenetlenerek."
+      "Resiften çıkan balık köyün sofrasına vardı. Sonraki avının artıklarını Ines’e ayır; taraçalarında işe yarar."
     ],
     "objectives": {
       "step.act7_chum_sunreach": {
@@ -549,7 +531,7 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
         "description": "Sunreach sularında bir Altın Çipura avla"
       },
       "step.act7_stow_bream": {
-        "description": "Teknenin güvertesinden Çipurayı ambarına al"
+        "description": "Kıyı Balıkçı Filikasının güvertesinden bir Çipura yakala"
       },
       "step.act7_sell_bream": {
         "description": "Çipura paketini alıp Köy Ticaret Merkezinde sat"
@@ -560,10 +542,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "7. Bölüm: Boğazın Ötesi",
     "questTitle": "Sunreach'te Döngü",
     "introDialogue": [
-      "Balık tezgâhına iki koy sardalyası getir. Onları temizleyip artık çıkar, üç tanesini gübreye sık ve besini taraça toprağına geri ver."
+      "Koydan iki sardalya yakalayıp balık tezgâhında temizle. Üç balık artığından gübre yap, taraçalara ver; sonra yanıma uğra."
     ],
     "completionDialogue": [
-      "Şimdi koy taraçayı besliyor, taraça da bir sonraki seferi hazırlıyor. Sunreach'i tek bir yaşayan rota olarak kavradın."
+      "Bu toprakta besin az. Getirdiklerin sonraki ekime yarar. Biraz kal; kurak günler bastırmadan yapacak işimiz var."
     ],
     "objectives": {
       "step.act7_catch_sardine": {
@@ -584,11 +566,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Suları Okumak",
     "questTitle": "Başladığın Sular",
     "introDialogue": [
-      "Silas Amca sana kadim balıkçılık takvimini açtı.",
-      "İlk olarak başladığın suları tanı: nehirde sazan ve alabalık, gölde ise turna ve arowana yatar. Hepsini kendi vaktinde avla."
+      "Köprünün aşağısındaki nehre dönelim. Gümüşsu’da bir sürüyü yemle, Gökkuşağı Alabalığı’nı oltaya takıp çek. İlk av yerinde kıyıdan gördüğünden fazlası var."
     ],
     "completionDialogue": [
-      "Ev sularını ezberledin evlat. Artık gözün kapalı nerede neyin yüzdüğünü bilirsin."
+      "Takımın iyileşse de bu küçük balık hâlâ çevik. Deniz açılmana izin vermediğinde bu kıyıyı hatırla."
     ],
     "objectives": {
       "step.tides_chum_river": {
@@ -606,11 +587,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Suları Okumak",
     "questTitle": "Derin Kanal",
     "introDialogue": [
-      "Adalar arasındaki kanal rüzgâr aldığında suyun rengi kurşunileşir.",
-      "O derinliklerde kılıçbalığı ve ton balığı kol gezer. Makaranı sıkı tut."
+      "Kanal Yayın Balığı nehrin derininde durur. Ağırlığını kaldıracak takım al, çekerken acele etme. Oltanda birini görmek isterim."
     ],
     "completionDialogue": [
-      "Kanalın akıntısına karşı galebe çaldın. Olta tutuşun sağlamlaşmış."
+      "İşte geldi. Alabalıktan başka türlü sabır istiyor, değil mi? Biraz daha sarmadan önce bırak kamış işini yapsın."
     ],
     "objectives": {
       "step.tides_land_catfish": {
@@ -622,11 +602,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Suları Okumak",
     "questTitle": "Soğuk Suyun Dişleri",
     "introDialogue": [
-      "Kış gelip de su buz kestiğinde gölün derinliklerinde avcılar uyanır.",
-      "Buz gibi suda turna yakalamak sabır işidir. Oltanın ucundaki en ufak kıpırtıyı hisset."
+      "Gölde Turna Balığı ara. Çıkmadan yıllıktan mevsimine bak; bazı günleri takım onarmaya ayırmak daha iyi."
     ],
     "completionDialogue": [
-      "Kış ayazında parlayan o pullar ustalığının nişanesidir."
+      "Şu dişlere bak. Turnaya kaç yem kaptırdığımı saymayı bıraktım. Sen kendininkini yeterince korudun."
     ],
     "objectives": {
       "step.tides_land_pike": {
@@ -638,11 +617,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Suları Okumak",
     "questTitle": "Yaz Altını",
     "introDialogue": [
-      "Yaz sıcağında göl sazlıklarının dibinde altın arowanalar parıldar.",
-      "Güneş tepedeyken vururlar. Sessizce yaklaş ve yemi tam önüne düşür."
+      "Bir akşam Altın Arowana’nın su altında döndüğünü gördüm. Göle para düşmüş sandım.",
+      "Yazın göründüğü vakitlerde ara. Ağır Mücadele Kamışı ya da daha iyi bir takım al; çıkmadan yıllığa bak."
     ],
     "completionDialogue": [
-      "Gerçek bir altın parıltısı! Bu balık gölün tacıdır."
+      "O renk çizimde aynı durmuyor. Artık sen de gördün."
     ],
     "objectives": {
       "step.tides_land_arowana": {
@@ -654,11 +633,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Suları Okumak",
     "questTitle": "Kadim Kıyı",
     "introDialogue": [
-      "Fener kayalıklarının altındaki dalgalı kıyıda mersin balıkları dipte beslenir.",
-      "Ağır kurşun ve sağlam misina gerekir; taşlara takılmadan çekmeyi bilmelisin."
+      "Kıyıda Beyaz Mersin Balığı ara. Ne zaman çıktığına bak, oltayı atmadan ona yer ayır.",
+      "Avını getir, paketini alıp Köy Ticaret Merkezi’ne taşı. Bu büyüklükte bir balığın karadaki yolunu da düşünmek gerek."
     ],
     "completionDialogue": [
-      "O kadim balığı karaya aldın ya, helal olsun. Kıyının hakkını verdin."
+      "Zor kısmını başkasına bırakmadan kıyıdan köye taşıdın. Hatırlamaya değer bir sefer."
     ],
     "objectives": {
       "step.tides_land_sturgeon": {
@@ -673,11 +652,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Suları Okumak",
     "questTitle": "Haritadaki Her Su",
     "introDialogue": [
-      "Artık Neva haritasındaki bütün su yatakları senin av sahan haline geldi.",
-      "Nehir, göl, kıyı ve açık deniz... Her birinden birer trofe av getirerek ustalığını mühürle."
+      "Önce nehirde, sonra gölde, en son kıyıda birer sürüden balık oltaya tak. Üçünü de deneyince gel; en çok hangi suyu sevdiğini merak ediyorum."
     ],
     "completionDialogue": [
-      "Haritanın her damla suyunu hafızana kazıdın. Artık sana öğretebileceğim tek şey kendi sezgilerindir."
+      "Üç su, misinada üç ayrı çekiş. Biri nereden başlayacağını sorarsa artık kendi cevabın var."
     ],
     "objectives": {
       "step.tides_sweep_river": {
@@ -698,13 +676,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Gelgitler & Derin Sular",
     "questTitle": "Mavi Kral",
     "introDialogue": [
-      "Bir şey daha var, ama sadece istersen. Sahanlığın ardında senin ne kadar usta olduğuna hiç aldırmayan bir balık yatar.",
-      "Bir mavi marlin. Yazın veya sonbaharda, ilk ışıkta, elinde Usta oltasıyla. Onu yakaladığında bu dövüş sana diğer bütün derslerin ne için olduğunu öğretir.",
-      "Taşıyamayacaksan sakın tekneye alma. O boyda bir balık, yeri olmayan tekneyi rezil eder."
+      "Benim hiç çıkaramadığım bir balık var: sığlığın ötesindeki Mavi Marlin. Peşine düşersen Üstat Denizci Oltası’nı al, teknede ona uygun bir askıyı boş bırak.",
+      "Ne zaman çıktığına yıllıktan bak. Hazır olana kadar bekleyebilir."
     ],
     "completionDialogue": [
-      "Kendi oltanda gümüş bir kral. Ömrümde dört tane gördüm, güverteye birini bile çekemedim.",
-      "Sana öğretecek başka bir şeyim kalmadı. Git ve diğer balıkçıların akıl danıştığı kişi sen ol."
+      "Kendi oltanla bir marlin. Otur da ilk çekişinden başlayarak anlat. Bu hikâyeyi yıllardır bekliyorum."
     ],
     "objectives": {
       "step.tides_land_blue_marlin": {
@@ -716,11 +692,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Koy Ortaklığı",
     "questTitle": "Ailenin Anahtarı",
     "introDialogue": [
-      "Elspeth sana eski, yağlı kumaştan dikilmiş bir tohum kesesi uzatıyor.",
-      "Bu kese ailenden kaldı. Her sonbaharda en verimli başakların taneleri buraya ayrılırdı. Gelecek sezona inanmanın simgesidir bu."
+      "Ailenin tohum kesesini mutfakta buldum; hâlâ aynı iple bağlıydı. Senin için sakladım.",
+      "Kendi tarlan büyüyor artık. Bu tohumları al, Köy Ortak Tarlası’nı ekmek için Barnaby’ye yardım et."
     ],
     "completionDialogue": [
-      "Kese yeniden dolmaya başladı. Ailenin mirası emin ellerde."
+      "Her hasattan biraz tohum ayırırlardı. Yeniden toprağa girecek olmasına sevindim."
     ],
     "objectives": {
       "step.homestead_take_pouch": {
@@ -732,11 +708,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Koy Ortaklığı",
     "questTitle": "Herkes İçin Bir Karık",
     "introDialogue": [
-      "Köyün ortak tarhları ot bürümüş durumda. Tek başına kimse el atmaya cesaret edememişti.",
-      "Aletlerini kap ve yabani otları temizle. Komşularınla birlikte ekeceğiniz alanları aç."
+      "Doğudaki tarhlar Köy Ortak Tarlası’nın. Fazla boş bıraktık. Oraya üç buğday ek ve sula."
     ],
     "completionDialogue": [
-      "Tarhlar yeniden nefes alıyor. Köy ahalisi şimdiden tohumlarını getirmeye başladı bile."
+      "O sıraları yeniden yeşil görmek güzel. Geçerken gözüm üzerlerinde olur."
     ],
     "objectives": {
       "step.homestead_plant_wheat": {
@@ -751,11 +726,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Koy Ortaklığı",
     "questTitle": "Hakkaniyetli Pay",
     "introDialogue": [
-      "Ortak tarlaya ekilen ilk buğdaylar boy verdi.",
-      "Hasadı kaldır ve köy ambarına teslim et. Herkesin sofrasına bir somun sıcak ekmek düşsün."
+      "Üç buğday olgunlaşınca hasat et. Birazını köy tezgâhında sat; ortak tarla meydana yiyecek getirsin, sen de emeğinin karşılığını al."
     ],
     "completionDialogue": [
-      "Fırından yayılan o taze ekmek kokusu bütün koya yayıldı. Bu senin sayende oldu."
+      "Ortak tarladan yine hasat çıktı. Elspeth tezgâhta görünce sevinecek."
     ],
     "objectives": {
       "step.homestead_harvest_wheat": {
@@ -770,12 +744,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Koy Ortaklığı",
     "questTitle": "Bizden Uzun Yaşayan Aletler",
     "introDialogue": [
-      "Bir ara köy değirmeninin koluna bak. Yalnızca bir yanı aşınmış, üstelik senin yüzünden değil.",
-      "Ortak arazideki buğdaydan biraz orada öğüt. Aynı taş koydaki her aileye hizmet eder. Mirasın işe yarayan tarafı budur: bir sonraki çift ele hazır tutulan bir alet."
+      "Biraz buğdayı köy değirmenine götür. Kolundaki aşınmış yeri görüyor musun? Ailenin de eli değdi. Taşı hâlâ güzel öğütür."
     ],
     "completionDialogue": [
-      "Bu koydaki her alet, onu kullanan ellerin kaydıdır. Artık o kolda seninkiler de var.",
-      "Bu elma fidanını ortak arazi için al. Nereye ait olduğunu Elspeth söyleyecek."
+      "Eski kol biraz daha aşındı. Şu elma fidanını ortak tarlaya götür; Elspeth ona yer ayırıyordu."
     ],
     "objectives": {
       "step.homestead_mill_grain": {
@@ -787,11 +759,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Koy Ortaklığı",
     "questTitle": "Gelecek Mevsim İçin Gölge",
     "introDialogue": [
-      "Tepenin yamacına elma fidanları dikme vakti.",
-      "Bir ağaç dikmek, belki de gölgesinde hiç oturamayacağını bildiğin halde geleceğe hediye bırakmaktır. Can suyunu ver."
+      "Barnaby’nin elma fidanını Köy Ortak Tarlası’na dik. Özenle bak; ilk elma olgunlaşınca bana getir."
     ],
     "completionDialogue": [
-      "Fidanlar rüzgârda salınıyor. Yıllar sonra burada oynayacak çocuklar senin diktiğin elmaları toplayacak."
+      "İlk elma da yetişti. Bir gün biri o ağacın altında oturacak, kimin diktiğini bilmeyecek. Ben bileceğim."
     ],
     "objectives": {
       "step.homestead_plant_orchard": {
@@ -809,11 +780,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Kargo ve İtibar",
     "questTitle": "Bir Siparişin Ağırlığı",
     "introDialogue": [
-      "Maeve tezgâhın arkasından gülümsüyor: 'Ufak tefek işleri geçtik artık.'",
-      "Büyük bir toptan teslimat siparişi al. Ambarını ağzına kadar doldur ve tek seferde teslim et."
+      "Panodan toplu bir sipariş seç. Toplamaya başlamadan miktarına bak; belirtilen tezgâha parça parça teslim edebilirsin."
     ],
     "completionDialogue": [
-      "Kargo eksiksiz teslim edildi. İtibarın pazarda sağlamlaşıyor."
+      "Son ölçü de geldi. Teslimatlar arasında diğer işlerine yer ayırınca büyük sipariş de yürür."
     ],
     "objectives": {
       "step.tradelanes_bulk": {
@@ -825,11 +795,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Kargo ve İtibar",
     "questTitle": "Ambarda İşleyen Saat",
     "introDialogue": [
-      "Denizden çıkan balık güneşte beklemez. Buz kalıplarını hazırla.",
-      "Avı tuttuğun andan Maeve'in tezgâhına koyduğun ana kadar saat senin aleyhine işler. Kusursuz tazelikte teslim et."
+      "Tazelik şartlı bir balık siparişi tamamla. Açılmadan buz al, balığı oltaya takmadan dönüş yolunu seç."
     ],
     "completionDialogue": [
-      "Pulları hâlâ parıldıyor, gözleri cam gibi! İşte buna hakiki tazelik denir."
+      "Alıcının istediği tazelikte ve vaktinde geldi. Dönüşü son dakika telaşına bırakmadın."
     ],
     "objectives": {
       "step.tradelanes_fresh": {
@@ -841,11 +810,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Kargo ve İtibar",
     "questTitle": "Kıymetini Bilen Alıcı",
     "introDialogue": [
-      "Bazı alıcılar sıradan balık istemez; kusursuz işçilik ve nadir kalite ararlar.",
-      "Panodaki 'Üst Kalite' talebini karşıla. Her balıkçı bunu başaramaz."
+      "Bu alıcı kaliteyi baştan söylüyor. Kalite şartlı bir sipariş seç; teslimden önce avına bak. Şartı karşılamayan balık sende kalır."
     ],
     "completionDialogue": [
-      "Alıcı hayran kaldı. Pazarda adın birinci sınıf tedarikçi olarak anılıyor."
+      "İstenen kalitede. Alıcıların ne aradığına bak; iyi avı doğru tezgâha götürmek gerek."
     ],
     "objectives": {
       "step.tradelanes_quality": {
@@ -857,16 +825,14 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Kargo ve İtibar",
     "questTitle": "Uzun Yoldan Dolaşmak",
     "introDialogue": [
-      "Güneşeri Adası ile Neva Limanı arasındaki mesafe tekneler için çetin bir sınavdır.",
-      "Adadan aldığın özel kargoyu bozulmadan ana karaya ulaştır. Rüzgârı iyi hesapla."
+      "Sunreach’e yanaş, sonra panodan boğaz aşırı bir sipariş tamamla. Zeytinimiz karşıya gider, ana karanın malları buraya gelir. Teslimatı hangi tarafın beklediğine bak."
     ],
     "completionDialogue": [
-      "Kanalı kargoyla aştın! Bu iki kıyı arasında düzenli ticaretin kapısını araladı."
+      "Mal boğazın doğru tarafına ulaştı. Teslimat sözü verirken o geçişe de zaman ayır."
     ],
     "heraldLines": [
-      "There is a fourth kind of promise, and Tomas tells it better than I do. It is his island's whole trade.",
-      "Take the skiff across and find him at the cove. And look at the board on your way: some of those orders only make sense on the far side of the channel."
-    ],
+          "Tomas’ın boğaz aşırı siparişleri var. Filikayla Sunreach’e geç, koyda onu bul. Panoda karşıya götürülecek bir yük ara."
+        ],
     "objectives": {
       "step.tradelanes_dock_cove": {
         "description": "Sunreach Koyuna yanaş"
@@ -880,11 +846,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Kargo ve İtibar",
     "questTitle": "Kargo ve İtibar",
     "introDialogue": [
-      "Maeve ticaret defterini önüne koyuyor: 'Girdiğin her risk, teslim ettiğin her söz buraya yazıldı.'",
-      "Koyun en güvenilir deniz tüccarı olduğunu kanıtlamak için son bir büyük sevkiyatı tamamla."
+      "Balık Pazarı’na uğra. Miktarı, tazeliği, kaliteyi ve boğaz geçişini gördün; en çok hangi teslimatın zorladığını merak ediyorum."
     ],
     "completionDialogue": [
-      "Defterdeki mühür tamamlandı. Artık Neva tüccarları senin adını saygıyla anıyor."
+      "Yeni biri sorunca bunu hatırlarım. Adın defterde kalsın; bir yerde her zaman bekleyen bir yük vardır."
     ],
     "objectives": {
       "step.tradelanes_report_maeve": {
@@ -896,16 +861,14 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Kargo ve İtibar",
     "questTitle": "Orman Seferi",
     "introDialogue": [
-      "Çamgözü Ormanı'ndaki keresteciler un ve taze yiyeceğe muhtaç.",
-      "Köyden un çuvallarını yükle ve orman ticaret avlusundaki Rowan'a götür. Dönüşte kereste almayı unutma."
+      "Ben Rowan. Fırının sonraki hamuru için sekiz buğday gerek; tezgâhımızda sat. Dönüş yolun için kereste ve ketenimiz var."
     ],
     "completionDialogue": [
-      "Rowan çuvalları indirdi: 'Fırınımız nihayet tütmeye başlayacak.' Güzel bir sefer oldu."
+      "Sonraki ekmeğin tahılı tamam. Eve dönmeden malzemelere bir bak."
     ],
     "heraldLines": [
-      "There are more kitchens round this cove than ours. Rowan in Pinewatch has timber to send back and grain to buy.",
-      "Take the woodland road, or find the landing across the cove. The useful route is the one you can return along with a load."
-    ],
+          "Pinewatch’taki Rowan’a tahıl lazım. Orman yolundan git ya da koyun karşısındaki iskeleye açıl. Dönmeden kereste avlusuna da bak."
+        ],
     "objectives": {
       "step.tradelanes_meet_rowan": {
         "description": "Pinewatch'ta Rowan ile buluş"
@@ -919,15 +882,14 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Kargo ve İtibar",
     "questTitle": "Sazlıkların Koyu Bulduğu Yer",
     "introDialogue": [
-      "Sazlıkköy bataklık köyü taze tahıl ve meyve bekliyor.",
-      "Yükseltilmiş yolları takip ederek Mara'nın takas tezgâhına ulaş. Bataklığın ihtiyacını karşıla."
+      "Ben Mara. Reedhaven Takas Yeri’ne bir balık paketi getir. Yükü indirip tezgâha elden taşı; iskeleden sonraki birkaç adım yaya."
     ],
     "completionDialogue": [
-      "Mara tezgâhın başında teşekkür ediyor: 'Bataklığa hayat getirdin.' Dönüş için taze yemlerin hazır."
+      "Balık tezgâhımıza ulaştı. Sonraki avını planlarken yolun ne kadar sürdüğünü hatırla."
     ],
     "heraldLines": [
-      "Follow the coast road south to Reedhaven. Mara keeps bait and ice at the exchange, and she buys a catch carried to her counter."
-    ],
+          "Kıyı yolunu güneye takip edip Reedhaven’a git. Mara takas yerinde yem ve buz satar; tezgâha elden getirilen balık paketlerini alır."
+        ],
     "objectives": {
       "step.tradelanes_meet_mara": {
         "description": "Reedhaven'da Mara ile buluş"
@@ -941,15 +903,15 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "Kargo ve İtibar",
     "questTitle": "Koyun Üstünde Akşam Yemeği",
     "introDialogue": [
-      "Yüksektepe yaylasında kök sebzeler boldur ama taze deniz balığı oraya zor ulaşır.",
-      "Buzlu sandıklarla taze balığı geçitten yukarı, Ada'nın dükkânına taşı. Yavaş ve dikkatli sür."
+      "Highridge’den denizi görürüz ama akşam yemeğinin hâlâ yokuşu çıkması gerekir. İki balık paketi getir, tezgâhımızda sırayla sat.",
+      "İkisini tek seferde getireceksen araba kullan. İnişte götürmek için atölye malzemelerimiz var."
     ],
     "completionDialogue": [
-      "Ada sandıkları açınca gülümsedi: 'Ahali bu akşam hakiki bir ziyafet çekecek.' Yolu hakkıyla aştın."
+      "İki av da tepeye ulaştı. Bu rotayı sürdürürsen seni tezgâhta yeniden görmek isteriz."
     ],
     "heraldLines": [
-      "Ada at Highridge buys for the mountain kitchens. There is no landing up there; keep to the pass road with your load."
-    ],
+          "Highridge’deki Ada’ya balık lazım. Geçit yolundan git; orada iskele yok."
+        ],
     "objectives": {
       "step.tradelanes_meet_ada": {
         "description": "Highridge'de Ada ile buluş"
@@ -963,11 +925,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "8. Bölüm: Kurak Sezon",
     "questTitle": "Taraçaların İçtiği Su",
     "introDialogue": [
-      "Yaz sıcağı adayı kavuruyor, sarnıçlar dip yapmaya başladı.",
-      "Ines'in taraçalarına ana karadan getirdiğin tulumba sistemini bağla. Derin kuyudan su çekip taraçaları kurtar."
+      "Önce üst sıralar kuruyor. Oraya iki ayçiçeği ek, sonra kuyudan taraçaları sula. Sarnıç sayesinde bu basamaklardan kova taşımayız."
     ],
     "completionDialogue": [
-      "Gürül gürül akan suyla taraçalar yeniden can buldu. Kuraklığa boyun eğmedik."
+      "Su yeni köklere ulaştı. Şimdi Tomas’ın resifte ne bulduğuna bakacak vaktimiz var."
     ],
     "objectives": {
       "step.act8_plant_terrace": {
@@ -982,12 +943,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "8. Bölüm: Derin Rotalar",
     "questTitle": "Güney Resif Sahanlığı",
     "introDialogue": [
-      "Çalılıkların güneyinde resif sahanlığı epeyce açığa uzanır ve oraya kimse gitmez. Bereketli olmadığından değil — vaktinde satabileceğin herhangi bir yere çok uzak olduğundan.",
-      "Tekneni çevirip oradan bir Sarıkuyruk İstavrit getir. Vinç gibi çekerler, o yüzden Ağır Av takımı veya daha iyisi lazım; koy tezgâhında tam buna göre bir olta var.",
-      "Şimdilik saate aldırma. Önce orada ne olduğunu kendi gözünle görmeni istiyorum."
+      "Güneydeki sığlığın kenarında akyalar var. Koydan izliyordum; bugün birini yakaladığını görmek isterim.",
+      "Filikayı ve Ağır Mücadele Kamışı ya da daha iyi bir takım al. Koy tezgâhında bulabilirsin. Ne zaman çıkacağını yıllıktan kontrol et."
     ],
     "completionDialogue": [
-      "Artık gördün işte. Biz koy duvarından sardalya satarken o su hep doluydu."
+      "Bizim sulardan bir akya. Burada kıyıdan sattığımız sardalyadan fazlası var. Ines avın bir kısmını karşıya götürmenin yolunu bulmuş."
     ],
     "objectives": {
       "step.act8_land_amberjack": {
@@ -999,11 +959,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "8. Bölüm: Kurak Sezon",
     "questTitle": "Tuz ve Gölge",
     "introDialogue": [
-      "Güneşeri'nin güneşi yakıcı, rüzgârı kurudur. Bu bir kusur değil, nimettir.",
-      "Tuttuğun balıkları ada tuzuyla salamura et ve gölgelikte kurut. Zamana meydan okuyan kurutulmuş balık hazırla."
+      "İki sardalya yakala, balık tezgâhımızda tuzlayıp kurut. Biz yıllardır böyle saklarız; boğazın ötesinde alıcı bulacak vaktin olur."
     ],
     "completionDialogue": [
-      "Sertleşen ve mis gibi tuz kokan bu balıklar aylarca bozulmaz. Saati durdurdun."
+      "Kurutulmuş balıkları heybene koy. Ana karada nerede satacağını Tomas biliyor."
     ],
     "objectives": {
       "step.act8_catch_sardines": {
@@ -1018,11 +977,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "8. Bölüm: Kurak Sezon",
     "questTitle": "Korumaya Değer Bir Rota",
     "introDialogue": [
-      "Kurutulmuş balıklar artık uzun kanal geçişinde bozulma riski taşımıyor.",
-      "Bu kargoyu Neva Limanı'na taşı ve Maeve'e sun. İki kıyı arasındaki kalıcı köprüyü kur."
+      "Tuzlu Kuru Balığı Neva’daki Köy Pazarı’na götür. Heybende taşıyabilirsin; teknede balık bölmesi ayırman gerekmez."
     ],
     "completionDialogue": [
-      "Maeve hayretle inceledi: 'Bunu başardın demek... Artık mesafe bir engel değil.'"
+      "Aldılar mı? Güzel. Artık dönüşte de taşıyacak malımız var. Taraçalardan ayrılmadan Ines’e haber ver."
     ],
     "objectives": {
       "step.act8_sell_cured": {
@@ -1034,11 +992,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "8. Bölüm: Kurak Sezon",
     "questTitle": "Kurak Sezonun Sonu",
     "introDialogue": [
-      "İlk yağmur bulutları dağların ardında belirdi. Kurak sezonu geride bıraktık.",
-      "Ines ve Tomas ile koyun meydanında buluş. Ada bu sınavı senin sayende atlattı."
+      "Tomas kurutulmuş balıkların Neva’da satıldığını söyledi. Taraçalara gel; yolculuğun nasıl geçtiğini anlat."
     ],
     "completionDialogue": [
-      "Yağmur damlaları toprağa düşerken herkesin yüzünde bir tebessüm var. Birlikte başardınız."
+      "Geldiğinde ilk sıcak öğleden sonra dönüp gidersin sanmıştım. Tarlamıza baktın, yiyeceğimizi karşıya taşıdın. Burada her zaman yerin var."
     ],
     "objectives": {
       "step.act8_report_ines": {
@@ -1050,16 +1007,14 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "9. Bölüm: Berat",
     "questTitle": "Av Sahalarının Ötesinde",
     "introDialogue": [
-      "Kıyı şeridi ve adalar artık bildiğin yurt oldu. Silas sana haritanın en dış halkasını işaret ediyor.",
-      "Sisli günlerde fenerin ışığının bittiği o derin sulara açılma vakti."
+      "Sana henüz göstermediğim derin sular var. Maeve’nin tezgâhından Açık Deniz Çıkrığı’nı al, sonra iskelede buluşalım."
     ],
     "completionDialogue": [
-      "Ufuk çizgisi artık sana korkutucu gelmiyor. O suların da dilini çözdün."
+      "Bu oltayla daha açığa gidebilirsin. Çukura gitmeden yakıtına bak, av için yer ayır."
     ],
     "heraldLines": [
-      "One more thing before you sail. Silas sent word across with the morning boat: he wants you at the harbor pier.",
-      "He says you are still fishing deep water with shore tackle, and that Maeve has an offshore rod on her rack."
-    ],
+          "Silas haber yolladı: döndüğünde liman iskelesinde buluşmak istiyor. Sana daha derin bir av yeri gösterecekmiş. Gereken Açık Deniz Çıkrığı Maeve’de var."
+        ],
     "objectives": {
       "step.act9_buy_offshore_rod": {
         "description": "Liman balık tezgâhından Açık Deniz Oltası satın al"
@@ -1070,11 +1025,11 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "9. Bölüm: Berat",
     "questTitle": "Derin Çukur",
     "introDialogue": [
-      "Okyanus tabanının aniden uçuruma dönüştüğü derin çukura ulaştın.",
-      "Burada deniz canavarı gibi koca kılıçbalıkları ve tonlar yüzer. Bütün ustalığını ortaya koy."
+      "Kılıç balıkları her zamanki av yerimizin güneybatısındaki çukurda beslenir. Yıllıktan ne zaman çıktıklarına bak; beklemeye yetecek yakıt al.",
+      "Birini yakalayıp eve getir, sonra paketini Köy Ticaret Merkezi’ne taşı. Dönüş yolu da bu işin bir parçası."
     ],
     "completionDialogue": [
-      "Muazzam bir mücadeleydi! Böylesine zorlu bir avı karaya çıkarmak her babayiğidin harcı değil."
+      "Çukurdan çıkan kılıç balığını köye kadar getirdin. Ailenle o yolu giderdik. Yeniden konuşacak birinin olması güzel."
     ],
     "objectives": {
       "step.act9_land_swordfish": {
@@ -1089,11 +1044,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "9. Bölüm: Berat",
     "questTitle": "Sürekli Bir Anlaşma",
     "introDialogue": [
-      "Liman loncası ve köy konseyi senin başarılarını görüyor.",
-      "Sürekli bir tedarik hattı kurmak için son büyük siparişleri tamamla ve masadaki yerini hazırla."
+      "Düzenli teslimatlara güvenebileceğim biri lazım. Önce kalite şartlı, sonra toplu bir sipariş tamamla. İlkinde kaliteye, ikincisinde miktara dikkat et."
     ],
     "completionDialogue": [
-      "Bütün şartlar yerine getirildi. Artık sadece bir kaptan değil, kıyının direğisin."
+      "İki sipariş de teslim edildi. Artık mal gelir mi diye düşünmeden adını sonraki siparişin yanına yazabilirim. Bu iş için bir anlaşmamız var."
     ],
     "objectives": {
       "step.act9_quality_order": {
@@ -1108,11 +1062,10 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "9. Bölüm: Berat",
     "questTitle": "Denizcilik Beratı",
     "introDialogue": [
-      "Silas, Maeve, Elspeth ve Barnaby masanın başında toplandı.",
-      "Neva Denizcilik Beratı önüne serildi. Bu kâğıt sana sadece haklar vermez; bu kıyıyı koruma ve geri dönme sözü ister. İmzanı at."
+      "Liman anlaşması aynı anda bir sipariş daha almanı sağlar. 400 altın ve iki Tuzlu Kuru Balık getir, burada imzalayalım."
     ],
     "completionDialogue": [
-      "Mühür basıldı, berat imzalandı! Artık Neva'nın tescilli kaptanı ve koruyucususun."
+      "Adın deftere yazıldı. Bir sipariş daha alabilirsin. Liman dönüşünü bekliyor."
     ],
     "objectives": {
       "step.act9_sign_charter": {
@@ -1124,26 +1077,36 @@ export const TR_QUESTS: Record<string, LocalizedQuestText> = {
     "actTitle": "10. Bölüm: Ufkun Ötesi",
     "questTitle": "Açık Ufuklar",
     "introDialogue": [
-      "O beratı alıp gitmeden önce benim için bir şey daha yap; bu bir vazife değil.",
-      "Etrafı bir dolaş. Silas, Maeve, Barnaby. İçinden ne geliyorsa onu söyle. Sonra dön ve gerçekten başardıktan sonra neyi miras aldığını bana anlat."
+      "Sonraki yolculuğundan önce Silas’a, Maeve’ye ve Barnaby’ye uğra. Sonra bahçeye dön. Gitmeden biraz konuşalım."
     ],
     "completionDialogue": [
-      "Toprak, bir tekne, bir rota ve üç tezgâhta bir isim. Sana geldiğinde hiçbiri bitmiş değildi, sen devrederken de hiçbiri bitmiş olmayacak.",
-      "Bütün mesele budur ve bu kadarı yeter. Hadi git ve ufkun ne işe yaradığını kendin gör."
+      "Geldiğinde sana bir kese tohum vermiştim. Şimdi tarlada ekinler, kızakta bir tekne, dönüşünü bekleyen insanlar var.",
+      "Kapıyı yağlamayı unutma. Daha çok kez o kapıdan eve döneceksin."
     ],
     "heraldLines": [
-      "One more thing, and it is not mine to ask. Elspeth sent word down from the garden: before you take that charter anywhere, she wants you to go round.",
-      "Silas first, then back by me, then Barnaby at his bench. Finish with her at the garden gate. It is not work. Humour an old baker."
-    ],
+          "Elspeth sonraki seferinden önce bize uğramanı istedi. Önce Silas’a git, sonra buraya dön, ardından tezgâhında Barnaby’ye uğra. Kendisi çiftlik evinin avlusunda bekleyecek."
+        ],
     "objectives": {
       "step.act10_silas": {
-        "description": "İskelede Koca Silas ile konuş"
+        "description": "İskelede Koca Silas ile konuş",
+        dialogue: [
+          "Biraz otur. Yıllarca ailenin kızağını boş tuttum; biri tekneyi yeniden açar diye.",
+          "Sen açtın. Hadi Maeve’ye git; beklemiyormuş gibi yapar."
+        ]
       },
       "step.act10_maeve": {
-        "description": "Balık Pazarında Maeve ile konuş"
+        "description": "Balık Pazarında Maeve ile konuş",
+        dialogue: [
+          "Adın eskiden tezgahtaki küçük bir sepeti hatırlatırdı. Şimdi teslimat defterinde arıyorum.",
+          "Barnaby’ye uğra. Dikkat et, seni işe koşmasın."
+        ]
       },
       "step.act10_barnaby": {
-        "description": "Çiftlik evi tezgâhında Barnaby ile konuş"
+        "description": "Çiftlik evi tezgâhında Barnaby ile konuş",
+        dialogue: [
+          "Tezgâhtaki izleri görüyor musun? Bazıları artık senin. Zımparalamam.",
+          "Elspeth bekliyor. Tarhların yanından git; nasıl olduklarını sorar."
+        ]
       },
       "step.act10_elspeth": {
         "description": "Bostan kapısında Elspeth'in yanına dön"

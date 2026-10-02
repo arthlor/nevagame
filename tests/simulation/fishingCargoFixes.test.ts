@@ -7,8 +7,7 @@ import { QUESTS } from "../../src/content/quests";
 import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope } from "../../src/persistence/SaveSchema";
 import { armLureForTest, hookLakeTroutForTest } from "./sportFishingTestUtils";
 import {
-  SPORT_FISHING_WORK_COST_BY_CLASS,
-  SPORT_FISHING_WORK_REFUND_RATIO
+  BASIC_FISHING_WORK_COST, SPORT_FISHING_WORK_COST_BY_CLASS
 } from "../../src/simulation/domains/FishingDomain";
 import { FISHING_TUNING } from "../../src/simulation/fishing/FishingTuning";
 
@@ -87,17 +86,17 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     InventoryManager.addItemsAtomically(inventory, [{ itemId: "item.bait_worms", quantity: 1 }]);
     const baitBefore = InventoryManager.getItemCount(inventory, "item.bait_worms");
     const rngBefore = sim.rng.getState();
-    sim.state.player.workCapacity.current = 14.99;
+    sim.state.player.workCapacity.current = BASIC_FISHING_WORK_COST - 0.01;
 
     const result = sim.startChargingBasicFishing();
 
     expect(result).toMatchObject({
       success: false,
       reasonCode: "insufficient-work",
-      requiredWork: 20,
-      availableWork: 14
+      requiredWork: BASIC_FISHING_WORK_COST,
+      availableWork: BASIC_FISHING_WORK_COST - 1
     });
-    expect(sim.state.player.workCapacity.current).toBe(14.99);
+    expect(sim.state.player.workCapacity.current).toBe(BASIC_FISHING_WORK_COST - 0.01);
     expect(InventoryManager.getItemCount(inventory, "item.bait_worms")).toBe(baitBefore);
     expect(sim.rng.getState()).toBe(rngBefore);
     expect(sim.state.basicFishing).toBeNull();
@@ -363,14 +362,14 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     expect(emptyResult.success).toBe(false);
     expect(emptyResult.reasonCode).toBe("insufficient-work");
 
-    // With Work, hook succeeds and spends the trout's size-scaled hook cost (small = 18).
+    // With Work, the hook pays the trout's size-scaled charge.
     candidate.state.player.workCapacity.current = 300;
     const validResult = candidate.hookSportFish(schoolId);
     expect(validResult.success).toBe(true);
     expect(validResult.encounter!.fish.quality).toBe("trophy");
-    expect(candidate.state.player.workCapacity.current).toBe(282);
+    expect(candidate.state.player.workCapacity.current).toBe(300 - SPORT_FISHING_WORK_COST_BY_CLASS.small);
 
-    // Losing the fight hands back ~60% of the hook cost (round(18 * 0.6) = 11).
+    // Failure retains the full paid hook charge.
     candidate.state.sportFishing!.lineTension = 0;
     candidate.state.sportFishing!.slackTimerSeconds = 999;
     const escaped: string[] = [];
@@ -378,10 +377,10 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     candidate.tick(0.1);
     expect(escaped).toEqual(["escaped"]);
     expect(candidate.state.sportFishing).toBeNull();
-    expect(candidate.state.player.workCapacity.current).toBe(293);
+    expect(candidate.state.player.workCapacity.current).toBe(300 - SPORT_FISHING_WORK_COST_BY_CLASS.small);
   });
 
-  it("refunds a lost fight against what the hook charged, not the discount in force later", () => {
+  it("does not refund a lost fight when a rank changes after payment", () => {
     const state = structuredClone(sim.state);
     state.worldSeed = 0;
     state.metadata.rngState = undefined;
@@ -411,7 +410,7 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     candidate.tick(0.1);
 
     expect(candidate.state.sportFishing).toBeNull();
-    expect(candidate.state.player.workCapacity.current - afterHook).toBe(Math.round(charged * 0.6));
+    expect(candidate.state.player.workCapacity.current).toBe(afterHook);
   });
 
   it("commits a physical basic catch that carries no treasure", () => {
@@ -438,27 +437,19 @@ describe("Fishing, cargo, quest, and habitat fixes", () => {
     })).toBe(true);
   });
 
-  it("prices a legacy lost-fight refund with the equipment Work multiplier", () => {
+  it("does not refund a legacy lost fight without a charge snapshot", () => {
     const equipment = sim.state.player.equipment;
     equipment.ownedIds = [...equipment.ownedIds, "equipment.tidewatch_cap"];
     equipment.equipped.head = "equipment.tidewatch_cap";
     hookLakeTroutForTest(sim);
-    const quoted = sim.quoteWorkCost(
-      SPORT_FISHING_WORK_COST_BY_CLASS.small,
-      "fishing",
-      "fishing.sport-hook"
-    ).cost;
     const before = sim.state.player.workCapacity.current;
-    // A pre-v33 fight carries no charged amount, so the refund re-prices the
-    // hook; it must use the same quote the hook would charge today.
+    // A missing historical charge never creates a failure refund.
     sim.state.sportFishing!.workCharged = undefined;
     sim.state.sportFishing!.lineTension = 0;
     sim.state.sportFishing!.slackTimerSeconds = 999;
     sim.tick(0.1);
     expect(sim.state.sportFishing).toBeNull();
-    expect(sim.state.player.workCapacity.current - before).toBe(
-      Math.round(quoted * SPORT_FISHING_WORK_REFUND_RATIO)
-    );
+    expect(sim.state.player.workCapacity.current).toBe(before);
   });
 
   it("still defers a physical catch whose treasure cannot fit", () => {

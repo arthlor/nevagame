@@ -141,10 +141,10 @@ export const EQUIPMENT: Record<EquipmentId, EquipmentDefinition> = {
   "equipment.copper_rose_watering_can": {
     id: "equipment.copper_rose_watering_can",
     name: "Copper Rose Can",
-    description: "A fine rose spreads water evenly and reduces watering Work.",
+    description: "A finely made copper can with a rose that spreads water evenly.",
     slot: "watering-tool",
     starter: false,
-    effects: [{ kind: "work-multiplier", actions: ["farming.water"], multiplier: 0.8 }],
+    effects: [],
     presentation: { assetId: "tool_watering_can_copper_rose_a", socket: "tool", scale: 0.72 },
     icon: "equipment.copper_rose_watering_can"
   },

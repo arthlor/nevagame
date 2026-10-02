@@ -27,7 +27,7 @@ const LEAF_AJAR = THREE.MathUtils.degToRad(12);
  * line; the rails are mortised through the post centres, so a bay reads the same from both sides and
  * bays placed end to end share their end posts cleanly (the end posts are plumb and identical for
  * that reason; only the inner posts lean). Each rail plank sits a little crooked with its own tone,
- * the controlled asymmetry the art bible asks of a fence.
+ * giving this fence its deliberate asymmetry.
  *
  * With `hasGate` the first bay becomes a braced five-bar style leaf hung on strap hinges and left
  * ajar: stiles, `rails` bars, and a diagonal brace board from the hinge foot to the latch head, with

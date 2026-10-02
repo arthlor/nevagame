@@ -16,6 +16,30 @@ import {
 } from "../../src/render/lighting/LightingRig";
 
 describe("LightingRig", () => {
+  it("warms sun/moon programs while restoring live shadow flags before async compilation settles", async () => {
+    const renderer = {
+      capabilities: { reversedDepthBuffer: false, maxTextureSize: 4096 },
+      shadowMap: { autoUpdate: true, enabled: false, type: THREE.PCFShadowMap, needsUpdate: false, render: () => undefined }
+    } as unknown as THREE.WebGLRenderer;
+    const rig = new LightingRig(new THREE.Scene(), renderer);
+    rig.sun.castShadow = true; rig.moon.castShadow = false;
+    let release!: () => void;
+    const flags: boolean[][] = [];
+    const warm = rig.prepareShadowVariants(() => {
+      flags.push([rig.sun.castShadow, rig.moon.castShadow]);
+      return new Promise<void>(resolve => { release = resolve; });
+    });
+    expect(flags).toEqual([[true, false]]);
+    expect([rig.sun.castShadow, rig.moon.castShadow]).toEqual([true, false]);
+    release(); await Promise.resolve();
+    expect(flags).toEqual([[true, false], [false, true]]);
+    expect([rig.sun.castShadow, rig.moon.castShadow]).toEqual([true, false]);
+    release(); await warm;
+    await expect(rig.prepareShadowVariants(() => { throw new Error("compile failed"); })).rejects.toThrow("compile failed");
+    expect([rig.sun.castShadow, rig.moon.castShadow]).toEqual([true, false]);
+    rig.dispose();
+  });
+
   it("keeps dawn and dusk ambient continuous across every label boundary", () => {
     const edge = CANONICAL_RENDER_CONFIG.skyFill.dawnDuskEdgeAmbient;
     const shoulder = CANONICAL_RENDER_CONFIG.twilight.ambientShoulderMinutes;
@@ -56,10 +80,11 @@ describe("LightingRig", () => {
 
   it("refreshes the shadow depth map on every moving-light update", () => {
     const renderer = {
+      capabilities: { reversedDepthBuffer: false, maxTextureSize: 4096 },
       shadowMap: {
         autoUpdate: true,
         enabled: false,
-        type: THREE.PCFSoftShadowMap,
+        type: THREE.PCFShadowMap,
         needsUpdate: false,
         render: () => undefined
       },
@@ -69,7 +94,7 @@ describe("LightingRig", () => {
     for (const tier of ["low", "medium", "high"] as const) {
       rig.setQuality(tier);
       expect(renderer.shadowMap.enabled).toBe(true);
-      expect(renderer.shadowMap.type).toBe(tier === "low" ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap);
+      expect(renderer.shadowMap.type).toBe(tier === "low" ? THREE.BasicShadowMap : THREE.PCFShadowMap);
     }
     const state = createInitialGameState(42);
     const focus = new THREE.Vector3(4, 0.5, -6);
@@ -86,10 +111,11 @@ describe("LightingRig", () => {
     const originalRender = () => undefined;
     const restoredRender = () => undefined;
     const renderer = {
+      capabilities: { reversedDepthBuffer: false, maxTextureSize: 4096 },
       shadowMap: {
         autoUpdate: true,
         enabled: false,
-        type: THREE.PCFSoftShadowMap,
+        type: THREE.PCFShadowMap,
         needsUpdate: false,
         render: originalRender
       },
@@ -110,7 +136,7 @@ describe("LightingRig", () => {
     renderer.shadowMap = {
       autoUpdate: true,
       enabled: false,
-      type: THREE.PCFSoftShadowMap,
+      type: THREE.PCFShadowMap,
       needsUpdate: false,
       render: restoredRender
     } as unknown as typeof renderer.shadowMap;

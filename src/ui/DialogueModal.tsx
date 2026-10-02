@@ -37,6 +37,7 @@ import { ChromeButton, ChromeClose } from "./chrome/Chrome";
 import { GameSheet, KeyHint } from "./coastal/CoastalUI";
 import { playUiSound } from "./audio/uiAudio";
 import { foundNoteView } from "../content/foundNotes";
+import { localizeQuestSegment } from "../i18n/questObjectives";
 
 export type { DialogueTalkResult } from "./dialogueConversation";
 
@@ -83,12 +84,12 @@ function featureUnlockLabel(featureId: string, locale?: string): string {
 
 /** What a completion beat granted, and what the player handed over to settle it. */
 export const DialogueRewardsPanel: React.FC<{ rewards?: QuestRewardDefinition; paid?: QuestTurnInCost }> = ({ rewards, paid }) => {
-  const { locale, getLocalizedItem, getLocalizedKnowledge } = useTranslation();
+  const { locale, getLocalizedItem, getLocalizedKnowledge, getLocalizedSkill } = useTranslation();
   const paidItems = paid?.items ?? [];
   const isTr = locale === "tr";
   return (
     <div className="dialogue-rewards-panel" data-testid="dialogue-rewards">
-      <span className="dialogue-rewards-title">{isTr ? "Kazanılan ödüller" : "Rewards received"}</span>
+      <span className="dialogue-rewards-title">{isTr ? "Kazanılanlar" : "Received"}</span>
       <div className="dialogue-rewards-list">
         {rewards?.money ? (
           <span className="dialogue-reward-pill money dialogue-reward-pill-enter" style={{ animationDelay: "0ms" }}>
@@ -125,7 +126,7 @@ export const DialogueRewardsPanel: React.FC<{ rewards?: QuestRewardDefinition; p
           >
             {getSkillIcon(xp.skill)}
             <span className="dialogue-reward-qty">+{xp.xp}</span>
-            <span className="dialogue-reward-label">{xp.skill.toUpperCase()} XP</span>
+            <span className="dialogue-reward-label">{getLocalizedSkill(xp.skill).name} XP</span>
           </span>
         ))}
         {rewards?.unlocksFeatureIds?.map((featureId) => (
@@ -168,7 +169,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   onClose,
   onTalkNpc
 }) => {
-  const { locale, getLocalizedNpc, getLocalizedQuest, getLocalizedQuestTrack } = useTranslation();
+  const { locale, getLocalizedNpc } = useTranslation();
   const foundNote = useMemo(
     () => (foundNoteId ? foundNoteView(foundNoteId, locale) : null),
     [foundNoteId, locale]
@@ -208,21 +209,8 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     let result = rawResult;
     if (locale === "tr" && rawResult.segments) {
       const localizedSegments = rawResult.segments.map((seg) => {
-        const copy = { ...seg };
-        if (copy.questId) {
-          const locQ = getLocalizedQuest(copy.questId);
-          copy.questTitle = locQ.questTitle || copy.questTitle;
-          if (copy.trackId) {
-            copy.trackTitle = getLocalizedQuestTrack(copy.trackId).title || copy.trackTitle;
-          }
-          if (copy.kind === "intro" && locQ.introDialogue?.length) {
-            copy.lines = locQ.introDialogue;
-          } else if (copy.kind === "completion" && locQ.completionDialogue?.length) {
-            copy.lines = locQ.completionDialogue;
-          } else if (copy.kind === "herald" && locQ.heraldLines?.length) {
-            copy.lines = locQ.heraldLines;
-          }
-        } else if (copy.kind === "recognition") {
+        const copy = localizeQuestSegment(seg, locale);
+        if (!copy.questId && copy.kind === "recognition") {
           const idleIdx = npc?.idleDialogue.findIndex((l) => copy.lines.includes(l));
           if (idleIdx !== undefined && idleIdx >= 0 && locNpc.idleDialogue[idleIdx]) {
             copy.lines = [locNpc.idleDialogue[idleIdx]];
@@ -241,7 +229,7 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
     const fallbackLines = locale === "tr" ? locNpc.idleDialogue : (npc?.idleDialogue ?? []);
     const pages = buildDialoguePages(result, fallbackLines);
     setResolved((prev) => ({ npcId: sessionKey, generation: (prev?.generation ?? 0) + 1, pages, failed: !result.success }));
-  }, [foundNote, getLocalizedNpc, getLocalizedQuest, getLocalizedQuestTrack, locNpc, locale, npc, npcId, onTalkNpc, sessionKey]);
+  }, [foundNote, getLocalizedNpc, locNpc, locale, npc, npcId, onTalkNpc, sessionKey]);
 
   const isResolved = resolved?.npcId === sessionKey;
   const pages = isResolved ? resolved.pages : EMPTY_PAGES;
@@ -266,12 +254,6 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
   pageTextRef.current = currentPageText;
   /** Set by the page-dot rewind to show an already-read page in full. */
   const instantRevealKeyRef = useRef<string | null>(null);
-
-  // Page dots group by segment so a chained conversation shows its beats.
-  const segmentStarts = useMemo(
-    () => new Set(pages.flatMap((page, index) => (page.opensSegment && index > 0 ? [index] : []))),
-    [pages]
-  );
 
   useEffect(() => {
     if (typewriterTimerRef.current !== null) {
@@ -424,9 +406,10 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
               {heading}
             </span>
           )}
-          <p className={`dialogue-text${isTyping ? " is-typing" : ""}`} data-testid="dialogue-text">
+          <p className={`dialogue-text${isTyping ? " is-typing" : ""}`} data-testid="dialogue-text" aria-hidden="true">
             {visibleText}
           </p>
+          <p className="sr-only" aria-live="polite" aria-atomic="true">{isResolved ? currentPageText : ""}</p>
           {note && !isTyping && (
             <p className="dialogue-note" data-testid="dialogue-note">{note}</p>
           )}
@@ -435,42 +418,26 @@ export const DialogueModal: React.FC<DialogueModalProps> = ({
         {showRewards && segment && <DialogueRewardsPanel rewards={segment.rewards} paid={segment.paid} />}
 
         <footer className="dialogue-footer">
-          {/* Page dots sit in the footer's empty left side so the words keep
-              the body's full height, reward plate or not. */}
           {totalPages > 1 && (
-            <div className="dialogue-page-dots" aria-label={`Page ${dialogueIndex + 1} of ${totalPages}`}>
-              {pages.map((_, i) => {
-                const gap = segmentStarts.has(i) ? " starts-beat" : "";
-                return i < dialogueIndex ? (
-                  <button
-                    key={i}
-                    type="button"
-                    className={`dialogue-dot is-past${gap}`}
-                    aria-label={`Return to page ${i + 1}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (typewriterTimerRef.current !== null) {
-                        window.clearInterval(typewriterTimerRef.current);
-                        typewriterTimerRef.current = null;
-                      }
-                      // A page the player has already read is shown in full
-                      // rather than retyped.
-                      instantRevealKeyRef.current = dialoguePageKey(
-                        sessionKey,
-                        resolved?.generation ?? 0,
-                        i
-                      );
-                      setDialogueIndex(i);
-                    }}
-                  />
-                ) : (
-                  <span
-                    key={i}
-                    className={`dialogue-dot${i === dialogueIndex ? " active" : ""}${gap}`}
-                    aria-hidden="true"
-                  />
-                );
-              })}
+            <div className="dialogue-pagination">
+              <ChromeButton
+                size="sm"
+                variant="secondary"
+                disabled={dialogueIndex === 0}
+                aria-label={locale === "tr" ? "Önceki sayfa" : "Previous page"}
+                onClick={() => {
+                  if (typewriterTimerRef.current !== null) {
+                    window.clearInterval(typewriterTimerRef.current);
+                    typewriterTimerRef.current = null;
+                  }
+                  const previousIndex = Math.max(0, dialogueIndex - 1);
+                  instantRevealKeyRef.current = dialoguePageKey(sessionKey, resolved?.generation ?? 0, previousIndex);
+                  setDialogueIndex(previousIndex);
+                }}
+              >{locale === "tr" ? "Geri" : "Back"}</ChromeButton>
+              <span aria-label={locale === "tr" ? `${totalPages} sayfanın ${dialogueIndex + 1}. sayfası` : `Page ${dialogueIndex + 1} of ${totalPages}`}>
+                {dialogueIndex + 1} / {totalPages}
+              </span>
             </div>
           )}
           <div className="dialogue-footer-right">

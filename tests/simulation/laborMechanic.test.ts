@@ -106,15 +106,15 @@ describe("Work Capacity mechanic", () => {
       expect(work.passiveRegenSeconds).toBe(0);
     });
 
-    it("trickles through the real-time tick but not while paused", () => {
+    it("recovers through the real-time tick while the world is paused", () => {
       const sim = new Simulation();
       sim.state.player.workCapacity.current = 10;
       sim.clock.setPaused(true);
       sim.tick(WORK_PASSIVE_REGEN_INTERVAL_SECONDS);
-      expect(sim.state.player.workCapacity.current).toBe(10);
+      expect(sim.state.player.workCapacity.current).toBe(10 + WORK_PASSIVE_REGEN_AMOUNT);
       sim.clock.setPaused(false);
       sim.tick(WORK_PASSIVE_REGEN_INTERVAL_SECONDS);
-      expect(sim.state.player.workCapacity.current).toBe(10 + WORK_PASSIVE_REGEN_AMOUNT);
+      expect(sim.state.player.workCapacity.current).toBe(10 + WORK_PASSIVE_REGEN_AMOUNT * 2);
     });
 
     it("restores a fraction plus a baseline floor on rest", () => {
@@ -168,7 +168,7 @@ describe("Work Capacity mechanic", () => {
       expect(work.laborUsedToday).toEqual([]);
     });
 
-    it("grants at most one rest across an offline wake", () => {
+    it("recovers gradually across offline wakes without granting an automatic rest", () => {
       const sim = new Simulation();
       expect(sim.state.player.workCapacity.maximum).toBe(WORK_CAPACITY_MAXIMUM);
       sim.state.player.workCapacity.current = 50;
@@ -176,8 +176,8 @@ describe("Work Capacity mechanic", () => {
       // 1.5 game days away at 0.4 game-min per real second.
       const oneAndAHalfGameDaysMs = (1440 / 0.4) * 1000 * 1.5;
       applyOfflineProgression(sim.state, oneAndAHalfGameDaysMs);
-      // One rest: max(50 + 10% of the ceiling, 40% of the ceiling), not a per-hour refill.
-      expect(sim.state.player.workCapacity.current).toBe(Math.round(WORK_CAPACITY_MAXIMUM * 0.4));
+      // Ninety real minutes are eighteen offline intervals, each worth five.
+      expect(sim.state.player.workCapacity.current).toBe(140);
     });
   });
 
@@ -233,7 +233,7 @@ describe("Work Capacity mechanic", () => {
       expect(result).toMatchObject({
         success: false,
         reasonCode: "insufficient-work",
-        requiredWork: 12,
+        requiredWork: 5,
         availableWork: 0
       });
       expect(InventoryManager.getItemCount(inventory, "seed.wheat")).toBe(seedsBefore);
@@ -242,7 +242,7 @@ describe("Work Capacity mechanic", () => {
       expect(Object.keys(sim.state.crops)).toHaveLength(0);
     });
 
-    it("blocks watering below the full cost and accepts the exact cost", () => {
+    it("allows genuine watering at zero Work without charging the pool", () => {
       const sim = new Simulation();
       giveWheat(sim, 1);
       const pos = movePlayerToStarterFarm(sim, 0, 0);
@@ -250,12 +250,7 @@ describe("Work Capacity mechanic", () => {
       const plantResult = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
       const cropId = plantResult.placedCropId!;
 
-      sim.state.player.workCapacity.current = 4.99;
-      const blocked = sim.waterCrop(cropId);
-      expect(blocked.reasonCode).toBe("insufficient-work");
-      expect(sim.state.player.workCapacity.current).toBe(4.99);
-
-      sim.state.player.workCapacity.current = 5;
+      sim.state.player.workCapacity.current = 0;
       expect(sim.waterCrop(cropId).success).toBe(true);
       expect(sim.state.player.workCapacity.current).toBe(0);
     });
@@ -287,12 +282,12 @@ describe("Work Capacity mechanic", () => {
       const sim = new Simulation();
       giveWheat(sim, 2);
       const pos = movePlayerToStarterFarm(sim, 0, 0);
-      sim.state.player.workCapacity.current = 11.8;
+      sim.state.player.workCapacity.current = 4.8;
       const blocked = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
       expect(blocked.reasonCode).toBe("insufficient-work");
-      expect(sim.state.player.workCapacity.current).toBe(11.8);
+      expect(sim.state.player.workCapacity.current).toBe(4.8);
 
-      sim.state.player.workCapacity.current = 12;
+      sim.state.player.workCapacity.current = 5;
       const exact = sim.plantCrop("farm.starter_garden", "crop.wheat", pos.x, pos.z);
       expect(exact.success).toBe(true);
       expect(sim.state.player.workCapacity.current).toBe(0);

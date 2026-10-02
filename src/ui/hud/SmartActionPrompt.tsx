@@ -59,7 +59,25 @@ const KNOWN_VERBS = new Set([
   "unmoor",
   "rest",
   "repair",
-  "tow"
+  "tow",
+  // Context candidates emitted by GameApp and LaborStations.
+  "trade",
+  "use",
+  "pack",
+  "clear",
+  "drive",
+  "leave",
+  "load",
+  "pump",
+  "install",
+  "read",
+  "refuel",
+  "commission",
+  "step outside",
+  "notu oku",
+  "split",
+  "turn",
+  "mend"
 ]);
 
 const TR_VERBS: Record<string, string> = {
@@ -95,7 +113,24 @@ const TR_VERBS: Record<string, string> = {
   unmoor: "Palamarı Çöz",
   rest: "Dinlen",
   repair: "Onar",
-  tow: "Çektir"
+  tow: "Çektir",
+  trade: "Alışveriş",
+  use: "Kullan",
+  pack: "Paketle",
+  clear: "Temizle",
+  drive: "Sür",
+  leave: "İn",
+  load: "Yükle",
+  pump: "Su bas",
+  install: "Kur",
+  read: "Oku",
+  refuel: "Yakıt doldur",
+  commission: "Sipariş ver",
+  "step outside": "Dışarı çık",
+  "notu oku": "Notu oku",
+  split: "Yar",
+  turn: "Çevir",
+  mend: "Onar"
 };
 
 function translateTargetTr(target: string): string {
@@ -183,15 +218,12 @@ function parseStructuredPrompt(
   let verb = "";
   let target = "";
 
-  if (words.length > 1 && KNOWN_VERBS.has(words[0].toLowerCase())) {
-    verb = words[0];
-    target = words.slice(1).join(" ");
-  } else if (words.length > 2 && KNOWN_VERBS.has(`${words[0]} ${words[1]}`.toLowerCase())) {
+  if (words.length >= 2 && KNOWN_VERBS.has(`${words[0]} ${words[1]}`.toLowerCase())) {
     verb = `${words[0]} ${words[1]}`;
     target = words.slice(2).join(" ");
-  } else if (words.length === 1 && KNOWN_VERBS.has(words[0].toLowerCase())) {
+  } else if (words.length >= 1 && KNOWN_VERBS.has(words[0].toLowerCase())) {
     verb = words[0];
-    target = "";
+    target = words.slice(1).join(" ");
   } else {
     verb = "";
     target = mainAction;
@@ -227,7 +259,17 @@ function stripDesktopHints(detail: string | null): string | null {
   return kept.length > 0 ? kept.join(" · ") : null;
 }
 
-export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
+/** The touch control names the same immediate verb as the world prompt. */
+export function contextualInteractionLabel(promptText: string | null, locale: string): string | null {
+  const parsed = parseStructuredPrompt(promptText);
+  if (!parsed) return null;
+  if (parsed.verb) {
+    return locale === "tr" ? (TR_VERBS[parsed.verb.toLowerCase()] ?? parsed.verb) : parsed.verb;
+  }
+  return null;
+}
+
+export const SmartActionPrompt: React.FC<SmartActionPromptProps> = React.memo<SmartActionPromptProps>(({
   promptText,
   toastMessage = null,
   touchChrome = false,
@@ -245,7 +287,11 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
   if (!parsed) return null;
 
   const rawDetail = touchChrome ? stripDesktopHints(parsed.detail) : parsed.detail;
-  const detail = isTr && rawDetail ? villageTradeTextTr(rawDetail) : rawDetail;
+  const fullDetail = isTr && rawDetail ? villageTradeTextTr(rawDetail) : rawDetail;
+
+  // Keep secondary shortcuts in the accessible description without repeating them visually.
+  const cleanDetailRaw = stripDesktopHints(parsed.detail);
+  const visibleDetail = isTr && cleanDetailRaw ? villageTradeTextTr(cleanDetailRaw) : cleanDetailRaw;
 
   const isInsufficient =
     currentWork !== undefined &&
@@ -259,7 +305,7 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
     : parsed.cleanLabel;
 
   const displayCleanLabel = isTr ? villageTradeTextTr(translatedCleanLabel) : translatedCleanLabel;
-  const accessibleLabel = detail ? `${displayCleanLabel} · ${detail}` : displayCleanLabel;
+  const accessibleLabel = fullDetail ? `${displayCleanLabel} · ${fullDetail}` : displayCleanLabel;
 
   return (
     <div
@@ -303,7 +349,7 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
           ) : (
             <span className="prompt-target">{displayCleanLabel}</span>
           )}
-          {detail && <span className="prompt-detail"> · {detail}</span>}
+          {visibleDetail && <span className="prompt-detail"> · {visibleDetail}</span>}
         </span>
 
         {/* Labor Cost Badge */}
@@ -328,4 +374,12 @@ export const SmartActionPrompt: React.FC<SmartActionPromptProps> = ({
       </div>
     </div>
   );
-};
+}, (prev, next) => {
+  return (
+    prev.promptText === next.promptText &&
+    prev.toastMessage === next.toastMessage &&
+    prev.touchChrome === next.touchChrome &&
+    prev.currentWork === next.currentWork &&
+    prev.className === next.className
+  );
+});

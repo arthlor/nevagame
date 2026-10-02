@@ -174,6 +174,14 @@ export interface VisualRenderConfig {
       height: number;
       refreshFrames: number;
     };
+    /** Full-sphere, filtered sky radiance for selected palette surfaces. */
+    materialReflections: {
+      enabled: Record<QualityTier, boolean>;
+      width: number;
+      height: number;
+      refreshSeconds: number;
+      familyIntensity: Partial<Record<string, number>>;
+    };
     aerialPerspective: {
       clearMistDensity: number;
       poorVisibilityMistDensity: number;
@@ -250,6 +258,13 @@ export interface VisualRenderConfig {
     moonDiscRadiusRadians: number;
     quality: Record<QualityTier, { resolutionScale: number; maximumWidth: number; primarySteps: number; lightSteps: number; layerSteps: number; shadowResolution: number }>;
   };
+  shelteredLighting: {
+    enabled: Record<QualityTier, boolean>;
+    probeInsetMeters: number;
+    cubemapSize: number;
+    updateIntervalSeconds: number;
+    probeStepSeconds: number;
+  };
   shadows: {
     type: Record<QualityTier, THREE.ShadowMapType>;
     intensity: number;
@@ -262,6 +277,13 @@ export interface VisualRenderConfig {
     near: number;
     far: number;
     followSnap: boolean;
+    cascades: {
+      enabled: Record<QualityTier, boolean>;
+      viewPadding: number;
+      recenterMeters: number;
+      rotationRadians: number;
+      rangeScale: number;
+    };
     /** Player, NPCs and mounts cast their real silhouette, not a blob proxy. */
     castCharacters: boolean;
     castSmallProps: boolean;
@@ -326,10 +348,19 @@ export interface VisualRenderConfig {
   };
   farmGround: {
     cultivationMarginMeters: number;
+    commonsMarginMeters: number;
     gridSegments: number;
     furrowCount: number;
+    furrowHalfWidthMeters: number;
     furrowSegments: number;
     clodCount: number;
+  };
+  plantingGuide: {
+    nearbyFarmDistanceMeters: number;
+    spacingRingSegments: number;
+    soilTintOpacity: number;
+    outlineOpacity: number;
+    occupiedOpacity: number;
   };
   groundSurface: {
     shortCoverRootShade: number;
@@ -349,7 +380,6 @@ export interface VisualRenderConfig {
     };
     cultivatedEdgeMix: number;
     cultivatedWetnessMix: number;
-    roadWetnessMix: number;
   };
   rainSurfaces: {
     /** Albedo darkening, roughness reduction, minimum wet roughness. */
@@ -442,15 +472,20 @@ export interface VisualRenderConfig {
   roadSurface: {
     externalTexture: {
       sampleScaleMeters: number;
-      mesoSampleScaleMeters: number;
       rotationRadians: number;
       lodBias: number;
       colorStrength: number;
-      roughnessStrength: number;
-      /** Attenuates fine-map color, roughness, and relief without losing meso wear. */
-      fineDetailStrength: number;
     };
     polygonEdgeCellScaleMeters: number;
+    /** Embedded brook-style gravel; presentation only, filtered with distance. */
+    stones: {
+      cellScaleMeters: number;
+      coreDensity: number;
+      shoulderDensity: number;
+      colorMix: number;
+      normalStrength: number;
+      roughness: number;
+    };
     /** Share of browner dry soil in the dusty packed-earth colour. */
     earthBrownness: number;
     /** Separates compact freight roads, working lanes, and foot trails. */
@@ -490,9 +525,7 @@ export interface VisualRenderConfig {
     wearRoughnessReduction: number;
     shoulderColorMix: number;
     edgeGrassMix: number;
-    polygonVariationStrength: number;
     polygonJaggedStrength: number;
-    polygonFacetLightingStrength: number;
     edgeFadeStart: number;
     edgeFadeFull: number;
     /**
@@ -1007,6 +1040,14 @@ export interface VisualRenderConfig {
       /** Never render the scene below this device-pixel ratio. */
       minimumPixelRatio: number;
     };
+    /** One depth-only radial gather; no second world render or retained history. */
+    sunShafts: {
+      resolutionScale: number;
+      samples: number;
+      strength: number;
+      radius: number;
+      reach: number;
+    };
     /**
      * Optional High-only highlight bloom in linear HDR before tone mapping.
      * Replaces the practical-light glow sprites while active so the two never
@@ -1110,7 +1151,7 @@ export interface VisualRenderConfig {
       patchResponse: readonly [number, number, number, number];
       /** Base value at the root; bases stay subdued without dark strokes. */
       rootShade: number;
-      /** Blade normal share bent toward the terrain normal. */
+      /** Rest-pose blade normal share bent toward the terrain normal. */
       normalUp: number;
       /** Across-width normal curvature so a flat blade shades as a folded leaf. */
       normalRoundness: number;
@@ -1316,6 +1357,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       height: 64,
       refreshFrames: 4
     },
+    materialReflections: {
+      enabled: { low: false, medium: true, high: true },
+      width: 256,
+      height: 128,
+      refreshSeconds: 3,
+      familyIntensity: { metal: 0.65, wood: 0.1, stone: 0.08 }
+    },
     aerialPerspective: {
       clearMistDensity: 0.001,
       poorVisibilityMistDensity: 0.018,
@@ -1327,7 +1375,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       boundaryFadeStart: 0.35,
       sunScatter: 0.55,
       sunScatterPower: 5,
-      dawnMistDensity: 0.006,
+      dawnMistDensity: 0.008,
       dawnMistMinutes: [270, 390, 560]
     },
     sky: {
@@ -1358,11 +1406,18 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       high: { resolutionScale: 0.5, maximumWidth: 1280, primarySteps: 32, lightSteps: 3, layerSteps: 16, shadowResolution: 192 }
     }
   },
+  shelteredLighting: {
+    enabled: { low: false, medium: true, high: true },
+    probeInsetMeters: 0.6,
+    cubemapSize: 8,
+    updateIntervalSeconds: 20,
+    probeStepSeconds: 0.125
+  },
   shadows: {
     type: {
       low: THREE.BasicShadowMap,
-      medium: THREE.PCFSoftShadowMap,
-      high: THREE.PCFSoftShadowMap
+      medium: THREE.PCFShadowMap,
+      high: THREE.PCFShadowMap
     },
     // Fully opaque shadows crushed dark palette families - coastal rock and dark
     // wood read as flat black silhouettes with no facet separation. Letting a
@@ -1384,6 +1439,13 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     near: 30,
     far: 235,
     followSnap: true,
+    cascades: {
+      enabled: { low: false, medium: false, high: true },
+      viewPadding: 1.12,
+      recenterMeters: 1,
+      rotationRadians: 0.03,
+      rangeScale: 2
+    },
     castCharacters: true,
     castSmallProps: true,
     castRocks: true,
@@ -1507,10 +1569,19 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   farmGround: {
     cultivationMarginMeters: 0.8,
+    commonsMarginMeters: 0.22,
     gridSegments: 10,
     furrowCount: 6,
+    furrowHalfWidthMeters: 0.06,
     furrowSegments: 14,
     clodCount: 24
+  },
+  plantingGuide: {
+    nearbyFarmDistanceMeters: 36,
+    spacingRingSegments: 32,
+    soilTintOpacity: 0.08,
+    outlineOpacity: 0.85,
+    occupiedOpacity: 0.68
   },
   groundSurface: {
     shortCoverRootShade: 0.7,
@@ -1519,8 +1590,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     edgeCellScaleMeters: 1.2,
     wetness: SHARED_GROUND_WETNESS,
     cultivatedEdgeMix: 0.1,
-    cultivatedWetnessMix: 0.08,
-    roadWetnessMix: 0.08
+    cultivatedWetnessMix: 0.08
   },
   rainSurfaces: {
     wood: [0.2, 0.1, 0.66],
@@ -1611,17 +1681,22 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
   },
   roadSurface: {
     externalTexture: {
-      sampleScaleMeters: 2.6,
-      mesoSampleScaleMeters: 8.5,
+      sampleScaleMeters: 8.5,
       rotationRadians: 0.37,
       lodBias: 0.2,
-      colorStrength: 0.82,
-      roughnessStrength: 1,
-      fineDetailStrength: 0.1
+      colorStrength: 0.5
     },
     polygonEdgeCellScaleMeters: 0.9,
+    stones: {
+      cellScaleMeters: 0.24,
+      coreDensity: 0.16,
+      shoulderDensity: 0.32,
+      colorMix: 0.36,
+      normalStrength: 0.12,
+      roughness: 0.92
+    },
     earthBrownness: 0.48,
-    routeIdentityColorMix: 0.35,
+    routeIdentityColorMix: 0.15,
     localGroundColorMix: 0.34,
     routeRoughnessContrast: 0.045,
     shoulderGrowthContrast: 0.46,
@@ -1631,23 +1706,21 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       driftWavelengthsMeters: [43, 101],
       breakupScaleMeters: 6,
       breakup: 0.3,
-      colorMix: 0.58,
-      reliefStrength: 0.3,
-      puddleStrength: 0.8,
+      colorMix: 0.3,
+      reliefStrength: 0.2,
+      puddleStrength: 0.35,
       puddleRoughness: 0.3
     },
-    laneMedianGrassMix: 0.85,
+    laneMedianGrassMix: 0.4,
     medianPatchScaleMeters: 4.5,
-    crownDustMix: 0.16,
+    crownDustMix: 0.1,
     footLineHalfWidthMeters: 0.28,
-    footLineColorMix: 0.32,
+    footLineColorMix: 0.18,
     reliefNormalStrength: 0.065,
     wearRoughnessReduction: 0.075,
-    shoulderColorMix: 0.2,
-    edgeGrassMix: 0.68,
-    polygonVariationStrength: 0.08,
+    shoulderColorMix: 0.1,
+    edgeGrassMix: 0.26,
     polygonJaggedStrength: 0.18,
-    polygonFacetLightingStrength: 0.016,
     edgeFadeStart: 0.16,
     edgeFadeFull: 0.72,
     shoreBlendInlandMeters: 14,
@@ -1973,12 +2046,16 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       autoScales: [1, 0.9, 0.8],
       minimumPixelRatio: 0.5
     },
+    sunShafts: { resolutionScale: 0.25, samples: 16, strength: 0.65, radius: 0.28, reach: 0.9 },
     hdrBloom: {
       threshold: 1.35,
       knee: 0.55,
-      strength: 0.14,
+      // Shift energy into the existing coarser levels for a softer halo.
+      // Compensate strength to retain the chain's uniform-highlight response;
+      // keep sample offsets fixed so this does not widen the texture footprint.
+      strength: 0.123878,
       levels: 4,
-      scatter: 0.68
+      scatter: 0.76
     }
   },
   foliageObstruction: {
@@ -1997,7 +2074,7 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
     gustTravelMetersPerSecond: 3.8
   },
   meadow: {
-    // Olive/sage shadows under yellow-green highlights (Art Bible §9), with the
+    // Olive/sage shadows under yellow-green highlights, with the
     // fresher coastal greens carrying the lush cool regions of the meadow study.
     palette: {
       rootHex: PALETTE_HEX.foliage_shadow_01,
@@ -2020,8 +2097,8 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       maxBladesPerSquareMeter: 80,
       nearFadeMeters: 3,
       outerFadeMeters: 7,
-      nearSegments: 3,
-      farSegments: 2,
+      nearSegments: 2,
+      farSegments: 1,
       shortHeightMeters: [0.15, 0.28],
       meadowHeightMeters: [0.3, 0.5],
       widthMeters: [0.04, 0.06],
@@ -2030,15 +2107,15 @@ export const CANONICAL_RENDER_CONFIG: VisualRenderConfig = {
       dryHeightScale: 0.62,
       roadVergeTallShare: 0.7,
       patchResponse: [0.72, 0.58, 0.84, 1.16],
-      rootShade: 0.66,
-      normalUp: 0.62,
+      rootShade: 0.8,
+      normalUp: 0.8,
       normalRoundness: 0.45,
       valueJitter: 0.045,
       roughnessRoot: 0.92,
       roughnessTip: 0.84,
-      translucency: 0.5,
+      translucency: 0.28,
       translucencyPower: 3,
-      windAmplitudeMeters: 0.15,
+      windAmplitudeMeters: 0.04,
       presencePushMeters: 0.2,
       rootSinkMeters: 0.03,
       exclusionTexelMeters: 0.5

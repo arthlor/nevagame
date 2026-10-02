@@ -7,83 +7,83 @@ export interface LocalizedHintText {
 
 export const EN_HINTS: Record<string, LocalizedHintText> = {
   "hint.cargo_freshness": {
-    title: "The Catch Is Perishable",
-    message: "Fish lose freshness from the moment they are landed, and buyers pay less for a tired catch. Ice slows it. Carry trade packs to an inland buyer or a posted fish commission; the Harbor Fish Market does not buy them over the counter."
+    title: "Keep fish fresh",
+    message: "Ice protects freshness and price. Carry fish packs to village buyers or fish contracts; harbor counters cannot buy packs."
   },
   "hint.season_turn": {
-    title: "The Season Turns",
-    message: "Different fish run in different seasons, and the market pays differently for them. Check the chart and the ledger — what was scarce may now be in reach."
+    title: "New season",
+    message: "Fish runs and prices change by season. Check the chart and ledger."
   },
   "hint.farming_plant": {
-    title: "Field Cultivation",
-    message: "Left-click prepared soil to plant. Leave room between crops."
+    title: "Planting",
+    message: "Point at prepared soil, then place the crop. Leave room between crops."
   },
   "hint.farming_water": {
-    title: "Crop Hydration",
-    message: "Dry soil needs water before the crop can thrive."
+    title: "Watering",
+    message: "Water dry soil."
   },
   "hint.work_capacity": {
-    title: "Work Capacity",
-    message: "Harvesting costs more Work than watering. Better grades earn extra XP and can sell for more gold. Rest, meals and chore shifts restore Work; time restores only a little."
+    title: "Work",
+    message: "Planting and harvesting spend Work; hand watering is free. Work recovers in real time, faster while the game is open. Rest, meals and chores help too."
   },
   "hint.boat_steering": {
-    title: "Vessel Navigation",
-    message: "[W/S] Throttle • [A/D] Steer • [E] Dock at a marked mooring."
+    title: "Mooring",
+    message: "Steer alongside shore or a marked pier. Stop, then Moor."
   },
   "hint.fishing_sport": {
     title: "Sport Fishing",
-    message: "Hold [W/LMB] to reel, [S/RMB] to let line out, and [Space] to brace. Use [A/D] to counter runs."
+    message: "Hold the highlighted control. Release to hold steady."
   },
   "hint.fishing_basic": {
-    title: "River Angling",
-    message: "Hold [Space] to raise your catch bar. Keep the fish centered to land it!"
+    title: "Catch the fish",
+    message: "Hold to raise the bar; release to lower it. Keep the fish inside."
   },
   "hint.first_storm_at_sea": {
-    title: "Storm at Sea",
-    message: "Rough water past her safe range starts a storm-helm gust: keep the skiff's bow into the wind with A/D until the gust passes, or ease the throttle and heave to. A survived gust recovers hull life; five failed gusts wreck the hull, which must be towed to Neva Harbor and repaired by Silas."
+    title: "Storm",
+    message: "Face the wind or ease the throttle. Survived gusts restore hull; failures damage it. Tow wrecks to Neva Harbor for Silas to repair."
   },
   "hint.first_cargo_spoilage": {
-    title: "A Spoiled Catch",
-    message: "This catch can no longer sell fresh. Clear the cargo space, then carry ice and shorten the next delivery route."
+    title: "Spoiled catch",
+    message: "This catch has lost its fresh value. Clear space; bring ice and deliver sooner next time."
   },
   "hint.open_channel": {
-    title: "The Open Channel",
-    message: "Check fuel, hull and ice before committing to the crossing."
+    title: "Before crossing",
+    message: "Check fuel, hull and ice."
   },
   "hint.sprint_stamina": {
-    title: "Catch Your Breath",
-    message: "Sprinting draws on stamina. Walk or pause to recover it; this is separate from the Work you spend tending crops."
+    title: "Recover Sprint",
+    message: "Walk or rest to recover Sprint; it is separate from Work."
   },
   "hint.labor_shift_timing": {
-    title: "A Fair Day's Work",
-    message: "Press E at a chore station to start a shift, then strike when the needle crosses the gold band. A clean strike pays the full Work, a near miss pays half, and each station counts once a day."
+    title: "Chore timing",
+    message: "Start a chore, then Strike in the gold band. Each station pays once daily; a glancing strike earns less."
   },
   "hint.first_work_earning": {
-    title: "Work Is Earned",
-    message: "Work refills by preparing for it: rest at the farmhouse, eat a cooked meal, or put in a shift at the firewood stack, drying racks or harbor nets. Each source is limited per day; a slow trickle also returns a little on its own."
+    title: "Restore Work",
+    message: "Rest at home, eat cooked meals or do chores. Meals and shifts have daily limits; waiting restores little."
   },
   "hint.first_market": {
-    title: "At the Market",
-    message: "Compare the current quote before selling. Demand changes, and delivery contracts offer another use for your harvest and catch."
+    title: "Selling",
+    message: "Prices change with demand. Check quotes and delivery contracts."
   },
   "hint.first_contract": {
-    title: "A Delivery Promise",
-    message: "Check a contract's destination, deadline and requirements before delivering. Its progress stays in the tracker while you gather the rest."
+    title: "Deliveries",
+    message: "Check destination, deadline and requirements. Follow progress in the tracker."
   },
   "hint.first_nightfall": {
     title: "Nightfall",
-    message: "The village windows light the way home. Check the clock and forecast before another trip, or rest at the farmhouse until morning."
+    message: "Check time and weather before travelling, or rest at home until morning."
   },
   "hint.first_rank_up": {
-    title: "Practice Recognized",
-    message: "Your proficiency has reached a new rank. The journal's Skills page lists what your experience now makes available."
+    title: "New rank",
+    message: "See new capabilities in Journal → Skills."
   },
   "hint.tide_cycle": {
-    title: "Tides & Moon",
-    message: "Notice how the moon phase shifts the water level and currents along the banks."
+    title: "Tides",
+    message: "The moon phase changes tides and currents. Watch the banks."
   },
   "hint.call_donkey": {
-    title: "Call Your Donkey",
-    message: "Press H on foot to bring your donkey to your side."
+    title: "Call donkey",
+    message: "On foot, press H or tap Donkey to call it beside you."
   }
 };

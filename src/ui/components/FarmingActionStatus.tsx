@@ -127,15 +127,16 @@ export const FarmingActionStatus: React.FC<FarmingActionStatusProps> = ({ action
 
         <footer className="cast-bar-footer">
           <span className={`cast-bar-status-text ${isCommitted ? "is-committed" : ""}`}>
-            {isCommitted ? "Finishing…" : "Working…"}
+            {isCommitted ? (isTr ? "Tamamlanıyor…" : "Finishing…") : (isTr ? "Sürüyor…" : "Working…")}
           </span>
           {action.interruptible && !isCommitted ? (
             <span className="cast-bar-cancel-hint">
-              Move or press <kbd>Esc</kbd> to cancel
+              <span className="hint-desktop">{isTr ? <>Hareket et veya <kbd>Esc</kbd> ile iptal et</> : <>Move or press <kbd>Esc</kbd> to cancel</>}</span>
+              <span className="hint-touch">{isTr ? "İptal etmek için hareket et" : "Move to cancel"}</span>
             </span>
           ) : isCommitted ? (
             <span className="cast-bar-cancel-hint is-committed-hint">
-              Cannot cancel now
+              {isTr ? "Artık iptal edilemez" : "Cannot cancel now"}
             </span>
           ) : null}
         </footer>

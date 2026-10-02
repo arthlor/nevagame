@@ -33,7 +33,7 @@ import {
   type MeadowTerrainPatch
 } from "./MeadowFieldSource";
 
-export const MEADOW_FIELD_PROGRAM_CACHE_KEY = "neva-meadow-field-r174-v3-patch-response";
+export const MEADOW_FIELD_PROGRAM_CACHE_KEY = "neva-meadow-field-v6-stable-lighting";
 
 const FIELD = CANONICAL_RENDER_CONFIG.meadow.field;
 const VISIBILITY_REFRESH_DISTANCE_METERS = 0.5;
@@ -166,7 +166,7 @@ function createSharedUniforms(): MeadowFieldUniforms {
 function replaceChunk(source: string, marker: string, replacement: string, stage: "vertex" | "fragment"): string {
   const occurrences = source.split(marker).length - 1;
   if (occurrences !== 1) {
-    throw new Error(`[MeadowField] Three.js r174 ${stage} shader chunk drift: expected exactly one ${marker}, found ${occurrences}`);
+    throw new Error(`[MeadowField] Three.js r${THREE.REVISION} ${stage} shader chunk drift: expected exactly one ${marker}, found ${occurrences}`);
   }
   return source.replace(marker, replacement);
 }
@@ -183,6 +183,10 @@ export function patchMeadowFieldShader(shader: MeadowShaderSource, uniforms: Rec
     `#include <common>\n${MEADOW_FIELD_VERTEX_DECLARATIONS}`, "vertex");
   shader.vertexShader = replaceChunk(shader.vertexShader, "#include <beginnormal_vertex>",
     MEADOW_FIELD_BLADE_VERTEX, "vertex");
+  // Blades have shader-generated normals and no CPU normal attribute. Newer
+  // Three infers FLAT_SHADED from that absence and omits its optional vNormal.
+  shader.vertexShader = replaceChunk(shader.vertexShader, "#include <normal_vertex>",
+    "#include <normal_vertex>\nvMeadowNormal = normalize(transformedNormal);", "vertex");
   shader.vertexShader = replaceChunk(shader.vertexShader, "#include <begin_vertex>",
     "vec3 transformed = meadowLocalPosition;", "vertex");
   shader.fragmentShader = replaceChunk(shader.fragmentShader, "#include <common>",
@@ -266,6 +270,8 @@ interface MeadowIsland {
   candidateDetail: MeadowBladeDetail[];
   renderedNear: number[];
   renderedFar: number[];
+  nextNear: number[];
+  nextFar: number[];
 }
 
 const tileBox = new THREE.Box3();
@@ -318,14 +324,20 @@ export class MeadowField {
       candidates: [],
       candidateDetail: [],
       renderedNear: [],
-      renderedFar: []
+      renderedFar: [],
+      nextNear: [],
+      nextFar: []
     });
   }
 
   /** Road coverage at meadow-mask resolution, including the road material's broad edge field. */
-  public async stampRoadCoverage(pathGeometry: THREE.BufferGeometry, signal?: AbortSignal): Promise<void> {
+  public async stampRoadCoverage(
+    pathGeometry: THREE.BufferGeometry,
+    signal?: AbortSignal,
+    sampleCoverage?: (x: number, z: number) => number
+  ): Promise<void> {
     for (const island of this.islands) {
-      await runCooperatively(stampRoadCoverageSteps(island.data, pathGeometry), signal);
+      await runCooperatively(stampRoadCoverageSteps(island.data, pathGeometry, sampleCoverage), signal);
     }
   }
 
@@ -548,8 +560,10 @@ export class MeadowField {
     for (const island of this.islands) {
       const { grid, near, far } = island;
       if (!near || !far) continue;
-      const nearTiles: number[] = [];
-      const farTiles: number[] = [];
+      const nearTiles = island.nextNear;
+      const farTiles = island.nextFar;
+      nearTiles.length = 0;
+      farTiles.length = 0;
       for (let index = 0; index < island.candidates.length; index += 1) {
         const tile = island.candidates[index];
         const tx = tile % grid.countX;
@@ -563,6 +577,8 @@ export class MeadowField {
       }
       this.submit(island, near, nearTiles, island.renderedNear);
       this.submit(island, far, farTiles, island.renderedFar);
+      island.nextNear = island.renderedNear;
+      island.nextFar = island.renderedFar;
       island.renderedNear = nearTiles;
       island.renderedFar = farTiles;
     }

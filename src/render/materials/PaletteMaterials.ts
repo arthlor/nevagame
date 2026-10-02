@@ -84,10 +84,9 @@ export class PaletteMaterials {
     }
     // Standard clones retain this semantic identity after their display name changes.
     material.userData.neva_palette_token = token;
-    // Explicit imported source regions stay distinct at runtime. Their token
-    // metadata still drives palette-family behavior without merging separate
-    // provider material regions into one shared material object.
-    if (typeof material.userData?.neva_source_material === "string") {
+    // Physical extensions carry settings outside the palette cache key. Preserve those and
+    // explicit imported source regions instead of merging distinct source materials.
+    if (material instanceof THREE.MeshPhysicalMaterial || typeof material.userData?.neva_source_material === "string") {
       this.registerEmissive(material);
       applyWorldAtmosphere(material);
       return material;

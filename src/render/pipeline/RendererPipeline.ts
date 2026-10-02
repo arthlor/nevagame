@@ -11,6 +11,8 @@ import { GpuFrameTimer, type GpuFrameTimingSnapshot } from "./GpuFrameTimer";
 import { OpaqueWaterSnapshotPass } from "./OpaqueWaterSnapshotPass";
 import type { EnhancedFrameOptions, EnhancedRenderPath } from "./EnhancedRenderPath";
 import type { AtmosphereSky, AtmosphereSkyDiagnostics } from "../atmosphere/AtmosphereSky";
+import { prepareSkyMaterialReflections } from "../atmosphere/SkyMaterialReflections";
+import type { ShelterProbeLighting } from "../lighting/ShelterProbeLighting";
 
 export type CaptureRenderMode = "final" | "no-post";
 
@@ -33,6 +35,7 @@ export type RenderPathState = "direct" | "enhanced" | "enhanced-preparing" | "di
 export interface ActiveRenderEffects {
   gtao: boolean;
   hdrBloom: boolean;
+  sunShafts: boolean;
   fxaa: boolean;
   colorFinish: boolean;
 }
@@ -69,7 +72,7 @@ export interface RendererPipelineDiagnostics {
   };
 }
 
-export function renderTargetDiagnostic(id: string, target: THREE.WebGLRenderTarget): RenderTargetDiagnostic {
+export function renderTargetDiagnostic(id: string, target: THREE.RenderTarget): RenderTargetDiagnostic {
   const bytesPerPixel = target.texture.type === THREE.FloatType ? 16
     : target.texture.type === THREE.HalfFloatType ? 8
       : 4;
@@ -137,6 +140,7 @@ function devicePixelRatio(): number {
  * the path exists: AO off on High keeps the scene target and water optics.
  */
 export class RendererPipeline {
+  private shelter: ShelterProbeLighting | null = null;
   private sky: AtmosphereSky | null = null;
   private enhanced: EnhancedRenderPath | null = null;
   private fallbackReason: string | null = null;
@@ -185,6 +189,7 @@ export class RendererPipeline {
     this.opaqueSnapshot = null;
     this.opaqueSnapshotPass = null;
     this.clearWaterCapture();
+    this.sky?.resetMaterialReflections();
     this.renderer.shadowMap.needsUpdate = true;
     for (const listener of this.contextRestoredListeners) listener();
   };
@@ -217,8 +222,11 @@ export class RendererPipeline {
 
   public bindSky(sky: AtmosphereSky): void {
     this.sky = sky;
+    sky.bindMaterialWorld(this.scene);
     sky.setQuality(this.qualityTier);
   }
+
+  public bindShelter(shelter: ShelterProbeLighting): void { this.shelter = shelter; }
 
   /** Called after three.js restores a lost context and this pipeline has reset. */
   public onContextRestored(listener: () => void): () => void {
@@ -343,6 +351,8 @@ export class RendererPipeline {
     this.renderer.info.reset();
     this.gpuTimer?.beginFrame();
     try {
+      this.gpuTimer?.beginPass("shelter-probes");
+      this.shelter?.render();
       this.gpuTimer?.beginPass("atmosphere");
       this.sky?.render(this.renderer, camera);
       if (!this.wantsEnhanced() || this.fallbackReason) {
@@ -374,6 +384,8 @@ export class RendererPipeline {
 
   public async prepareForEntry(camera: THREE.Camera): Promise<void> {
     await this.sky?.prepare(this.renderer);
+    await this.shelter?.prepareForEntry();
+    prepareSkyMaterialReflections(this.scene);
     if (this.wantsEnhanced() && !this.fallbackReason) {
       if (!this.enhanced) {
         this.beginInitialization(camera);
@@ -382,22 +394,44 @@ export class RendererPipeline {
       await this.enhanced?.prepare(camera);
     }
     const enhanced = this.enhanced;
-    const previousTarget = this.renderer.getRenderTarget();
-    try {
-      // World materials compile per output target: into the linear scene
-      // target they skip tone mapping and sRGB encoding. Warm the variant the
-      // selected path will actually draw.
-      this.renderer.setRenderTarget(enhanced?.sceneTarget ?? null);
-      await this.renderer.compileAsync(this.scene, camera);
-    } finally {
-      this.renderer.setRenderTarget(previousTarget);
-    }
+    // Compile the selected output variant without retaining temporary state
+    // while the driver asynchronously reports shader readiness.
+    await this.prepareWorldShaderVariant(camera);
     if (enhanced) {
       const snapshot = this.ensureOpaqueSnapshot(enhanced.sceneTarget);
       const snapshotPass = this.opaqueSnapshotPass ??= new OpaqueWaterSnapshotPass();
       await snapshotPass.prepare(this.renderer, snapshot);
     }
     this.renderer.shadowMap.needsUpdate = true;
+  }
+
+  /** Warm hidden presentation materials with the world lights and actual output target. */
+  public async prepareAdditionalMaterials(materialScene: THREE.Scene, camera: THREE.Camera): Promise<void> {
+    const previousTarget = this.renderer.getRenderTarget();
+    const previousFace = this.renderer.getActiveCubeFace();
+    const previousLevel = this.renderer.getActiveMipmapLevel();
+    let pending: ReturnType<THREE.WebGLRenderer["compileAsync"]>;
+    try {
+      this.renderer.setRenderTarget(this.enhanced?.sceneTarget ?? null);
+      pending = this.renderer.compileAsync(materialScene, camera, this.scene);
+    } finally {
+      this.renderer.setRenderTarget(previousTarget, previousFace, previousLevel);
+    }
+    await pending;
+  }
+
+  public async prepareWorldShaderVariant(camera: THREE.Camera): Promise<void> {
+    const previousTarget = this.renderer.getRenderTarget();
+    const previousFace = this.renderer.getActiveCubeFace();
+    const previousLevel = this.renderer.getActiveMipmapLevel();
+    let pending: ReturnType<THREE.WebGLRenderer["compileAsync"]>;
+    try {
+      this.renderer.setRenderTarget(this.enhanced?.sceneTarget ?? null);
+      pending = this.renderer.compileAsync(this.scene, camera);
+    } finally {
+      this.renderer.setRenderTarget(previousTarget, previousFace, previousLevel);
+    }
+    await pending;
   }
 
   public isGtaoActive(): boolean {
@@ -417,12 +451,13 @@ export class RendererPipeline {
   public activeEffects(): ActiveRenderEffects {
     const enhanced = this.enhanced;
     if (!enhanced || this.renderMode === "no-post") {
-      return { gtao: false, hdrBloom: false, fxaa: false, colorFinish: false };
+      return { gtao: false, hdrBloom: false, sunShafts: false, fxaa: false, colorFinish: false };
     }
     const stages = enhanced.activeStages();
     return {
       gtao: stages.gtao,
       hdrBloom: stages.bloom,
+      sunShafts: stages.sunShafts,
       fxaa: stages.fxaa,
       colorFinish: !isNeutralColorFinish(this.effects.colorFinish)
     };
@@ -443,6 +478,8 @@ export class RendererPipeline {
     const targets: RenderTargetDiagnostic[] = [];
     if (this.sky) targets.push(renderTargetDiagnostic("atmosphere.sky", this.sky.target));
     if (this.sky) targets.push(renderTargetDiagnostic("atmosphere.cloudSunlight", this.sky.cloudShadows.target));
+    const materialReflection = this.sky?.materialReflectionTarget();
+    if (materialReflection) targets.push(renderTargetDiagnostic("atmosphere.materialReflections", materialReflection));
     const enhanced = this.enhanced?.targets();
     if (enhanced) {
       targets.push(renderTargetDiagnostic("enhanced.scene", enhanced.scene));
@@ -451,6 +488,7 @@ export class RendererPipeline {
         targets.push(renderTargetDiagnostic("gtao.gather", enhanced.gtao.gather));
         targets.push(renderTargetDiagnostic("gtao.denoised", enhanced.gtao.denoised));
       }
+      if (enhanced.sunShafts) targets.push(renderTargetDiagnostic("atmosphere.sunShafts", enhanced.sunShafts));
       enhanced.bloom.forEach((target, level) => targets.push(renderTargetDiagnostic(`bloom.mip${level}`, target)));
     }
     if (this.opaqueSnapshot) targets.push(renderTargetDiagnostic("water.opaqueSnapshot", this.opaqueSnapshot));

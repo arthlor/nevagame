@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { vi } from "vitest";
 import { RendererPipeline } from "../../src/render/pipeline/RendererPipeline";
 import { createCoastalUniforms, type CoastalUniforms } from "../../src/render/water/CoastalOptics";
@@ -14,7 +13,7 @@ export interface FrameDraws {
   finalColor: number;
   fxaa: number;
   bloom: number;
-  /** GTAO gather + denoise passes (`GTAOPass.renderPass`). */
+  /** Actual fullscreen GTAO gather + denoise draws. */
   gtao: number;
 }
 
@@ -27,11 +26,18 @@ export interface FrameDraws {
  */
 export function createFakeRenderer(options: { failCompile?: (materialName: string) => boolean } = {}) {
   let active: THREE.WebGLRenderTarget | null = null;
+  const clearColor = new THREE.Color();
+  let clearAlpha = 1;
   const listeners = new Map<string, Set<Listener>>();
   let onSceneDraw: (camera: THREE.Camera) => void = () => {};
   const renderer = {
     info: { autoReset: true, reset: vi.fn(), memory: { geometries: 0, textures: 0 } },
     getContext: () => ({}),
+    getClearColor: (target: THREE.Color) => target.copy(clearColor),
+    getClearAlpha: () => clearAlpha,
+    setClearColor: (color: THREE.ColorRepresentation) => { clearColor.set(color); },
+    setClearAlpha: (alpha: number) => { clearAlpha = alpha; },
+    clear: vi.fn(),
     getPixelRatio: () => 1,
     compileAsync: vi.fn(async (object: THREE.Object3D) => {
       if (options.failCompile?.(materialName(object))) throw new Error(`compile failed: ${materialName(object)}`);
@@ -86,13 +92,14 @@ function materialName(object: unknown): string {
   return material && !Array.isArray(material) ? material.name : "";
 }
 
-export function classifyDraws(renderer: FakeRenderer["renderer"], gtaoCalls: number): FrameDraws {
-  const draws: FrameDraws = { scene: 0, waterSnapshot: 0, finalColor: 0, fxaa: 0, bloom: 0, gtao: gtaoCalls };
+export function classifyDraws(renderer: FakeRenderer["renderer"]): FrameDraws {
+  const draws: FrameDraws = { scene: 0, waterSnapshot: 0, finalColor: 0, fxaa: 0, bloom: 0, gtao: 0 };
   for (const [object] of renderer.render.mock.calls) {
     if (object.userData.fakeRendererScene === true) draws.scene += 1;
     else if (object.name === "opaque_water_snapshot_pass") draws.waterSnapshot += 1;
     else if (materialName(object) === "neva_final_color") draws.finalColor += 1;
     else if (materialName(object) === "neva_fxaa") draws.fxaa += 1;
+    else if (materialName(object).startsWith("neva_gtao_")) draws.gtao += 1;
     else if (materialName(object).startsWith("neva_bloom_")) draws.bloom += 1;
   }
   return draws;
@@ -124,7 +131,6 @@ export async function createPipelineHarness(options: {
       water.onBeforeRender(fake.webgl, scene, drawCamera, water.geometry, water.material, null!);
     }
   });
-  const gtaoPass = vi.spyOn(GTAOPass.prototype, "renderPass").mockImplementation(() => {});
   const pipeline = new RendererPipeline(fake.webgl, scene, options.tier ?? "high");
   pipeline.bindWaterCapture([water], uniforms);
   pipeline.resize(320, 180);
@@ -142,9 +148,8 @@ export async function createPipelineHarness(options: {
     /** Renders one frame and reports what it drew. */
     frame(frameCamera: THREE.Camera = camera): FrameDraws {
       fake.renderer.render.mockClear();
-      gtaoPass.mockClear();
       pipeline.render(frameCamera);
-      return classifyDraws(fake.renderer, gtaoPass.mock.calls.length);
+      return classifyDraws(fake.renderer);
     },
     /** Lets stage creation (module load, warm-up) that a frame started finish. */
     async settle(): Promise<void> {

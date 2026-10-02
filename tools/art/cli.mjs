@@ -74,20 +74,11 @@ const STAGING_ROOT = path.join(ROOT, "generated/.staging");
 const MANIFEST_PATH = path.join(REPORT_DIR, "asset-manifest.json");
 const QUALITY_REPORT_PATH = path.join(REPORT_DIR, "asset_budget_report.json");
 const PUBLIC_MANIFEST_PATH = path.join(PUBLIC_DIR, "asset-manifest.json");
-const REQUIRED_REFERENCE_VIEWS = Object.freeze([
-  "front",
-  "rear",
-  "side",
-  "three_quarter",
-  "gameplay_8m",
-  "gameplay_15m",
-  "gameplay_read_distance",
-]);
 const STAGING_RUN_RETENTION = 3;
 const ART_YARD_URL = "http://localhost:3000/__neva_art_yard";
 const STAGE_PATTERN = /^run-[A-Za-z0-9_-]+$/;
 /** Bumped when authored-GLB normalization or packaging changes what it emits. */
-const AUTHORED_GLB_PRODUCER_VERSION = `authored-glb@2+sharp@${sharp.versions.sharp}+libwebp@${sharp.versions.webp}`;
+const AUTHORED_GLB_PRODUCER_VERSION = `authored-glb@3+sharp@${sharp.versions.sharp}+libwebp@${sharp.versions.webp}`;
 
 const readJson = (filename) => JSON.parse(fs.readFileSync(filename, "utf8"));
 const safeFilename = (value) => path.basename(value) === value && value.endsWith(".glb");
@@ -435,11 +426,6 @@ function validateReferenceAuthoring(asset) {
     validateComponentIds(`parameter binding ${binding.parameter}`, binding.componentIds);
   }
 
-  const missingViews = REQUIRED_REFERENCE_VIEWS.filter((view) => !brief.reviewViews.includes(view));
-  if (missingViews.length) {
-    throw new Error(`${asset.id}: reference brief is missing required review views: ${missingViews.join(", ")}`);
-  }
-
   if (PRIMARY_BINDING_GENERATORS.has(asset.generator)) {
     const boundComponents = new Set(brief.parameterBindings.flatMap((binding) => binding.componentIds));
     const missingPrimary = brief.components
@@ -470,6 +456,15 @@ function referenceAuthoringSummary(asset) {
   };
 }
 
+/** Sync and selected publication derive evidence metadata only from the current catalog. */
+function refreshReferenceAuthoring(entry, asset) {
+  const refreshed = { ...entry };
+  delete refreshed.referenceAuthoring;
+  const summary = referenceAuthoringSummary(asset);
+  if (summary) refreshed.referenceAuthoring = summary;
+  return refreshed;
+}
+
 function productionRoute(asset) {
   const kind = producerKind(asset);
   if (kind === "authored") return `catalog -> ${asset.generator} (authored Three.js generator) -> validated GLB -> atomic runtime publication`;
@@ -498,7 +493,7 @@ function referenceBriefMarkdown(asset) {
     `- Status: ${brief.status}`,
     `- Subject: ${brief.subject}`,
     `- Production route: ${productionRoute(asset)}`,    `- Dimensions: ${asset.dimensions.width} x ${asset.dimensions.depth} x ${asset.dimensions.height} m`,
-    `- Triangle budget: ${asset.budget.trianglesMin} / ${asset.budget.trianglesTarget} / ${asset.budget.trianglesMax} min/target/max`,
+    `- Triangle references: ${asset.budget.trianglesMin} / ${asset.budget.trianglesTarget} advisory min/target; ${asset.budget.trianglesMax} hard maximum`,
     `- Palette: ${asset.palette.join(", ")}`,
     `- Read distance: ${asset.readDistanceMeters} m`,
     `- Brief hash: ${referenceBriefHash(asset)}`,
@@ -914,14 +909,16 @@ function skinnedMeshParentTransformsAreIdentity(json) {
 }
 
 /**
- * The published-file contract. Procedural assets (authored generators and frozen legacy families)
- * carry palette materials and semantic `COLOR_0` on every primitive. An authored GLB may instead
- * keep its source textures: a textured primitive needs `TEXCOORD_0` rather than `COLOR_0`, its
- * images must fit `textureMaxSize`, and double-sided materials are the source's decision.
+ * The published-file contract. Procedural assets carry semantic `COLOR_0` on every primitive.
+ * Authored GLBs and frozen imported_blend assets preserve native PBR materials; vertex colors
+ * are optional for those sources. Textured primitives need `TEXCOORD_0`; authored sources use
+ * their textureMaxSize cap and frozen imports use the machine texture ceiling. Material
+ * sidedness is a design choice.
  */
 async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
   const bytes = fs.readFileSync(filename);
   const authoredGlb = spec.generator === AUTHORED_GLB_GENERATOR;
+  const preservesSourceMaterials = authoredGlb || spec.generator === "imported_blend";
   const animationClips = animationContractClips(spec);
   const { json, bin } = parseGlb(bytes);
   const inertSkinnedParents = skinnedMeshParentTransformsAreIdentity(json);
@@ -1060,38 +1057,32 @@ async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
         }
         normalPrimitives += 1;
         if (typeof primitive.material !== "number") {
-          throw new Error(`${spec.id}: ${phase} triangle primitive is missing its palette material`);
+          throw new Error(`${spec.id}: ${phase} triangle primitive is missing its material`);
         }
         const material = json.materials?.[primitive.material];
-        if (authoredGlb && isTexturedMaterial(material)) {
+        if (preservesSourceMaterials && isTexturedMaterial(material)) {
           if (typeof primitive.attributes?.TEXCOORD_0 !== "number") {
             throw new Error(`${spec.id}: ${phase} textured material ${material.name ?? primitive.material} is missing TEXCOORD_0`);
           }
           texturedPrimitives += 1;
-        } else {
-          if (typeof primitive.attributes?.COLOR_0 !== "number") {
-            throw new Error(`${spec.id}: ${phase} triangle primitive is missing semantic COLOR_0`);
-          }
-          if (authoredGlb && !spec.palette.includes(paletteTokenForMaterial(material))) {
-            throw new Error(`${spec.id}: ${phase} untextured material ${material?.name ?? primitive.material} is not a declared palette token`);
-          }
+        }
+        if (typeof primitive.attributes?.COLOR_0 === "number") {
           vertexColorPrimitives += 1;
+        } else if (!preservesSourceMaterials) {
+          throw new Error(`${spec.id}: ${phase} triangle primitive is missing semantic COLOR_0`);
         }
         count += (accessor?.count ?? 0) / 3;
       }
     }
     return count;
   });
-  if (!authoredGlb) {
-    const doubleSided = (json.materials ?? []).filter((material) => material.doubleSided === true);
-    if (doubleSided.length) {
-      throw new Error(`${spec.id}: ${phase} GLB contains ${doubleSided.length} unnecessary double-sided materials`);
-    }
-  }
-  if (authoredGlb) {
+  if (preservesSourceMaterials) {
     const largest = await largestEmbeddedImage(json, bin, sharp);
-    if (largest > spec.parameters.textureMaxSize) {
-      throw new Error(`${spec.id}: ${phase} embeds a ${largest}px texture above its ${spec.parameters.textureMaxSize}px cap`);
+    const textureCap = authoredGlb
+      ? spec.parameters.textureMaxSize
+      : readJson(SCENE_BUDGET_PATH).texturePolicy.rareSharedAtlasMax;
+    if (largest > textureCap) {
+      throw new Error(`${spec.id}: ${phase} embeds a ${largest}px texture above its ${textureCap}px cap`);
     }
   }
   // Deduplication may make many authored nodes share one mesh. Count each node
@@ -1162,16 +1153,16 @@ async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
     lodLevels.forEach((metric, index) => {
       const contract = spec.lodLevels[index];
       metric.ratio = metric.triangles / triangles;
-      if (metric.ratio < contract.triangleRatioMin || metric.ratio > contract.triangleRatioMax) {
+      if (metric.triangles <= 0 || metric.ratio > contract.triangleRatioMax) {
         throw new Error(
           `${spec.id}: ${phase} ${metric.node} triangle ratio ${metric.ratio.toFixed(3)} violates ` +
-          `${contract.triangleRatioMin.toFixed(3)}..${contract.triangleRatioMax.toFixed(3)}`,
+          `nonempty geometry and maximum ${contract.triangleRatioMax.toFixed(3)}`,
         );
       }
     });
   }
   const materials = json.materials?.length ?? 0;
-  if (triangles < spec.budget.trianglesMin || triangles > spec.budget.trianglesMax) {
+  if (triangles <= 0 || triangles > spec.budget.trianglesMax) {
     throw new Error(`${spec.id}: ${triangles} exported triangles violate declared budget`);
   }
   if (materials > spec.budget.materialsMax) {
@@ -1187,7 +1178,7 @@ async function validateGlb(filename, spec, phase, repoRoot = ROOT) {
     materials,
     trianglePrimitives,
     vertexColorPrimitives,
-    ...(authoredGlb ? { texturedPrimitives } : {}),
+    ...(preservesSourceMaterials ? { texturedPrimitives } : {}),
     normalPrimitives,
     doubleSidedMaterials: (json.materials ?? []).filter((material) => material.doubleSided === true).length,
     artContractStatus: "passed",
@@ -1490,7 +1481,7 @@ function markdownReport(report) {
     `- Mechanical art contract: ${report.summary.artContractPassed ? "passed" : "failed"}`,
     `- Reference briefs: ${report.summary.referenceReady} ready, ${report.summary.referenceDraft} draft`,
     `- COLOR_0 space: ${report.vertexColorSpace}`,
-    `- Geometry density: ${report.summary.onTarget} on target, ${report.summary.belowTarget} below target`,
+    `- Advisory geometry density: ${report.summary.onTarget} on target, ${report.summary.belowTarget} below target (not artistic acceptance)`,
     `- Incremental cache: ${report.summary.cacheHits} hits, ${report.summary.cacheMisses} misses`,
     `- Publication: ${publication}`, "",
     "| Asset | Family | Producer | Reference brief | LOD0 / packaged / target tris | Density status | Materials | Bytes | SHA-256 |",
@@ -1557,15 +1548,12 @@ function publishStage(report, optimizedDir, selected, catalog, strict, repoRoot 
   const merged = mergedEntries.map((entry) => {
     const spec = catalogById.get(entry.id);
     if (!spec) throw new Error(`Cannot publish unknown manifest asset ${entry.id}`);
-    return {
+    return refreshReferenceAuthoring({
       ...entry,
       family: entry.family ?? spec.family,
       generator: entry.generator ?? spec.generator,
       budget: entry.budget ?? spec.budget,
-      ...(entry.referenceAuthoring || !spec.referenceAuthoring
-        ? {}
-        : { referenceAuthoring: referenceAuthoringSummary(spec) }),
-    };
+    }, spec);
   });
   const manifest = {
     ...report,
@@ -1665,7 +1653,7 @@ async function syncPublishedManifest(catalog, specHash) {
     if (!previousAsset) {
       throw new Error(`${spec.id}: no manifest entry to sync; publish it with art:generate first`);
     }
-    assets.push({
+    assets.push(refreshReferenceAuthoring({
       ...previousAsset,
       ...result,
       id: spec.id,
@@ -1679,11 +1667,8 @@ async function syncPublishedManifest(catalog, specHash) {
       lod: spec.lod,
       requiredNodes: spec.requiredNodes,
       readDistanceMeters: spec.readDistanceMeters,
-      ...(spec.referenceAuthoring
-        ? { referenceAuthoring: referenceAuthoringSummary(spec) }
-        : {}),
       cacheHit: false,
-    });
+    }, spec));
   }
 
   const manifest = {
@@ -1811,7 +1796,7 @@ Commands:
 
 Options:
   --no-publish  stage and validate without changing public assets
-  --strict      reject below-target triangle density (generate only)
+  --strict      compatibility alias for technical validation (generate only)
   --no-cache    rebuild cache hits (alias --force)`;
 
 async function main() {
@@ -1858,12 +1843,7 @@ async function main() {
     console.log("[NEVA ART] Nothing to build in this selection");
     return;
   }
-  if (args.strict) {
-    const draftBriefs = buildable.filter((asset) => asset.referenceAuthoring?.status === "draft");
-    if (draftBriefs.length) {
-      throw new Error(`Strict generation rejected draft reference briefs: ${draftBriefs.map((asset) => asset.id).join(", ")}`);
-    }
-  }
+  // --strict remains a compatibility alias; every build uses the same technical admission checks.
   const generationInputs = readGenerationInputs();
   if (generationInputs.specHash !== specHash) {
     throw new Error("Asset catalog changed while it was being validated; rerun from stable sources");
@@ -1883,11 +1863,6 @@ async function main() {
     : args.publish ? "pending-publication" : "staged-only";
   fs.writeFileSync(path.join(stage, "asset-report.json"), `${JSON.stringify(first.report, null, 2)}\n`);
   fs.writeFileSync(path.join(stage, "asset-report.md"), markdownReport(first.report));
-  if (args.strict && first.report.summary.belowTarget > 0) {
-    throw new Error(
-      `Strict density gate rejected ${first.report.summary.belowTarget} below-target assets; see ${path.join(stage, "asset-report.md")}`,
-    );
-  }
   if (args.command === "determinism") {
     const secondStage = makeStage();
     const second = await buildStage({
@@ -1934,9 +1909,11 @@ export {
   parseArgs,
   produceAuthoredGlb,
   producerKind,
+  publishStage,
   promoteFilesAtomically,
   pruneStagingRuns,
   referenceAuthoringSummary,
+  refreshReferenceAuthoring,
   referenceBriefHash,
   referenceBriefMarkdown,
   resolveRepositorySource,

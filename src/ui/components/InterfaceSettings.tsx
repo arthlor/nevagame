@@ -20,10 +20,9 @@ const SCALE_CHOICES: ReadonlyArray<{
 const LANGUAGE_CHOICES: ReadonlyArray<{
   value: SupportedLocale;
   label: string;
-  description: string;
 }> = [
-  { value: "en", label: "English", description: "English (US)" },
-  { value: "tr", label: "Türkçe", description: "Kıyı ve köy dili" }
+  { value: "en", label: "English" },
+  { value: "tr", label: "Türkçe" }
 ];
 
 /**
@@ -104,7 +103,6 @@ export const InterfaceSettings: React.FC = () => {
                 }}
               >
                 <span className="graphics-quality-option__label">{choice.label}</span>
-                <span className="graphics-quality-option__description">{choice.description}</span>
               </button>
             );
           })}

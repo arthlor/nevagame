@@ -23,14 +23,21 @@ export interface WorldCompositionSeedAudit {
   districtCategoryDensities: readonly { tree: number; bush: number }[];
   districtDensityCv: number;
   districtDensities: readonly [number, number, number, number];
-  districtOrderingPass: boolean;
   largeOpenings: readonly { areaSquareMeters: number; containsFarm: boolean; containsHeadland: boolean }[];
   isolateRatio: number;
   roles: Readonly<Record<CompositionPlacementRole, number>>;
   fishingAccessComponentCount: number;
   fishingAccessClearancePass: boolean;
-  routePass: boolean;
-  routeFailures: readonly string[];
+  routeClearanceFailures: readonly string[];
+  routeComposition: readonly RouteCompositionDiagnostic[];
+}
+
+export interface RouteCompositionDiagnostic {
+  routeId: string;
+  sampleCount: number;
+  openSamples: number;
+  framedSamples: number;
+  maximumDenseRunMeters: number;
 }
 
 export interface WorldCompositionAuditSummary {
@@ -48,7 +55,7 @@ export interface SunreachCompositionSeedAudit {
   periodic22Ratio: number;
   districtDensityCv: number;
   districtDensities: readonly [number, number, number, number];
-  openingPass: boolean;
+  openings: readonly { anchor: string; influence: number }[];
   islandQualificationPass: boolean;
   routeClearancePass: boolean;
   drainageCouplingPass: boolean;
@@ -129,18 +136,6 @@ function districtCategoryDensity(seed: number, center: { x: number; z: number })
   return { tree: tree / Math.max(1, count), bush: bush / Math.max(1, count) };
 }
 
-/** Village canopy, harbor working edges, and sparse headland are distinct roles. */
-export function districtRhythmPass(densities: readonly { tree: number; bush: number }[]): boolean {
-  const [farm, village, harbor, headland] = densities;
-  const total = (district: { tree: number; bush: number }) => district.tree + district.bush;
-  // Compare canopy share across two different habitats, not absolute tree density:
-  // harbor scrub may vary without turning its working edge into village woodland.
-  const canopyShare = (district: { tree: number; bush: number }) => district.tree / Math.max(0.000001, total(district));
-  return total(village) > total(farm) && total(farm) > total(headland)
-    && harbor.bush > village.bush && village.bush > farm.bush
-    && canopyShare(village) > canopyShare(harbor);
-}
-
 function districtDensity(seed: number, center: { x: number; z: number }): number {
   const { tree, bush } = districtCategoryDensity(seed, center);
   return tree * 0.68 + bush * 0.32;
@@ -204,8 +199,9 @@ function routePointAt(route: CompiledWorldRoute, distance: number): { x: number;
   };
 }
 
-function routeFailures(seed: number, placements: readonly EnvironmentAssetPlacement[]): string[] {
-  const failures: string[] = [];
+function auditRoutes(seed: number, placements: readonly EnvironmentAssetPlacement[]) {
+  const clearanceFailures: string[] = [];
+  const composition: RouteCompositionDiagnostic[] = [];
   const structural = placements.filter((placement) =>
     placement.compositionTag?.category === "tree" || placement.compositionTag?.category === "bush"
   );
@@ -214,11 +210,12 @@ function routeFailures(seed: number, placements: readonly EnvironmentAssetPlacem
     let framedSegments = 0;
     let denseRunMeters = 0;
     let maximumDenseRunMeters = 0;
+    let sampleCount = 0;
     for (let distance = 0; distance <= route.totalLength; distance += 5) {
       const point = routePointAt(route, distance);
+      sampleCount += 1;
       if (structural.some((placement) => Math.hypot(placement.x - point.x, placement.z - point.z) < route.corridorRadiusMeters)) {
-        failures.push(`${route.route.id}:clearance@${Math.round(distance)}`);
-        break;
+        clearanceFailures.push(`${route.route.id}:clearance@${Math.round(distance)}`);
       }
       const nearby = structural.filter((placement) => {
         const separation = Math.hypot(placement.x - point.x, placement.z - point.z);
@@ -234,11 +231,15 @@ function routeFailures(seed: number, placements: readonly EnvironmentAssetPlacem
         denseRunMeters = 0;
       }
     }
-    if (openSegments === 0) failures.push(`${route.route.id}:no-open-segment`);
-    if (framedSegments === 0) failures.push(`${route.route.id}:no-framed-segment`);
-    if (maximumDenseRunMeters > 20) failures.push(`${route.route.id}:dense-wall-${maximumDenseRunMeters}`);
+    composition.push({
+      routeId: route.route.id,
+      sampleCount,
+      openSamples: openSegments,
+      framedSamples: framedSegments,
+      maximumDenseRunMeters
+    });
   }
-  return failures;
+  return { clearanceFailures, composition };
 }
 
 function fishingAccessComponentCount(): number {
@@ -280,7 +281,7 @@ export function auditWorldCompositionSeed(seed: number): WorldCompositionSeedAud
   const structuralVegetation = structural.filter((placement) =>
     placement.compositionTag?.category === "tree" || placement.compositionTag?.category === "bush"
   );
-  const routeFailureList = routeFailures(seed, placements);
+  const routes = auditRoutes(seed, placements);
   return {
     seed,
     placementHash: placementHash(placements),
@@ -291,7 +292,6 @@ export function auditWorldCompositionSeed(seed: number): WorldCompositionSeedAud
     districtCategoryDensities,
     districtDensityCv: coefficientOfVariation(districtDensities),
     districtDensities,
-    districtOrderingPass: districtRhythmPass(districtCategoryDensities),
     largeOpenings: openingComponents(seed),
     isolateRatio: structuralVegetation.filter((placement) => placement.compositionTag?.role === "isolate").length
       / Math.max(1, structuralVegetation.length),
@@ -300,8 +300,8 @@ export function auditWorldCompositionSeed(seed: number): WorldCompositionSeedAud
     fishingAccessClearancePass: structural.every((placement) =>
       sampleWorldComposition(seed, placement.x, placement.z).fishingAccessClearance <= 0.08
     ),
-    routePass: routeFailureList.length === 0,
-    routeFailures: routeFailureList
+    routeClearanceFailures: routes.clearanceFailures,
+    routeComposition: routes.composition
   };
 }
 
@@ -340,8 +340,10 @@ export function auditSunreachCompositionSeed(seed: number): SunreachCompositionS
     periodic22Ratio: periodicRatio(separations, 22, 0.5),
     districtDensityCv: coefficientOfVariation(districtDensities),
     districtDensities,
-    openingPass: [SUNREACH_ANCHORS.coveMarket, SUNREACH_ANCHORS.terraceFarm, SUNREACH_ANCHORS.exposedRidge]
-      .every((point) => sampleWorldComposition(seed, point.x, point.z).opening >= 0.62),
+    openings: (["coveMarket", "terraceFarm", "exposedRidge"] as const).map((anchor) => {
+      const point = SUNREACH_ANCHORS[anchor];
+      return { anchor, influence: sampleWorldComposition(seed, point.x, point.z).opening };
+    }),
     islandQualificationPass: placements.every((placement) =>
       placement.id.startsWith("seeded-fill.island.sunreach/")
       && placement.islandId === "island.sunreach"

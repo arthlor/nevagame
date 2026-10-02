@@ -27,6 +27,7 @@ export interface CustomEffectChoices {
   ambientOcclusion: AmbientOcclusionChoice;
   aoStrength: number;
   glow: GlowChoice;
+  sunShafts: boolean;
   edgeSmoothing: EdgeSmoothingChoice;
   colorFinish: ColorFinish;
 }
@@ -48,6 +49,7 @@ export const DEFAULT_GRAPHICS_EFFECTS: Readonly<GraphicsEffectPreferences> = Obj
     ambientOcclusion: "auto",
     aoStrength: 1,
     glow: "subtle",
+    sunShafts: true,
     edgeSmoothing: "auto",
     colorFinish: NEUTRAL_COLOR_FINISH
   }) as CustomEffectChoices,
@@ -63,6 +65,7 @@ export interface ResolvedGraphicsEffects {
   aoReduced: boolean;
   practicalGlow: boolean;
   hdrBloom: boolean;
+  sunShafts: boolean;
   fxaa: boolean;
   colorFinish: ColorFinish;
   brightness: number;
@@ -70,10 +73,11 @@ export interface ResolvedGraphicsEffects {
   resolutionScale: number;
 }
 
-export type ReductionStep = "bloom" | "ambient-occlusion" | "resolution";
+export type ReductionStep = "sun-shafts" | "bloom" | "ambient-occlusion" | "resolution";
 
 /** Temporary Auto-quality reductions. They never change saved preferences. */
 export interface AutoReductions {
+  sunShafts: boolean;
   bloom: boolean;
   ambientOcclusion: boolean;
   /** Index into `postProcessing.renderResolution.autoScales`. */
@@ -81,6 +85,7 @@ export interface AutoReductions {
 }
 
 export const NO_AUTO_REDUCTIONS: Readonly<AutoReductions> = Object.freeze({
+  sunShafts: false,
   bloom: false,
   ambientOcclusion: false,
   resolutionStep: 0
@@ -141,6 +146,7 @@ export function parseGraphicsEffectPreferences(value: unknown): GraphicsEffectPr
       ambientOcclusion: oneOf(custom.ambientOcclusion, AO_CHOICES, defaults.ambientOcclusion),
       aoStrength: bounded(custom.aoStrength, bounds.ambientOcclusion.strength, defaults.aoStrength),
       glow: oneOf(custom.glow, GLOW_CHOICES, defaults.glow),
+      sunShafts: typeof custom.sunShafts === "boolean" ? custom.sunShafts : defaults.sunShafts,
       edgeSmoothing: oneOf(custom.edgeSmoothing, EDGE_CHOICES, defaults.edgeSmoothing),
       colorFinish: parseColorFinish(custom.colorFinish)
     },
@@ -164,6 +170,7 @@ export function isDefaultGraphicsEffectPreferences(value: Readonly<GraphicsEffec
     && value.renderResolution === defaults.renderResolution
     && value.custom.ambientOcclusion === defaults.custom.ambientOcclusion
     && value.custom.aoStrength === defaults.custom.aoStrength
+    && value.custom.sunShafts === defaults.custom.sunShafts
     && value.custom.glow === defaults.custom.glow
     && value.custom.edgeSmoothing === defaults.custom.edgeSmoothing
     && isNeutralColorFinish(value.custom.colorFinish);
@@ -179,6 +186,7 @@ export function effectiveCustomChoices(preferences: Readonly<GraphicsEffectPrefe
         ambientOcclusion: "off",
         aoStrength: preferences.custom.aoStrength,
         glow: "subtle",
+        sunShafts: false,
         edgeSmoothing: "off",
         colorFinish: { ...NEUTRAL_COLOR_FINISH }
       };
@@ -230,6 +238,7 @@ export function resolveGraphicsEffects(
     // A suspended HDR bloom falls back to the sprites so lamps still glow.
     practicalGlow: choices.glow === "subtle" || (choices.glow === "hdr" && !hdrBloom),
     hdrBloom,
+    sunShafts: enhanced && choices.sunShafts && !reductions.sunShafts,
     fxaa,
     colorFinish: enhanced ? { ...choices.colorFinish } : { ...NEUTRAL_COLOR_FINISH },
     brightness: preferences.brightness,
@@ -244,6 +253,7 @@ export function reductionLadder(
 ): ReductionStep[] {
   const requested = resolveGraphicsEffects(preferences, tier);
   const ladder: ReductionStep[] = [];
+  if (requested.sunShafts) ladder.push("sun-shafts");
   if (requested.hdrBloom) ladder.push("bloom");
   if (requested.ambientOcclusion === "gtao") ladder.push("ambient-occlusion");
   if (preferences.renderResolution === "auto") {
@@ -256,6 +266,7 @@ export function reductionLadder(
 export function reductionsAtLevel(ladder: readonly ReductionStep[], level: number): AutoReductions {
   const applied = ladder.slice(0, Math.max(0, Math.min(ladder.length, level)));
   return {
+    sunShafts: applied.includes("sun-shafts"),
     bloom: applied.includes("bloom"),
     ambientOcclusion: applied.includes("ambient-occlusion"),
     resolutionStep: applied.filter((step) => step === "resolution").length

@@ -447,17 +447,6 @@
         "subject": "Mature coastal farm oak with a grounded bifurcated trunk and layered faceted crown",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines Neva's warm tactile faceting, palette discipline, and gameplay-camera readability."
-          },
-          {
             "id": "oak_structure_trial",
             "kind": "structural_study",
             "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
@@ -665,8 +654,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -744,17 +732,6 @@
         "subject": "Broader coastal oak variant with a dense faceted crown and flared roots",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
             "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
@@ -911,8 +888,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -990,17 +966,6 @@
         "subject": "Taller darker oak variant with a narrower crown and visible fork",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
             "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
@@ -1157,8 +1122,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -1236,17 +1200,6 @@
         "subject": "Layered coastal pine with angular wedge tiers and visible trunk gaps",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
             "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
@@ -1256,7 +1209,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "Isolated vegetation sheet used for faceted clump language; pine keeps layered wedge tiers from the bible."
+            "notes": "Optional isolated vegetation reference for clump shapes and layered pine tiers."
           }
         ],
         "components": [
@@ -1390,8 +1343,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -1469,17 +1421,6 @@
         "subject": "Broader coastal pine variant with fewer darker foliage tiers",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
             "uri": "repo://tools/art/references/isolated/trees_vegetation_isolated_1787317016421.jpg",
@@ -1489,7 +1430,7 @@
               "structure",
               "detail_density"
             ],
-            "notes": "Isolated vegetation sheet used for faceted clump language; pine keeps layered wedge tiers from the bible."
+            "notes": "Optional isolated vegetation reference for clump shapes and layered pine tiers."
           }
         ],
         "components": [
@@ -1623,8 +1564,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -1702,17 +1642,6 @@
         "status": "ready",
         "subject": "Small orchard apple tree with faceted clumps, fruit, and blossoms",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "trees_vegetation_isolated",
             "kind": "visual_reference",
@@ -1869,8 +1798,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -1940,139 +1868,6 @@
           "triangleRatioMax": 0.48
         }
       ],
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Wind-shaped coastal olive with a forked trunk and flattened silver-green crown",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns the faceted coastal silhouette, shared palette, and gameplay-camera readability."
-          }
-        ],
-        "components": [
-          {
-            "id": "forked_trunk",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Carries the wind-shaped gesture",
-            "shape": "Low bifurcated tapered trunk with visible root flare",
-            "count": "1 connected structure",
-            "cues": [
-              "Fork remains visible",
-              "Base reads planted"
-            ]
-          },
-          {
-            "id": "flattened_crown",
-            "parent": "forked_trunk",
-            "importance": "primary",
-            "role": "Defines olive species identity",
-            "shape": "Asymmetric flattened faceted lobes",
-            "count": "parameter-driven clusters",
-            "cues": [
-              "Wider than tall",
-              "Silver-green highlights face outward"
-            ]
-          },
-          {
-            "id": "root_flares",
-            "parent": "forked_trunk",
-            "importance": "secondary",
-            "role": "Grounds the coastal tree on dry terrace soil",
-            "shape": "Irregular low tapered roots following the trunk lean",
-            "count": "parameter-driven roots",
-            "cues": [
-              "No symmetric starburst",
-              "Base remains readable at gameplay distance"
-            ]
-          }
-        ],
-        "silhouette": [
-          "A low fork supports a broad wind-shaped crown.",
-          "Flattened lobes remain distinct from Neva oak crowns.",
-          "The leaning crown and unequal roots share one coastal wind gesture."
-        ],
-        "negativeSpace": [
-          "The central fork remains visible below the crown.",
-          "Two daylight gaps separate major lobe groups."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Rear branches continue the asymmetric load-bearing structure.",
-            "Rear crown lobes close the volume without hiding the central fork."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "olive_read",
-            "componentIds": [
-              "forked_trunk",
-              "flattened_crown"
-            ],
-            "requirement": "The asset reads as an olive rather than a recolored oak at gameplay distance.",
-            "priority": "must"
-          },
-          {
-            "id": "visible_fork",
-            "componentIds": [
-              "forked_trunk",
-              "flattened_crown"
-            ],
-            "requirement": "The primary fork remains visible beneath the flattened crown from front and three-quarter views.",
-            "priority": "must"
-          },
-          {
-            "id": "dry_grounding",
-            "componentIds": [
-              "forked_trunk",
-              "root_flares"
-            ],
-            "requirement": "The trunk and irregular roots read as one planted structure on the terrace.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "sourceGlb",
-            "componentIds": [
-              "forked_trunk",
-              "flattened_crown",
-              "root_flares"
-            ],
-            "purpose": "Retains the published coastal olive structure, crown and roots without a geometry redesign."
-          },
-          {
-            "parameter": "textureMaxSize",
-            "componentIds": [
-              "flattened_crown"
-            ],
-            "purpose": "Limits packaging texture resolution; the retained source owns the crown geometry and palette."
-          }
-        ],
-        "failureModes": [
-          "The crown becomes a round oak ball.",
-          "The trunk fork disappears behind foliage.",
-          "Olive fruit becomes noisy at gameplay distance."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance"
-        ]
-      },
       "collisionPrimitives": [
         {
           "id": "trunk",
@@ -2141,139 +1936,6 @@
           "triangleRatioMax": 0.48
         }
       ],
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Broader old coastal olive variant with a darker forked trunk",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns the faceted coastal silhouette, shared palette, and gameplay-camera readability."
-          }
-        ],
-        "components": [
-          {
-            "id": "forked_trunk",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Carries the older tree gesture",
-            "shape": "Low dark bifurcated trunk and broad roots",
-            "count": "1 connected structure",
-            "cues": [
-              "Asymmetric fork",
-              "Broad planted base"
-            ]
-          },
-          {
-            "id": "flattened_crown",
-            "parent": "forked_trunk",
-            "importance": "primary",
-            "role": "Defines the broad olive silhouette",
-            "shape": "Low flattened silver-green crown lobes",
-            "count": "parameter-driven clusters",
-            "cues": [
-              "Broader than variant A",
-              "Open central fork"
-            ]
-          },
-          {
-            "id": "root_flares",
-            "parent": "forked_trunk",
-            "importance": "secondary",
-            "role": "Grounds the older broad tree",
-            "shape": "Unequal low tapered roots following the wind gesture",
-            "count": "parameter-driven roots",
-            "cues": [
-              "Broad planted base",
-              "No radial symmetry"
-            ]
-          }
-        ],
-        "silhouette": [
-          "A dark fork spreads into a low wind-shaped crown.",
-          "The broader canopy remains stepped and asymmetric.",
-          "Unequal roots counterbalance the crown without widening into a starburst."
-        ],
-        "negativeSpace": [
-          "The central fork remains visible.",
-          "Major lobe groups retain side-view gaps."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Rear branches preserve the same wind direction without mirroring.",
-            "Rear crown masses preserve the side-view gaps around the central fork."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "olive_read",
-            "componentIds": [
-              "forked_trunk",
-              "flattened_crown"
-            ],
-            "requirement": "The broader variant remains recognizably olive at gameplay distance.",
-            "priority": "must"
-          },
-          {
-            "id": "variant_structure",
-            "componentIds": [
-              "forked_trunk",
-              "flattened_crown"
-            ],
-            "requirement": "The broad older silhouette differs structurally from variant A, not only by palette.",
-            "priority": "must"
-          },
-          {
-            "id": "dry_grounding",
-            "componentIds": [
-              "forked_trunk",
-              "root_flares"
-            ],
-            "requirement": "The wider dark trunk and irregular roots read as one planted structure.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "sourceGlb",
-            "componentIds": [
-              "forked_trunk",
-              "flattened_crown",
-              "root_flares"
-            ],
-            "purpose": "Retains the published coastal olive structure, crown and roots without a geometry redesign."
-          },
-          {
-            "parameter": "textureMaxSize",
-            "componentIds": [
-              "flattened_crown"
-            ],
-            "purpose": "Limits packaging texture resolution; the retained source owns the crown geometry and palette."
-          }
-        ],
-        "failureModes": [
-          "The crown becomes spherical.",
-          "The variant differs only by palette.",
-          "The root flare forms a symmetric starburst."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance"
-        ]
-      },
       "collisionPrimitives": [
         {
           "id": "trunk",
@@ -2346,18 +2008,6 @@
         "status": "ready",
         "subject": "Chunky leafy meadow bush with layered faceted masses and sparse warm-white flowers",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns Neva's clustered faceted foliage, palette discipline, and gameplay-camera readability."
-          },
           {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
@@ -2492,8 +2142,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -2548,8 +2197,7 @@
         "bladeCount": 6
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -2622,8 +2270,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -2696,8 +2343,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -2770,8 +2416,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -2844,8 +2489,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -2904,8 +2548,7 @@
         "bladeCount": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -2963,8 +2606,7 @@
         "bladeCount": 2
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -3019,8 +2661,7 @@
         "length": 0.75
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -3093,8 +2734,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -3136,8 +2776,7 @@
         "bladeWidth": 0.24
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -3182,18 +2821,6 @@
         "status": "ready",
         "subject": "Fine overlapping short meadow grass with distributed terrain-rooted blades",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines Neva's warm tactile faceting, palette discipline, authored asymmetry, and gameplay-distance readability."
-          },
           {
             "id": "lush_grass_user_reference",
             "kind": "visual_reference",
@@ -3334,8 +2961,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "lodLevels": [
         {
@@ -3395,18 +3021,6 @@
         "subject": "Fine overlapping short meadow grass with distributed terrain-rooted blades",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines Neva's warm tactile faceting, palette discipline, authored asymmetry, and gameplay-distance readability."
-          },
-          {
             "id": "lush_grass_user_reference",
             "kind": "visual_reference",
             "uri": "repo://art/references/lush-grass/meadow-reference.png",
@@ -3546,8 +3160,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "lodLevels": [
         {
@@ -3607,18 +3220,6 @@
         "subject": "Fine overlapping short meadow grass with distributed terrain-rooted blades",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines Neva's warm tactile faceting, palette discipline, authored asymmetry, and gameplay-distance readability."
-          },
-          {
             "id": "lush_grass_user_reference",
             "kind": "visual_reference",
             "uri": "repo://art/references/lush-grass/meadow-reference.png",
@@ -3758,8 +3359,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "lodLevels": [
         {
@@ -3813,150 +3413,8 @@
         "spread": 0.34,
         "petals": 5
       },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Small coastal wildflower clump with layered stems, sparse blossoms, and meadow-scale readability",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines Neva's restrained accent colors, broad facets, authored asymmetry, and gameplay-camera readability."
-          }
-        ],
-        "components": [
-          {
-            "id": "stem_cluster",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Provides a grounded branching scaffold for the flower heads",
-            "shape": "Several slender faceted stems rising in unequal arcs",
-            "count": "stemCount stems",
-            "cues": [
-              "Stems begin as one loose ground cluster",
-              "Heights vary in a clear stepped rhythm"
-            ]
-          },
-          {
-            "id": "blossom_heads",
-            "parent": "stem_cluster",
-            "importance": "primary",
-            "role": "Carries the restrained color accent visible over meadow grass",
-            "shape": "Simple low-sided petal fans around compact centers",
-            "count": "one per dominant stem",
-            "cues": [
-              "Blossoms face varied directions",
-              "Accent color remains a small area"
-            ]
-          },
-          {
-            "id": "ground_leaves",
-            "parent": "stem_cluster",
-            "importance": "secondary",
-            "role": "Connects stems to the terrain and broadens the base silhouette",
-            "shape": "Short tapered leaf planes angled close to the ground",
-            "count": "4-8 leaves",
-            "cues": [
-              "Leaves overlap soil at their roots",
-              "No symmetric rosette"
-            ]
-          }
-        ],
-        "silhouette": [
-          "Unequal blossom heights make a loose triangular rhythm rather than a bouquet dome.",
-          "One or two flower heads lead while the remaining heads support the silhouette.",
-          "Low ground leaves widen the base without creating a circular rosette."
-        ],
-        "negativeSpace": [
-          "Keep daylight gaps between dominant stems visible from front and side views.",
-          "Separate adjacent blossom heads so their petal fans do not merge into one color blob."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "mirror_with_variation",
-          "confidence": "high",
-          "requirements": [
-            "Rear stems fill the volume with different heights and headings rather than duplicating the front.",
-            "Every side view retains at least two separated blossom heads and a grounded leaf base."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "blossom_separation",
-            "componentIds": [
-              "stem_cluster",
-              "blossom_heads"
-            ],
-            "requirement": "Flower heads stay individually readable and do not merge into a single saturated cluster.",
-            "priority": "must"
-          },
-          {
-            "id": "restrained_accent",
-            "componentIds": [
-              "blossom_heads"
-            ],
-            "requirement": "Accent petals remain subordinate to grass and foliage colors at gameplay distance.",
-            "priority": "must"
-          },
-          {
-            "id": "planted_stems",
-            "componentIds": [
-              "stem_cluster",
-              "ground_leaves"
-            ],
-            "requirement": "All stems visually emerge from a low planted base with no floating geometry.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "stemCount",
-            "componentIds": [
-              "stem_cluster",
-              "blossom_heads"
-            ],
-            "purpose": "Controls blossom density while preserving separation and an unequal height hierarchy."
-          },
-          {
-            "parameter": "height",
-            "componentIds": [
-              "stem_cluster"
-            ],
-            "purpose": "Controls the dominant vertical read relative to surrounding grass cover."
-          },
-          {
-            "parameter": "spread",
-            "componentIds": [
-              "stem_cluster",
-              "ground_leaves"
-            ],
-            "purpose": "Controls the ground footprint and negative space between stems."
-          }
-        ],
-        "failureModes": [
-          "Blossoms merge into a bright spherical bouquet that dominates the terrain.",
-          "Stems are evenly spaced or equal height, creating a procedural picket-fence rhythm.",
-          "The plant floats, lacks a leaf base, or collapses into one flat billboard from the side."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
-      },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -3996,150 +3454,8 @@
         "spread": 0.38,
         "petals": 5
       },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Small coastal wildflower clump with layered stems, sparse blossoms, and meadow-scale readability",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines Neva's restrained accent colors, broad facets, authored asymmetry, and gameplay-camera readability."
-          }
-        ],
-        "components": [
-          {
-            "id": "stem_cluster",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Provides a grounded branching scaffold for the flower heads",
-            "shape": "Several slender faceted stems rising in unequal arcs",
-            "count": "stemCount stems",
-            "cues": [
-              "Stems begin as one loose ground cluster",
-              "Heights vary in a clear stepped rhythm"
-            ]
-          },
-          {
-            "id": "blossom_heads",
-            "parent": "stem_cluster",
-            "importance": "primary",
-            "role": "Carries the restrained color accent visible over meadow grass",
-            "shape": "Simple low-sided petal fans around compact centers",
-            "count": "one per dominant stem",
-            "cues": [
-              "Blossoms face varied directions",
-              "Accent color remains a small area"
-            ]
-          },
-          {
-            "id": "ground_leaves",
-            "parent": "stem_cluster",
-            "importance": "secondary",
-            "role": "Connects stems to the terrain and broadens the base silhouette",
-            "shape": "Short tapered leaf planes angled close to the ground",
-            "count": "4-8 leaves",
-            "cues": [
-              "Leaves overlap soil at their roots",
-              "No symmetric rosette"
-            ]
-          }
-        ],
-        "silhouette": [
-          "Unequal blossom heights make a loose triangular rhythm rather than a bouquet dome.",
-          "One or two flower heads lead while the remaining heads support the silhouette.",
-          "Low ground leaves widen the base without creating a circular rosette."
-        ],
-        "negativeSpace": [
-          "Keep daylight gaps between dominant stems visible from front and side views.",
-          "Separate adjacent blossom heads so their petal fans do not merge into one color blob."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "mirror_with_variation",
-          "confidence": "high",
-          "requirements": [
-            "Rear stems fill the volume with different heights and headings rather than duplicating the front.",
-            "Every side view retains at least two separated blossom heads and a grounded leaf base."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "blossom_separation",
-            "componentIds": [
-              "stem_cluster",
-              "blossom_heads"
-            ],
-            "requirement": "Flower heads stay individually readable and do not merge into a single saturated cluster.",
-            "priority": "must"
-          },
-          {
-            "id": "restrained_accent",
-            "componentIds": [
-              "blossom_heads"
-            ],
-            "requirement": "Accent petals remain subordinate to grass and foliage colors at gameplay distance.",
-            "priority": "must"
-          },
-          {
-            "id": "planted_stems",
-            "componentIds": [
-              "stem_cluster",
-              "ground_leaves"
-            ],
-            "requirement": "All stems visually emerge from a low planted base with no floating geometry.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "stemCount",
-            "componentIds": [
-              "stem_cluster",
-              "blossom_heads"
-            ],
-            "purpose": "Controls blossom density while preserving separation and an unequal height hierarchy."
-          },
-          {
-            "parameter": "height",
-            "componentIds": [
-              "stem_cluster"
-            ],
-            "purpose": "Controls the dominant vertical read relative to surrounding grass cover."
-          },
-          {
-            "parameter": "spread",
-            "componentIds": [
-              "stem_cluster",
-              "ground_leaves"
-            ],
-            "purpose": "Controls the ground footprint and negative space between stems."
-          }
-        ],
-        "failureModes": [
-          "Blossoms merge into a bright spherical bouquet that dominates the terrain.",
-          "Stems are evenly spaced or equal height, creating a procedural picket-fence rhythm.",
-          "The plant floats, lacks a leaf base, or collapses into one flat billboard from the side."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
-      },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -4179,150 +3495,8 @@
         "spread": 0.32,
         "petals": 6
       },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Small coastal wildflower clump with layered stems, sparse blossoms, and meadow-scale readability",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines Neva's restrained accent colors, broad facets, authored asymmetry, and gameplay-camera readability."
-          }
-        ],
-        "components": [
-          {
-            "id": "stem_cluster",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Provides a grounded branching scaffold for the flower heads",
-            "shape": "Several slender faceted stems rising in unequal arcs",
-            "count": "stemCount stems",
-            "cues": [
-              "Stems begin as one loose ground cluster",
-              "Heights vary in a clear stepped rhythm"
-            ]
-          },
-          {
-            "id": "blossom_heads",
-            "parent": "stem_cluster",
-            "importance": "primary",
-            "role": "Carries the restrained color accent visible over meadow grass",
-            "shape": "Simple low-sided petal fans around compact centers",
-            "count": "one per dominant stem",
-            "cues": [
-              "Blossoms face varied directions",
-              "Accent color remains a small area"
-            ]
-          },
-          {
-            "id": "ground_leaves",
-            "parent": "stem_cluster",
-            "importance": "secondary",
-            "role": "Connects stems to the terrain and broadens the base silhouette",
-            "shape": "Short tapered leaf planes angled close to the ground",
-            "count": "4-8 leaves",
-            "cues": [
-              "Leaves overlap soil at their roots",
-              "No symmetric rosette"
-            ]
-          }
-        ],
-        "silhouette": [
-          "Unequal blossom heights make a loose triangular rhythm rather than a bouquet dome.",
-          "One or two flower heads lead while the remaining heads support the silhouette.",
-          "Low ground leaves widen the base without creating a circular rosette."
-        ],
-        "negativeSpace": [
-          "Keep daylight gaps between dominant stems visible from front and side views.",
-          "Separate adjacent blossom heads so their petal fans do not merge into one color blob."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "mirror_with_variation",
-          "confidence": "high",
-          "requirements": [
-            "Rear stems fill the volume with different heights and headings rather than duplicating the front.",
-            "Every side view retains at least two separated blossom heads and a grounded leaf base."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "blossom_separation",
-            "componentIds": [
-              "stem_cluster",
-              "blossom_heads"
-            ],
-            "requirement": "Flower heads stay individually readable and do not merge into a single saturated cluster.",
-            "priority": "must"
-          },
-          {
-            "id": "restrained_accent",
-            "componentIds": [
-              "blossom_heads"
-            ],
-            "requirement": "Accent petals remain subordinate to grass and foliage colors at gameplay distance.",
-            "priority": "must"
-          },
-          {
-            "id": "planted_stems",
-            "componentIds": [
-              "stem_cluster",
-              "ground_leaves"
-            ],
-            "requirement": "All stems visually emerge from a low planted base with no floating geometry.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "stemCount",
-            "componentIds": [
-              "stem_cluster",
-              "blossom_heads"
-            ],
-            "purpose": "Controls blossom density while preserving separation and an unequal height hierarchy."
-          },
-          {
-            "parameter": "height",
-            "componentIds": [
-              "stem_cluster"
-            ],
-            "purpose": "Controls the dominant vertical read relative to surrounding grass cover."
-          },
-          {
-            "parameter": "spread",
-            "componentIds": [
-              "stem_cluster",
-              "ground_leaves"
-            ],
-            "purpose": "Controls the ground footprint and negative space between stems."
-          }
-        ],
-        "failureModes": [
-          "Blossoms merge into a bright spherical bouquet that dominates the terrain.",
-          "Stems are evenly spaced or equal height, creating a procedural picket-fence rhythm.",
-          "The plant floats, lacks a leaf base, or collapses into one flat billboard from the side."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
-      },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -4366,18 +3540,6 @@
         "status": "ready",
         "subject": "White chamomile meadow mat for dense clustered flower drifts",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
@@ -4468,7 +3630,7 @@
             "componentIds": [
               "blossoms"
             ],
-            "requirement": "White foam and ochre centers stay on approved palette tokens.",
+            "requirement": "Selected colors use centrally declared palette tokens, which may be revised for the current task.",
             "priority": "must"
           }
         ],
@@ -4505,8 +3667,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -4550,18 +3711,6 @@
         "status": "ready",
         "subject": "Cream meadow blossom mat used as a second clustered flower drift",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
@@ -4690,8 +3839,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -4735,18 +3883,6 @@
         "status": "ready",
         "subject": "Yellow ochre blossom mat for warm meadow flower pockets",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
@@ -4874,8 +4010,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -4920,18 +4055,6 @@
         "status": "ready",
         "subject": "Fine taller meadow blades in an open wind-catching patch",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "lush_grass_user_reference",
             "kind": "visual_reference",
@@ -5060,8 +4183,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "lodLevels": [
         {
@@ -5120,18 +4242,6 @@
         "status": "ready",
         "subject": "Fine taller meadow blades in an open wind-catching patch",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "lush_grass_user_reference",
             "kind": "visual_reference",
@@ -5259,8 +4369,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "lodLevels": [
         {
@@ -5336,8 +4445,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -5414,8 +4522,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -5492,8 +4599,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -5570,8 +4676,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -5648,8 +4753,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -5711,8 +4815,7 @@
         "fractureCount": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -5765,154 +4868,8 @@
         "spread": 0.46,
         "size": 0.16
       },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Ground-hugging faceted pebble cluster with varied stone sizes and an eroded coastal scatter rhythm",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines authored planar stone geometry, grounded contact, palette discipline, and controlled detail density."
-          }
-        ],
-        "components": [
-          {
-            "id": "primary_pebble",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Establishes the cluster scale and dominant directional gesture",
-            "shape": "Low irregular faceted stone with a compressed crown",
-            "count": "1 stone",
-            "cues": [
-              "Largest stone sits off center",
-              "Broad face remains readable from above"
-            ]
-          },
-          {
-            "id": "support_pebbles",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Builds a loose eroded grouping around the dominant stone",
-            "shape": "Varied flattened polyhedra with different axes and tilts",
-            "count": "majority of count",
-            "cues": [
-              "At least three distinct sizes",
-              "No repeated orientation sequence"
-            ]
-          },
-          {
-            "id": "edge_chips",
-            "parent": "support_pebbles",
-            "importance": "secondary",
-            "role": "Tapers the scatter into the surrounding soil or shore",
-            "shape": "Small low wedges placed along two uneven outer arcs",
-            "count": "1-3 stones",
-            "cues": [
-              "Edges fade asymmetrically",
-              "Chips never form a ring"
-            ]
-          }
-        ],
-        "silhouette": [
-          "The cluster forms an irregular low wedge rather than a circular pile.",
-          "One dominant stone and two supporting peaks control the top-down read.",
-          "Small edge chips taper the group into terrain along unequal sides."
-        ],
-        "negativeSpace": [
-          "Preserve visible ground gaps between the largest three stones.",
-          "Leave one open side so the cluster reads as deposited rather than deliberately arranged."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Undersides stay close to the ground plane and do not expose floating gaps on slopes.",
-            "Rear stones vary their axes while supporting the same off-center dominant mass."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "size_hierarchy",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles"
-            ],
-            "requirement": "The cluster has one obvious largest stone plus at least two smaller scale tiers.",
-            "priority": "must"
-          },
-          {
-            "id": "ground_contact",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "requirement": "Every stone sits low enough to read as embedded in the terrain surface.",
-            "priority": "must"
-          },
-          {
-            "id": "eroded_scatter",
-            "componentIds": [
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "requirement": "Spacing and axes create a natural deposited rhythm without rings or grids.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "count",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "purpose": "Allocates one dominant stone first and distributes the remainder across support tiers."
-          },
-          {
-            "parameter": "spread",
-            "componentIds": [
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "purpose": "Controls cluster footprint and the amount of visible ground between stones."
-          },
-          {
-            "parameter": "size",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles"
-            ],
-            "purpose": "Controls the base stone scale while seeded ratios preserve the hierarchy."
-          }
-        ],
-        "failureModes": [
-          "Pebbles form a regular ring, grid, or evenly spaced radial pattern.",
-          "All stones share one size and orientation, producing a stamped procedural look.",
-          "Stones float above terrain or expose deep undersides from the gameplay camera."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
-      },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -5950,154 +4907,8 @@
         "spread": 0.39,
         "size": 0.14
       },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Ground-hugging faceted pebble cluster with varied stone sizes and an eroded coastal scatter rhythm",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines authored planar stone geometry, grounded contact, palette discipline, and controlled detail density."
-          }
-        ],
-        "components": [
-          {
-            "id": "primary_pebble",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Establishes the cluster scale and dominant directional gesture",
-            "shape": "Low irregular faceted stone with a compressed crown",
-            "count": "1 stone",
-            "cues": [
-              "Largest stone sits off center",
-              "Broad face remains readable from above"
-            ]
-          },
-          {
-            "id": "support_pebbles",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Builds a loose eroded grouping around the dominant stone",
-            "shape": "Varied flattened polyhedra with different axes and tilts",
-            "count": "majority of count",
-            "cues": [
-              "At least three distinct sizes",
-              "No repeated orientation sequence"
-            ]
-          },
-          {
-            "id": "edge_chips",
-            "parent": "support_pebbles",
-            "importance": "secondary",
-            "role": "Tapers the scatter into the surrounding soil or shore",
-            "shape": "Small low wedges placed along two uneven outer arcs",
-            "count": "1-3 stones",
-            "cues": [
-              "Edges fade asymmetrically",
-              "Chips never form a ring"
-            ]
-          }
-        ],
-        "silhouette": [
-          "The cluster forms an irregular low wedge rather than a circular pile.",
-          "One dominant stone and two supporting peaks control the top-down read.",
-          "Small edge chips taper the group into terrain along unequal sides."
-        ],
-        "negativeSpace": [
-          "Preserve visible ground gaps between the largest three stones.",
-          "Leave one open side so the cluster reads as deposited rather than deliberately arranged."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Undersides stay close to the ground plane and do not expose floating gaps on slopes.",
-            "Rear stones vary their axes while supporting the same off-center dominant mass."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "size_hierarchy",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles"
-            ],
-            "requirement": "The cluster has one obvious largest stone plus at least two smaller scale tiers.",
-            "priority": "must"
-          },
-          {
-            "id": "ground_contact",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "requirement": "Every stone sits low enough to read as embedded in the terrain surface.",
-            "priority": "must"
-          },
-          {
-            "id": "eroded_scatter",
-            "componentIds": [
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "requirement": "Spacing and axes create a natural deposited rhythm without rings or grids.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "count",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "purpose": "Allocates one dominant stone first and distributes the remainder across support tiers."
-          },
-          {
-            "parameter": "spread",
-            "componentIds": [
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "purpose": "Controls cluster footprint and the amount of visible ground between stones."
-          },
-          {
-            "parameter": "size",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles"
-            ],
-            "purpose": "Controls the base stone scale while seeded ratios preserve the hierarchy."
-          }
-        ],
-        "failureModes": [
-          "Pebbles form a regular ring, grid, or evenly spaced radial pattern.",
-          "All stones share one size and orientation, producing a stamped procedural look.",
-          "Stones float above terrain or expose deep undersides from the gameplay camera."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
-      },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -6135,154 +4946,8 @@
         "spread": 0.54,
         "size": 0.17
       },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Ground-hugging faceted pebble cluster with varied stone sizes and an eroded coastal scatter rhythm",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines authored planar stone geometry, grounded contact, palette discipline, and controlled detail density."
-          }
-        ],
-        "components": [
-          {
-            "id": "primary_pebble",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Establishes the cluster scale and dominant directional gesture",
-            "shape": "Low irregular faceted stone with a compressed crown",
-            "count": "1 stone",
-            "cues": [
-              "Largest stone sits off center",
-              "Broad face remains readable from above"
-            ]
-          },
-          {
-            "id": "support_pebbles",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Builds a loose eroded grouping around the dominant stone",
-            "shape": "Varied flattened polyhedra with different axes and tilts",
-            "count": "majority of count",
-            "cues": [
-              "At least three distinct sizes",
-              "No repeated orientation sequence"
-            ]
-          },
-          {
-            "id": "edge_chips",
-            "parent": "support_pebbles",
-            "importance": "secondary",
-            "role": "Tapers the scatter into the surrounding soil or shore",
-            "shape": "Small low wedges placed along two uneven outer arcs",
-            "count": "1-3 stones",
-            "cues": [
-              "Edges fade asymmetrically",
-              "Chips never form a ring"
-            ]
-          }
-        ],
-        "silhouette": [
-          "The cluster forms an irregular low wedge rather than a circular pile.",
-          "One dominant stone and two supporting peaks control the top-down read.",
-          "Small edge chips taper the group into terrain along unequal sides."
-        ],
-        "negativeSpace": [
-          "Preserve visible ground gaps between the largest three stones.",
-          "Leave one open side so the cluster reads as deposited rather than deliberately arranged."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Undersides stay close to the ground plane and do not expose floating gaps on slopes.",
-            "Rear stones vary their axes while supporting the same off-center dominant mass."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "size_hierarchy",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles"
-            ],
-            "requirement": "The cluster has one obvious largest stone plus at least two smaller scale tiers.",
-            "priority": "must"
-          },
-          {
-            "id": "ground_contact",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "requirement": "Every stone sits low enough to read as embedded in the terrain surface.",
-            "priority": "must"
-          },
-          {
-            "id": "eroded_scatter",
-            "componentIds": [
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "requirement": "Spacing and axes create a natural deposited rhythm without rings or grids.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "count",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "purpose": "Allocates one dominant stone first and distributes the remainder across support tiers."
-          },
-          {
-            "parameter": "spread",
-            "componentIds": [
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "purpose": "Controls cluster footprint and the amount of visible ground between stones."
-          },
-          {
-            "parameter": "size",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles"
-            ],
-            "purpose": "Controls the base stone scale while seeded ratios preserve the hierarchy."
-          }
-        ],
-        "failureModes": [
-          "Pebbles form a regular ring, grid, or evenly spaced radial pattern.",
-          "All stones share one size and orientation, producing a stamped procedural look.",
-          "Stones float above terrain or expose deep undersides from the gameplay camera."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
-      },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -6320,154 +4985,8 @@
         "spread": 0.42,
         "size": 0.14
       },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Ground-hugging faceted cluster of washed grey stream pebbles with varied stone sizes, laid along a mountain brook's water edge",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines authored planar stone geometry, grounded contact, palette discipline, and controlled detail density."
-          }
-        ],
-        "components": [
-          {
-            "id": "primary_pebble",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Establishes the cluster scale and dominant directional gesture",
-            "shape": "Low irregular faceted stone with a compressed crown",
-            "count": "1 stone",
-            "cues": [
-              "Largest stone sits off center",
-              "Broad face remains readable from above"
-            ]
-          },
-          {
-            "id": "support_pebbles",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Builds a loose eroded grouping around the dominant stone",
-            "shape": "Varied flattened polyhedra with different axes and tilts",
-            "count": "majority of count",
-            "cues": [
-              "At least three distinct sizes",
-              "No repeated orientation sequence"
-            ]
-          },
-          {
-            "id": "edge_chips",
-            "parent": "support_pebbles",
-            "importance": "secondary",
-            "role": "Tapers the scatter into the surrounding soil or shore",
-            "shape": "Small low wedges placed along two uneven outer arcs",
-            "count": "1-3 stones",
-            "cues": [
-              "Edges fade asymmetrically",
-              "Chips never form a ring"
-            ]
-          }
-        ],
-        "silhouette": [
-          "The cluster forms an irregular low wedge rather than a circular pile.",
-          "One dominant stone and two supporting peaks control the top-down read.",
-          "Small edge chips taper the group into terrain along unequal sides."
-        ],
-        "negativeSpace": [
-          "Preserve visible ground gaps between the largest three stones.",
-          "Leave one open side so the cluster reads as deposited rather than deliberately arranged."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Undersides stay close to the ground plane and do not expose floating gaps on slopes.",
-            "Rear stones vary their axes while supporting the same off-center dominant mass."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "size_hierarchy",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles"
-            ],
-            "requirement": "The cluster has one obvious largest stone plus at least two smaller scale tiers.",
-            "priority": "must"
-          },
-          {
-            "id": "ground_contact",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "requirement": "Every stone sits low enough to read as embedded in the terrain surface.",
-            "priority": "must"
-          },
-          {
-            "id": "eroded_scatter",
-            "componentIds": [
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "requirement": "Spacing and axes create a natural deposited rhythm without rings or grids.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "count",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "purpose": "Allocates one dominant stone first and distributes the remainder across support tiers."
-          },
-          {
-            "parameter": "spread",
-            "componentIds": [
-              "support_pebbles",
-              "edge_chips"
-            ],
-            "purpose": "Controls cluster footprint and the amount of visible ground between stones."
-          },
-          {
-            "parameter": "size",
-            "componentIds": [
-              "primary_pebble",
-              "support_pebbles"
-            ],
-            "purpose": "Controls the base stone scale while seeded ratios preserve the hierarchy."
-          }
-        ],
-        "failureModes": [
-          "Pebbles form a regular ring, grid, or evenly spaced radial pattern.",
-          "All stones share one size and orientation, producing a stamped procedural look.",
-          "Stones float above terrain or expose deep undersides from the gameplay camera."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
-      },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -6510,18 +5029,6 @@
         "status": "ready",
         "subject": "Warm hexagonal stepping slab for packed dirt path edges",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
@@ -6648,8 +5155,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -6692,18 +5198,6 @@
         "status": "ready",
         "subject": "Golden pentagonal stepping slab for packed dirt path edges",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
@@ -6829,8 +5323,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -6928,17 +5421,6 @@
         "status": "ready",
         "subject": "Cozy two-storey farmhouse with overlapping terracotta shingles, masonry chimney, and a thick porch lantern",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "farmhouse_isolated",
             "kind": "visual_reference",
@@ -7195,8 +5677,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -7314,17 +5795,6 @@
         "status": "ready",
         "subject": "Banded coastal lighthouse with masonry base, keeper cottage, gallery, and glowing lantern",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "lighthouse_isolated",
             "kind": "visual_reference",
@@ -7526,8 +5996,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -7640,17 +6109,6 @@
         "status": "ready",
         "subject": "Hilltop timber-and-stone windmill with joined lattice sails on a named rotor",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "owner_workshop_craft",
             "kind": "visual_reference",
@@ -7803,8 +6261,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -8086,17 +6543,6 @@
         "subject": "Double-arch masonry bridge with crowned deck, timber rails, and a corner lantern",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "stone_bridge_isolated",
             "kind": "visual_reference",
             "uri": "repo://tools/art/references/isolated/stone_bridge_isolated_1787316868575.jpg",
@@ -8281,8 +6727,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -8477,17 +6922,6 @@
         "subject": "Working timber dock with plank deck, pilings, and a striped market canopy",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
             "uri": "repo://tools/art/references/isolated/dock_market_isolated_1787316936665.jpg",
@@ -8648,8 +7082,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -8748,17 +7181,6 @@
         "status": "ready",
         "subject": "Weathered fish-market warehouse on an aligned stone plinth, with a striped stall climbed by timber stairs",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
@@ -9004,8 +7426,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -9065,17 +7486,6 @@
         "status": "ready",
         "subject": "Village stone well with thick timber posts, planked gable, and hanging bucket",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
@@ -9297,17 +7707,6 @@
         "status": "ready",
         "subject": "Working wooden lobster pot with thick laths, rope bridle, and weights",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
@@ -9575,8 +7974,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -9631,8 +8029,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -9744,17 +8141,6 @@
         "status": "ready",
         "subject": "Stacked rectangular straw bales with jagged fiber edges and twine",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
@@ -10010,17 +8396,6 @@
         "subject": "Sturdy low-poly slatted timber worm compost bin with propped-open angled lid and rich bedding",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines warm timber faceting, metal strap accents, and grounded farm aesthetic."
-          },
-          {
             "id": "worm_compost_concept",
             "kind": "structural_study",
             "uri": "repo://art/references/prop_worm_compost_a_ref.png",
@@ -10268,17 +8643,6 @@
         "subject": "Two-wheel timber farm cart stacked with tied burlap sacks",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "horse_cart_isolated",
             "kind": "visual_reference",
             "uri": "repo://tools/art/references/isolated/horse_cart_isolated_1787316962157.jpg",
@@ -10480,8 +8844,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -10542,17 +8905,6 @@
         "status": "ready",
         "subject": "Chunky farm workbench with authored planks, a working vise, and distinct tools",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
@@ -10760,17 +9112,6 @@
         "status": "ready",
         "subject": "Working dock produce stall with hanging canvas, thick posts, and filled counters",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
@@ -11183,176 +9524,6 @@
         "bendFactor": 0.08,
         "reelSpoolRadius": 0.055,
         "style": "willow"
-      },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Handcrafted coastal fishing rod with contoured timber grip, classic brass fly reel, graduated line guides, and dynamic casting arc",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines warm tactile low-poly faceting, functional coastal styling, and gameplay readability."
-          }
-        ],
-        "components": [
-          {
-            "id": "grip_handle",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Contoured warm cork/wood grip providing comfortable hand contact and ergonomic silhouette",
-            "shape": "Tapered faceted cylinder with chamfered butt cap and foregrip",
-            "count": "1 connected handle assembly",
-            "cues": [
-              "Readable wood grain token",
-              "Winding bands frame the reel seat"
-            ]
-          },
-          {
-            "id": "reel_assembly",
-            "parent": "grip_handle",
-            "importance": "primary",
-            "role": "Machined centerpin reel with crank handle and coiled line drum",
-            "shape": "Ported brass cage frame with central spool, side crank arm, and turning knob",
-            "count": "1 reel unit",
-            "cues": [
-              "Brass metalness",
-              "Visible wound line coil"
-            ]
-          },
-          {
-            "id": "tapered_blank",
-            "parent": "grip_handle",
-            "importance": "primary",
-            "role": "Multi-stage flexible rod shaft carrying the casting arc gesture",
-            "shape": "Faceted tapered sections linked by metallic ferrule rings",
-            "count": "3 connected sections",
-            "cues": [
-              "Loaded forward curve",
-              "Progressive diameter reduction"
-            ]
-          },
-          {
-            "id": "line_guides",
-            "parent": "tapered_blank",
-            "importance": "secondary",
-            "role": "Graduated ring eyes directing the line along the blank",
-            "shape": "Low-poly circular eye rings with mounting feet and thread whippings",
-            "count": "5 guides",
-            "cues": [
-              "Stripper guide is largest near reel",
-              "Tip-top loop caps the rod end"
-            ]
-          },
-          {
-            "id": "line_and_bobber",
-            "parent": "line_guides",
-            "importance": "secondary",
-            "role": "Tensioned fishing line and signature coastal teardrop float",
-            "shape": "Faceted segmented line running through guides and dropping to a two-tone red and cream bobber",
-            "count": "1 rigged line assembly",
-            "cues": [
-              "Terracotta top and foam white bottom on bobber",
-              "Central wooden spindle pin"
-            ]
-          }
-        ],
-        "silhouette": [
-          "Graceful forward flexed arc prevents the rod from looking like a stiff rigid pole.",
-          "Distinct reel offset and handle contour create an instantly identifiable fishing tool outline.",
-          "Graduated guide rings and hanging bobber add delicate character-scale detail without micro-noise."
-        ],
-        "negativeSpace": [
-          "Clear daylight window between the reel frame and the blank.",
-          "Spaced openings through each line guide eye along the shaft arc.",
-          "Visible clearance between the hanging bobber line and the rod blank."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Reel mount and foot securely lock into the reel seat hoods without disconnected floating parts.",
-            "Guides are symmetrically aligned along the forward casting spine of the blank."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "casting_arc",
-            "componentIds": [
-              "tapered_blank"
-            ],
-            "requirement": "The blank displays a smooth, seeded progressive flex rather than a straight segmented cylinder.",
-            "priority": "must"
-          },
-          {
-            "id": "readable_reel",
-            "componentIds": [
-              "reel_assembly"
-            ],
-            "requirement": "The reel possesses a clearly distinct frame, line spool, and side crank handle knob.",
-            "priority": "must"
-          },
-          {
-            "id": "coastal_bobber",
-            "componentIds": [
-              "line_and_bobber"
-            ],
-            "requirement": "The rigged line features a classic two-tone terracotta/cream bobber float with central spindle.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "length",
-            "componentIds": [
-              "tapered_blank"
-            ],
-            "purpose": "Controls overall rod height and section proportions."
-          },
-          {
-            "parameter": "guideCount",
-            "componentIds": [
-              "line_guides"
-            ],
-            "purpose": "Controls the spacing and graduated scaling of guide eyes."
-          },
-          {
-            "parameter": "bendFactor",
-            "componentIds": [
-              "tapered_blank"
-            ],
-            "purpose": "Controls the graceful loaded curvature of the blank."
-          },
-          {
-            "parameter": "reelSpoolRadius",
-            "componentIds": [
-              "reel_assembly"
-            ],
-            "purpose": "Controls reel proportions relative to the handle."
-          }
-        ],
-        "failureModes": [
-          "The rod appears as a rigid, unbent pole with no flex or personality.",
-          "The reel is a plain cylinder without bracket, crank arm, or spool separation.",
-          "Guide rings are identical in size rather than graduated from stripper to tip.",
-          "Floating parts or disconnected line paths."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
       }
     },
     {
@@ -11390,149 +9561,6 @@
         "length": 1.9,
         "radius": 0.09,
         "angle": 0.22
-      },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Weathered coastal driftwood cluster with crossed branches, bleached facets, and a low tide-line silhouette",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines warm tactile faceting, coastal material restraint, grounded contact, and gameplay-camera readability."
-          }
-        ],
-        "components": [
-          {
-            "id": "main_log",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Establishes the cluster length and tide-driven directional gesture",
-            "shape": "Tapered low-sided branch with a gentle angular bend",
-            "count": "1 log",
-            "cues": [
-              "Longest piece leads the silhouette",
-              "One end is thicker and more grounded"
-            ]
-          },
-          {
-            "id": "cross_logs",
-            "parent": "main_log",
-            "importance": "primary",
-            "role": "Creates depth and a readable caught-together structure",
-            "shape": "Shorter tapered branches crossing at unequal angles",
-            "count": "logCount minus one",
-            "cues": [
-              "Crossings visibly contact the main log",
-              "Angles avoid a regular fan"
-            ]
-          },
-          {
-            "id": "broken_ends",
-            "parent": "cross_logs",
-            "importance": "secondary",
-            "role": "Communicates weathering and breaks the cylindrical silhouette",
-            "shape": "Uneven faceted end cuts and short branch stubs",
-            "count": "2-5 ends",
-            "cues": [
-              "Ends vary in width and angle",
-              "Bleached token stays on limited faces"
-            ]
-          }
-        ],
-        "silhouette": [
-          "One long diagonal leads the cluster while shorter pieces create an unequal crossing rhythm.",
-          "The pile remains low and elongated rather than forming a campfire-like radial star.",
-          "Broken ends and branch stubs create two or three deliberate outline interruptions."
-        ],
-        "negativeSpace": [
-          "Keep triangular ground gaps visible between crossing logs.",
-          "Leave one end of the main log unobstructed so its taper remains readable."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Lower log faces stay close to the terrain while preserving visible contact at crossings.",
-            "Rear and side views confirm the logs intersect plausibly instead of floating through one another."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "leading_log",
-            "componentIds": [
-              "main_log"
-            ],
-            "requirement": "The longest weathered log controls the cluster direction and has a clearly tapered profile.",
-            "priority": "must"
-          },
-          {
-            "id": "credible_crossings",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "requirement": "Shorter pieces visibly rest against the main log with no floating or deep interpenetration.",
-            "priority": "must"
-          },
-          {
-            "id": "weathered_ends",
-            "componentIds": [
-              "main_log",
-              "cross_logs",
-              "broken_ends"
-            ],
-            "requirement": "Faceted broken ends and restrained bleaching communicate shore weathering without texture noise.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "logCount",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "purpose": "Controls the number of pieces while preserving one dominant log and credible crossings."
-          },
-          {
-            "parameter": "length",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "purpose": "Controls the elongated tide-line silhouette and support-log proportions."
-          },
-          {
-            "parameter": "angle",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "purpose": "Controls the leading gesture while seeded offsets prevent a regular radial fan."
-          }
-        ],
-        "failureModes": [
-          "Logs form a symmetric campfire star or evenly spaced fan.",
-          "Pieces float, pass deeply through each other, or lack readable points of contact.",
-          "Uniform cylinders and noisy bleaching erase the faceted weathered-wood hierarchy."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
       }
     },
     {
@@ -11570,149 +9598,6 @@
         "length": 1.65,
         "radius": 0.1,
         "angle": -0.48
-      },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Weathered coastal driftwood cluster with crossed branches, bleached facets, and a low tide-line silhouette",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines warm tactile faceting, coastal material restraint, grounded contact, and gameplay-camera readability."
-          }
-        ],
-        "components": [
-          {
-            "id": "main_log",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Establishes the cluster length and tide-driven directional gesture",
-            "shape": "Tapered low-sided branch with a gentle angular bend",
-            "count": "1 log",
-            "cues": [
-              "Longest piece leads the silhouette",
-              "One end is thicker and more grounded"
-            ]
-          },
-          {
-            "id": "cross_logs",
-            "parent": "main_log",
-            "importance": "primary",
-            "role": "Creates depth and a readable caught-together structure",
-            "shape": "Shorter tapered branches crossing at unequal angles",
-            "count": "logCount minus one",
-            "cues": [
-              "Crossings visibly contact the main log",
-              "Angles avoid a regular fan"
-            ]
-          },
-          {
-            "id": "broken_ends",
-            "parent": "cross_logs",
-            "importance": "secondary",
-            "role": "Communicates weathering and breaks the cylindrical silhouette",
-            "shape": "Uneven faceted end cuts and short branch stubs",
-            "count": "2-5 ends",
-            "cues": [
-              "Ends vary in width and angle",
-              "Bleached token stays on limited faces"
-            ]
-          }
-        ],
-        "silhouette": [
-          "One long diagonal leads the cluster while shorter pieces create an unequal crossing rhythm.",
-          "The pile remains low and elongated rather than forming a campfire-like radial star.",
-          "Broken ends and branch stubs create two or three deliberate outline interruptions."
-        ],
-        "negativeSpace": [
-          "Keep triangular ground gaps visible between crossing logs.",
-          "Leave one end of the main log unobstructed so its taper remains readable."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Lower log faces stay close to the terrain while preserving visible contact at crossings.",
-            "Rear and side views confirm the logs intersect plausibly instead of floating through one another."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "leading_log",
-            "componentIds": [
-              "main_log"
-            ],
-            "requirement": "The longest weathered log controls the cluster direction and has a clearly tapered profile.",
-            "priority": "must"
-          },
-          {
-            "id": "credible_crossings",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "requirement": "Shorter pieces visibly rest against the main log with no floating or deep interpenetration.",
-            "priority": "must"
-          },
-          {
-            "id": "weathered_ends",
-            "componentIds": [
-              "main_log",
-              "cross_logs",
-              "broken_ends"
-            ],
-            "requirement": "Faceted broken ends and restrained bleaching communicate shore weathering without texture noise.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "logCount",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "purpose": "Controls the number of pieces while preserving one dominant log and credible crossings."
-          },
-          {
-            "parameter": "length",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "purpose": "Controls the elongated tide-line silhouette and support-log proportions."
-          },
-          {
-            "parameter": "angle",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "purpose": "Controls the leading gesture while seeded offsets prevent a regular radial fan."
-          }
-        ],
-        "failureModes": [
-          "Logs form a symmetric campfire star or evenly spaced fan.",
-          "Pieces float, pass deeply through each other, or lack readable points of contact.",
-          "Uniform cylinders and noisy bleaching erase the faceted weathered-wood hierarchy."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
       }
     },
     {
@@ -11750,149 +9635,6 @@
         "length": 2.2,
         "radius": 0.105,
         "angle": 0.78
-      },
-      "referenceAuthoring": {
-        "status": "ready",
-        "subject": "Weathered coastal driftwood cluster with crossed branches, bleached facets, and a low tide-line silhouette",
-        "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Defines warm tactile faceting, coastal material restraint, grounded contact, and gameplay-camera readability."
-          }
-        ],
-        "components": [
-          {
-            "id": "main_log",
-            "parent": "root",
-            "importance": "primary",
-            "role": "Establishes the cluster length and tide-driven directional gesture",
-            "shape": "Tapered low-sided branch with a gentle angular bend",
-            "count": "1 log",
-            "cues": [
-              "Longest piece leads the silhouette",
-              "One end is thicker and more grounded"
-            ]
-          },
-          {
-            "id": "cross_logs",
-            "parent": "main_log",
-            "importance": "primary",
-            "role": "Creates depth and a readable caught-together structure",
-            "shape": "Shorter tapered branches crossing at unequal angles",
-            "count": "logCount minus one",
-            "cues": [
-              "Crossings visibly contact the main log",
-              "Angles avoid a regular fan"
-            ]
-          },
-          {
-            "id": "broken_ends",
-            "parent": "cross_logs",
-            "importance": "secondary",
-            "role": "Communicates weathering and breaks the cylindrical silhouette",
-            "shape": "Uneven faceted end cuts and short branch stubs",
-            "count": "2-5 ends",
-            "cues": [
-              "Ends vary in width and angle",
-              "Bleached token stays on limited faces"
-            ]
-          }
-        ],
-        "silhouette": [
-          "One long diagonal leads the cluster while shorter pieces create an unequal crossing rhythm.",
-          "The pile remains low and elongated rather than forming a campfire-like radial star.",
-          "Broken ends and branch stubs create two or three deliberate outline interruptions."
-        ],
-        "negativeSpace": [
-          "Keep triangular ground gaps visible between crossing logs.",
-          "Leave one end of the main log unobstructed so its taper remains readable."
-        ],
-        "hiddenSurfaces": {
-          "strategy": "structural_continuity",
-          "confidence": "high",
-          "requirements": [
-            "Lower log faces stay close to the terrain while preserving visible contact at crossings.",
-            "Rear and side views confirm the logs intersect plausibly instead of floating through one another."
-          ]
-        },
-        "criticalFeatures": [
-          {
-            "id": "leading_log",
-            "componentIds": [
-              "main_log"
-            ],
-            "requirement": "The longest weathered log controls the cluster direction and has a clearly tapered profile.",
-            "priority": "must"
-          },
-          {
-            "id": "credible_crossings",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "requirement": "Shorter pieces visibly rest against the main log with no floating or deep interpenetration.",
-            "priority": "must"
-          },
-          {
-            "id": "weathered_ends",
-            "componentIds": [
-              "main_log",
-              "cross_logs",
-              "broken_ends"
-            ],
-            "requirement": "Faceted broken ends and restrained bleaching communicate shore weathering without texture noise.",
-            "priority": "must"
-          }
-        ],
-        "parameterBindings": [
-          {
-            "parameter": "logCount",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "purpose": "Controls the number of pieces while preserving one dominant log and credible crossings."
-          },
-          {
-            "parameter": "length",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "purpose": "Controls the elongated tide-line silhouette and support-log proportions."
-          },
-          {
-            "parameter": "angle",
-            "componentIds": [
-              "main_log",
-              "cross_logs"
-            ],
-            "purpose": "Controls the leading gesture while seeded offsets prevent a regular radial fan."
-          }
-        ],
-        "failureModes": [
-          "Logs form a symmetric campfire star or evenly spaced fan.",
-          "Pieces float, pass deeply through each other, or lack readable points of contact.",
-          "Uniform cylinders and noisy bleaching erase the faceted weathered-wood hierarchy."
-        ],
-        "reviewViews": [
-          "front",
-          "rear",
-          "side",
-          "three_quarter",
-          "gameplay_8m",
-          "gameplay_15m",
-          "gameplay_read_distance",
-          "close_material"
-        ]
       }
     },
     {
@@ -11990,17 +9732,6 @@
         "status": "ready",
         "subject": "Honey timber clinker rowboat with a fine swept bow, broad transom, teal lower planks and full-length working oars",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "fishing_boat_isolated",
             "kind": "visual_reference",
@@ -12165,8 +9896,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12267,17 +9997,6 @@
         "status": "ready",
         "subject": "Working fishing skiff with red lower hull, cream sails, and deck cargo",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "fishing_boat_isolated",
             "kind": "visual_reference",
@@ -12440,8 +10159,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12483,8 +10201,7 @@
         "stalks": 0
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12525,8 +10242,7 @@
         "stalks": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12568,8 +10284,7 @@
         "stalks": 6
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12612,8 +10327,7 @@
         "stalks": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12656,8 +10370,7 @@
         "stalks": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12699,8 +10412,7 @@
         "stalks": 4
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12742,8 +10454,7 @@
         "stalks": 0
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12784,8 +10495,7 @@
         "stalks": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12827,8 +10537,7 @@
         "stalks": 6
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12871,8 +10580,7 @@
         "stalks": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12915,8 +10623,7 @@
         "stalks": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -12958,8 +10665,7 @@
         "stalks": 4
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13001,8 +10707,7 @@
         "stalks": 0
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13044,8 +10749,7 @@
         "stalks": 2
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13089,8 +10793,7 @@
         "stalks": 2
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13134,8 +10837,7 @@
         "stalks": 2
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13179,8 +10881,7 @@
         "stalks": 2
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13223,8 +10924,7 @@
         "stalks": 2
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13267,8 +10967,7 @@
         "stems": 0
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13309,8 +11008,7 @@
         "stems": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13352,8 +11050,7 @@
         "stems": 7
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13397,8 +11094,7 @@
         "stems": 7
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13441,8 +11137,7 @@
         "stems": 7
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13485,8 +11180,7 @@
         "stems": 6
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13528,8 +11222,7 @@
         "plants": 0
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13571,8 +11264,7 @@
         "plants": 0
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13616,8 +11308,7 @@
         "plants": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13662,8 +11353,7 @@
         "plants": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13707,8 +11397,7 @@
         "plants": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13751,8 +11440,7 @@
         "plants": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13792,8 +11480,7 @@
         "stems": 0
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13833,8 +11520,7 @@
         "stems": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13875,8 +11561,7 @@
         "stems": 4
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13919,8 +11604,7 @@
         "stems": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -13961,8 +11645,7 @@
         "stems": 4
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -14002,8 +11685,7 @@
         "stems": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -14045,8 +11727,7 @@
         "plants": 0
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -14088,8 +11769,7 @@
         "plants": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -14131,8 +11811,7 @@
         "plants": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -14176,8 +11855,7 @@
         "plants": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -14222,8 +11900,7 @@
         "plants": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -14266,8 +11943,7 @@
         "plants": 3
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -14910,8 +12586,7 @@
         "height": 4.8
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -16659,7 +14334,7 @@
               "workwear",
               "face"
             ],
-            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
+            "purpose": "Caps any embedded texture at the catalog textureMaxSize and machine texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -17150,7 +14825,7 @@
               "workwear",
               "face"
             ],
-            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
+            "purpose": "Caps any embedded texture at the catalog textureMaxSize and machine texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -17641,7 +15316,7 @@
               "workwear",
               "face"
             ],
-            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
+            "purpose": "Caps any embedded texture at the catalog textureMaxSize and machine texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -18132,7 +15807,7 @@
               "workwear",
               "face"
             ],
-            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
+            "purpose": "Caps any embedded texture at the catalog textureMaxSize and machine texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -18350,17 +16025,6 @@
         "subject": "Faceted black-and-white pasture cow with a white face, pale lower legs and quiet grazing motion",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "polypizza_source",
             "kind": "structural_study",
             "uri": "https://poly.pizza/m/26zM1outCr",
@@ -18473,7 +16137,7 @@
               "head",
               "legs"
             ],
-            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
+            "purpose": "Caps any embedded texture at the catalog textureMaxSize and machine texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -18736,17 +16400,6 @@
         "subject": "Faceted cream hen with red comb, wattle, and thin ochre legs",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "farm_animals_isolated",
             "kind": "visual_reference",
             "uri": "repo://tools/art/references/isolated/farm_animals_isolated_1787317082748.jpg",
@@ -18945,18 +16598,6 @@
         "subject": "Faceted coastal gull with a cream body, grey mantle, black-tipped wings and an ochre bill",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
             "uri": "repo://art/references/neva-ui-hud-on-foot.png",
@@ -19132,18 +16773,6 @@
         "status": "ready",
         "subject": "Tiny faceted meadow butterfly with ochre forewings, red hindwings and dark margins",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
@@ -19442,8 +17071,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -19554,8 +17182,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -19610,8 +17237,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -19664,8 +17290,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -19705,8 +17330,7 @@
         "depth": 1.8
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -19763,8 +17387,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -19887,17 +17510,6 @@
         "status": "ready",
         "subject": "Small plank tool shed with lean-to roof and a single shuttered window",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
-          },
           {
             "id": "farmhouse_isolated",
             "kind": "visual_reference",
@@ -20066,8 +17678,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "lodLevels": [
         {
@@ -20291,8 +17902,7 @@
         "leafCount": 6
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -20332,8 +17942,7 @@
         "leafCount": 4
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -20370,8 +17979,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -20590,8 +18198,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -20667,17 +18274,6 @@
         "status": "ready",
         "subject": "Five-bar farm gate with square capped posts, a braced leaf and strap hinges",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
-          },
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
@@ -20852,8 +18448,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -20890,8 +18485,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -20927,8 +18521,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -20964,8 +18557,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21021,8 +18613,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21059,8 +18650,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21096,8 +18686,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21186,8 +18775,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21320,8 +18908,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21358,8 +18945,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21411,8 +18997,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21448,8 +19033,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -21533,8 +19117,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21653,8 +19236,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -21706,8 +19288,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -21759,8 +19340,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       },
       "collisionPrimitives": [
         {
@@ -21812,8 +19392,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21901,8 +19480,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21939,8 +19517,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -21977,8 +19554,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -22029,8 +19605,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -22081,8 +19656,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -22193,18 +19767,6 @@
         "status": "ready",
         "subject": "Faceted cream meadow rabbit with hop, idle, and look clips",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "silhouette",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, palette tokens, and gameplay-camera readability."
-          },
           {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
@@ -22369,8 +19931,7 @@
         "height": 6.4
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -22466,17 +20027,6 @@
         "status": "ready",
         "subject": "Small village plaza stall with thick posts and hanging canvas",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
-          },
           {
             "id": "dock_market_isolated",
             "kind": "visual_reference",
@@ -22687,8 +20237,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -22747,17 +20296,6 @@
         "status": "ready",
         "subject": "Chunky clay-and-stone bake oven with arched mouth and flue",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
-          },
           {
             "id": "farm_props_isolated",
             "kind": "visual_reference",
@@ -22999,7 +20537,7 @@
           "center": [
             0,
             1.1,
-            0.0
+            0
           ],
           "halfExtents": [
             0.67,
@@ -23286,17 +20824,6 @@
         "subject": "Small timber outhouse with stone plinth and a high rear window",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
-          },
-          {
             "id": "farmhouse_isolated",
             "kind": "visual_reference",
             "uri": "repo://tools/art/references/isolated/farmhouse_isolated_1787316809657.jpg",
@@ -23445,7 +20972,7 @@
           }
         ],
         "failureModes": [
-          "A crescent-moon gag or chibi proportions break Art Bible identity.",
+          "Entry and doorway proportions must remain compatible with the catalog dimensions and player clearance.",
           "A polyfork cube fails the farm-prop language.",
           "Missing plinth leaves the outhouse floating on the dirt pad."
         ],
@@ -23460,8 +20987,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -23497,8 +21023,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -23534,8 +21059,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -23571,8 +21095,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -23608,8 +21131,7 @@
       "readDistanceMeters": 30,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -23645,8 +21167,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -23888,8 +21409,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -23925,8 +21445,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -23962,8 +21481,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -23999,8 +21517,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24036,8 +21553,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24073,8 +21589,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24111,8 +21626,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24148,8 +21662,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24186,8 +21699,7 @@
       "readDistanceMeters": 15,
       "parameters": {},
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24300,17 +21812,6 @@
         "status": "ready",
         "subject": "Coastal timber-and-plaster cottage with warm terracotta dormers, masonry chimney and sheltered entry",
         "sources": [
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns cozy faceted planes, stone-timber-plaster construction, and gameplay-camera readability."
-          },
           {
             "id": "polypizza_source",
             "kind": "structural_study",
@@ -24436,7 +21937,7 @@
               "roof",
               "openings"
             ],
-            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
+            "purpose": "Caps any embedded texture at the catalog textureMaxSize and machine texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -24509,8 +22010,7 @@
         "leafCount": 0
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24554,8 +22054,7 @@
         "leafCount": 4
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24599,8 +22098,7 @@
         "leafCount": 10
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24644,8 +22142,7 @@
         "leafCount": 8
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24689,8 +22186,7 @@
         "leafCount": 7
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24734,8 +22230,7 @@
         "leafCount": 5
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24781,8 +22276,7 @@
         "fruitRadius": 0.015
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24828,8 +22322,7 @@
         "fruitRadius": 0.015
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24875,8 +22368,7 @@
         "fruitRadius": 0.02
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24922,8 +22414,7 @@
         "fruitRadius": 0.02
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -24969,8 +22460,7 @@
         "fruitRadius": 0.02
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -25016,8 +22506,7 @@
         "fruitRadius": 0.018
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -25063,8 +22552,7 @@
         "fruitRadius": 0.018
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -25110,8 +22598,7 @@
         "fruitRadius": 0.015
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -25157,8 +22644,7 @@
         "fruitRadius": 0.03
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -25204,8 +22690,7 @@
         "fruitRadius": 0.042
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -25251,8 +22736,7 @@
         "fruitRadius": 0.042
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -25298,8 +22782,7 @@
         "fruitRadius": 0.03
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -25856,7 +23339,7 @@
               "workwear",
               "face"
             ],
-            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
+            "purpose": "Caps any embedded texture at the catalog textureMaxSize and machine texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -26236,17 +23719,6 @@
         "subject": "Adult coastal grower using original Quaternius animated_woman anatomy and source skinning",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Warm faceted coastal identity, matte workwear and gameplay readability."
-          },
-          {
             "id": "quaternius_source",
             "kind": "structural_study",
             "uri": "https://poly.pizza/m/qJ2gsTUBHL",
@@ -26358,7 +23830,7 @@
               "workwear",
               "face"
             ],
-            "purpose": "Caps any embedded texture on these surfaces at the Art Bible hero texture ceiling during packaging."
+            "purpose": "Caps any embedded texture at the catalog textureMaxSize and machine texture ceiling during packaging."
           }
         ],
         "failureModes": [
@@ -26725,8 +24197,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -26959,8 +24430,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -27193,8 +24663,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -27400,8 +24869,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -27607,8 +25075,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -27814,8 +25281,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -28046,8 +25512,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -28278,8 +25743,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -28510,8 +25974,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -28813,8 +26276,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -29142,8 +26604,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -29492,8 +26953,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -32414,8 +29874,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -32660,8 +30119,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -32906,8 +30364,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -33153,8 +30610,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -33400,8 +30856,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -33647,8 +31102,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -33893,8 +31347,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -34140,8 +31593,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -34387,8 +31839,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -34427,8 +31878,7 @@
         "style": "field_hat"
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -34467,8 +31917,7 @@
         "style": "tidewatch_cap"
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -34507,8 +31956,7 @@
         "style": "harvest_apron"
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -34547,8 +31995,7 @@
         "style": "oilskin_coat"
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -34588,8 +32035,7 @@
         "style": "furrow_boots"
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -34629,8 +32075,7 @@
         "style": "deck_boots"
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -35248,8 +32693,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -35573,17 +33017,6 @@
         "subject": "A cream plaster dove cote on a timber post with a terracotta cap and a landing ledge",
         "sources": [
           {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials",
-              "detail_density"
-            ],
-            "notes": "Owns chunky authored planes, satin metals, palette tokens, and gameplay-camera readability."
-          },
-          {
             "id": "neva_hud_on_foot",
             "kind": "visual_reference",
             "uri": "repo://art/references/neva-ui-hud-on-foot.png",
@@ -35719,8 +33152,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -36125,16 +33557,6 @@
               "detail_density"
             ],
             "notes": "The owner requested the workshop standard across this set: supported joinery, broad overlapping roof courses, recessed openings and sparse trade details. Keep each asset’s existing architectural role and palette."
-          },
-          {
-            "id": "neva_art_bible",
-            "kind": "canonical",
-            "uri": "repo://LLM/04_ART_DIRECTION_BIBLE_PREMIUM_COZY_LOW_POLY.md",
-            "use": [
-              "form_language",
-              "materials"
-            ],
-            "notes": "Owns warm coastal palette, broad authored facets and gameplay distance readability."
           }
         ],
         "components": [
@@ -36593,8 +34015,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -36683,8 +34104,7 @@
         }
       ],
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -37816,8 +35236,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -38031,8 +35450,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -38246,8 +35664,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -38461,8 +35878,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {
@@ -38759,8 +36175,7 @@
         ]
       },
       "surfaceAuthoring": {
-        "normalPolicy": "authored",
-        "facetColors": "rest_face"
+        "normalPolicy": "authored"
       }
     },
     {

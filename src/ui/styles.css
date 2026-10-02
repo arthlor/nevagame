@@ -2694,7 +2694,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   .map-modal-content { grid-template-columns: 1fr; }
   .map-sidebar-details { display: none; }
   .hud-top-right { gap: 4px; }
-  .planting-dock-shell { min-width: calc(100vw - 32px); }
+  .planting-dock-shell { width: max-content; max-width: calc(100vw - 32px); }
 }
 
 /* ============================================================================
@@ -6109,7 +6109,8 @@ input:focus-visible,
 }
 
 .planting-dock-shell {
-  width: min(620px, calc(100vw - 28px));
+  width: max-content;
+  max-width: min(620px, calc(100vw - 28px));
   min-width: 0;
   padding: 10px 12px;
   border-left: 2px solid var(--ui-moss);

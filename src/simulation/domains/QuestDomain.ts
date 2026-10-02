@@ -508,14 +508,15 @@ export class QuestDomain {
       : questObjectiveFacts(
         objective,
         currentProgress,
-        targetAnchor?.locationName ?? targetLocation?.name
+        targetAnchor?.locationName ?? targetLocation?.name,
+        quest.id
       );
     const objectiveDescription = awaitingTurnIn && !turnIn?.success
       ? turnIn?.reason ?? "Prepare what this errand still needs"
       : formatQuestObjective(stepFacts, "en");
     const doneThrough = awaitingTurnIn ? quest.objectives.length : stepIndex;
     const completedSteps = quest.objectives.slice(0, doneThrough).map((done) =>
-      questObjectiveFacts(done, done.targetQuantity, done.locationAnchor?.name)
+      questObjectiveFacts(done, done.targetQuantity, done.locationAnchor?.name, quest.id)
     );
     const targetFarmId = !awaitingTurnIn && objective.location?.kind === "farm"
       ? objective.location.id
@@ -984,7 +985,7 @@ export class QuestDomain {
     npc: NpcDefinition
   ): ConversationSegment {
     const lines = objective.dialogue?.length ? objective.dialogue : this.getMilestoneDialogue(npc);
-    return { kind: "objective", lines: [...lines], ...this.segmentBase(quest) };
+    return { kind: "objective", objectiveId: objective.id, lines: [...lines], ...this.segmentBase(quest) };
   }
 
   /**

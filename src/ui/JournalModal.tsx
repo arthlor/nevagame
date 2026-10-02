@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { ActiveQuestDto } from "../simulation/core/QuestTypes";
-import { formatQuestObjective, questProgressNote } from "../simulation/presentation/QuestObjectiveCopy";
+import { questProgressNote } from "../simulation/presentation/QuestObjectiveCopy";
+import { formatLocalizedQuestObjective } from "../i18n/questObjectives";
+import { placeLabel } from "../i18n/placesTr";
 import type { JournalPagesDto, SkillProgressDto, AlmanacDto, PeoplePageDto } from "../simulation/core/contracts";
 import type { SkillId } from "../simulation/core/types";
 import { useModalAccessibility } from "./useModalAccessibility";
@@ -23,7 +25,8 @@ import {
   IconSprout,
   IconStar,
   IconTools,
-  IconWarning
+  IconWarning,
+  IconWave
 } from "./components/HudIcons";
 import { GameSheet, Meter } from "./coastal/CoastalUI";
 import { RECORD_TIERS } from "../content/records";
@@ -110,7 +113,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, 
       <GameSheet
         ref={modalRef}
         as="div"
-        className="journal-chronicle-modal journal-folio"
+        className={`journal-chronicle-modal journal-folio${selectedFolio === "guide" ? " is-guide-open" : ""}`}
         tone="timber"
         corners
         onClick={(event) => event.stopPropagation()}
@@ -121,7 +124,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ pages, activeQuest, 
       >
         <header className="modal-header journal-header">
           <h1 id="journal-title" className="modal-heading-with-mark">
-            <IconJournal size={22} aria-hidden="true" /> {isTr ? "Saha Günlüğü" : "Field Journal"}
+            <IconJournal size={22} aria-hidden="true" /> {isTr ? "Günlük" : "Journal"}
           </h1>
           <nav
             className="journal-folio-tabs"
@@ -198,14 +201,14 @@ const StoryPage: React.FC<{
               <IconPin size={16} className="journal-objective-pin" aria-hidden="true" />
               <p className="journal-objective-desc">
                 {activeQuest.objectiveFacts
-                  ? formatQuestObjective(activeQuest.objectiveFacts, isTr ? "tr" : "en")
+                  ? formatLocalizedQuestObjective(activeQuest.objectiveFacts, isTr ? "tr" : "en")
                   : activeQuest.objectiveDescription}
               </p>
             </div>
             {activeQuest.completedSteps && activeQuest.completedSteps.length > 0 && (
               <ul className="journal-completed-steps" aria-label={isTr ? "Tamamlanan adımlar" : "Completed steps"}>
                 {activeQuest.completedSteps.map((step, index) => (
-                  <li key={`${step.action}-${index}`}>{formatQuestObjective(step, isTr ? "tr" : "en")}</li>
+                  <li key={`${step.action}-${index}`}>{formatLocalizedQuestObjective(step, isTr ? "tr" : "en")}</li>
                 ))}
               </ul>
             )}
@@ -219,6 +222,8 @@ const StoryPage: React.FC<{
                   value={Math.min(activeQuest.currentProgress, activeQuest.targetQuantity)}
                   max={activeQuest.targetQuantity}
                   valueText={`${Math.min(activeQuest.currentProgress, activeQuest.targetQuantity)} / ${activeQuest.targetQuantity}`}
+                  showValue={!activeQuest.objectiveFacts}
+                  showLabel={false}
                   variant="gold"
                 />
               </div>
@@ -232,7 +237,7 @@ const StoryPage: React.FC<{
                 <strong>{isTr ? "Teslime hazır" : "Ready to hand in"}</strong>
                 <span>
                   {activeQuest.targetLocation
-                    ? (isTr ? `${activeQuest.targetLocation.name} mevkiine dön` : `Return to ${activeQuest.targetLocation.name}`)
+                    ? (isTr ? `${placeLabel(activeQuest.targetLocation.name, locale)} mevkiine dön` : `Return to ${activeQuest.targetLocation.name}`)
                     : (isTr ? "Bu vazifeyi bitirmek için geri dön" : "Return to finish this errand")}
                 </span>
               </div>
@@ -253,22 +258,24 @@ const StoryPage: React.FC<{
               walking back across the island to hear them. Content-derived, not
               a saved transcript. */}
           {activeQuest.brief && activeQuest.brief.lines.length > 0 && (
-            <blockquote className="journal-story-brief" data-testid="journal-story-brief">
-              <span className="journal-story-brief-speaker">
+            <details className="journal-story-brief-disclosure">
+              <summary>
                 {isTr ? `${activeQuest.brief.speakerName} ne demişti:` : `What ${activeQuest.brief.speakerName} said`}
-              </span>
-              {(isTr && locActiveQuest && locActiveQuest.introDialogue.length > 0
-                ? locActiveQuest.introDialogue
-                : activeQuest.brief.lines
-              ).map((line, index) => (
-                <p key={index}>{line}</p>
-              ))}
-            </blockquote>
+              </summary>
+              <blockquote className="journal-story-brief" data-testid="journal-story-brief">
+                {(isTr && locActiveQuest && locActiveQuest.introDialogue.length > 0
+                  ? locActiveQuest.introDialogue
+                  : activeQuest.brief.lines
+                ).map((line, index) => (
+                  <p key={index}>{line}</p>
+                ))}
+              </blockquote>
+            </details>
           )}
         </article>
       ) : (
         <p className="journal-empty-copy">
-          {isTr ? "Aktif bir hikâye vazifesi yok. Kıyı keşfedilmeyi bekliyor." : "No active story errand. The coast is yours to explore."}
+          {isTr ? "Açık görev yok." : "No active errand."}
         </p>
       )}
 
@@ -293,7 +300,7 @@ const StoryPage: React.FC<{
                   <h4 className="journal-thread-quest">{isTr ? (locThread.questTitle || thread.questTitle) : thread.questTitle}</h4>
                   <p className="journal-thread-objective">
                     {thread.objectiveFacts
-                      ? formatQuestObjective(thread.objectiveFacts, isTr ? "tr" : "en")
+                      ? formatLocalizedQuestObjective(thread.objectiveFacts, isTr ? "tr" : "en")
                       : thread.objectiveDescription}
                   </p>
                   {thread.turnInBlockerReason && (
@@ -338,7 +345,7 @@ const CompletedStories: React.FC<{
         {isTr ? `Tamamlanan hikâyeler · ${stories.length}` : `Completed stories · ${stories.length}`}
       </ChromeButton>
       {open && (
-        <ul id="journal-completed-list">
+        <ul id="journal-completed-list" className="journal-completed-grid">
           {stories.map((story) => (
             <li key={story.questId} className="is-complete">
               <IconCheck size={13} aria-hidden="true" />
@@ -358,23 +365,38 @@ const RECORD_TIERS_TR: Record<string, string> = {
   legend: "Efsanevi Rekorlar"
 };
 
+const TIER_ICONS: Record<string, React.ReactNode> = {
+  field: <IconSprout size={15} aria-hidden="true" />,
+  harbor: <IconAnchor size={15} aria-hidden="true" />,
+  deep: <IconWave size={15} aria-hidden="true" />,
+  legend: <IconStar size={15} filled={true} aria-hidden="true" />
+};
+
+const HABITAT_LABELS_TR: Record<string, string> = {
+  river: "Nehir & Irmak",
+  lake: "Göl",
+  coast: "Kıyı",
+  offshore: "Açık Deniz"
+};
+
 /**
  * The Records Board: standing goals that outlive the authored quest chain.
  *
- * All 34 milestones at once would be a wall, so each tier shows its completion
- * count and the two closest to falling — which is the "what now" answer the
- * game had no way to give once the story ran out.
+ * Each tier presents its completion status, progress bar, and focused targets
+ * with sleek cards, inline follow toggles, and expandable full views.
  */
 const RecordsBoard: React.FC<{
   records: JournalPagesDto["records"];
   followingRecordId: string | null;
   canFollowRecords: boolean;
   onFollowRecord?: (recordId: string | null) => void;
-}> = ({ records, followingRecordId, canFollowRecords, onFollowRecord }) => {
+  activeTierFilter?: string | null;
+}> = ({ records, followingRecordId, canFollowRecords, onFollowRecord, activeTierFilter = null }) => {
   const [expandedTiers, setExpandedTiers] = useState<ReadonlySet<string>>(new Set());
   const { locale, getLocalizedMilestone } = useTranslation();
   const isTr = locale === "tr";
   if (records.length === 0) return null;
+
   const tiers = RECORD_TIERS
     .map((tier) => {
       const mine = records.filter((record) => record.tier === tier.id);
@@ -391,9 +413,10 @@ const RecordsBoard: React.FC<{
         expanded: expandedTiers.has(tier.id)
       };
     })
-    .filter((row) => row.total > 0);
+    .filter((row) => row.total > 0 && (!activeTierFilter || activeTierFilter === "all" || row.tier.id === activeTierFilter));
 
   const toggleTier = (tierId: string) => {
+    playUiSound("cloth");
     setExpandedTiers((prev) => {
       const next = new Set(prev);
       if (next.has(tierId)) next.delete(tierId);
@@ -404,7 +427,9 @@ const RecordsBoard: React.FC<{
 
   return (
     <section aria-labelledby="journal-records-board" className="journal-records-board">
-      <h3 id="journal-records-board"><IconSparkle size={16} aria-hidden="true" /> {isTr ? "Dönüm Noktaları" : "Milestones"}</h3>
+      <h3 id="journal-records-board">
+        <IconSparkle size={16} aria-hidden="true" /> {isTr ? "Dönüm Noktaları" : "Milestones"}
+      </h3>
       <div className="journal-record-tiers-grid">
         {tiers.map(({ tier, done, total, open, achieved, expanded }) => {
           // Keep the player's followed goal visible when a tier is collapsed.
@@ -415,51 +440,112 @@ const RecordsBoard: React.FC<{
           const preview = [...openPreview, ...achieved.slice(0, 2 - openPreview.length)];
           const visible = expanded ? [...open, ...achieved] : preview;
           const isComplete = done === total;
+          const progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;
+
           return (
             <article key={tier.id} className={`journal-record-tier ${isComplete ? "is-complete" : ""}`}>
               <div className="journal-record-tier-head">
                 <div className="journal-tier-badge">
-                  <IconStar size={15} filled={isComplete} aria-hidden="true" />
+                  <span className="journal-tier-icon">{TIER_ICONS[tier.id] ?? <IconStar size={15} filled={isComplete} aria-hidden="true" />}</span>
                   <strong>{isTr ? (RECORD_TIERS_TR[tier.id] ?? tier.title) : tier.title}</strong>
                 </div>
-                <span className="journal-tier-count">
-                  {isTr ? `${done} / ${total} Tamamlandı` : `${done} / ${total} Achieved`}
-                </span>
+                <div className="journal-tier-head-meta">
+                  <div className="journal-tier-progress-track" title={`${progressPercent}%`}>
+                    <div className="journal-tier-progress-fill" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <span className={`journal-tier-count ${isComplete ? "is-complete" : ""}`}>
+                    {isComplete ? (
+                      <>
+                        <IconCheck size={11} aria-hidden="true" />
+                        {isTr ? `${done}/${total} Tamamlandı` : `${done}/${total} Complete`}
+                      </>
+                    ) : (
+                      isTr ? `${done} / ${total} Tamamlandı` : `${done} / ${total} Achieved`
+                    )}
+                  </span>
+                </div>
               </div>
               {visible.length === 0 ? (
                 <p className="journal-empty-copy">
                   {isTr ? "Buradaki tüm rekorlar adınıza tescillendi." : "Every record here stands to your name."}
                 </p>
-              ) : visible.map((record) => {
-                const locMilestone = getLocalizedMilestone(record);
-                return (
-                  <div key={record.id} className={`journal-record-goal${record.achieved ? " is-achieved" : ""}`}>
-                    <div className="journal-record-goal-meta">
-                      <strong>{locMilestone.title}</strong>
-                      <span>{locMilestone.detail}</span>
-                    </div>
-                    <div className="journal-record-meter-wrap">
-                      <Meter
-                        label={locMilestone.title}
-                        value={Math.round(record.progress * 100)}
-                        max={100}
-                        showLabel={false}
-                        valueText={record.currentLabel}
-                        variant="gold"
-                      />
-                    </div>
-                  {canFollowRecords && onFollowRecord && (record.followable || followingRecordId === record.id) && !record.achieved && (
-                    <ChromeButton
-                      size="sm"
-                      variant="secondary"
-                      className="journal-record-follow"
-                      aria-pressed={followingRecordId === record.id}
-                      onClick={() => onFollowRecord(followingRecordId === record.id ? null : record.id)}
-                    >{followingRecordId === record.id ? (isTr ? "Takibi bırak" : "Stop following") : (isTr ? "Takip et" : "Follow")}</ChromeButton>
-                  )}
+              ) : (
+                <div className="journal-record-tier-goals">
+                  {visible.map((record) => {
+                    const locMilestone = getLocalizedMilestone(record);
+                    const isFollowed = followingRecordId === record.id;
+                    const percent = Math.round(record.progress * 100);
+
+                    return (
+                      <div
+                        key={record.id}
+                        className={`journal-record-goal${record.achieved ? " is-achieved" : ""}${isFollowed ? " is-following" : ""}`}
+                      >
+                        <div className="journal-record-goal-main">
+                          <div className="journal-goal-status-col">
+                            {record.achieved ? (
+                              <span className="journal-goal-mark is-achieved" title={isTr ? "Tamamlandı" : "Achieved"}>
+                                <IconCheck size={13} aria-hidden="true" />
+                              </span>
+                            ) : isFollowed ? (
+                              <span className="journal-goal-mark is-following" title={isTr ? "Takipte" : "Followed"}>
+                                <IconPin size={13} aria-hidden="true" />
+                              </span>
+                            ) : (
+                              <span className="journal-goal-mark is-open" />
+                            )}
+                          </div>
+                          <div className="journal-record-goal-meta">
+                            <div className="journal-record-title-row">
+                              <strong>{locMilestone.title}</strong>
+                              {isFollowed && !record.achieved && (
+                                <span className="journal-following-tag">{isTr ? "Takipte" : "Pinned"}</span>
+                              )}
+                            </div>
+                            <span className="journal-record-goal-desc">{locMilestone.detail}</span>
+                          </div>
+                        </div>
+
+                        <div className="journal-record-goal-controls">
+                          <div className="journal-record-meter-wrap">
+                            <Meter
+                              label={locMilestone.title}
+                              value={percent}
+                              max={100}
+                              showLabel={false}
+                              valueText={record.currentLabel}
+                              variant="gold"
+                            />
+                            <div className="journal-record-meter-labels">
+                              <span className="journal-record-current-val">{record.currentLabel}</span>
+                              <span className="journal-record-percent">{percent}%</span>
+                            </div>
+                          </div>
+
+                          {canFollowRecords && onFollowRecord && (record.followable || isFollowed) && !record.achieved && (
+                            <ChromeButton
+                              size="sm"
+                              variant={isFollowed ? "primary" : "secondary"}
+                              className={`journal-record-follow ${isFollowed ? "is-active" : ""}`}
+                              aria-pressed={isFollowed}
+                              onClick={() => {
+                                playUiSound("click");
+                                onFollowRecord(isFollowed ? null : record.id);
+                              }}
+                              aria-label={isFollowed
+                                ? (isTr ? `${locMilestone.title} takibini bırak` : `Stop following ${locMilestone.title}`)
+                                : (isTr ? `${locMilestone.title} kaydını takip et` : `Follow ${locMilestone.title}`)}
+                            >
+                              <IconPin size={11} aria-hidden="true" />
+                              <span>{isFollowed ? (isTr ? "Takibi bırak" : "Unfollow") : (isTr ? "Takip et" : "Follow")}</span>
+                            </ChromeButton>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              )}
               {total > preview.length && (
                 <ChromeButton
                   size="sm"
@@ -482,95 +568,326 @@ const RecordsBoard: React.FC<{
   );
 };
 
+const QUALITY_LABELS_TR: Record<string, string> = {
+  common: "Sıradan",
+  fine: "İyi",
+  exceptional: "Seçkin",
+  trophy: "Kupa",
+  prize: "Ödüllü"
+};
+
+function formatHabitats(habitatsLabel: string, isTr: boolean): string {
+  if (!isTr) return habitatsLabel;
+  return habitatsLabel
+    .split(",")
+    .map((h) => HABITAT_LABELS_TR[h.trim()] ?? h.trim())
+    .join(", ");
+}
+
+function formatBestCatch(bestLabel: string, isTr: boolean): string {
+  if (!isTr) return bestLabel;
+  let out = bestLabel;
+  for (const [en, tr] of Object.entries(QUALITY_LABELS_TR)) {
+    out = out.replace(new RegExp(`\\b${en}\\b`, "gi"), tr);
+  }
+  return out;
+}
+
 const RecordsPage: React.FC<{
   pages: JournalPagesDto;
   followingRecordId: string | null;
   canFollowRecords: boolean;
   onFollowRecord?: (recordId: string | null) => void;
 }> = ({ pages, followingRecordId, canFollowRecords, onFollowRecord }) => {
+  const [activeTab, setActiveTab] = useState<"all" | "milestones" | "catches" | "notes">("all");
+  const [selectedTier, setSelectedTier] = useState<string>("all");
+  const [habitatFilter, setHabitatFilter] = useState<string>("all");
+  const [fishSearch, setFishSearch] = useState<string>("");
   const { locale, getLocalizedFish, getLocalizedCrop, getLocalizedKnowledge } = useTranslation();
   const isTr = locale === "tr";
-  return (
-    <section className="journal-page journal-records-page" aria-label={isTr ? "Rekorlar" : "Records"}>
-      <div className="journal-page-heading">
-        <h2>{isTr ? "Öğrendikleriniz" : "What you have learned"}</h2>
-        <span className="journal-page-count">
-          {isTr
-            ? `${pages.records.length} rekordan ${pages.records.filter((r) => r.achieved).length} tanesi tamamlandı`
-            : `${pages.records.filter((record) => record.achieved).length} of ${pages.records.length} records achieved`}
-        </span>
+
+  const totalMilestones = pages.records.length;
+  const achievedMilestones = pages.records.filter((r) => r.achieved).length;
+  const totalFish = pages.fishRecords.length;
+  const totalCrops = pages.cropRecords.length;
+  const totalKnowledge = pages.knowledge.length;
+  const totalNotes = totalCrops + totalKnowledge;
+
+  const filteredFish = pages.fishRecords.filter((record) => {
+    const locFish = getLocalizedFish(record.speciesId);
+    const searchLower = fishSearch.trim().toLowerCase();
+    if (searchLower) {
+      const matchName = record.name.toLowerCase().includes(searchLower) ||
+                        (isTr && locFish.name.toLowerCase().includes(searchLower));
+      const matchHabitat = record.habitatsLabel.toLowerCase().includes(searchLower);
+      if (!matchName && !matchHabitat) return false;
+    }
+    if (habitatFilter !== "all") {
+      if (!record.habitatsLabel.toLowerCase().includes(habitatFilter.toLowerCase())) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const catchesSection = (
+    <section
+      aria-labelledby="journal-fish-records"
+      className="journal-records-section"
+    >
+      <div className="journal-section-head-row">
+        <h3 id="journal-fish-records">
+          <IconFish size={15} aria-hidden="true" /> {isTr ? "Avlarınız" : "Your catches"}
+          <span className="journal-section-count">({filteredFish.length})</span>
+        </h3>
+
+        {(activeTab === "catches" || pages.fishRecords.length > 4) && (
+          <div className="journal-catches-controls">
+            <div className="journal-habitat-chips">
+              {["all", "river", "lake", "coast", "offshore"].map((hab) => (
+                <button
+                  key={hab}
+                  type="button"
+                  className={`journal-habitat-chip ${habitatFilter === hab ? "is-active" : ""}`}
+                  onClick={() => { playUiSound("click"); setHabitatFilter(hab); }}
+                >
+                  {hab === "all"
+                    ? (isTr ? "Tümü" : "All")
+                    : (isTr ? (HABITAT_LABELS_TR[hab] ?? hab) : hab.charAt(0).toUpperCase() + hab.slice(1))}
+                </button>
+              ))}
+            </div>
+            <input
+              type="search"
+              value={fishSearch}
+              onChange={(e) => setFishSearch(e.target.value)}
+              placeholder={isTr ? "Balık ara..." : "Filter catches..."}
+              className="journal-fish-search-input"
+              aria-label={isTr ? "Balık filtrele" : "Filter catches"}
+            />
+          </div>
+        )}
       </div>
-      <RecordsBoard records={pages.records} followingRecordId={followingRecordId} canFollowRecords={canFollowRecords} onFollowRecord={onFollowRecord} />
-      <div className="journal-record-columns">
-        <section aria-labelledby="journal-fish-records" className="journal-records-section">
-          <h3 id="journal-fish-records"><IconFish size={16} aria-hidden="true" /> {isTr ? "Avlarınız" : "Your catches"}</h3>
-          {pages.fishRecords.length === 0 ? <p className="journal-empty-copy">{isTr ? "Henüz kaydedilmiş balık yok." : "No fish recorded yet."}</p> : (
-            <div className="journal-record-list">
-              {pages.fishRecords.map((record) => (
-                <article key={record.speciesId} className="journal-record-entry">
-                  <div className="journal-entry-portrait-frame">
-                    <AtlasImage src={atlasForFish(record.speciesId)} alt="" size={44} />
+
+      {pages.fishRecords.length === 0 ? (
+        <p className="journal-empty-copy">
+          {isTr ? "Henüz kaydedilmiş balık yok." : "No fish recorded yet."}
+        </p>
+      ) : filteredFish.length === 0 ? (
+        <p className="journal-empty-copy">
+          {isTr ? "Arama kriterine uygun av kaydı bulunamadı." : "No catches match your filter."}
+        </p>
+      ) : (
+        <div className="journal-record-list journal-fish-grid">
+          {filteredFish.map((record) => (
+            <article key={record.speciesId} className="journal-record-entry journal-fish-card">
+              <div className="journal-entry-portrait-frame">
+                <AtlasImage src={atlasForFish(record.speciesId)} alt="" size={36} />
+              </div>
+              <div className="journal-entry-meta">
+                <strong className="journal-fish-name">
+                  {isTr ? getLocalizedFish(record.speciesId).name : record.name}
+                </strong>
+                <span className="journal-entry-sub">{formatHabitats(record.habitatsLabel, isTr)}</span>
+              </div>
+              <div className="journal-entry-stats">
+                <span className="journal-fish-count-chip">
+                  {isTr ? `${record.caughtCount} adet` : `${record.caughtCount} landed`}
+                </span>
+                {record.bestLabel && (
+                  <span className="journal-fish-best-chip" title={isTr ? "En iyi av" : "Best catch"}>
+                    <IconStar size={11} filled={true} aria-hidden="true" />
+                    <span>{formatBestCatch(record.bestLabel, isTr)}</span>
+                  </span>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+
+  const notesSection = (
+    <section
+      aria-labelledby="journal-field-records"
+      className="journal-records-section"
+    >
+      <div className="journal-section-head-row">
+        <h3 id="journal-field-records">
+          <IconSprout size={15} aria-hidden="true" /> {isTr ? "Saha notları" : "Field notes"}
+          <span className="journal-section-count">({totalNotes})</span>
+        </h3>
+      </div>
+
+      <div className="journal-knowledge-list" data-testid="journal-knowledge-entries">
+        {pages.cropRecords.length > 0 && (
+          <div className="journal-field-group">
+            <h4 className="journal-field-subheading">
+              <IconSprout size={13} aria-hidden="true" />
+              {isTr ? "Tarım ve Hasat Ustalığı" : "Crop Cultivation"}
+            </h4>
+            <div className="journal-crops-grid">
+              {pages.cropRecords.map((record) => (
+                <article key={record.cropId} className="journal-knowledge-entry journal-crop-card">
+                  <div className="journal-crop-portrait-frame">
+                    <IconSprout size={15} aria-hidden="true" />
                   </div>
                   <div className="journal-entry-meta">
-                    <strong>{isTr ? getLocalizedFish(record.speciesId).name : record.name}</strong>
-                    <span className="journal-entry-sub">{record.habitatsLabel}</span>
+                    <strong className="journal-crop-name">
+                      {isTr ? getLocalizedCrop(record.cropId).name : record.name}
+                    </strong>
+                    <span className="journal-entry-sub">
+                      {isTr ? `${record.harvestedCount} hasat edildi` : `${record.harvestedCount} harvested`}
+                    </span>
                   </div>
-                  <div className="journal-entry-stats">
-                    <div className="journal-stat-chip">
-                      <span className="journal-stat-label">{isTr ? "Yakalandı" : "Landed"}</span>
-                      <span className="journal-stat-val">{record.caughtCount}</span>
+                  {record.bestQuality && (
+                    <div className="journal-crop-best-chip">
+                      <IconStar size={11} filled={true} aria-hidden="true" />
+                      <span>{formatBestCatch(record.bestQuality, isTr)}</span>
                     </div>
-                    <div className="journal-stat-chip is-gold">
-                      <span className="journal-stat-label">{isTr ? "En İyi Av" : "Best Catch"}</span>
-                      <span className="journal-stat-val">{record.bestLabel}</span>
-                    </div>
-                  </div>
+                  )}
                 </article>
               ))}
             </div>
-          )}
-        </section>
-
-        <section aria-labelledby="journal-field-records" className="journal-records-section">
-          <h3 id="journal-field-records"><IconSprout size={16} aria-hidden="true" /> {isTr ? "Saha notları" : "Field notes"}</h3>
-          <div className="journal-knowledge-list">
-            {pages.cropRecords.map((record) => (
-              <article key={record.cropId} className="journal-knowledge-entry">
-                <div className="journal-knowledge-icon-badge">
-                  <IconSprout size={18} aria-hidden="true" />
-                </div>
-                <div className="journal-entry-meta">
-                  <strong>{isTr ? getLocalizedCrop(record.cropId).name : record.name}</strong>
-                  <span className="journal-entry-sub">{isTr ? `${record.harvestedCount} hasat edildi` : `${record.harvestedCount} harvested`}</span>
-                </div>
-                {record.bestQuality && (
-                  <div className="journal-stat-chip is-gold">
-                    <span className="journal-stat-label">{isTr ? "En İyi Kalite" : "Best Quality"}</span>
-                    <span className="journal-stat-val">{record.bestQuality}</span>
-                  </div>
-                )}
-              </article>
-            ))}
-            {pages.knowledge.map((entry) => {
-              const locK = getLocalizedKnowledge(entry.id);
-              return (
-                <article key={entry.id} className="journal-knowledge-entry is-note">
-                  <div className="journal-knowledge-icon-badge">
-                    <IconJournal size={16} aria-hidden="true" />
-                  </div>
-                  <div className="journal-entry-meta">
-                    <strong>{isTr ? locK.title : entry.title}</strong>
-                    <span className="journal-knowledge-summary">{isTr ? locK.summary : entry.summary}</span>
-                  </div>
-                </article>
-              );
-            })}
-            {pages.cropRecords.length === 0 && pages.knowledge.length === 0 && (
-              <p className="journal-empty-copy">{isTr ? "Çalıştıkça ve keşfettikçe yeni notlar eklenir." : "New notes appear as you work and explore."}</p>
-            )}
           </div>
-        </section>
+        )}
+
+        {pages.knowledge.length > 0 && (
+          <div className="journal-field-group">
+            <h4 className="journal-field-subheading">
+              <IconJournal size={13} aria-hidden="true" />
+              {isTr ? "Kıyı Gözlemleri & Bilgi" : "Observations & Lore"}
+            </h4>
+            <div className="journal-notes-grid">
+              {pages.knowledge.map((entry) => {
+                const locK = getLocalizedKnowledge(entry.id);
+                return (
+                  <article key={entry.id} className="journal-knowledge-entry is-note">
+                    <div className="journal-knowledge-card-head">
+                      <IconJournal size={13} className="journal-knowledge-icon" aria-hidden="true" />
+                      <strong>{isTr ? locK.title : entry.title}</strong>
+                    </div>
+                    <p className="journal-knowledge-summary">{isTr ? locK.summary : entry.summary}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {pages.cropRecords.length === 0 && pages.knowledge.length === 0 && (
+          <p className="journal-empty-copy">
+            {isTr ? "Çalıştıkça ve keşfettikçe yeni notlar eklenir." : "New notes appear as you work and explore."}
+          </p>
+        )}
       </div>
+    </section>
+  );
+
+  return (
+    <section className="journal-page journal-records-page" aria-label={isTr ? "Rekorlar" : "Records"}>
+      <div className="journal-page-heading journal-records-heading">
+        <div className="journal-records-title-group">
+          <h2>{isTr ? "Öğrendikleriniz" : "What you have learned"}</h2>
+          <span className="journal-page-count">
+            {isTr
+              ? `${totalMilestones} dönüm noktasının ${achievedMilestones} tanesi tamamlandı`
+              : `${achievedMilestones} of ${totalMilestones} milestones achieved`}
+          </span>
+        </div>
+      </div>
+
+      <nav className="journal-records-subnav" role="tablist" aria-label={isTr ? "Kayıt sekmeleri" : "Record categories"}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "all"}
+          className={`journal-subnav-btn ${activeTab === "all" ? "is-active" : ""}`}
+          onClick={() => { playUiSound("click"); setActiveTab("all"); }}
+        >
+          <IconSparkle size={13} aria-hidden="true" />
+          <span>{isTr ? "Tümü" : "All"}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "milestones"}
+          className={`journal-subnav-btn ${activeTab === "milestones" ? "is-active" : ""}`}
+          onClick={() => { playUiSound("click"); setActiveTab("milestones"); }}
+        >
+          <IconStar size={13} filled={true} aria-hidden="true" />
+          <span>{isTr ? "Dönüm Noktaları" : "Milestones"}</span>
+          <span className="journal-subnav-badge">{achievedMilestones}/{totalMilestones}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "catches"}
+          className={`journal-subnav-btn ${activeTab === "catches" ? "is-active" : ""}`}
+          onClick={() => { playUiSound("click"); setActiveTab("catches"); }}
+        >
+          <IconFish size={13} aria-hidden="true" />
+          <span>{isTr ? "Avlarınız" : "Your catches"}</span>
+          <span className="journal-subnav-badge">{totalFish}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "notes"}
+          className={`journal-subnav-btn ${activeTab === "notes" ? "is-active" : ""}`}
+          onClick={() => { playUiSound("click"); setActiveTab("notes"); }}
+        >
+          <IconSprout size={13} aria-hidden="true" />
+          <span>{isTr ? "Saha Notları" : "Field notes"}</span>
+          <span className="journal-subnav-badge">{totalNotes}</span>
+        </button>
+      </nav>
+
+      {/* Sub-tab: Milestones filter pills */}
+      {activeTab === "milestones" && (
+        <div className="journal-tier-filter-bar" role="toolbar" aria-label={isTr ? "Kademe filtresi" : "Tier filters"}>
+          <button
+            type="button"
+            className={`journal-filter-chip ${selectedTier === "all" ? "is-active" : ""}`}
+            onClick={() => { playUiSound("click"); setSelectedTier("all"); }}
+          >
+            <span>{isTr ? "Tüm Kademeler" : "All Tiers"}</span>
+            <span className="journal-filter-count">{totalMilestones}</span>
+          </button>
+          {RECORD_TIERS.map((tier) => {
+            const tierRecords = pages.records.filter((r) => r.tier === tier.id);
+            const tierDone = tierRecords.filter((r) => r.achieved).length;
+            return (
+              <button
+                key={tier.id}
+                type="button"
+                className={`journal-filter-chip ${selectedTier === tier.id ? "is-active" : ""}`}
+                onClick={() => { playUiSound("click"); setSelectedTier(tier.id); }}
+              >
+                {TIER_ICONS[tier.id]}
+                <span>{isTr ? (RECORD_TIERS_TR[tier.id] ?? tier.title) : tier.title}</span>
+                <span className="journal-filter-count">{tierDone}/{tierRecords.length}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Sequential full-width sections */}
+      {(activeTab === "all" || activeTab === "milestones") && (
+        <RecordsBoard
+          records={pages.records}
+          followingRecordId={followingRecordId}
+          canFollowRecords={canFollowRecords}
+          onFollowRecord={onFollowRecord}
+          activeTierFilter={activeTab === "milestones" ? selectedTier : "all"}
+        />
+      )}
+
+      {(activeTab === "all" || activeTab === "catches") && catchesSection}
+
+      {(activeTab === "all" || activeTab === "notes") && notesSection}
     </section>
   );
 };
@@ -667,7 +984,7 @@ const PeoplePage: React.FC<{ people: PeoplePageDto }> = ({ people }) => {
                   <div className="journal-person-meta">
                     <span className="journal-person-meta-item">
                       <IconPin size={12} aria-hidden="true" />
-                      {isTr ? `Şu an: ${person.locationName}` : `Now at ${person.locationName}`}
+                      {isTr ? `Şu an: ${placeLabel(person.locationName, locale)}` : `Now at ${person.locationName}`}
                     </span>
                     {person.questsCompleted > 0 && (
                       <span className="journal-person-meta-item">
@@ -723,7 +1040,7 @@ const NoticesPage: React.FC<{ notices: readonly VillageNoticeDto[] }> = ({ notic
       </div>
       {notices.length === 0 ? (
         <p className="journal-empty-copy">
-          {isTr ? "Pano henüz boş. Kasabada yeni havadis çıktıkça duyurular asılacak." : "The board is bare. Notices appear as the town has news."}
+          {isTr ? "Henüz duyuru yok." : "No notices yet."}
         </p>
       ) : (
         <div className="journal-notices-board">
@@ -770,8 +1087,8 @@ const SkillsPage: React.FC<{ skills: SkillProgressDto[] }> = ({ skills }) => {
         <h2>{isTr ? "Kıyı boyunca hünerler" : "Practice along the coast"}</h2>
         <p>
           {isTr
-            ? "Aşamalar yeni imkânlar açar; alet ve erzaklar için yine olağan alımlar veya malzemeler gerekir."
-            : "Ranks open options; equipment and supplies still need their usual purchase or materials."}
+            ? "Yeni aşamalar, satın alabileceğin veya üretebileceğin donanımları açar."
+            : "Ranks open equipment to buy or craft."}
         </p>
       </div>
       <div className="journal-skills-list">
@@ -810,14 +1127,11 @@ const SkillsPage: React.FC<{ skills: SkillProgressDto[] }> = ({ skills }) => {
                       </span>
                     {skill.nextRankBenefits.length > 0 && (
                       <div className="journal-unlock-chips">
-                        {skill.nextRankBenefits.length <= 3 ? (
-                          <span>{skill.nextRankBenefits.join(" · ")}</span>
-                        ) : (
-                          <details>
-                            <summary>{skill.nextRankBenefits.slice(0, 2).join(" · ")} · +{skill.nextRankBenefits.length - 2} {isTr ? "daha" : "more"}</summary>
-                            <ul>{skill.nextRankBenefits.map((benefit) => <li key={benefit}>{benefit}</li>)}</ul>
-                          </details>
-                        )}
+                        {skill.nextRankBenefits.map((benefit) => (
+                          <span key={benefit} className="journal-unlock-chip">
+                            {benefit}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>

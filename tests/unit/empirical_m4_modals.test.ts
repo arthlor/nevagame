@@ -22,7 +22,7 @@ describe("Milestone M4 ornate modal presentation", () => {
     );
 
     expect(html).toContain("Hold &amp; Stores");
-    expect(html).toContain("Cargo space and supplies currently in hand");
+    expect(html.replace(/<!-- -->/g, "")).toContain(`${sim.inspectHoldStores().satchel.occupiedSlots}/${sim.inspectHoldStores().satchel.totalSlots} slots`);
     expect(html).toContain("ledger-modal");
     expect(html).toContain("Satchel");
     expect(html).toContain("Vessel holds");
@@ -38,7 +38,7 @@ describe("Milestone M4 ornate modal presentation", () => {
       })
     );
 
-    expect(html).toContain("Wooden Rowboat hold");
+    expect(html).toContain('aria-label="Wooden Rowboat cargo slots"');
     expect(html).toContain("Vessel holds");
     expect(html).toContain("vessel-slots-grid");
     expect(html).toContain("chrome-slot");

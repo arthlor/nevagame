@@ -51,25 +51,12 @@
       ],
       "properties": {
         "surfaceAuthoring": {
-          "description": "Build-time procedural surface finish; never changes imported source attributes or runtime contracts.",
+          "description": "Build-time procedural surface integrity checks; authored colors and normals remain design choices.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["normalPolicy", "facetColors"],
+          "required": ["normalPolicy"],
           "properties": {
-            "normalPolicy": { "const": "authored" },
-            "facetColors": { "const": "rest_face" },
-            "valueZones": {
-              "description": "Optional bounded overrides for the broad authored value-zone multipliers applied by the rest-face bake; an omitted zone uses its property's shared default.",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "sunTop": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 1.05 },
-                "weatherSide": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 0.94 },
-                "groundContact": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 0.9 },
-                "patch": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 1.03 },
-                "wear": { "type": "number", "minimum": 0.8, "maximum": 1.1, "default": 0.92 }
-              }
-            }
+            "normalPolicy": { "const": "authored" }
           }
         },
         "id": {
@@ -144,10 +131,12 @@
           ],
           "properties": {
             "trianglesMin": {
+              "description": "Advisory detail reference; sparse valid geometry is permitted.",
               "type": "integer",
               "minimum": 1
             },
             "trianglesTarget": {
+              "description": "Advisory detail target, not an artistic acceptance score.",
               "type": "integer",
               "minimum": 1
             },
@@ -936,7 +925,7 @@
         },
         "reviewViews": {
           "type": "array",
-          "minItems": 6,
+          "description": "Optional task-selected inspection views; no fixed camera recipe is required.",
           "uniqueItems": true,
           "items": {
             "enum": [

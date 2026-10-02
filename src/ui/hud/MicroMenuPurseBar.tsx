@@ -17,7 +17,7 @@ export interface MicroMenuPurseBarProps {
   className?: string;
 }
 
-export const TidebookPurse: React.FC<{ money: number }> = ({ money }) => {
+export const TidebookPurse: React.FC<{ money: number }> = React.memo(({ money }) => {
   const previous = useRef(money);
   const [delta, setDelta] = useState<number | null>(null);
   const { locale } = useTranslation();
@@ -31,16 +31,16 @@ export const TidebookPurse: React.FC<{ money: number }> = ({ money }) => {
     return () => window.clearTimeout(timeout);
   }, [money]);
   return (
-    <div className="guild-purse" aria-label={`Purse: ${money.toLocaleString()} ${locale === "tr" ? "akçe" : "gold"}`} data-testid="hud-gold-purse">
+    <div className="guild-purse" aria-label={locale === "tr" ? `Kese: ${money.toLocaleString("tr-TR")} akçe` : `Purse: ${money.toLocaleString("en-US")} gold`} data-testid="hud-gold-purse">
       <AtlasImage src={UI_STATUS.coin} size={20} aria-hidden="true" /><span className="guild-gold">{money.toLocaleString()} {currencySymbol}</span>
       {delta != null && <span className={`guild-gold-delta ${delta > 0 ? "is-gain" : "is-spend"}`} role="status">
         {delta > 0 ? "+" : ""}{delta.toLocaleString()} {currencySymbol}
       </span>}
     </div>
   );
-};
+});
 
-export const MicroMenuPurseBar: React.FC<MicroMenuPurseBarProps> = ({
+export const MicroMenuPurseBar: React.FC<MicroMenuPurseBarProps> = React.memo<MicroMenuPurseBarProps>(({
   capacity, expeditionUnlocked = false, onOpenModal, className = ""
 }) => {
   const { locale } = useTranslation();
@@ -48,11 +48,11 @@ export const MicroMenuPurseBar: React.FC<MicroMenuPurseBarProps> = ({
   const full = capacity.satchelUsed >= capacity.satchelMax;
   const nearlyFull = capacity.satchelUsed >= capacity.satchelMax * 0.9;
   const items: Array<{ id: ActiveModal; label: string; key: string; art: string; test: string }> = [
-    { id: "inventory", label: locale === "tr" ? "Heybeyi Aç" : "Open satchel inventory", key: "I", art: UI_MENU.backpack, test: "satchel" },
-    { id: "journal", label: locale === "tr" ? "Seyir Defteri ve Görevler" : "Open field journal and quests", key: "J", art: UI_MENU.journal, test: "journal" },
-    { id: "map", label: locale === "tr" ? "Deniz Haritası" : "Open nautical chart", key: "M", art: UI_MENU.compass, test: "map" },
-    { id: "ledger", label: locale === "tr" ? "Kargo Ambarı ve Köy Kaydı" : "Open fleet hold and warehouse ledger", key: "L", art: UI_MENU.ledger, test: "ledger" },
-    ...(expeditionUnlocked ? [{ id: "expedition" as const, label: locale === "tr" ? "Sefer Planı" : "Open expedition planner", key: "P", art: UI_MENU.expedition, test: "expeditions" }] : []),
+    { id: "inventory", label: locale === "tr" ? "Heybeyi aç" : "Open satchel inventory", key: "I", art: UI_MENU.backpack, test: "satchel" },
+    { id: "journal", label: locale === "tr" ? "Günlüğü ve görevleri aç" : "Open field journal and quests", key: "J", art: UI_MENU.journal, test: "journal" },
+    { id: "map", label: locale === "tr" ? "Haritayı aç" : "Open nautical chart", key: "M", art: UI_MENU.compass, test: "map" },
+    { id: "ledger", label: locale === "tr" ? "Ambarı ve depoları aç" : "Open fleet hold and warehouse ledger", key: "L", art: UI_MENU.ledger, test: "ledger" },
+    ...(expeditionUnlocked ? [{ id: "expedition" as const, label: locale === "tr" ? "Sefer planını aç" : "Open expedition planner", key: "P", art: UI_MENU.expedition, test: "expeditions" }] : []),
     { id: "pause", label: locale === "tr" ? "Menü (Esc)" : "Open game menu (Esc)", key: "Esc", art: UI_MENU.menu, test: "menu" }
   ];
   const renderItem = (item: (typeof items)[number]) => (
@@ -119,4 +119,15 @@ export const MicroMenuPurseBar: React.FC<MicroMenuPurseBarProps> = ({
       )}
     </nav>
   );
-};
+}, (prev, next) => {
+  return (
+    prev.money === next.money &&
+    prev.expeditionUnlocked === next.expeditionUnlocked &&
+    prev.className === next.className &&
+    prev.onOpenModal === next.onOpenModal &&
+    prev.capacity.satchelUsed === next.capacity.satchelUsed &&
+    prev.capacity.satchelMax === next.capacity.satchelMax &&
+    prev.capacity.cargoUsed === next.capacity.cargoUsed &&
+    prev.capacity.cargoMax === next.capacity.cargoMax
+  );
+});

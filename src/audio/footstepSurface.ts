@@ -14,7 +14,6 @@ export type FootstepBankId =
 
 const DOCK_RADIUS_PADDING = 1.4;
 const BROOK_WADE_REACH_METERS = 1;
-const PACKED_ROAD_CORE = 0.86;
 
 const nearPoint = (x: number, z: number, px: number, pz: number, radius: number): boolean => {
   const dx = x - px;
@@ -58,8 +57,7 @@ export const footstepSurfaceAt = (x: number, z: number): FootstepSurface => {
   if (terrainSurf === "beach" || terrainSurf === "wet-shoreline") {
     return "sand";
   }
-  const road = WorldLayout.roadSurfaceSample(x, z);
-  if (road.normalizedCoreDistance < PACKED_ROAD_CORE) {
+  if (WorldLayout.roadFootprintSample(x, z).packed >= 0.5) {
     return "dirt";
   }
   return "grass";

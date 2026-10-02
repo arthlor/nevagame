@@ -539,8 +539,11 @@ export class Simulation {
   // ==========================================
   // SIMULATION TICK
   // ==========================================
-  public tick(realDeltaSeconds: number): void {
+  public tick(realDeltaSeconds: number, workRecoverySeconds = realDeltaSeconds): void {
     if (!Number.isFinite(realDeltaSeconds) || realDeltaSeconds < 0) return;
+    // The app supplies unclamped real elapsed time separately from its bounded
+    // gameplay step. Pause freezes the world, while online Work still recovers.
+    this.progressionDomain.tickPassiveWorkRegen(workRecoverySeconds);
     if (this.clock.isPaused()) {
       this.state.clock = { ...this.clock.getState() };
       return;
@@ -553,8 +556,6 @@ export class Simulation {
     this.fishingDomain.tick(realDeltaSeconds);
     this.laborDomain.tick(realDeltaSeconds);
     this.stormHelmDomain.tick(realDeltaSeconds);
-    // Slow idle trickle, measured in real time while the game runs unpaused.
-    this.progressionDomain.tickPassiveWorkRegen(realDeltaSeconds);
     // School spawning/expiry is checked every frame so a freed habitat repopulates
     // promptly; it is minute-granular internally, so the explicit catch-up path
     // owns its own call rather than double-stepping here when minutes advance.
@@ -1025,6 +1026,10 @@ export class Simulation {
 
   public canDockActiveBoat(): boolean {
     return this.navigationDomain.canDockActiveBoat();
+  }
+
+  public dockRefusalReason(): string | null {
+    return this.navigationDomain.dockRefusalReason();
   }
 
   public dockActiveBoat(): { success: boolean; reason?: string } {

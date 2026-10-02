@@ -8,7 +8,7 @@
  * cache, publication, manifest, determinism) treats both producers the same way.
  *
  * The TypeScript is bundled for Node with esbuild on first use into `generated/.cache/authored/`,
- * keyed by the hash of the authored sources, so repeated runs reuse the bundle.
+ * keyed by authored sources and dependency identity, so upgrades cannot reuse an old bundle.
  */
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -33,7 +33,16 @@ export function isAuthoredGenerator(generator, repoRoot = DEFAULT_ROOT) {
 
 /** Every file that can change an authored asset, for cache and determinism hashing. */
 export function authoredToolchainFiles(repoRoot = DEFAULT_ROOT) {
-  const files = [path.join(repoRoot, "art/palettes/neva.palette.json")];
+  const files = [
+    "art/palettes/neva.palette.json",
+    "package.json",
+    "node_modules/three/package.json",
+    "node_modules/esbuild/package.json"
+  ].map((filename) => path.join(repoRoot, filename));
+  for (const filename of ["package-lock.json", "npm-shrinkwrap.json"]) {
+    const absolute = path.join(repoRoot, filename);
+    if (fs.existsSync(absolute)) files.push(absolute);
+  }
   const visit = (directory) => {
     if (!fs.existsSync(directory)) return;
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -65,7 +74,7 @@ export function authoredProducerVersion(repoRoot = DEFAULT_ROOT) {
 
 const loaded = new Map();
 
-/** Bundles and imports the Node entry once per source revision. */
+/** Bundles and imports the Node entry once per source and dependency revision. */
 export async function loadAuthoredProducer(repoRoot = DEFAULT_ROOT) {
   const hash = authoredToolchainHash(repoRoot);
   if (loaded.has(hash)) return loaded.get(hash);

@@ -79,9 +79,13 @@ export function formatClockTime(currentMinute: number): string {
 /** Compact remaining-wait label for HUD prompts. Exact stored minutes, not a growth estimate. */
 export function formatGameDuration(minutes: number): string {
   const total = Math.max(0, Math.ceil(minutes));
-  if (total <= 0) return "almost ready";
   const hours = Math.floor(total / MINUTES_PER_HOUR);
   const mins = total % MINUTES_PER_HOUR;
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
+  }
   if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
   if (hours > 0) return `${hours}h`;
   return `${mins}m`;

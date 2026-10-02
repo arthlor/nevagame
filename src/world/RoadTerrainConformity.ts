@@ -14,7 +14,7 @@ interface RoadTerrainGrid {
 // Position and RGBA come first; any further per-vertex attributes the source
 // carries (the road frame and class) follow in `EXTRA_ATTRIBUTES` order. They
 // are linear across a source triangle, so the split keeps them exact.
-type RoadVertex = number[];
+type RoadVertex = number[] & { sourceEdge?: readonly [RoadVertex, RoadVertex]; sourceCorner?: boolean };
 type ClipPlane = (vertex: RoadVertex) => number;
 
 const EXTRA_ATTRIBUTES = ["roadFrame", "roadClass", "normal"] as const;
@@ -34,9 +34,17 @@ function clipPolygon(polygon: readonly RoadVertex[], distance: ClipPlane): RoadV
     const currentInside = currentDistance >= 0;
     if (previousInside !== currentInside) {
       const amount = previousDistance / (previousDistance - currentDistance);
-      result.push(previous.map((value, component) =>
+      const cut = previous.map((value, component) =>
         value + (current[component] - value) * amount
-      ) as RoadVertex);
+      ) as RoadVertex;
+      const edge = previous.sourceEdge;
+      const currentEdge = current.sourceEdge;
+      // Keep the source-edge datum through successive grid/height cuts. Its
+      // two incident planes must evaluate a rounded cut from the same line.
+      if (edge && (edge.includes(current) || (currentEdge && edge.includes(currentEdge[0]) && edge.includes(currentEdge[1])))) cut.sourceEdge = edge;
+      else if (currentEdge && currentEdge.includes(previous)) cut.sourceEdge = currentEdge;
+      else if (previous.sourceCorner && current.sourceCorner) cut.sourceEdge = [previous, current];
+      result.push(cut);
     }
     if (currentInside) result.push(current);
   }
@@ -67,6 +75,11 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
   const sourcePositions = source.getAttribute("position");
   const sourceColors = source.getAttribute("color");
   const sourceIndex = source.getIndex();
+  const sourceNodeHeights = new Map<string, number>();
+  for (let index = 0; index < sourcePositions.count; index++) {
+    const key = `${sourcePositions.getX(index)},${sourcePositions.getZ(index)}`;
+    sourceNodeHeights.set(key, Math.max(sourceNodeHeights.get(key) ?? -Infinity, sourcePositions.getY(index)));
+  }
   if (!sourceIndex || sourceColors.itemSize !== 4) {
     throw new Error("Road terrain conformity requires the indexed RGBA road geometry");
   }
@@ -122,32 +135,43 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
     return index;
   };
 
+  const appendTriangle = (a: RoadVertex, b: RoadVertex, c: RoadVertex, kind: keyof typeof counts): void => {
+    const area = areaTwice(a, b, c);
+    if (area === 0) return;
+    const ai = appendVertex(a), bi = appendVertex(b), ci = appendVertex(c);
+    // Up-facing winding in X/Z, including newly clipped contours.
+    if (area > 0) indices.push(ai, ci, bi);
+    else indices.push(ai, bi, ci);
+    counts[kind]++;
+  };
+
   const appendPolygon = (
     polygon: readonly RoadVertex[],
     kind: keyof typeof counts,
-    heightAt?: (x: number, z: number) => number
+    heightAt?: (x: number, z: number, vertex: RoadVertex) => number
   ): void => {
     if (polygon.length < 3) return;
     const projected = polygon.map((vertex) => {
       const result = vertex.slice() as RoadVertex;
       result[0] = Math.fround(result[0]);
       result[2] = Math.fround(result[2]);
-      if (heightAt) result[1] = heightAt(result[0], result[2]);
+      if (heightAt) result[1] = heightAt(result[0], result[2], vertex);
       return result;
-    });
-    for (let index = 1; index < projected.length - 1; index++) {
-      const a = projected[0];
-      const b = projected[index];
-      const c = projected[index + 1];
-      const area = areaTwice(a, b, c);
-      if (Math.abs(area) <= CLIP_EPSILON) continue;
-      const ai = appendVertex(a);
-      const bi = appendVertex(b);
-      const ci = appendVertex(c);
-      // Up-facing winding in X/Z, including newly clipped polygon fans.
-      if (area > 0) indices.push(ai, ci, bi);
-      else indices.push(ai, bi, ci);
-      counts[kind]++;
+    }).filter((vertex, index, all) => !index || vertex[0] !== all[index - 1][0] || vertex[2] !== all[index - 1][2]);
+    if (projected.length > 1 && projected[0][0] === projected.at(-1)![0] && projected[0][2] === projected.at(-1)![2]) projected.pop();
+    if (projected.length < 3) return;
+    let signedArea = 0;
+    for (let index = 1; index < projected.length - 1; index++) signedArea += areaTwice(projected[0], projected[index], projected[index + 1]);
+    const orientation = Math.sign(signedArea);
+    const convex = orientation !== 0 && projected.every((vertex, index) => areaTwice(vertex, projected[(index + 1) % projected.length], projected[(index + 2) % projected.length]) * orientation >= 0);
+    // Rounding an added cut to Float32 can turn a collinear contour locally
+    // concave. A fan would then stack a skinny face on its neighbour. Partition
+    // the final contour; keep the common convex case allocation-light.
+    if (convex) {
+      for (let index = 1; index < projected.length - 1; index++) appendTriangle(projected[0], projected[index], projected[index + 1], kind);
+    } else {
+      const triangles = THREE.ShapeUtils.triangulateShape(projected.map(vertex => new THREE.Vector2(vertex[0], vertex[2])), []);
+      for (const [a, b, c] of triangles) appendTriangle(projected[a], projected[b], projected[c], kind);
     }
   };
 
@@ -155,7 +179,7 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
     if (triangle % 32 === 0) yield;
     const vertices = [0, 1, 2].map((corner): RoadVertex => {
       const index = sourceIndex.getX(triangle * 3 + corner);
-      const vertex = [
+      const vertex: RoadVertex = [
         sourcePositions.getX(index), sourcePositions.getY(index), sourcePositions.getZ(index),
         sourceColors.getX(index), sourceColors.getY(index), sourceColors.getZ(index), sourceColors.getW(index)
       ];
@@ -164,9 +188,31 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
           vertex.push(extra.attribute.getComponent(index, component));
         }
       }
+      vertex.sourceCorner = true;
       return vertex;
     });
     const kind = triangle < roadTriangleEnd ? "road" : triangle < junctionTriangleEnd ? "junction" : "gateway";
+    const [roadA, roadB, roadC] = vertices;
+    const roadDxB = roadB[0] - roadA[0], roadDzB = roadB[2] - roadA[2], roadDyB = roadB[1] - roadA[1];
+    const roadDxC = roadC[0] - roadA[0], roadDzC = roadC[2] - roadA[2], roadDyC = roadC[1] - roadA[1];
+    const roadDeterminant = roadDxB * roadDzC - roadDzB * roadDxC;
+    const roadGradientX = (roadDyB * roadDzC - roadDyC * roadDzB) / roadDeterminant;
+    const roadGradientZ = (roadDxB * roadDyC - roadDxC * roadDyB) / roadDeterminant;
+    const roadHeight = (x: number, z: number, vertex: RoadVertex): number => {
+      // A rounded new cut can coincide with an existing source contact. That
+      // authored datum takes precedence over projection along another edge.
+      const sourceHeight = sourceNodeHeights.get(`${x},${z}`);
+      if (sourceHeight !== undefined) return sourceHeight;
+      if (vertex.sourceCorner) return vertex[1];
+      if (vertex.sourceEdge) {
+        let [a, b] = vertex.sourceEdge;
+        if (a[0] > b[0] || (a[0] === b[0] && a[2] > b[2])) [a, b] = [b, a];
+        const dx = b[0] - a[0], dz = b[2] - a[2];
+        const amount = THREE.MathUtils.clamp(((x - a[0]) * dx + (z - a[2]) * dz) / (dx * dx + dz * dz), 0, 1);
+        return a[1] + amount * (b[1] - a[1]);
+      }
+      return roadA[1] + (x - roadA[0]) * roadGradientX + (z - roadA[2]) * roadGradientZ;
+    };
     const triangleMinimumX = Math.min(...vertices.map((vertex) => vertex[0]));
     const triangleMaximumX = Math.max(...vertices.map((vertex) => vertex[0]));
     const triangleMinimumZ = Math.min(...vertices.map((vertex) => vertex[2]));
@@ -193,6 +239,8 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
     const firstRow = Math.max(0, Math.floor((triangleMinimumZ - minimumZ) / cellSize));
     const lastRow = Math.min(grid.resolution - 1, Math.floor((triangleMaximumZ - minimumZ) / cellSize));
 
+    const sections: Array<{ polygon: RoadVertex[]; heightAt: (x: number, z: number) => number; differences: number[] }> = [];
+    let requiresDrape = false;
     for (let row = firstRow; row <= lastRow; row++) {
       for (let column = firstColumn; column <= lastColumn; column++) {
         const x0 = minimumX + column * cellSize;
@@ -221,19 +269,45 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
           };
           const terrainAboveRoad = (vertex: RoadVertex): number => terrainHeight(vertex[0], vertex[2]) - vertex[1];
           const differences = half.map(terrainAboveRoad);
-          if (differences.every((difference) => difference >= -CLIP_EPSILON)) {
-            appendPolygon(half, kind, terrainHeight);
-          } else if (differences.every((difference) => difference <= CLIP_EPSILON)) {
-            appendPolygon(half, kind);
-          } else {
-            appendPolygon(clipPolygon(half, terrainAboveRoad), kind, terrainHeight);
-            appendPolygon(clipPolygon(half, (vertex) => -terrainAboveRoad(vertex)), kind);
-          }
+          requiresDrape ||= differences.some(difference => difference > CLIP_EPSILON);
+          sections.push({ polygon: half, heightAt: terrainHeight, differences });
         }
+      }
+    }
+    // Grid lines have no geometric role when every terrain plane remains
+    // below this face. Retain its exact authored plane rather than rounding
+    // redundant cuts through thin ownership triangles.
+    if (!requiresDrape && triangleMinimumX >= minimumX && triangleMaximumX <= maximumX && triangleMinimumZ >= minimumZ && triangleMaximumZ <= maximumZ) {
+      appendPolygon(vertices, kind);
+    } else for (const section of sections) {
+      const upperHeight = (x: number, z: number, vertex: RoadVertex): number => Math.max(roadHeight(x, z, vertex), section.heightAt(x, z));
+      const terrainAboveRoad = (vertex: RoadVertex): number => section.heightAt(vertex[0], vertex[2]) - vertex[1];
+      if (section.differences.every(difference => difference >= -CLIP_EPSILON) || section.differences.every(difference => difference <= CLIP_EPSILON)) {
+        appendPolygon(section.polygon, kind, upperHeight);
+      } else {
+        appendPolygon(clipPolygon(section.polygon, terrainAboveRoad), kind, upperHeight);
+        appendPolygon(clipPolygon(section.polygon, vertex => -terrainAboveRoad(vertex)), kind, upperHeight);
       }
     }
   }
 
+  // Independent source planes can round separate contour cuts to the same
+  // stored X/Z. That stored contact has one upper-envelope height, even when
+  // colors/frames require distinct vertices. Canonicalize only coincident
+  // contacts; do not sample a different road or terrain surface here.
+  const coincidentHeights = new Map<string, number>();
+  const roadVertexEnd = counts.gateway ? gatewayVertexStart : positions.length / 3;
+  for (let index = 0; index < roadVertexEnd; index++) {
+    const key = `${positions[index * 3]},${positions[index * 3 + 2]}`;
+    coincidentHeights.set(key, Math.max(coincidentHeights.get(key) ?? -Infinity, positions[index * 3 + 1]));
+  }
+  let maximumCoincidentHeightLiftMeters = 0;
+  for (let index = 0; index < roadVertexEnd; index++) {
+    const key = `${positions[index * 3]},${positions[index * 3 + 2]}`;
+    const height = coincidentHeights.get(key)!;
+    maximumCoincidentHeightLiftMeters = Math.max(maximumCoincidentHeightLiftMeters, height - positions[index * 3 + 1]);
+    positions[index * 3 + 1] = height;
+  }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 4));
@@ -286,7 +360,8 @@ export function* roadTerrainConformitySteps(source: THREE.BufferGeometry, grid: 
       sourceRoadTriangleCount: roadTriangleEnd,
       sourceJunctionTriangleCount: junctionTriangleEnd - roadTriangleEnd,
       triangleCount: indices.length / 3,
-      sampledTerrainVertices: heightCache.size
+      sampledTerrainVertices: heightCache.size,
+      maximumCoincidentHeightLiftMeters
     }
   };
   return geometry;

@@ -2,7 +2,7 @@ import { boatMeetsSailingRequirement } from "../content/boats";
 import { Object3D } from "three";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { projectAssetCollision } from "../physics/CollisionCatalogAdapter";
-import { staticPoseIsClear } from "../physics/StaticCollision";
+import { staticPoseIsClear, type StaticCollisionProxy } from "../physics/StaticCollision";
 import type { AssetId } from "../render/assets/AssetCatalog";
 import type { GameState } from "../simulation/core/types";
 import { carriagePoseIsClear, isCarriage } from "../simulation/mounts/Carriage";
@@ -23,6 +23,10 @@ import { clearReach, groundPlayer, nearestPoint } from "./terrainMigrationSuppor
 export function recoverMainlandLayout(previous: GameState, schemaVersion: number, layoutRevision: number, area?: {
   contains: (point: { x: number; z: number }) => boolean;
   boatIsClear: (boat: GameState["boats"][string]) => boolean;
+  /** Reject a distant fallback on another island when only local support changed. */
+  preserveLandIsland?: boolean;
+  /** Surface-only revisions can reuse the complete current catalog projection. */
+  collisionProxies?: (state: GameState) => readonly StaticCollisionProxy[];
   /** Reconcile moved berths inside recovery so fishing still sees the original saved pose. */
   reconcileBoats?: (state: GameState) => void;
 }): GameState {
@@ -31,7 +35,7 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
   if (previous.world.layoutRevision >= layoutRevision) return state;
   ContentRegistry.initializeAndValidate();
   area?.reconcileBoats?.(state);
-  const collision = createWorldStaticPlacements(state.worldSeed).flatMap((placement) => {
+  const collision = area?.collisionProxies?.(state) ?? createWorldStaticPlacements(state.worldSeed).flatMap((placement) => {
     const root = new Object3D();
     root.position.set(placement.x, placement.y ?? WorldLayout.terrainHeight(placement.x, placement.z), placement.z);
     root.rotation.y = placement.rotationY;
@@ -45,6 +49,15 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
     && WorldLayout.traversalSurfaceSample(point.x, point.z).normal.y >= Math.cos(38 * Math.PI / 180);
   const clearPlayer = (point: { x: number; z: number }) => supported(point)
     && staticPoseIsClear(collision, point, WorldLayout.traversalSurfaceHeight(point.x, point.z), 0.4);
+  const recoverLandPoint = (
+    origin: { x: number; z: number },
+    valid: (point: { x: number; z: number }) => boolean,
+    fallback: { x: number; z: number }
+  ) => {
+    const islandId = area?.preserveLandIsland ? WorldLayout.terrainPatchAt(origin.x, origin.z)?.islandId : null;
+    return nearestPoint(origin, (point) => valid(point)
+      && (!area?.preserveLandIsland || WorldLayout.terrainPatchAt(point.x, point.z)?.islandId === islandId), fallback);
+  };
 
   for (const boat of Object.values(state.boats)) {
     if (area && !area.contains(boat)) continue;
@@ -75,7 +88,7 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
       ? carriagePoseIsClear({ ...mount, ...point }, collision)
       : isMountableTraversalPoint(point.x, point.z)
         && staticPoseIsClear(collision, point, WorldLayout.traversalSurfaceHeight(point.x, point.z), 0.7));
-    const point = nearestPoint(mount, valid, WORLD_SPAWN.playerPosition);
+    const point = recoverLandPoint(mount, valid, WORLD_SPAWN.playerPosition);
     const support = WorldLayout.traversalSurfaceHeight(point.x, point.z);
     // A retained valid pose can differ slightly from today's interpolated
     // heightfield. Preserve it within the canonical mount support tolerance.
@@ -91,7 +104,7 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
       state.player.currentRegionId = WorldLayout.regionAt(mount.x, mount.z);
       state.player.traversal.isGrounded = true;
     } else {
-      groundPlayer(state.player, nearestPoint(state.player, clearPlayer, WORLD_SPAWN.playerPosition));
+      groundPlayer(state.player, recoverLandPoint(state.player, clearPlayer, WORLD_SPAWN.playerPosition));
     }
   }
 
@@ -99,7 +112,7 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
     if (!eligibleLand(structure)) continue;
     // Authored work pads stay in place; arbitrary legacy structures on newly
     // wet/steep ground recover deterministically without changing their IDs.
-    const point = nearestPoint(structure, supported, WORLD_SPAWN.playerPosition);
+    const point = recoverLandPoint(structure, supported, WORLD_SPAWN.playerPosition);
     Object.assign(structure, point, { y: WorldLayout.terrainHeight(point.x, point.z) });
   }
 
@@ -109,7 +122,7 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
     if (!eligibleLand(origin)) continue;
     const valid = (point: { x: number; z: number }) => supported(point)
       && staticPoseIsClear(collision, point, WorldLayout.traversalSurfaceHeight(point.x, point.z), 0.45);
-    if (!valid(origin)) Object.assign(cargo.location, nearestPoint(origin, valid, origin));
+    if (!valid(origin)) Object.assign(cargo.location, recoverLandPoint(origin, valid, origin));
   }
 
   for (const school of Object.values(state.world.activeSchools)) {
@@ -158,7 +171,9 @@ export function recoverMainlandLayout(previous: GameState, schemaVersion: number
       if (boat) {
         const requirement = WorldLayout.navigationRequirementAt(point.x, point.z);
         if (!compatible(point) || (requirement && !boatMeetsSailingRequirement(boat.boatTypeId, requirement.requiredBoatTypeId))) continue;
-      } else if (!WorldLayout.isWalkable(point.x, point.z) || WorldLayout.isWater(point.x, point.z)
+      } else if ((area?.preserveLandIsland && WorldLayout.terrainPatchAt(point.x, point.z)?.islandId
+          !== WorldLayout.terrainPatchAt(previous.player.x, previous.player.z)?.islandId)
+        || !WorldLayout.isWalkable(point.x, point.z) || WorldLayout.isWater(point.x, point.z)
         || !staticPoseIsClear(collision, point, WorldLayout.traversalSurfaceHeight(point.x, point.z), 0.4)) continue;
       const bearing = bearingAt(point);
       if (bearing === null) continue;

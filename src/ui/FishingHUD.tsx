@@ -207,16 +207,25 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
     >
       {hud.awaitingLandingChoice ? (
         <section className="fishing-landing-choice" aria-label={isTr ? "Karaya çıkarma seçimi" : "Landing choice"} data-testid="fishing-landing-choice">
-          <strong>{isTr ? "Balık yoruldu" : "The fish is beaten"}</strong>
+          <strong>{isTr ? "Balık karada" : "Fish landed"}</strong>
           <p>
             {isTr
               ? (hud.keepAvailable
-                  ? "Avı ambarına koy ya da suya bırak."
-                  : "Ambarda yer yok — balığı salıver ya da yer açıp sakla.")
+                  ? "Sakla veya salıver."
+                  : "Yer yok. Balığı salıver.")
               : (hud.keepAvailable
-                  ? "Stow the catch, or let it go."
-                  : "No room in the hold — release it, or clear a slot and keep it.")}
+                  ? "Keep or release the catch."
+                  : "No room. Release the catch.")}
           </p>
+          {hud.workSettlement && (
+            <p data-testid="sport-work-recovery">
+              {hud.workSettlement.landingRecovery > 0
+                ? (isTr
+                    ? `Saklayınca veya salıverince +${hud.workSettlement.landingRecovery} Emek`
+                    : `Keep or release to recover +${hud.workSettlement.landingRecovery} Work`)
+                : (isTr ? "Şu anda Emek kazanılamıyor." : "No Work can be recovered right now.")}
+            </p>
+          )}
           <div className="fishing-landing-choice-actions">
             <ChromeButton
               variant="gold"
@@ -236,8 +245,8 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
           {hud.showFirstTip && (
             <p className="fishing-first-tip">
               {isTr
-                ? (isCoarsePointer ? "Vurgulanan butona balığın hareketine göre bas." : "Vurgulanan tuşa balığın hareketine göre bas.")
-                : (isCoarsePointer ? "Match the highlighted button to the fish." : "Match the highlighted key to the fish.")}
+                ? "Gösterilen kontrolü basılı tut."
+                : "Hold the highlighted control."}
             </p>
           )}
       {hud.signatureMoment && (
@@ -311,7 +320,7 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
       >
         <div className="fishing-telemetry-run">
           <div className="fishing-telemetry-run-head">
-            <span>{isTr ? "Mesafe" : "Run"}</span>
+            <span>{isTr ? "Mesafe" : "Distance"}</span>
             <strong data-testid="fishing-run-distance">
               {`${telemetry.runDistanceMeters.toFixed(1)} m`}
             </strong>
@@ -331,10 +340,12 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
           <span className="fishing-telemetry-run-note">
             {inLandingRange
               ? (isTr ? "Uzanma menzilinde" : "Within reach")
-              : (isTr ? `${telemetry.landingDistanceMeters} m mesafede karaya çekilir` : `Landing at ${telemetry.landingDistanceMeters} m`)}
+              : (isTr ? `${telemetry.landingDistanceMeters} m içinde çekilir` : `Land within ${telemetry.landingDistanceMeters} m`)}
           </span>
         </div>
 
+        <details className="fishing-telemetry-details">
+        <summary>{isTr ? "Kamış ve derinlik" : "Rod & depth"}</summary>
         <dl className="fishing-telemetry-grid">
           <div className="fishing-telemetry-cell fishing-telemetry-depth">
             <dt>{isTr ? "Derinlik" : "Depth"}</dt>
@@ -386,6 +397,7 @@ export const FishingHUD: React.FC<FishingHUDProps> = ({
             <span className="fishing-counter-swing-cue is-idle">{isTr ? "Dengede" : "Holding"}</span>
           )}
         </div>
+        </details>
       </section>
 
       {hud.showLineWarning && (

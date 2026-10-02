@@ -49,7 +49,7 @@ export const TR_EQUIPMENT: Record<string, LocalizedEquipmentText> = {
   },
   "equipment.copper_rose_watering_can": {
     name: "Bakır Süzgeçli İbrik",
-    description: "İnce delikli süzgeci suyu yumuşakça yayar ve sulama için harcanan Emeği azaltır."
+    description: "Özenle işlenmiş bakır bir ibrik; ince delikli süzgeci suyu eşitçe yayar."
   },
   "equipment.long_spout_watering_can": {
     name: "Uzun Ağızlı Sulama Kabı",

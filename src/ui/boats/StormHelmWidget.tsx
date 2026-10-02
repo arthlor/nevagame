@@ -30,23 +30,23 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
 
   const readoutEn = showingResult
     ? survived
-      ? "Steady helm — she held"
+      ? "Weathered the gust"
       : hud.failReason === "broach"
-        ? "Broached! The hull struck"
-        : "She labored too long — the hull struck"
+        ? "Turned broadside · hull hit"
+        : "Held off course · hull hit"
     : inBand
-      ? "Hold her head to the wind"
-      : "Bring her bow into the gust";
+      ? "Hold course"
+      : "Steer into the wind";
 
   const readoutTr = showingResult
     ? survived
-      ? "Dümen sağlam — tekne dayandı"
+      ? "Rüzgârı atlattın"
       : hud.failReason === "broach"
-        ? "Alabora oldu! Gövde darbe aldı"
-        : "Çok zorlandı — gövde darbe aldı"
+        ? "Yan döndü · gövde darbe aldı"
+        : "Rotadan saptı · gövde darbe aldı"
     : inBand
-      ? "Pruvasını rüzgara tut"
-      : "Pruvasını sağanağa çevir";
+      ? "Rotayı koru"
+      : "Pruvayı rüzgâra çevir";
 
   const readout = isTr ? readoutTr : readoutEn;
 
@@ -70,7 +70,8 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
           </span>
           <span
             className="storm-helm__lives"
-            title={isTr ? `${hud.maxLives} üzerinden ${hullLives} gövde canı` : `${hullLives} of ${hud.maxLives} hull lives`}
+            aria-label={isTr ? `Gövde durumu: ${hullLives}/${hud.maxLives}` : `Hull condition: ${hullLives}/${hud.maxLives}`}
+            title={isTr ? `Gövde durumu: ${hullLives}/${hud.maxLives}` : `Hull condition: ${hullLives}/${hud.maxLives}`}
             data-testid="storm-helm-lives"
           >
             {Array.from({ length: hud.maxLives }, (_, index) => (
@@ -110,10 +111,10 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
 
         <p className="storm-helm__readout" data-testid="storm-helm-readout">
           {hud.wrecked
-            ? (isTr ? "Yol alamaz — Neva Limanı'na çekici çağır" : "She cannot make way — signal a tow to Neva Harbor")
+            ? (isTr ? "Neva Limanı'na çekici çağır" : "Request a tow to Neva Harbor")
             : showingResult
               ? readout
-              : (isTr ? `${readout} · A / D dümen kır` : `${readout} · A / D steer`)}
+              : <>{readout}<span className="hint-desktop"> · A / D</span></>}
         </p>
 
         <footer className="storm-helm__footer">
@@ -128,8 +129,8 @@ export function StormHelmWidget({ hud }: StormHelmWidgetProps) {
           {hud.consecutiveFails > 0 && !hud.wrecked && (
             <span className="storm-helm__fails" data-testid="storm-helm-fails">
               {isTr
-                ? `Üst üste ${hud.consecutiveFails} kaçırılan sağanak`
-                : `${hud.consecutiveFails} failed ${hud.consecutiveFails === 1 ? "gust" : "gusts"} in a row`}
+                ? `Üst üste ${hud.consecutiveFails} kaçırıldı`
+                : `${hud.consecutiveFails} missed in a row`}
             </span>
           )}
         </footer>

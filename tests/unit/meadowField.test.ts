@@ -61,9 +61,23 @@ afterEach(() => {
 });
 
 describe("meadow blade geometry", () => {
+  it("keeps a distant blade as one rooted triangle with a closed tip", () => {
+    const geometry = buildMeadowBladeGeometry(2, 1);
+    const position = geometry.getAttribute("position");
+    expect(Array.from(geometry.getIndex()!.array)).toEqual([0, 1, 2, 3, 4, 5]);
+    for (const first of [0, 3]) {
+      expect([position.getX(first), position.getY(first)]).toEqual([0, -1]);
+      expect([position.getX(first + 1), position.getY(first + 1)]).toEqual([0, 1]);
+      expect([position.getX(first + 2), position.getY(first + 2)]).toEqual([1, 0]);
+    }
+    geometry.dispose();
+  });
+
   it("builds tapered strips closed by one tip vertex with in-range blade data", () => {
     const geometry = buildMeadowBladeGeometry(12, 3);
     const position = geometry.getAttribute("position");
+    // Position encodes blade parameters; the shader owns the actual normals.
+    expect(geometry.getAttribute("normal")).toBeUndefined();
     expect(position.count).toBe(12 * 7);
     expect(geometry.getIndex()!.count).toBe(12 * meadowBladeTriangles(3) * 3);
     expect(meadowBladeTriangles(3)).toBe(5);
@@ -139,6 +153,27 @@ describe("meadow field membership", () => {
     expect(field.group.children.every((mesh) => !mesh.visible)).toBe(true);
   });
 
+  it("retains submitted tiles across buffer reuse and only uploads changed visibility", () => {
+    const field = uniformField();
+    field.update(0, 0);
+    const camera = cameraAt(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 1, -10));
+    const meshes = field.group.children as THREE.InstancedMesh[];
+    field.updateRenderVisibility(camera);
+    const tiles = submittedTiles(field);
+    const versions = meshes.map((mesh) => mesh.instanceMatrix.version);
+    for (let frame = 0; frame < 8; frame += 1) {
+      field.updateRenderVisibility(camera);
+      expect(submittedTiles(field)).toEqual(tiles);
+      expect(meshes.map((mesh) => mesh.instanceMatrix.version)).toEqual(versions);
+    }
+    camera.lookAt(0, 1, 10);
+    field.updateRenderVisibility(camera);
+    expect(submittedTiles(field)).not.toEqual(tiles);
+    camera.lookAt(0, 1, -10);
+    field.updateRenderVisibility(camera);
+    expect(submittedTiles(field)).toEqual(tiles);
+  });
+
   it("draws a stable density prefix per tier and stages shadow receiving with the tier", () => {
     const field = uniformField();
     const [near, far] = field.group.children as THREE.InstancedMesh[];
@@ -185,6 +220,37 @@ describe("meadow field membership", () => {
 });
 
 describe("meadow field shader", () => {
+  it("removes every blade at zero density and fades back smoothly outside exclusions", () => {
+    const shader = {
+      uniforms: {} as Record<string, unknown>,
+      vertexShader: THREE.ShaderLib.standard.vertexShader,
+      fragmentShader: THREE.ShaderLib.standard.fragmentShader
+    };
+    patchMeadowFieldShader(shader, {});
+    const expression = /float presence = (.+);/.exec(shader.vertexShader)?.[1];
+    expect(expression).toBeDefined();
+    // Evaluate the shader's actual scalar expression, rather than a separate CPU mask.
+    const presence = new Function("density", "survival", "smoothstep", "max", `return ${expression};`) as
+      (density: number, survival: number, smoothstep: (a: number, b: number, x: number) => number,
+        max: typeof Math.max) => number;
+    const smoothstep = (a: number, b: number, x: number) => {
+      const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    };
+    for (let rank = 0; rank <= 100; rank += 1) {
+      const survival = rank / 100;
+      expect(presence(0, survival, smoothstep, Math.max)).toBe(0);
+      let previous = 0;
+      for (let step = 1; step <= 100; step += 1) {
+        const visible = presence(step / 100, survival, smoothstep, Math.max);
+        expect(visible).toBeGreaterThanOrEqual(previous);
+        expect(visible).toBeLessThanOrEqual(1);
+        previous = visible;
+      }
+    }
+    expect(presence(1, 0.5, smoothstep, Math.max)).toBe(1);
+  });
+
   it("builds blades in the vertex stage and keeps both faces on the up-biased normal", () => {
     const shader = {
       uniforms: {} as Record<string, unknown>,
@@ -198,7 +264,9 @@ describe("meadow field shader", () => {
     expect(shader.vertexShader).toContain("nevaMeadowSample(rootXZ, cover.g, cover.b, cover.a)");
     expect(shader.vertexShader).toContain("mix(nevaMeadowPatch.x, 1.0, meadowColor.growth)");
     expect(shader.vertexShader).not.toContain("#include <begin_vertex>");
-    expect(shader.fragmentShader).toContain("normal = normalize(vNormal);");
+    expect(shader.vertexShader).toContain("vMeadowNormal = normalize(transformedNormal);");
+    expect(shader.fragmentShader).toContain("normal = normalize(vMeadowNormal);");
+    expect(shader.fragmentShader).not.toContain("normalize(vNormal)");
     expect(shader.fragmentShader).toContain("#define RE_Direct RE_Direct_Meadow");
     expect(shader.fragmentShader).toContain("diffuseColor.rgb = meadowBladeColor;");
     expect(shader.uniforms.meadowTime).toBeDefined();

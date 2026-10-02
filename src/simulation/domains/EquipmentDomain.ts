@@ -55,11 +55,9 @@ export class EquipmentDomain {
     if (state.basicFishing || state.sportFishing) return "Finish fishing before changing gear";
     if (state.player.activeMountId) return "Dismount before changing gear";
     if (state.player.carriedFishCargoId) return "Put down the catch before changing gear";
-    if (!state.player.activeBoatId) return null;
-    const boat = state.boats[state.player.activeBoatId];
-    if (!boat?.isDocked || Math.abs(boat.speed) > 0.15) {
-      return "Moor the boat and come to a stop before changing gear";
-    }
+    // Aboard a rowboat, skiff, or trading ship, clothing, tools, and rods can
+    // change while moored, underway, or still moving. Steering stays disabled
+    // for as long as the character overlay is open.
     return null;
   }
 

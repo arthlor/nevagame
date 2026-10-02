@@ -2,6 +2,52 @@ import { describe, expect, it, vi } from "vitest";
 import { deriveSemanticInput, HeldInputState, InputRouter, isGameSurfaceTarget } from "../../src/input/InputRouter";
 
 describe("semantic input mapping", () => {
+  it("tracks HUD pointer motion and reprojects it after a canvas resize without dispatching a world action", () => {
+    const globals = globalThis as { window?: unknown; document?: unknown; HTMLElement?: unknown };
+    const previous = { window: globals.window, document: globals.document, HTMLElement: globals.HTMLElement };
+    const addEventListener = vi.fn(), removeEventListener = vi.fn();
+    class TestElement {
+      tagName = "BUTTON";
+      bounds = { left: 100, top: 50, width: 1000, height: 500 };
+      getBoundingClientRect() { return this.bounds; }
+    }
+    globals.window = { addEventListener, removeEventListener };
+    globals.document = { addEventListener, removeEventListener };
+    globals.HTMLElement = TestElement;
+    try {
+      const router = new InputRouter();
+      const action = vi.fn();
+      router.onAction(action);
+      const canvas = new TestElement();
+      canvas.tagName = "CANVAS";
+      const hud = new TestElement();
+      const internals = router as unknown as { onPointerMove: (event: PointerEvent) => void; onPointerDown: (event: PointerEvent) => void };
+      expect(router.getPointerClientPosition()).toBeNull();
+      expect(router.getCanvasPointerNdc(canvas as unknown as HTMLElement)).toBeNull();
+      internals.onPointerMove({ pointerId: 1, pointerType: "mouse", target: canvas, clientX: 600, clientY: 300 } as unknown as PointerEvent);
+      expect(router.getPointerNdc(canvas as unknown as HTMLElement)).toEqual({ x: 0, y: 0 });
+      internals.onPointerMove({ pointerId: 1, pointerType: "mouse", target: hud, clientX: 850, clientY: 400 } as unknown as PointerEvent);
+      expect(router.getPointerClientPosition()).toEqual({ x: 850, y: 400 });
+      expect(router.getCanvasPointerNdc(canvas as unknown as HTMLElement)).toEqual({ x: 0, y: 0 });
+      expect(router.getPointerNdc(canvas as unknown as HTMLElement)!.x).toBe(0.5);
+      expect(router.getPointerNdc(canvas as unknown as HTMLElement)!.y).toBeCloseTo(-0.4, 6);
+      canvas.bounds.width = 500;
+      expect(router.getPointerNdc(canvas as unknown as HTMLElement)!.x).toBe(2);
+      expect(router.getCanvasPointerNdc(canvas as unknown as HTMLElement)!.x).toBe(1);
+      internals.onPointerDown({ pointerType: "mouse", target: hud, clientX: 850, clientY: 400 } as unknown as PointerEvent);
+      expect(action).not.toHaveBeenCalled();
+      router.dispatchVirtualAction("interact");
+      expect(action).toHaveBeenLastCalledWith("interact", "virtual");
+      router.setWorldInputSuspended(true);
+      router.dispatchVirtualAction("interact");
+      expect(action).toHaveBeenCalledTimes(1);
+      router.dispose();
+    } finally {
+      for (const name of ["window", "document", "HTMLElement"] as const) {
+        if (previous[name] === undefined) delete globals[name]; else globals[name] = previous[name];
+      }
+    }
+  });
   it.each([
     ["KeyW", { x: 0, z: -1 }],
     ["KeyA", { x: -1, z: 0 }],

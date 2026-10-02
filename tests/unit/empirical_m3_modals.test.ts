@@ -120,7 +120,7 @@ describe("Milestone M3 ornate modal presentation", () => {
     );
 
     expect(html).toContain("Trade packs");
-    expect(html).toContain("Sell trade pack");
+    expect(html).toContain("Sell pack");
     expect(html).toContain("Rainbow Trout");
     expect(html).not.toContain("Fish hold");
   });
@@ -158,7 +158,7 @@ describe("Milestone M3 ornate modal presentation", () => {
     );
 
     expect(wheatSell).toContain('aria-label="Select Harvested Wheat"');
-    expect(wheatSell).toContain("Sell all of this item");
+    expect(wheatSell).toContain("Sell stack");
     expect(wheatSell).toContain("Sell all produce");
     expect(wheatSell).not.toContain('aria-label="Select Harvested Barley"');
   });
@@ -175,7 +175,8 @@ describe("Milestone M3 ornate modal presentation", () => {
       })
     );
 
-    expect(html).toContain("Field Journal");
+    expect(html).toContain('id="journal-title"');
+    expect(html).toContain("Journal");
     expect(html).toContain("journal-folio-tabs");
     expect(html).toContain("Story");
     expect(html).toContain("Guide");
@@ -199,7 +200,7 @@ describe("Milestone M3 ornate modal presentation", () => {
     expect(html).not.toContain("--ui-ink-soft");
   });
 
-  it("renders world map lenses, player beacon, and compass rose", () => {
+  it("renders the world map, player beacon, and compass rose", () => {
     const sim = new Simulation();
     const html = renderToString(
       React.createElement(WorldMapModal, {
@@ -209,12 +210,9 @@ describe("Milestone M3 ornate modal presentation", () => {
       })
     );
 
-    expect(html).toContain("Nautical Chart of the Neva Archipelago");
-    expect(html).toContain('data-testid="map-lenses"');
-    expect(html).toContain("Chart");
-    expect(html).toContain("Markets");
-    expect(html).toContain("Fishing notes");
-    expect(html).toContain("Farms");
+    expect(html).toContain('id="map-title" class="map-title">Chart');
+    expect(html).not.toContain('data-testid="map-lenses"');
+    expect(html).not.toContain("Plot course");
     expect(html).toContain("YOU");
     expect(html).toContain("map-compass-rose");
   });

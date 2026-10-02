@@ -59,6 +59,14 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
 
   const recordLabels = locale === "tr" ? RECORD_LABELS_TR : RECORD_LABELS_EN;
   const speciesDisplayName = (locale === "tr" ? getLocalizedFish(catchData.speciesId).name : null) || catchData.speciesName;
+  const storageLabel = locale === "tr" ? {
+    "player-carry": "Elde taşınıyor", "boat-hold": "Tekne ambarında",
+    "boat-hook": "Ayna kancasında", "cold-storage": "Soğuk depoda",
+    crate: "Sandıkta", carriage: "Araba kasasında", ground: "Yerde"
+  }[catchData.storageDestination] : catchData.storageLocationLabel;
+  const cargoClass = locale === "tr" ? {
+    small: "Küçük yük", medium: "Orta yük", large: "Büyük yük", gargantuan: "Dev yük"
+  }[catchData.cargoClass] : `${catchData.cargoClass.toUpperCase()} CLASS`;
 
   return (
     <div
@@ -82,7 +90,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
       >
         <header className="catch-modal-header">
           <div className="catch-celebration-title">
-            <span className="catch-celebration-subtitle">
+            <span className="catch-celebration-subtitle sr-only">
               {locale === "tr" ? "Kıyı Sportif Balıkçılığı" : "Coastal Sport Angling"}
             </span>
             <strong id="catch-modal-title" className="catch-celebration-headline">
@@ -101,7 +109,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
             <span className="record-star-glyph"><IconSparkle size={13} /></span>
             <div className="record-text-group">
               <strong className="record-title">{recordLabels[catchData.record].title}</strong>
-              <span className="record-subtitle">{recordLabels[catchData.record].subtitle}</span>
+              {catchData.record === "first" && <span className="record-subtitle">{recordLabels[catchData.record].subtitle}</span>}
             </div>
             <span className="record-star-glyph"><IconSparkle size={13} /></span>
           </div>
@@ -130,9 +138,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
               <ChromeQuality quality={catchData.quality} />
             </div>
             <span className="catch-cargo-class">
-              {locale === "tr"
-                ? `${catchData.cargoClass.toUpperCase()} SINIFI`
-                : `${catchData.cargoClass.toUpperCase()} CLASS`}
+              {cargoClass}
             </span>
           </div>
 
@@ -165,7 +171,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
 
             <div className="catch-storage-box">
               <span className="storage-destination-label">{locale === "tr" ? "Depo:" : "Storage:"}</span>
-              <strong>{catchData.storageLocationLabel}</strong>
+              <strong>{storageLabel}</strong>
             </div>
           </div>
         </div>
@@ -177,7 +183,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
               onClick={onOpenHoldOrSatchel}
               className="catch-inspect-hold-btn"
             >
-              {locale === "tr" ? "Heybeyi Aç" : "Open Satchel"} <kbd className="catch-keycap">[I]</kbd>
+              {locale === "tr" ? "Heybeyi Aç" : "Open Satchel"} <kbd className="catch-keycap" aria-hidden="true">[I]</kbd>
             </ChromeButton>
           )}
           <ChromeButton
@@ -185,7 +191,7 @@ export const CatchInspectionModal: React.FC<CatchInspectionModalProps> = ({
             onClick={onDismiss}
             className="catch-continue-btn"
           >
-            {locale === "tr" ? "Kıyıya Dön" : "Back to the coast"} <kbd className="catch-keycap">[Space]</kbd>
+            {locale === "tr" ? "Kıyıya Dön" : "Back to the coast"} <kbd className="catch-keycap" aria-hidden="true">[Space]</kbd>
           </ChromeButton>
         </footer>
       </GameSheet>

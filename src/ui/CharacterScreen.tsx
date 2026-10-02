@@ -21,6 +21,7 @@ import { atlasForEquipment, atlasForRod } from "./chrome/uiAtlas";
 import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { translateEffectLine } from "../i18n/equipmentEffectsTr";
 import { useTranslation } from "../i18n/useTranslation";
+import { IconAnchor, IconSprout } from "./components/HudIcons";
 
 type CharacterSlot = EquipmentSlot | "rod";
 type SelectableItem =
@@ -76,8 +77,18 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   useModalAccessibility(modalRef, onClose);
-  const { getLocalizedEquipment, getLocalizedRod, locale } = useTranslation();
+  const { getLocalizedEquipment, getLocalizedRod, translateReason, locale } = useTranslation();
   const isTr = locale === "tr";
+  const slotLabel = (slot: CharacterSlot): string => (isTr ? {
+    head: "Baş", outerwear: "Üst giysi", feet: "Ayakkabı",
+    "watering-tool": "Sulama aleti", "harvest-tool": "Hasat aleti", rod: "Olta"
+  } : {
+    head: "Head", outerwear: "Outerwear", feet: "Feet",
+    "watering-tool": "Watering tool", "harvest-tool": "Harvest tool", rod: "Fishing Rod"
+  })[slot];
+  const presetLabel = (id: EquipmentPresetId, fallback: string): string =>
+    isTr ? (id === "field" ? "Tarla" : "Deniz") : fallback;
+  const equipBlocker = translateReason(character.equipBlocker) || null;
 
   const items = useMemo<SelectableItem[]>(() => [
     ...character.ownedEquipment.map((item) => ({ ...item, kind: "equipment" as const })),
@@ -156,7 +167,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
   };
 
   const run = (result: InteractionResult, successCopy: string): void => {
-    setFeedback(result.success ? successCopy : result.reason ?? "That change is not available");
+    setFeedback(result.success ? successCopy : translateReason(result.reason) || (isTr ? "Bu değişiklik şu an yapılamıyor" : "That change is not available"));
   };
 
   const equipSelected = (): void => {
@@ -164,7 +175,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
     const result = selected.kind === "rod"
       ? onEquipRod(selected.id)
       : onEquipEquipment(selected.id);
-    run(result, `${selected.name} equipped`);
+    run(result, isTr ? `${getSelectableItemInfo(selected).name} kuşanıldı` : `${getSelectableItemInfo(selected).name} equipped`);
     if (result.success) {
       setPreview((current) => {
         const next = { ...current };
@@ -176,7 +187,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
 
   const applyPreset = (presetId: EquipmentPresetId, label: string): void => {
     const result = onApplyPreset(presetId);
-    run(result, `${label} outfit equipped`);
+    run(result, isTr ? `${label} kıyafeti giyildi` : `${label} outfit equipped`);
     if (result.success) setPreview({});
   };
 
@@ -184,7 +195,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
     .map((slot) => {
       const id = previewBySlot[slot.slot];
       const item = items.find((candidate) => candidate.slot === slot.slot && candidate.id === id);
-      return `${slot.label}: ${item?.name ?? slot.equippedName}`;
+      return `${slotLabel(slot.slot)}: ${item ? getSelectableItemInfo(item).name : slot.equippedName}`;
     })
     .join(". ");
   const previewAsset = (slot: CharacterSlot): { assetId: string; scale?: number } | null => {
@@ -242,7 +253,6 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
           <section className="character-screen__loadout" aria-label={isTr ? "Kuşanılan donanım" : "Equipped gear"}>
             <div className="character-section-header">
               <h3>{isTr ? "Kuşanılan" : "Equipped"}</h3>
-              <small>{isTr ? "Üzerindekiler" : "Currently worn"}</small>
             </div>
             <div className="character-slot-list">
               {character.slots.map((slot) => {
@@ -256,7 +266,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
                     key={slot.slot}
                     className={`character-slot ${isSelected ? "is-selected" : ""} ${previewed ? "is-preview" : ""}`}
                     onClick={() => shown && selectItem(shown)}
-                    aria-label={`${slot.label}: ${shown ? getSelectableItemInfo(shown).name : slot.equippedName}${previewed ? (isTr ? ", yalnızca önizleme" : ", preview only") : ""}`}
+                    aria-label={`${slotLabel(slot.slot)}: ${shown ? getSelectableItemInfo(shown).name : slot.equippedName}${previewed ? (isTr ? ", yalnızca önizleme" : ", preview only") : ""}`}
                     aria-pressed={Boolean(isSelected)}
                     disabled={!shown}
                   >
@@ -265,11 +275,11 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
                       {!itemSprite(shown) && slotGlyph(slot.slot)}
                     </span>
                     <span className="character-slot__details">
-                      <small>{slot.label}</small>
+                      <small>{slotLabel(slot.slot)}</small>
                       <strong>{shown ? getSelectableItemInfo(shown).name : slot.equippedName}</strong>
                     </span>
                     {previewed ? (
-                      <em className="character-slot__status-tag">{isTr ? "Dene" : "Try On"}</em>
+                      <em className="character-slot__status-tag">{isTr ? "Önizleme" : "Preview"}</em>
                     ) : isSelected ? (
                       <span className="character-slot__active-pip" aria-hidden="true" />
                     ) : null}
@@ -281,27 +291,31 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
             <div className="character-presets" aria-label={isTr ? "Hazır kıyafetler" : "Outfit presets"}>
               <div className="character-presets__header">
                 <h3>{isTr ? "Kıyafetler" : "Outfits"}</h3>
-                <small>{isTr ? "Kıyafet setleri" : "Clothing presets"}</small>
+                <small>{isTr ? "Yalnızca giysi" : "Clothing only"}</small>
               </div>
               <div className="character-presets__list">
                 {character.presets.map((preset) => (
                   <div className="character-preset" key={preset.id}>
                     <div className="character-preset__info">
-                      <strong>{preset.label}</strong>
-                      <small>{isTr ? "Yalnızca giysi" : "Clothing only"}</small>
+                      <span className="character-preset__glyph" aria-hidden="true">
+                        {preset.id === "field" ? <IconSprout size={14} aria-hidden="true" /> : <IconAnchor size={14} aria-hidden="true" />}
+                      </span>
+                      <strong>{presetLabel(preset.id, preset.label)}</strong>
                     </div>
                     <div className="character-preset__actions">
                       <ChromeButton
                         type="button"
-                        variant="ghost"
-                        onClick={() => run(onSavePreset(preset.id), `${preset.label} outfit saved`)}
-                        title={isTr ? `Mevcut donanımı ${preset.label} setine kaydet` : `Save current gear to ${preset.label}`}
-                      >{isTr ? "Mevcutu Kaydet" : "Save Current"}</ChromeButton>
+                        disabled={!character.canEquip}
+                        aria-describedby={!character.canEquip && equipBlocker ? "character-screen-status" : undefined}
+                        onClick={() => applyPreset(preset.id, presetLabel(preset.id, preset.label))}
+                        title={isTr ? `${presetLabel(preset.id, preset.label)} kıyafetini giy` : `Equip ${preset.label} outfit`}
+                      >{isTr ? "Giy" : "Wear"}</ChromeButton>
                       <ChromeButton
                         type="button"
-                        onClick={() => applyPreset(preset.id, preset.label)}
-                        title={isTr ? `${preset.label} kıyafetini giy` : `Equip ${preset.label} outfit`}
-                      >{isTr ? "Giy" : "Wear"}</ChromeButton>
+                        variant="ghost"
+                        onClick={() => run(onSavePreset(preset.id), isTr ? `${presetLabel(preset.id, preset.label)} kıyafeti kaydedildi` : `${preset.label} outfit saved`)}
+                        title={isTr ? `Mevcut giysileri ${presetLabel(preset.id, preset.label)} setine kaydet` : `Save current gear to ${preset.label}`}
+                      >{isTr ? "Kaydet" : "Save"}</ChromeButton>
                     </div>
                   </div>
                 ))}
@@ -332,7 +346,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
             </div>
             {Object.keys(preview).length > 0 && (
               <ChromeButton type="button" variant="ghost" className="character-preview-reset" onClick={() => setPreview({})}>
-                {isTr ? "Denemeyi Sıfırla" : "Reset Try On"}
+                {isTr ? "Önizlemeyi sıfırla" : "Reset preview"}
               </ChromeButton>
             )}
           </section>
@@ -340,7 +354,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
           <section className="character-screen__wardrobe" aria-label={isTr ? "Gardırop" : "Wardrobe"}>
             <div className="character-wardrobe__header">
               <div className="character-section-header">
-                <h3>{isTr ? "Sahip Olunan Donanım" : "Owned Gear"}</h3>
+                <h3>{isTr ? "Gardırop" : "Wardrobe"}</h3>
                 <small>{isTr ? `${filteredItems.length} parça` : `${filteredItems.length} items`}</small>
               </div>
               <div className="character-category-filter" role="tablist" aria-label={isTr ? "Donanım kategorilerini filtrele" : "Filter gear categories"} onKeyDown={handleTabListKeyDown}>
@@ -414,7 +428,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
                     </span>
                     <span className="character-owned-item__details">
                       <strong>{getSelectableItemInfo(item).name}</strong>
-                      <small>{item.slot.replace("-", " ")}</small>
+                      <small>{slotLabel(item.slot)}</small>
                     </span>
                     {isItemEquipped && (
                       <span className="character-item-badge is-equipped">{isTr ? "Kuşanıldı" : "Equipped"}</span>
@@ -430,30 +444,30 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
               <article id="character-item-inspector" className="character-comparison" aria-label={isTr ? `${getSelectableItemInfo(selected).name} ayrıntıları` : `${selected.name} details`}>
                 <div className="character-comparison__header">
                   <div className="character-comparison__slot-tag-row">
-                    <span className="character-comparison__slot-tag">{selected.slot.replace("-", " ")}</span>
+                    <span className="character-comparison__slot-tag">{slotLabel(selected.slot)}</span>
                     <small className="character-comparison__state-hint">
-                      {isEquipped ? (isTr ? "Şu Anda Kuşanıldı" : "Currently Equipped") : isPreviewing ? (isTr ? "Önizlemede" : "In Preview") : (isTr ? "Sahip Olunan" : "Owned")}
+                      {isEquipped ? (isTr ? "Kuşanıldı" : "Equipped") : isPreviewing ? (isTr ? "Önizlemede" : "In Preview") : (isTr ? "Sahip Olunan" : "Owned")}
                     </small>
                   </div>
                   <h3>{getSelectableItemInfo(selected).name}</h3>
                   <p className="character-comparison__desc">{getSelectableItemInfo(selected).description}</p>
-                <ul className="character-effect-list">
-                  {selected.effectLines.map((line) => {
-                    const isNone = line.toLowerCase().includes("no specialist bonus") || line.toLowerCase().includes("no bonus");
-                    const text = translateEffectLine(line, locale);
-                    return (
-                      <li key={line} className={`character-effect-item ${isNone ? "is-none" : "is-active"}`}>
-                        {!isNone && <span className="character-effect-bullet" aria-hidden="true" />}
-                        <span>{text}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
+                  <ul className="character-effect-list">
+                    {selected.effectLines.map((line) => {
+                      const isNone = line.toLowerCase().includes("no specialist bonus") || line.toLowerCase().includes("no bonus");
+                      const text = translateEffectLine(line, locale);
+                      return (
+                        <li key={line} className={`character-effect-item ${isNone ? "is-none" : "is-active"}`}>
+                          {!isNone && <span className="character-effect-bullet" aria-hidden="true" />}
+                          <span>{text}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
 
                 {compared && compared.id !== selected.id && (
                   <div className="character-comparison__current">
-                    <small className="character-comparison__current-label">{isTr ? "Bu yuvada şu an takılı" : "Currently in this slot"}</small>
+                    <small className="character-comparison__current-label">{isTr ? "Mevcut Kuşanılan" : "Currently Equipped"}</small>
                     <div className="character-comparison__current-row">
                       <strong>{getSelectableItemInfo(compared).name}</strong>
                     </div>
@@ -474,7 +488,10 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
 
                 <div className="character-comparison__actions">
                   {isEquipped ? (
-                    <span className="character-equipped-badge">{isTr ? "Şu Anda Kuşanıldı" : "Currently Equipped"}</span>
+                    <div className="character-comparison__equipped-state">
+                      <ChromeButton type="button" variant="ghost" disabled>{isTr ? "Mevcut" : "Current"}</ChromeButton>
+                      <span className="character-equipped-badge">{isTr ? "Kuşanıldı" : "Equipped"}</span>
+                    </div>
                   ) : (
                     <>
                       <ChromeButton
@@ -495,7 +512,7 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
                   )}
                 </div>
                 {!isEquipped && !character.canEquip && character.equipBlocker && (
-                  <p id="character-equip-blocker" className="character-comparison__blocker">{character.equipBlocker}</p>
+                  <p id="character-equip-blocker" className="character-comparison__blocker">{equipBlocker}</p>
                 )}
               </article>
             )}
@@ -503,11 +520,11 @@ export const CharacterScreen: React.FC<CharacterScreenProps> = ({
         </div>
 
         <footer className="modal-footer character-screen__footer">
-          <div role="status" className="character-screen__status">
-            {feedback ?? character.equipBlocker ?? (isTr ? "Donanımları burada dene. Kıyıda giymek için Kuşan'ı seç." : "Try on gear here. Choose Equip to wear it on the coast.")}
+          <div id="character-screen-status" role="status" className="character-screen__status">
+            {feedback ?? equipBlocker ?? (Object.keys(preview).length > 0 ? (isTr ? "Önizleme · giymek için Kuşan" : "Preview · choose Equip to wear") : null)}
           </div>
-          <ChromeButton type="button" variant="ghost" onClick={onOpenSatchel}>{isTr ? "Heybeyi Aç" : "Open Satchel"}</ChromeButton>
-          <ChromeButton type="button" variant="ghost" onClick={onOpenPause}>{isTr ? "Oyun Menüsü" : "Game Menu"}</ChromeButton>
+          <ChromeButton type="button" variant="ghost" onClick={onOpenSatchel}>{isTr ? "Heybe" : "Satchel"}</ChromeButton>
+          <ChromeButton type="button" variant="ghost" onClick={onOpenPause}>{isTr ? "Menü" : "Menu"}</ChromeButton>
         </footer>
       </GameSheet>
     </div>

@@ -4,11 +4,11 @@ import fs from "node:fs";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
-import { runtimeAssetCatalogPlugin } from "./tools/vite/runtimeAssetCatalogPlugin";
-import { artYardPlugin } from "./tools/vite/artYardPlugin";
-import { layoutEditorPlugin } from "./tools/vite/layoutEditorPlugin";
-import { productionArtifactsPlugin } from "./tools/vite/productionArtifactsPlugin";
-import { environmentLayoutBakePlugin } from "./tools/vite/environmentLayoutBakePlugin";
+import { runtimeAssetCatalogPlugin } from "./tools/vite/runtimeAssetCatalogPlugin.ts";
+import { artYardPlugin } from "./tools/vite/artYardPlugin.ts";
+import { layoutEditorPlugin } from "./tools/vite/layoutEditorPlugin.ts";
+import { productionArtifactsPlugin } from "./tools/vite/productionArtifactsPlugin.ts";
+import { environmentLayoutBakePlugin } from "./tools/vite/environmentLayoutBakePlugin.ts";
 
 /** Serve `/assets/audio/*.mp3` from disk so ingest during a running Vite session is audible. */
 function runtimeAudioPlugin(rootDirectory: string): Plugin {
@@ -38,16 +38,16 @@ function runtimeAudioPlugin(rootDirectory: string): Plugin {
 export default defineConfig({
   plugins: [
     productionArtifactsPlugin(),
-    runtimeAudioPlugin(__dirname),
-    runtimeAssetCatalogPlugin(__dirname),
-    environmentLayoutBakePlugin(__dirname),
-    artYardPlugin(__dirname),
-    layoutEditorPlugin(__dirname),
+    runtimeAudioPlugin(import.meta.dirname),
+    runtimeAssetCatalogPlugin(import.meta.dirname),
+    environmentLayoutBakePlugin(import.meta.dirname),
+    artYardPlugin(import.meta.dirname),
+    layoutEditorPlugin(import.meta.dirname),
     react()
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src")
+      "@": path.resolve(import.meta.dirname, "./src")
     }
   },
   server: {
@@ -71,16 +71,20 @@ export default defineConfig({
     target: "es2022",
     assetsInlineLimit: 4096,
     chunkSizeWarningLimit: 1500,
-    rollupOptions: {
+    rolldownOptions: {
       input: {
-        main: path.resolve(__dirname, "index.html"),
-        artYard: path.resolve(__dirname, "tools/art-yard/viewer.html")
+        main: path.resolve(import.meta.dirname, "index.html"),
+        artYard: path.resolve(import.meta.dirname, "tools/art-yard/viewer.html")
       },
       output: {
-        manualChunks(id) {
-          if (id.includes("node_modules/three")) return "three";
-          if (id.includes("@dimforge/rapier3d-compat")) return "rapier";
-          if (id.includes("node_modules/react")) return "react";
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [
+            { name: "three-nodes", test: /node_modules[\\/]three[\\/](?:build[\\/]three\.(?:webgpu|tsl)|examples[\\/]jsm[\\/]tsl[\\/])/ },
+            { name: "three", test: /node_modules[\\/]three[\\/]/ },
+            { name: "rapier", test: /@dimforge[\\/]rapier3d/ },
+            { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ }
+          ]
         }
       }
     }

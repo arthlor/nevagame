@@ -53,7 +53,7 @@ describe("render path selection", () => {
       expect(compiledMaterialNames(harness.renderer.compileAsync)).toEqual(
         expect.arrayContaining(["neva_final_color", "neva_fxaa"])
       );
-      expect(harness.pipeline.activeEffects()).toEqual({ gtao: true, hdrBloom: false, fxaa: true, colorFinish: false });
+      expect(harness.pipeline.activeEffects()).toEqual({ gtao: true, hdrBloom: false, sunShafts: false, fxaa: true, colorFinish: false });
       expect(harness.frame()).toMatchObject({ scene: 1, finalColor: 1, fxaa: 1, bloom: 0, gtao: 2 });
     } finally { harness.dispose(); }
   });
@@ -117,7 +117,7 @@ describe("optional effects on the High path", () => {
       expect(targetIds(harness.pipeline.diagnostics())).toEqual(
         expect.arrayContaining(["enhanced.output", "bloom.mip0", "gtao.gather"])
       );
-      harness.pipeline.setEffects(resolveGraphicsEffects(custom({ glow: "subtle", edgeSmoothing: "off", ambientOcclusion: "off" }), "high"));
+      harness.pipeline.setEffects(resolveGraphicsEffects(custom({ sunShafts: false, glow: "subtle", edgeSmoothing: "off", ambientOcclusion: "off" }), "high"));
       expect(harness.frame()).toMatchObject({ bloom: 0, fxaa: 0, gtao: 0, finalColor: 1 });
       const ids = targetIds(harness.pipeline.diagnostics());
       expect(ids.filter((id) => !id.startsWith("water."))).toEqual(["enhanced.scene"]);
@@ -137,7 +137,7 @@ describe("optional effects on the High path", () => {
     };
     const harness = await createPipelineHarness();
     const everything = resolveGraphicsEffects(custom({ glow: "hdr" }), "high");
-    const nothing = resolveGraphicsEffects(custom({ glow: "off", edgeSmoothing: "off", ambientOcclusion: "off" }), "high");
+    const nothing = resolveGraphicsEffects(custom({ sunShafts: false, glow: "off", edgeSmoothing: "off", ambientOcclusion: "off" }), "high");
     try {
       harness.pipeline.setEffects(everything);
       harness.frame();
@@ -191,7 +191,7 @@ describe("optional effects on the High path", () => {
       harness.frame();
       const scene = () => harness.pipeline.diagnostics().renderTargets.find((target) => target.id === "enhanced.scene")!;
       expect([scene().width, scene().height]).toEqual([320, 180]);
-      harness.pipeline.setEffects(resolveGraphicsEffects(DEFAULT_GRAPHICS_EFFECTS, "high", { bloom: false, ambientOcclusion: false, resolutionStep: 2 }));
+      harness.pipeline.setEffects(resolveGraphicsEffects(DEFAULT_GRAPHICS_EFFECTS, "high", { sunShafts: false, bloom: false, ambientOcclusion: false, resolutionStep: 2 }));
       expect([scene().width, scene().height]).toEqual([320, 180]);
       const draws = harness.frame();
       expect([scene().width, scene().height]).toEqual([256, 144]);

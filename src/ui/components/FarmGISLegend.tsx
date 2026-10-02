@@ -33,39 +33,39 @@ export const FarmGISLegend: React.FC<FarmGISLegendProps> = ({ visible, className
 
       <div className="gis-legend-items">
         <div className="gis-legend-group">
-          <span className="gis-group-label">{isTr ? "Toprak Nemi" : "Moisture Tiers"}</span>
+          <span className="gis-group-label">{isTr ? "Nem" : "Moisture"}</span>
           <div className="gis-legend-item">
             <AtlasImage src={UI_GIS.moist} alt="" />
-            <span>{isTr ? "İdeal nem" : "Good moisture"}</span>
+            <span>{isTr ? "İdeal" : "Ideal"}</span>
           </div>
           <div className="gis-legend-item">
             <AtlasImage src={UI_GIS.dry} alt="" />
-            <span>{isTr ? "Kuru toprak" : "Dry soil"}</span>
+            <span>{isTr ? "Kuru" : "Dry"}</span>
           </div>
           <div className="gis-legend-item">
             <span className="gis-swatch gis-swatch--saturated" aria-hidden="true" />
-            <span>{isTr ? "Fazla sulanmış toprak" : "Saturated soil"}</span>
+            <span>{isTr ? "Fazla ıslak" : "Saturated"}</span>
           </div>
         </div>
 
         <div className="gis-legend-group">
-          <span className="gis-group-label">{isTr ? "Toprak Verimi" : "Soil Fertility"}</span>
+          <span className="gis-group-label">{isTr ? "Toprak" : "Soil"}</span>
           <div className="gis-legend-item">
             <span className="gis-swatch gis-swatch--rich" aria-hidden="true" />
-            <span>{isTr ? "Zengin verim" : "Rich fertility"}</span>
+            <span>{isTr ? "Verimli" : "Rich"}</span>
           </div>
           <div className="gis-legend-item">
             <span className="gis-swatch gis-swatch--fair" aria-hidden="true" />
-            <span>{isTr ? "Orta verim" : "Fair fertility"}</span>
+            <span>{isTr ? "Orta" : "Fair"}</span>
           </div>
           <div className="gis-legend-item">
             <span className="gis-swatch gis-swatch--depleted" aria-hidden="true" />
-            <span>{isTr ? "Yorgun toprak" : "Depleted soil"}</span>
+            <span>{isTr ? "Yorgun" : "Depleted"}</span>
           </div>
         </div>
 
         <div className="gis-legend-group">
-          <span className="gis-group-label">{isTr ? "Tarla Durumu" : "Field Progress"}</span>
+          <span className="gis-group-label">{isTr ? "Ekin" : "Crop"}</span>
           <div className="gis-legend-item">
             <AtlasImage src={UI_GIS.harvestReady} alt="" />
             <span>{isTr ? "Hasada hazır" : "Ready to harvest"}</span>

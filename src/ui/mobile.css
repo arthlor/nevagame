@@ -9,8 +9,8 @@
   --mobile-control-left: max(10px, env(safe-area-inset-left));
   --mobile-control-right: max(10px, env(safe-area-inset-right));
   --mobile-control-size: 40px;
-  --mobile-control-btn-w: 54px;
-  --mobile-control-btn-h: 38px;
+  --mobile-control-btn-w: 64px;
+  --mobile-control-btn-h: 44px;
   --mobile-joystick-size: clamp(86px, 14vw, 96px);
   --mobile-cluster-height: calc(var(--mobile-control-btn-h) * 2 + 4px);
   --mobile-controls-stack: max(var(--mobile-joystick-size), var(--mobile-cluster-height));
@@ -213,6 +213,12 @@ body,
   border: 1px solid rgba(240, 221, 154, 0.58);
   background: rgba(12, 20, 27, 0.48);
   box-shadow: inset 0 0 0 8px rgba(20, 29, 41, 0.22), 0 6px 22px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mobile-joystick.is-active .mobile-joystick-ring {
+  border-color: rgba(243, 212, 132, 0.85);
+  box-shadow: inset 0 0 0 8px rgba(20, 29, 41, 0.28), 0 0 14px rgba(212, 175, 55, 0.4);
 }
 
 .mobile-joystick-knob {
@@ -221,6 +227,13 @@ body,
   border: 1px solid rgba(255, 250, 231, 0.76);
   background: rgba(212, 175, 55, 0.76);
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mobile-joystick.is-active .mobile-joystick-knob {
+  border-color: #fffaf0;
+  background: rgba(243, 212, 132, 0.95);
+  box-shadow: 0 0 10px rgba(243, 212, 132, 0.6);
 }
 
 .mobile-action-cluster {
@@ -260,26 +273,28 @@ body,
   height: var(--mobile-control-btn-h, 38px);
   min-width: 50px;
   min-height: 36px;
-  max-width: 64px;
+  max-width: 68px;
   max-height: 42px;
   align-items: center;
   justify-content: center;
   gap: 2px;
   padding: 0 4px;
   border: 1px solid rgba(212, 175, 55, 0.62);
-  border-radius: 4px;
+  border-radius: 5px;
   background: rgba(18, 27, 38, 0.92);
   color: var(--mm-text-ivory, #fffaf0);
   cursor: pointer;
-  font: 700 11.5px/1.1 var(--font-sans);
-  letter-spacing: 0.02em;
+  font: 700 11px/1.1 var(--font-sans);
+  letter-spacing: 0.01em;
   text-align: center;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   box-sizing: border-box;
+  transition: transform 0.08s ease, background 0.08s ease, border-color 0.08s ease, box-shadow 0.08s ease;
 }
 
 .mobile-action-button--hold {
@@ -289,20 +304,29 @@ body,
 .mobile-action-button.is-primary {
   border-color: rgba(240, 221, 154, 0.9);
   background: rgba(78, 60, 22, 0.94);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
-.mobile-action-button:active {
-  background: rgba(212, 175, 55, 0.78);
+.mobile-action-button:active,
+.mobile-action-button.is-pressed {
+  background: rgba(212, 175, 55, 0.88);
   color: #241404;
+  transform: scale(0.95);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.mobile-action-button--hold.is-pressed {
+  border-color: rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.45);
 }
 
 .mobile-action-label {
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 1.1;
   max-width: 100%;
   padding: 0 2px;
   overflow: hidden;
-  text-overflow: clip;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -360,6 +384,7 @@ body,
   white-space: normal;
 }
 
+#ui-container[data-mobile-device="true"] .dialogue-action-btn .chrome-keycap,
 #ui-container[data-mobile-device="true"] .basic-fishing-container .chrome-keycap,
 #ui-container[data-mobile-device="true"] .interaction-prompt .chrome-keycap,
 #ui-container[data-mobile-device="true"] .interaction-prompt .keycap-badge,
@@ -916,8 +941,29 @@ body,
   touch-action: none;
 }
 
+.mobile-controls--sport .mobile-steer-cluster .mobile-action-button {
+  width: 62px;
+  max-width: 72px;
+  height: 42px;
+  font-size: 12px;
+}
+
 .mobile-controls--sport .mobile-action-button--response {
+  min-width: 88px;
+  width: 100%;
+  max-width: 120px;
+  height: 44px;
   font-size: 14px;
+  border-radius: 6px;
+}
+
+.mobile-controls--basic .mobile-action-button.is-primary {
+  min-width: 84px;
+  width: 100%;
+  max-width: 110px;
+  height: 44px;
+  font-size: 13px;
+  border-radius: 6px;
 }
 
 .mobile-controls--sport .mobile-drag-row .mobile-action-button {
@@ -934,6 +980,9 @@ body,
    same hierarchy other mobile games give their attack/interact buttons. */
 #ui-container[data-mobile-device="true"] .mobile-controls--world .mobile-action-row .mobile-action-button.is-primary {
   font-size: 12px;
+  font-weight: 800;
+  min-width: 58px;
+  border-color: rgba(243, 212, 132, 0.95);
 }
 
 /* Touch seed belt uses the existing touch Place/Cancel actions, so the

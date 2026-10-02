@@ -77,6 +77,10 @@ describe("basic fishing release ownership", () => {
     const flushAutosave = (GameApp.prototype as unknown as {
       flushAutosave: () => Promise<void>;
     }).flushAutosave;
+    const recovery = GameApp.prototype as unknown as {
+      takeOnlineWorkSeconds: (nowUtcMs?: number) => number;
+      saveCurrentGame: () => Promise<boolean>;
+    };
     const app = {
       isRunning: true,
       bootReady: true,
@@ -87,7 +91,10 @@ describe("basic fishing release ownership", () => {
       autosaveFlushQueued: false,
       lastAutosaveMs: 0,
       saveRepo: { saveGame },
-      sim: { state },
+      sim: { state, progression: { tickPassiveWorkRegen: vi.fn() } },
+      lastWorkRecoveryUtcMs: Date.now(),
+      takeOnlineWorkSeconds: recovery.takeOnlineWorkSeconds,
+      saveCurrentGame: recovery.saveCurrentGame,
       flushAutosave
     } as unknown as GameApp;
 

@@ -21,6 +21,7 @@ function inputs(patch: Partial<FinalColorInputs> = {}): FinalColorInputs {
     aoSize: { width: 38, height: 21 },
     aoIntensity: 0,
     aoEdgeTolerance: 0.05,
+    sunShafts: null,
     bloom: null,
     bloomStrength: 0,
     finish: { saturation: 1, contrast: 1, warmth: 0 },
@@ -33,12 +34,15 @@ describe("final colour pass", () => {
     const fragment = new FinalColorPass().material.fragmentShader;
     const ao = fragment.indexOf("reconstructAo(vUv)");
     const bloom = fragment.indexOf("texture2D(tBloom, vUv)");
+    const shafts = fragment.indexOf("texture2D(tSunShafts, vUv)");
     const toneMap = fragment.indexOf("ACESFilmicToneMapping(gl_FragColor.rgb)");
     const finish = fragment.indexOf("applyFinish(gl_FragColor.rgb)");
     const encode = fragment.indexOf("sRGBTransferOETF(gl_FragColor)");
     expect(Math.min(ao, bloom, toneMap, finish, encode)).toBeGreaterThan(0);
     expect(ao).toBeLessThan(toneMap);
     expect(bloom).toBeLessThan(toneMap);
+    expect(shafts).toBeGreaterThan(ao);
+    expect(shafts).toBeLessThan(toneMap);
     expect(toneMap).toBeLessThan(finish);
     expect(finish).toBeLessThan(encode);
     expect(fragment.split("sRGBTransferOETF(").length - 1).toBe(1);
@@ -54,6 +58,7 @@ describe("final colour pass", () => {
     const uniforms = pass.material.uniforms;
     expect((uniforms.uAo.value as THREE.Vector3).x).toBe(0);
     expect(uniforms.uBloomStrength.value).toBe(0);
+    expect(uniforms.uSunShafts.value).toBe(0);
     expect((uniforms.uFinish.value as THREE.Vector4).x).toBe(0);
 
     renderer.toneMappingExposure = 1.3;

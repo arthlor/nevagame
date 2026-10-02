@@ -25,11 +25,6 @@ import { SPORT_FISHING_WORK_COST, SPORT_FISHING_WORK_COST_BY_CLASS } from "../..
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { SUNREACH_ANCHORS } from "../../src/world/WorldIslands";
 import { FERTILITY_RESTORE } from "../../src/simulation/domains/FarmingDomain";
-import {
-  WORK_CAPACITY_MAXIMUM,
-  WORK_REST_BASELINE_FRACTION,
-  WORK_REST_FRACTION
-} from "../../src/simulation/domains/ProgressionDomain";
 import { ContentRegistry } from "../../src/content/ContentRegistry";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { mainQuestTrack } from "../../src/simulation/core/QuestTypes";
@@ -821,7 +816,7 @@ describe("Gameplay simulation fixes", () => {
     expect(sim.execute({ type: "boat.emergency-tow" })).toMatchObject({ success: true });
   });
 
-  it("grants offline Work rest on a wake-boundary crossing, not a midnight crossing", () => {
+  it("does not grant an automatic offline rest at midnight or the wake boundary", () => {
     const now = Date.now();
     sim.state.clock.currentMinute = 1439;
     sim.state.player.workCapacity.current = 100;
@@ -836,12 +831,8 @@ describe("Gameplay simulation fixes", () => {
     sim.state.metadata.lastSavedUtcMs = later - 8000;
     applyOfflineProgression(sim.state, later);
     expect(sim.state.clock.currentMinute).toBe(482);
-    // One night's rest: the rest share on top of the pool, or the baseline
-    // floor if that is higher. The tuning is ProgressionDomain's to own.
-    expect(sim.state.player.workCapacity.current).toBe(Math.max(
-      100 + Math.round(WORK_CAPACITY_MAXIMUM * WORK_REST_FRACTION),
-      Math.round(WORK_CAPACITY_MAXIMUM * WORK_REST_BASELINE_FRACTION)
-    ));
+    expect(sim.state.player.workCapacity.current).toBe(100);
+    expect(sim.state.player.workCapacity.offlineRegenSeconds).toBe(16);
   });
 
   it("quotes the base hook cost when no school species has reachable water", () => {

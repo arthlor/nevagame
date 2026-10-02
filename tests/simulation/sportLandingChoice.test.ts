@@ -160,4 +160,24 @@ describe("sport-fishing landing choice", () => {
     expect(reloaded.state.sportFishing).toBeNull();
     expect(reloaded.state.world.activeSchools[schoolId].remainingCatchPotential).toBe(3);
   });
+
+  it("quotes the actual capped recovery for either landing choice", () => {
+    const sim = new Simulation();
+    hookLakeTroutForTest(sim);
+    landForTest(sim);
+    const pending = structuredClone(sim.state);
+
+    for (const type of ["fishing.keep-catch", "fishing.release-catch"] as const) {
+      for (const [current, earnedToday, expected] of [[748, 298, 2], [749, 0, 1], [100, 300, 0]]) {
+        const reloaded = new Simulation(structuredClone(pending));
+        const work = reloaded.state.player.workCapacity;
+        work.current = current;
+        work.earnedToday = earnedToday;
+        work.earningsDay = Math.floor(reloaded.state.clock.currentMinute / 1440);
+        expect(reloaded.inspectSportFishingHud()?.workSettlement?.landingRecovery).toBe(expected);
+        expect(reloaded.execute({ type }).success).toBe(true);
+        expect(work.current - current).toBe(expected);
+      }
+    }
+  });
 });

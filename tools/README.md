@@ -7,12 +7,13 @@ workflow from a folder dump.
   `tools/authored/README.md` and `tools/art/README.md`. The normal path is
   selected catalog ID → registered authored generator (or committed
   `authored_glb` source) → `npm run art:generate -- --asset <id>` → Art Yard →
-  `Awaiting human game review`. Generators are authored Three.js factories in
+  focused game inspection and a completion report. Generators are authored Three.js factories in
   `tools/authored/generators/`; the art CLI in `tools/art/` is Node only.
   Families whose Blender generators were retired are frozen
   (`tools/art/legacy-generators.json`) and ported rather than rebuilt. Preview
   authored generators live with `/__neva_art_yard?asset=<id>&live=1`. Isolated
-  studio sheets live in `tools/art/references/isolated/`.
+  studio sheets live in `tools/art/references/isolated/` and are optional evidence
+  selected by the current task.
 - **World layout / F2 Place editor:** obey `LLM/LAYOUT_EDITOR.md`. Runtime editor
   code lives in `src/layout-editor/` and `src/app/PlacementEditor.ts`; the Vite
   patch boundary is `tools/layout-editor/patchPlacement.ts`.

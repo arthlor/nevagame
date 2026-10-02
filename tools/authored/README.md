@@ -42,7 +42,7 @@ tools/authored/
     fauna/, cloth/, ...  one folder per family
   pipeline/
     build.ts             buildAuthoredModel (browser-safe; also used by the Art Yard)
-    node-entry.ts        semantic art contract + GLB export (bundled for Node)
+    node-entry.ts        semantic runtime contract + GLB export (bundled for Node)
     producer.mjs         the pipeline hook: bundles node-entry, writes raw GLBs, reports
   export.mjs, export-entry.ts, <building>/   canvas-textured buildings, exported as authored GLB sources
 ```
@@ -54,18 +54,27 @@ tools/authored/
 authored-GLB producer; frozen assets are never built.
 
 The authored producer bundles `pipeline/node-entry.ts` with esbuild (cached under
-`generated/.cache/authored/`, keyed by the hash of the authored sources), then for each asset:
+`generated/.cache/authored/`, keyed by authored sources, the palette, package manifest,
+available npm lockfiles, and installed Three.js/esbuild package metadata).
+
+The producer implementation is itself part of the source hash, so changes to its bundling options
+also invalidate the bundle. The same dependency inputs participate in the authored asset cache;
+an upgrade cannot rebuild an asset using a stale producer bundle. Missing required package metadata
+fails hashing instead of accepting a previous bundle.
+
+For each asset, the producer:
 
 1. builds the scene with the registered generator (`GeneratorContext` carries the catalog spec, its
    `seed` and `parameters`);
-2. enforces the **semantic art contract** (the checks the retired Blender pipeline made, now owned
-   here):
-   required nodes present and unique, no degenerate triangles, every material a declared palette
-   token, `COLOR_0` carrying its token colour, material and triangle budgets, LOD ownership and
-   ratios, rest-pose dimensions within 0.25–1.35x the catalog, ground pivot, and every declared clip
-   present with its catalog duration and animating only existing nodes;
+2. enforces the **semantic runtime contract**: required nodes present and unique,
+   no degenerate triangles, valid material/attribute data, hard material/triangle maximums,
+   LOD ownership and upper ratios (floors, targets and lower ratios are advisory),
+   rest-pose dimensions within 0.25–1.35x the catalog, ground pivot, and every declared clip
+   present with its catalog duration and animating only existing nodes. The current shared
+   kit's palette-backed output uses declared token materials and linear `COLOR_0`; those
+   defaults may evolve through the owning kit/pipeline rather than becoming artistic rules;
 3. exports the raw GLB with `GLTFExporter` into the stage's `raw/` directory and reports dimensions,
-   bounds, palette tokens and colour loops in the pipeline's report shape.
+   bounds and material/attribute metrics in the pipeline's report shape.
 
 From there both producers share everything: Khronos validation of the raw and optimised files,
 glTF-Transform/Meshopt optimisation, the per-asset cache (authored assets hash the authored sources),
@@ -88,22 +97,23 @@ atomic publication to `generated/glb/` and `public/assets/models/`, the publishe
 4. Iterate in the Art Yard with `&live=1`, then `npm run art:generate -- --asset <id>`, then inspect in
    the Art Yard (published) and the game.
 
-### Construction rules the kit encodes
+### Available construction helpers and runtime contracts
 
-- **One surface per primary mass.** `addLoft` sweeps superellipse cross-sections (`w`, `h`, `hb`,
-  `n`) along a path; a dog's rump-to-nose, a duck's hull, a fleece. Change the sections, not the
-  primitive count, to get a deep chest, a waist tuck or a stop.
+These helpers describe available mechanisms, not required visual design or a mandatory modeling recipe. Agents may extend the kit or use another appropriate construction technique in the registered generator while preserving runtime contracts.
+
+- **Lofted surfaces.** `addLoft` sweeps superellipse cross-sections (`w`, `h`, `hb`,
+  `n`) along a path; a dog's rump-to-nose, a duck's hull, a fleece. Sections can define a deep chest, waist tuck or stop.
 - **Deliberate joins.** Legs, ears, tails and wings are their own lofts whose root station is buried
-  in the body. Never push primitives through each other and rely on the skin to hide it.
-- **Markings are faces, not lumps.** A `token` rule decides the palette token per quad (clean edges).
+  in the body. Use joins appropriate to the selected form and verify deformation.
+- **Face markings.** A `token` rule decides the palette token per quad (clean edges).
   Normals are computed before vertices split per token, so shading stays continuous across a marking.
 - **Cloth and fans are closed panels.** `addPanel` builds a slab with front, back and rim walls, wound
   against its own normal. Allocate grid rows to bands (`banded` in the laundry generator) so stripes
   and chevrons fall on grid lines. `wrap: true` makes `u` periodic, closing the panel into a tube or
   ring with rims only at its open ends and masked cells (a spoked reel plate, a star drag).
-- **Timber is hard-edged.** `addBox` and `flat: true` lofts keep faceted normals; `bevel` chamfers
+- **Boxes and faceted lofts.** `addBox` and `flat: true` lofts keep faceted normals; `bevel` chamfers
   a box's long edges and `halfEnd` tapers it (a hewn rail, a splayed leg).
-- **Stone and leaf masses are hulls.** `addHull` wraps a point cloud in a convex hull whose every face
+- **Convex hulls.** `addHull` wraps a point cloud in a convex hull whose every face
   is one flat facet, so broad planes come from where the points lie: project points onto a
   fracture plane and it becomes one facet (the river boulders), overlap a few hulls for a concave
   mass (the willow mound). Hull faces see their centroid and normal in `token`/`shade`, so moss on
@@ -111,9 +121,10 @@ atomic publication to `generated/glb/` and `public/assets/models/`, the publishe
 - **Put row edges on colour lines.** A loft `profile` replaces the superellipse with your own section
   points, so a stripe, belly line or gape falls exactly on a quad row (the fish place their section
   rows this way); stations placed on bar edges do the same along the path.
-- **Tone within a token.** `shade` darkens a face and `tone` darkens a vertex, both as value masks on
-  the token colour inside the `COLOR_0` contract (0.72 to 1.04): plank-to-plank tone, damp feet,
-  countershading, fins darkening toward their base. Tokens never change to fake a gradient.
+- **Palette tone helpers.** `shade` and `tone` apply face/vertex value masks to a token color
+  in the kit's linear `COLOR_0` path. Their current bounds belong to the helper implementation,
+  not a required artistic range. Agents may choose another material treatment or extend the
+  central color/material implementation when needed.
 - **Share parts, not materials.** `generators/props/parts.ts` holds rope and catenaries, hewn
   timber, burlap sacks, spoked wheels, knotted nets, fruit and produce crates; each takes the
   caller's palette indices.
@@ -134,20 +145,21 @@ atomic publication to `generated/glb/` and `public/assets/models/`, the publishe
   built facing -Z turns its geometry (`geometry.rotateY(Math.PI)`) rather than adding a node turn.
 - **Conform small markings.** `addPatch` fans a spot or scute over points sampled on the curved
   surface; `addDisc` is for flat or domed features (eye glints, rivets) on flat ground.
-- **LOD is authored, not decimated.** For assets with catalog `lodLevels`, build the model once per
+- **LOD assembly.** For assets with catalog `lodLevels`, build the model once per
   level at lower detail (`lodDetail` scales sides and stations) and let `assembleLodLevels` place each
-  under its level node, so every level keeps whole palette faces and a valid `COLOR_0`.
+  under its level node, so every level retains valid attributes and runtime selection. Other reduction techniques are allowed when compatibility and upper budgets hold; lower ratios are advisory.
 - **Rigs rest at identity.** Bones sit at model-space joints with identity rotations, so a clip angle
   is a rotation in the parent's frame. `solveSagittalChain` solves planar limbs for held poses;
   `cyclicTrack` makes closed-loop gait tracks from one key list with per-leg phases.
-- **Colour contract.** Materials are white, named for the token, and shared per token
-  (`tokenMaterial`); the colour is baked into linear `COLOR_0`. That is the pipeline's contract for
-  every published GLB and what lets assets share runtime materials.
+- **Palette material defaults.** `tokenMaterial` shares white materials named for their tokens,
+  with color baked into linear `COLOR_0`. This is the current shared kit's implementation,
+  not a contract for every published GLB or a fixed palette. Agents may evolve central
+  palette/material/export behavior within task scope. Authored GLBs and frozen imported
+  sources may retain native PBR materials without token names or vertex-color baking.
 
 ## Porting a frozen family
 
-Port family by family. Where the existing asset reads well, port it faithfully; where it reads
-weakly, redesign it to the village-life standard, with a before/after review of the pair. The Python
+Port family by family, preserving runtime interfaces and changing appearance according to the current task. Use before/after inspection when it resolves the change. The Python
 generators were deleted; the frozen published GLB, its catalog entry and its recorded parameter
 contract are the reference (the retired source remains in git history before the Blender removal).
 
@@ -235,13 +247,14 @@ npm run art:authored -- --no-publish         # committed source only
 
 Each run writes one GLB into `art/authored/<model>/export/` (the committed source) and then runs
 `tools/art/cli.mjs generate` for the exported IDs, which optimises (Meshopt), validates and
-atomically publishes them with the manifest. Runtime never reads the `export/` directory. These will
-move to registered generators once their canvas textures are baked into palette colours at build
-time.
+atomically publishes them with the manifest. Runtime never reads the `export/` directory.
+These sources may remain authored GLBs or move to registered generators when the task warrants it;
+palette baking is not a prerequisite.
 
 ### Editing
 
-- Edit `tools/authored/<model>/create<Model>Model.ts`. The factories import only `three` (0.174);
+- Edit `tools/authored/<model>/create<Model>Model.ts`. The factories import only the project's
+  installed `three` dependency, whose version is owned by `package.json` and the lockfile;
   `tools/` is in `tsconfig.json`'s `include`, so `npm run typecheck` and `npm run lint` cover them.
   The other buildings keep everything in that one file; the fish-market shop is split into sibling
   modules inside its folder — `parts.ts` (the 274 placements), `materials.ts` (baked flat colors),
@@ -254,24 +267,24 @@ time.
 
 Each building has a normal catalog entry with `generator: "authored_glb"`, `parameters.sourceGlb`
 pointing at the committed export and a `textureMaxSize`. They are ordinary published assets: in the
-manifest, covered by `art:validate`, `art:sync`, `generate` and `determinism`, with the palette,
-budget, node and LOD contracts of any other asset.
+manifest, covered by `art:validate`, `art:sync`, `generate` and `determinism`, with the
+budget, node, material/texture and LOD compatibility contracts of any other asset.
 
-### Adaptation
+### Export material defaults
 
-The builder re-skins each factory's textured materials onto Neva's palette before export
-(`adaptToPalette` in `export-entry.ts`):
+The existing builder defaults to `adaptToPalette` in `export-entry.ts`. This material conversion
+is an implementation option that may evolve centrally, not a mandatory style for source assets:
 
-- Every mesh maps to one of at most 16 shared palette-token materials named for the token, sampled
-  from the mesh's true average colour (`material.color x texture average x vertex tint`). Tokens are
-  drawn from a craft subset so a plaster wall never lands on a water-foam token.
-- Textures are dropped (flat, faceted style) and COLOR_0 is baked with the full authored colour, with
-  the material factor left white, so the loader's `multiply` reproduces the original colour.
+- The adapter samples each mesh's average color (`material.color x texture average x vertex tint`)
+  and chooses from its configured palette subset.
+- In that conversion mode, textures are replaced by baked linear `COLOR_0` and a white material
+  factor. The mode does not require flat/faceted geometry or shading, and source-native materials
+  and textures may be retained instead within their declared caps.
 - `side: DoubleSide` is preserved, which the thatch/foliage/panel shells depend on.
 - Emissive parts map to `emissive_window_01` / `emissive_lantern_01`; Neva drives their strength.
 
-Result: 10–16 materials and zero textures per model (was 16–36 materials and up to 24 textures),
-with the look intact. `npm run art:authored -- --raw` skips adaptation for comparison.
+`npm run art:authored -- --raw` skips the adapter. Source material choices still use the
+catalog's validation, texture caps, LOD, optimization and atomic publication workflow.
 
 **Structure.** Each exported scene is
 `<id>_root` → `<id>_LOD0` (full) + `<id>_LOD1`/`_LOD2` (meshoptimizer-decimated) + `COL_<id>` (box

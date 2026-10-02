@@ -5,27 +5,27 @@ import type { LocalizedMarketText } from "../../types";
 export const TR_MARKETS: Record<string, LocalizedMarketText> = {
   "market.village": {
     name: "Köy Ürünleri Pazarı",
-    description: "Tarım mahsulleri ve günlük erzak için işlek ticaret meydanı. Teknelerden karaya taşınan balık denklerini de satın alır."
+    description: "Tarla için tohum ve atölye malzemeleri. Hasadını ve elde taşıdığın balık paketlerini burada sat."
   },
   "market.harbor": {
     name: "Liman Balık Hali ve Toptancısı",
-    description: "Taze deniz ürünleri, buz, yem ve tekne malzemeleri tedarik edilen ana liman iskelesi."
+    description: "Olta takımı, buz ve yol erzağı. Liman siparişlerini burada teslim et; diğer balık paketlerini köy tezgâhlarında sat."
   },
   "market.sunreach_cove": {
     name: "Gündoğumu Koyu Pazarı",
-    description: "Güneye bakan sıcak terasların zeytin, sardalya ve tuzlu balık takas ettiği kıyı pazarı."
+    description: "Teras tohumları, ağır olta takımı ve yol erzağı. Yöre mahsullerini ve elde taşınan balıkları alır."
   },
   "market.pinewatch": {
     name: "Çamlıgöz Ticaret Karakolu",
-    description: "Kuzey ormanlarının kenarında kereste, av eti ve dayanıklı malzeme takas edilen ticaret noktası."
+    description: "Orman yolu üzerinde kereste ve kumaş. Mahsul ve balık getir; koy iskelesi başka bir ulaşım yolu sunar."
   },
   "market.reedhaven": {
     name: "Sazlıliman Nehir Borsası",
-    description: "İç su yollarının kesiştiği, nehir balıkları ve saz ürünlerinin alınıp satıldığı sakin pazar."
+    description: "Bataklık iskelesinde yem, buz ve yakıt. Tahıl, bahçe meyveleri ve balık için alıcı bulabilirsin."
   },
   "market.highridge": {
     name: "Yüksek Sırt Yayla Deposu",
-    description: "Dağ yamaçlarından gelen erzakların ve dayanıklı kışlık mahsullerin toplandığı iç bölge ambarı."
+    description: "Koyun yukarısında kök bitki tohumları ve atölye malzemeleri. Deniz balıklarını karadan getir; tekne iskelesi yok."
   }
 };
 

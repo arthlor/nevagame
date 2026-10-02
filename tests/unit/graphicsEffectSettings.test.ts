@@ -55,6 +55,7 @@ describe("graphics effect preferences", () => {
         ambientOcclusion: "auto",
         aoStrength: 1,
         glow: "hdr",
+        sunShafts: true,
         edgeSmoothing: "fast",
         colorFinish: { saturation: 1, contrast: 1, warmth: 0.02 }
       }
@@ -195,7 +196,7 @@ describe("resolving effects for a tier", () => {
   it("applies Auto's temporary reductions without touching the saved choices", () => {
     const saved = preferences({ postProcessing: "custom" }, { glow: "hdr" });
     const before = JSON.stringify(saved);
-    const reduced = resolveGraphicsEffects(saved, "high", { bloom: true, ambientOcclusion: true, resolutionStep: 2 });
+    const reduced = resolveGraphicsEffects(saved, "high", { sunShafts: false, bloom: true, ambientOcclusion: true, resolutionStep: 2 });
     expect(reduced).toMatchObject({ hdrBloom: false, practicalGlow: true, ambientOcclusion: "gtao", aoReduced: true });
     expect(reduced.resolutionScale).toBe(CANONICAL_RENDER_CONFIG.postProcessing.renderResolution.autoScales[2]);
     expect(JSON.stringify(saved)).toBe(before);
@@ -205,11 +206,25 @@ describe("resolving effects for a tier", () => {
 });
 
 describe("Auto reduction ladder", () => {
+  it("suspends sunlight first without lowering resolution or overwriting its preference", () => {
+    const saved = preferences();
+    const ladder = reductionLadder(saved, "high");
+    expect(ladder[0]).toBe("sun-shafts");
+    expect(resolveGraphicsEffects(saved, "high", reductionsAtLevel(ladder, 1))).toMatchObject({
+      sunShafts: false, aoReduced: false, resolutionScale: 1
+    });
+    expect(saved.custom.sunShafts).toBe(true);
+    expect(resolveGraphicsEffects(saved, "high").sunShafts).toBe(true);
+    for (const tier of ["low", "medium"] as const) expect(resolveGraphicsEffects(saved, tier).sunShafts).toBe(false);
+    expect(resolveGraphicsEffects(preferences({ postProcessing: "off" }), "high").sunShafts).toBe(false);
+    expect(resolveGraphicsEffects(preferences({ postProcessing: "custom" }, { sunShafts: false }), "high").sunShafts).toBe(false);
+  });
+
   it("orders optional bloom, then AO, then resolution before a tier drop", () => {
     const withBloom = preferences({ postProcessing: "custom" }, { glow: "hdr" });
     const steps = CANONICAL_RENDER_CONFIG.postProcessing.renderResolution.autoScales.length - 1;
-    expect(reductionLadder(withBloom, "high")).toEqual(["bloom", "ambient-occlusion", ...Array(steps).fill("resolution")]);
-    expect(reductionLadder(DEFAULT_GRAPHICS_EFFECTS, "high")).toEqual(["ambient-occlusion", ...Array(steps).fill("resolution")]);
+    expect(reductionLadder(withBloom, "high")).toEqual(["sun-shafts", "bloom", "ambient-occlusion", ...Array(steps).fill("resolution")]);
+    expect(reductionLadder(DEFAULT_GRAPHICS_EFFECTS, "high")).toEqual(["sun-shafts", "ambient-occlusion", ...Array(steps).fill("resolution")]);
     expect(reductionLadder(DEFAULT_GRAPHICS_EFFECTS, "medium")).toEqual(Array(steps).fill("resolution"));
     expect(reductionLadder(preferences({ renderResolution: 1 }), "low")).toEqual([]);
   });
@@ -217,8 +232,8 @@ describe("Auto reduction ladder", () => {
   it("maps each ladder level to the reductions applied so far", () => {
     const ladder = reductionLadder(preferences({ postProcessing: "custom" }, { glow: "hdr" }), "high");
     expect(reductionsAtLevel(ladder, 0)).toEqual(NO_AUTO_REDUCTIONS);
-    expect(reductionsAtLevel(ladder, 1)).toEqual({ bloom: true, ambientOcclusion: false, resolutionStep: 0 });
-    expect(reductionsAtLevel(ladder, 3)).toEqual({ bloom: true, ambientOcclusion: true, resolutionStep: 1 });
-    expect(reductionsAtLevel(ladder, 99)).toEqual({ bloom: true, ambientOcclusion: true, resolutionStep: ladder.length - 2 });
+    expect(reductionsAtLevel(ladder, 2)).toEqual({ sunShafts: true, bloom: true, ambientOcclusion: false, resolutionStep: 0 });
+    expect(reductionsAtLevel(ladder, 4)).toEqual({ sunShafts: true, bloom: true, ambientOcclusion: true, resolutionStep: 1 });
+    expect(reductionsAtLevel(ladder, 99)).toEqual({ sunShafts: true, bloom: true, ambientOcclusion: true, resolutionStep: ladder.length - 3 });
   });
 });

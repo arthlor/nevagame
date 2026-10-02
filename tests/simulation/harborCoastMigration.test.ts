@@ -5,6 +5,7 @@ import { CURRENT_SCHEMA_VERSION, validateSaveEnvelope, type SaveEnvelope } from 
 import { WorldLayout } from "../../src/world/WorldLayout";
 import { WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
 import { harborCoastCollisionProxies } from "../../src/world/HarborCoastLayout";
+import { createWorldStaticPlacements } from "../../src/world/WorldEnvironmentLayout";
 import { staticPoseIsClear } from "../../src/physics/StaticCollision";
 import { STARTER_DONKEY_ID, playerPoseFromMount } from "../../src/simulation/mounts/Mounts";
 import { expectContractsPreserved, expectFarmsPreserved, expectInventoriesPreserved } from "../helpers/migrationPreservation";
@@ -76,11 +77,35 @@ describe("independent v32 harbor save recovery",()=>{
     expect(after.y).toBe(WorldLayout.traversalSurfaceHeight(132,70)+.5);
   });
 
-  it("recovers a saved pose covered by a newly placed trunk using the published collision proxy",()=>{
+  it("keeps the former trunk location clear against the composed world's collision proxies",()=>{
     const before=legacy();Object.assign(before.state.player,{x:125,z:65,y:2});
     const after=migrateSaveData(before).state.player;
-    expect(staticPoseIsClear(harborCoastCollisionProxies(),after,WorldLayout.traversalSurfaceHeight(after.x,after.z),.4)).toBe(true);
-    expect(Math.hypot(after.x-125,after.z-65)).toBeLessThan(3);
+    // The raw harbor generator still contains a palm here; composition removes
+    // it. Recovery must use the same retained placements as the actual world.
+    const boxes=harborCoastCollisionProxies(createWorldStaticPlacements(before.state.worldSeed));
+    expect(staticPoseIsClear(boxes,after,WorldLayout.traversalSurfaceHeight(after.x,after.z),.4)).toBe(true);
+    expect(after).toMatchObject({x:125,z:65});
+  });
+
+  it("recovers a pose obstructed by a retained harbor trunk without changing the input or money",()=>{
+    const before=legacy();
+    const boxes=harborCoastCollisionProxies(createWorldStaticPlacements(before.state.worldSeed));
+    const trunk=boxes.find(box=>box.id.endsWith(":trunk")
+      && WorldLayout.isWalkable(box.center.x,box.center.z)
+      && !WorldLayout.isWater(box.center.x,box.center.z)
+      && !staticPoseIsClear([box],box.center,WorldLayout.traversalSurfaceHeight(box.center.x,box.center.z),.4));
+    expect(trunk).toBeDefined();
+    Object.assign(before.state.player,{x:trunk!.center.x,z:trunk!.center.z,
+      y:WorldLayout.traversalSurfaceHeight(trunk!.center.x,trunk!.center.z)+.5});
+    const untouched=structuredClone(before);
+    expect(staticPoseIsClear(boxes,before.state.player,before.state.player.y-.5,.4)).toBe(false);
+    const after=migrateSaveData(before);
+    expect(staticPoseIsClear(boxes,after.state.player,
+      WorldLayout.traversalSurfaceHeight(after.state.player.x,after.state.player.z),.4)).toBe(true);
+    expect(Math.hypot(after.state.player.x-before.state.player.x,after.state.player.z-before.state.player.z)).toBeGreaterThan(.4);
+    expect(after.state.player.money).toBe(before.state.player.money);
+    expect(validateSaveEnvelope(after)).toBe(true);
+    expect(before).toEqual(untouched);
   });
 
   it("repairs a stranded docked boat without touching its identity, hold, gear or supplies",()=>{

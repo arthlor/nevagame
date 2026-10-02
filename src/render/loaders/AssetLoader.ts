@@ -14,6 +14,7 @@ import {
 import { AssetHotSwapper } from "../assets/AssetHotSwapper";
 import { PaletteMaterials } from "../materials/PaletteMaterials";
 import { configureConservativeSkinnedBounds } from "./CharacterCullingBounds";
+import { acquireTextureTranscoder, type TextureLease } from "./TextureTranscoder";
 
 const PRELOAD_ASSET_IDS: readonly AssetId[] = ASSET_CATALOG.map((asset) => asset.id);
 const DEFAULT_PRELOAD_CONCURRENCY = 6;
@@ -174,6 +175,11 @@ enableMeshoptWorkers();
 
 export class AssetLoader {
   private static loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  public static acquireTextures(renderer: THREE.WebGLRenderer): TextureLease {
+    const lease = acquireTextureTranscoder(renderer);
+    this.loader.setKTX2Loader(lease.ktx2Loader);
+    return lease;
+  }
   private static modelCache: Map<AssetId, THREE.Group> = new Map();
   private static loadingPromises: Map<AssetId, Promise<THREE.Group>> = new Map();
   /** Approximate retained geometry bytes per cached template. */

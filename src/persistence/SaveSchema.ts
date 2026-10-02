@@ -6,17 +6,18 @@ import { FARM_PACK_QUANTITY, FARM_PACK_WEIGHT_KG } from "../content/farmPacks";
 import { farmPackQuality, validFarmPackLots } from "../simulation/cargo/farmPacks";
 import { CARRIAGE_TYPE_ID, CARRIAGE_TUNING, STARTER_CARRIAGE_ID } from "../simulation/mounts/Carriage";
 import { dockedMooring } from "../world/WorldMoorings";
+import { shoreBerthAt } from "../world/ShoreBerth";
 // src/persistence/SaveSchema.ts
 
 import type { CropStage, GameState, ProcessingWorkTier } from "../simulation/core/types";
 import { ContentRegistry } from "../content/ContentRegistry";
 import { InventoryManager } from "../simulation/inventory/InventoryManager";
 import { PLAYER_SATCHEL_SLOT_COUNT } from "../simulation/inventory/InventoryLimits";
-import { SPORT_FISHING_WORK_COST_BY_CLASS } from "../simulation/domains/FishingDomain";
+import { WORK_PASSIVE_REGEN_INTERVAL_SECONDS } from "../simulation/domains/ProgressionDomain";
+import { BASIC_FISHING_WORK_COST, SPORT_FISHING_WORK_COST_BY_CLASS, SPORT_FISHING_LEGACY_MAX_CHARGE_BY_CLASS } from "../simulation/domains/FishingDomain";
 import {
   PROCESSING_JOB_SNAPSHOT_LIMITS,
-  PROCESSING_WORK_BY_TIER,
-  PROCESSING_XP_BY_TIER
+  isValidProcessingWorkXpSnapshot
 } from "../simulation/domains/ProcessingDomain";
 import { PLAYER_TRAVERSAL_TUNING } from "../simulation/navigation/PlayerTraversal";
 import { calendarAtMinute, isValidClockSpeed } from "../simulation/core/GameClock";
@@ -39,7 +40,7 @@ import {
   STARTER_DONKEY_TYPE_ID
 } from "../simulation/mounts/Mounts";
 
-export const CURRENT_SCHEMA_VERSION = 77;
+export const CURRENT_SCHEMA_VERSION = 80;
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -142,6 +143,12 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
           0
         ))
     )) ||
+    (schemaVersion >= 80 && (
+      !isFiniteInRange(state.player.workCapacity.passiveRegenSeconds, 0, WORK_PASSIVE_REGEN_INTERVAL_SECONDS) ||
+      state.player.workCapacity.passiveRegenSeconds === WORK_PASSIVE_REGEN_INTERVAL_SECONDS ||
+      !isFiniteInRange(state.player.workCapacity.offlineRegenSeconds, 0, WORK_PASSIVE_REGEN_INTERVAL_SECONDS) ||
+      state.player.workCapacity.offlineRegenSeconds === WORK_PASSIVE_REGEN_INTERVAL_SECONDS
+    )) ||
     !isRecord(state.player.proficiencies) ||
     !SKILL_IDS.every((skill) => isSafeInteger(state.player!.proficiencies[skill], 0))
   ) return false;
@@ -154,8 +161,12 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
   if (!isRecord(state.inventories) || !isRecord(state.farms) || !isRecord(state.crops)) return false;
   if (
     !isRecord(state.world) ||
-    (schemaVersion >= 76
+    (schemaVersion >= 79
       ? state.world.layoutRevision !== WORLD_LAYOUT_REVISION
+      : schemaVersion >= 78
+      ? state.world.layoutRevision !== 42
+      : schemaVersion >= 76
+      ? state.world.layoutRevision !== 41
       : schemaVersion >= 75
       ? state.world.layoutRevision !== 40
       : schemaVersion >= 74
@@ -351,6 +362,8 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       (state.basicFishing.catchItemId !== undefined && !ContentRegistry.items.has(state.basicFishing.catchItemId)) ||
       typeof state.basicFishing.willCatch !== "boolean" ||
       (state.basicFishing.castPower !== undefined && !isFiniteInRange(state.basicFishing.castPower, 0, 1)) ||
+      (state.basicFishing.workCharged !== undefined &&
+        (!isSafeInteger(state.basicFishing.workCharged, 1) || state.basicFishing.workCharged > BASIC_FISHING_WORK_COST)) ||
       (state.basicFishing.minigameStepRemainderSeconds !== undefined &&
         !isFiniteInRange(state.basicFishing.minigameStepRemainderSeconds, 0, 1)) ||
       (schemaVersion >= 22 && state.basicFishing.quality !== undefined && !isOneOf(state.basicFishing.quality, FISH_QUALITIES)))
@@ -369,13 +382,13 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       ? fishingDepthBounds(profile, state.sportFishing.distanceMeters)
       : null;
     // The snapshot is optional for old fights. Its upper bound is the hooked
-    // species' undiscounted class cost; the hook-time rank and equipment may
+    // species' current or historical undiscounted class cost; the hook-time rank and equipment may
     // have changed since then, so a tighter current quote would reject saves.
     const workCharged = state.sportFishing.workCharged;
     if (workCharged !== undefined && (
       !isSafeInteger(workCharged, 1) ||
       !species ||
-      workCharged > SPORT_FISHING_WORK_COST_BY_CLASS[species.cargoClass]
+      workCharged > Math.max(SPORT_FISHING_WORK_COST_BY_CLASS[species.cargoClass], SPORT_FISHING_LEGACY_MAX_CHARGE_BY_CLASS[species.cargoClass])
     )) return false;
     if (schemaVersion >= 19 && (
       !isRecord(dynamics) ||
@@ -603,8 +616,7 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       ) return false;
       const workTier = job.workTier as ProcessingWorkTier;
       if (
-        job.baseWork !== PROCESSING_WORK_BY_TIER[workTier] ||
-        job.xpReward !== PROCESSING_XP_BY_TIER[workTier]
+        !isValidProcessingWorkXpSnapshot(workTier, job.baseWork, job.xpReward)
       ) return false;
       if (occupiedProcessingStations.has(job.stationId)) return false;
       occupiedProcessingStations.add(job.stationId);
@@ -667,7 +679,10 @@ export function validateSaveEnvelope(data: unknown): data is SaveEnvelope {
       if (boat.dockedMarketId !== null && (typeof boat.dockedMarketId !== "string" || !ContentRegistry.markets.has(boat.dockedMarketId))) return false;
       if (schemaVersion < 42) {
         if (boat.isDocked !== Boolean(boat.dockedMarketId)) return false;
-      } else if (boat.isDocked ? !dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z) : boat.dockedMarketId !== null) return false;
+      } else if (boat.isDocked
+        ? !dockedMooring(boat.dockedMarketId, boat.boatTypeId, boat.x, boat.z)
+          && !(boat.dockedMarketId === null && shoreBerthAt(boat.x, boat.z, boat.headingRadians, boat.boatTypeId))
+        : boat.dockedMarketId !== null) return false;
     }
     if (state.player.activeBoatId === boatId && boat.isDocked) return false;
   }

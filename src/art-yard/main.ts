@@ -229,6 +229,7 @@ const renderer = new THREE.WebGLRenderer({
   antialias: true,
   powerPreference: "high-performance"
 });
+const assetTextures = AssetLoader.acquireTextures(renderer);
 renderer.outputColorSpace = CANONICAL_RENDER_CONFIG.outputColorSpace;
 renderer.toneMapping = CANONICAL_RENDER_CONFIG.toneMapping;
 renderer.toneMappingExposure = CANONICAL_RENDER_CONFIG.exposure;
@@ -1410,10 +1411,14 @@ function matchesCategoryFilter(asset: RuntimeAssetSpec, filter: string): boolean
 function populateAssetSelect(): void {
   const currentVal = assetSelect.value;
   const searchTerm = assetSearch.value.trim().toLowerCase();
+  const stagedIds = yardData && yardData.source !== "published"
+    ? new Set(yardData.assets.map((asset) => asset.id)) : null;
+  const partialStage = stagedIds !== null && stagedIds.size < ASSET_CATALOG.length;
   const filteredAssets = ASSET_CATALOG.filter((asset) => {
     // Retain the old source assets for regression fixtures, but retire them
     // from the review roster now that the integrated B cast is catalog-owned.
-    if (/^char_npc_.*_a$/.test(asset.id)) return false;
+    if (stagedIds && !stagedIds.has(asset.id)) return false;
+    if (!stagedIds && /^char_npc_.*_a$/.test(asset.id)) return false;
     const matchesFamily = matchesCategoryFilter(asset, activeFamilyFilter);
     const matchesSearch =
       !searchTerm ||
@@ -1474,7 +1479,8 @@ function populateAssetSelect(): void {
     });
 
   assetSelect.replaceChildren(
-    activeFamilyFilter === "all" || activeFamilyFilter === "showcase" ? showcaseGroup : document.createDocumentFragment(),
+    !partialStage && (activeFamilyFilter === "all" || activeFamilyFilter === "showcase")
+      ? showcaseGroup : document.createDocumentFragment(),
     ...familyGroups
   );
 
@@ -2388,9 +2394,13 @@ function syncStageUrl(source: string): void {
 }
 
 async function loadYardData(): Promise<void> {
+  const requestedStage = new URLSearchParams(window.location.search).get("artStage");
+  const staged = Boolean(requestedStage && requestedStage !== "published");
+  if (staged && !import.meta.env.DEV) throw new Error("Staged previews are available in development.");
   try {
     const response = await fetch(`/__neva_art_yard/data${window.location.search}`, { cache: "no-store" });
     if (!response.ok) {
+      if (staged) throw new Error(await response.text());
       const fallback = await fetch(`/__neva_art_yard/data.json${window.location.search}`, { cache: "no-store" });
       if (!fallback.ok) throw new Error(await response.text());
       yardData = (await fallback.json()) as YardData;
@@ -2403,6 +2413,8 @@ async function loadYardData(): Promise<void> {
     }
     syncStageUrl(yardData.source);
   } catch (error) {
+    // A requested candidate must never turn into a published-model review.
+    if (staged) throw error;
     console.warn("Art yard data endpoint unavailable, synthesizing from catalog:", error);
     yardData = {
       version: 1,
@@ -2902,17 +2914,23 @@ groundSelect.value = requestedGround;
 updateGroundBed(requestedGround);
 const requestedAssetId = new URLSearchParams(window.location.search).get("asset");
 void loadYardData()
-  .catch((error: unknown) => {
-    setStatus(error instanceof Error ? error.message : "Art yard data is unavailable");
-  })
-  .finally(() => {
+  .then(() => {
+    populateAssetSelect();
+    if (yardData?.source !== "published" && requestedAssetId
+      && !yardData?.assets.some((asset) => asset.id === requestedAssetId)) {
+      throw new Error(`${requestedAssetId} was not generated in this run.`);
+    }
     const initialAssetId = resolveArtYardAssetId(
       requestedAssetId,
       new Set(Array.from(assetSelect.options, option => option.value)),
-      "__showcase_village"
+      yardData && yardData.source !== "published" && yardData.assets.length < ASSET_CATALOG.length
+        ? assetSelect.options[0]?.value ?? "__showcase_village" : "__showcase_village"
     );
     assetSelect.value = initialAssetId;
     void loadAsset(initialAssetId);
+  })
+  .catch((error: unknown) => {
+    setStatus(error instanceof Error ? error.message : "Art yard data is unavailable");
   });
 
 requestAnimationFrame(animate);
@@ -2929,6 +2947,7 @@ function disposeAfterUnload(): void {
   waterGeometry.dispose();
   waterMaterial.dispose();
   renderer.dispose();
+  assetTextures.dispose();
 }
 
 window.addEventListener("pagehide", disposeAfterUnload, { once: true });

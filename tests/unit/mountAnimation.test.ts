@@ -51,8 +51,11 @@ describe("mounted character animation", () => {
     // Exercise the real mounted cadence method without creating a renderer.
     // Attachment placement and contacts have separate exported-asset gates.
     const scene = Object.assign(Object.create(WorldScene.prototype), {
-      donkeyPresentation: donkey, playerMesh: null, prefersReducedMotion: reducedMotion
-    }) as { updateDonkeyPresentation(state: Readonly<GameState>, player: PresentedPlayerFrame, time: number, delta: number, locomotionTimeScale: number): void };
+      donkeyPresentation: donkey, playerMesh: null, prefersReducedMotion: reducedMotion, mountHoofsteps: []
+    }) as {
+      updateDonkeyPresentation(state: Readonly<GameState>, player: PresentedPlayerFrame, time: number, delta: number, locomotionTimeScale: number): void;
+      drainMountHoofsteps(): ReturnType<WorldScene["drainMountHoofsteps"]>;
+    };
     const rider = new AnimationController(await loadHumanoidAsset(ASSET_IDS.CHAR_PLAYER_A));
     const state = { player: { activeMountId: donkey.id }, mounts: { [donkey.id]: { x: 0, y: 0, z: 0, rotationY: 0 } } } as unknown as GameState;
     const donkeySpecs = ASSET_BY_ID.get(ASSET_IDS.FAUNA_DONKEY_A)!.animationClips!;
@@ -85,6 +88,10 @@ describe("mounted character animation", () => {
         }
       }
     }
+    const hoofsteps = scene.drainMountHoofsteps();
+    expect(hoofsteps.length).toBeGreaterThan(0);
+    expect(hoofsteps.every(event => event.cue === "donkey-hoof" && event.x === 0 && event.z === 0)).toBe(true);
+    expect(scene.drainMountHoofsteps()).toEqual([]);
     // Dismount keeps its authored duration even after canonical ownership has
     // already moved the player off the animal.
     state.player.activeMountId = null;

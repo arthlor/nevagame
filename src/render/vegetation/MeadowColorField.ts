@@ -45,7 +45,7 @@ export function setMeadowLiveField(anchorX: number, anchorZ: number, radiusMeter
 /**
  * Macro palette regions and meso clumps as smooth value noise over world
  * meters. Everything here is palette-token colour: the noise only chooses
- * between approved roles and a bounded value band (Art Bible §7.2.1).
+ * between the configured roles and their bounded value band.
  */
 export const MEADOW_COLOR_FIELD_GLSL = /* glsl */ `
 ${SEASONAL_TINT_GLSL}

@@ -7,9 +7,13 @@ import { PALETTE_HEX } from "../materials/PaletteTokens";
 const RING_SEGMENTS = 64;
 const STROKE_METERS = 0.055;
 const LIFT_METERS = 0.07;
+const CURSOR_AVAILABLE_COLOR = "#48c738";
 
 type PreviewShape = Pick<CropPlacementResult, "farmId" | "worldX" | "worldZ" | "valid" | "reasonCode"> & {
   radius: number;
+  width: number;
+  depth: number;
+  rotationRadians: number;
 };
 
 /**
@@ -19,23 +23,25 @@ type PreviewShape = Pick<CropPlacementResult, "farmId" | "worldX" | "worldZ" | "
  */
 export class CropPlacementCursor {
   public readonly group = new THREE.Group();
-  private readonly shadowMaterial = groundMaterial(PALETTE_HEX.soil_shadow_01, 0.55);
-  private readonly accentMaterial = groundMaterial(PALETTE_HEX.foam_warm_01, 0.96);
+  private readonly shadowMaterial = groundMaterial("#14100c", 0.22);
+  private readonly accentMaterial = groundMaterial(CURSOR_AVAILABLE_COLOR, 0.96);
+  private readonly footprintMaterial = groundMaterial(CURSOR_AVAILABLE_COLOR, 0.42);
   private readonly lineMaterial = new THREE.LineBasicMaterial({
-    color: PALETTE_HEX.foam_warm_01,
+    color: CURSOR_AVAILABLE_COLOR,
     transparent: true,
-    opacity: 0.95,
+    opacity: 0.75,
     depthWrite: false
   });
   private readonly shadow = new THREE.Mesh(dynamicGeometry(RING_SEGMENTS * 6), this.shadowMaterial);
   private readonly stroke = new THREE.Mesh(dynamicGeometry(RING_SEGMENTS * 6), this.accentMaterial);
   private readonly seed = new THREE.Mesh(
-    new THREE.CircleGeometry(0.055, 18).rotateX(-Math.PI / 2),
+    new THREE.CircleGeometry(0.045, 18).rotateX(-Math.PI / 2),
     this.accentMaterial
   );
   private readonly ticks = new THREE.LineSegments(dynamicGeometry(8), this.lineMaterial);
   private readonly cross = new THREE.Mesh(dynamicGeometry(12), this.accentMaterial);
   private readonly nest = new THREE.Mesh(dynamicGeometry(RING_SEGMENTS * 6), this.accentMaterial);
+  private readonly footprint = new THREE.Mesh(dynamicGeometry(16 * 6), this.footprintMaterial);
   private readonly sampledHeights = new Map<string, number>();
   private lastPreview: PreviewShape | undefined;
 
@@ -49,7 +55,8 @@ export class CropPlacementCursor {
     this.ticks.name = "crop_placement_ticks";
     this.cross.name = "crop_placement_cross";
     this.nest.name = "crop_placement_nest";
-    for (const mesh of [this.shadow, this.stroke, this.seed, this.nest, this.cross]) {
+    this.footprint.name = "crop_placement_footprint";
+    for (const mesh of [this.shadow, this.stroke, this.seed, this.nest, this.cross, this.footprint]) {
       mesh.renderOrder = 5;
       mesh.frustumCulled = false;
       mesh.raycast = () => undefined;
@@ -58,7 +65,7 @@ export class CropPlacementCursor {
     this.ticks.renderOrder = 6;
     this.ticks.frustumCulled = false;
     this.ticks.raycast = () => undefined;
-    this.group.add(this.shadow, this.stroke, this.seed, this.ticks, this.cross, this.nest);
+    this.group.add(this.shadow, this.stroke, this.seed, this.ticks, this.cross, this.nest, this.footprint);
   }
 
   public update(result: CropPlacementResult | null): void {
@@ -83,6 +90,9 @@ export class CropPlacementCursor {
       && previous.worldX === result.worldX
       && previous.worldZ === result.worldZ
       && previous.radius === radius
+      && previous.width === result.footprint.width
+      && previous.depth === result.footprint.depth
+      && previous.rotationRadians === result.rotationRadians
       && previous.valid === result.valid
       && previous.reasonCode === result.reasonCode) return;
     this.sampledHeights.clear();
@@ -102,13 +112,22 @@ export class CropPlacementCursor {
     const tooFar = !result.valid && result.reasonCode === "too-far";
     const occupied = !result.valid && result.reasonCode === "overlaps-crop";
     const color = affirmative
-      ? PALETTE_HEX.foam_warm_01
+      ? CURSOR_AVAILABLE_COLOR
       : tooFar
         ? PALETTE_HEX.accent_ochre_01
         : PALETTE_HEX.roof_terracotta_01;
     this.accentMaterial.color.set(color);
     this.accentMaterial.opacity = tooFar ? 0.72 : 0.96;
     this.lineMaterial.color.set(color);
+    this.lineMaterial.opacity = affirmative ? 0.75 : 0.6;
+    this.footprintMaterial.color.set(color);
+    this.footprintMaterial.opacity = affirmative
+      ? 0.42
+      : tooFar
+        ? 0.25
+        : occupied
+          ? 0.55
+          : 0.40;
 
     const keep = (index: number): boolean => {
       const current = outer[index]?.onSoil ?? false;
@@ -121,6 +140,7 @@ export class CropPlacementCursor {
 
     this.replaceStrip(this.shadow, center, outer, radius, Math.max(0.04, radius - STROKE_METERS - 0.02), keep);
     this.replaceStrip(this.stroke, center, outer, radius, Math.max(0.04, radius - STROKE_METERS), keep);
+    this.replaceFootprint(result, center, onSoil);
     this.group.visible = true;
     this.group.position.set(center.x, 0, center.z);
     this.group.rotation.set(0, 0, 0);
@@ -130,7 +150,7 @@ export class CropPlacementCursor {
     this.seed.visible = affirmative;
     this.seed.position.y = groundY;
     this.ticks.visible = affirmative;
-    if (affirmative) this.replaceTicks(center, radius);
+    if (affirmative) this.replaceTicks(center, radius, result.rotationRadians);
     this.cross.visible = !affirmative && !tooFar && !occupied;
     if (this.cross.visible) this.replaceCross(center, radius, onSoil);
     this.nest.visible = occupied;
@@ -148,7 +168,10 @@ export class CropPlacementCursor {
       worldZ: result.worldZ,
       valid: result.valid,
       reasonCode: result.reasonCode,
-      radius
+      radius,
+      width: result.footprint.width,
+      depth: result.footprint.depth,
+      rotationRadians: result.rotationRadians
     };
   }
 
@@ -158,20 +181,52 @@ export class CropPlacementCursor {
     });
     this.shadowMaterial.dispose();
     this.accentMaterial.dispose();
+    this.footprintMaterial.dispose();
     this.lineMaterial.dispose();
     this.group.removeFromParent();
   }
 
-  private replaceTicks(center: { x: number; z: number }, radius: number): void {
+  private replaceTicks(center: { x: number; z: number }, radius: number, rotationRadians: number): void {
     const positions: number[] = [];
     for (let quadrant = 0; quadrant < 4; quadrant += 1) {
-      const angle = quadrant * (Math.PI / 2);
+      const angle = rotationRadians + quadrant * (Math.PI / 2);
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
-      this.pushLifted(positions, center, cos * (radius - 0.12), sin * (radius - 0.12));
+      this.pushLifted(positions, center, cos * (radius - 0.11), sin * (radius - 0.11));
       this.pushLifted(positions, center, cos * (radius - 0.02), sin * (radius - 0.02));
     }
     setPositions(this.ticks.geometry, positions);
+  }
+
+  private replaceFootprint(
+    result: CropPlacementResult,
+    center: { x: number; z: number },
+    onSoil: (x: number, z: number) => boolean
+  ): void {
+    const { width, depth } = result.footprint;
+    const cos = Math.cos(result.rotationRadians), sin = Math.sin(result.rotationRadians);
+    const corners = [[-width / 2, -depth / 2], [width / 2, -depth / 2],
+      [width / 2, depth / 2], [-width / 2, depth / 2]].map(([x, z]) => ({
+      x: x! * cos - z! * sin, z: x! * sin + z! * cos
+    }));
+    const positions: number[] = [];
+    for (let edge = 0; edge < 4; edge++) {
+      const a = corners[edge]!, b = corners[(edge + 1) % 4]!;
+      for (let segment = 0; segment < 4; segment++) {
+        const start = positions.length;
+        this.pushBar(positions, center,
+          THREE.MathUtils.lerp(a.x, b.x, segment / 4), THREE.MathUtils.lerp(a.z, b.z, segment / 4),
+          THREE.MathUtils.lerp(a.x, b.x, (segment + 1) / 4), THREE.MathUtils.lerp(a.z, b.z, (segment + 1) / 4), 0.018);
+        for (let index = start; index < positions.length; index += 3) {
+          if (!onSoil(positions[index]!, positions[index + 2]!)) {
+            positions.length = start;
+            break;
+          }
+        }
+      }
+    }
+    this.footprint.visible = positions.length > 0;
+    setPositions(this.footprint.geometry, positions);
   }
 
   private replaceCross(
@@ -210,13 +265,14 @@ export class CropPlacementCursor {
     x0: number,
     z0: number,
     x1: number,
-    z1: number
+    z1: number,
+    halfWidth: number = 0.028
   ): void {
     const dx = x1 - x0;
     const dz = z1 - z0;
     const length = Math.hypot(dx, dz) || 1;
-    const px = (-dz / length) * 0.028;
-    const pz = (dx / length) * 0.028;
+    const px = (-dz / length) * halfWidth;
+    const pz = (dx / length) * halfWidth;
     const quad = [
       { x: x0 + px, z: z0 + pz },
       { x: x1 + px, z: z1 + pz },

@@ -3,6 +3,8 @@ import { AtlasImage } from "./AtlasImage";
 import { qualitySpriteKey, UI_QUALITY } from "./uiAtlas";
 import { playAcceptedUiDing } from "../audio/uiAudio";
 import { FiligreeCornerTL, FiligreeCornerBR } from "../HudDecorations";
+import { useTranslation } from "../../i18n/useTranslation";
+import { qualityLabel } from "../../i18n/itemText";
 
 type PanelTag = "div" | "aside" | "section" | "header" | "article" | "nav" | "footer";
 
@@ -288,9 +290,10 @@ export const ChromeQuality: React.FC<{ quality?: string | null; className?: stri
   showLabel = true
 }) => {
   const key = qualitySpriteKey(quality);
-  const label = quality || key;
+  const { locale } = useTranslation();
+  const label = qualityLabel(quality || key, locale);
   return (
-    <span className={`chrome-quality chrome-quality--${key} ${className}`.trim()} title={`${label} quality`}
+    <span className={`chrome-quality chrome-quality--${key} ${className}`.trim()} title={locale === "tr" ? `${label} kalite` : `${label} quality`}
       data-testid="quality-badge" data-quality={key}>
       <QualityMedallion quality={quality} />
       {showLabel && <span>{label}</span>}

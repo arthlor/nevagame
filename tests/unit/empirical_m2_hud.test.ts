@@ -105,7 +105,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       );
 
       expect(html).toContain("farm-forecast-popover");
-      expect(html).toContain("Coast forecast");
+      expect(html).toContain("Forecast");
       expect(html).toContain("Autumn");
       expect(html).toContain("Now");
       expect(html).toContain("17°C");
@@ -179,7 +179,7 @@ describe("Milestone M2 Empirical Split-Corners HUD Verification", () => {
       expect(html).toContain('data-testid="weather-hazard-banner"');
       expect(html).toContain('data-hazard-id="storm"');
       expect(html).toContain('data-severity="danger"');
-      expect(html).toContain("Severe Coastal Storm");
+      expect(html).toContain("Coastal storm");
     });
 
     it("renders the game menu button with its accessible shortcut", () => {

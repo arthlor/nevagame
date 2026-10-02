@@ -103,6 +103,53 @@ describe("static prefab batching", () => {
     });
   });
 
+  it("preserves authored gradients, smooth normals and double-sided material settings", () => {
+    const { root, batch } = harness();
+    const geometry = new THREE.BufferGeometry();
+    const colors = new Float32Array([0,1,0, 1,0,1, .1,.2,.9]);
+    const normals = new Float32Array([0,0,1, .6,0,.8, 0,.6,.8]);
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute([0,0,0, 1,0,0, 0,1,0], 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+    const material = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, vertexColors: true, flatShading: false });
+    for (const x of [0, 2]) {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.x = x;
+      root.add(mesh);
+    }
+    const [batched] = batch();
+    expect(batched.instanceCount).toBe(2);
+    expect(batched.material).toBe(material);
+    expect(material.side).toBe(THREE.DoubleSide);
+    expect(material.flatShading).toBe(false);
+    expect(batched.geometry.getAttribute("color").array.slice(0, colors.length)).toEqual(colors);
+    expect(batched.geometry.getAttribute("normal").array.slice(0, normals.length)).toEqual(normals);
+  });
+
+  it("retains local cell bounds when the prefab root has a world transform", () => {
+    const { root, batch } = harness();
+    root.position.set(0, 0, -40);
+    root.scale.set(2, 1, 1);
+    const material = new THREE.MeshStandardMaterial();
+    for (const x of [-40, 40]) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(), material);
+      mesh.position.x = x;
+      root.add(mesh);
+    }
+    const [batched] = batch();
+    root.updateMatrixWorld(true);
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+    const frustum = () => {
+      camera.updateMatrixWorld();
+      return new THREE.Frustum().setFromProjectionMatrix(
+        new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+      );
+    };
+    expect(batched.intersectsFrustum(frustum())).toBe(false);
+    camera.lookAt(80, 0, -40);
+    expect(batched.intersectsFrustum(frustum())).toBe(true);
+  });
+
   it("never promotes a non-caster or changes receiving policy when materials match", () => {
     const { root, batch } = harness();
     const geometry = new THREE.BoxGeometry();
@@ -245,6 +292,23 @@ describe("static prefab batching", () => {
     expect(dynamic.parent).toBe(root);
     expect(skinned.parent).toBe(root);
   });
+
+  it.each(["transmissionMap", "thicknessMap", "specularIntensityMap", "specularColorMap"] as const)(
+    "retains source UVs used only by a physical material's %s", (slot) => {
+      const { root, batch } = harness();
+      const geometry = new THREE.BoxGeometry();
+      const material = new THREE.MeshPhysicalMaterial({ transmission: .5, thickness: .4 });
+      const texture = new THREE.Texture();
+      material[slot] = texture;
+      root.add(new THREE.Mesh(geometry, material), new THREE.Mesh(geometry, material));
+      const batches = batch();
+      expect(batches).toHaveLength(1);
+      expect(batches[0].material).toBe(material);
+      expect(material[slot]).toBe(texture);
+      expect(batches[0].geometry.getAttribute("uv").array).toEqual(geometry.getAttribute("uv").array);
+      expect(batches[0].instanceCount).toBe(2);
+    }
+  );
 
   it("reduces understory range by tier without erasing the forest canopy", () => {
     const { root, world, batch, scene } = harness();

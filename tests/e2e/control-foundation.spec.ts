@@ -76,9 +76,9 @@ async function loadScenario(
   const diagnostics = page.getByTestId("diagnostics");
   // The world only mounts the diagnostics surface once startup reaches the
   // running scene; on a cold dev server that is tens of seconds of GLB work.
-  await expect(diagnostics).toBeVisible({ timeout: 60_000 });
+  await expect(diagnostics).toBeVisible({ timeout: 120_000 });
   await expect(diagnostics).toHaveAttribute("data-mode", /.+/);
-  await expect(diagnostics).toHaveAttribute("data-boot-ready", "true", { timeout: 60_000 });
+  await expect(diagnostics).toHaveAttribute("data-boot-ready", "true", { timeout: 120_000 });
   return diagnostics;
 }
 

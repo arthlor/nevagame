@@ -142,7 +142,7 @@ vec3 nevaSurfaceWeightedPalette(
 vec3 nevaSurfaceFacetNormal(vec3 baseNormal, vec4 cell, float strength, float mask) {
   // Standard normals are in view space. Anchor the relief to the land before
   // rotating it back, so camera orbit cannot change the material's planes.
-  vec3 worldNormal = inverseTransformDirection(baseNormal, viewMatrix);
+  vec3 worldNormal = transformNormalByInverseViewMatrix(baseNormal, viewMatrix);
   vec3 facetAxis = abs(worldNormal.y) > 0.92
     ? vec3(1.0, 0.0, 0.0)
     : vec3(0.0, 1.0, 0.0);

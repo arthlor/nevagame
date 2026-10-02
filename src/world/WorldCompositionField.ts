@@ -362,7 +362,7 @@ function mainlandCompositionSample(worldSeed: number, x: number, z: number): Wor
   const signedShore = WorldLayout.waterSignedDistance(x, z);
   const route = WorldLayout.nearestRouteDistance(x, z);
   const roadEdge = route.halfWidth + route.shoulderWidthMeters;
-  const routeClearance = 1 - smoothstep(roadEdge + 0.5, roadEdge + 2.5, route.distance);
+  const routeClearance = WorldLayout.roadsideInfluence(x, z);
   const workingDistance = mainlandSettlementClearanceAt(x, z);
   const architectureClearance = 1 - smoothstep(0, 3.5, workingDistance);
   let village = 0, villageOpening = 0, harbor = 0, orchard = 0;

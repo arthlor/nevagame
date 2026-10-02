@@ -10,81 +10,42 @@ export interface WeatherHazardBannerProps {
   className?: string;
 }
 
-const TR_HAZARDS: Record<string, { title: string; conditionLabel: string; advisory: string }> = {
-  "dense-fog": {
-    title: "Yoğun Deniz Sisi",
-    conditionLabel: "Görüş < 50m",
-    advisory: "Ufuk çizgisi kayboldu. Yalnızca pusula kerterizine güven."
-  },
-  "squall": {
-    title: "Fırtına Borası",
-    conditionLabel: "Sağanak > 22 kn",
-    advisory: "Tekne sürüklenmesi yüksek. Rüzgara karşı dümen kır ve motor gücünü koru."
-  },
-  "storm-waves": {
-    title: "Tehlikeli Azgın Dalga",
-    conditionLabel: "Dalga kabarması > 0.70",
-    advisory: "Açık denizde şiddetli yalpa. Sığlıklardan ve topuklardan uzak dur."
-  },
-  "storm": {
-    title: "Şiddetli Kıyı Fırtınası",
-    conditionLabel: "Kuvvetli Fırtına & Dalgalar",
-    advisory: "Tehlikeli deniz durumu. Küçük teknelerin gövdesi darbe alır — pruvayı rüzgara tut ya da alargaya çıkıp bekle."
-  }
+type ResolvedHazard = Omit<MaritimeHazardDto, "hazardId"> & {
+  hazardId: MaritimeHazardDto["hazardId"] | "weather";
 };
 
-export function resolveMaritimeHazard(
-  hazard?: MaritimeHazardDto | { text: string; tone: "caution" | "danger" } | null
-): MaritimeHazardDto | null {
-  if (!hazard) return null;
+const HAZARD_COPY = {
+  "dense-fog": { en: ["Dense fog", "Use the chart and compass."], tr: ["Yoğun sis", "Harita ve pusulayla yönünü bul."] },
+  squall: { en: ["Strong winds", "Allow room for drift."], tr: ["Kuvvetli rüzgâr", "Sürüklenmeye karşı mesafe bırak."] },
+  "storm-waves": { en: ["Rough water", "Choose a sheltered route."], tr: ["Dalgalı deniz", "Korunaklı bir rota seç."] },
+  storm: { en: ["Coastal storm", "At sea, face the wind or ease off the throttle."], tr: ["Kıyı fırtınası", "Denizde pruvayı rüzgâra çevir veya gazı azalt."] }
+} satisfies Record<MaritimeHazardDto["hazardId"], { en: [string, string]; tr: [string, string] }>;
 
+export function resolveMaritimeHazard(
+  hazard?: WeatherHazardBannerProps["hazard"],
+  locale = "en"
+): ResolvedHazard | null {
+  if (!hazard) return null;
+  // Detailed measurements belong to the supplying DTO. A generic warning
+  // cannot establish visibility in metres, wind in knots or a speed penalty.
   if ("hazardId" in hazard) return hazard;
 
-  const textLower = hazard.text.toLowerCase();
-  if (textLower.includes("fog")) {
-    return {
-      hazardId: "dense-fog",
-      title: "Dense Maritime Fog",
-      severity: "caution",
-      conditionLabel: "Visibility < 50m",
-      navigationalAdvisory: "Zero horizon reference. Rely strictly on nautical compass bearings.",
-      speedPenaltyPercent: 15
-    };
-  }
-
-  if (textLower.includes("gale") || textLower.includes("wind") || textLower.includes("squall")) {
-    return {
-      hazardId: "squall",
-      title: "Gale-Force Squall",
-      severity: "caution",
-      conditionLabel: "Gusts > 22 kn",
-      navigationalAdvisory: "High vessel drift. Steer into wind and maintain engine power.",
-      speedPenaltyPercent: 20
-    };
-  }
-
-  if (textLower.includes("swell") || textLower.includes("wave")) {
-    return {
-      hazardId: "storm-waves",
-      title: "Hazardous Rough Swell",
-      severity: "caution",
-      conditionLabel: "Sea swell > 0.70",
-      navigationalAdvisory: "Heavy roll on open water. Keep off shoals and shallow bars.",
-      speedPenaltyPercent: 25
-    };
-  }
-
+  const text = hazard.text.toLowerCase();
+  const hazardId = text.includes("fog") ? "dense-fog"
+    : /gale|wind|squall/.test(text) ? "squall"
+    : /swell|wave/.test(text) ? "storm-waves"
+    : text.includes("storm") ? "storm" : "weather";
+  const copy = hazardId === "weather" ? null : HAZARD_COPY[hazardId][locale === "tr" ? "tr" : "en"];
   return {
-    hazardId: "storm",
-    title: "Severe Coastal Storm",
-    severity: hazard.tone === "danger" ? "danger" : "caution",
-    conditionLabel: "Heavy Gale & Waves",
-    navigationalAdvisory: "Hazardous sea state. Small vessels take hull damage — keep her head to the wind, or heave to and wait.",
-    speedPenaltyPercent: 30
+    hazardId,
+    title: copy?.[0] ?? hazard.text,
+    severity: hazard.tone,
+    conditionLabel: "",
+    navigationalAdvisory: copy?.[1] ?? ""
   };
 }
 
-export const WeatherHazardBanner: React.FC<WeatherHazardBannerProps> = ({
+export const WeatherHazardBanner: React.FC<WeatherHazardBannerProps> = React.memo(({
   hazard,
   onDismiss,
   className = ""
@@ -92,20 +53,17 @@ export const WeatherHazardBanner: React.FC<WeatherHazardBannerProps> = ({
   const { locale } = useTranslation();
   const isTr = locale === "tr";
   const [dismissed, setDismissed] = useState(false);
-  const resolved = resolveMaritimeHazard(hazard);
+  const resolved = resolveMaritimeHazard(hazard, locale);
 
   if (!resolved || dismissed) return null;
 
   const isDanger = resolved.severity === "danger";
-  const title = (isTr ? TR_HAZARDS[resolved.hazardId]?.title : null) || resolved.title;
-  const conditionLabel = (isTr ? TR_HAZARDS[resolved.hazardId]?.conditionLabel : null) || resolved.conditionLabel;
-  const advisory = (isTr ? TR_HAZARDS[resolved.hazardId]?.advisory : null) || resolved.navigationalAdvisory;
 
   return (
     <aside
       className={`weather-hazard-banner severity--${resolved.severity} ${className}`.trim()}
-      role="alert"
-      aria-live="assertive"
+      role={isDanger ? "alert" : "status"}
+      aria-live={isDanger ? "assertive" : "polite"}
       data-testid="weather-hazard-banner"
       data-hazard-id={resolved.hazardId}
       data-severity={resolved.severity}
@@ -120,10 +78,10 @@ export const WeatherHazardBanner: React.FC<WeatherHazardBannerProps> = ({
 
       <div className="hazard-banner-content">
         <div className="hazard-banner-header-row">
-          <strong className="hazard-banner-title">{title}</strong>
-          <span className="hazard-condition-badge">{conditionLabel}</span>
+          <strong className="hazard-banner-title">{resolved.title}</strong>
+          {resolved.conditionLabel && <span className="hazard-condition-badge">{resolved.conditionLabel}</span>}
         </div>
-        <p className="hazard-banner-advisory">{advisory}</p>
+        {resolved.navigationalAdvisory && <p className="hazard-banner-advisory">{resolved.navigationalAdvisory}</p>}
       </div>
 
       <ChromeClose
@@ -136,4 +94,4 @@ export const WeatherHazardBanner: React.FC<WeatherHazardBannerProps> = ({
       />
     </aside>
   );
-};
+});

@@ -15,7 +15,7 @@ import { staticPoseIsClear } from "../../src/physics/StaticCollision";
 import type { GameState } from "../../src/simulation/core/types";
 import { PLAYER_TRAVERSAL_TUNING } from "../../src/simulation/navigation/PlayerTraversal";
 import { InventoryManager } from "../../src/simulation/inventory/InventoryManager";
-import { WORK_CAPACITY_MAXIMUM, WORK_REST_BASELINE_FRACTION } from "../../src/simulation/domains/ProgressionDomain";
+import { WORK_CAPACITY_MAXIMUM } from "../../src/simulation/domains/ProgressionDomain";
 import { STARTER_FARM_LAYOUT, starterStructureAnchor } from "../../src/world/FarmLayout";
 import { getProcessingStationFrontPosition } from "../../src/world/ProcessingStationApproach";
 import { HARBOR_DOCK, HARBOR_FISH_TABLE, WORLD_LAYOUT_REVISION } from "../../src/world/WorldAnchors";
@@ -807,7 +807,7 @@ describe("Persistence & Offline Progression", () => {
     expect(summary.simulatedGameMinutes).toBe(Math.floor(3 * 3600 * 0.4));
   });
 
-  it("grants at most one rest to work capacity across an offline night", () => {
+  it("recovers five Work per five real minutes across an offline night", () => {
     const sim = new Simulation();
     const now = Date.now();
     sim.state.player.workCapacity.current = 0;
@@ -815,10 +815,7 @@ describe("Persistence & Offline Progression", () => {
 
     applyOfflineProgression(sim.state, now);
 
-    // Work is earned, not regenerated: one wake grants the 40% baseline floor.
-    expect(sim.state.player.workCapacity.current).toBe(
-      Math.round(WORK_CAPACITY_MAXIMUM * WORK_REST_BASELINE_FRACTION)
-    );
+    expect(sim.state.player.workCapacity.current).toBe(720);
   });
 
   it("advances offline markets hour by hour without supply overshooting its target", () => {

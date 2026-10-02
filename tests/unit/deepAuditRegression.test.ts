@@ -144,6 +144,6 @@ describe("gameplay coaching agrees with the implemented rules", () => {
   it("does not describe every docking location as the harbor", () => {
     expect(source).not.toContain('this.setToast("Docked at harbor"');
     expect(source).not.toContain("Return to the harbor dock to disembark");
-    expect(source).toContain("Return to a marked mooring to disembark");
+    expect(source).toContain("Moor beside shore or a marked pier");
   });
 });

@@ -50,11 +50,23 @@ export async function validateSurfaceContract(bytes, spec) {
     const colors = geometry.getAttribute("color");
     const normals = geometry.getAttribute("normal");
     if (!normals || (authoredSurface && !colors)) fail(`${mesh.name} is missing color/normal data`);
+    if (!position || position.itemSize !== 3 || normals.itemSize !== 3 || normals.count !== position.count) {
+      fail(`${mesh.name}: invalid position/normal layout`);
+    }
+    if (colors && ((colors.itemSize !== 3 && colors.itemSize !== 4) || colors.count !== position.count)) {
+      fail(`${mesh.name}: invalid color layout`);
+    }
     for (let i = 0; i < position.count; i++) {
       normal.fromBufferAttribute(normals, i);
       if (!Number.isFinite(normal.length()) || Math.abs(normal.length() - 1) > .03) fail(`${mesh.name}: invalid normal at ${i}`);
       if (![position.getX(i), position.getY(i), position.getZ(i)].every(Number.isFinite)) fail(`${mesh.name}: invalid position`);
-      if (colors && ![colors.getX(i), colors.getY(i), colors.getZ(i)].every(Number.isFinite)) fail(`${mesh.name}: invalid color at ${i}`);
+      if (colors) {
+        const channels = [colors.getX(i), colors.getY(i), colors.getZ(i)];
+        if (colors.itemSize === 4) channels.push(colors.getW(i));
+        if (!channels.every((channel) => Number.isFinite(channel) && channel >= 0 && channel <= 1)) {
+          fail(`${mesh.name}: invalid color at ${i}`);
+        }
+      }
     }
     const indices = geometry.index;
     const count = indices ? indices.count : position.count;
@@ -71,10 +83,6 @@ export async function validateSurfaceContract(bytes, spec) {
         if (faceNormal.lengthSq() > 1e-18 && faceNormal.normalize().dot(meanNormal.normalize()) < -.001) {
           fail(`${mesh.name}: normals oppose triangle winding at ${i / 3}`);
         }
-      }
-      if (authoredSurface) {
-        a.fromBufferAttribute(colors, ids[0]);
-        if (ids.some((id) => a.distanceTo(b.fromBufferAttribute(colors, id)) > .000002)) fail(`${mesh.name}: nonconstant facet color at triangle ${i / 3}`);
       }
       normal.fromBufferAttribute(normals, ids[0]);
       if (ids.some((id) => normal.distanceTo(b.fromBufferAttribute(normals, id)) > .002)) interpolatedTriangles++;

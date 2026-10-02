@@ -1,9 +1,11 @@
+import { localizeMarketText } from "../i18n/marketText";
 import { tradePackName } from "../i18n/tradePackNames";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MarketId, RodId } from "../simulation/core/types";
 import { marketAcceptsFishTradePacks } from "../content/markets";
-import { IconCoin, IconFish, IconJournal, IconRod, IconSprout } from "./components/HudIcons";
+import { IconCoin, IconFish, IconJournal, IconRod } from "./components/HudIcons";
 import { useModalAccessibility } from "./useModalAccessibility";
+import { handleTabListKeyDown } from "./useTabListKeyboard";
 import { AtlasImage } from "./chrome/AtlasImage";
 import { atlasForFish, atlasForItem, atlasForRod } from "./chrome/uiAtlas";
 import { ChromeButton, ChromeClose, ChromeDivider, ChromeQuality } from "./chrome/Chrome";
@@ -25,6 +27,8 @@ function SortToggles<T extends string>({ options, activeKey, direction, onSelect
   onSelect: (key: T) => void;
   ariaLabel: string;
 }) {
+  const { locale } = useTranslation();
+  const isTr = locale === "tr";
   return (
     <div className="market-sort-row" role="group" aria-label={ariaLabel}>
       {options.map((option) => {
@@ -35,7 +39,9 @@ function SortToggles<T extends string>({ options, activeKey, direction, onSelect
             type="button"
             className={`market-sort-btn${isActive ? " is-active" : ""}`}
             aria-pressed={isActive}
-            title={isActive ? `Sorted by ${option.label} (${direction === 1 ? "ascending" : "descending"}). Activate to reverse.` : `Sort by ${option.label}`}
+            title={isTr
+              ? (isActive ? `${option.label}: ${direction === 1 ? "artan" : "azalan"}. Sırayı tersine çevir.` : `${option.label} sırasına göre göster`)
+              : (isActive ? `Sorted by ${option.label} (${direction === 1 ? "ascending" : "descending"}). Activate to reverse.` : `Sort by ${option.label}`)}
             onClick={() => onSelect(option.key)}
           >
             {option.label}{isActive ? (direction === 1 ? " ↑" : " ↓") : ""}
@@ -111,9 +117,11 @@ export const MarketModal: React.FC<MarketModalProps> = ({
     getLocalizedFish,
     getLocalizedRod,
     getLocalizedMarket,
+    getLocalizedSkill,
     getLocalizedShopkeepLine
   } = useTranslation();
   const isTr = locale === "tr";
+  const line = (text: string) => localizeMarketText(text, locale);
 
   const activeMarketId = board?.marketId ?? null;
 
@@ -131,7 +139,20 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   // "item" arms the ticket's "Sell all of this item" for the selected stack.
   const [pendingBulk, setPendingBulk] = useState<"produce" | "fish" | "item" | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const bulkOpenerRef = useRef<HTMLButtonElement | null>(null);
   useModalAccessibility(modalRef, onClose);
+  useEffect(() => {
+    if (pendingBulk) modalRef.current?.querySelector<HTMLButtonElement>(".bulk-confirm-actions button")?.focus();
+  }, [pendingBulk]);
+  const cancelBulkSell = (): void => {
+    const kind = pendingBulk;
+    setPendingBulk(null);
+    requestAnimationFrame(() => {
+      const opener = bulkOpenerRef.current;
+      if (opener?.isConnected) opener.focus();
+      else if (kind) modalRef.current?.querySelector<HTMLButtonElement>(`[data-bulk-trigger="${kind}"]`)?.focus();
+    });
+  };
 
   const selectLedgerSection = (section: MarketLedgerSection) => {
     playUiSound("page-turn");
@@ -248,9 +269,10 @@ export const MarketModal: React.FC<MarketModalProps> = ({
    * confirmation popover. Confirmation-only: the sim exposes no reversal
    * callback on these props, so no undo toast is shown (never fake gold).
    */
-  const requestBulkSell = (kind: "produce" | "fish" | "item", revenue: number, fire: () => void): void => {
+  const requestBulkSell = (kind: "produce" | "fish" | "item", revenue: number, fire: () => void, opener: HTMLButtonElement): void => {
     if (revenue > BULK_CONFIRM_THRESHOLD_G && pendingBulk !== kind) {
       playUiSound("click");
+      bulkOpenerRef.current = opener;
       setPendingBulk(kind);
       return;
     }
@@ -320,17 +342,19 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
           <div className="market-purse-badge" data-testid="market-purse">
             <IconCoin size={16} aria-hidden="true" />
-            <span>{isTr ? "Kese:" : "Purse:"} <strong>{(board?.money ?? 0).toLocaleString()} G</strong></span>
+            <span>{isTr ? "Kese" : "Purse"} <strong>{(board?.money ?? 0).toLocaleString()} G</strong></span>
           </div>
 
           <ChromeClose onClick={onClose} label={isTr ? "Pazarı kapat" : "Close market"} className="market-close-btn" />
         </header>
 
-        <nav className="market-ledger-index" aria-label={isTr ? "Pazar sekmeleri" : "Ledger sections"} data-testid="market-ledger-index">
+        <nav className="market-ledger-index" role="tablist" onKeyDown={handleTabListKeyDown} aria-label={isTr ? "Pazar sekmeleri" : "Ledger sections"} data-testid="market-ledger-index">
           <button
             type="button"
             id="market-section-buy"
-            aria-current={ledgerSection === "buy" ? "page" : undefined}
+            role="tab"
+            aria-selected={ledgerSection === "buy"}
+            tabIndex={ledgerSection === "buy" ? 0 : -1}
             aria-controls="market-ledger-sheet"
             className={`market-ledger-marker ${ledgerSection === "buy" ? "is-active" : ""}`}
             onClick={() => selectLedgerSection("buy")}
@@ -340,18 +364,22 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           <button
             type="button"
             id="market-section-sell"
-            aria-current={ledgerSection === "sell" ? "page" : undefined}
+            role="tab"
+            aria-selected={ledgerSection === "sell"}
+            tabIndex={ledgerSection === "sell" ? 0 : -1}
             aria-controls="market-ledger-sheet"
             className={`market-ledger-marker ${ledgerSection === "sell" ? "is-active" : ""}`}
             onClick={() => selectLedgerSection("sell")}
           >
             {isTr ? "Sat" : "Sell"}
           </button>
-          {fishCargoList.length > 0 ? (
+          {fishCargoList.length > 0 || ledgerSection === "hold" ? (
             <button
               type="button"
               id="market-section-hold"
-              aria-current={ledgerSection === "hold" ? "page" : undefined}
+              role="tab"
+            aria-selected={ledgerSection === "hold"}
+            tabIndex={ledgerSection === "hold" ? 0 : -1}
               aria-controls="market-ledger-sheet"
               className={`market-ledger-marker ${ledgerSection === "hold" ? "is-active" : ""}`}
               onClick={() => selectLedgerSection("hold")}
@@ -363,7 +391,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             <button
               type="button"
               id="market-section-trade-packs"
-              aria-current={ledgerSection === "trade-packs" ? "page" : undefined}
+              role="tab"
+            aria-selected={ledgerSection === "trade-packs"}
+            tabIndex={ledgerSection === "trade-packs" ? 0 : -1}
               aria-controls="market-ledger-sheet"
               className={`market-ledger-marker ${ledgerSection === "trade-packs" ? "is-active" : ""}`}
               onClick={() => selectLedgerSection("trade-packs")}
@@ -371,8 +401,10 @@ export const MarketModal: React.FC<MarketModalProps> = ({
               {isTr ? "Ticaret yükleri" : "Trade packs"}{tradePackList.length > 0 ? ` (${tradePackList.length})` : ""}
             </button>
           ) : null}
-          <button type="button" id="market-section-deliveries" aria-current={ledgerSection === "deliveries" ? "page" : undefined}
-            aria-controls="market-contracts-title" className={`market-ledger-marker ${ledgerSection === "deliveries" ? "is-active" : ""}`}
+          <button type="button" id="market-section-deliveries" role="tab"
+            aria-selected={ledgerSection === "deliveries"}
+            tabIndex={ledgerSection === "deliveries" ? 0 : -1}
+            aria-controls="market-deliveries-panel" className={`market-ledger-marker ${ledgerSection === "deliveries" ? "is-active" : ""}`}
             onClick={() => selectLedgerSection("deliveries")}>{isTr ? "Teslimatlar" : "Deliveries"}{activeContracts.length > 0 ? ` (${activeContracts.length})` : ""}</button>
         </nav>
 
@@ -380,12 +412,13 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
         {ledgerSection !== "deliveries" && <div
           className={`market-modal-grid${ledgerSection === "hold" || ledgerSection === "trade-packs" ? " is-single" : ""}`}
+          id="market-ledger-sheet"
+          role="tabpanel"
+          aria-labelledby={`market-section-${ledgerSection}`}
+          tabIndex={0}
         >
           <section
             className="market-left-panel"
-            id="market-ledger-sheet"
-            aria-labelledby={`market-section-${ledgerSection}`}
-            tabIndex={0}
           >
             {ledgerSection === "buy" && (<>
               <div className="market-seeds-section">
@@ -405,7 +438,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                         aria-pressed={selectedBuy?.itemId === row.itemId} aria-label={isTr ? `${buyName} seç` : `Select ${buyName}`}
                         onClick={() => { playUiSound("click"); setSelectedBuyId(row.itemId); setBuyQty(1); }}>
                         <AtlasImage src={atlasForItem(row.itemId)} size={52} aria-hidden="true" />
-                        <span><strong>{buyName}</strong><small>{row.blockerReason ?? (isTr ? `${row.owned} heybede` : `${row.owned} in satchel`)}</small></span>
+                        <span><strong>{buyName}</strong><small>{(row.blockerReason ? line(row.blockerReason) : undefined) ?? (isTr ? `${row.owned} heybede` : `${row.owned} in satchel`)}</small></span>
                         <strong className="guild-ware-price">{row.quote.unitPrice ?? "—"} G</strong>
                       </button>
                     );
@@ -441,10 +474,10 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                             <ChromeButton
                               size="sm"
                               disabled={!rod.equippable}
-                              title={rod.blockerReason}
+                              title={rod.blockerReason ? line(rod.blockerReason) : undefined}
                               onClick={() => onEquipRod(board.marketId, rod.rodId)}
                             >
-                              {rod.blockerReason ?? (isTr ? "Kuşan" : "Equip")}
+                              {(rod.blockerReason ? line(rod.blockerReason) : undefined) ?? (isTr ? "Kuşan" : "Equip")}
                             </ChromeButton>
                           ) : rod.starter ? (
                             <ChromeButton size="sm" disabled>{isTr ? "Başlangıç oltası" : "Starter rod"}</ChromeButton>
@@ -453,10 +486,10 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                               size="sm"
                               soundCue="coins"
                               disabled={!rod.purchasable}
-                              title={rod.blockerReason}
+                              title={rod.blockerReason ? line(rod.blockerReason) : undefined}
                               onClick={() => onBuyRod(board.marketId, rod.rodId)}
                             >
-                              {rod.blockerReason ?? (isTr ? `Satın al & kuşan · ${rod.costMoney} G` : `Buy & equip · ${rod.costMoney} G`)}
+                              {(rod.blockerReason ? line(rod.blockerReason) : undefined) ?? (isTr ? `Satın al & kuşan · ${rod.costMoney} G` : `Buy & equip · ${rod.costMoney} G`)}
                             </ChromeButton>
                           )}
                         </div>
@@ -471,9 +504,6 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             {ledgerSection === "sell" && (
             <div className="market-commodities-section">
               <div className="market-section-header-row">
-                <h3 className="section-title">
-                  <IconSprout size={15} aria-hidden="true" /> {isTr ? "Heybeniz" : "Your Satchel"}
-                </h3>
                 {bulkProduceQuote.success && bulkProduceQuote.revenue > 0 && (
                   <ChromeButton
                     variant="gold"
@@ -481,7 +511,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     soundCue="coins"
                     className="batch-sell-btn-compact"
                     aria-expanded={pendingBulk === "produce"}
-                    onClick={() => requestBulkSell("produce", bulkProduceQuote.revenue, handleSellAllProduce)}
+                    data-bulk-trigger="produce"
+                    onClick={(event) => requestBulkSell("produce", bulkProduceQuote.revenue, handleSellAllProduce, event.currentTarget)}
                   >
                     {isTr
                       ? `Tüm mahsulü sat · ${bulkProduceQuote.revenue.toLocaleString()} G`
@@ -539,7 +570,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                                       key={lot.quality ?? "ungraded"}
                                       className={`comm-lot-tag${lot.quality ? ` is-${lot.quality}` : ""}`}
                                     >
-                                      {lot.quantity} {lot.quality ?? (isTr ? "derecesiz" : "ungraded")}
+                                      {lot.quantity} {lot.quality ? line(lot.quality) : (isTr ? "derecesiz" : "ungraded")}
                                     </span>
                                   ))}
                                 </span>
@@ -548,7 +579,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                           </div>
                           <div className="comm-right">
                             <span className={`comm-demand demand-${price?.demandLabel?.toLowerCase() ?? "steady"}`}>
-                              {price?.demandLabel ?? (isTr ? "Durgun" : "Steady")}
+                              {line(price?.demandLabel ?? "Steady")}
                             </span>
                             <strong className="comm-price">{price?.unitPrice ?? "—"} G</strong>
                           </div>
@@ -574,7 +605,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                       soundCue="coins"
                       className="batch-sell-btn-compact"
                       aria-expanded={pendingBulk === "fish"}
-                      onClick={() => requestBulkSell("fish", bulkFishQuote.revenue, handleSellAllFishCargo)}
+                      data-bulk-trigger="fish"
+                      onClick={(event) => requestBulkSell("fish", bulkFishQuote.revenue, handleSellAllFishCargo, event.currentTarget)}
                     >
                       {isTr
                         ? `Tüm balıkları sat · ${bulkFishQuote.revenue.toLocaleString()} G`
@@ -611,7 +643,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                                 <div className="cargo-sub-meta">
                                   <ChromeQuality quality={cargo.quality} />
                                   <span className="cargo-freshness-num">
-                                    · {cargo.spoiled ? (isTr ? "Bayat" : "Spoiled") : cargo.reason ?? (isTr ? "Burada fiyatlandırılmadı" : "Not priced here")}
+                                    · {cargo.spoiled ? (isTr ? "Bayat" : "Spoiled") : (cargo.reason ? line(cargo.reason) : undefined) ?? (isTr ? "Burada fiyatlandırılmadı" : "Not priced here")}
                                   </span>
                                 </div>
                               </div>
@@ -626,7 +658,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                                 >
                                   {isTr ? "Yem yap" : "Make scraps"}
                                 </ChromeButton>
-                                <p className="scraps-explainer">{isTr ? "Bayat balık satılamaz — Yem yap seçeneği balığı yem malzemesine dönüştürür." : "Spoiled fish can't be sold — Make scraps breaks it down into bait materials."}</p>
+                                <p className="scraps-explainer">{isTr ? "Balığı yem malzemesine dönüştürür." : "Converts fish into bait materials."}</p>
                               </div>
                             )}
                           </div>
@@ -666,7 +698,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                                 >
                                   {isTr ? "Yem yap" : "Make scraps"}
                                 </ChromeButton>
-                                <p className="scraps-explainer">{isTr ? "Bayat balık satılamaz — Yem yap seçeneği balığı yem malzemesine dönüştürür." : "Spoiled fish can't be sold — Make scraps breaks it down into bait materials."}</p>
+                                <p className="scraps-explainer">{isTr ? "Balığı yem malzemesine dönüştürür." : "Converts fish into bait materials."}</p>
                               </>
                             ) : (
                               <>
@@ -704,11 +736,11 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   </h3>
                 </div>
                 <p className="market-section-note">
-                  {isTr ? "Yükü teknenizden veya arabanızdan indirin, tezgâha taşıyın ve tek tek satın." : "Unload a pack from your boat or carriage, carry it to the counter, and sell it one at a time."}
+                  {isTr ? "Her yükü tezgâha elde taşı." : "Carry each pack to the counter in hand."}
                 </p>
                 {tradePackList.length === 0 ? (
                   <div className="no-cargo-card">
-                    <span>{isTr ? "Elde ticaret yükü yok. Teknenizden veya arabanızdan bir yük alıp buraya taşıyın." : "No trade pack in hand. Collect one from your boat or carriage, then carry it here."}</span>
+                    <span>{isTr ? "Elde yük yok. Teknenden veya arabandan bir yük al." : "No pack in hand. Collect one from your boat or carriage."}</span>
                   </div>
                 ) : (
                   <div className="fish-cargo-trade-list">
@@ -763,9 +795,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                                   soundCue="click"
                                   onClick={() => activeMarketId && onDiscardFishCargo(activeMarketId, pack.cargoId)}
                                 >
-                                  {pack.kind === "farm" ? (pack.canRecoverPlantMatter ? (isTr ? "Bitki artığına dönüştür" : "Recover plant matter") : (isTr ? "Yükü at" : "Discard shipment")) : (isTr ? "Yem yap" : "Make scraps")}
+                                  {pack.kind === "farm" ? (pack.canRecoverPlantMatter ? (isTr ? "Bitki artığı al" : "Recover compost material") : (isTr ? "Yükü at" : "Discard shipment")) : (isTr ? "Yem yap" : "Make scraps")}
                                 </ChromeButton>
-                                <p className="scraps-explainer">{pack.kind === "farm" ? (pack.canRecoverPlantMatter ? (isTr ? "Bozulmuş yük satılamaz. Kompost için bitki artığı alabilirsin." : "Spoiled harvest cannot be sold. Recover plant matter for compost.") : (isTr ? "Yük atılır; paketleme ücreti ve malzemeler geri verilmez." : "Discarding removes the shipment. Materials and packing fees are not returned.")) : (isTr ? "Bayat balık satılamaz — Yem yap seçeneği balığı yem malzemesine dönüştürür." : "Spoiled fish can't be sold — Make scraps breaks it down into bait materials.")}</p>
+                                <p className="scraps-explainer">{pack.kind === "farm" ? (pack.canRecoverPlantMatter ? (isTr ? "Bozulmuş yük satılamaz. Kompost için bitki artığı alabilirsin." : "Spoiled harvest cannot be sold. Recover plant matter for compost.") : (isTr ? "Yük atılır; paketleme ücreti ve malzemeler geri verilmez." : "Discarding removes the shipment. Materials and packing fees are not returned.")) : (isTr ? "Balığı yem malzemesine dönüştürür." : "Converts fish into bait materials.")}</p>
                               </>
                             ) : (
                               <>
@@ -775,7 +807,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                                   className="plaque-keep-btn"
                                   onClick={() => activeMarketId && onSellFishCargo(activeMarketId, pack.cargoId)}
                                 >
-                                  {isTr ? "Ticaret yükünü sat" : "Sell trade pack"}
+                                  {isTr ? "Yükü sat" : "Sell pack"}
                                 </ChromeButton>
                                 {pack.kind !== "farm" && <ChromeButton
                                   className="plaque-release-btn"
@@ -804,22 +836,22 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 <div><dt>{isTr ? "Çantada" : "In satchel"}</dt><dd>{selectedBuy.owned}</dd></div></dl>
               <div className="market-qty-stepper" data-testid="market-buy-qty">
                 <ChromeButton size="sm" aria-label={isTr ? "Daha az al" : "Buy fewer"} disabled={buyQty <= 1} onClick={() => setBuyQty((n) => Math.max(1, n - 1))}>−</ChromeButton>
-                <input type="number" min={1} step={1} value={buyInput} aria-invalid={!buyValid} aria-label={isTr ? "Satın alınacak miktar" : "Quantity to buy"} className="market-qty-input"
+                <input type="number" inputMode="numeric" min={1} step={1} value={buyInput} aria-invalid={!buyValid} aria-label={isTr ? "Satın alınacak miktar" : "Quantity to buy"} className="market-qty-input"
                   onChange={(event) => setBuyInput(event.target.value)} />
                 <ChromeButton size="sm" aria-label={isTr ? "Daha fazla al" : "Buy more"} disabled={buyQty >= Number.MAX_SAFE_INTEGER || (purchaseQuote?.available !== undefined && buyQty >= purchaseQuote.available)}
                   onClick={() => setBuyQty((n) => n + 1)}>+</ChromeButton>
               </div>
-              <div className="market-quick-qty-pills">
-                <button type="button" className={`market-quick-pill ${buyQty === 1 ? "is-active" : ""}`} onClick={() => setBuyQty(1)}>1</button>
-                <button type="button" className={`market-quick-pill ${buyQty === 5 ? "is-active" : ""}`} onClick={() => setBuyQty(5)}>5</button>
-                <button type="button" className={`market-quick-pill ${buyQty === 10 ? "is-active" : ""}`} onClick={() => setBuyQty(10)}>10</button>
+              <div className="market-quick-qty-pills" role="group" aria-label={isTr ? "Miktar seç" : "Choose quantity"}>
+                <button type="button" aria-pressed={buyValid && buyQty === 1} className={`market-quick-pill ${buyQty === 1 ? "is-active" : ""}`} onClick={() => setBuyQty(1)}>1</button>
+                <button type="button" aria-pressed={buyValid && buyQty === 5} className={`market-quick-pill ${buyQty === 5 ? "is-active" : ""}`} onClick={() => setBuyQty(5)}>5</button>
+                <button type="button" aria-pressed={buyValid && buyQty === 10} className={`market-quick-pill ${buyQty === 10 ? "is-active" : ""}`} onClick={() => setBuyQty(10)}>10</button>
                 {purchaseQuote?.available !== undefined && purchaseQuote.available > 0 && (
-                  <button type="button" className={`market-quick-pill ${buyQty === purchaseQuote.available ? "is-active" : ""}`} onClick={() => setBuyQty(purchaseQuote.available!)}>{isTr ? "Maks" : "Max"}</button>
+                  <button type="button" aria-pressed={buyValid && buyQty === purchaseQuote.available} className={`market-quick-pill ${buyQty === purchaseQuote.available ? "is-active" : ""}`} onClick={() => setBuyQty(purchaseQuote.available!)}>{isTr ? "Maks" : "Max"}</button>
                 )}
               </div>
               <div className="guild-purchase-total">{isTr ? "Toplam" : "Total"} <strong data-testid="market-buy-total">{purchaseTotal?.toLocaleString() ?? "—"} G</strong></div>
-              {purchaseBlocker && <p className="guild-trade-blocker" role="status">{purchaseBlocker}</p>}
-              <span className="guild-ticket-destination">{isTr ? "Çantana gider" : "To your satchel"}</span>
+              {purchaseBlocker && <p className="guild-trade-blocker" role="status">{line(purchaseBlocker)}</p>}
+              <span className="guild-ticket-destination">{isTr ? "Heybeye" : "To satchel"}</span>
               {purchaseTotal !== undefined && purchaseQuote?.affordable !== false && <p className="guild-remaining-purse">{isTr ? "Kalan bütçe" : "Remaining purse"} <strong>{(board.money - purchaseTotal).toLocaleString()} G</strong></p>}
             </div>}
           </aside>}
@@ -835,13 +867,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                       <strong className="arb-title">{ticketName}</strong>
                       <span className={`comm-demand demand-${ticketPrice.demandLabel?.toLowerCase() ?? "steady"}`}>
                         {isTr ? "Talep · " : "Demand · "}
-                        {isTr
-                          ? (ticketPrice.demandLabel?.toLowerCase() === "high" ? "Yüksek"
-                            : ticketPrice.demandLabel?.toLowerCase() === "low" ? "Düşük"
-                            : ticketPrice.demandLabel?.toLowerCase() === "glut" ? "Bolluk"
-                            : ticketPrice.demandLabel?.toLowerCase() === "surge" ? "Fırlama"
-                            : "Durgun")
-                          : (ticketPrice.demandLabel ?? "Steady")}
+                        {line(ticketPrice.demandLabel ?? "Steady")}
                       </span>
                     </div>
                   </div>
@@ -858,7 +884,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                       {ticketPrice.qualityBreakdown.map((line) => (
                         <li key={line.quality ?? "ungraded"}>
                           <span>
-                            {line.quantity} × {line.quality ? (isTr && line.quality === "common" ? "olağan" : isTr && line.quality === "fine" ? "seçme" : isTr && line.quality === "exceptional" ? "nadir" : line.quality) : (isTr ? "derecelendirilmemiş" : "ungraded")}
+                            {line.quantity} × {line.quality ? localizeMarketText(line.quality, locale) : (isTr ? "derecelendirilmemiş" : "ungraded")}
                           </span>
                           <strong>{line.subtotal.toLocaleString()} G</strong>
                         </li>
@@ -882,6 +908,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                         <span className="market-qty-sr">{isTr ? "Satılacak miktar" : "Quantity to sell"}</span>
                         <input
                           type="number"
+                          inputMode="numeric"
                           className="market-qty-input"
                           min={1}
                           max={ownedCount}
@@ -904,21 +931,12 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                       +
                     </ChromeButton>
                     <span className="market-qty-total" aria-hidden="true">/ {ownedCount}</span>
-                    <ChromeButton
-                      size="sm"
-                      className="market-qty-btn market-qty-max"
-                      disabled={clampedQty >= ownedCount}
-                      onClick={() => setSellQty(ownedCount)}
-                      aria-label={isTr ? "Azami miktara ayarla" : "Set to maximum quantity"}
-                    >
-                      {isTr ? "Maks" : "Max"}
-                    </ChromeButton>
                   </div>
-                  <div className="market-quick-qty-pills">
-                    <button type="button" className={`market-quick-pill ${clampedQty === 1 ? "is-active" : ""}`} onClick={() => setSellQty(1)}>1</button>
-                    {ownedCount >= 5 && <button type="button" className={`market-quick-pill ${clampedQty === 5 ? "is-active" : ""}`} onClick={() => setSellQty(5)}>5</button>}
-                    {ownedCount >= 10 && <button type="button" className={`market-quick-pill ${clampedQty === Math.floor(ownedCount / 2) ? "is-active" : ""}`} onClick={() => setSellQty(Math.floor(ownedCount / 2))}>{isTr ? "Yarısı" : "Half"}</button>}
-                    <button type="button" className={`market-quick-pill ${clampedQty === ownedCount ? "is-active" : ""}`} onClick={() => setSellQty(ownedCount)}>{isTr ? "Tümü" : "All"}</button>
+                  <div className="market-quick-qty-pills" role="group" aria-label={isTr ? "Miktar seç" : "Choose quantity"}>
+                    <button type="button" aria-pressed={sellValid && sellQty <= ownedCount && clampedQty === 1} className={`market-quick-pill ${sellValid && sellQty <= ownedCount && clampedQty === 1 ? "is-active" : ""}`} onClick={() => setSellQty(1)}>1</button>
+                    {ownedCount >= 5 && <button type="button" aria-pressed={sellValid && sellQty <= ownedCount && clampedQty === 5} className={`market-quick-pill ${sellValid && sellQty <= ownedCount && clampedQty === 5 ? "is-active" : ""}`} onClick={() => setSellQty(5)}>5</button>}
+                    {ownedCount >= 10 && <button type="button" aria-pressed={sellValid && sellQty <= ownedCount && clampedQty === Math.floor(ownedCount / 2)} className={`market-quick-pill ${sellValid && sellQty <= ownedCount && clampedQty === Math.floor(ownedCount / 2) ? "is-active" : ""}`} onClick={() => setSellQty(Math.floor(ownedCount / 2))}>{isTr ? "Yarısı" : "Half"}</button>}
+                    <button type="button" aria-pressed={sellValid && sellQty <= ownedCount && clampedQty === ownedCount} className={`market-quick-pill ${sellValid && sellQty <= ownedCount && clampedQty === ownedCount ? "is-active" : ""}`} onClick={() => setSellQty(ownedCount)}>{isTr ? "Tümü" : "All"}</button>
                   </div>
                   <div className="market-ticket-live">
                     {isTr ? "Eline geçecek" : "You receive"} <strong>{sellValid && sellQty <= ownedCount ? liveGold.toLocaleString() : "—"} G</strong>
@@ -927,7 +945,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 </div>
               ) : (
                 <div className="no-commodity-selected">
-                  <span>{isTr ? "Bu tezgâhın aldığı malları getir, sonra satış pusulası için bir sıra seç." : "Bring goods this stall buys, then choose a row for a sale ticket."}</span>
+                  <span>{isTr ? "Bu tezgâhın aldığı malları getir." : "Bring goods this stall buys."}</span>
                 </div>
               )}
           </aside>
@@ -935,41 +953,38 @@ export const MarketModal: React.FC<MarketModalProps> = ({
         </div>}
 
         {ledgerSection === "deliveries" && (
-          <section className="market-contracts-footer" aria-labelledby="market-contracts-title">
+          <section id="market-deliveries-panel" className="market-contracts-footer" role="tabpanel" aria-labelledby="market-section-deliveries" tabIndex={0}>
             <h3 id="market-contracts-title" className="section-title">
               <IconJournal size={15} aria-hidden="true" /> {isTr ? "Asılı siparişler" : "Posted orders"}
             </h3>
-            {activeContracts.length > 0 && (
-              <>
-                <p className="contract-prog">{isTr ? "Değerli teslimatlar nihai ödemeyi ilan edilen ödülün üzerine çıkarabilir." : "Valuable deliveries can raise the final payout above the posted reward."}</p>
-                <p className="contract-prog">{isTr ? `Dokunulmamış bir siparişi es geçmek ${activeContracts[0].passWaitLabel} oyun saati alır. Diğer süreler ve balık tazeliği akmaya devam eder.` : `Passing an untouched order takes ${activeContracts[0].passWaitLabel} game time. Other deadlines and catch freshness keep moving.`}</p>
-              </>
+            {onPassContract && activeContracts.some((contract) => contract.quantityFulfilled === 0) && (
+              <p className="contract-prog">{isTr ? "Es geçmek oyun süresini ilerletir; diğer siparişlerin süresi ve balıkların tazeliği azalır." : "Passing advances game time; other orders and fish keep ageing."}</p>
             )}
             {activeContracts.length === 0 && <p className="guild-empty-orders">{isTr ? "Bu tezgâha teslim edilecek aktif sipariş yok." : "No active orders to deliver at this counter."}</p>}
             <div className="active-contracts-list">
               {activeContracts.map((contract) => (
                 <article key={contract.contractId} className="contract-mini-card">
                   <div className="contract-mini-header">
-                    <strong>{isTr ? `Tedarik et: ${contract.targetName}` : `Supply ${contract.targetName}`}</strong>
+                    <strong>{isTr ? `Sipariş: ${(contract.itemId ? getLocalizedItem(contract.targetId) : getLocalizedFish(contract.targetId)).name ?? contract.targetName}` : `Supply ${contract.targetName}`}</strong>
                     <span className="contract-gold">
                       <IconCoin size={12} aria-hidden="true" /> {isTr ? `En az ${contract.currentCompletionFloorMoney} G` : `At least ${contract.currentCompletionFloorMoney} G`}
                     </span>
                   </div>
                   <span className="contract-prog">
-                    {isTr ? "Yerine getirilen:" : "Fulfilled:"} {contract.quantityFulfilled} / {contract.quantityRequired}
+                    {isTr ? "Teslim edilen:" : "Delivered:"} {contract.quantityFulfilled} / {contract.quantityRequired}
                   </span>
                   <span className="contract-prog">
-                    {isTr ? "Tamamlanınca:" : "On completion:"} {contract.rewardSkillXp.xp} {contract.rewardSkillXp.skill} XP
+                    {isTr ? "Tamamlanınca:" : "On completion:"} {contract.rewardSkillXp.xp} {getLocalizedSkill(contract.rewardSkillXp.skill).name} {isTr ? "TP" : "XP"}
                   </span>
                   <span className="contract-prog">
-                    {[...contract.requirementLabels, contract.deadlineLabel].join(" · ")}
+                    {[...contract.requirementLabels, contract.deadlineLabel].map(line).join(" · ")}
                   </span>
                   <div className={`contract-readiness${contract.ready ? " is-ready" : " is-blocked"}`}>
                     {contract.ready ? (
                       <strong>{isTr ? "Hazır" : "Ready"}</strong>
                     ) : (
                       <ul>
-                        {contract.blockerReasons.map((reason) => <li key={reason}>{reason}</li>)}
+                        {contract.blockerReasons.map((reason) => <li key={reason}>{line(reason)}</li>)}
                       </ul>
                     )}
                   </div>
@@ -1004,9 +1019,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                         className="comm-pass-btn"
                         soundCue="page-turn"
                         onClick={() => onPassContract(contract.contractId)}
-                        title={isTr ? `Yeni bir ilan için ${contract.passWaitLabel} oyun süresi bekle` : `Wait ${contract.passWaitLabel} of game time for a replacement notice`}
+                        title={isTr ? `Yeni bir ilan için ${line(contract.passWaitLabel)} oyun süresi bekle` : `Wait ${line(contract.passWaitLabel)} of game time for a replacement notice`}
                       >
-                        {isTr ? `Es geç · ${contract.passWaitLabel} oyun vakti bekle` : `Pass · wait ${contract.passWaitLabel} game time`}
+                        {isTr ? `Es geç · ${line(contract.passWaitLabel)}` : `Pass · ${line(contract.passWaitLabel)}`}
                       </ChromeButton>
                     )}
                   </div>
@@ -1016,11 +1031,12 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           </section>
         )}
 
-        <footer className="market-modal-footer">
+        {(pendingBulk || (ledgerSection === "buy" && selectedBuy) || (ledgerSection === "sell" && selectedOwned && ticketPrice?.success)) && <footer className="market-modal-footer">
           {pendingBulk === "produce" && (
             <div
               className="bulk-confirm-popover"
-              role="alertdialog"
+              role="group"
+              aria-live="polite"
               aria-label={isTr ? `${bulkProduceQuote.revenue.toLocaleString()} altın karşılığında toplu mahsul satışını onayla` : `Confirm bulk produce sale for ${bulkProduceQuote.revenue.toLocaleString()} gold`}
             >
               <p className="bulk-confirm-text">
@@ -1037,7 +1053,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 >
                   {isTr ? "Satışı onayla" : "Confirm sale"}
                 </ChromeButton>
-                <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
+                <ChromeButton size="sm" onClick={cancelBulkSell}>
                   {isTr ? "Vazgeç" : "Keep goods"}
                 </ChromeButton>
               </div>
@@ -1046,7 +1062,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           {pendingBulk === "fish" && (
             <div
               className="bulk-confirm-popover"
-              role="alertdialog"
+              role="group"
+              aria-live="polite"
               aria-label={isTr ? `${bulkFishQuote.revenue.toLocaleString()} altın karşılığında toplu balık satışını onayla` : `Confirm bulk fish sale for ${bulkFishQuote.revenue.toLocaleString()} gold`}
             >
               <p className="bulk-confirm-text">
@@ -1063,7 +1080,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 >
                   {isTr ? "Satışı onayla" : "Confirm sale"}
                 </ChromeButton>
-                <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
+                <ChromeButton size="sm" onClick={cancelBulkSell}>
                   {isTr ? "Avı sakla" : "Keep catch"}
                 </ChromeButton>
               </div>
@@ -1072,7 +1089,8 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           {pendingBulk === "item" && (
             <div
               className="bulk-confirm-popover"
-              role="alertdialog"
+              role="group"
+              aria-live="polite"
               aria-label={isTr ? `Tüm ${ticketName} ürünlerini ${sellAllItemRevenue.toLocaleString()} altına satmayı onayla` : `Confirm selling every ${ticketName} for ${sellAllItemRevenue.toLocaleString()} gold`}
             >
               <p className="bulk-confirm-text">
@@ -1086,7 +1104,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 <ChromeButton variant="gold" size="sm" soundCue="coins" onClick={handleSellAllOfItem}>
                   {isTr ? "Satışı onayla" : "Confirm sale"}
                 </ChromeButton>
-                <ChromeButton size="sm" onClick={() => setPendingBulk(null)}>
+                <ChromeButton size="sm" onClick={cancelBulkSell}>
                   {isTr ? "Malları tut" : "Keep goods"}
                 </ChromeButton>
               </div>
@@ -1121,17 +1139,15 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   soundCue="coins"
                   disabled={!activeMarketId || ownedCount <= 0}
                   aria-expanded={pendingBulk === "item"}
-                  onClick={() => requestBulkSell("item", sellAllItemRevenue, handleSellAllOfItem)}
+                  data-bulk-trigger="item"
+                  onClick={(event) => requestBulkSell("item", sellAllItemRevenue, handleSellAllOfItem, event.currentTarget)}
                 >
-                  {isTr ? "Bu ürünün tümünü sat" : "Sell all of this item"}
+                  {isTr ? "Tümünü sat" : "Sell stack"}
                 </ChromeButton>
               </div>
             </div>
           )}
-          <ChromeButton onClick={onClose}>
-            {isTr ? "Pazardan ayrıl" : "Leave market"}
-          </ChromeButton>
-        </footer>
+        </footer>}
       </GameSheet>
     </div>
   );

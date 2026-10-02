@@ -4,6 +4,7 @@ import { CANONICAL_RENDER_CONFIG, type QualityTier } from "../config/VisualRende
 import type { LightingFrame } from "../lighting/LightingRig";
 import { ATMOSPHERE_SKY_FRAGMENT, SKY_DISPLAY_FRAGMENT, SKY_QUAD_VERTEX } from "./atmosphereSkyShader";
 import { CloudShadows } from "./CloudShadows";
+import { bindSkyMaterialReflections, unbindSkyMaterialReflections } from "./SkyMaterialReflections";
 
 export interface AtmosphereSkyDiagnostics {
   mode: "volume" | "layered";
@@ -17,6 +18,7 @@ export interface AtmosphereSkyDiagnostics {
   lightSteps: number;
   layerSteps: number;
   history: "none";
+  materialReflections: { enabled: boolean; updates: number; width: number; height: number };
 }
 
 export function atmosphereTargetSize(width: number, height: number, tier: QualityTier): { width: number; height: number } {
@@ -49,6 +51,34 @@ export class AtmosphereSky {
   private readonly reflectionScene = new THREE.Scene();
   private readonly reflectionMaterial: THREE.ShaderMaterial;
   private reflectionFrame = 0;
+  private materialWorld: THREE.Scene | null = null;
+  private readonly materialProbeScene = new THREE.Scene();
+  private readonly materialProbeMaterial: THREE.ShaderMaterial;
+  private materialProbe: THREE.WebGLRenderTarget | null = null;
+  private filteredProbe: THREE.WebGLRenderTarget | null = null;
+  private pmrem: THREE.PMREMGenerator | null = null;
+  private filteredTime = Number.NEGATIVE_INFINITY;
+  private filteredUpdates = 0;
+  private readonly filteredViewport = new THREE.Vector4();
+  private readonly filteredScissor = new THREE.Vector4();
+
+  public bindMaterialWorld(scene: THREE.Scene): void {
+    if (this.materialWorld && this.materialWorld !== scene) this.resetMaterialReflections();
+    this.materialWorld = scene;
+  }
+
+  public materialReflectionTarget(): THREE.WebGLRenderTarget | null { return this.filteredProbe; }
+
+  public resetMaterialReflections(): void {
+    if (this.materialWorld) unbindSkyMaterialReflections(this.materialWorld);
+    this.pmrem?.dispose();
+    this.filteredProbe?.dispose();
+    this.materialProbe?.dispose();
+    this.pmrem = null;
+    this.filteredProbe = null;
+    this.materialProbe = null;
+    this.filteredTime = Number.NEGATIVE_INFINITY;
+  }
 
   constructor(tier: QualityTier) {
     this.quality = tier;
@@ -65,6 +95,7 @@ export class AtmosphereSky {
         uCameraRotation: { value: new THREE.Matrix3() },
         uEye: { value: new THREE.Vector3() },
         uZenith: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() },
+        uGroundRadiance: { value: new THREE.Color() },
         uSunDirection: { value: new THREE.Vector3() }, uSunColor: { value: new THREE.Color() },
         uMoonDirection: { value: new THREE.Vector3() }, uMoonColor: { value: new THREE.Color() },
         uLightningDirection: { value: new THREE.Vector3() },
@@ -108,6 +139,14 @@ export class AtmosphereSky {
     const probeQuad = new THREE.Mesh(this.geometry, this.reflectionMaterial);
     probeQuad.frustumCulled = false;
     this.reflectionScene.add(probeQuad);
+    this.materialProbeMaterial = new THREE.ShaderMaterial({
+      name: "NevaMaterialSkyProbe", toneMapped: false, depthTest: false, depthWrite: false,
+      uniforms: this.material.uniforms,
+      vertexShader: SKY_QUAD_VERTEX, fragmentShader: ATMOSPHERE_SKY_FRAGMENT
+    });
+    const materialQuad = new THREE.Mesh(this.geometry, this.materialProbeMaterial);
+    materialQuad.frustumCulled = false;
+    this.materialProbeScene.add(materialQuad);
     this.cloudShadows = new CloudShadows(this.material.uniforms, tier);
     quad.frustumCulled = false;
     this.scene.add(quad);
@@ -135,6 +174,7 @@ export class AtmosphereSky {
   public setQuality(tier: QualityTier): void {
     if (tier === this.quality) return;
     this.quality = tier;
+    if (!CANONICAL_RENDER_CONFIG.atmosphere.materialReflections.enabled[tier]) this.resetMaterialReflections();
     this.cloudShadows.setQuality(tier);
     this.configureQuality();
   }
@@ -159,6 +199,8 @@ export class AtmosphereSky {
       LAYER_STEPS: Math.max(4, Math.min(8, quality.layerSteps))
     };
     this.reflectionMaterial.needsUpdate = true;
+    this.materialProbeMaterial.defines = { ...this.reflectionMaterial.defines, SKY_FULL_EQUIRECT: 1 };
+    this.materialProbeMaterial.needsUpdate = true;
     this.reflectionFrame = 0;
   }
 
@@ -181,6 +223,7 @@ export class AtmosphereSky {
       offset.y += Math.cos(direction) * elapsed * speed;
     }
     u.uZenith.value.copy(frame.skyTopColor); u.uHorizon.value.copy(frame.skyHorizonColor);
+    u.uGroundRadiance.value.copy(frame.groundFillColor).multiplyScalar(frame.skyFillIntensity);
     u.uSunDirection.value.copy(frame.sunDirection); u.uSunColor.value.copy(frame.sunColor);
     u.uMoonDirection.value.copy(frame.moonDirection); u.uMoonColor.value.copy(frame.moonColor);
     u.uLightningDirection.value.copy(frame.lightningDirection);
@@ -218,6 +261,10 @@ export class AtmosphereSky {
   public async prepare(renderer: THREE.WebGLRenderer): Promise<void> {
     await renderer.compileAsync(this.scene, this.camera);
     await renderer.compileAsync(this.reflectionScene, this.camera);
+    if (this.materialWorld && CANONICAL_RENDER_CONFIG.atmosphere.materialReflections.enabled[this.quality]) {
+      await renderer.compileAsync(this.materialProbeScene, this.camera);
+      this.renderMaterialReflections(renderer);
+    }
     await this.cloudShadows.prepare(renderer);
   }
 
@@ -230,7 +277,11 @@ export class AtmosphereSky {
       coverage: weather.x, storm: weather.y, lightning: weather.z,
       bolt: (this.material.uniforms.uBolt.value as THREE.Vector4).w,
       windOffset: [offset.x, offset.y], primarySteps: quality.primarySteps,
-      lightSteps: quality.lightSteps, layerSteps: quality.layerSteps, history: "none"
+      lightSteps: quality.lightSteps, layerSteps: quality.layerSteps, history: "none",
+      materialReflections: {
+        enabled: this.filteredProbe !== null, updates: this.filteredUpdates,
+        width: this.filteredProbe?.width ?? 0, height: this.filteredProbe?.height ?? 0
+      }
     };
   }
 
@@ -263,6 +314,7 @@ export class AtmosphereSky {
         this.material.uniforms.uVolumeBlend.value = volumeBlend;
       }
       this.reflectionFrame += 1;
+      this.renderMaterialReflections(renderer);
       renderer.setRenderTarget(this.target);
       renderer.render(this.scene, this.camera);
     } finally {
@@ -274,10 +326,53 @@ export class AtmosphereSky {
     }
   }
 
+  private renderMaterialReflections(renderer: THREE.WebGLRenderer): void {
+    const config = CANONICAL_RENDER_CONFIG.atmosphere.materialReflections;
+    if (!this.materialWorld || !config.enabled[this.quality]) return;
+    const time = this.lastTime ?? 0;
+    if (time >= this.filteredTime && time - this.filteredTime < config.refreshSeconds) return;
+    this.materialProbe ??= new THREE.WebGLRenderTarget(config.width, config.height, {
+      type: THREE.HalfFloatType, depthBuffer: false, stencilBuffer: false,
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false
+    });
+    this.materialProbe.texture.name = "atmosphere.materialSkyRadiance";
+    this.materialProbe.texture.mapping = THREE.EquirectangularReflectionMapping;
+    this.pmrem ??= new THREE.PMREMGenerator(renderer);
+    const previousTarget = renderer.getRenderTarget();
+    const previousAutoClear = renderer.autoClear;
+    const previousFace = renderer.getActiveCubeFace();
+    const previousLevel = renderer.getActiveMipmapLevel();
+    const previousScissorTest = renderer.getScissorTest();
+    renderer.getViewport(this.filteredViewport);
+    renderer.getScissor(this.filteredScissor);
+    const previousBlend = this.material.uniforms.uVolumeBlend.value;
+    try {
+      this.material.uniforms.uVolumeBlend.value = 0;
+      renderer.autoClear = true;
+      renderer.setScissorTest(false);
+      renderer.setRenderTarget(this.materialProbe);
+      renderer.render(this.materialProbeScene, this.camera);
+      this.filteredProbe = this.pmrem.fromEquirectangular(this.materialProbe.texture, this.filteredProbe ?? undefined);
+      this.filteredProbe.texture.name = "atmosphere.filteredMaterialSky";
+      bindSkyMaterialReflections(this.materialWorld, this.filteredProbe.texture);
+      this.filteredTime = time;
+      this.filteredUpdates += 1;
+    } finally {
+      this.material.uniforms.uVolumeBlend.value = previousBlend;
+      renderer.setRenderTarget(previousTarget, previousFace, previousLevel);
+      renderer.setViewport(this.filteredViewport);
+      renderer.setScissor(this.filteredScissor);
+      renderer.setScissorTest(previousScissorTest);
+      renderer.autoClear = previousAutoClear;
+    }
+  }
+
   public dispose(): void {
+    this.resetMaterialReflections();
     this.mesh.removeFromParent();
     this.cloudShadows.dispose();
     this.geometry.dispose(); this.material.dispose(); this.mesh.material.dispose(); this.target.dispose();
     this.reflectionMaterial.dispose(); this.reflectionTarget.dispose();
+    this.materialProbeMaterial.dispose();
   }
 }

@@ -45,6 +45,7 @@ const PLACE_LABELS_TR: Record<string, string> = {
   "Reedwater River": "Sazlısu Nehri",
   "Reedhaven Cove Grounds": "Sazlıliman Koyu Avlakları",
   "Family Farm": "Aile Çiftliği",
+  "Starter Farm Field": "Ata Çiftliği Tarlası",
   "Village Commons": "Köy Merası",
   "Village Mill": "Köy Değirmeni",
   "River Crossing": "Nehir Geçidi",
