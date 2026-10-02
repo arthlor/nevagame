@@ -14839,7 +14839,7 @@
   padding: 6px 8px !important;
 }
 #ui-container[data-ui="guildcraft"] .map-lens-btn .map-lens-label { display: inline !important; font: 600 12px/1.2 var(--font-serif); }
-#ui-container[data-ui="guildcraft"] .map-svg-canvas { background: #9eb8c4 !important; }
+#ui-container[data-ui="guildcraft"] .map-svg-canvas { background: #275560 !important; }
 #ui-container[data-ui="guildcraft"] .map-directory-list { max-height: none; overflow: visible; }
 #ui-container[data-ui="guildcraft"] .map-directory-item {
   min-height: 34px;

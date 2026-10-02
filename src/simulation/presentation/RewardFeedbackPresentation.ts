@@ -41,24 +41,31 @@ export class RewardFeedbackPresentation {
       return [];
     }
     const feedback: RewardFeedbackDto[] = [];
-    const market = marketId ? ContentRegistry.markets.get(marketId)?.interactionPosition : undefined;
-    const point = market ? { x: market.x, y: WorldLayout.terrainHeight(market.x, market.z) + 1.2, z: market.z }
-      : { x: origin.x, y: origin.y + 1.2, z: origin.z };
+    // Most frames have no gains. Resolve the shared anchor only if a row is
+    // emitted, while still taking every snapshot and checking every record.
+    let point: { x: number; y: number; z: number } | undefined;
+    const feedbackPoint = () => {
+      if (point) return point;
+      const market = marketId ? ContentRegistry.markets.get(marketId)?.interactionPosition : undefined;
+      point = market ? { x: market.x, y: WorldLayout.terrainHeight(market.x, market.z) + 1.2, z: market.z }
+        : { x: origin.x, y: origin.y + 1.2, z: origin.z };
+      return point;
+    };
     const money = next.money - before.money;
-    if (money !== 0) feedback.push({ ...point, kind: "money", amount: money, text: `${money > 0 ? "+" : "−"}${Math.abs(money)} G` });
+    if (money !== 0) feedback.push({ ...feedbackPoint(), kind: "money", amount: money, text: `${money > 0 ? "+" : "−"}${Math.abs(money)} G` });
     // Work is an economy resource, so earned shifts and paid actions read in
     // the same place as money and items. Fractional pool arithmetic rounds to
     // whole Work; a sub-unit drift is not a reward.
     const work = Math.round(next.work - before.work);
-    if (work !== 0) feedback.push({ ...point, kind: "work", amount: work, text: `${work > 0 ? "+" : "−"}${Math.abs(work)} Work` });
+    if (work !== 0) feedback.push({ ...feedbackPoint(), kind: "work", amount: work, text: `${work > 0 ? "+" : "−"}${Math.abs(work)} Work` });
     for (const [id, quantity] of next.items) {
       const gain = quantity - (before.items.get(id) ?? 0);
-      if (gain > 0) feedback.push({ ...point, kind: "item", itemId: id, amount: gain,
+      if (gain > 0) feedback.push({ ...feedbackPoint(), kind: "item", itemId: id, amount: gain,
         text: `+${gain} ${ContentRegistry.items.get(id)?.name ?? id}` });
     }
     for (const [skill, xp] of Object.entries(next.xp)) {
       const gain = xp - (before.xp[skill] ?? 0);
-      if (gain > 0) feedback.push({ ...point, kind: "xp", amount: gain,
+      if (gain > 0) feedback.push({ ...feedbackPoint(), kind: "xp", amount: gain,
         text: `+${gain} ${skill[0].toUpperCase()}${skill.slice(1)}` });
     }
     // Records are compared every frame, not only when a tracked gain happened:
@@ -66,7 +73,7 @@ export class RewardFeedbackPresentation {
     for (const record of buildRecordMilestones(state)) {
       if (record.achieved && !this.achieved.has(record.id)) {
         this.achieved.add(record.id);
-        feedback.push({ ...point, kind: "record", text: record.title, amount: 1 });
+        feedback.push({ ...feedbackPoint(), kind: "record", text: record.title, amount: 1 });
       }
     }
     return feedback;

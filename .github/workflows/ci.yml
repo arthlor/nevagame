@@ -38,6 +38,11 @@ jobs:
           npm run ui:publish:check
           npm run ui:pack:check
 
+      - name: Verify generated world map
+        run: |
+          npm run map:test
+          npm run map:check
+
       - name: Content validation
         run: npm run content:validate
 

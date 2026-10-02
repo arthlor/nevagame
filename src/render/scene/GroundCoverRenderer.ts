@@ -55,7 +55,12 @@ interface InstancedSourceMesh {
   phaseAttribute: THREE.InstancedBufferAttribute | null;
   exposureAttribute: THREE.InstancedBufferAttribute | null;
   lodIndex: number;
+}
+
+interface GroundCoverLodSubmission {
+  meshes: InstancedSourceMesh[];
   renderedIndices: number[];
+  candidateIndices: number[];
 }
 
 interface InstancedAssetRecord {
@@ -75,6 +80,7 @@ interface InstancedAssetRecord {
   cellVisibilityStamp: Int32Array;
   cellVisible: Uint8Array;
   meshes: InstancedSourceMesh[];
+  lodSubmissions: GroundCoverLodSubmission[];
   visibleIndices: number[];
   renderedIndices: number[];
   candidateIndices: number[];
@@ -386,8 +392,15 @@ export class GroundCoverRenderer {
           || category === "driftwood";
         this.group.add(mesh);
         return { mesh, relative: sourceMesh.relative, phaseAttribute, exposureAttribute,
-          lodIndex: sourceMesh.lodIndex, renderedIndices: [] as number[] };
+          lodIndex: sourceMesh.lodIndex };
       });
+      const lodSubmissions: GroundCoverLodSubmission[] = [];
+      for (const source of meshes) {
+        const submission = lodSubmissions[source.lodIndex] ??= {
+          meshes: [], renderedIndices: [], candidateIndices: []
+        };
+        submission.meshes.push(source);
+      }
       const spatialIndex = buildGroundCoverSpatialIndex(instances);
       const { cellSpheres, instanceCellIds } = buildGroundCoverCellSpheres(instances, spatialIndex.cellSize);
       this.records.push({
@@ -404,6 +417,7 @@ export class GroundCoverRenderer {
         cellVisibilityStamp: new Int32Array(cellSpheres.length).fill(-1),
         cellVisible: new Uint8Array(cellSpheres.length),
         meshes,
+        lodSubmissions,
         visibleIndices: [],
         renderedIndices: [],
         candidateIndices: [],
@@ -583,26 +597,34 @@ export class GroundCoverRenderer {
       record.lodDirty = false;
       record.candidateIndices = record.renderedIndices;
       record.renderedIndices = candidates;
-      for (const source of record.meshes) {
-        // Manual loop instead of Array.filter: same order, same members, no
-        // per-source closure/allocation on every frame.
-        const indices: number[] = [];
-        for (const index of candidates) {
-          if (record.instances[index].lodIndex === source.lodIndex) indices.push(index);
+      // Every material part at a LOD submits the same ordered instances. Split
+      // once, then reuse two lists per level rather than allocating/filtering
+      // the full candidate set separately for every material part.
+      for (const submission of record.lodSubmissions) {
+        if (submission) submission.candidateIndices.length = 0;
+      }
+      for (const index of candidates) {
+        record.lodSubmissions[record.instances[index].lodIndex]?.candidateIndices.push(index);
+      }
+      for (const submission of record.lodSubmissions) {
+        if (!submission) continue;
+        const indices = submission.candidateIndices;
+        if (groundCoverIndexListsEqual(submission.renderedIndices, indices)) continue;
+        submission.candidateIndices = submission.renderedIndices;
+        submission.renderedIndices = indices;
+        for (const source of submission.meshes) {
+          for (let visibleCount = 0; visibleCount < indices.length; visibleCount += 1) {
+            const instance = record.instances[indices[visibleCount]];
+            this.composedMatrix.multiplyMatrices(instance.matrix, source.relative);
+            source.mesh.setMatrixAt(visibleCount, this.composedMatrix);
+            source.phaseAttribute?.setX(visibleCount, instance.phase);
+            source.exposureAttribute?.setX(visibleCount, instance.exposure);
+          }
+          source.mesh.count = indices.length;
+          source.mesh.instanceMatrix.needsUpdate = true;
+          if (source.phaseAttribute) source.phaseAttribute.needsUpdate = true;
+          if (source.exposureAttribute) source.exposureAttribute.needsUpdate = true;
         }
-        if (groundCoverIndexListsEqual(source.renderedIndices, indices)) continue;
-        source.renderedIndices = indices;
-        for (let visibleCount = 0; visibleCount < indices.length; visibleCount += 1) {
-          const instance = record.instances[indices[visibleCount]];
-          this.composedMatrix.multiplyMatrices(instance.matrix, source.relative);
-          source.mesh.setMatrixAt(visibleCount, this.composedMatrix);
-          source.phaseAttribute?.setX(visibleCount, instance.phase);
-          source.exposureAttribute?.setX(visibleCount, instance.exposure);
-        }
-        source.mesh.count = indices.length;
-        source.mesh.instanceMatrix.needsUpdate = true;
-        if (source.phaseAttribute) source.phaseAttribute.needsUpdate = true;
-        if (source.exposureAttribute) source.exposureAttribute.needsUpdate = true;
       }
     }
   }

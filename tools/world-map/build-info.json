@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 1,
+  "inputFingerprint": "6421bfb4d8accff6160c364a4ed01550a5c41286f772fa00658f0e64ffc299e1",
+  "inputs": [
+    {
+      "path": ".nvmrc",
+      "sha256": "9c579c4eab1d526e689fe7cda201a0ab2f39070304043bb55c459a3d90954250"
+    },
+    {
+      "path": "art/palettes/neva.palette.json",
+      "sha256": "75afa4dc77fb1109ae8872e6d009f6853b2d4a7ea745bff76d64461900d3ba4f"
+    },
+    {
+      "path": "assets/specs/asset-catalog.json",
+      "sha256": "b403eff108375f67874ca31fe69456160517bed17d8a6360d57aa58516ff2058"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "1e4230a64dfe12fc5b53562791668123507f21b07bba290d3737e4fec20aa8fb"
+    },
+    {
+      "path": "package.json",
+      "sha256": "be2a7347e3bd10593f9964251803ceb4bda1d3181165accf86d0294ef843ae73"
+    },
+    {
+      "path": "src/content/discoveries.ts",
+      "sha256": "6d64ee5381bcc2e93cc348924bb75aecb7f07506379caf9d9622f3a3c153c158"
+    },
+    {
+      "path": "src/physics/CollisionCatalogAdapter.ts",
+      "sha256": "d652bb25a47f7e84ab11b893ad2362bd830888d007a37413e837806117b58d21"
+    },
+    {
+      "path": "src/physics/StaticCollision.ts",
+      "sha256": "0cde1d3ff9f132823499daeea4aaaf08fe8ba9edcbf79a41020b62f705e048a7"
+    },
+    {
+      "path": "src/render/assets/AssetCatalog.generated.ts",
+      "sha256": "2e814d6495d0d4ba4b20cac4a8819a776816aa079087bbf6c3f908cfb9c36bfe"
+    },
+    {
+      "path": "src/render/assets/AssetCatalog.ts",
+      "sha256": "2e120bc9756d13c38a706b1f776f53d366f91d2abfc285983ddaddcbe47f49c3"
+    },
+    {
+      "path": "src/render/config/VisualRenderConfig.ts",
+      "sha256": "4bb907b500edb0a53670d99d551cc6b503407920da343743a995f87f1f026a5a"
+    },
+    {
+      "path": "src/render/materials/GroundPolygonCells.ts",
+      "sha256": "e0a4bd2c93c4e0d8fae230db551ada1868211d7a34eb5bbabf0415e450299ff5"
+    },
+    {
+      "path": "src/render/materials/PaletteTokens.ts",
+      "sha256": "5be8d53e2a8597869a306ae7243fe80c125c906c7872dda20d6bdff4cc09990c"
+    },
+    {
+      "path": "src/render/materials/RoadCoverage.ts",
+      "sha256": "4787789ede78159c4de3f00fbc0bafdbcbfff59b58160281c293d8839c3b45f0"
+    },
+    {
+      "path": "src/render/materials/SurfaceFieldAttributes.ts",
+      "sha256": "ac14b377c7c147b39773ceafd067380565163e8c93f1c834474c325aaadb8d95"
+    },
+    {
+      "path": "src/simulation/core/QuestTypes.ts",
+      "sha256": "4a9cd51394380614c97962bced61fc05b2978918129f09a2e3e9c95f65ab8063"
+    },
+    {
+      "path": "src/simulation/core/types.ts",
+      "sha256": "d0d96be2e9eed2ac8ec4ab5777ed418fe0156ee6839bbf0b2fdd661936b9856a"
+    },
+    {
+      "path": "src/simulation/labor/LaborStations.ts",
+      "sha256": "228f87a224ef0243a8892b136f1b00f866195a91422b7aef2303b42b04ed5c00"
+    },
+    {
+      "path": "src/utils/CooperativeTask.ts",
+      "sha256": "f4cf97598e0d0999f87d1cd2e728229543cbb032216603d30d53d2b60753ca20"
+    },
+    {
+      "path": "src/world/FarmhouseInterior.ts",
+      "sha256": "9bd6d6c9203960a888d97509786e79e01bea1d57da638484116f2104ecef682b"
+    },
+    {
+      "path": "src/world/FarmLayout.ts",
+      "sha256": "80c6d0c0344bee0b18472ce8ec0b4c612bf77a00914819753c1910a52f2c64f2"
+    },
+    {
+      "path": "src/world/HarborCoast.ts",
+      "sha256": "1c2b8449a1a7fdeb6afe31f939f32fd177acbeeb84d7927485df6ff06ecb2aba"
+    },
+    {
+      "path": "src/world/HarborCoastLayout.ts",
+      "sha256": "5ffa06c677ade8cce1676b73bbccf2cecf215871c2560ce30fa02c69673779cb"
+    },
+    {
+      "path": "src/world/HarborDistrictLayout.ts",
+      "sha256": "97ddeed82360890339ffc7904344d9b48ea4a9c2d30c7cce13020032b6781523"
+    },
+    {
+      "path": "src/world/InteractionPlacements.ts",
+      "sha256": "d0f987b0065e131dabc91e68d5fc3669fbe40dfab0b3f92304954022aeba754e"
+    },
+    {
+      "path": "src/world/InteractionReach.ts",
+      "sha256": "9449e8309a825f3eae0c16d5061da64c385d1130bf1e8eed159728253b05e63c"
+    },
+    {
+      "path": "src/world/MainlandBrooks.generated.ts",
+      "sha256": "6d087fba6e806a05584ee875599192580ca4438b76ac3595865d0f71924dc85e"
+    },
+    {
+      "path": "src/world/MainlandBrooks.ts",
+      "sha256": "c294e3631835d210eea05ebfd0cf61d5cc1f1145c792cb26d01971cd21d57eb2"
+    },
+    {
+      "path": "src/world/MainlandEnvironmentLayout.ts",
+      "sha256": "c48333718915ed83db67949e1ea49b09bfdc54a1bbbf39bb2a89f23dfa0f493b"
+    },
+    {
+      "path": "src/world/MainlandRoadNetwork.generated.ts",
+      "sha256": "892aa6a85a948617ce5f1c14bf01cae303392a41cd574fa0a8830a36200996ec"
+    },
+    {
+      "path": "src/world/MainlandSettlementLayout.ts",
+      "sha256": "026d119c9011d1976eb62be7f92d860c00ec63523fee820a443bb78fbff62396"
+    },
+    {
+      "path": "src/world/MainlandWorkSites.ts",
+      "sha256": "9e3265fbb6999df79e5701cbeffdd1d86a468b4f00eecd2153e4b95f57c71f0c"
+    },
+    {
+      "path": "src/world/NevaCoastField.ts",
+      "sha256": "b2fc7b921debb1a36e10d3e5d4f3a3155b0d33a55691d2d06e78fb111cb1914c"
+    },
+    {
+      "path": "src/world/NevaHeadwaters.ts",
+      "sha256": "004fc56599cae2ca16df2102894c8bce5dc9f0fafd7a8f38df37901dd3ed2f74"
+    },
+    {
+      "path": "src/world/NevaLandforms.ts",
+      "sha256": "e313a79c0ab6c48e770cd776f0043875f96875096e876b7af6ba72f29ca1da33"
+    },
+    {
+      "path": "src/world/NevaMainland.ts",
+      "sha256": "bd6fbabf132520582cad915de7c00993448752cacd2876738d0209b5f1fad336"
+    },
+    {
+      "path": "src/world/NevaRiverDressing.ts",
+      "sha256": "7b38d506a7091f5089aa82d249c44e84a33b4cba0263d442293187ae31db71aa"
+    },
+    {
+      "path": "src/world/NevaRiverFeatures.ts",
+      "sha256": "15d103537fd014112ea739b7ecbb931d74d969ee8dbfc710645ae4589a3edbd5"
+    },
+    {
+      "path": "src/world/OceanIsletPlacements.ts",
+      "sha256": "3bc27a6f03050e7e7f587fc8b1700e40b8a0f2723f853493112366d950ea34f9"
+    },
+    {
+      "path": "src/world/OceanIslets.ts",
+      "sha256": "fd1cfac06f441c2d02dc8149b588623d79f4c81c8854c0b109d6040c4de1cc0d"
+    },
+    {
+      "path": "src/world/ProceduralNoise.ts",
+      "sha256": "f70edc407fe0d0c1d871f54c53ed7810cb3840bbc5ba89b1f4a213f9e8259b8b"
+    },
+    {
+      "path": "src/world/ProcessingStationApproach.ts",
+      "sha256": "5cbcfb51294f8d15362ca1f04a14bedd3fd493f30e1ca03b8f7931e2e27bc8a1"
+    },
+    {
+      "path": "src/world/RoadClasses.ts",
+      "sha256": "0d48e37c4c2bade04a6c788a9ea5ebd94ea58892eb2c10609041d5070a0148af"
+    },
+    {
+      "path": "src/world/RoadFootprint.ts",
+      "sha256": "7d19e53f0cc1fac1c322157eecb57ea19885d178fb4eed7f021abb7f78701c9c"
+    },
+    {
+      "path": "src/world/RoadGeometry.ts",
+      "sha256": "1d0f951b10e238194054c3e9ee4798f9535e51f496fdd10a049b333792032a25"
+    },
+    {
+      "path": "src/world/RoadProfile.ts",
+      "sha256": "cc22bc30c1aa01373cc6cebbacaa78324770cf317596d5d672467fb29984710c"
+    },
+    {
+      "path": "src/world/RoadTerrainConformity.ts",
+      "sha256": "c42ef3c12492cc5e262e40d2b4414e347d9248746715f4490a4d1f1ee6ed967f"
+    },
+    {
+      "path": "src/world/SunreachDressing.ts",
+      "sha256": "af59bd600c613df3bd8275a4f3de26969be829dbc34721a7c72672b9dd4e66bb"
+    },
+    {
+      "path": "src/world/SunreachLivingLayout.ts",
+      "sha256": "0ced90963df55d375b5dc43c39e78b5fd5cee17b4f74b54cc56a7ffef5caa1ac"
+    },
+    {
+      "path": "src/world/SunreachWorld.ts",
+      "sha256": "390de1010f680239e92b121261edb9039d01a99f3916af3a1be3ce8bc78185ed"
+    },
+    {
+      "path": "src/world/TerraceProfile.ts",
+      "sha256": "0d7ddda4e00917ada531785e938bcde7b84c1b0da11d9776db0dc94b738257f0"
+    },
+    {
+      "path": "src/world/VillageTradeLayout.ts",
+      "sha256": "61cdc5a76755b7eaedd30080c467b1543ee890f0d719044cf85a1446ec592531"
+    },
+    {
+      "path": "src/world/WorldAnchors.ts",
+      "sha256": "f72b895da41ef6bb36975ae8b96795e3d84e23ee7a30944a1d53858b504df672"
+    },
+    {
+      "path": "src/world/WorldCompositionField.ts",
+      "sha256": "e1963a6c5e1d9de6be842a3c1bb170a55b37273b1b80d1dd8919140a9aa9e906"
+    },
+    {
+      "path": "src/world/WorldEnvironmentLayout.ts",
+      "sha256": "69dd14be7648d403b6caa270fc7d66f7c496f2156b3fac4f4a19103f54b41b24"
+    },
+    {
+      "path": "src/world/WorldGameplayLocations.ts",
+      "sha256": "42386b252b32fb3fe0a541b31839693399b7328c520ec609928371256c9b4c1d"
+    },
+    {
+      "path": "src/world/WorldGeographyTypes.ts",
+      "sha256": "c3719c9294a98bb3d266c889cfb17b4c7d4b58f571efcdff8ab0398001b45818"
+    },
+    {
+      "path": "src/world/WorldGeometry.ts",
+      "sha256": "f7c38eb1a8d3797403b37f8f3c679fc71ade7cdcb0d2ec8e33e4e8cbf1d06557"
+    },
+    {
+      "path": "src/world/WorldIslands.ts",
+      "sha256": "470daa8e8ce551f127654a4c6d66bf3a4a9d5f02e660787bf267be1893d35902"
+    },
+    {
+      "path": "src/world/WorldLayout.ts",
+      "sha256": "27338237e8187c72901ef8c7700580357953e5a30b2e2b843fdc8088202ddd96"
+    },
+    {
+      "path": "tools/vite/runtimeAssetCatalogPlugin.ts",
+      "sha256": "bd159e376bc82bdd021a44466fcc6eec11892280ad751175b63ab9d7e51b065f"
+    },
+    {
+      "path": "tools/world-map/build.mjs",
+      "sha256": "f994db71cf8d971d247122988d19aa232c9f226a10817ee8a0297c587a33bd9b"
+    },
+    {
+      "path": "tools/world-map/check.mjs",
+      "sha256": "6614feadeaebc57b8a260c92374528d39e35164bf30d95621b601193bb111f09"
+    },
+    {
+      "path": "tools/world-map/config.json",
+      "sha256": "7478c8990899d502f594499678ab512a8ffe39ee4f282e23cd7b60f8ebf268bb"
+    },
+    {
+      "path": "tools/world-map/contours.ts",
+      "sha256": "068366906f85b0a05d5ec325a46734f7d23e8bfc69dcf26a21dfd56718d42199"
+    },
+    {
+      "path": "tools/world-map/extract.ts",
+      "sha256": "a0b64c72f59464bd00a65e4686694e778391e271360019d247ae886e50c5284a"
+    },
+    {
+      "path": "tools/world-map/inputs.mjs",
+      "sha256": "fb4ed595bf81082be4013dcd0e2f0be18a44c8d12c363775e8e3e80188350f8c"
+    },
+    {
+      "path": "tools/world-map/render.py",
+      "sha256": "f33a17da1075d25aeb61bee88c89c5b2e1036cbba0279f5fae5574cd1d6a7bc4"
+    },
+    {
+      "path": "tools/world-map/requirements.txt",
+      "sha256": "6601ea18fd9e098d3ca670f2377890cced9b3b4920a72e9aeb81bf3b3d965eb7"
+    },
+    {
+      "path": "tools/world-map/vite.config.ts",
+      "sha256": "e911a03af9e7cd126d1148134b19120f928a4cea7195637546b42c5feeed64c8"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "85ebfadb2cb4afc47afa74f93fa34b4e0ef1a504ce97731086a73dc393c6c38a"
+    }
+  ],
+  "outputs": {
+    "public/assets/world-map/manifest.json": "f7a798f6b9e005ad47565db60d9ad1a51c9b6d7fa1cebc593c8c631a03a1c1d0",
+    "public/assets/world-map/world-map-2048.webp": "49f9ccea3b526e459066368ad8737d11a8ee68144aef3a147dac2711a49cd562"
+  },
+  "toolchain": {
+    "node": "v24.19.0",
+    "Pillow": "12.3.0",
+    "numpy": "2.3.5",
+    "scipy": "1.17.0",
+    "matplotlib": "3.10.8",
+    "libwebp": "1.6.0"
+  },
+  "determinismVerified": true
+}

@@ -312,32 +312,70 @@ export function buildContextualHotbar(
   if (stance === "explorer") return [];
 
   const { player } = state;
-  const inventory = state.inventories[player.inventoryId];
-  const countOf = (itemId: string): number =>
-    inventory ? InventoryManager.getItemCount(inventory, itemId) : 0;
-  const armedCrop = selectedCropId ? ContentRegistry.crops.get(selectedCropId) : undefined;
-  const armedSeeds = armedCrop ? countOf(armedCrop.seedItemId) : 0;
-  // The belt names one crop, so its count must be that crop's seeds only; the
-  // old sum-across-crops showed "Wheat (8)" with 3 wheat and 5 carrot seeds.
-  let fallbackCropName: string | null = null;
-  let fallbackSeeds = 0;
-  for (const crop of ContentRegistry.crops.values()) {
-    const held = countOf(crop.seedItemId);
-    if (held > 0 && !fallbackCropName) {
-      fallbackCropName = crop.name;
-      fallbackSeeds = held;
+  // Each stance only reads the stock it actually presents. These queries read
+  // mutable inventories, so resolve them now rather than caching across HUDs.
+  if (stance === "agronomy") {
+    const inventory = state.inventories[player.inventoryId];
+    const countOf = (itemId: string): number =>
+      inventory ? InventoryManager.getItemCount(inventory, itemId) : 0;
+    const armedCrop = selectedCropId ? ContentRegistry.crops.get(selectedCropId) : undefined;
+    const armedSeeds = armedCrop ? countOf(armedCrop.seedItemId) : 0;
+    // The belt names one crop, so its count must be that crop's seeds only; the
+    // old sum-across-crops showed "Wheat (8)" with 3 wheat and 5 carrot seeds.
+    let fallbackCropName: string | null = null;
+    let fallbackSeeds = 0;
+    if (armedSeeds === 0) {
+      for (const crop of ContentRegistry.crops.values()) {
+        const held = countOf(crop.seedItemId);
+        if (held > 0 && !fallbackCropName) {
+          fallbackCropName = crop.name;
+          fallbackSeeds = held;
+          if (fallbackCropName) break;
+        }
+      }
     }
+    const seedName = armedCrop && armedSeeds > 0 ? armedCrop.name : fallbackCropName;
+    const seedTotal = armedCrop && armedSeeds > 0 ? armedSeeds : fallbackSeeds;
+    const fertilizerCount = countOf("item.basic_fertilizer");
+    return [
+      {
+        slot: 1, shortcutKey: "1", id: "tool.hoe",
+        action: { type: "equip-tool", tool: "hands" },
+        name: "Hand Tools", detail: "Harvest or clear withered crops",
+        icon: "hoe", quantity: null, ready: true
+      },
+      {
+        slot: 2, shortcutKey: "2", id: "tool.seeds",
+        action: { type: "equip-tool", tool: "seeds" },
+        name: "Seed Belt", detail: seedName ? `${seedName} (${seedTotal})` : "No seeds",
+        icon: "seeds", quantity: seedTotal > 0 ? seedTotal : null, ready: seedTotal > 0
+      },
+      {
+        slot: 3, shortcutKey: "3", id: "tool.watering_can",
+        action: { type: "equip-tool", tool: "watering-can" },
+        name: "Watering Can", detail: "Water dry cultivated plots",
+        icon: "water", quantity: null, ready: true
+      },
+      {
+        slot: 4, shortcutKey: "4", id: "tool.fertilizer",
+        action: { type: "equip-tool", tool: "fertilizer" },
+        name: "Compost & Nutrients",
+        detail: fertilizerCount > 0 ? `Basic Fertilizer (${fertilizerCount})` : "No fertilizer",
+        icon: "fertilizer", quantity: fertilizerCount > 0 ? fertilizerCount : null, ready: fertilizerCount > 0
+      },
+      {
+        slot: 5, shortcutKey: "5", id: "tool.harvest",
+        action: { type: "equip-tool", tool: "harvest" },
+        name: "Harvest Basket", detail: "Collect mature crop yields",
+        icon: "harvest", quantity: null, ready: true
+      }
+    ];
   }
-  const seedName = armedCrop && armedSeeds > 0 ? armedCrop.name : fallbackCropName;
-  const seedTotal = armedCrop && armedSeeds > 0 ? armedSeeds : fallbackSeeds;
-  const bait = accessibleFishingSupplyCount(state, BAIT_ITEM_ID);
+
   const lureCount = accessibleFishingSupplyCount(state, LURE_ITEM_ID);
   const lureName = ContentRegistry.items.get(LURE_ITEM_ID)?.name ?? "Woven Lure";
   const lurePrepared = player.preparedLureItemId === LURE_ITEM_ID;
-  const fertilizerCount = countOf("item.basic_fertilizer");
   const rod = ContentRegistry.rods.get(player.equippedRodId);
-  const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
-  const boatDefinition = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
   const rodSlot = {
     id: "tool.rod",
     action: { type: "equip-tool", tool: "fishing-rod" },
@@ -365,41 +403,8 @@ export function buildContextualHotbar(
   } satisfies Omit<ContextualHotbarSlotDto, "slot" | "shortcutKey">;
 
   switch (stance) {
-    case "agronomy":
-      return [
-        {
-          slot: 1, shortcutKey: "1", id: "tool.hoe",
-          action: { type: "equip-tool", tool: "hands" },
-          name: "Hand Tools", detail: "Harvest or clear withered crops",
-          icon: "hoe", quantity: null, ready: true
-        },
-        {
-          slot: 2, shortcutKey: "2", id: "tool.seeds",
-          action: { type: "equip-tool", tool: "seeds" },
-          name: "Seed Belt", detail: seedName ? `${seedName} (${seedTotal})` : "No seeds",
-          icon: "seeds", quantity: seedTotal > 0 ? seedTotal : null, ready: seedTotal > 0
-        },
-        {
-          slot: 3, shortcutKey: "3", id: "tool.watering_can",
-          action: { type: "equip-tool", tool: "watering-can" },
-          name: "Watering Can", detail: "Water dry cultivated plots",
-          icon: "water", quantity: null, ready: true
-        },
-        {
-          slot: 4, shortcutKey: "4", id: "tool.fertilizer",
-          action: { type: "equip-tool", tool: "fertilizer" },
-          name: "Compost & Nutrients",
-          detail: fertilizerCount > 0 ? `Basic Fertilizer (${fertilizerCount})` : "No fertilizer",
-          icon: "fertilizer", quantity: fertilizerCount > 0 ? fertilizerCount : null, ready: fertilizerCount > 0
-        },
-        {
-          slot: 5, shortcutKey: "5", id: "tool.harvest",
-          action: { type: "equip-tool", tool: "harvest" },
-          name: "Harvest Basket", detail: "Collect mature crop yields",
-          icon: "harvest", quantity: null, ready: true
-        }
-      ];
-    case "angling":
+    case "angling": {
+      const bait = accessibleFishingSupplyCount(state, BAIT_ITEM_ID);
       return [
         { ...rodSlot, slot: 1, shortcutKey: "1" },
         { ...lureSlot, slot: 2, shortcutKey: "2" },
@@ -411,7 +416,11 @@ export function buildContextualHotbar(
           icon: "stow", quantity: null, ready: true
         }
       ];
-    case "maritime":
+    }
+    case "maritime": {
+      const activeBoat = player.activeBoatId ? state.boats[player.activeBoatId] : null;
+      const boatDefinition = activeBoat ? ContentRegistry.boats.get(activeBoat.boatTypeId) : null;
+      const occupiedCargoSlots = activeBoat?.fishCargoSlotIds.filter(Boolean).length ?? null;
       return [
         {
           slot: 1, shortcutKey: "1", id: "maritime.helm",
@@ -426,13 +435,14 @@ export function buildContextualHotbar(
           action: { type: "input", action: "open-ledger" },
           name: "Cargo Hold",
           detail: activeBoat
-            ? `Hold ${activeBoat.fishCargoSlotIds.filter(Boolean).length}/${activeBoat.fishCargoSlotIds.length} · Bait, ice and supplies`
+            ? `Hold ${occupiedCargoSlots}/${activeBoat.fishCargoSlotIds.length} · Bait, ice and supplies`
             : "Inspect storage and supplies",
           icon: "hold",
-          quantity: activeBoat ? activeBoat.fishCargoSlotIds.filter(Boolean).length : null,
+          quantity: occupiedCargoSlots,
           ready: true
         }
       ];
+    }
   }
 }
 
