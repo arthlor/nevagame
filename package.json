@@ -54,7 +54,10 @@
     "ui:pack:check": "node tools/ui/extrudeAndPack.mjs --check",
     "content:validate": "vite-node tools/content/validate.ts",
     "test:budget": "playwright test --config=playwright.budget.config.ts",
-    "perf:baseline": "NEVA_PERF_BASELINE=1 playwright test --config=playwright.budget.config.ts performance-baseline"
+    "perf:baseline": "NEVA_PERF_BASELINE=1 playwright test --config=playwright.budget.config.ts performance-baseline",
+    "map:build": "node tools/world-map/build.mjs",
+    "map:check": "node tools/world-map/check.mjs",
+    "map:test": "node --test tools/world-map/pipeline.test.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "npm:@dimforge/rapier3d-deterministic-compat@0.21.0",

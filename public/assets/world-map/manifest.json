@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "projection": {
+    "width": 7200,
+    "height": 5009,
+    "paddingPixels": 120,
+    "pixelsPerWorldUnit": 2.577777777777778,
+    "bounds": {
+      "minX": -1000,
+      "maxX": 1700,
+      "minZ": -950,
+      "maxZ": 900
+    }
+  },
+  "texture": {
+    "file": "world-map-2048.webp",
+    "width": 2048,
+    "height": 1425,
+    "fileBytes": 181956,
+    "decodedRgbaBytes": 11673600,
+    "sha256": "49f9ccea3b526e459066368ad8737d11a8ee68144aef3a147dac2711a49cd562"
+  },
+  "source": {
+    "worldSeed": 42891,
+    "layoutRevision": 43,
+    "fingerprint": "6421bfb4d8accff6160c364a4ed01550a5c41286f772fa00658f0e64ffc299e1"
+  },
+  "axes": {
+    "right": "+X",
+    "down": "+Z",
+    "north": "-Z"
+  }
+}

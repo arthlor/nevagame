@@ -215,6 +215,7 @@ export const GameUiModalLayer: React.FC<GameUiModalLayerProps> = ({
       {activeModal === "map" && (
         <WorldMapModal
           map={onInspectWorldMap()}
+          headingDegrees={worldHud.compass.headingDegrees}
           questMarkers={worldHud.compass.nearbyMarkers.filter(
             (marker) => marker.kind === "quest" || marker.kind === "quest-secondary"
           )}

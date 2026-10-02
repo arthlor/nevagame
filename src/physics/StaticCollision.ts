@@ -37,6 +37,11 @@ export function staticPoseIsClear(
     if (box.center.y + extents.y <= ground + ACTOR_STEP_OVER_METERS) return true;
     if (box.center.y - extents.y >= ground + ACTOR_HEAD_METERS) return true;
     const dx = point.x - box.center.x, dz = point.z - box.center.z;
+    // Any yawed rectangle fits inside this deliberately loose square. Reject
+    // remote proxies before trigonometry; the existing narrow phase still owns
+    // every possible contact, including exact tangencies and tilted boxes.
+    const reach = extents.x + extents.z + Math.abs(radius);
+    if (Math.abs(dx) > reach || Math.abs(dz) > reach) return true;
     let x = dx, z = dz;
     if (!tilted) {
       const yaw = 2 * Math.atan2(box.rotation.y, box.rotation.w);

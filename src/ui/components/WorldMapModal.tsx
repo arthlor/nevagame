@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { MarketId } from "../../simulation/core/types";
 import type { CompassMarkerDto, MarketDemandSignal, WorldMapDto } from "../../simulation/core/contracts";
 import {
@@ -6,20 +6,24 @@ import {
   type WorldPoint
 } from "../../world/WorldLayout";
 import { WORLD_CHART_NODES, type WorldChartNode } from "../../world/WorldGameplayLocations";
-import { worldPointToMapSvg } from "../../world/WorldMapProjection";
+import {
+  WORLD_ATLAS, worldPointToAtlas as worldPointToMapSvg,
+  atlasClientPoint, clampAtlasView, fullAtlasView, zoomAtlasView
+} from "../../world/WorldAtlasProjection";
 import { IconCompass } from "./HudIcons";
 import { useModalAccessibility } from "../useModalAccessibility";
 import { ChromeClose } from "../chrome/Chrome";
 import { GameSheet } from "../coastal/CoastalUI";
 import { AtlasImage } from "../chrome/AtlasImage";
 import { atlasForMapNode } from "../chrome/uiAtlas";
-import { WorldChartTerrain } from "./WorldChartTerrain";
+import { WorldAtlasTerrain } from "./WorldAtlasTerrain";
 import { playUiSound } from "../audio/uiAudio";
 import { placeLabel } from "../../i18n/placesTr";
 import { useTranslation } from "../../i18n/useTranslation";
 
 export interface WorldMapModalProps {
   map: WorldMapDto;
+  headingDegrees?: number;
   /**
    * Story targets, already resolved by `QuestDomain` and carried on the HUD
    * compass. The chart draws the same marks the compass ribbon and the minimap
@@ -33,13 +37,13 @@ export interface WorldMapModalProps {
 }
 
 function chartAreaViewBox(area: "sea" | "neva" | "sunreach") {
-  if (area === "sea") return { x: 0, y: 0, width: 1000, height: 700 };
+  if (area === "sea") return fullAtlasView();
   const bounds = WorldLayout.islands().find((island) => island.id === `island.${area}`)!.authoredBounds;
   const min = worldPointToMapSvg({ x: bounds.minX, z: bounds.minZ });
   const max = worldPointToMapSvg({ x: bounds.maxX, z: bounds.maxZ });
-  const width = Math.max(260, max.x - min.x + 60, ((max.y - min.y + 60) * 10) / 7);
-  const height = width * 0.7;
-  return { x: (min.x + max.x - width) * 0.5, y: (min.y + max.y - height) * 0.5, width, height };
+  const width = Math.max(250, max.x - min.x + 64, (max.y - min.y + 64) / WORLD_ATLAS.aspect);
+  const height = width * WORLD_ATLAS.aspect;
+  return clampAtlasView({ x: (min.x + max.x - width) / 2, y: (min.y + max.y - height) / 2, width, height });
 }
 
 function nodeIsInArea(node: MapNode, area: "sea" | "neva" | "sunreach"): boolean {
@@ -99,6 +103,8 @@ const CHART_PAPER = "#f4ead6";
 
 export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   map,
+  headingDegrees = 0,
+  customWaypoint,
   questMarkers = [],
   onClose
 }) => {
@@ -118,25 +124,28 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
   const dragRef = useRef<{
     isDragging: boolean;
+    pointerId: number | null;
     startX: number;
     startY: number;
     startViewBox: { x: number; y: number; width: number; height: number };
-    totalDist: number;
   }>({
     isDragging: false,
+    pointerId: null,
     startX: 0,
     startY: 0,
-    startViewBox: { x: 0, y: 0, width: 1000, height: 700 },
-    totalDist: 0
+    startViewBox: fullAtlasView()
   });
 
   const playerX = map.player.x;
   const playerZ = map.player.z;
   const playerMapPosition = worldPointToMapSvg({ x: playerX, z: playerZ });
 
+  const waypointMapPosition = customWaypoint ? worldPointToMapSvg(customWaypoint) : null;
+
   const selectedNode = MAP_NODES.find((n) => n.id === selectedNodeId) ?? MAP_NODES[0];
   const selectedDistance = Math.hypot(selectedNode.worldPosition.x - playerX, selectedNode.worldPosition.z - playerZ);
-  const selectedTerrain = isTr
+  // These WorldLayout classifications depend only on the authored location.
+  const selectedTerrain = useMemo(() => isTr
     ? WorldLayout.isSailable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
       ? "Seyredilebilir su"
       : WorldLayout.isWalkable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
@@ -146,14 +155,14 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
       ? "Navigable water"
       : WorldLayout.isWalkable(selectedNode.worldPosition.x, selectedNode.worldPosition.z)
         ? "Road or trail"
-        : "Rough ground";
+        : "Rough ground", [isTr, selectedNode]);
 
   const zoomRatio = 1000 / viewBox.width;
   const markerScale = Math.min(1, Math.max(0.48, 1 / (zoomRatio * 0.75)));
   const schoolScale = Math.min(1, Math.max(0.78, markerScale));
   const questScale = markerScale;
   const playerScale = markerScale;
-  const chartView = `${viewBox.x.toFixed(1)} ${viewBox.y.toFixed(1)} ${viewBox.width.toFixed(1)} ${viewBox.height.toFixed(1)}`;
+  const chartView = `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`;
 
   const isNodeVisible = (node: MapNode) => {
     const { x: px, y: py } = worldPointToMapSvg(node.worldPosition);
@@ -169,7 +178,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
 
   // Dynamic Compass positioning
   const compassX = viewBox.x + viewBox.width - 64 * (viewBox.width / 1000);
-  const compassY = viewBox.y + 64 * (viewBox.height / 700);
+  const compassY = viewBox.y + 64 * (viewBox.height / WORLD_ATLAS.height);
   const compassScale = Math.min(1, Math.max(0.45, viewBox.width / 1000));
 
   const focusNode = (nodeId: string) => {
@@ -177,15 +186,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
     const node = MAP_NODES.find((n) => n.id === nodeId);
     if (!node) return;
     const { x: px, y: py } = worldPointToMapSvg(node.worldPosition);
-    const minX = -100;
-    const maxX = 1100 - viewBox.width;
-    const minY = -80;
-    const maxY = 780 - viewBox.height;
-    setViewBox((prev) => ({
-      ...prev,
-      x: Math.max(minX, Math.min(maxX, px - prev.width / 2)),
-      y: Math.max(minY, Math.min(maxY, py - prev.height / 2))
-    }));
+    setViewBox(previous => clampAtlasView({ ...previous, x: px - previous.width / 2, y: py - previous.height / 2 }));
   };
 
   const switchArea = (area: "sea" | "neva" | "sunreach") => {
@@ -195,48 +196,40 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || dragRef.current.isDragging) return;
+    if (!atlasClientPoint({ x: e.clientX, y: e.clientY }, e.currentTarget.getBoundingClientRect(), viewBox)) return;
     const clickedInteractive = (e.target as Element)?.closest?.(".map-node-group, .map-school, .map-compass-rose");
     if (clickedInteractive) return;
 
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-      // Ignored
+      // Ignored for environments without pointer capture
     }
 
     dragRef.current = {
       isDragging: true,
+      pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      startViewBox: { ...viewBox },
-      totalDist: 0
+      startViewBox: { ...viewBox }
     };
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!dragRef.current.isDragging || !svgRef.current) return;
+    if (!dragRef.current.isDragging || dragRef.current.pointerId !== e.pointerId || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
-    const scaleFactor = dragRef.current.startViewBox.width / rect.width;
+    const start = dragRef.current.startViewBox;
+    const scaleFactor = Math.max(start.width / rect.width, start.height / rect.height);
     const dx = (e.clientX - dragRef.current.startX) * scaleFactor;
     const dy = (e.clientY - dragRef.current.startY) * scaleFactor;
-    dragRef.current.totalDist = Math.hypot(e.clientX - dragRef.current.startX, e.clientY - dragRef.current.startY);
-
-    const minX = -100;
-    const maxX = 1100 - dragRef.current.startViewBox.width;
-    const minY = -80;
-    const maxY = 780 - dragRef.current.startViewBox.height;
-
-    setViewBox((prev) => ({
-      ...prev,
-      x: Math.max(minX, Math.min(maxX, dragRef.current.startViewBox.x - dx)),
-      y: Math.max(minY, Math.min(maxY, dragRef.current.startViewBox.y - dy))
-    }));
+    setViewBox(clampAtlasView({ ...start, x: start.x - dx, y: start.y - dy }));
   };
 
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!dragRef.current.isDragging) return;
+    if (!dragRef.current.isDragging || dragRef.current.pointerId !== e.pointerId) return;
+    dragRef.current.isDragging = false;
     try {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -244,69 +237,38 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
     } catch {
       // Ignored
     }
-
-    dragRef.current.isDragging = false;
   };
 
   const handlePointerCancel = () => {
     dragRef.current.isDragging = false;
   };
 
-  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+  const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    if (!svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    const cursorSvgX = viewBox.x + ((e.clientX - rect.left) / rect.width) * viewBox.width;
-    const cursorSvgY = viewBox.y + ((e.clientY - rect.top) / rect.height) * viewBox.height;
-
-    const zoomFactor = e.deltaY > 0 ? 1.15 : 0.87;
-    const newWidth = Math.max(180, Math.min(1000, viewBox.width * zoomFactor));
-    const newHeight = newWidth * 0.7;
-
-    const newX = cursorSvgX - (cursorSvgX - viewBox.x) * (newWidth / viewBox.width);
-    const newY = cursorSvgY - (cursorSvgY - viewBox.y) * (newHeight / viewBox.height);
-
-    setViewBox({
-      x: Math.max(-100, Math.min(1100 - newWidth, newX)),
-      y: Math.max(-80, Math.min(780 - newHeight, newY)),
-      width: newWidth,
-      height: newHeight
-    });
+    if (e.deltaY === 0 || !svgRef.current) return;
+    const at = atlasClientPoint({ x: e.clientX, y: e.clientY }, svgRef.current.getBoundingClientRect(), viewBox);
+    if (!at) return;
+    setViewBox(zoomAtlasView(viewBox, e.deltaY > 0 ? 1.15 : 0.87, at));
   };
 
-  const handleZoomIn = () => {
-    setViewBox((prev) => {
-      const newWidth = Math.max(180, prev.width * 0.75);
-      const newHeight = newWidth * 0.7;
-      const centeredX = prev.x + (prev.width - newWidth) / 2;
-      const centeredY = prev.y + (prev.height - newHeight) / 2;
-      return {
-        x: Math.max(-100, Math.min(1100 - newWidth, centeredX)),
-        y: Math.max(-80, Math.min(780 - newHeight, centeredY)),
-        width: newWidth,
-        height: newHeight
-      };
-    });
-  };
-
+  const handleZoomIn = () => setViewBox(previous => zoomAtlasView(previous, 0.75));
+  const handleZoomOut = () => setViewBox(previous => zoomAtlasView(previous, 1.33));
   const handleZoomReset = () => {
     setChartArea("sea");
-    setViewBox({ x: 0, y: 0, width: 1000, height: 700 });
+    setViewBox(fullAtlasView());
   };
 
-  const handleZoomOut = () => {
-    setViewBox((prev) => {
-      const newWidth = Math.min(1000, prev.width * 1.33);
-      const newHeight = newWidth * 0.7;
-      return {
-        x: Math.max(-100, Math.min(1100 - newWidth, prev.x - (newWidth - prev.width) / 2)),
-        y: Math.max(-80, Math.min(780 - newHeight, prev.y - (newHeight - prev.height) / 2)),
-        width: newWidth,
-        height: newHeight
-      };
-    });
-  };
+  // React's delegated wheel listener is passive. Own one non-passive listener
+  // on this modal's SVG, and remove it on close; never intercept world input.
+  const wheelHandlerRef = useRef(handleWheel);
+  wheelHandlerRef.current = handleWheel;
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const wheel = (event: WheelEvent) => wheelHandlerRef.current(event);
+    svg.addEventListener("wheel", wheel, { passive: false });
+    return () => svg.removeEventListener("wheel", wheel);
+  }, []);
 
   return (
     <div className="modal-overlay interactive" onClick={onClose}>
@@ -401,6 +363,7 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
             <svg
               ref={svgRef}
               viewBox={chartView}
+              preserveAspectRatio="xMidYMid meet"
               className="map-svg-canvas"
               role="group"
               aria-label={
@@ -410,10 +373,10 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerCancel}
-              onWheel={handleWheel}
-              style={{ cursor: dragRef.current.isDragging ? "grabbing" : "grab" }}
+              onLostPointerCapture={handlePointerCancel}
+              style={{ cursor: dragRef.current.isDragging ? "grabbing" : "grab", touchAction: "none" }}
             >
-              <WorldChartTerrain />
+              <WorldAtlasTerrain />
 
               {/* Handcrafted Medieval POI Emblems - NO permanent copy, tooltip on hover/select */}
               {MAP_NODES.filter(isNodeVisible).map((node) => {
@@ -435,6 +398,8 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                       playUiSound("click");
                       focusNode(node.id);
                     }}
+                    onFocus={() => setHoveredNodeId(node.id)}
+                    onBlur={() => setHoveredNodeId(null)}
                     onPointerEnter={() => setHoveredNodeId(node.id)}
                     onPointerLeave={() => setHoveredNodeId(null)}
                     onKeyDown={(event) => {
@@ -449,6 +414,8 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                     aria-label={isTr ? `${displayName} seç` : `Select ${node.name}`}
                     aria-pressed={isSelected}
                   >
+                    {/* The raster has no baked POI emblems; keep a small live mark. */}
+                    <circle cx={px} cy={py} r={isSelected ? 5 : 3.5} fill={CHART_PAPER} stroke={CHART_INK} strokeWidth="1.1" />
                     {/* Interactive hit halo */}
                     <circle cx={px} cy={py} r={22} fill="transparent" className="map-node-halo" />
                     {isSelected && (
@@ -597,11 +564,16 @@ export const WorldMapModal: React.FC<WorldMapModalProps> = ({
                 })}
               </g>
 
+              {waypointMapPosition && <g data-testid="map-custom-waypoint" transform={`translate(${waypointMapPosition.x}, ${waypointMapPosition.y}) scale(${markerScale})`}>
+                <circle r="5" fill="#9e3223" stroke={CHART_PAPER} strokeWidth="1.3" />
+                <title>{isTr ? "İşaret" : "Waypoint"}</title>
+              </g>}
+
               {/* Player Position Beacon */}
-              <g transform={`translate(${playerMapPosition.x}, ${playerMapPosition.y}) scale(${playerScale})`}>
+              <g data-testid="map-player" transform={`translate(${playerMapPosition.x}, ${playerMapPosition.y}) scale(${playerScale})`}>
                 <circle r="9" fill="none" stroke="#9e3223" strokeWidth="1.05" opacity="0.45" className="player-pulse-ring" />
                 <circle r="4.5" fill="#9e3223" stroke={CHART_PAPER} strokeWidth="1.3" />
-                <polygon points="0,-8 2.2,-1.2 0,-2.4 -2.2,-1.2" fill="#e2c15a" stroke={CHART_INK} strokeWidth="0.5" />
+                <polygon data-testid="map-player-heading" transform={`rotate(${headingDegrees})`} points="0,-8 2.2,-1.2 0,-2.4 -2.2,-1.2" fill="#e2c15a" stroke={CHART_INK} strokeWidth="0.5" />
                 <text y="-10" fill={CHART_INK} fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="serif" opacity="0.9">
                   {isTr ? "SEN" : "YOU"}
                 </text>

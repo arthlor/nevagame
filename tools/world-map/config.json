@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "worldSeed": 42891,
+  "width": 7200,
+  "paddingPixels": 120,
+  "textureWidth": 2048,
+  "textureFile": "world-map-2048.webp",
+  "terrainStepMeters": 2.5,
+  "waterContourStepMeters": 0.5,
+  "waterContourMarginMeters": 32,
+  "webpQuality": 91,
+  "grainSeed": 66
+}
